@@ -76,4 +76,9 @@ export const useCatMutationsMessages = defineMessages({
     id: "dKnvI39kVF",
     description: "Fallback error when locking or unlocking CAT segments fails",
   },
+  failedToUpdateMaxLength: {
+    defaultMessage: "Failed to update character limit",
+    id: "ElyQMTBOLz",
+    description: "Fallback error when updating a native segment max length fails",
+  },
 });

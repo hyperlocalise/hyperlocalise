@@ -233,6 +233,7 @@ const projectFilesFilterProviderKindSchema = z
 
 export const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+  offset: z.coerce.number().int().min(0).optional(),
   search: z.string().trim().max(256).optional(),
   origin: projectFilesFilterOriginSchema.optional(),
   resourceType: projectFilesFilterResourceTypeSchema.optional(),
@@ -388,6 +389,19 @@ export const projectFileCatLockedStringsResponseSchema = successEnvelopeSchema(
   projectFileCatLockedStringsResultSchema,
 );
 
+export const projectFileCatMaxLengthBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalStringId: z.string().trim().min(1).max(128),
+  maxLength: z.union([z.number().int().positive().max(100_000), z.null()]),
+});
+
+export const projectFileCatMaxLengthResponseSchema = z.object({
+  segment: z.object({
+    externalStringId: z.string(),
+    maxLength: z.number().int().positive().optional(),
+  }),
+});
+
 export const projectFileCatImageRegenerateBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
@@ -436,6 +450,7 @@ export const projectSourceStringEntrySchema = z.object({
   text: z.string(),
   context: z.string().nullable(),
   type: z.string().optional(),
+  maxLength: z.number().int().positive().max(100_000).optional(),
   id: z.number().optional(),
 });
 
@@ -798,6 +813,8 @@ export type ProjectFileCatLockedStringsBody = z.infer<typeof projectFileCatLocke
 export type ProjectFileCatLockedStringsResponse = z.infer<
   typeof projectFileCatLockedStringsResponseSchema
 >;
+export type ProjectFileCatMaxLengthBody = z.infer<typeof projectFileCatMaxLengthBodySchema>;
+export type ProjectFileCatMaxLengthResponse = z.infer<typeof projectFileCatMaxLengthResponseSchema>;
 export type ProjectFileCatImageRegenerateBody = z.infer<
   typeof projectFileCatImageRegenerateBodySchema
 >;

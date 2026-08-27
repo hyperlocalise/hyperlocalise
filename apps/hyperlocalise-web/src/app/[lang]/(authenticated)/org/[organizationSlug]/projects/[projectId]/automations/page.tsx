@@ -12,8 +12,12 @@
  */
 import { Suspense } from "react";
 
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
-import { requireWorkspaceFeatureFlag, workspaceAutomationsFlag } from "@/lib/flags/workspace-flags";
+import {
+  getWorkspaceFeatureFlagEnabled,
+  workspaceAutomationsFlag,
+} from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { AutomationsPageContent } from "../../../automations/_components/automations-page-content";
@@ -25,7 +29,12 @@ export default async function ProjectAutomationsPage({
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceAutomationsFlag, auth);
+  const automationsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth);
+
+  if (!automationsEnabled) {
+    return <FeatureTeaserPage feature="automations" scope="project" />;
+  }
+
   const templates = getMergedWorkspaceAutomationTemplates();
 
   return (

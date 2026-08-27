@@ -63,6 +63,7 @@ describe("NativeCatService.getCatFile", () => {
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
   const setKeysHidden = vi.fn();
+  const setKeyMaxLength = vi.fn();
   let service: NativeCatService;
 
   beforeEach(() => {
@@ -94,6 +95,7 @@ describe("NativeCatService.getCatFile", () => {
       countKeysForFile,
       getTranslationsByKeyIds,
       setKeysHidden,
+      setKeyMaxLength,
     } as unknown as ProjectTranslationService;
 
     service = new NativeCatService(undefined as never, translations, {} as NativeCatCommentService);
@@ -486,5 +488,58 @@ describe("NativeCatService.getCatFile", () => {
     ).resolves.toEqual({ updatedCount: 0 });
 
     expect(setKeysHidden).not.toHaveBeenCalled();
+  });
+});
+
+describe("NativeCatService.setKeyMaxLength", () => {
+  const getRepositorySourceFileByPath = vi.fn();
+  const setKeyMaxLength = vi.fn();
+  let service: NativeCatService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
+    setKeyMaxLength.mockResolvedValue({ updated: true, maxLength: 42 });
+
+    const translations = {
+      getRepositorySourceFileByPath,
+      setKeyMaxLength,
+    } as unknown as ProjectTranslationService;
+
+    service = new NativeCatService(undefined as never, translations, {} as NativeCatCommentService);
+  });
+
+  it("scopes max length updates to the source file when sourcePath is provided", async () => {
+    await service.setKeyMaxLength({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyId: "key_1",
+      maxLength: 42,
+      sourcePath: "locales/en.json",
+    });
+
+    expect(setKeyMaxLength).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyId: "key_1",
+      maxLength: 42,
+      repositorySourceFileId: "file_1",
+    });
+  });
+
+  it("does not update max length when the source file is missing", async () => {
+    getRepositorySourceFileByPath.mockResolvedValueOnce(null);
+
+    await expect(
+      service.setKeyMaxLength({
+        organizationId: "org_1",
+        projectId: "project_1",
+        translationKeyId: "key_1",
+        maxLength: 42,
+        sourcePath: "locales/missing.json",
+      }),
+    ).resolves.toEqual({ updated: false, maxLength: null });
+
+    expect(setKeyMaxLength).not.toHaveBeenCalled();
   });
 });

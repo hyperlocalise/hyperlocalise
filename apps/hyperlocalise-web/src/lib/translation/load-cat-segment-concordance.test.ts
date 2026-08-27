@@ -320,13 +320,14 @@ describe("loadCatSegmentConcordance", () => {
           resourceId: "7",
           externalResourceId: "7",
           externalTermId: "11",
+          externalConceptId: "c1",
           termStatus: { forbidden: false, preferred: true },
           concept: {
             id: "c1",
             primaryTerm: "workspace",
             subject: "UI",
             definition: "Product workspace",
-            glossaryUrl: "https://crowdin.com/glossary/7",
+            glossaryUrl: null,
             sourceTerms: [
               {
                 id: "11",
@@ -353,6 +354,7 @@ describe("loadCatSegmentConcordance", () => {
 
     const result = await loadCatSegmentConcordance({
       organizationId: "org_1",
+      organizationSlug: "test-glossary",
       projectId: "ext:crowdin:42",
       providerKind: "crowdin",
       actorUserId: "user_1",
@@ -366,7 +368,8 @@ describe("loadCatSegmentConcordance", () => {
         id: "7:c1",
         glossaryId: "7",
         glossaryName: "Product terms",
-        glossaryUrl: "https://crowdin.com/glossary/7",
+        glossaryUrl: "/org/test-glossary/glossaries/crowdin:glossary:7",
+        conceptUrl: "/org/test-glossary/glossaries/crowdin:glossary:7/concepts/c1",
         primaryTerm: "workspace",
         subject: "UI",
         definition: "Product workspace",
@@ -374,6 +377,77 @@ describe("loadCatSegmentConcordance", () => {
         targetTerms: [
           expect.objectContaining({ id: "12", text: "espace de travail", preferred: true }),
         ],
+      }),
+    ]);
+  });
+
+  it("preserves admitted concept term status in CAT glossaryConcepts", async () => {
+    searchCrowdinCatConcordanceMock.mockResolvedValue({
+      glossaryTerms: [
+        {
+          id: "live:crowdin:7:11:fr",
+          glossaryId: "7",
+          glossaryName: "Product terms",
+          sourceTerm: "workspace",
+          targetTerm: "espace de travail",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          description: null,
+          caseSensitive: false,
+          rank: 1,
+          matchSource: "live_provider",
+          providerKind: "crowdin",
+          resourceId: "7",
+          externalResourceId: "7",
+          externalTermId: "11",
+          termStatus: { forbidden: false, preferred: false },
+          concept: {
+            id: "c1",
+            primaryTerm: "workspace",
+            sourceTerms: [
+              {
+                id: "11",
+                locale: "en",
+                text: "workspace",
+                status: "preferred",
+                preferred: true,
+                forbidden: false,
+              },
+            ],
+            targetTerms: [
+              {
+                id: "12",
+                locale: "fr",
+                text: "espace de travail",
+                status: "admitted",
+                preferred: true,
+                forbidden: false,
+              },
+            ],
+          },
+        },
+      ],
+      translationMemoryMatches: [],
+    });
+
+    const result = await loadCatSegmentConcordance({
+      organizationId: "org_1",
+      organizationSlug: "test-glossary",
+      projectId: "ext:crowdin:42",
+      providerKind: "crowdin",
+      actorUserId: "user_1",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "workspace",
+    });
+
+    expect(result.glossaryConcepts?.[0]?.targetTerms).toEqual([
+      expect.objectContaining({
+        id: "12",
+        text: "espace de travail",
+        status: "admitted",
+        preferred: false,
+        forbidden: false,
       }),
     ]);
   });
@@ -405,6 +479,7 @@ describe("loadCatSegmentConcordance", () => {
 
     const result = await loadCatSegmentConcordance({
       organizationId: "org_1",
+      organizationSlug: "test-glossary",
       projectId: "ext:crowdin:42",
       providerKind: "crowdin",
       actorUserId: "user_1",
@@ -416,6 +491,7 @@ describe("loadCatSegmentConcordance", () => {
     expect(result.glossaryConcepts).toEqual([
       expect.objectContaining({
         id: "7:en:workspace",
+        glossaryUrl: "/org/test-glossary/glossaries/crowdin:glossary:7",
         primaryTerm: "workspace",
         definition: "Workspace area",
         sourceTerms: [
@@ -434,6 +510,105 @@ describe("loadCatSegmentConcordance", () => {
             forbidden: true,
           }),
         ],
+      }),
+    ]);
+    expect(result.glossaryConcepts?.[0]?.conceptUrl).toBeUndefined();
+  });
+
+  it("assigns separate in-app glossary and concept urls per glossary match", async () => {
+    searchCrowdinCatConcordanceMock.mockResolvedValue({
+      glossaryTerms: [
+        {
+          id: "match-a",
+          glossaryId: "7",
+          glossaryName: "Product terms",
+          sourceTerm: "workspace",
+          targetTerm: "espace de travail",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          description: null,
+          caseSensitive: false,
+          rank: 1,
+          matchSource: "live_provider",
+          providerKind: "crowdin",
+          resourceId: "7",
+          externalResourceId: "7",
+          externalTermId: "11",
+          externalConceptId: "42",
+          termStatus: { forbidden: false, preferred: true },
+          concept: {
+            id: "42",
+            primaryTerm: "workspace",
+            glossaryUrl: null,
+            sourceTerms: [
+              { id: "11", locale: "en", text: "workspace", preferred: true, forbidden: false },
+            ],
+            targetTerms: [
+              {
+                id: "12",
+                locale: "fr",
+                text: "espace de travail",
+                preferred: true,
+                forbidden: false,
+              },
+            ],
+          },
+        },
+        {
+          id: "match-b",
+          glossaryId: "9",
+          glossaryName: "Marketing terms",
+          sourceTerm: "workspace",
+          targetTerm: "espace",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          description: null,
+          caseSensitive: false,
+          rank: 1,
+          matchSource: "live_provider",
+          providerKind: "crowdin",
+          resourceId: "9",
+          externalResourceId: "9",
+          externalTermId: "21",
+          externalConceptId: "88",
+          termStatus: { forbidden: false, preferred: true },
+          concept: {
+            id: "88",
+            primaryTerm: "workspace",
+            glossaryUrl: null,
+            sourceTerms: [
+              { id: "21", locale: "en", text: "workspace", preferred: true, forbidden: false },
+            ],
+            targetTerms: [
+              { id: "22", locale: "fr", text: "espace", preferred: true, forbidden: false },
+            ],
+          },
+        },
+      ],
+      translationMemoryMatches: [],
+    });
+
+    const result = await loadCatSegmentConcordance({
+      organizationId: "org_1",
+      organizationSlug: "test-glossary",
+      projectId: "ext:crowdin:42",
+      providerKind: "crowdin",
+      actorUserId: "user_1",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "workspace",
+    });
+
+    expect(result.glossaryConcepts).toEqual([
+      expect.objectContaining({
+        glossaryId: "7",
+        glossaryUrl: "/org/test-glossary/glossaries/crowdin:glossary:7",
+        conceptUrl: "/org/test-glossary/glossaries/crowdin:glossary:7/concepts/42",
+      }),
+      expect.objectContaining({
+        glossaryId: "9",
+        glossaryUrl: "/org/test-glossary/glossaries/crowdin:glossary:9",
+        conceptUrl: "/org/test-glossary/glossaries/crowdin:glossary:9/concepts/88",
       }),
     ]);
   });

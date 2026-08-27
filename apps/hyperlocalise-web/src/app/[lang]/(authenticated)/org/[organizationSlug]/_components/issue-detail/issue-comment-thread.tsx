@@ -40,6 +40,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
@@ -57,7 +58,22 @@ import { IssueRelationshipKindIcon } from "./issue-relationship-kind";
 import { IssueStatusIcon } from "./issue-status-icon";
 import { useIssueCommentMutations, type IssueComment } from "./use-issue-comments";
 import { useIssueFeedQuery } from "./use-issue-feed";
-import type { IssueActivity } from "./use-issue-activities";
+import type { IssueRelationshipPresentedKind } from "./use-issue-relationships-query";
+
+type IssueFeedActivity = Extract<
+  NonNullable<ReturnType<typeof useIssueFeedQuery>["data"]>["pages"][number]["items"][number],
+  { kind: "activity" }
+>["activity"];
+
+function isPresentedRelationshipKind(kind: string): kind is IssueRelationshipPresentedKind {
+  return (
+    kind === "related" ||
+    kind === "blocks" ||
+    kind === "blocked_by" ||
+    kind === "duplicate_of" ||
+    kind === "duplicate"
+  );
+}
 
 function initials(name: string) {
   return name
@@ -377,7 +393,7 @@ function IssueFeedActivityRow({
 function relationshipAddedCopy(
   intl: ReturnType<typeof useIntl>,
   actor: ReactNode,
-  activity: Extract<IssueActivity, { type: "relationship_added" }>,
+  activity: Extract<IssueFeedActivity, { type: "relationship_added" }>,
 ) {
   const relatedIssue = activityName(
     activity.relatedIssue.title ?? intl.formatMessage(messages.unknownIssue),
@@ -406,14 +422,16 @@ function relationshipAddedCopy(
         />
       );
     default:
-      return assertNever(activity.relationshipKind);
+      return (
+        <FormattedMessage {...messages.relationshipAddedRelated} values={{ actor, relatedIssue }} />
+      );
   }
 }
 
 function relationshipRemovedCopy(
   intl: ReturnType<typeof useIntl>,
   actor: ReactNode,
-  activity: Extract<IssueActivity, { type: "relationship_removed" }>,
+  activity: Extract<IssueFeedActivity, { type: "relationship_removed" }>,
 ) {
   const relatedIssue = activityName(
     activity.relatedIssue.title ?? intl.formatMessage(messages.unknownIssue),
@@ -455,7 +473,12 @@ function relationshipRemovedCopy(
         />
       );
     default:
-      return assertNever(activity.relationshipKind);
+      return (
+        <FormattedMessage
+          {...messages.relationshipRemovedRelated}
+          values={{ actor, relatedIssue }}
+        />
+      );
   }
 }
 
@@ -464,7 +487,7 @@ function IssueActivityRow({
   connectAbove = false,
   connectBelow = false,
 }: {
-  activity: IssueActivity;
+  activity: IssueFeedActivity;
   connectAbove?: boolean;
   connectBelow?: boolean;
 }) {
@@ -547,11 +570,15 @@ function IssueActivityRow({
       break;
     case "relationship_added":
       copy = relationshipAddedCopy(intl, actor, activity);
-      icon = <IssueRelationshipKindIcon kind={activity.relationshipKind} />;
+      icon = isPresentedRelationshipKind(activity.relationshipKind) ? (
+        <IssueRelationshipKindIcon kind={activity.relationshipKind} />
+      ) : null;
       break;
     case "relationship_removed":
       copy = relationshipRemovedCopy(intl, actor, activity);
-      icon = <IssueRelationshipKindIcon kind={activity.relationshipKind} />;
+      icon = isPresentedRelationshipKind(activity.relationshipKind) ? (
+        <IssueRelationshipKindIcon kind={activity.relationshipKind} />
+      ) : null;
       break;
     default:
       assertNever(activity);
@@ -593,36 +620,14 @@ export function IssueCommentThread({
     usersSectionLabel: intl.formatMessage(markdownEditorMessages.mentionUsersSection),
     issuesSectionLabel: intl.formatMessage(markdownEditorMessages.mentionIssuesSection),
     search: async (query) => {
-      const params = new URLSearchParams({
-        q: query,
-        projectId,
-        issueId,
-        limit: "5",
-      });
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/mentions?${params.toString()}`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].mentions.$get({
+        param: { organizationSlug },
+        query: { q: query, projectId, issueId, limit: "5" },
+      } as never);
+      if (response.status !== 200) {
         return { users: [], issues: [] };
       }
-      const body = (await response.json()) as {
-        mentionSuggestions: {
-          users: {
-            userId: string;
-            displayName: string;
-            email: string;
-            avatarUrl: string | null;
-            isAgent?: boolean;
-          }[];
-          issues: {
-            issueId: string;
-            projectId: string;
-            displayKey: string;
-            title: string;
-            status: string;
-          }[];
-        };
-      };
+      const body = await response.json();
       return {
         users: body.mentionSuggestions.users.map((user) => ({
           kind: "user" as const,
@@ -631,7 +636,7 @@ export function IssueCommentThread({
           displayName: user.displayName,
           email: user.email,
           avatarUrl: user.avatarUrl,
-          isAgent: user.isAgent,
+          isAgent: false,
         })),
         issues: body.mentionSuggestions.issues.map((issue) => ({
           kind: "issue" as const,

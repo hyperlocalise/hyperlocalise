@@ -18,59 +18,27 @@ import type { CatSegmentIntelligence } from "@/components/cat/shared/types";
 
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
 import { requestCatGlossaryGuidance } from "./cat-glossary-guidance-event";
+import {
+  matchedGlossaryConceptFixture,
+  primaryTermFallbackGlossaryConceptFixture,
+  sourceOnlyGlossaryConceptFixture,
+  untranslatableGlossaryConceptFixture,
+} from "./cat-glossary-concept-card.fixture";
 
 const defaultTargetText = catSegmentsFixture[1]?.targetText ?? "";
 
 const conceptIntelligence: CatSegmentIntelligence = {
   ...catIntelligenceFixture,
   glossaryConcepts: [
-    {
-      id: "concept-reseller",
-      glossaryId: "glossary-project",
-      glossaryName: "Partner Program",
-      glossaryUrl: "https://example.com/project-glossary",
-      primaryTerm: "Reseller",
-      definition: "A company or individual authorized to resell our product.",
-      sourceTerms: [
-        {
-          id: "reseller-en",
-          locale: "en",
-          text: "Reseller",
-          status: "preferred",
-          preferred: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "neuter",
-        },
-      ],
-      targetTerms: [
-        {
-          id: "reseller-vi-preferred",
-          locale: "vi",
-          text: "Đại lý",
-          status: "preferred",
-          preferred: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "neuter",
-        },
-        {
-          id: "reseller-vi-alternate",
-          locale: "vi",
-          text: "Nhà bán lại",
-          status: "not_recommended",
-          forbidden: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "masculine",
-        },
-      ],
-    },
+    matchedGlossaryConceptFixture,
     {
       id: "concept-review",
-      glossaryId: "glossary-project",
-      glossaryName: "Partner Program",
+      glossaryId: "glossary-product",
+      glossaryName: "Product UI",
+      glossaryUrl: "/org/acme/glossaries/glossary-product",
+      conceptUrl: "/org/acme/glossaries/glossary-product/concepts/concept-review",
       primaryTerm: "Review",
+      translatable: true,
       sourceTerms: [{ id: "review-en", locale: "en", text: "Review", preferred: true }],
       targetTerms: [{ id: "review-vi", locale: "vi", text: "Đánh giá", preferred: true }],
     },
@@ -115,12 +83,29 @@ export const Results: Story = {
     await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     await expect(canvas.getByText("Reseller")).toBeInTheDocument();
     await expect(canvas.getByText("Partner Program")).toBeInTheDocument();
+    await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(
       canvas.getByText("A company or individual authorized to resell our product."),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Đại lý")).toBeInTheDocument();
     await expect(canvas.getByText("Nhà bán lại")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Project Glossary")).toHaveLength(2);
+    const openGlossaryLinks = canvas.getAllByRole("link", { name: "Open glossary" });
+    await expect(openGlossaryLinks).toHaveLength(2);
+    await expect(openGlossaryLinks.map((link) => link.getAttribute("href"))).toEqual(
+      expect.arrayContaining([
+        "/org/acme/glossaries/glossary-partner",
+        "/org/acme/glossaries/glossary-product",
+      ]),
+    );
+
+    const openConceptLinks = canvas.getAllByRole("link", { name: "Open concept" });
+    await expect(openConceptLinks).toHaveLength(2);
+    await expect(openConceptLinks.map((link) => link.getAttribute("href"))).toEqual(
+      expect.arrayContaining([
+        "/org/acme/glossaries/glossary-partner/concepts/concept-reseller",
+        "/org/acme/glossaries/glossary-product/concepts/concept-review",
+      ]),
+    );
     await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
     await expect(canvas.getAllByRole("button", { name: "Use" })).toHaveLength(3);
@@ -168,7 +153,63 @@ export const ReadOnly: Story = {
   },
 };
 
-export const LegacyFallback: Story = {
+const untranslatableConceptIntelligence: CatSegmentIntelligence = {
+  ...catIntelligenceFixture,
+  glossaryConcepts: [untranslatableGlossaryConceptFixture],
+};
+
+export const UntranslatableConcept: Story = {
+  args: {
+    intelligence: untranslatableConceptIntelligence,
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("Untranslatable")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise FR")).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
+    await expect(canvas.getByText("Brand name that must stay in English.")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise FR")).not.toBeInTheDocument();
+  },
+};
+
+const sourceOnlyConceptIntelligence: CatSegmentIntelligence = {
+  ...catIntelligenceFixture,
+  glossaryConcepts: [sourceOnlyGlossaryConceptFixture],
+};
+
+export const SourceOnlyConcept: Story = {
+  args: {
+    intelligence: sourceOnlyConceptIntelligence,
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("Dashboard")).toBeInTheDocument();
+    await expect(canvas.getByText("Draft")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
+    await expect(canvas.getAllByText("Dashboard")).toHaveLength(2);
+  },
+};
+
+export const PrimaryTermFallback: Story = {
+  args: {
+    intelligence: {
+      ...catIntelligenceFixture,
+      glossaryConcepts: [primaryTermFallbackGlossaryConceptFixture],
+    },
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("API")).toBeInTheDocument();
+    await expect(canvas.getByText("Draft")).toBeInTheDocument();
+  },
+};
+
+export const ConceptOnlyEmpty: Story = {
   args: {
     intelligence: {
       ...catIntelligenceFixture,
@@ -176,8 +217,11 @@ export const LegacyFallback: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Dashboard", { exact: true })).toBeInTheDocument();
-    await expect(canvas.getByText("Bảng điều khiển", { exact: true })).toBeInTheDocument();
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Bảng điều khiển", { exact: true })).not.toBeInTheDocument();
   },
 };
 

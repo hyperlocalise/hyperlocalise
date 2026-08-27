@@ -14,10 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath } from "./issue-detail-utils";
-import type { IssueSheetColumn } from "./issue-sheet-column-types";
 
 export function issueSheetColumnsQueryKey(organizationSlug: string, projectId: string) {
   return ["issue-sheet-columns", organizationSlug, projectId] as const;
@@ -36,11 +34,15 @@ export function useIssueSheetColumnsQuery({
     queryKey: issueSheetColumnsQueryKey(organizationSlug, projectId),
     enabled,
     queryFn: async () => {
-      const response = await fetch(`${issueSheetApiPath(organizationSlug, projectId)}/columns`);
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns.$get({
+        param: { organizationSlug, projectId },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issue sheet columns");
       }
-      const body = (await response.json()) as { columns: IssueSheetColumn[] };
+      const body = await response.json();
       return body.columns;
     },
   });

@@ -20,11 +20,12 @@ var appleStringsEscaper = strings.NewReplacer(
 )
 
 type stringsEntry struct {
-	key          string
-	sourceValue  string
-	valueLiteral string
-	valueStart   int
-	valueEnd     int
+	key             string
+	sourceValue     string
+	valueLiteral    string
+	valueStart      int
+	valueEnd        int
+	leadingComments string
 }
 
 type stringsDocument struct {
@@ -33,13 +34,31 @@ type stringsDocument struct {
 }
 
 func (p AppleStringsParser) Parse(content []byte) (map[string]string, error) {
-	doc, err := parseStringsDocument(content)
+	entries, err := p.ParseIngestEntries(content)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]string{}
+	for key, entry := range entries {
+		out[key] = entry.Text
+	}
+	return out, nil
+}
+
+// ParseIngestEntries parses Apple .strings files and extracts optional max-length metadata
+// from leading entry comments.
+func (p AppleStringsParser) ParseIngestEntries(content []byte) (map[string]IngestEntry, error) {
+	doc, err := parseStringsDocument(content)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]IngestEntry, len(doc.entries))
 	for _, entry := range doc.entries {
-		out[entry.key] = entry.sourceValue
+		ingestEntry := IngestEntry{Text: entry.sourceValue}
+		if maxLength, ok := ParseMaxLengthFromComment(entry.leadingComments); ok {
+			ingestEntry.MaxLength = maxLength
+		}
+		out[entry.key] = ingestEntry
 	}
 	return out, nil
 }
@@ -97,7 +116,8 @@ func parseStringsDocument(content []byte) (stringsDocument, error) {
 	i := 0
 	for i < len(text) {
 		var lines int
-		next, lines, err := skipStringsTrivia(text, i)
+		var leadingComments string
+		next, lines, leadingComments, err := skipStringsLeadingComments(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
@@ -143,11 +163,12 @@ func parseStringsDocument(content []byte) (stringsDocument, error) {
 		i++
 
 		doc.entries = append(doc.entries, stringsEntry{
-			key:          keyToken.decoded,
-			sourceValue:  valueToken.decoded,
-			valueLiteral: valueToken.raw,
-			valueStart:   valueToken.start,
-			valueEnd:     valueToken.end,
+			key:             keyToken.decoded,
+			sourceValue:     valueToken.decoded,
+			valueLiteral:    valueToken.raw,
+			valueStart:      valueToken.start,
+			valueEnd:        valueToken.end,
+			leadingComments: leadingComments,
 		})
 	}
 
@@ -269,16 +290,19 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 	return b.String(), nil
 }
 
-func skipStringsTrivia(text string, start int) (int, int, error) {
+func skipStringsLeadingComments(text string, start int) (int, int, string, error) {
 	lines := 0
+	var comments []string
 	i, l := skipStringsWhitespace(text, start)
 	lines += l
 	for i < len(text) {
 		if i+1 < len(text) && text[i] == '/' && text[i+1] == '/' {
+			lineStart := i + 2
 			i += 2
 			for i < len(text) && text[i] != '\n' {
 				i++
 			}
+			comments = append(comments, strings.TrimSpace(text[lineStart:i]))
 			i, l = skipStringsWhitespace(text, i)
 			lines += l
 			continue
@@ -286,10 +310,14 @@ func skipStringsTrivia(text string, start int) (int, int, error) {
 		if i+1 < len(text) && text[i] == '/' && text[i+1] == '*' {
 			end := strings.Index(text[i+2:], "*/")
 			if end < 0 {
-				return start, lines, fmt.Errorf("line %d: unterminated block comment", lineNumberAt(text, i))
+				return start, lines, "", fmt.Errorf("line %d: unterminated block comment", lineNumberAt(text, i))
 			}
 			comment := text[i : i+2+end+2]
 			lines += strings.Count(comment, "\n")
+			inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(comment, "/*"), "*/"))
+			if inner != "" {
+				comments = append(comments, inner)
+			}
 			i = i + 2 + end + 2
 			i, l = skipStringsWhitespace(text, i)
 			lines += l
@@ -297,7 +325,7 @@ func skipStringsTrivia(text string, start int) (int, int, error) {
 		}
 		break
 	}
-	return i, lines, nil
+	return i, lines, strings.Join(comments, "\n"), nil
 }
 
 func skipStringsWhitespace(text string, start int) (int, int) {

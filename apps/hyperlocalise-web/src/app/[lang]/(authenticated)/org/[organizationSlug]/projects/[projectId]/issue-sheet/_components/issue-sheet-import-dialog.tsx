@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
   issueSheetSystemFields,
@@ -74,18 +75,6 @@ type ImportResponse = {
 type ImportStep = "upload" | "map" | "preview" | "done";
 
 const createTypeValues: IssueSheetImportColumnType[] = ["text", "long_text", "select"];
-
-function issueSheetImportPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/import`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
 
 function systemFieldLabel(intl: IntlShape, field: IssueSheetSystemField) {
   switch (field) {
@@ -220,10 +209,11 @@ export function IssueSheetImportDialog({
 
   const importMutation = useMutation({
     mutationFn: async (dryRun: boolean) => {
-      const response = await fetch(issueSheetImportPath(organizationSlug, projectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ]["import"].$post({
+        param: { organizationSlug, projectId },
+        json: {
           content: csvContent,
           dryRun,
           mapping: mappings.map((entry) => ({
@@ -231,9 +221,14 @@ export function IssueSheetImportDialog({
             target: entry.target,
           })),
           options: { skipInvalidRows: true },
-        }),
-      });
-      return readJsonOrThrow<ImportResponse>(response, importFailed);
+        },
+      } as never);
+      if (response.status !== 200 && response.status !== 201) {
+        throw new Error(
+          (await readApiResponseError(response, importFailed)).message || importFailed,
+        );
+      }
+      return response.json();
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : importFailed),
   });

@@ -16,14 +16,14 @@ import { defineMessages } from "react-intl";
 
 export const heroSectionMessages = defineMessages({
   headline: {
-    defaultMessage: "The best agentic localisation platform to launch globally in days",
-    id: "31nY7d5ehk",
+    defaultMessage: "Infrastructure for multilingual content operations",
+    id: "A2kYJXCOdt",
     description: "Marketing homepage hero headline",
   },
   body: {
     defaultMessage:
-      "An AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>",
-    id: "3i6/WZOWss",
+      "Enter new markets, generate 10x more multilingual content with the same headcount, and keep quality as you scale.",
+    id: "Gx82rosgM3",
     description: "Marketing homepage hero supporting copy below the headline",
   },
   joinWaitlist: {

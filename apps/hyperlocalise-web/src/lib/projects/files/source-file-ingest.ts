@@ -12,8 +12,10 @@
  */
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 
-import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
-import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
+import {
+  dispatchWorkspaceAutomationForSourceUpload,
+  dispatchWorkspaceAutomationsForSourceUpload,
+} from "@/lib/agents/workspace-automation-dispatcher";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import type { SourceFileIngestEventData, SourceFileIngestQueue } from "@/lib/workflow/types";
@@ -25,16 +27,7 @@ export type { SourceFileIngestEventData };
 export type SourceFileIngestState =
   (typeof schema.repositorySourceFileVersions.$inferSelect)["ingestState"];
 
-export function entriesFromHlOutput(entries: Record<string, string>): ProjectSourceStringEntry[] {
-  return Object.entries(entries)
-    .map(([key, text]) => ({
-      key: key.trim(),
-      text,
-      context: null,
-      type: "string",
-    }))
-    .filter((entry) => entry.key.length > 0 && entry.text.trim().length > 0);
-}
+export { entriesFromHlOutput } from "./hl-entries";
 
 export async function hasIngestedSourceHashForPath(input: {
   organizationId: string;
@@ -150,7 +143,21 @@ export async function dispatchSourceUploadAutomations(input: {
   sourceFileVersionId: string;
   sourcePath: string;
   sourceHash?: string | null;
+  targetAutomationId?: string;
 }) {
+  if (input.targetAutomationId) {
+    await dispatchWorkspaceAutomationForSourceUpload({
+      organizationId: input.organizationId,
+      automationId: input.targetAutomationId,
+      projectId: input.projectId,
+      sourceFileId: input.sourceFileId,
+      sourceFileVersionId: input.sourceFileVersionId,
+      sourcePath: input.sourcePath,
+      sourceHash: input.sourceHash,
+    });
+    return;
+  }
+
   await dispatchWorkspaceAutomationsForSourceUpload({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -199,6 +206,7 @@ export async function enqueueSourceFileIngestAfterUpload(
       sourceFileVersionId: input.sourceFileVersionId,
       sourcePath: input.sourcePath,
       sourceHash: input.sourceHash,
+      targetAutomationId: input.targetAutomationId,
     }).catch((error) => {
       logger.warn(
         {
@@ -222,6 +230,7 @@ export async function enqueueSourceFileIngestAfterUpload(
     projectId: input.projectId,
     storedFileId: input.storedFileId,
     sourcePath: input.sourcePath,
+    targetAutomationId: input.targetAutomationId,
   });
 
   logger.info(

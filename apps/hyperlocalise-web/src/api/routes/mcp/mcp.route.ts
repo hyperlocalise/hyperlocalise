@@ -51,10 +51,12 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
+import { isErr } from "@/lib/primitives/result/results";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
-  client_id: z.string().min(1).max(128),
+  client_id: z.string().min(1).max(2048),
   redirect_uri: z.url().max(2048),
   code_challenge: z.string().min(32).max(128),
   code_challenge_method: z.literal("S256"),
@@ -68,13 +70,13 @@ const tokenRequestSchema = z.discriminatedUnion("grant_type", [
     grant_type: z.literal("authorization_code"),
     code: z.string().min(1).max(8192),
     redirect_uri: z.url().max(2048),
-    client_id: z.string().min(1).max(128),
+    client_id: z.string().min(1).max(2048),
     code_verifier: z.string().min(43).max(128),
   }),
   z.object({
     grant_type: z.literal("refresh_token"),
     refresh_token: z.string().min(1).max(8192),
-    client_id: z.string().min(1).max(128).optional(),
+    client_id: z.string().min(1).max(2048).optional(),
   }),
 ]);
 
@@ -96,21 +98,35 @@ function isAllowedRedirectUri(redirectUri: string): boolean {
   return url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
 }
 
-async function findRegisteredMcpClient(clientId: string, redirectUri: string) {
-  const [client] = await db
+async function findMcpClient(clientId: string, redirectUri: string) {
+  const [registeredClient] = await db
     .select({
       clientId: schema.mcpOAuthClients.clientId,
+      clientName: schema.mcpOAuthClients.clientName,
       redirectUris: schema.mcpOAuthClients.redirectUris,
     })
     .from(schema.mcpOAuthClients)
     .where(eq(schema.mcpOAuthClients.clientId, clientId))
     .limit(1);
 
-  if (!client?.redirectUris.includes(redirectUri)) {
+  if (registeredClient?.redirectUris.includes(redirectUri)) {
+    return registeredClient;
+  }
+
+  if (!clientId.startsWith("https://")) {
     return null;
   }
 
-  return client;
+  const metadataResult = await resolveMcpClientMetadata({
+    clientId,
+    redirectUri,
+  });
+
+  if (isErr(metadataResult)) {
+    return null;
+  }
+
+  return metadataResult.value;
 }
 
 function endpointOrigin(c: { req: { url: string } }) {
@@ -127,8 +143,16 @@ function secureCookieOptions(maxAgeSeconds: number) {
   };
 }
 
-function storeMcpAuthRequestCookie(c: Parameters<typeof setCookie>[0], token: string) {
+const MAX_MCP_AUTH_REQUEST_COOKIE_VALUE_LENGTH = 3_500;
+
+function storeMcpAuthRequestCookie(c: Parameters<typeof setCookie>[0], token: string): boolean {
+  if (token.length > MAX_MCP_AUTH_REQUEST_COOKIE_VALUE_LENGTH) {
+    return false;
+  }
+
   setCookie(c, MCP_AUTH_REQUEST_COOKIE, token, secureCookieOptions(15 * 60));
+
+  return true;
 }
 
 function storeMcpConsentCookie(c: Parameters<typeof setCookie>[0], token: string) {
@@ -229,7 +253,9 @@ export function getMcpAuthorizationServerMetadata(origin: string, apiBasePath = 
     issuer: origin,
     authorization_endpoint: `${origin}${mcpBasePath}/authorize`,
     token_endpoint: `${origin}${mcpBasePath}/token`,
-    registration_endpoint: `${origin}${mcpBasePath}/register`,
+    ...(env.MCP_ALLOW_DYNAMIC_REGISTRATION
+      ? { registration_endpoint: `${origin}${mcpBasePath}/register` }
+      : {}),
     scopes_supported: ["mcp"],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
@@ -237,6 +263,7 @@ export function getMcpAuthorizationServerMetadata(origin: string, apiBasePath = 
     token_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"],
     service_documentation: "https://hyperlocalise.com",
+    client_id_metadata_document_supported: true,
   };
 }
 
@@ -553,13 +580,15 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.json({ error: "invalid_redirect_uri" }, 400);
       }
 
-      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+      const client = await findMcpClient(query.client_id, query.redirect_uri);
+
       if (!client) {
         return c.json({ error: "invalid_client" }, 400);
       }
 
       const authRequest = createMcpAuthorizationRequest({
         clientId: query.client_id,
+        clientName: client.clientName ?? undefined,
         redirectUri: query.redirect_uri,
         codeChallenge: query.code_challenge,
         codeChallengeMethod: query.code_challenge_method,
@@ -567,7 +596,10 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         state: query.state,
         organizationSlug: query.organizationSlug,
       });
-      storeMcpAuthRequestCookie(c, authRequest);
+
+      if (!storeMcpAuthRequestCookie(c, authRequest)) {
+        return c.json({ error: "invalid_request" }, 400);
+      }
 
       const callbackUrl = buildCallbackUrl(apiBasePath, endpointOrigin(c), query);
       const signInUrl = new URL("/auth/sign-in", endpointOrigin(c));
@@ -589,11 +621,6 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.json({ error: "invalid_request" }, 400);
       }
 
-      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
-      if (!client) {
-        return c.json({ error: "invalid_client" }, 400);
-      }
-
       const auth = await resolveApiAuthContextFromSession({
         organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
       });
@@ -605,12 +632,6 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.redirect(signInUrl.toString(), 302);
       }
 
-      const [registeredClient] = await db
-        .select({ clientName: schema.mcpOAuthClients.clientName })
-        .from(schema.mcpOAuthClients)
-        .where(eq(schema.mcpOAuthClients.clientId, query.client_id))
-        .limit(1);
-
       const consentUrl = new URL(`${apiBasePath}/mcp/consent`, endpointOrigin(c));
       for (const [key, value] of Object.entries(query)) {
         if (value !== undefined) {
@@ -620,7 +641,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
 
       return c.html(
         renderMcpConsentPage({
-          clientName: registeredClient?.clientName ?? null,
+          clientName: authRequest.clientName ?? null,
           redirectUri: query.redirect_uri,
           organizationName: auth.organization.name,
           scope: query.scope,
@@ -643,11 +664,6 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.json({ error: "invalid_request" }, 400);
       }
 
-      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
-      if (!client) {
-        return c.json({ error: "invalid_client" }, 400);
-      }
-
       const auth = await resolveApiAuthContextFromSession({
         organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
       });
@@ -668,15 +684,13 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     })
     .get("/mcp/callback", validateAuthorizationQuery, async (c) => {
       const query = c.req.valid("query");
-      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
 
-      if (!client) {
-        return c.json({ error: "invalid_client" }, 400);
+      if (!isAllowedRedirectUri(query.redirect_uri)) {
+        return c.json({ error: "invalid_redirect_uri" }, 400);
       }
 
       const authRequestToken = getCookie(c, MCP_AUTH_REQUEST_COOKIE);
       const authRequest = authRequestToken ? parseMcpAuthorizationRequest(authRequestToken) : null;
-
       if (
         !authRequest ||
         authRequest.clientId !== query.client_id ||

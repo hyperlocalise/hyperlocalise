@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { requireWorkspaceFeatureFlag, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
+import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { DomainDetailPageContent } from "./_components/domain-detail-page-content";
@@ -22,7 +23,11 @@ export default async function DomainDetailPage({
 }) {
   const { organizationSlug, linkedDomainId } = await params;
   const auth = await requireAppCapability("projects:read", { organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceDomainsFlag, auth);
+  const domainsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceDomainsFlag, auth);
+
+  if (!domainsEnabled) {
+    return <FeatureTeaserPage feature="domains" scope="workspace" />;
+  }
 
   return (
     <DomainDetailPageContent organizationSlug={organizationSlug} linkedDomainId={linkedDomainId} />

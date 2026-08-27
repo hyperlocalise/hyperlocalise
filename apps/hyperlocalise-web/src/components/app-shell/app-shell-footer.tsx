@@ -18,6 +18,7 @@ import {
   CheckmarkCircle02Icon,
   CustomerSupportIcon,
   MinusSignCircleIcon,
+  ClipboardListIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -36,6 +37,12 @@ import {
   requestCatGlossaryGuidance,
   subscribeCatGlossaryGuidance,
 } from "@/components/cat/intelligence/cat-glossary-guidance-event";
+import {
+  getCatIssueGuidanceServerSnapshot,
+  getCatIssueGuidanceStatus,
+  requestCatIssueGuidance,
+  subscribeCatIssueGuidance,
+} from "@/components/cat/issues/cat-issue-guidance-event";
 import { Button } from "@/components/ui/button";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
@@ -45,11 +52,13 @@ export function AppShellFooter({
   organizationSlug,
   showPlan,
   showGlossaryGuidance = false,
+  showIssueGuidance = false,
   currentUser,
 }: {
   organizationSlug: string;
   showPlan: boolean;
   showGlossaryGuidance?: boolean;
+  showIssueGuidance?: boolean;
   currentUser?: InboxCurrentUser;
 }) {
   const intl = useIntl();
@@ -58,6 +67,11 @@ export function AppShellFooter({
     subscribeCatGlossaryGuidance,
     getCatGlossaryGuidanceStatus,
     getCatGlossaryGuidanceServerSnapshot,
+  );
+  const issueGuidanceStatus = useSyncExternalStore(
+    subscribeCatIssueGuidance,
+    getCatIssueGuidanceStatus,
+    getCatIssueGuidanceServerSnapshot,
   );
 
   return (
@@ -81,7 +95,8 @@ export function AppShellFooter({
                 className="gap-1.5 px-2"
                 onClick={requestCatGlossaryGuidance}
                 aria-label={intl.formatMessage(
-                  glossaryGuidanceStatus.preferredCount > 0 ||
+                  glossaryGuidanceStatus.matchCount > 0 ||
+                    glossaryGuidanceStatus.preferredCount > 0 ||
                     glossaryGuidanceStatus.notRecommendedCount > 0
                     ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
                     : appShellFooterMessages.glossaryGuidanceAriaLabel,
@@ -111,6 +126,31 @@ export function AppShellFooter({
                     <span className="tabular-nums">
                       {glossaryGuidanceStatus.notRecommendedCount}
                     </span>
+                  </span>
+                ) : null}
+              </Button>
+            ) : null}
+            {showIssueGuidance && issueGuidanceStatus.available ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="gap-1.5 px-2"
+                onClick={requestCatIssueGuidance}
+                aria-label={intl.formatMessage(
+                  issueGuidanceStatus.openIssueCount > 0
+                    ? appShellFooterMessages.issueGuidanceAvailableAriaLabel
+                    : appShellFooterMessages.issueGuidanceAriaLabel,
+                  issueGuidanceStatus.openIssueCount > 0
+                    ? { count: issueGuidanceStatus.openIssueCount }
+                    : undefined,
+                )}
+              >
+                <HugeiconsIcon icon={ClipboardListIcon} strokeWidth={2} className="size-3.5" />
+                <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
+                {issueGuidanceStatus.openIssueCount > 0 ? (
+                  <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
+                    {issueGuidanceStatus.openIssueCount}
                   </span>
                 ) : null}
               </Button>

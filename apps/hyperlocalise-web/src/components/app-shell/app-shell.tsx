@@ -17,7 +17,7 @@ import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -49,7 +49,7 @@ export async function AppShell({
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
   const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
-  const navigationGroups = filterNavigationByWorkspaceFlags(
+  const navigationGroups = annotateNavigationByWorkspaceFlags(
     buildGlobalNavigationGroups(activeOrganizationSlug, intl),
     workspaceFeatureFlags,
   );

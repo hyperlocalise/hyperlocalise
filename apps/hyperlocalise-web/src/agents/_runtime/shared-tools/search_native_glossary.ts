@@ -10,20 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { schema } from "@/lib/database";
-import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import { searchGlossaryConcordance } from "@/lib/glossary/glossary-concordance";
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
-
-import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
-
-const nativeSourceTerms = alias(schema.glossaryTerms, "agent_native_source_terms");
-const nativeTargetTerms = alias(schema.glossaryTerms, "agent_native_target_terms");
 
 const searchNativeGlossaryInputSchema = z.object({
   sourceText: z
@@ -64,6 +58,49 @@ const searchNativeGlossaryOutputSchema = z.object({
 export type SearchNativeGlossaryToolInput = z.infer<typeof searchNativeGlossaryInputSchema>;
 export type SearchNativeGlossaryToolOutput = z.infer<typeof searchNativeGlossaryOutputSchema>;
 
+async function resolveNativeGlossaryIds(
+  ctx: ToolContext,
+  input: { projectId?: string; sourceLocale: string },
+): Promise<string[] | { error: string }> {
+  if (input.projectId) {
+    const accessibleProject = await toolCanAccessProject(ctx, input.projectId);
+    if (!accessibleProject) {
+      return { error: "Project not found or not accessible." };
+    }
+
+    const attached = await ctx.db
+      .select({ glossaryId: schema.projectGlossaries.glossaryId })
+      .from(schema.projectGlossaries)
+      .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
+      .where(
+        and(
+          eq(schema.projectGlossaries.projectId, input.projectId),
+          eq(schema.projectGlossaries.organizationId, ctx.organizationId),
+          eq(schema.glossaries.source, "native"),
+          eq(schema.glossaries.sourceLocale, input.sourceLocale),
+          eq(schema.glossaries.status, "active"),
+        ),
+      );
+
+    return attached.map((row) => row.glossaryId);
+  }
+
+  const linkedGlossaryWhere = await toolProjectLinkedGlossaryWhere(ctx);
+  const glossaries = await ctx.db
+    .select({ id: schema.glossaries.id })
+    .from(schema.glossaries)
+    .where(
+      and(
+        linkedGlossaryWhere,
+        eq(schema.glossaries.source, "native"),
+        eq(schema.glossaries.sourceLocale, input.sourceLocale),
+        eq(schema.glossaries.status, "active"),
+      ),
+    );
+
+  return glossaries.map((glossary) => glossary.id);
+}
+
 export function createSearchNativeGlossaryTool(ctx: ToolContext) {
   return defineAgentTool({
     description:
@@ -79,153 +116,42 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
       }
 
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
-      const tsQuery = buildNativeGlossaryTsQuery(input.sourceText);
-      if (!tsQuery) {
+      const glossaryIdsResult = await resolveNativeGlossaryIds(ctx, {
+        projectId,
+        sourceLocale: input.sourceLocale,
+      });
+      if ("error" in glossaryIdsResult) {
+        return {
+          success: false,
+          error: glossaryIdsResult.error,
+        };
+      }
+
+      if (glossaryIdsResult.length === 0) {
         return { success: true, terms: [] };
       }
 
-      let glossaryIds: string[] | undefined;
-      if (projectId) {
-        const accessibleProject = await toolCanAccessProject(ctx, projectId);
-        if (!accessibleProject) {
-          return {
-            success: false,
-            error: "Project not found or not accessible.",
-          };
-        }
-
-        const attached = await ctx.db
-          .select({ glossaryId: schema.projectGlossaries.glossaryId })
-          .from(schema.projectGlossaries)
-          .innerJoin(
-            schema.glossaries,
-            eq(schema.projectGlossaries.glossaryId, schema.glossaries.id),
-          )
-          .where(
-            and(
-              eq(schema.projectGlossaries.projectId, projectId),
-              eq(schema.projectGlossaries.organizationId, ctx.organizationId),
-              eq(schema.glossaries.source, "native"),
-            ),
-          );
-        glossaryIds = attached.map((row) => row.glossaryId);
-        if (glossaryIds.length === 0) {
-          return { success: true, terms: [] };
-        }
-      }
-
-      const linkedGlossaryWhere = await toolProjectLinkedGlossaryWhere(ctx);
-      const conditions = [
-        sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        sql`case
-          when coalesce(${schema.glossaryTerms.caseSensitive}, false)
-            then position(${schema.glossaryTerms.sourceTerm} in ${input.sourceText}) > 0
-          else position(lower(${schema.glossaryTerms.sourceTerm}) in lower(${input.sourceText})) > 0
-        end`,
-        linkedGlossaryWhere,
-        eq(schema.glossaries.source, "native"),
-        eq(schema.glossaries.sourceLocale, input.sourceLocale),
-        eq(schema.glossaries.targetLocale, input.targetLocale),
-        eq(schema.glossaries.status, "active"),
-        eq(schema.glossaryTerms.reviewStatus, "approved"),
-      ];
-
-      if (glossaryIds) {
-        conditions.push(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
-      }
-
-      const [terms, conceptTerms] = await Promise.all([
-        ctx.db
-          .select({
-            id: schema.glossaryTerms.id,
-            sourceTerm: schema.glossaryTerms.sourceTerm,
-            targetTerm: schema.glossaryTerms.targetTerm,
-            description: schema.glossaryTerms.description,
-            forbidden: schema.glossaryTerms.forbidden,
-            caseSensitive: schema.glossaryTerms.caseSensitive,
-            glossaryId: schema.glossaryTerms.glossaryId,
-            glossaryName: schema.glossaries.name,
-            rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-              "rank",
-            ),
-          })
-          .from(schema.glossaryTerms)
-          .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-          .where(and(...conditions))
-          .orderBy(desc(sql`rank`))
-          .limit(input.limit),
-        ctx.db
-          .select({
-            id: nativeTargetTerms.id,
-            sourceTerm: sql<string>`${nativeSourceTerms.term}`,
-            targetTerm: sql<string>`${nativeTargetTerms.term}`,
-            description: nativeSourceTerms.description,
-            forbidden: nativeSourceTerms.forbidden,
-            caseSensitive: nativeSourceTerms.caseSensitive,
-            glossaryId: nativeSourceTerms.glossaryId,
-            glossaryName: schema.glossaries.name,
-            rank: sql<number>`ts_rank(${nativeSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-              "rank",
-            ),
-          })
-          .from(nativeSourceTerms)
-          .innerJoin(
-            nativeTargetTerms,
-            and(
-              eq(nativeSourceTerms.glossaryId, nativeTargetTerms.glossaryId),
-              eq(nativeSourceTerms.conceptId, nativeTargetTerms.conceptId),
-            ),
-          )
-          .innerJoin(schema.glossaries, eq(nativeSourceTerms.glossaryId, schema.glossaries.id))
-          .where(
-            and(
-              sql`${nativeSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-              sql`case
-                when coalesce(${nativeSourceTerms.caseSensitive}, false)
-                  then position(${nativeSourceTerms.term} in ${input.sourceText}) > 0
-                else position(lower(${nativeSourceTerms.term}) in lower(${input.sourceText})) > 0
-              end`,
-              linkedGlossaryWhere,
-              eq(schema.glossaries.source, "native"),
-              eq(schema.glossaries.sourceLocale, input.sourceLocale),
-              eq(nativeSourceTerms.locale, input.sourceLocale),
-              eq(nativeTargetTerms.locale, input.targetLocale),
-              eq(schema.glossaries.status, "active"),
-              isNotNull(nativeSourceTerms.conceptId),
-              isNotNull(nativeSourceTerms.term),
-              isNotNull(nativeTargetTerms.term),
-              eq(nativeSourceTerms.reviewStatus, "approved"),
-              eq(nativeTargetTerms.reviewStatus, "approved"),
-              glossaryIds ? inArray(nativeSourceTerms.glossaryId, glossaryIds) : undefined,
-            ),
-          )
-          .orderBy(desc(sql`rank`))
-          .limit(input.limit),
-      ]);
-
-      // Keep the shared application-level check as a defense against database
-      // and JavaScript containment semantics drifting apart.
-      const sourceMatchedTerms = [...terms, ...conceptTerms]
-        .filter((term) =>
-          sourceContainsTerm(input.sourceText, {
-            sourceTerm: term.sourceTerm,
-            caseSensitive: term.caseSensitive ?? false,
-          }),
-        )
-        .toSorted((left, right) => right.rank - left.rank)
-        .slice(0, input.limit);
+      const matches = await searchGlossaryConcordance({
+        organizationId: ctx.organizationId,
+        projectId,
+        glossaryIds: glossaryIdsResult,
+        sourceLocale: input.sourceLocale,
+        targetLocales: [input.targetLocale],
+        sourceText: input.sourceText,
+        limit: input.limit,
+      });
 
       return {
         success: true,
-        terms: sourceMatchedTerms.map((term) => ({
-          id: term.id,
-          sourceTerm: term.sourceTerm,
-          targetTerm: term.targetTerm,
-          description: term.description,
-          forbidden: term.forbidden,
-          glossaryId: term.glossaryId,
-          glossaryName: term.glossaryName,
-          rank: term.rank,
+        terms: matches.map((match) => ({
+          id: match.id,
+          sourceTerm: match.sourceTerm,
+          targetTerm: match.targetTerm,
+          description: match.description,
+          forbidden: match.termStatus.forbidden,
+          glossaryId: match.glossaryId,
+          glossaryName: match.glossaryName,
+          rank: match.rank,
         })),
       };
     },

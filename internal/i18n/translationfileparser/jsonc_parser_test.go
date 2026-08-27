@@ -156,3 +156,127 @@ func TestJSONCParserParseWithContextDoesNotLeakSingleLineObjectScopeToSiblingKey
 		t.Fatalf("did not expect leaked opts.title context: %q", contextByKey["opts.title"])
 	}
 }
+
+func TestCleanJSONCCommentText(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "line comment",
+			in:   "// translator hint",
+			want: "translator hint",
+		},
+		{
+			name: "block comment",
+			in:   "/* translator hint */",
+			want: "translator hint",
+		},
+		{
+			name: "line comment with block markers",
+			in:   "///* translator hint */",
+			want: "translator hint",
+		},
+		{
+			name: "empty input",
+			in:   "",
+			want: "",
+		},
+		{
+			name: "whitespace only",
+			in:   "   \t  ",
+			want: "",
+		},
+		{
+			name: "line comment markers only",
+			in:   "//",
+			want: "",
+		},
+		{
+			name: "block comment markers only",
+			in:   "/* */",
+			want: "",
+		},
+		{
+			name: "padded line comment",
+			in:   "  //  padded hint  ",
+			want: "padded hint",
+		},
+		{
+			name: "padded block comment",
+			in:   "  /*  padded hint  */  ",
+			want: "padded hint",
+		},
+		{
+			name: "text containing comment markers",
+			in:   "// use /* and */ literally in hint",
+			want: "use /* and */ literally in hint",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cleanJSONCCommentText([]byte(tt.in))
+			if got != tt.want {
+				t.Fatalf("cleanJSONCCommentText(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestJSONCParserParseWithContextHandlesMultilineBlockComment(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  /*
+   Checkout submit button.
+   Shown on the payment step.
+   */
+  "checkout_submit": "Submit"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["checkout_submit"] != "Submit" {
+		t.Fatalf("unexpected checkout_submit message: %q", messages["checkout_submit"])
+	}
+
+	want := "Checkout submit button.\nShown on the payment step."
+	if contextByKey["checkout_submit"] != want {
+		t.Fatalf("unexpected checkout_submit context: %q", contextByKey["checkout_submit"])
+	}
+}
+
+func TestJSONCParserParseWithContextCombinesMultiplePendingLineComments(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  // First hint about tone.
+  // Second hint about length limits.
+  "hero_title": "Welcome"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["hero_title"] != "Welcome" {
+		t.Fatalf("unexpected hero_title message: %q", messages["hero_title"])
+	}
+
+	want := "First hint about tone.\nSecond hint about length limits."
+	if contextByKey["hero_title"] != want {
+		t.Fatalf("unexpected hero_title context: %q", contextByKey["hero_title"])
+	}
+}
+
+func TestJSONCParserParseWithContextHandlesLineCommentWithBlockMarkers(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  ///* translator hint */
+  "cta_label": "Get started"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["cta_label"] != "Get started" {
+		t.Fatalf("unexpected cta_label message: %q", messages["cta_label"])
+	}
+	if contextByKey["cta_label"] != "translator hint" {
+		t.Fatalf("unexpected cta_label context: %q", contextByKey["cta_label"])
+	}
+}

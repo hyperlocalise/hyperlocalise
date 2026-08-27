@@ -12,11 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -30,8 +30,14 @@ import {
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
 import { Button } from "@/components/ui/button";
 import { isOpenIssueStatus } from "@/components/cat/queue/cat-queue-filter";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
+import {
+  CAT_ISSUE_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
+  setCatIssueGuidanceStatus,
+} from "./cat-issue-guidance-event";
 import { catEditorIssuesSectionMessages as messages } from "./cat-editor-issues-section.messages";
 
 type IssueSheetListIssue = {
@@ -46,28 +52,12 @@ type IssueSheetListIssue = {
   values?: Record<string, unknown>;
 };
 
-type IssueSheetListResponse = {
-  issues: IssueSheetListIssue[];
-  /** Row count for the requested filters, independent of paging. */
-  total?: number;
-};
-
 /** Maximum accepted by the issue sheet list endpoint. */
 const SEGMENT_ISSUE_PAGE_SIZE = 100;
 /** Bounds the paging loop; one string in one locale never gets close to this. */
 const SEGMENT_ISSUE_MAX_PAGES = 5;
-
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
+const ISSUE_PANEL_FRAME_CLASSNAME =
+  "fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[38rem]";
 
 function cellString(value: unknown) {
   if (value == null) {
@@ -90,6 +80,8 @@ export function CatEditorIssuesSection({
   stringLink,
   canCreate,
   onOpenIssueCountChange,
+  open = false,
+  onOpenChange,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -98,12 +90,37 @@ export function CatEditorIssuesSection({
   stringLink: IssueSheetCreateStringLink | null;
   canCreate: boolean;
   onOpenIssueCountChange?: (openIssueCount: number) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const requestFailed = intl.formatMessage(messages.requestFailed);
+  const openIssueGuidance = useEffectEvent(() => {
+    onOpenChange?.(true);
+  });
+  const reportOpenIssueCount = useEffectEvent((openCount: number) => {
+    onOpenIssueCountChange?.(openCount);
+  });
+
+  useEffect(() => {
+    function handleOpenIssueGuidance() {
+      openIssueGuidance();
+    }
+
+    window.addEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, handleOpenIssueGuidance);
+    return () => {
+      window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, handleOpenIssueGuidance);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setCreateOpen(false);
+    }
+  }, [open]);
 
   // A translation key is shared across locales, so scope to the locale being
   // edited to match the segment the panel is showing.
@@ -141,12 +158,21 @@ export function CatEditorIssuesSection({
       const issues: IssueSheetListIssue[] = [];
 
       for (let page = 0; page < SEGMENT_ISSUE_MAX_PAGES; page += 1) {
-        const params = new URLSearchParams(apiQuery);
-        params.set("offset", String(page * SEGMENT_ISSUE_PAGE_SIZE));
-        const response = await fetch(
-          `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
-        );
-        const body = await readJsonOrThrow<IssueSheetListResponse>(response, requestFailed);
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+          "issue-sheet"
+        ].$get({
+          param: { organizationSlug, projectId },
+          query: {
+            ...apiQuery,
+            offset: String(page * SEGMENT_ISSUE_PAGE_SIZE),
+          },
+        } as never);
+        if (response.status !== 200) {
+          throw new Error(
+            (await readApiResponseError(response, requestFailed)).message || requestFailed,
+          );
+        }
+        const body = await response.json();
         issues.push(...body.issues);
 
         const total = body.total ?? issues.length;
@@ -155,7 +181,7 @@ export function CatEditorIssuesSection({
         }
       }
 
-      return { issues } satisfies IssueSheetListResponse;
+      return { issues };
     },
   });
 
@@ -175,19 +201,20 @@ export function CatEditorIssuesSection({
       })),
     [issuesQuery.data?.issues, projectId],
   );
+  const openIssueCount = (issuesQuery.data?.issues ?? []).filter((issue) =>
+    isOpenIssueStatus(issue.status),
+  ).length;
 
   useEffect(() => {
-    if (!onOpenIssueCountChange || !translationKeyId) {
-      return;
+    if (issuesQuery.data) {
+      reportOpenIssueCount(openIssueCount);
     }
-    if (!issuesQuery.data) {
-      return;
-    }
-    const openCount = (issuesQuery.data.issues ?? []).filter((issue) =>
-      isOpenIssueStatus(issue.status),
-    ).length;
-    onOpenIssueCountChange(openCount);
-  }, [issuesQuery.data, onOpenIssueCountChange, translationKeyId]);
+    setCatIssueGuidanceStatus({ available: true, openIssueCount });
+  }, [issuesQuery.data, openIssueCount]);
+
+  useEffect(() => {
+    return () => setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+  }, []);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({
@@ -195,60 +222,59 @@ export function CatEditorIssuesSection({
     });
   };
 
+  if (!open) {
+    return null;
+  }
+
   if (!translationKeyId) {
     return (
-      <section className="space-y-3 border-t border-border pt-5">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          <FormattedMessage {...messages.title} />
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...messages.unavailable} />
-        </p>
-      </section>
+      <IssuePanelFrame canCreate={false} onClose={() => onOpenChange?.(false)}>
+        <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+          <div className="w-full rounded-xl border bg-card px-4 py-12 text-center">
+            <p className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.unavailable} />
+            </p>
+          </div>
+        </div>
+      </IssuePanelFrame>
     );
   }
 
   return (
-    <section className="space-y-3 border-t border-border pt-5">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          <FormattedMessage {...messages.title} />
-        </h3>
-        {canCreate && stringLink ? (
-          <Button variant="ghost" size="sm" onClick={() => setCreateOpen(true)}>
-            <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
-            <FormattedMessage {...messages.createIssue} />
-          </Button>
-        ) : null}
+    <IssuePanelFrame
+      canCreate={canCreate && Boolean(stringLink)}
+      onCreate={() => setCreateOpen(true)}
+      onClose={() => onOpenChange?.(false)}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <IssueGroupedList
+          organizationSlug={organizationSlug}
+          issues={listIssues}
+          showProject={false}
+          isLoading={issuesQuery.isLoading}
+          isError={issuesQuery.isError}
+          onIssueActivate={(issue) => {
+            router.push(
+              buildIssueDetailHref({
+                organizationSlug,
+                projectId,
+                issueId: issue.id,
+              }),
+            );
+          }}
+          empty={
+            <div className="px-1 py-2">
+              <p className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.emptyTitle} />
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <FormattedMessage {...messages.emptyDescription} />
+              </p>
+            </div>
+          }
+          error={<FormattedMessage {...messages.loadError} />}
+        />
       </div>
-
-      <IssueGroupedList
-        organizationSlug={organizationSlug}
-        issues={listIssues}
-        showProject={false}
-        isLoading={issuesQuery.isLoading}
-        isError={issuesQuery.isError}
-        onIssueActivate={(issue) => {
-          router.push(
-            buildIssueDetailHref({
-              organizationSlug,
-              projectId,
-              issueId: issue.id,
-            }),
-          );
-        }}
-        empty={
-          <div className="px-1 py-2">
-            <p className="text-sm font-medium text-foreground">
-              <FormattedMessage {...messages.emptyTitle} />
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <FormattedMessage {...messages.emptyDescription} />
-            </p>
-          </div>
-        }
-        error={<FormattedMessage {...messages.loadError} />}
-      />
 
       {stringLink ? (
         <IssueSheetCreateIssueDialog
@@ -263,6 +289,65 @@ export function CatEditorIssuesSection({
           onCreated={refresh}
         />
       ) : null}
+    </IssuePanelFrame>
+  );
+}
+
+function IssuePanelFrame({
+  canCreate,
+  onCreate,
+  onClose,
+  children,
+}: {
+  canCreate: boolean;
+  onCreate?: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const intl = useIntl();
+
+  return (
+    <section
+      className={ISSUE_PANEL_FRAME_CLASSNAME}
+      aria-label={intl.formatMessage(messages.title)}
+    >
+      <IssuePanelHeader canCreate={canCreate} onCreate={onCreate} onClose={onClose} />
+      {children}
     </section>
+  );
+}
+
+function IssuePanelHeader({
+  canCreate,
+  onCreate,
+  onClose,
+}: {
+  canCreate: boolean;
+  onCreate?: () => void;
+  onClose: () => void;
+}) {
+  const intl = useIntl();
+
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+      <h2 className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
+        <FormattedMessage {...messages.title} />
+      </h2>
+      {canCreate && onCreate ? (
+        <Button type="button" variant="ghost" size="sm" onClick={onCreate}>
+          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+          <FormattedMessage {...messages.createIssue} />
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label={intl.formatMessage(messages.close)}
+        onClick={onClose}
+      >
+        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+      </Button>
+    </header>
   );
 }

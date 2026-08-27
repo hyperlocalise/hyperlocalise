@@ -35,4 +35,9 @@ export const appShellNavigationMessages = defineMessages({
     id: "90L8I4Y/Gl",
     description: "Sidebar tooltip combining a navigation item label and its badge",
   },
+  previewBadge: {
+    defaultMessage: "Preview",
+    id: "qiPX0q5vvf",
+    description: "Sidebar badge for gated features that link to teaser pages",
+  },
 });

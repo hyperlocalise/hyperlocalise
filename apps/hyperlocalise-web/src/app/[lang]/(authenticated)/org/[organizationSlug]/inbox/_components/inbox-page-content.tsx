@@ -37,7 +37,7 @@ import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
 
 const inboxApi = createInboxApi(apiClient);
-const notificationsApi = createInboxNotificationsApi();
+const notificationsApi = createInboxNotificationsApi(apiClient);
 
 const NOTIFICATIONS_PAGE_SIZE = 50;
 

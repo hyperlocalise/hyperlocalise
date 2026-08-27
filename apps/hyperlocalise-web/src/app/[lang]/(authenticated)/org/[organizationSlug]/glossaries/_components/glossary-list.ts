@@ -250,7 +250,7 @@ export function mapGlossaryToListRow(
       formatRelativeTimestamp(glossary.createdAt) ??
       resolveMessage(intl, glossaryListMessages.unavailableTimestamp),
     syncState: glossary.syncState,
-    externalUrl: glossary.externalUrl,
+    externalUrl: glossary.externalProviderKind === "crowdin" ? null : glossary.externalUrl,
     lastSyncedAt: formatRelativeTimestamp(glossary.lastSyncedAt),
     lastSyncErrorAt: formatRelativeTimestamp(glossary.lastSyncErrorAt),
     lastSyncErrorMessage: glossary.lastSyncErrorMessage,
@@ -326,7 +326,7 @@ export function mapLiveTmsProviderGlossaryToListRow(
       formatRelativeTimestamp(glossary.createdAt) ??
       resolveMessage(intl, glossaryListMessages.unavailableTimestamp),
     syncState: null,
-    externalUrl: glossary.externalUrl,
+    externalUrl: isCrowdin ? null : glossary.externalUrl,
     lastSyncedAt: null,
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,

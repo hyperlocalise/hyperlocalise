@@ -51,6 +51,7 @@ export interface CatWorkspaceEditing {
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void | Promise<void>;
+  onSetMaxLength?: (segmentId: string, maxLength: number | null) => void | Promise<void>;
   onRegenerateImage?: (segmentId: string) => void | Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
 }
@@ -155,6 +156,7 @@ export interface CatWorkspaceViewProps {
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
+  isMaxLengthSaving?: boolean;
   queueFilter?: CatQueueFilter;
   checkedSegmentIds?: ReadonlySet<string>;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;

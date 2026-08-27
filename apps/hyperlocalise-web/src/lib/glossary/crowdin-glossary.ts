@@ -15,10 +15,22 @@ import {
   type CrowdinGlossaryConcept,
   type CrowdinGlossaryTermInput,
 } from "@/lib/providers/adapters/crowdin/crowdin-provider";
-import type { CrowdinGlossary as CrowdinGlossaryRecord } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import type {
+  CrowdinGlossary as CrowdinGlossaryRecord,
+  CrowdinGlossaryConcordanceSearchResult,
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import {
+  loadCrowdinConcordanceTranslatableByConceptId,
+  mapCrowdinGlossaryConcordanceSearchResult,
+  resolveCrowdinConcordanceTranslatableFromResult,
+  sortCrowdinConcordanceMatches,
+} from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import {
   Glossary,
@@ -27,6 +39,8 @@ import {
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
   selectGlossaryPrimaryTerm,
+  type GlossaryConcordanceContext,
+  type GlossaryConcordanceQuery,
   type GlossaryConceptImportEntry,
   type GlossaryConcept,
   type GlossaryConceptTerm,
@@ -44,9 +58,15 @@ import {
   toNativeGlossaryLocale,
 } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 
+import type { Glossary as GlossaryRecord } from "@/lib/database/types";
+
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
-import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+
+function supportsCrowdinConcordanceSearch(glossary: GlossaryProviderContext["glossary"]): boolean {
+  const termCapabilities = glossary.termCapabilities as Record<string, unknown>;
+  return !(termCapabilities.referenceOnly === true || termCapabilities.search === false);
+}
 
 function crowdinStatus(status: string | undefined) {
   switch (status) {
@@ -267,7 +287,7 @@ function toNativeGlossary(
     localeCoverage,
     termCount: glossary.terms,
     externalGlossaryId: String(glossary.id),
-    externalUrl: glossary.webUrl,
+    externalUrl: null,
   };
 }
 
@@ -623,4 +643,107 @@ export class CrowdinGlossary extends Glossary {
       parseId(termId, "term_id"),
     );
   }
+
+  async searchConcordance(
+    query: GlossaryConcordanceQuery,
+    _ctx: GlossaryConcordanceContext,
+  ): Promise<NormalizedGlossaryMatch[]> {
+    if (!supportsCrowdinConcordanceSearch(this.input.glossary)) {
+      return [];
+    }
+
+    if (!this.input.glossary.externalGlossaryId) {
+      return [];
+    }
+
+    return searchAttachedCrowdinGlossaryConcordance({
+      providerContext: this.input,
+      attachedGlossaries: [this.input.glossary],
+      query,
+    });
+  }
+}
+
+export async function searchAttachedCrowdinGlossaryConcordance(input: {
+  providerContext: GlossaryProviderContext;
+  attachedGlossaries: GlossaryRecord[];
+  query: GlossaryConcordanceQuery;
+}): Promise<NormalizedGlossaryMatch[]> {
+  const searchableGlossaries = input.attachedGlossaries.filter(
+    (glossary) => supportsCrowdinConcordanceSearch(glossary) && glossary.externalGlossaryId,
+  );
+  if (searchableGlossaries.length === 0) {
+    return [];
+  }
+
+  const glossariesByCrowdinId = new Map<number, GlossaryRecord>();
+  for (const glossary of searchableGlossaries) {
+    glossariesByCrowdinId.set(parseId(glossary.externalGlossaryId!, "glossary_id"), glossary);
+  }
+
+  const context = await resolveCrowdinContext(input.providerContext);
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+    signal: context.signal,
+  });
+  const projectId = Number(context.externalProjectId);
+  if (Number.isNaN(projectId)) {
+    return [];
+  }
+
+  const limit = input.query.limit ?? 20;
+  const sourceLanguageId = toCrowdinGlossaryLanguageId(input.query.sourceLocale);
+  const matches: NormalizedGlossaryMatch[] = [];
+  const resultsByTargetLocale = new Map<string, CrowdinGlossaryConcordanceSearchResult[]>();
+
+  for (const targetLocale of input.query.targetLocales) {
+    const targetLanguageId = toCrowdinGlossaryLanguageId(targetLocale);
+    let results: CrowdinGlossaryConcordanceSearchResult[];
+    try {
+      results = await client.glossaryConcordanceSearch(projectId, {
+        sourceLanguageId,
+        targetLanguageId,
+        expressions: [input.query.sourceText],
+      });
+    } catch {
+      continue;
+    }
+
+    resultsByTargetLocale.set(targetLocale, results);
+  }
+
+  const allResults = [...resultsByTargetLocale.values()].flat();
+  const translatableByConceptId = await loadCrowdinConcordanceTranslatableByConceptId({
+    client,
+    results: allResults,
+  });
+
+  for (const [targetLocale, results] of resultsByTargetLocale) {
+    for (const [index, result] of results.entries()) {
+      const glossary = glossariesByCrowdinId.get(result.glossary.id);
+      if (!glossary) {
+        continue;
+      }
+
+      const match = mapCrowdinGlossaryConcordanceSearchResult({
+        result,
+        index,
+        resourceId: glossary.id,
+        glossaryName: glossary.name,
+        sourceLocale: input.query.sourceLocale,
+        targetLocale,
+        stableTermIdGlossaryKey: glossary.id,
+        translatable: resolveCrowdinConcordanceTranslatableFromResult(
+          result,
+          translatableByConceptId,
+        ),
+      });
+      if (match) {
+        matches.push(match);
+      }
+    }
+  }
+
+  return sortCrowdinConcordanceMatches(matches, limit);
 }

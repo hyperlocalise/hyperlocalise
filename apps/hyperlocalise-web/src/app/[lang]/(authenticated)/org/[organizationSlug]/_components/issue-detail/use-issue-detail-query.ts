@@ -14,9 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
 
 export function issueDetailQueryKey(organizationSlug: string, projectId: string, issueId: string) {
   return ["issue-detail", organizationSlug, projectId, issueId] as const;
@@ -37,11 +36,15 @@ export function useIssueDetailQuery({
     queryKey: issueDetailQueryKey(organizationSlug, projectId ?? "", issueId ?? ""),
     enabled: enabled && Boolean(projectId && issueId),
     queryFn: async () => {
-      const response = await fetch(`${issueSheetApiPath(organizationSlug, projectId!)}/${issueId}`);
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].$get({
+        param: { organizationSlug, projectId: projectId!, issueId: issueId! },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issue");
       }
-      const body = (await response.json()) as { issue: IssueDetailIssue };
+      const body = await response.json();
       return body.issue;
     },
   });

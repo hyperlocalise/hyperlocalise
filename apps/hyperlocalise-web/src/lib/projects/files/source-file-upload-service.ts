@@ -47,6 +47,7 @@ export type SourceFileUploadInput = {
   uploadedByApiKeyId?: string | null;
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
+  targetAutomationId?: string;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -152,6 +153,7 @@ async function uploadNativeSourceFile(
     sourceFileVersionId: version.id,
     sourcePath: input.sourcePath,
     sourceHash: input.sourceHash ?? storedFile.sha256,
+    targetAutomationId: input.targetAutomationId,
   }).catch((error) => {
     logger.warn(
       {

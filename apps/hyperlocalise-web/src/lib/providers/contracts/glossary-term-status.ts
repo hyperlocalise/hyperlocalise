@@ -41,3 +41,34 @@ export function normalizeProviderGlossaryTermFlags(input: ProviderGlossaryTermSt
 
   return { forbidden: false };
 }
+
+function normalizeNativeGlossaryStatus(status: string | null | undefined): string {
+  return status?.trim().toLowerCase().replaceAll("_", " ") ?? "";
+}
+
+/** Status-only flags for native concept terms. Does not read the DB `forbidden` column. */
+export function glossaryTermFlagsFromStatus(status: string | null | undefined): {
+  preferred: boolean;
+  notRecommended: boolean;
+} {
+  const normalized = normalizeNativeGlossaryStatus(status);
+  return {
+    preferred: normalized === "preferred",
+    notRecommended:
+      normalized === "not recommended" ||
+      normalized === "obsolete" ||
+      normalized === "deprecated" ||
+      normalized === "forbidden",
+  };
+}
+
+export function normalizedGlossaryTermStatusFromStatus(status: string | null | undefined): {
+  forbidden: boolean;
+  preferred: boolean;
+} {
+  const flags = glossaryTermFlagsFromStatus(status);
+  return {
+    forbidden: flags.notRecommended,
+    preferred: flags.preferred,
+  };
+}

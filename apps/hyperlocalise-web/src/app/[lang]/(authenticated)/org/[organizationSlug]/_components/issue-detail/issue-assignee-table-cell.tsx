@@ -16,11 +16,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueAssigneePicker } from "./issue-assignee-picker";
 import { issueDetailPanelMessages } from "./issue-detail-panel.messages";
-import { issueSheetApiPath } from "./issue-detail-utils";
+import { isIssueDetailIssue } from "./issue-detail-utils";
 import {
   patchIssueSheetListCacheForAssignee,
   patchOrganizationIssueListCaches,
@@ -53,23 +54,23 @@ export function IssueAssigneeTableCell({
 
   const updateAssignee = useMutation({
     mutationFn: async (nextAssigneeUserId: string | null) => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ assigneeUserId: nextAssigneeUserId }),
-        },
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].$patch({
+        param: { organizationSlug, projectId, issueId },
+        json: { assigneeUserId: nextAssigneeUserId },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(
           response,
           intl.formatMessage(issueDetailPanelMessages.updateFailed),
         );
       }
-      return (await response.json()) as {
-        issue: { assigneeUserId: string | null; assignee: string | null };
-      };
+      const body = await response.json();
+      if (!isIssueDetailIssue(body.issue)) {
+        throw new Error(intl.formatMessage(issueDetailPanelMessages.updateFailed));
+      }
+      return { issue: body.issue };
     },
     onSuccess: async (result) => {
       if (actorUserId) {

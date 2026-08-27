@@ -35,6 +35,17 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "6zAmu9E3FT",
     description: "Toast when queueing a manual automation run fails",
   },
+  sourceFilesQueued: {
+    defaultMessage:
+      "{queued, plural, =0 {No automation runs queued} one {# automation run queued} other {# automation runs queued}}",
+    id: "Z9/shXBMll",
+    description: "Toast after existing source files are selected for automation runs",
+  },
+  sourceFilesRunError: {
+    defaultMessage: "Unable to run the automation for the selected files",
+    id: "AM12LbMoJG",
+    description: "Toast when the automation cannot run for selected source files",
+  },
   loading: {
     defaultMessage: "Loading automation...",
     id: "YGyu9mb0BB",
@@ -44,6 +55,66 @@ export const automationDetailPageContentMessages = defineMessages({
     defaultMessage: "Run now",
     id: "P5eC/nlEOZ",
     description: "Button to queue a manual automation run",
+  },
+  selectSourceFiles: {
+    defaultMessage: "Select source files to run this automation",
+    id: "ngIYrv4Oy/",
+    description: "Accessible label for the manual source-file automation picker",
+  },
+  selectSourceFilesTitle: {
+    defaultMessage: "Select source files",
+    id: "f0r7Ci89gS",
+    description: "Title for the existing source-file selection dialog",
+  },
+  selectSourceFilesDescription: {
+    defaultMessage: "Choose one or more existing project files. Each file starts its own run.",
+    id: "oAaG6RQRA7",
+    description: "Description for the existing source-file selection dialog",
+  },
+  searchSourceFilesPlaceholder: {
+    defaultMessage: "Search files…",
+    id: "+2VYvugvF6",
+    description: "Placeholder for filtering existing source files",
+  },
+  searchSourceFilesLabel: {
+    defaultMessage: "Search source files",
+    id: "8Fdhfjv0NO",
+    description: "Accessible label for the source-file search input",
+  },
+  loadingSourceFiles: {
+    defaultMessage: "Loading source files…",
+    id: "ECvp3Us0vA",
+    description: "Loading message in the source-file selection dialog",
+  },
+  loadSourceFilesError: {
+    defaultMessage: "Unable to load source files",
+    id: "wLreqnuDf7",
+    description: "Error in the source-file selection dialog",
+  },
+  noSourceFiles: {
+    defaultMessage: "No source files found",
+    id: "VapVL5JCf1",
+    description: "Empty state in the source-file selection dialog",
+  },
+  loadMoreSourceFiles: {
+    defaultMessage: "Load more files",
+    id: "LJ6zecrDM9",
+    description: "Button to load the next page of source files in the automation picker",
+  },
+  loadingMoreSourceFiles: {
+    defaultMessage: "Loading more files…",
+    id: "3M7qaHfyxJ",
+    description: "Loading label while the next page of source files is fetched",
+  },
+  cancelSourceFileSelection: {
+    defaultMessage: "Cancel",
+    id: "VYElnDXHUS",
+    description: "Button to close the source-file selection dialog",
+  },
+  runSelectedSourceFiles: {
+    defaultMessage: "Run {count, plural, one {# file} other {# files}}",
+    id: "b+el1VIvgt",
+    description: "Button to run the automation for selected source files",
   },
   openChat: {
     defaultMessage: "Open chat",

@@ -19,6 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
 import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
+import { CatSegmentMaxLengthEditor } from "@/components/cat/segment/cat-segment-max-length-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,12 +41,12 @@ import {
   catIntelligencePanelMessages,
 } from "@/components/cat/shared/cat.messages";
 import type {
-  CatGlossaryConcept,
   CatSegmentIntelligence,
   CatTmMatchKind,
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
 
+import { normalizedCatGlossaryTermStatus } from "./cat-glossary-term-status";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
@@ -101,33 +102,6 @@ function AgentContextSkeleton() {
       </div>
     </div>
   );
-}
-
-function legacyGlossaryConcepts(intelligence: CatSegmentIntelligence): CatGlossaryConcept[] {
-  return intelligence.glossaryTerms.map((term) => ({
-    id: `legacy:${term.id}`,
-    glossaryId: "legacy",
-    glossaryName: "Project Glossary",
-    primaryTerm: term.source,
-    sourceTerms: [
-      {
-        id: `${term.id}:source`,
-        locale: "source",
-        text: term.source,
-        preferred: term.approved,
-        forbidden: term.forbidden,
-      },
-    ],
-    targetTerms: [
-      {
-        id: `${term.id}:target`,
-        locale: "target",
-        text: term.target,
-        preferred: term.approved,
-        forbidden: term.forbidden,
-      },
-    ],
-  }));
 }
 
 function tmMatchBadgeTone(matchKind: CatTmMatchKind | undefined) {
@@ -209,10 +183,13 @@ export function CatIntelligencePanel({
   isVisualContextLoading = false,
   showAgentContext = false,
   showVisualContext = false,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
   canEditTranslations = true,
   canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
+  onSetMaxLength,
 }: {
   intelligence: CatSegmentIntelligence;
   targetText?: string;
@@ -221,34 +198,37 @@ export function CatIntelligencePanel({
   isVisualContextLoading?: boolean;
   showAgentContext?: boolean;
   showVisualContext?: boolean;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
   canEditTranslations?: boolean;
   canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
   const [isGlossaryPanelOpen, setIsGlossaryPanelOpen] = useState(false);
   const glossaryConcepts = useMemo(
-    () => intelligence.glossaryConcepts ?? legacyGlossaryConcepts(intelligence),
-    [intelligence],
+    // Concept-only guidance. Legacy flat glossaryTerms (no glossaryConcepts) are intentionally
+    // not synthesized here; concordance must return concept payloads for the panel to populate.
+    () => intelligence.glossaryConcepts ?? [],
+    [intelligence.glossaryConcepts],
   );
   const glossaryConceptKey = glossaryConcepts.map((concept) => concept.id).join("\u0000");
   const glossaryGuidanceStatus = useMemo(() => {
     const terms = glossaryConcepts.flatMap((concept) => [
       ...concept.sourceTerms,
-      ...concept.targetTerms,
+      ...(concept.translatable === false ? [] : concept.targetTerms),
     ]);
 
     return {
-      preferredCount: terms.filter((term) => {
-        const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
-        return !term.forbidden && (term.preferred || normalized === "preferred");
-      }).length,
-      notRecommendedCount: terms.filter((term) => {
-        const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
-        return term.forbidden || normalized === "forbidden" || normalized === "not_recommended";
-      }).length,
+      matchCount: glossaryConcepts.length,
+      preferredCount: terms.filter((term) => normalizedCatGlossaryTermStatus(term) === "preferred")
+        .length,
+      notRecommendedCount: terms.filter(
+        (term) => normalizedCatGlossaryTermStatus(term) === "not_recommended",
+      ).length,
     };
   }, [glossaryConcepts]);
   const [expandedGlossaryConceptIds, setExpandedGlossaryConceptIds] = useState<Set<string>>(
@@ -261,11 +241,13 @@ export function CatIntelligencePanel({
 
   useEffect(() => {
     setCatGlossaryGuidanceStatus(
-      isConcordanceLoading ? { preferredCount: 0, notRecommendedCount: 0 } : glossaryGuidanceStatus,
+      isConcordanceLoading
+        ? { preferredCount: 0, notRecommendedCount: 0, matchCount: 0 }
+        : glossaryGuidanceStatus,
     );
 
     return () => {
-      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0 });
+      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0, matchCount: 0 });
     };
   }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
 
@@ -341,6 +323,19 @@ export function CatIntelligencePanel({
             isLoading={isVisualContextLoading}
             showPanel={showVisualContext}
           />
+
+          {showMaxLengthEditor ? (
+            <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.maxLengthTitle)}>
+              <div className={intelligenceMutedPanelClassName}>
+                <CatSegmentMaxLengthEditor
+                  maxLength={intelligence.maxLength}
+                  canEdit={canEditTranslations && Boolean(onSetMaxLength)}
+                  isSaving={isMaxLengthSaving}
+                  onSave={onSetMaxLength ?? (async () => undefined)}
+                />
+              </div>
+            </PanelSection>
+          ) : null}
 
           <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.fileContextTitle)}>
             <div className={intelligenceMutedPanelClassName}>

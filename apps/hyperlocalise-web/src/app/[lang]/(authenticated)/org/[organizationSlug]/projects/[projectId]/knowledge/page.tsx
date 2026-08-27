@@ -12,7 +12,11 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { KnowledgePageContent } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-page-content";
-import { requireWorkspaceFeatureFlag, workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
+import {
+  getWorkspaceFeatureFlagEnabled,
+  workspaceKnowledgeFlag,
+} from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export default async function ProjectKnowledgePage({
@@ -22,7 +26,11 @@ export default async function ProjectKnowledgePage({
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceKnowledgeFlag, auth);
+  const knowledgeEnabled = await getWorkspaceFeatureFlagEnabled(workspaceKnowledgeFlag, auth);
+
+  if (!knowledgeEnabled) {
+    return <FeatureTeaserPage feature="guideline" scope="project" />;
+  }
 
   return (
     <KnowledgePageContent

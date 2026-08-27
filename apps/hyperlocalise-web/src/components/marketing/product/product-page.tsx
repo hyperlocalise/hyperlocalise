@@ -27,6 +27,7 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 import type { ProductPageContent } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
+import { GuidelineMockUI } from "./guideline-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { IntegrationStripSection } from "./integration-strip-section";
@@ -145,7 +146,11 @@ function ProductShowcase({ content }: ProductPageProps) {
     );
   }
 
-  return null;
+  return (
+    <div className="mx-auto max-w-6xl">
+      <GuidelineMockUI priority />
+    </div>
+  );
 }
 
 function ProductDetailsSection({ content }: ProductPageProps) {

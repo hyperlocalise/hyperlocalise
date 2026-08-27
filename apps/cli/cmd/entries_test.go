@@ -11,6 +11,47 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
+func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Localizable.strings")
+	content := []byte(`/* Max length: 24 */
+"cta" = "Continue";
+`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+
+	var plain string
+	if err := json.Unmarshal(payload["cta"], &plain); err == nil {
+		t.Fatalf("expected enriched cta payload, got plain string %q", plain)
+	}
+
+	var enriched struct {
+		Text      string `json:"text"`
+		MaxLength int    `json:"maxLength"`
+	}
+	if err := json.Unmarshal(payload["cta"], &enriched); err != nil {
+		t.Fatalf("decode enriched cta: %v", err)
+	}
+	if enriched.Text != "Continue" || enriched.MaxLength != 24 {
+		t.Fatalf("unexpected enriched payload: %+v", enriched)
+	}
+}
+
 func TestEntriesCommandOutputsParsedEntries(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")

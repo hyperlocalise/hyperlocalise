@@ -71,6 +71,7 @@ export class TranslationContextBuilder {
     options?: {
       organizationId?: string;
       providerKind?: ExternalTmsProviderKind;
+      actorUserId?: string | null;
       externalJobUid?: string | null;
       translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
       glossaryMatchResolution?: GlossaryMatchResolution;
@@ -146,12 +147,18 @@ export class TranslationContextBuilder {
           projectId,
           organizationId: options?.organizationId,
           providerKind,
+          actorUserId: options?.actorUserId,
           sourceLocale: jobInput.sourceLocale,
           targetLocales: jobInput.targetLocales,
           sourceText: jobInput.sourceText,
           glossaryMatchResolution: options?.glossaryMatchResolution,
         })
-        .then((matches) => matches.map(toContextGlossaryMatch)),
+        .then((matches) =>
+          matches.flatMap((match) => {
+            const contextMatch = toContextGlossaryMatch(match);
+            return contextMatch ? [contextMatch] : [];
+          }),
+        ),
       this.memoryService
         .searchForContext({
           projectId,

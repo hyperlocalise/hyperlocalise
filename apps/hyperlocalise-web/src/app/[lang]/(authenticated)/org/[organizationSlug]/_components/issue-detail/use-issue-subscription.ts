@@ -16,10 +16,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { issueWatchControlMessages as messages } from "./issue-watch-control.messages";
-import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
+import { type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { issueSubscribersQueryKey } from "./use-issue-subscribers-query";
 
@@ -36,7 +37,9 @@ export function useIssueSubscriptionMutations({
   const queryClient = useQueryClient();
   const detailKey = issueDetailQueryKey(organizationSlug, projectId, issueId);
   const subscribersKey = issueSubscribersQueryKey(organizationSlug, projectId, issueId);
-  const basePath = `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/subscription`;
+  const subscription =
+    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"][":issueId"]
+      .subscription;
 
   const setWatching = (isWatching: boolean) => {
     queryClient.setQueryData<IssueDetailIssue>(detailKey, (current) =>
@@ -46,8 +49,10 @@ export function useIssueSubscriptionMutations({
 
   const watch = useMutation({
     mutationFn: async () => {
-      const response = await fetch(basePath, { method: "POST" });
-      if (!response.ok) {
+      const response = await subscription.$post({
+        param: { organizationSlug, projectId, issueId },
+      } as never);
+      if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to watch issue");
       }
     },
@@ -66,8 +71,10 @@ export function useIssueSubscriptionMutations({
 
   const unwatch = useMutation({
     mutationFn: async () => {
-      const response = await fetch(basePath, { method: "DELETE" });
-      if (!response.ok) {
+      const response = await subscription.$delete({
+        param: { organizationSlug, projectId, issueId },
+      } as never);
+      if (response.status !== 204) {
         throw await readApiResponseError(response, "Failed to unwatch issue");
       }
     },

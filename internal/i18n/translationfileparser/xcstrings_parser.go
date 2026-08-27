@@ -26,29 +26,39 @@ type xcstringsLeafRef struct {
 }
 
 func (p XCStringsParser) Parse(content []byte) (map[string]string, error) {
-	values, _, err := parseXCStringsCatalog(content, "")
+	values, _, _, err := parseXCStringsCatalog(content, "")
 	return values, err
 }
 
 func (p XCStringsParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
-	return parseXCStringsCatalog(content, "")
+	values, contextByKey, _, err := parseXCStringsCatalog(content, "")
+	return values, contextByKey, err
+}
+
+// ParseIngestEntries parses Apple .xcstrings catalogs and extracts optional max-length metadata.
+func (p XCStringsParser) ParseIngestEntries(content []byte, locale string) (map[string]IngestEntry, error) {
+	values, _, maxLengthByKey, err := parseXCStringsCatalog(content, strings.TrimSpace(locale))
+	if err != nil {
+		return nil, err
+	}
+	return applyMaxLengthByKey(IngestEntriesFromStringMap(values), maxLengthByKey), nil
 }
 
 // ParseXCStringsLocale parses values for one localization inside a string catalog.
 // It is used by local target-file checks because .xcstrings can hold more than one locale.
 func ParseXCStringsLocale(content []byte, locale string) (map[string]string, error) {
-	values, _, err := parseXCStringsCatalog(content, strings.TrimSpace(locale))
+	values, _, _, err := parseXCStringsCatalog(content, strings.TrimSpace(locale))
 	return values, err
 }
 
-func parseXCStringsCatalog(content []byte, locale string) (map[string]string, map[string]string, error) {
+func parseXCStringsCatalog(content []byte, locale string) (map[string]string, map[string]string, map[string]int, error) {
 	root, err := decodeXCStringsObject(content)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	stringsNode, err := xcstringsObjectField(root, "strings")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	sourceLanguage, _ := root["sourceLanguage"].(string)
@@ -58,6 +68,7 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 
 	out := map[string]string{}
 	contextByKey := map[string]string{}
+	maxLengthByKey := map[string]int{}
 
 	// BOLT OPTIMIZATION: Avoid redundant O(N log N) sorting of all keys as map[string]string
 	// is unordered and sorting adds unnecessary allocations and CPU overhead.
@@ -65,24 +76,28 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
 		entry, err := xcstringsObjectValue(value, "strings."+key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
+		entryMaxLength := xcstringsEntryMaxLength(entry)
 		baseContext := xcstringsEntryContext(entry, sourceLanguage)
 		if sourceMode {
 			refs, err := xcstringsSourceLeafRefs(key, entry, sourceLanguage)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			for _, ref := range refs {
 				translatedValue, ok, err := xcstringsValueForRef(entry, sourceLanguage, ref)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, nil, err
 				}
 				if !ok {
 					translatedValue = key
 				}
 				out[ref.key] = translatedValue
+				if entryMaxLength > 0 {
+					maxLengthByKey[ref.key] = entryMaxLength
+				}
 				if ctx := xcstringsLeafContext(baseContext, ref.steps); ctx != "" {
 					contextByKey[ref.key] = ctx
 				}
@@ -92,7 +107,7 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 
 		locs, ok, err := xcstringsOptionalObjectField(entry, "localizations")
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if !ok {
 			continue
@@ -105,14 +120,29 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
 		loc, err := xcstringsObjectValue(locRaw, "strings."+key+".localizations."+entryTargetLocale)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
+		}
+		keysBefore := make(map[string]struct{}, len(out))
+		for leafKey := range out {
+			keysBefore[leafKey] = struct{}{}
 		}
 		if _, err := collectXCStringsLeaves(key, loc, out, contextByKey, baseContext, nil); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
+		}
+		if entryMaxLength > 0 {
+			for leafKey := range out {
+				if _, existed := keysBefore[leafKey]; !existed {
+					maxLengthByKey[leafKey] = entryMaxLength
+				}
+			}
 		}
 	}
 
-	return out, contextByKey, nil
+	if len(maxLengthByKey) == 0 {
+		maxLengthByKey = nil
+	}
+
+	return out, contextByKey, maxLengthByKey, nil
 }
 
 func decodeXCStringsObject(content []byte) (map[string]any, error) {
@@ -559,6 +589,18 @@ func escapeXCStringsBaseKey(key string) string {
 		return key
 	}
 	return xcstringsEscapedBaseKeyPrefix + base64.RawURLEncoding.EncodeToString([]byte(key))
+}
+
+func xcstringsEntryMaxLength(entry map[string]any) int {
+	if maxLength, ok := maxLengthFromObjectFields(entry); ok {
+		return maxLength
+	}
+	if comment, ok := entry["comment"].(string); ok {
+		if maxLength, ok := ParseMaxLengthFromComment(comment); ok {
+			return maxLength
+		}
+	}
+	return 0
 }
 
 func xcstringsEntryContext(entry map[string]any, sourceLanguage string) string {

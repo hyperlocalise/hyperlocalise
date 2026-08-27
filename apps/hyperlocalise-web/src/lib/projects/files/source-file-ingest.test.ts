@@ -17,11 +17,16 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { dispatchWorkspaceAutomationsForSourceUploadMock } = vi.hoisted(() => ({
+const {
+  dispatchWorkspaceAutomationForSourceUploadMock,
+  dispatchWorkspaceAutomationsForSourceUploadMock,
+} = vi.hoisted(() => ({
+  dispatchWorkspaceAutomationForSourceUploadMock: vi.fn(),
   dispatchWorkspaceAutomationsForSourceUploadMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/workspace-automation-dispatcher", () => ({
+  dispatchWorkspaceAutomationForSourceUpload: dispatchWorkspaceAutomationForSourceUploadMock,
   dispatchWorkspaceAutomationsForSourceUpload: dispatchWorkspaceAutomationsForSourceUploadMock,
 }));
 
@@ -51,6 +56,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dispatchWorkspaceAutomationForSourceUploadMock.mockResolvedValue(null);
   dispatchWorkspaceAutomationsForSourceUploadMock.mockResolvedValue([]);
 });
 
@@ -347,6 +353,77 @@ describe("enqueueSourceFileIngestAfterUpload", () => {
       .from(schema.repositorySourceFileVersions)
       .where(eq(schema.repositorySourceFileVersions.id, pending.id));
     expect(unchanged?.ingestState).toBe("pending");
+  });
+
+  it("targets one automation when a duplicate upload skips ingestion", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingested",
+      filename: "prior-targeted.json",
+    });
+    const pending = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "pending",
+      filename: "duplicate-targeted.json",
+    });
+
+    await enqueueSourceFileIngestAfterUpload({
+      organizationId: organization.id,
+      projectId: project.id,
+      storedFileId: pending.storedFileId,
+      sourceFileVersionId: pending.id,
+      sourcePath: SOURCE_PATH,
+      sourceHash: SOURCE_HASH,
+      targetAutomationId: "automation-1",
+      queue: { enqueue: vi.fn() },
+    });
+
+    await vi.waitFor(() => {
+      expect(dispatchWorkspaceAutomationForSourceUploadMock).toHaveBeenCalledWith({
+        organizationId: organization.id,
+        automationId: "automation-1",
+        projectId: project.id,
+        sourceFileId: pending.storedFileId,
+        sourceFileVersionId: pending.id,
+        sourcePath: SOURCE_PATH,
+        sourceHash: SOURCE_HASH,
+      });
+    });
+    expect(dispatchWorkspaceAutomationsForSourceUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("carries the target automation through a fresh ingest event", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const pending = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "pending",
+      filename: "fresh-targeted.json",
+    });
+    const enqueue = vi.fn(async () => ({ ids: ["run_ingest_targeted"] }));
+
+    await enqueueSourceFileIngestAfterUpload({
+      organizationId: organization.id,
+      projectId: project.id,
+      storedFileId: pending.storedFileId,
+      sourceFileVersionId: pending.id,
+      sourcePath: SOURCE_PATH,
+      sourceHash: SOURCE_HASH,
+      targetAutomationId: "automation-1",
+      queue: { enqueue },
+    });
+
+    expect(enqueue).toHaveBeenCalledWith({
+      sourceFileVersionId: pending.id,
+      organizationId: organization.id,
+      projectId: project.id,
+      storedFileId: pending.storedFileId,
+      sourcePath: SOURCE_PATH,
+      targetAutomationId: "automation-1",
+    });
   });
 });
 

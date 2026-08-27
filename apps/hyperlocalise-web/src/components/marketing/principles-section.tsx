@@ -16,7 +16,7 @@ import { FormattedMessage } from "react-intl";
 
 import { TypographyH2 } from "@/components/ui/typography";
 
-import { HeroFrameMeshStage } from "./hero-frame-mesh-stage";
+import { ContentOpsMockStage } from "./content-ops/content-ops-mock-stage";
 import { principlesSectionMessages } from "./principles-section.messages";
 
 export function PrinciplesSection() {
@@ -33,7 +33,7 @@ export function PrinciplesSection() {
         </TypographyH2>
       </div>
 
-      <HeroFrameMeshStage className="mt-12 sm:mt-16" />
+      <ContentOpsMockStage className="mt-12 sm:mt-16" priority />
     </section>
   );
 }

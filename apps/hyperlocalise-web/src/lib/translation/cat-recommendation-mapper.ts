@@ -37,13 +37,15 @@ export function mapCatConcordanceForAiRecommendation(
   targetLocale: string,
 ): CatRecommendationConcordanceContext {
   return {
-    glossaryTerms: concordance.glossaryTerms.map((term) => ({
-      sourceTerm: term.source,
-      targetTerm: term.target,
-      targetLocale,
-      forbidden: term.forbidden,
-      description: null,
-    })),
+    glossaryTerms: concordance.glossaryTerms
+      .filter((term) => term.target.trim().length > 0)
+      .map((term) => ({
+        sourceTerm: term.source,
+        targetTerm: term.target,
+        targetLocale,
+        forbidden: term.forbidden,
+        description: null,
+      })),
     translationMemoryMatches: concordance.translationMemoryMatches.map((match) => ({
       sourceText: match.sourceText,
       targetText: match.targetText,

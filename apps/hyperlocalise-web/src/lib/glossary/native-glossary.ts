@@ -10,10 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import {
+  glossaryTermFlagsFromStatus,
+  normalizedGlossaryTermStatusFromStatus,
+} from "@/lib/providers/contracts/glossary-term-status";
+import {
+  hasGlossaryExpectedTarget,
+  normalizeSyncedDatabaseGlossaryMatch,
+  type NormalizedGlossaryConcept,
+  type NormalizedGlossaryConceptTerm,
+  type NormalizedGlossaryMatch,
+} from "@/lib/providers/contracts/glossary-match";
+import { buildGlossaryTsQuery } from "./glossary";
+import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
   Glossary,
   normalizeGlossaryGender,
@@ -21,6 +35,8 @@ import {
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
   selectGlossaryPrimaryTerm,
+  type GlossaryConcordanceContext,
+  type GlossaryConcordanceQuery,
 } from "./glossary";
 import type {
   GlossaryTermCreateInput,
@@ -34,6 +50,90 @@ import type {
 } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
+
+const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
+
+type GlossaryTermRow = typeof schema.glossaryTerms.$inferSelect;
+type GlossaryConceptRow = typeof schema.glossaryConcepts.$inferSelect;
+
+type NativeConceptSourceHit = {
+  conceptId: string;
+  glossaryId: string;
+  glossaryName: string;
+  matchedSourceTermId: string;
+  matchedSourceTerm: string;
+  caseSensitive: boolean;
+  sourceStatus: string | null;
+  rank: number;
+  externalGlossaryUrl: string | null;
+};
+
+export function pickPreferredTermForLocale(
+  terms: NormalizedGlossaryConceptTerm[],
+  locale: string,
+): NormalizedGlossaryConceptTerm | undefined {
+  const localeTerms = terms.filter((term) => term.locale === locale);
+  if (localeTerms.length === 0) {
+    return undefined;
+  }
+
+  const byStatus = (status: string) =>
+    localeTerms.find((term) => term.status?.trim().toLowerCase().replaceAll("_", " ") === status);
+
+  return (
+    byStatus("preferred") ??
+    byStatus("admitted") ??
+    localeTerms.find((term) => !glossaryTermFlagsFromStatus(term.status).notRecommended) ??
+    localeTerms[0]
+  );
+}
+
+function toNativeConcordanceConceptTerm(row: GlossaryTermRow): NormalizedGlossaryConceptTerm {
+  const flags = glossaryTermFlagsFromStatus(row.status);
+  return {
+    id: row.id,
+    locale: row.locale ?? "",
+    text: row.term ?? row.sourceTerm,
+    status: row.status,
+    preferred: flags.preferred,
+    forbidden: flags.notRecommended,
+    termType: row.termType,
+    partOfSpeech: row.partOfSpeech,
+    gender: row.gender,
+  };
+}
+
+export function filterConcordanceTargetTerms<T extends { locale: string }>(
+  terms: T[],
+  targetLocales: string[],
+): T[] {
+  if (targetLocales.length === 0) {
+    return [];
+  }
+
+  const allowedLocales = new Set(targetLocales);
+  return terms.filter((term) => allowedLocales.has(term.locale));
+}
+
+function buildNormalizedConcept(input: {
+  concept: GlossaryConceptRow;
+  terms: GlossaryTermRow[];
+  sourceLocale: string;
+  targetLocales: string[];
+  glossaryUrl: string | null;
+}): NormalizedGlossaryConcept {
+  const conceptTerms = input.terms.map(toNativeConcordanceConceptTerm);
+  return {
+    id: input.concept.id,
+    primaryTerm: input.concept.primaryTerm,
+    subject: input.concept.subject,
+    definition: input.concept.definition,
+    glossaryUrl: input.glossaryUrl ?? null,
+    translatable: input.concept.translatable ?? true,
+    sourceTerms: conceptTerms.filter((term) => term.locale === input.sourceLocale),
+    targetTerms: filterConcordanceTargetTerms(conceptTerms, input.targetLocales),
+  };
+}
 
 function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
   let terms = input.terms.map((term) => ({
@@ -813,5 +913,232 @@ export class NativeGlossary extends Glossary {
       )
       .returning({ id: schema.glossaryTerms.id });
     return deleted.length > 0;
+  }
+
+  async searchConcordance(
+    query: GlossaryConcordanceQuery,
+    _ctx: GlossaryConcordanceContext,
+  ): Promise<NormalizedGlossaryMatch[]> {
+    const tsQuery = buildGlossaryTsQuery(query.sourceText);
+    if (!tsQuery) {
+      return [];
+    }
+
+    const limit = query.limit ?? 20;
+    const glossaryId = this.input.glossary.id;
+    const sourceLocale = query.sourceLocale;
+
+    const sourceHits = await db
+      .select({
+        conceptId: concordanceSourceTerms.conceptId,
+        glossaryId: concordanceSourceTerms.glossaryId,
+        glossaryName: schema.glossaries.name,
+        matchedSourceTermId: concordanceSourceTerms.id,
+        matchedSourceTerm: sql<string>`${concordanceSourceTerms.term}`,
+        caseSensitive: concordanceSourceTerms.caseSensitive,
+        sourceStatus: concordanceSourceTerms.status,
+        rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+          "rank",
+        ),
+        externalGlossaryUrl: schema.glossaries.externalUrl,
+      })
+      .from(concordanceSourceTerms)
+      .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
+      .where(
+        and(
+          eq(concordanceSourceTerms.glossaryId, glossaryId),
+          eq(schema.glossaries.source, "native"),
+          eq(schema.glossaries.sourceLocale, sourceLocale),
+          eq(schema.glossaries.status, "active"),
+          eq(concordanceSourceTerms.locale, sourceLocale),
+          // Concordance is concept-backed only. Legacy flat rows (conceptId = null) from
+          // createGlossaryTerms are intentionally excluded; migrate terms to concepts for search.
+          isNotNull(concordanceSourceTerms.conceptId),
+          isNotNull(concordanceSourceTerms.term),
+          eq(concordanceSourceTerms.reviewStatus, "approved"),
+          sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          sql`case
+            when coalesce(${concordanceSourceTerms.caseSensitive}, false)
+              then position(${concordanceSourceTerms.term} in ${query.sourceText}) > 0
+            else position(lower(${concordanceSourceTerms.term}) in lower(${query.sourceText})) > 0
+          end`,
+        ),
+      )
+      .orderBy(desc(sql`rank`))
+      .limit(limit);
+
+    const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>
+      row.conceptId &&
+      sourceContainsTerm(query.sourceText, {
+        sourceTerm: row.matchedSourceTerm,
+        caseSensitive: row.caseSensitive ?? false,
+      })
+        ? [
+            {
+              conceptId: row.conceptId,
+              glossaryId: row.glossaryId,
+              glossaryName: row.glossaryName,
+              matchedSourceTermId: row.matchedSourceTermId,
+              matchedSourceTerm: row.matchedSourceTerm,
+              caseSensitive: row.caseSensitive,
+              sourceStatus: row.sourceStatus,
+              rank: Number(row.rank) || 0,
+              externalGlossaryUrl: row.externalGlossaryUrl,
+            },
+          ]
+        : [],
+    );
+
+    const bestHitByConcept = new Map<string, NativeConceptSourceHit>();
+    for (const hit of filteredHits) {
+      const existing = bestHitByConcept.get(hit.conceptId);
+      if (!existing || hit.rank > existing.rank) {
+        bestHitByConcept.set(hit.conceptId, hit);
+      }
+    }
+
+    const conceptIds = [...bestHitByConcept.keys()];
+    if (conceptIds.length === 0) {
+      return [];
+    }
+
+    const [concepts, terms] = await Promise.all([
+      db
+        .select()
+        .from(schema.glossaryConcepts)
+        .where(inArray(schema.glossaryConcepts.id, conceptIds)),
+      db
+        .select()
+        .from(schema.glossaryTerms)
+        .where(
+          and(
+            inArray(schema.glossaryTerms.conceptId, conceptIds),
+            eq(schema.glossaryTerms.reviewStatus, "approved"),
+            inArray(schema.glossaryTerms.locale, [sourceLocale, ...query.targetLocales]),
+          ),
+        ),
+    ]);
+
+    const conceptById = new Map(concepts.map((concept) => [concept.id, concept]));
+    const termsByConceptId = new Map<string, GlossaryTermRow[]>();
+    for (const term of terms) {
+      if (!term.conceptId) {
+        continue;
+      }
+      const current = termsByConceptId.get(term.conceptId) ?? [];
+      current.push(term);
+      termsByConceptId.set(term.conceptId, current);
+    }
+
+    const matches: NormalizedGlossaryMatch[] = [];
+
+    for (const hit of [...bestHitByConcept.values()].toSorted(
+      (left, right) => right.rank - left.rank,
+    )) {
+      const concept = conceptById.get(hit.conceptId);
+      const conceptTerms = termsByConceptId.get(hit.conceptId);
+      if (!concept || !conceptTerms) {
+        continue;
+      }
+
+      const normalizedConcept = buildNormalizedConcept({
+        concept,
+        terms: conceptTerms,
+        sourceLocale,
+        targetLocales: query.targetLocales,
+        glossaryUrl: null,
+      });
+
+      for (const targetLocale of query.targetLocales) {
+        const isUntranslatable = concept.translatable === false;
+        const preferredTarget = pickPreferredTermForLocale(
+          normalizedConcept.targetTerms,
+          targetLocale,
+        );
+        const sourceStatus = normalizedGlossaryTermStatusFromStatus(hit.sourceStatus);
+
+        if (isUntranslatable) {
+          matches.push(
+            normalizeSyncedDatabaseGlossaryMatch({
+              id: `${hit.matchedSourceTermId}:${targetLocale}`,
+              glossaryId: hit.glossaryId,
+              glossaryName: hit.glossaryName,
+              sourceTerm: hit.matchedSourceTerm,
+              targetTerm: hit.matchedSourceTerm,
+              sourceLocale,
+              targetLocale,
+              description: concept.definition || null,
+              forbidden: sourceStatus.forbidden,
+              preferred: sourceStatus.preferred,
+              caseSensitive: hit.caseSensitive ?? false,
+              rank: hit.rank || 1,
+              providerKind: null,
+              externalResourceId: null,
+              externalTermId: null,
+              concept: normalizedConcept,
+            }),
+          );
+          continue;
+        }
+
+        if (preferredTarget) {
+          const targetStatus = normalizedGlossaryTermStatusFromStatus(preferredTarget.status);
+
+          matches.push(
+            normalizeSyncedDatabaseGlossaryMatch({
+              id: `${hit.matchedSourceTermId}:${targetLocale}`,
+              glossaryId: hit.glossaryId,
+              glossaryName: hit.glossaryName,
+              sourceTerm: hit.matchedSourceTerm,
+              targetTerm: preferredTarget.text,
+              sourceLocale,
+              targetLocale,
+              description: concept.definition || null,
+              forbidden: sourceStatus.forbidden || targetStatus.forbidden,
+              preferred: targetStatus.preferred,
+              caseSensitive: hit.caseSensitive ?? false,
+              rank: hit.rank || 1,
+              providerKind: null,
+              externalResourceId: null,
+              externalTermId: null,
+              concept: normalizedConcept,
+            }),
+          );
+          continue;
+        }
+
+        matches.push(
+          normalizeSyncedDatabaseGlossaryMatch({
+            id: `${hit.matchedSourceTermId}:${targetLocale}`,
+            glossaryId: hit.glossaryId,
+            glossaryName: hit.glossaryName,
+            sourceTerm: hit.matchedSourceTerm,
+            targetTerm: "",
+            sourceLocale,
+            targetLocale,
+            description: concept.definition || null,
+            forbidden: sourceStatus.forbidden,
+            preferred: false,
+            caseSensitive: hit.caseSensitive ?? false,
+            rank: hit.rank || 1,
+            providerKind: null,
+            externalResourceId: null,
+            externalTermId: null,
+            concept: normalizedConcept,
+          }),
+        );
+      }
+    }
+
+    return matches
+      .toSorted((left, right) => {
+        const leftHasExpectedTarget = hasGlossaryExpectedTarget(left);
+        const rightHasExpectedTarget = hasGlossaryExpectedTarget(right);
+        if (leftHasExpectedTarget !== rightHasExpectedTarget) {
+          return leftHasExpectedTarget ? -1 : 1;
+        }
+        return right.rank - left.rank;
+      })
+      .slice(0, limit);
   }
 }

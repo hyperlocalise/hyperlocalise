@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add IsHidden query filter parity to SourceStringsListOptions
+
+**Learning:** In Crowdin API v2, the List Source Strings endpoint (`GET /api/v2/projects/{projectId}/strings`) accepts an optional `isHidden` query parameter (0 - not hidden, 1 - hidden) to filter source strings by their hidden status. The SDK's `SourceStringsListOptions` previously lacked `IsHidden`, preventing callers from filtering source strings by hidden status in list requests.
+
+**Action:** Added `IsHidden *int json:"isHidden,omitempty"` to `SourceStringsListOptions` in `third_party/crowdin-api-client-go/crowdin/model/source_strings.go` and updated its `Values()` query parameter serialization logic to encode `isHidden` when `IsHidden` is set to 0 or 1. Added unit and contract tests in `crowdin/model/source_strings_test.go` and `crowdin/source_strings_test.go`.
+
 ## 2026-12-31 - Add omitempty struct tags to BundleAddRequest optional boolean pointers
 
 **Learning:** In Crowdin API v2, `isMultilingual` and `includeProjectSourceLanguage` are optional boolean parameters when creating a bundle (`POST /api/v2/projects/{projectId}/bundles`). Unset pointer fields without `omitempty` in Go standard `json.Marshal` serialize as `null` rather than being omitted from the request payload, which can trigger API validation errors.

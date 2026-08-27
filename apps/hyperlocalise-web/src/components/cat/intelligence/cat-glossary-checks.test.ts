@@ -102,6 +102,50 @@ describe("glossaryFormatChecksForSegment", () => {
     ]);
   });
 
+  it("warns when an untranslatable source term is missing from the target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Welcome to Hyperlocalise",
+      "Bienvenue",
+      [
+        {
+          id: "brand-term",
+          source: "Hyperlocalise",
+          target: "Hyperlocalise",
+          approved: true,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-missing-brand-term",
+        status: "warn",
+        category: "glossary",
+      }),
+    ]);
+  });
+
+  it("does not warn for source-only translatable terms with an empty target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Open Dashboard settings",
+      "Mở cài đặt",
+      [
+        {
+          id: "draft-term",
+          source: "Dashboard",
+          target: "",
+          approved: false,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
+  });
+
   it("returns no checks when the target is empty", () => {
     expect(glossaryFormatChecksForSegment("Dashboard", "", glossaryTerms, testIntl)).toEqual([]);
   });

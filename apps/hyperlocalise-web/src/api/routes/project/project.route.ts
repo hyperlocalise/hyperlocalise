@@ -79,6 +79,7 @@ import {
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   setNativeProjectCatStringsHidden,
+  setNativeProjectCatKeyMaxLength,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
 import {
@@ -160,6 +161,7 @@ import {
   projectFileCatCommentResolveBodySchema,
   projectFileCatHiddenStringsBodySchema,
   projectFileCatLockedStringsBodySchema,
+  projectFileCatMaxLengthBodySchema,
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
@@ -663,6 +665,16 @@ const validateProjectFileCatHiddenStringsBody = validator("json", (value, c) => 
 
 const validateProjectFileCatLockedStringsBody = validator("json", (value, c) => {
   const parsed = projectFileCatLockedStringsBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatMaxLengthBody = validator("json", (value, c) => {
+  const parsed = projectFileCatMaxLengthBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1592,6 +1604,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         try {
           const concordance = await loadCatSegmentConcordance({
             organizationId: c.var.auth.organization.localOrganizationId,
+            organizationSlug: c.var.auth.organization.slug ?? undefined,
             projectId: params.projectId,
             providerKind: target.kind === "provider" ? target.providerKind : null,
             actorUserId: c.var.auth.user.localUserId,
@@ -1872,6 +1885,65 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
 
         return c.json({ catSegmentLock: result }, 200);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/segments/:externalStringId/max-length",
+      validateProjectParams,
+      validateProjectFileCatSegmentParams,
+      validateProjectFileCatMaxLengthBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        if (params.externalStringId !== body.externalStringId) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Max length can only be updated for native CAT.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await setNativeProjectCatKeyMaxLength({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          translationKeyId: body.externalStringId,
+          maxLength: body.maxLength,
+          sourcePath: body.sourcePath,
+        });
+
+        if (!result.updated) {
+          return notFoundResponse(c, "translation_key_not_found");
+        }
+
+        return c.json(
+          {
+            segment: {
+              externalStringId: body.externalStringId,
+              ...(result.maxLength != null && result.maxLength > 0
+                ? { maxLength: result.maxLength }
+                : {}),
+            },
+          },
+          200,
+        );
       },
     )
     .post(

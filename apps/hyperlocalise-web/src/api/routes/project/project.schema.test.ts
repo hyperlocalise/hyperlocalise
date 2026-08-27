@@ -12,7 +12,60 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { externalTmsTranslationPushBodySchema } from "./project.schema";
+import {
+  externalTmsTranslationPushBodySchema,
+  projectFileCatMaxLengthBodySchema,
+} from "./project.schema";
+
+describe("projectFileCatMaxLengthBodySchema", () => {
+  it("accepts a positive maxLength", () => {
+    const result = projectFileCatMaxLengthBodySchema.safeParse({
+      sourcePath: "locales/en.json",
+      externalStringId: "1001",
+      maxLength: 24,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null to clear maxLength", () => {
+    const result = projectFileCatMaxLengthBodySchema.safeParse({
+      sourcePath: "locales/en.json",
+      externalStringId: "1001",
+      maxLength: null,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects zero, negative, non-integer, and over-max maxLength values", () => {
+    for (const maxLength of [0, -1, 1.5, 100_001]) {
+      const result = projectFileCatMaxLengthBodySchema.safeParse({
+        sourcePath: "locales/en.json",
+        externalStringId: "1001",
+        maxLength,
+      });
+      expect(result.success).toBe(false);
+    }
+  });
+
+  it("rejects blank sourcePath or externalStringId", () => {
+    expect(
+      projectFileCatMaxLengthBodySchema.safeParse({
+        sourcePath: " ",
+        externalStringId: "1001",
+        maxLength: 10,
+      }).success,
+    ).toBe(false);
+    expect(
+      projectFileCatMaxLengthBodySchema.safeParse({
+        sourcePath: "locales/en.json",
+        externalStringId: " ",
+        maxLength: 10,
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("externalTmsTranslationPushBodySchema", () => {
   it("requires either key or externalStringId on each translation", () => {

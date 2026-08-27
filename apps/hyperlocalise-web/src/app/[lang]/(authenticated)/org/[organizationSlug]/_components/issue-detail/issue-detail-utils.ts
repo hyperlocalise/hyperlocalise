@@ -67,6 +67,17 @@ export type IssueDetailIssue = {
   isWatching: boolean;
 };
 
+export function isIssueDetailIssue(value: unknown): value is IssueDetailIssue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "assigneeUserId" in value &&
+    "assignee" in value &&
+    "isWatching" in value
+  );
+}
+
 function formatUnknownLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

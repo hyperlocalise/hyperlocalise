@@ -14,9 +14,9 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
-import { issueSheetApiPath } from "./issue-detail-utils";
 import { issueFeedQueryKey } from "./use-issue-feed";
 import { ISSUE_RELATIONSHIPS_QUERY_PREFIX } from "./use-issue-relationships-query";
 
@@ -33,7 +33,9 @@ export function useIssueRelationshipMutations({
 }) {
   const queryClient = useQueryClient();
   const feedKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
-  const basePath = `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/relationships`;
+  const relationships =
+    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"][":issueId"]
+      .relationships;
 
   const invalidate = () => {
     // A relationship is visible from both endpoint issues, but only this issue's
@@ -50,12 +52,11 @@ export function useIssueRelationshipMutations({
 
   const createRelationship = useMutation({
     mutationFn: async (input: { relatedIssueId: string; kind: IssueRelationshipRequestKind }) => {
-      const response = await fetch(basePath, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!response.ok) {
+      const response = await relationships.$post({
+        param: { organizationSlug, projectId, issueId },
+        json: input,
+      } as never);
+      if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to create relationship");
       }
     },
@@ -64,8 +65,10 @@ export function useIssueRelationshipMutations({
 
   const deleteRelationship = useMutation({
     mutationFn: async (relationshipId: string) => {
-      const response = await fetch(`${basePath}/${relationshipId}`, { method: "DELETE" });
-      if (!response.ok) {
+      const response = await relationships[":relationshipId"].$delete({
+        param: { organizationSlug, projectId, issueId, relationshipId },
+      } as never);
+      if (response.status !== 204) {
         throw await readApiResponseError(response, "Failed to remove relationship");
       }
     },

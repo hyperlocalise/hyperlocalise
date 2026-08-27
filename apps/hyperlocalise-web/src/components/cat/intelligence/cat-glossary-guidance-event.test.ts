@@ -32,11 +32,12 @@ describe("cat-glossary-guidance-event", () => {
     const listener = vi.fn();
     const unsubscribe = subscribeCatGlossaryGuidance(listener);
 
-    setCatGlossaryGuidanceStatus({ preferredCount: 2, notRecommendedCount: 1 });
+    setCatGlossaryGuidanceStatus({ preferredCount: 2, notRecommendedCount: 1, matchCount: 3 });
 
     expect(getCatGlossaryGuidanceStatus()).toEqual({
       preferredCount: 2,
       notRecommendedCount: 1,
+      matchCount: 3,
     });
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -47,8 +48,8 @@ describe("cat-glossary-guidance-event", () => {
     const listener = vi.fn();
     const unsubscribe = subscribeCatGlossaryGuidance(listener);
 
-    setCatGlossaryGuidanceStatus({ preferredCount: 1, notRecommendedCount: 0 });
-    setCatGlossaryGuidanceStatus({ preferredCount: 1, notRecommendedCount: 0 });
+    setCatGlossaryGuidanceStatus({ preferredCount: 1, notRecommendedCount: 0, matchCount: 1 });
+    setCatGlossaryGuidanceStatus({ preferredCount: 1, notRecommendedCount: 0, matchCount: 1 });
 
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -60,7 +61,7 @@ describe("cat-glossary-guidance-event", () => {
     const unsubscribe = subscribeCatGlossaryGuidance(listener);
 
     unsubscribe();
-    setCatGlossaryGuidanceStatus({ preferredCount: 3, notRecommendedCount: 2 });
+    setCatGlossaryGuidanceStatus({ preferredCount: 3, notRecommendedCount: 2, matchCount: 4 });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -75,8 +76,24 @@ describe("cat-glossary-guidance-event", () => {
     window.removeEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, handler);
   });
 
+  it("marks guidance available when only matchCount is set", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeCatGlossaryGuidance(listener);
+
+    setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0, matchCount: 2 });
+
+    expect(getCatGlossaryGuidanceStatus()).toEqual({
+      preferredCount: 0,
+      notRecommendedCount: 0,
+      matchCount: 2,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+  });
+
   it("returns an empty server snapshot", () => {
-    setCatGlossaryGuidanceStatus({ preferredCount: 4, notRecommendedCount: 1 });
+    setCatGlossaryGuidanceStatus({ preferredCount: 4, notRecommendedCount: 1, matchCount: 2 });
     expect(getCatGlossaryGuidanceServerSnapshot()).toEqual(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
   });
 });

@@ -14,9 +14,9 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
-import { issueSheetApiPath } from "./issue-detail-utils";
 import { issueFeedQueryKey } from "./use-issue-feed";
 
 export type IssueCommentAuthor = {
@@ -44,10 +44,6 @@ export type IssueComment = {
   canDelete: boolean;
 };
 
-function commentsApiPath(organizationSlug: string, projectId: string, issueId: string) {
-  return `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}/comments`;
-}
-
 export function useIssueCommentMutations({
   organizationSlug,
   projectId,
@@ -59,6 +55,9 @@ export function useIssueCommentMutations({
 }) {
   const queryClient = useQueryClient();
   const feedQueryKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
+  const comments =
+    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"][":issueId"]
+      .comments;
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: feedQueryKey });
 
@@ -69,15 +68,14 @@ export function useIssueCommentMutations({
       mentionedUserIds?: string[];
       mentionedIssueIds?: string[];
     }) => {
-      const response = await fetch(commentsApiPath(organizationSlug, projectId, issueId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!response.ok) {
+      const response = await comments.$post({
+        param: { organizationSlug, projectId, issueId },
+        json: input,
+      } as never);
+      if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to create comment");
       }
-      return (await response.json()) as { issueComment: IssueComment };
+      return response.json();
     },
     onSuccess: invalidate,
   });
@@ -89,33 +87,28 @@ export function useIssueCommentMutations({
       mentionedUserIds?: string[];
       mentionedIssueIds?: string[];
     }) => {
-      const response = await fetch(
-        `${commentsApiPath(organizationSlug, projectId, issueId)}/${encodeURIComponent(input.commentId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            body: input.body,
-            mentionedUserIds: input.mentionedUserIds,
-            mentionedIssueIds: input.mentionedIssueIds,
-          }),
+      const response = await comments[":commentId"].$patch({
+        param: { organizationSlug, projectId, issueId, commentId: input.commentId },
+        json: {
+          body: input.body,
+          mentionedUserIds: input.mentionedUserIds,
+          mentionedIssueIds: input.mentionedIssueIds,
         },
-      );
-      if (!response.ok) {
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to update comment");
       }
-      return (await response.json()) as { issueComment: IssueComment };
+      return response.json();
     },
     onSuccess: invalidate,
   });
 
   const deleteComment = useMutation({
     mutationFn: async (commentId: string) => {
-      const response = await fetch(
-        `${commentsApiPath(organizationSlug, projectId, issueId)}/${encodeURIComponent(commentId)}`,
-        { method: "DELETE" },
-      );
-      if (!response.ok) {
+      const response = await comments[":commentId"].$delete({
+        param: { organizationSlug, projectId, issueId, commentId },
+      } as never);
+      if (response.status !== 204) {
         throw await readApiResponseError(response, "Failed to delete comment");
       }
     },

@@ -25,6 +25,9 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
+import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
+
+import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "./project.fixture";
 import type {
   ProjectFilesResponse,
@@ -647,6 +650,97 @@ describe("project file provider routes", () => {
       externalProjectId,
       { limit: 25, branch: "release/ios", actorUserId: userId },
     );
+  });
+
+  it("searches and pages native repository source paths on the server", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePaths = ["locales/aaa.json", "locales/bbb.json", "locales/zzz-late.json"];
+
+    for (const sourcePath of sourcePaths) {
+      const storedFile = await insertStoredSourceFile({
+        organizationId: organization.id,
+        projectId: project.id,
+        filename: sourcePath.split("/").at(-1),
+        contentType: "application/json",
+        sourceKind: "repository_file",
+        metadata: { sourcePath, sourceHash: `hash-${sourcePath}` },
+      });
+      const version = await ensureRepositorySourceFileVersionForStoredFile({
+        db,
+        fileId: storedFile.id,
+        organizationId: organization.id,
+        projectId: project.id,
+      });
+      if (!version) {
+        throw new Error(`expected repository source file version for ${sourcePath}`);
+      }
+    }
+
+    const searchResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: {
+          limit: "2",
+          origin: "repository",
+          search: "zzz-late",
+        },
+      },
+      { headers },
+    );
+
+    expect(searchResponse.status).toBe(200);
+    const searchBody = (await searchResponse.json()) as ProjectFilesResponse;
+    expect(searchBody.files.map((file) => file.sourcePath)).toEqual(["locales/zzz-late.json"]);
+
+    const firstPageResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: {
+          limit: "2",
+          offset: 0,
+          origin: "repository",
+        },
+      },
+      { headers },
+    );
+    const secondPageResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: {
+          limit: "2",
+          offset: 2,
+          origin: "repository",
+        },
+      },
+      { headers },
+    );
+
+    expect(firstPageResponse.status).toBe(200);
+    expect(secondPageResponse.status).toBe(200);
+    const firstPage = ((await firstPageResponse.json()) as ProjectFilesResponse).files.map(
+      (file) => file.sourcePath,
+    );
+    const secondPage = ((await secondPageResponse.json()) as ProjectFilesResponse).files.map(
+      (file) => file.sourcePath,
+    );
+    expect(firstPage).toEqual(["locales/aaa.json", "locales/bbb.json"]);
+    expect(secondPage).toEqual(["locales/zzz-late.json"]);
   });
 });
 

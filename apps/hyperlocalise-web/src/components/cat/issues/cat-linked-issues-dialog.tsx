@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { catLinkedIssuesDialogMessages as messages } from "./cat-linked-issues-dialog.messages";
@@ -51,25 +52,6 @@ export type CatLinkedIssueSegmentContext = {
   targetLocale: string;
   sourcePath: string;
 };
-
-type LinkedIssueListItem = {
-  id: string;
-  title: string;
-  status: string;
-  translationKeyId: string | null;
-};
-
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
 
 export function CatLinkedIssuesDialog({
   open,
@@ -102,20 +84,25 @@ export function CatLinkedIssuesDialog({
     queryKey: linkedQueryKey,
     enabled: open && Boolean(translationKeyId),
     queryFn: async () => {
-      const params = new URLSearchParams({
-        translationKeyId: translationKeyId!,
-        status: "all",
-        sort: "updated_at",
-        sortDir: "desc",
-        limit: "50",
-      });
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
-      );
-      const body = await readJsonOrThrow<{ issues: LinkedIssueListItem[] }>(
-        response,
-        intl.formatMessage(messages.requestFailed),
-      );
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].$get({
+        param: { organizationSlug, projectId },
+        query: {
+          translationKeyId: translationKeyId!,
+          status: "all",
+          sort: "updated_at",
+          sortDir: "desc",
+          limit: "50",
+        },
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
+            .message || intl.formatMessage(messages.requestFailed),
+        );
+      }
+      const body = await response.json();
       return body.issues;
     },
   });
@@ -124,22 +111,25 @@ export function CatLinkedIssuesDialog({
     queryKey: ["cat-linkable-issues", organizationSlug, projectId, linkSearch],
     enabled: open && linkPickerOpen && canManageLinks,
     queryFn: async () => {
-      const params = new URLSearchParams({
-        status: "all",
-        sort: "updated_at",
-        sortDir: "desc",
-        limit: "25",
-      });
-      if (linkSearch.trim()) {
-        params.set("search", linkSearch.trim());
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].$get({
+        param: { organizationSlug, projectId },
+        query: {
+          status: "all",
+          sort: "updated_at",
+          sortDir: "desc",
+          limit: "25",
+          ...(linkSearch.trim() ? { search: linkSearch.trim() } : {}),
+        },
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
+            .message || intl.formatMessage(messages.requestFailed),
+        );
       }
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
-      );
-      const body = await readJsonOrThrow<{ issues: LinkedIssueListItem[] }>(
-        response,
-        intl.formatMessage(messages.requestFailed),
-      );
+      const body = await response.json();
       return body.issues;
     },
   });
@@ -153,24 +143,25 @@ export function CatLinkedIssuesDialog({
       if (!segment?.translationKeyId) {
         throw new Error(intl.formatMessage(messages.linkingUnavailable));
       }
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            translationKeyId: segment.translationKeyId,
-            segmentId: segment.segmentId,
-            sourcePath: segment.sourcePath,
-            targetLocale: segment.targetLocale,
-            linkKind: "cat_segment",
-          }),
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].$patch({
+        param: { organizationSlug, projectId, issueId },
+        json: {
+          translationKeyId: segment.translationKeyId,
+          segmentId: segment.segmentId,
+          sourcePath: segment.sourcePath,
+          targetLocale: segment.targetLocale,
+          linkKind: "cat_segment",
         },
-      );
-      return readJsonOrThrow<{ issue: LinkedIssueListItem }>(
-        response,
-        intl.formatMessage(messages.linkFailed),
-      );
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, intl.formatMessage(messages.linkFailed))).message ||
+            intl.formatMessage(messages.linkFailed),
+        );
+      }
+      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.linked));
@@ -184,18 +175,19 @@ export function CatLinkedIssuesDialog({
 
   const unlinkIssue = useMutation({
     mutationFn: async (issueId: string) => {
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ translationKeyId: null }),
-        },
-      );
-      return readJsonOrThrow<{ issue: LinkedIssueListItem }>(
-        response,
-        intl.formatMessage(messages.unlinkFailed),
-      );
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].$patch({
+        param: { organizationSlug, projectId, issueId },
+        json: { translationKeyId: null },
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, intl.formatMessage(messages.unlinkFailed)))
+            .message || intl.formatMessage(messages.unlinkFailed),
+        );
+      }
+      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.unlinked));

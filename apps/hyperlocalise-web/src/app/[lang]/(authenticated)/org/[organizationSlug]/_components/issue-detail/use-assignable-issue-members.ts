@@ -14,9 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath } from "./issue-detail-utils";
 
 export type AssignableIssueMember = {
   userId: string;
@@ -46,13 +45,15 @@ export function useAssignableIssueMembersQuery({
     queryKey: assignableMembersQueryKey(organizationSlug, projectId ?? ""),
     enabled: Boolean(organizationSlug && projectId && enabled),
     queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId!)}/assignable-members`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ]["assignable-members"].$get({
+        param: { organizationSlug, projectId: projectId! },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load assignable members");
       }
-      return (await response.json()) as { members: AssignableIssueMember[] };
+      return response.json();
     },
   });
 }

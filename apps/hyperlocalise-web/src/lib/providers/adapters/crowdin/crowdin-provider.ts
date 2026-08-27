@@ -59,6 +59,12 @@ import {
 } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
+  loadCrowdinConcordanceTranslatableByConceptId,
+  mapCrowdinGlossaryConcordanceSearchResult,
+  resolveCrowdinConcordanceTranslatableFromResult,
+  sortCrowdinConcordanceMatches,
+} from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
+import {
   TmsProvider,
   type TmsProviderCommentPushScope,
   type TmsProviderContext,
@@ -74,12 +80,7 @@ import {
 } from "@/lib/providers/contracts/tms-provider";
 import type { ExternalTmsGlossaryMatcherInput } from "@/lib/providers/contracts/glossary-matcher";
 import { normalizeProviderGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
-import type {
-  NormalizedGlossaryConcept,
-  NormalizedGlossaryConceptTerm,
-  NormalizedGlossaryMatch,
-} from "@/lib/providers/contracts/glossary-match";
-import { normalizeProviderGlossaryTermFlags } from "@/lib/providers/contracts/glossary-term-status";
+import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { ExternalTmsTranslationMemoryMatcherInput } from "@/lib/providers/contracts/translation-memory-matcher";
 import { normalizeProviderTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
@@ -753,7 +754,7 @@ export class CrowdinTmsProvider extends TmsProvider {
             targetLocale,
             localeCoverage: this.uniqueLocales([sourceLocale, ...languageIds]),
             termCount: glossary.terms,
-            externalUrl: glossary.webUrl,
+            externalUrl: null,
             metadata: {
               crowdinGlossaryId: glossary.id,
               crowdinProjectId,
@@ -791,7 +792,7 @@ export class CrowdinTmsProvider extends TmsProvider {
                 ),
               ]),
               termCount: glossary.terms,
-              externalUrl: glossary.webUrl,
+              externalUrl: null,
               syncErrorMessage:
                 error instanceof Error ? error.message : "glossary_term_fetch_failed",
               metadata: {
@@ -827,7 +828,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       targetLocale,
       localeCoverage,
       termCount: glossary.terms,
-      externalUrl: glossary.webUrl ?? null,
+      externalUrl: null,
       externalProjectIds: [...glossary.projectIds, ...glossary.defaultProjectIds].map(String),
       createdAt: glossary.createdAt ?? null,
     };
@@ -2771,69 +2772,29 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     const glossaryTerms: NormalizedGlossaryMatch[] = [];
+    const translatableByConceptId = await loadCrowdinConcordanceTranslatableByConceptId({
+      client: input.client,
+      results: glossaryResults,
+    });
 
     for (const [index, result] of glossaryResults.entries()) {
-      const sourceTerm = this.pickTermText(result.sourceTerms, sourceLanguageId);
-      const targetTerm = this.pickTermText(result.targetTerms, targetLanguageId);
-      if (!sourceTerm || !targetTerm) {
-        continue;
-      }
-
       const externalGlossaryId = String(result.glossary.id);
-      const glossaryUrl =
-        sanitizeExternalUrl(result.glossary.webUrl) ??
-        `https://crowdin.com/glossary/${encodeURIComponent(externalGlossaryId)}`;
-      const status =
-        this.pickTermStatus(result.targetTerms, targetLanguageId) ??
-        this.pickTermStatus(result.sourceTerms, sourceLanguageId);
-      const providerTermId = result.sourceTerms[0]?.id ?? result.targetTerms[0]?.id;
-      const externalTermId =
-        providerTermId != null
-          ? String(providerTermId)
-          : this.stableConcordanceTermId(externalGlossaryId, sourceTerm, input.targetLocale);
-
-      const toConceptTerm = (
-        term: (typeof result.sourceTerms)[number],
-      ): NormalizedGlossaryConceptTerm => {
-        const forbidden = normalizeProviderGlossaryTermFlags({ status: term.status }).forbidden;
-        return {
-          id: String(term.id),
-          locale: term.languageId,
-          text: term.text,
-          status: term.status,
-          forbidden,
-          preferred: !forbidden,
-          termType: term.type,
-          partOfSpeech: term.partOfSpeech,
-          gender: term.gender,
-        };
-      };
-      const concept: NormalizedGlossaryConcept = {
-        id: result.concept ? String(result.concept.id) : externalTermId,
-        primaryTerm: sourceTerm,
-        subject: result.concept?.subject,
-        definition: result.concept?.definition,
-        glossaryUrl,
-        sourceTerms: result.sourceTerms.map(toConceptTerm),
-        targetTerms: result.targetTerms.map(toConceptTerm),
-      };
-
-      glossaryTerms.push(
-        normalizeProviderGlossaryMatch({
-          sourceTerm,
-          targetTerm,
-          sourceLocale: input.sourceLocale,
-          targetLocale: input.targetLocale,
-          providerKind: this.kind,
-          resourceId: externalGlossaryId,
-          externalResourceId: externalGlossaryId,
-          externalTermId,
-          glossaryName: result.glossary.name,
-          rank: 1 - index * 0.01,
-          status: { status },
-          concept,
-        }),
-      );
+      const match = mapCrowdinGlossaryConcordanceSearchResult({
+        result,
+        index,
+        resourceId: externalGlossaryId,
+        glossaryName: result.glossary.name,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+        stableTermIdGlossaryKey: externalGlossaryId,
+        translatable: resolveCrowdinConcordanceTranslatableFromResult(
+          result,
+          translatableByConceptId,
+        ),
+      });
+      if (match) {
+        glossaryTerms.push(match);
+      }
     }
 
     const translationMemoryMatches = translationMemoryResults
@@ -2855,7 +2816,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       );
 
     return {
-      glossaryTerms: glossaryTerms.slice(0, glossaryLimit),
+      glossaryTerms: sortCrowdinConcordanceMatches(glossaryTerms, glossaryLimit),
       translationMemoryMatches,
     };
   }

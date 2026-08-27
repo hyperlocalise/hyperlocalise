@@ -24,6 +24,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
   issueSheetTemplateLabel,
@@ -32,7 +33,6 @@ import {
 import { issueSheetTemplateMessages } from "@/lib/projects/issue-sheet/issue-sheet-templates.messages";
 
 import { IssueAssigneePicker } from "../../../../_components/issue-detail/issue-assignee-picker";
-import { issueSheetApiPath } from "../../../../_components/issue-detail/issue-detail-utils";
 import { useAssignableIssueMembersQuery } from "../../../../_components/issue-detail/use-assignable-issue-members";
 import {
   issueSheetTemplateConfigQueryKey,
@@ -90,23 +90,21 @@ export function ProjectIssueTemplatesPanel({
           return !(serverBinding && !serverBinding.assignable && serverBinding.userId === userId);
         }),
       );
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/template-config`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            defaultTemplateKey,
-            assigneeByTemplate: assigneeByTemplateToSave,
-          }),
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ]["template-config"].$put({
+        param: { organizationSlug, projectId },
+        json: {
+          defaultTemplateKey,
+          assigneeByTemplate: assigneeByTemplateToSave,
         },
-      );
-      if (!response.ok) {
+      } as never);
+      if (response.status !== 200) {
         throw new Error(
           (await readApiResponseError(response, intl.formatMessage(messages.saveError))).message,
         );
       }
-      const body = (await response.json()) as { templateConfig: IssueSheetTemplateConfig };
+      const body = await response.json();
       return body.templateConfig;
     },
     onSuccess: (templateConfig) => {

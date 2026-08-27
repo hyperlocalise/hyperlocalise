@@ -13,6 +13,7 @@
 import { Suspense } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromTemplate,
@@ -20,7 +21,7 @@ import {
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
   evaluateWorkspaceFeatureFlags,
-  requireWorkspaceFeatureFlag,
+  getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -37,7 +38,12 @@ export default async function NewAutomationPage({
   const { organizationSlug } = await params;
   const { template } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceAutomationsFlag, auth);
+  const automationsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth);
+
+  if (!automationsEnabled) {
+    return <FeatureTeaserPage feature="automations" scope="workspace" />;
+  }
+
   const flags = await evaluateWorkspaceFeatureFlags(auth);
   const templates = getMergedWorkspaceAutomationTemplates();
   const initialForm = template

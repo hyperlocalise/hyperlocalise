@@ -53,6 +53,7 @@ export type JobDetailTaskLayoutInput = {
   externalTaskId: string | null;
   id: string;
   kind: string;
+  nativeTargetLocales: string[];
   localeReadinessLoading?: boolean;
   localeReadinessOverride?: Record<string, unknown> | null;
   projectId: string | null;
@@ -106,6 +107,20 @@ function getInputPayloadString(job: JobDetailRecord, key: string) {
 
   const value = (job.inputPayload as Record<string, unknown>)[key];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getInputPayloadStringArray(job: JobDetailRecord, key: string) {
+  if (
+    typeof job.inputPayload !== "object" ||
+    job.inputPayload === null ||
+    Array.isArray(job.inputPayload)
+  ) {
+    return [];
+  }
+  const value = (job.inputPayload as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
 }
 
 function getInputPayloadMetadataString(job: JobDetailRecord, key: string) {
@@ -164,7 +179,13 @@ export function jobDetailTaskMetrics(
       label:
         resolveProviderTaskLanguageLabel(providerKind, payload) ??
         formatLocaleList(
-          resolveProviderTargetLocales(providerKind, payload, input.externalTargetLocales ?? []),
+          resolveProviderTargetLocales(
+            providerKind,
+            payload,
+            input.externalTargetLocales?.length
+              ? input.externalTargetLocales
+              : input.nativeTargetLocales,
+          ),
         ) ??
         intl.formatMessage(messages.emptyValue),
     },
@@ -206,7 +227,7 @@ export function jobDetailTaskProperties(
     resolveProviderTargetLocales(
       input.externalProviderKind,
       payload,
-      input.externalTargetLocales ?? [],
+      input.externalTargetLocales?.length ? input.externalTargetLocales : input.nativeTargetLocales,
     ),
   );
   const taskType =
@@ -309,6 +330,7 @@ export function jobDetailTaskLayoutFromRecord(
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
+    nativeTargetLocales: getInputPayloadStringArray(job, "targetLocales"),
     sourceFilesMetric:
       sourcePath ??
       (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked)),
@@ -355,6 +377,7 @@ export function jobDetailTaskLayoutFromLiveJob(
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
+    nativeTargetLocales: [],
     localeReadinessLoading: options?.localeReadinessLoading,
     localeReadinessOverride: options?.localeReadinessOverride,
   };

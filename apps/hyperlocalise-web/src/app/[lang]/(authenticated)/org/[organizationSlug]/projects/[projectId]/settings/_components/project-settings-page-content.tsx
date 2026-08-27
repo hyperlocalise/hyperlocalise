@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { SaveIcon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -87,6 +87,68 @@ async function readProjectError(response: Response, fallback: string) {
   return fallback;
 }
 
+const PROJECT_FORM_FIELD_ORDER: (keyof ProjectFormValues)[] = [
+  "name",
+  "identifier",
+  "description",
+  "translationContext",
+  "sourceLocale",
+  "targetLocales",
+];
+
+const PROJECT_FORM_FIELD_FOCUS_IDS: Partial<Record<keyof ProjectFormValues, string>> = {
+  name: "project-name",
+  identifier: "project-identifier",
+  description: "project-description",
+  translationContext: "translation-context",
+};
+
+/** Stable fingerprint of server-backed form fields so refetches do not wipe edits. */
+function projectFormFingerprint(project: ProjectListRow) {
+  return [
+    project.id,
+    project.updated,
+    project.name,
+    project.identifier,
+    project.descriptionValue,
+    project.translationContextValue,
+    project.sourceLocale ?? "",
+    project.targetLocales.join(","),
+  ].join("\0");
+}
+
+function firstProjectFormErrorMessage(errors: ProjectFormErrors) {
+  for (const key of PROJECT_FORM_FIELD_ORDER) {
+    const message = errors[key];
+    if (message) {
+      return message;
+    }
+  }
+  return undefined;
+}
+
+function focusFirstProjectFormError(errors: ProjectFormErrors) {
+  for (const key of PROJECT_FORM_FIELD_ORDER) {
+    if (!errors[key]) {
+      continue;
+    }
+
+    const fieldId = PROJECT_FORM_FIELD_FOCUS_IDS[key];
+    if (fieldId) {
+      const element = document.getElementById(fieldId);
+      if (element) {
+        element.focus({ preventScroll: true });
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+    }
+
+    const alert = document.querySelector<HTMLElement>("[data-slot=field-error]");
+    alert?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+}
+
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   const intl = useIntl();
 
@@ -153,18 +215,29 @@ export function ProjectSettingsPageContent({
   projectId: string;
   canManageCatBehavior: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const project = projectQuery.data;
+  const formRef = useRef<HTMLFormElement>(null);
   const [values, setValues] = useState<ProjectFormValues | null>(null);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
+  const [syncedFingerprint, setSyncedFingerprint] = useState<string | null>(null);
 
   useEffect(() => {
-    if (project) {
-      setValues(createProjectFormFromRow(project));
-      setErrors({});
+    if (!project) {
+      return;
     }
-  }, [project]);
+
+    const fingerprint = projectFormFingerprint(project);
+    if (fingerprint === syncedFingerprint) {
+      return;
+    }
+
+    setValues(createProjectFormFromRow(project));
+    setErrors({});
+    setSyncedFingerprint(fingerprint);
+  }, [project, syncedFingerprint]);
 
   const updateProject = useMutation({
     mutationFn: async (nextValues: ProjectFormValues) => {
@@ -203,11 +276,18 @@ export function ProjectSettingsPageContent({
 
   const isSaving = updateProject.isPending;
   const metadataEditable = project?.source === "native";
+  const formReady = Boolean(project && values && !projectQuery.isLoading);
   useAppShellHeaderAction({
     id: "project-settings-save",
-    visible: true,
+    visible: formReady,
     render: () => (
-      <Button type="submit" form="project-settings-form" disabled={isSaving}>
+      <Button
+        type="button"
+        disabled={isSaving}
+        onClick={() => {
+          formRef.current?.requestSubmit();
+        }}
+      >
         {isSaving ? (
           <Spinner />
         ) : (
@@ -229,10 +309,16 @@ export function ProjectSettingsPageContent({
     const nextErrors = validateProjectForm(values, {
       requireLocales: projectFormRequiresLocales("edit", project.source),
       requireIdentifier: true,
+      intl,
     });
     setErrors(nextErrors);
 
     if (projectFormHasErrors(nextErrors)) {
+      const message = firstProjectFormErrorMessage(nextErrors);
+      if (message) {
+        toast.error(message);
+      }
+      focusFirstProjectFormError(nextErrors);
       return;
     }
 
@@ -273,7 +359,7 @@ export function ProjectSettingsPageContent({
         }
       />
 
-      <form id="project-settings-form" onSubmit={handleSubmit} className="grid gap-5">
+      <form id="project-settings-form" ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

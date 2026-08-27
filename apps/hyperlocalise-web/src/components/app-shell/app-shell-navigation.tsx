@@ -39,7 +39,7 @@ import {
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
-import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import { annotateNavigationItemsWithWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import {
@@ -52,7 +52,7 @@ import {
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
 
-const inboxNotificationsApi = createInboxNotificationsApi();
+const inboxNotificationsApi = createInboxNotificationsApi(apiClient);
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -177,16 +177,16 @@ function ProjectNavigation({
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load project (${response.status})`);
       }
-      const body = (await response.json()) as { project: { id: string; name: string } };
+      const body = await response.json();
       return body.project;
     },
   });
 
   const store = useAppShellStore();
-  const resolvedItems = filterNavigationItemsByWorkspaceFlags(
+  const resolvedItems = annotateNavigationItemsWithWorkspaceFlags(
     items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
     store.workspaceFeatureFlags,
   );
@@ -274,8 +274,11 @@ function NavigationGroupItems({
             organizationSlug,
           });
           const isInboxItem = item.href === inboxHref;
+          const previewBadgeLabel = item.preview
+            ? intl.formatMessage(appShellNavigationMessages.previewBadge)
+            : null;
           const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
-          const badge = dynamicBadge ?? item.badge;
+          const badge = dynamicBadge ?? previewBadgeLabel ?? item.badge;
           const tooltip = badge
             ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
                 label: item.label,
@@ -293,9 +296,9 @@ function NavigationGroupItems({
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge && !dynamicBadge ? (
+                {badge && !dynamicBadge ? (
                   <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">
-                    {item.badge}
+                    {badge}
                   </span>
                 ) : null}
               </SidebarMenuButton>

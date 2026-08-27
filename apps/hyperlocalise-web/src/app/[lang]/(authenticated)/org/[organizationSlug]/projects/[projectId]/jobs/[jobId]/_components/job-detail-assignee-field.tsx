@@ -20,11 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { IssueAssigneePicker } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-assignee-picker";
-import {
-  assignableMembersQueryKey,
-  type AssignableIssueMember,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/use-assignable-issue-members";
-import { issueSheetApiPath } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-detail-utils";
+import { useAssignableIssueMembersQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/use-assignable-issue-members";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -36,26 +32,11 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
 import { jobDetailAssigneeFieldMessages as messages } from "./job-detail-assignee-field.messages";
-
-type CrowdinMember = {
-  externalUserId: string;
-  username: string;
-  displayName: string;
-  role?: string | null;
-};
-
-async function readUpdateError(response: Response, fallback: string) {
-  const body = (await response.json().catch(() => null)) as {
-    error?: string;
-    message?: string;
-  } | null;
-  return body?.message ?? body?.error ?? `${fallback} (${response.status})`;
-}
 
 function toggleValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -66,6 +47,7 @@ export function NativeJobOwnerField({
   projectId,
   jobId,
   ownerUserId,
+  assigneeType,
   queryKey,
   disabled = false,
 }: {
@@ -73,32 +55,25 @@ export function NativeJobOwnerField({
   projectId: string;
   jobId: string;
   ownerUserId: string | null;
+  assigneeType?: "user" | "agent" | null;
   queryKey: readonly unknown[];
   disabled?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
 
-  const membersQuery = useQuery({
-    queryKey: assignableMembersQueryKey(organizationSlug, projectId),
-    queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/assignable-members`,
-      );
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadMembersFailed));
-      }
-      const body = (await response.json()) as { members: AssignableIssueMember[] };
-      return body.members;
-    },
+  const membersQuery = useAssignableIssueMembersQuery({
+    organizationSlug,
+    projectId,
   });
+  const members = membersQuery.data?.members ?? [];
 
   const saveOwner = useMutation({
     mutationFn: async (nextOwnerUserId: string | null) => {
       const member =
         nextOwnerUserId == null
           ? null
-          : (membersQuery.data?.find((item) => item.userId === nextOwnerUserId) ?? null);
+          : (members.find((item) => item.userId === nextOwnerUserId) ?? null);
       const ownerWorkosUserId = member?.workosUserId ?? null;
       if (nextOwnerUserId && !ownerWorkosUserId) {
         throw new Error(intl.formatMessage(messages.saveFailed));
@@ -108,10 +83,10 @@ export function NativeJobOwnerField({
         param: { organizationSlug, jobId },
         json: { ownerWorkosUserId },
       });
-      if (!response.ok) {
-        throw new Error(await readUpdateError(response, intl.formatMessage(messages.saveFailed)));
+      if (response.status !== 200) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
       }
-      const body = (await response.json()) as { job: { ownerUserId: string | null } };
+      const body = await response.json();
       return body.job;
     },
     onSuccess: async (job) => {
@@ -119,7 +94,11 @@ export function NativeJobOwnerField({
         if (!current || typeof current !== "object" || Array.isArray(current)) {
           return job;
         }
-        return { ...current, ownerUserId: job.ownerUserId };
+        return {
+          ...current,
+          ownerUserId: job.ownerUserId,
+          assigneeType: job.assigneeType,
+        };
       });
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
       toast.success(intl.formatMessage(messages.saveSuccess));
@@ -131,13 +110,17 @@ export function NativeJobOwnerField({
 
   return (
     <IssueAssigneePicker
-      value={ownerUserId}
-      members={membersQuery.data ?? []}
+      value={assigneeType === "agent" ? "agent" : ownerUserId}
+      members={members}
       onChange={(next) => saveOwner.mutate(next)}
       disabled={disabled || saveOwner.isPending}
       isLoading={membersQuery.isLoading}
       size="ghost"
-      currentLabel={intl.formatMessage(messages.unassigned)}
+      currentLabel={
+        assigneeType === "agent"
+          ? intl.formatMessage(messages.agent)
+          : intl.formatMessage(messages.unassigned)
+      }
     />
   );
 }
@@ -177,10 +160,10 @@ export function CrowdinJobAssigneesField({
       ].members.$get({
         param: { organizationSlug, externalProjectId },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(intl.formatMessage(messages.loadMembersFailed));
       }
-      const body = (await response.json()) as { members: CrowdinMember[] };
+      const body = await response.json();
       return body.members;
     },
   });
@@ -193,15 +176,10 @@ export function CrowdinJobAssigneesField({
         param: { organizationSlug, encodedJobId },
         json: { assigneeExternalUserIds },
       });
-      if (!response.ok) {
-        throw new Error(await readUpdateError(response, intl.formatMessage(messages.saveFailed)));
+      if (response.status !== 200) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
       }
-      const body = (await response.json()) as {
-        job: {
-          externalAssignedUsers?: string[] | null;
-          externalProviderPayload?: Record<string, unknown>;
-        };
-      };
+      const body = await response.json();
       return body.job;
     },
     onSuccess: async (job) => {

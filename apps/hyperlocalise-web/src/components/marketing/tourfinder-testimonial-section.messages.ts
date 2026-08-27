@@ -16,19 +16,45 @@ import { defineMessages } from "react-intl";
 
 export const tourfinderTestimonialSectionMessages = defineMessages({
   eyebrow: {
-    defaultMessage: "Customer story",
-    id: "WAOAGxwy+L",
+    defaultMessage: "Case Study",
+    id: "6JQLX0bSZ4",
     description: "Eyebrow label above the Tourfinder case study section",
+  },
+  industryLabel: {
+    defaultMessage: "Industry",
+    id: "pt0tAxl2FT",
+    description: "Label for the Tourfinder case study industry metadata field",
+  },
+  industryValue: {
+    defaultMessage: "Tourism",
+    id: "En0QEC1++B",
+    description: "Tourfinder case study industry value",
+  },
+  locationLabel: {
+    defaultMessage: "Location",
+    id: "0LbxmzSNhE",
+    description: "Label for the Tourfinder case study location metadata field",
+  },
+  locationValue: {
+    defaultMessage: "Sydney, Australia",
+    id: "pWQfZXsgvn",
+    description: "Tourfinder case study location value",
   },
   headline: {
     defaultMessage: "Ship apps that speak every market from day one",
     id: "a8cGGx+QlX",
     description: "Marketing homepage Tourfinder case study section headline",
   },
-  result: {
-    defaultMessage: "Tourfinder launched Vietnamese and Japanese marketing in days, not months.",
-    id: "ZK/6pkQPQt",
-    description: "Marketing homepage Tourfinder case study result statement",
+  quote: {
+    defaultMessage:
+      "We experienced a <bold>21x increase in traffic</bold> and <bold>5x AI Assistant-originated sessions</bold> since introducing additional multilingual powered by Hyperlocalise.",
+    id: "5EhEUiPeEZ",
+    description: "Tourfinder customer quote; bold wraps the outcome metrics",
+  },
+  authorName: {
+    defaultMessage: "Vi Nguyen",
+    id: "j1pOSgEa8H",
+    description: "Name of the Tourfinder customer quoted in the case study",
   },
   visitSite: {
     defaultMessage: "Visit tourfinder.vn",

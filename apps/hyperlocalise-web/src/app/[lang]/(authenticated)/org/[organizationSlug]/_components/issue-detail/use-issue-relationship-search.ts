@@ -15,6 +15,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 export type IssueSearchResult = {
@@ -53,14 +54,14 @@ export function useIssueRelationshipSearch({
     queryKey: ["issue-relationship-search", organizationSlug, excludeIssueId, debouncedQuery],
     enabled,
     queryFn: async () => {
-      const params = new URLSearchParams({ q: debouncedQuery, excludeIssueId });
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/issue-sheet/search?${params.toString()}`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"]["issue-sheet"].search.$get({
+        param: { organizationSlug },
+        query: { q: debouncedQuery, excludeIssueId, limit: "20" },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to search issues");
       }
-      const body = (await response.json()) as { issues: IssueSearchResult[] };
+      const body = await response.json();
       return body.issues;
     },
   });

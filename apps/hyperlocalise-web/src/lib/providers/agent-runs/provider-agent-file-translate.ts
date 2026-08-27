@@ -552,6 +552,7 @@ export async function translateProviderJobFiles(input: {
       extractSandboxEntries,
       getOutputFilename,
       getOutputFilenamePattern,
+      hlEntriesPayloadToStringMap,
       prepareSandbox,
       readTranslatedFile,
       stopTranslationSandbox,
@@ -615,7 +616,7 @@ export async function translateProviderJobFiles(input: {
           try {
             const extracted = await extractSandboxEntries(sandboxId, workFilename);
             if (extracted.ok) {
-              sourceEntries = extracted.entries;
+              sourceEntries = hlEntriesPayloadToStringMap(extracted.entries);
             } else {
               warnings.push(
                 `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: exitCode=${extracted.exitCode}`,
@@ -756,7 +757,7 @@ export async function translateProviderJobFiles(input: {
               }
               // Existing/TM prefill wins over Crowdin prefill for the same key.
               filePrefills[index]![targetLocale] = {
-                ...crowdinEntries.entries,
+                ...hlEntriesPayloadToStringMap(crowdinEntries.entries),
                 ...filePrefills[index]![targetLocale],
               };
             }
@@ -823,7 +824,9 @@ export async function translateProviderJobFiles(input: {
                   );
                   continue;
                 }
-                const translatedEntries = translatedEntriesResult.entries;
+                const translatedEntries = hlEntriesPayloadToStringMap(
+                  translatedEntriesResult.entries,
+                );
 
                 const glossaryFailures = validateGlossaryTermsInTranslation({
                   sourceText: prepared.sourceText,

@@ -23,7 +23,6 @@ import { cn } from "@/lib/primitives/cn";
 
 import { CatEditorCommentsSection } from "@/components/cat/editor/cat-editor-comments-section";
 import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcut-kbd";
-import { CatEditorIssuesSection } from "@/components/cat/issues/cat-editor-issues-section";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import {
@@ -36,7 +35,6 @@ import type {
   CatSegmentIntelligence,
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
-import type { IssueSheetCreateStringLink } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
 
 export function CatSideBySideIntelligencePanel({
   segment,
@@ -65,13 +63,9 @@ export function CatSideBySideIntelligencePanel({
   onAddComment,
   onOpenIssueSheet,
   onResolveComment,
-  organizationSlug,
-  projectId,
-  nativeIssuesEnabled = false,
-  translationKeyId = null,
-  issueTargetLocale = null,
-  issueStringLink = null,
-  onNativeOpenIssueCountChange,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
+  onSetMaxLength,
   placement = "bottom",
   className,
 }: {
@@ -101,13 +95,9 @@ export function CatSideBySideIntelligencePanel({
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
-  organizationSlug?: string;
-  projectId?: string;
-  nativeIssuesEnabled?: boolean;
-  translationKeyId?: string | null;
-  issueTargetLocale?: string | null;
-  issueStringLink?: IssueSheetCreateStringLink | null;
-  onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   placement?: "bottom" | "right";
   className?: string;
 }) {
@@ -161,10 +151,13 @@ export function CatSideBySideIntelligencePanel({
       isVisualContextLoading={isVisualContextLoading}
       showAgentContext={showAgentContext}
       showVisualContext={showVisualContext}
-      canEditTranslations={canEditTranslations}
+      showMaxLengthEditor={showMaxLengthEditor}
+      isMaxLengthSaving={isMaxLengthSaving}
+      canEditTranslations={canEditTranslations && !segment.isLocked}
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
+      onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
     />
   );
   const commentsPanel = (
@@ -182,17 +175,6 @@ export function CatSideBySideIntelligencePanel({
         onOpenIssueSheet={onOpenIssueSheet}
         onResolveComment={onResolveComment}
       />
-      {nativeIssuesEnabled && organizationSlug && projectId ? (
-        <CatEditorIssuesSection
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          translationKeyId={translationKeyId}
-          targetLocale={issueTargetLocale}
-          stringLink={issueStringLink}
-          canCreate={canAddComment}
-          onOpenIssueCountChange={onNativeOpenIssueCountChange}
-        />
-      ) : null}
     </>
   );
 

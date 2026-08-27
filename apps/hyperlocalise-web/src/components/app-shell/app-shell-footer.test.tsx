@@ -20,6 +20,11 @@ import { IntlProvider } from "react-intl";
 
 import { AppShellFooter } from "@/components/app-shell/app-shell-footer";
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+import {
+  CAT_ISSUE_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
+  setCatIssueGuidanceStatus,
+} from "@/components/cat/issues/cat-issue-guidance-event";
 import { planUsagePrimaryFeatureId } from "@/lib/billing/plan-usage";
 
 const autumnMocks = vi.hoisted(() => ({
@@ -36,6 +41,7 @@ vi.mock("next/navigation", () => ({
 afterEach(() => {
   autumnMocks.useCustomer.mockReset();
   autumnMocks.useListPlans.mockReset();
+  setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
 });
 
 function renderFooter(
@@ -43,9 +49,15 @@ function renderFooter(
     organizationSlug?: string;
     showPlan?: boolean;
     withChat?: boolean;
+    showIssueGuidance?: boolean;
   } = {},
 ) {
-  const { organizationSlug = "acme", showPlan = true, withChat = false } = props;
+  const {
+    organizationSlug = "acme",
+    showPlan = true,
+    withChat = false,
+    showIssueGuidance = false,
+  } = props;
 
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -54,6 +66,7 @@ function renderFooter(
           <AppShellFooter
             organizationSlug={organizationSlug}
             showPlan={showPlan}
+            showIssueGuidance={showIssueGuidance}
             currentUser={
               withChat
                 ? {
@@ -147,5 +160,25 @@ describe("AppShellFooter", () => {
     const tablist = screen.getByRole("tablist", { name: "Chat conversations" });
     expect(tablist.closest("footer")).toBeTruthy();
     expect(screen.getByRole("tab", { name: /New chat/i })).toBeTruthy();
+  });
+
+  it("opens contextual issues from the footer and shows the open count", async () => {
+    const user = userEvent.setup();
+    const openListener = vi.fn();
+    window.addEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, openListener);
+    setCatIssueGuidanceStatus({ available: true, openIssueCount: 2 });
+
+    renderFooter({ showPlan: false, showIssueGuidance: true });
+
+    const issues = screen.getByRole("button", { name: "Open issues, 2 open" });
+    expect(issues).toHaveTextContent("Issues");
+    expect(issues).toHaveTextContent("2");
+
+    try {
+      await user.click(issues);
+      expect(openListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, openListener);
+    }
   });
 });

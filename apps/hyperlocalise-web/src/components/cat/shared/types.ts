@@ -156,9 +156,11 @@ export interface CatGlossaryConcept {
   glossaryId: string;
   glossaryName: string;
   glossaryUrl?: string | null;
+  conceptUrl?: string | null;
   primaryTerm: string;
   subject?: string | null;
   definition?: string | null;
+  translatable?: boolean;
   sourceTerms: CatGlossaryConceptTerm[];
   targetTerms: CatGlossaryConceptTerm[];
 }

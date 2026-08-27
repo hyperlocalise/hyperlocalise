@@ -78,10 +78,10 @@ function EmailHtmlPreview({ html }: { html: string }) {
 
 async function emailCanvas(canvasElement: HTMLElement) {
   const iframe = canvasElement.querySelector("iframe");
-  expect(iframe).toBeTruthy();
-  await waitFor(() => {
-    expect(iframe!.contentDocument?.body).toBeTruthy();
-    expect(iframe!.contentDocument!.body.innerHTML.length).toBeGreaterThan(0);
+  await expect(iframe).toBeTruthy();
+  await waitFor(async () => {
+    await expect(iframe!.contentDocument?.body).toBeTruthy();
+    await expect(iframe!.contentDocument!.body.innerHTML.length).toBeGreaterThan(0);
   });
   return within(iframe!.contentDocument!.body);
 }

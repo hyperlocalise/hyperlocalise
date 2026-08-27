@@ -31,29 +31,62 @@ function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<str
   };
 }
 
-function isNavigationItemEnabledByWorkspaceFlags(
-  item: Pick<NavigationItem, "featureFlagKey">,
+function annotateNavigationItemWithWorkspaceFlags(
+  item: NavigationItem,
   enabledByKey: Record<string, boolean>,
-) {
-  if (!item.featureFlagKey) {
-    return true;
+): NavigationItem {
+  if (!item.featureFlagKey || !(item.featureFlagKey in enabledByKey)) {
+    return item;
   }
 
-  if (!(item.featureFlagKey in enabledByKey)) {
-    return true;
+  const enabled = enabledByKey[item.featureFlagKey] ?? false;
+  if (enabled) {
+    return { ...item, preview: false };
   }
 
-  return enabledByKey[item.featureFlagKey] ?? false;
+  return { ...item, preview: true };
 }
 
+export function annotateNavigationItemsWithWorkspaceFlags(
+  items: readonly NavigationItem[],
+  flags: WorkspaceFeatureFlagState,
+): readonly NavigationItem[] {
+  const enabledByKey = workspaceFlagEnabledByKey(flags);
+  return items.map((item) => annotateNavigationItemWithWorkspaceFlags(item, enabledByKey));
+}
+
+export function annotateNavigationByWorkspaceFlags(
+  groups: readonly NavigationGroup[],
+  flags: WorkspaceFeatureFlagState,
+): readonly NavigationGroup[] {
+  const enabledByKey = workspaceFlagEnabledByKey(flags);
+
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => annotateNavigationItemWithWorkspaceFlags(item, enabledByKey)),
+  }));
+}
+
+/** @deprecated Use annotateNavigationItemsWithWorkspaceFlags — kept for tests during migration. */
 export function filterNavigationItemsByWorkspaceFlags(
   items: readonly NavigationItem[],
   flags: WorkspaceFeatureFlagState,
 ): readonly NavigationItem[] {
   const enabledByKey = workspaceFlagEnabledByKey(flags);
-  return items.filter((item) => isNavigationItemEnabledByWorkspaceFlags(item, enabledByKey));
+  return items.filter((item) => {
+    if (!item.featureFlagKey) {
+      return true;
+    }
+
+    if (!(item.featureFlagKey in enabledByKey)) {
+      return true;
+    }
+
+    return enabledByKey[item.featureFlagKey] ?? false;
+  });
 }
 
+/** @deprecated Use annotateNavigationByWorkspaceFlags — kept for tests during migration. */
 export function filterNavigationByWorkspaceFlags(
   groups: readonly NavigationGroup[],
   flags: WorkspaceFeatureFlagState,
@@ -63,9 +96,17 @@ export function filterNavigationByWorkspaceFlags(
   return groups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) =>
-        isNavigationItemEnabledByWorkspaceFlags(item, enabledByKey),
-      ),
+      items: group.items.filter((item) => {
+        if (!item.featureFlagKey) {
+          return true;
+        }
+
+        if (!(item.featureFlagKey in enabledByKey)) {
+          return true;
+        }
+
+        return enabledByKey[item.featureFlagKey] ?? false;
+      }),
     }))
     .filter((group) => group.items.length > 0);
 }

@@ -35,6 +35,11 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     id: "FlKUTB/6A0",
     description: "Label when a native job has no owner",
   },
+  agent: {
+    defaultMessage: "Agent",
+    id: "Qgi/HinJwQ",
+    description: "Assignee label for a native job assigned to the translation agent",
+  },
   triggerAria: {
     defaultMessage: "Assignees",
     id: "xVxao1E4rb",

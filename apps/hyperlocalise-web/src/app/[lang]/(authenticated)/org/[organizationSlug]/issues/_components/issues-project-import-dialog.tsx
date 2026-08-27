@@ -32,33 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueSheetImportDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-dialog";
 import { issuesProjectImportDialogMessages } from "./issues-project-import-dialog.messages";
-
-type IssueSheetColumn = {
-  id: string;
-  key: string;
-  label: string;
-  type: string;
-};
-
-type IssueSheetResponse = {
-  columns: IssueSheetColumn[];
-};
-
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, "Request failed");
-    throw new Error(error.message || "Request failed");
-  }
-  return (await response.json()) as T;
-}
 
 export function IssuesProjectImportDialog({
   open,
@@ -91,8 +69,17 @@ export function IssuesProjectImportDialog({
     queryKey: ["issue-sheet", organizationSlug, selectedProjectId, "import-columns"],
     enabled: Boolean(selectedProjectId),
     queryFn: async () => {
-      const response = await fetch(issueSheetPath(organizationSlug, selectedProjectId));
-      return readJsonOrThrow<IssueSheetResponse>(response);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].$get({
+        param: { organizationSlug, projectId: selectedProjectId },
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, "Request failed")).message || "Request failed",
+        );
+      }
+      return response.json();
     },
   });
 

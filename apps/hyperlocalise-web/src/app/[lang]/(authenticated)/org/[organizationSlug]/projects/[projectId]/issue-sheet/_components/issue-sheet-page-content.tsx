@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
@@ -57,69 +58,8 @@ import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
 import { useRouter } from "next/navigation";
 
-type IssueSheetColumn = {
-  id: string;
-  key: string;
-  label: string;
-  layer: string;
-  type: string;
-  config: { options?: { id: string; label: string; color?: string }[] };
-  sortOrder: number;
-  hidden?: boolean;
-  icon?: string | null;
-};
-
-type IssueSheetIssue = {
-  id: string;
-  identifier: string;
-  title: string;
-  description: string;
-  issueType: string;
-  status: string;
-  targetLocale: string | null;
-  sourcePath: string | null;
-  segmentId: string | null;
-  linkKind: string | null;
-  linkLabel: string | null;
-  linkUrl: string | null;
-  assigneeUserId: string | null;
-  reporter: string | null;
-  assignee: string | null;
-  key: string | null;
-  sourceText: string | null;
-  createdAt: string;
-  updatedAt: string;
-  resolvedAt: string | null;
-  values: Record<string, unknown>;
-};
-
-type IssueSheetResponse = {
-  issues: IssueSheetIssue[];
-  columns: IssueSheetColumn[];
-  total: number;
-  summary: {
-    total: number;
-    open: number;
-    inProgress: number;
-    resolved: number;
-    wontFix: number;
-  };
-};
-
 const columnTypeValues = ["text", "long_text", "select", "user"] as const;
 type ColumnTypeValue = (typeof columnTypeValues)[number];
-
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
 
 function formString(formData: FormData, key: string, fallback = "") {
   const value = formData.get(key);
@@ -176,9 +116,18 @@ export function IssueSheetPageContent({
   const issueSheetQuery = useQuery({
     queryKey,
     queryFn: async () => {
-      const params = new URLSearchParams(apiQuery);
-      const response = await fetch(`${issueSheetPath(organizationSlug, projectId)}?${params}`);
-      return readJsonOrThrow<IssueSheetResponse>(response, requestFailed);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].$get({
+        param: { organizationSlug, projectId },
+        query: apiQuery,
+      } as never);
+      if (response.status !== 200) {
+        throw new Error(
+          (await readApiResponseError(response, requestFailed)).message || requestFailed,
+        );
+      }
+      return response.json();
     },
   });
 
@@ -374,18 +323,24 @@ function CreateColumnDialog({
         .map((option) => option.trim())
         .filter(Boolean)
         .map((option) => ({ id: option, label: option }));
-      const response = await fetch(`${issueSheetPath(organizationSlug, projectId)}/columns`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns.$post({
+        param: { organizationSlug, projectId },
+        json: {
           key: formString(formData, "key"),
           label: formString(formData, "label"),
           type,
           icon,
           config: type === "select" ? { options } : {},
-        }),
-      });
-      return readJsonOrThrow<{ column: IssueSheetColumn }>(response, requestFailed);
+        },
+      } as never);
+      if (response.status !== 201) {
+        throw new Error(
+          (await readApiResponseError(response, requestFailed)).message || requestFailed,
+        );
+      }
+      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.columnAdded));

@@ -72,6 +72,7 @@ export type ApiJob = {
   id: string;
   projectId: string | null;
   createdByUserId: string | null;
+  assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
@@ -219,11 +220,16 @@ export function JobSourceLabel({ job, compact = false }: { job: ApiJob; compact?
 function targetLocales(job: ApiJob) {
   if (job.externalTargetLocales?.length) return job.externalTargetLocales.join(", ");
   if (job.reviewTargetLocale) return job.reviewTargetLocale;
+  const nativeTargetLocales = getInputPayloadStringArray(job, "targetLocales");
+  if (nativeTargetLocales.length > 0) return nativeTargetLocales.join(", ");
   return "—";
 }
 
-function assignees(job: ApiJob) {
+function assignees(job: ApiJob, intl?: IntlShape) {
   if (job.externalAssignedUsers?.length) return job.externalAssignedUsers.join(", ");
+  if (job.assigneeType === "agent") {
+    return intl ? intl.formatMessage(jobsPageViewMessages.assigneeAgent) : "Agent";
+  }
   return "—";
 }
 
@@ -237,6 +243,16 @@ function getInputPayloadString(job: ApiJob, key: string) {
   }
   const value = (job.inputPayload as Record<string, unknown>)[key];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getInputPayloadStringArray(job: ApiJob, key: string) {
+  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
+    return [];
+  }
+  const value = (job.inputPayload as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
 }
 
 export function getJobName(job: ApiJob, intl?: IntlShape) {
@@ -344,9 +360,9 @@ export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
     ? job.externalTargetLocales
     : job.reviewTargetLocale
       ? [job.reviewTargetLocale]
-      : [];
+      : getInputPayloadStringArray(job, "targetLocales");
   const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
-  const people = assignees(job);
+  const people = assignees(job, intl);
   if (locales === "—" && people === "—") {
     return intl
       ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)

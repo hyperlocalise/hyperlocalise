@@ -14,9 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath } from "./issue-detail-utils";
 
 export type IssueSubscriber = {
   userId: string;
@@ -47,13 +46,15 @@ export function useIssueSubscribersQuery({
     queryKey: issueSubscribersQueryKey(organizationSlug, projectId, issueId),
     enabled,
     queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/subscriptions`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].subscriptions.$get({
+        param: { organizationSlug, projectId, issueId },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issue subscribers");
       }
-      const body = (await response.json()) as { subscribers: IssueSubscriber[] };
+      const body = await response.json();
       return body.subscribers;
     },
   });
