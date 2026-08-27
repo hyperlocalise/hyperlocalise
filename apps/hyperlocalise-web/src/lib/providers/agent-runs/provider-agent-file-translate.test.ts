@@ -63,6 +63,7 @@ vi.mock("@/lib/translation/file-memory", () => ({
 }));
 
 vi.mock("@/lib/glossary/query-glossary-terms", () => ({
+  FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT: 500,
   listGlossaryTermsForProject: vi.fn(async () => []),
 }));
 
