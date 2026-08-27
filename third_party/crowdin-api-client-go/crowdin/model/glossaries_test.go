@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -320,6 +321,27 @@ func TestGlossaryImportRequestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGlossaryConcordanceSearchRequest_JSON(t *testing.T) {
+	req := &GlossaryConcordanceSearchRequest{
+		SourceLanguageID: "en",
+		TargetLanguageID: "de",
+		Expressions:      []string{"Welcome!"},
+		GlossaryIDs:      []int{1, 2},
+	}
+	data, err := json.Marshal(req)
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"sourceLanguageId":"en","targetLanguageId":"de","expressions":["Welcome!"],"glossaryIds":[1,2]}`, string(data))
+
+	reqOmit := &GlossaryConcordanceSearchRequest{
+		SourceLanguageID: "en",
+		TargetLanguageID: "de",
+		Expressions:      []string{"Welcome!"},
+	}
+	dataOmit, err := json.Marshal(reqOmit)
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"sourceLanguageId":"en","targetLanguageId":"de","expressions":["Welcome!"]}`, string(dataOmit))
 }
 
 func TestGlossaryConcordanceSearchRequestValidate(t *testing.T) {
