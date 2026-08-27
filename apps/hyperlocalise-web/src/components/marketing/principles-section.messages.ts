@@ -22,8 +22,8 @@ export const principlesSectionMessages = defineMessages({
   },
   subline: {
     defaultMessage:
-      "Triage questions, localize campaigns, publish SEO blogs in every market, keep brand consistent, and automate brief to publish.",
-    id: "jPibzSMcAB",
+      "Triage questions, localize campaigns, publish SEO blogs in every market, keep brand consistent, automate brief to publish, and review file content in the Editor.",
+    id: "LgJRko5erC",
     description: "Marketing homepage principles section supporting copy",
   },
 });

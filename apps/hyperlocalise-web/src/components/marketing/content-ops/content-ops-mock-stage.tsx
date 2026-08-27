@@ -35,6 +35,7 @@ import {
   type ContentOpsTerminalScene,
 } from "./content-ops-agent-terminal";
 import { ContentOpsBrandPanel } from "./content-ops-brand-panel";
+import { ContentOpsEditorPanel } from "./content-ops-editor-panel";
 import { ContentOpsFlowPanel } from "./content-ops-flow-panel";
 import { ContentOpsIssuesPanel } from "./content-ops-issues-panel";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
@@ -46,6 +47,7 @@ const TAB_ORDER: ContentOpsMockTabId[] = [
   "seo-blog",
   "brand",
   "brief-to-publish",
+  "editor",
 ];
 
 const MESH_BY_TAB: Record<ContentOpsMockTabId, string> = {
@@ -54,6 +56,7 @@ const MESH_BY_TAB: Record<ContentOpsMockTabId, string> = {
   "seo-blog": SAGE_MESH_GRADIENT_SRC,
   brand: LAVENDER_MESH_GRADIENT_SRC,
   "brief-to-publish": SAGE_MESH_GRADIENT_SRC,
+  editor: LAVENDER_MESH_GRADIENT_SRC,
 };
 
 type TabConfig = {
@@ -67,6 +70,7 @@ const TABS: TabConfig[] = [
   { id: "seo-blog", labelKey: "tabSeoBlog" },
   { id: "brand", labelKey: "tabBrand" },
   { id: "brief-to-publish", labelKey: "tabBriefToPublish" },
+  { id: "editor", labelKey: "tabEditor" },
 ];
 
 function useActivityItems(tabId: ContentOpsMockTabId, stepIndex: number): ContentOpsActivityItem[] {
@@ -229,12 +233,36 @@ function useActivityItems(tabId: ContentOpsMockTabId, stepIndex: number): Conten
       ],
     ];
 
+    const editorSets: ContentOpsActivityItem[][] = [
+      [
+        { time: "now", source: "Editor", message: "hero-section.tsx · fr-FR · 14 strings" },
+        { time: "4m", source: "Segment", message: "Homepage hero · needs review" },
+        { time: "8m", source: "Queue", message: "3 segments flagged in file" },
+      ],
+      [
+        { time: "now", source: "Glossary", message: "Term mismatch · review → validation" },
+        { time: "4m", source: "QA", message: "Approved term suggested for banner copy" },
+        { time: "8m", source: "Editor", message: "Glossary check on qa-warning segment" },
+      ],
+      [
+        { time: "now", source: "Issues", message: "WEB-2 linked · checkout CTA too long" },
+        { time: "4m", source: "MOB-1", message: "Open question · glossary violation" },
+        { time: "8m", source: "Triage", message: "Opened from issues board" },
+      ],
+      [
+        { time: "now", source: "Intelligence", message: "TM match · 92% · hero headline" },
+        { time: "4m", source: "Context", message: "Component path + repo context loaded" },
+        { time: "8m", source: "AI", message: "Suggestion ready · length check passed" },
+      ],
+    ];
+
     const setsByTab: Record<ContentOpsMockTabId, ContentOpsActivityItem[][]> = {
       triage: triageSets,
       campaign: campaignSets,
       "seo-blog": seoSets,
       brand: brandSets,
       "brief-to-publish": flowSets,
+      editor: editorSets,
     };
 
     const sets = setsByTab[tabId];
@@ -411,6 +439,12 @@ export function ContentOpsMockStage({
               <ContentOpsFlowPanel
                 pauseAutoplay={pauseAutoplay}
                 onActiveNodeChange={handleFlowNodeChange}
+              />
+            ) : null}
+            {activeTab === "editor" ? (
+              <ContentOpsEditorPanel
+                pauseAutoplay={pauseAutoplay}
+                onSceneChange={handleStepIndexChange}
               />
             ) : null}
           </motion.div>

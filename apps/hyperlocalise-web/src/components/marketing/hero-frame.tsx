@@ -32,7 +32,14 @@ type HeroFrameProps = {
   /** `breakout` spans near the viewport; `contained` fills a parent stage. */
   layout?: "breakout" | "contained";
   className?: string;
+  /** Override the initially focused segment in the demo workspace. */
+  initialSelectedSegmentId?: string;
+  /** Override the workspace viewport height (contained layouts). */
+  workspaceClassName?: string;
 };
+
+const DEFAULT_WORKSPACE_CLASSNAME =
+  "flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184";
 
 const heroDemoSegments: CatSegment[] = [
   {
@@ -710,19 +717,28 @@ function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceStat
   };
 }
 
-export function HeroFrame({ layout = "breakout", className }: HeroFrameProps) {
+export function HeroFrame({
+  layout = "breakout",
+  className,
+  initialSelectedSegmentId,
+  workspaceClassName = DEFAULT_WORKSPACE_CLASSNAME,
+}: HeroFrameProps) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
   const heroDemoState = buildHeroDemoState(intl);
+  const initialState =
+    initialSelectedSegmentId != null
+      ? { ...heroDemoState, selectedSegmentId: initialSelectedSegmentId }
+      : heroDemoState;
   const services = createHeroDemoServices(intl, heroDemoState);
   const frameClassName = cn(
     "relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200",
     className,
   );
   const workspace = (
-    <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
+    <div className={workspaceClassName}>
       <CatWorkspaceContainer
-        initialState={heroDemoState}
+        initialState={initialState}
         initialViewMode="comfortable"
         services={services}
       />

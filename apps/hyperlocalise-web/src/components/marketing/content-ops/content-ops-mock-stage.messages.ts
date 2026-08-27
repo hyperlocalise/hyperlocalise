@@ -46,6 +46,52 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "h/nQhr+VQ1",
     description: "Content ops mock tab label for brief-to-publish workflow",
   },
+  tabEditor: {
+    defaultMessage: "Editor",
+    id: "rQDAKZnTf9",
+    description: "Content ops mock tab label for the CAT file content editor",
+  },
+
+  editorSceneFileContent: {
+    defaultMessage: "Review file content",
+    id: "kXJXJXMmTt",
+    description: "Editor mock use case pill for reviewing source file strings",
+  },
+  editorSceneGlossary: {
+    defaultMessage: "Glossary checks",
+    id: "kM/dmaarD3",
+    description: "Editor mock use case pill for glossary term enforcement",
+  },
+  editorSceneIssues: {
+    defaultMessage: "Linked issues",
+    id: "K76rTMej1a",
+    description: "Editor mock use case pill for issues linked to strings",
+  },
+  editorSceneIntelligence: {
+    defaultMessage: "Translation intelligence",
+    id: "zjJkVSEvVu",
+    description: "Editor mock use case pill for TM, context, and AI suggestions",
+  },
+  editorIssuesPanelTitle: {
+    defaultMessage: "Issues · this string",
+    id: "ncf9XHFPKV",
+    description: "Title on the editor mock issues overlay",
+  },
+  editorHighlightEditor: {
+    defaultMessage: "File editor",
+    id: "/ApELcd47S",
+    description: "Highlight badge on the CAT file content editor panel",
+  },
+  editorHighlightGlossary: {
+    defaultMessage: "Glossary",
+    id: "hmabVdb4tH",
+    description: "Highlight badge on the glossary section in intelligence panel",
+  },
+  editorHighlightIntelligence: {
+    defaultMessage: "Intelligence",
+    id: "E451cDD6K/",
+    description: "Highlight badge on the translation intelligence panel",
+  },
 
   botLabel: {
     defaultMessage: "Use Hyperlocalise Agent",
@@ -377,4 +423,10 @@ export const contentOpsMockStageMessages = defineMessages({
   },
 });
 
-export type ContentOpsMockTabId = "triage" | "campaign" | "seo-blog" | "brand" | "brief-to-publish";
+export type ContentOpsMockTabId =
+  | "triage"
+  | "campaign"
+  | "seo-blog"
+  | "brand"
+  | "brief-to-publish"
+  | "editor";
