@@ -13,15 +13,15 @@
 import { z } from "zod";
 
 export const figmaAuthorizeQuerySchema = z.object({
-    codeChallenge: z.string().min(43).max(128),
-    codeChallengeMethod: z.literal("S256").default("S256"),
-    state: z.string().min(8).max(256).optional(),
-    screenHint: z.enum(["sign-in", "sign-up"]).optional(),
+  codeChallenge: z.string().min(43).max(128),
+  codeChallengeMethod: z.literal("S256").default("S256"),
+  state: z.string().min(8).max(256).optional(),
+  screenHint: z.enum(["sign-in", "sign-up"]).optional(),
 });
 
 export const figmaTokenBodySchema = z.object({
-    code: z.string().min(1).max(512),
-    codeVerifier: z.string().min(43).max(128),
+  code: z.string().min(1).max(512),
+  codeVerifier: z.string().min(43).max(128),
 });
 
 export type FigmaAuthorizeQuery = z.infer<typeof figmaAuthorizeQuerySchema>;

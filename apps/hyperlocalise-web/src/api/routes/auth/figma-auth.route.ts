@@ -29,114 +29,110 @@ import { figmaAuthorizeQuerySchema, figmaTokenBodySchema } from "./figma-auth.sc
  * used by the web and Mac apps (AUTH_INVARIANTS §9c).
  */
 export function createFigmaAuthRoutes() {
-    return new Hono()
-        .use("*", figmaCorsMiddleware)
-        .get(
-            "/authorize",
-            validator("query", (value, c) => {
-                const parsed = figmaAuthorizeQuerySchema.safeParse(value);
-                if (!parsed.success) {
-                    return badRequestResponse(c, "invalid_figma_authorize_query");
-                }
-                return parsed.data;
-            }),
-            async (c) => {
-                const query = c.req.valid("query");
-                const redirectUri = getFigmaRedirectUri();
+  return new Hono()
+    .use("*", figmaCorsMiddleware)
+    .get(
+      "/authorize",
+      validator("query", (value, c) => {
+        const parsed = figmaAuthorizeQuerySchema.safeParse(value);
+        if (!parsed.success) {
+          return badRequestResponse(c, "invalid_figma_authorize_query");
+        }
+        return parsed.data;
+      }),
+      async (c) => {
+        const query = c.req.valid("query");
+        const redirectUri = getFigmaRedirectUri();
 
-                const config = getWorkosAuthKitConfig();
-                const workos = getWorkosServerClient();
-                if (!config || !workos) {
-                    return c.json({ error: "workos_not_configured" }, 503);
-                }
+        const config = getWorkosAuthKitConfig();
+        const workos = getWorkosServerClient();
+        if (!config || !workos) {
+          return c.json({ error: "workos_not_configured" }, 503);
+        }
 
-                const authorizationUrl = workos.userManagement.getAuthorizationUrl({
-                    provider: "authkit",
-                    clientId: config.clientId,
-                    redirectUri,
-                    codeChallenge: query.codeChallenge,
-                    codeChallengeMethod: query.codeChallengeMethod,
-                    state: query.state,
-                    screenHint: query.screenHint,
-                });
+        const authorizationUrl = workos.userManagement.getAuthorizationUrl({
+          provider: "authkit",
+          clientId: config.clientId,
+          redirectUri,
+          codeChallenge: query.codeChallenge,
+          codeChallengeMethod: query.codeChallengeMethod,
+          state: query.state,
+          screenHint: query.screenHint,
+        });
 
-                return c.json(
-                    {
-                        authorization: {
-                            url: authorizationUrl,
-                            redirectUri,
-                        },
-                    },
-                    200,
-                );
+        return c.json(
+          {
+            authorization: {
+              url: authorizationUrl,
+              redirectUri,
             },
-        )
-        .post(
-            "/token",
-            validator("json", (value, c) => {
-                const parsed = figmaTokenBodySchema.safeParse(value);
-                if (!parsed.success) {
-                    return badRequestResponse(c, "invalid_figma_token_payload");
-                }
-                return parsed.data;
-            }),
-            async (c) => {
-                const body = c.req.valid("json");
-                const redirectUri = getFigmaRedirectUri();
-
-                const config = getWorkosAuthKitConfig();
-                const workos = getWorkosServerClient();
-                if (!config || !workos) {
-                    return c.json({ error: "workos_not_configured" }, 503);
-                }
-
-                try {
-                    const authResponse = await workos.userManagement.authenticateWithCode({
-                        clientId: config.clientId,
-                        code: body.code,
-                        codeVerifier: body.codeVerifier,
-                        session: {
-                            sealSession: true,
-                            cookiePassword: config.cookiePassword,
-                        },
-                    });
-
-                    const sealedSession = authResponse.sealedSession;
-                    if (!sealedSession) {
-                        return c.json({ error: "session_seal_failed" }, 502);
-                    }
-
-                    return c.json(
-                        {
-                            session: {
-                                sealedSession,
-                                headerName: "X-Hyperlocalise-Figma-Session",
-                            },
-                            user: {
-                                workosUserId: authResponse.user.id,
-                                email: authResponse.user.email,
-                                ...(authResponse.user.firstName
-                                    ? { firstName: authResponse.user.firstName }
-                                    : {}),
-                                ...(authResponse.user.lastName
-                                    ? { lastName: authResponse.user.lastName }
-                                    : {}),
-                                ...(authResponse.user.profilePictureUrl
-                                    ? { avatarUrl: authResponse.user.profilePictureUrl }
-                                    : {}),
-                            },
-                            ...(authResponse.organizationId
-                                ? { organizationId: authResponse.organizationId }
-                                : {}),
-                            redirectUri,
-                        },
-                        200,
-                    );
-                } catch {
-                    return unauthorizedResponse(c, "figma_token_exchange_failed");
-                }
-            },
+          },
+          200,
         );
+      },
+    )
+    .post(
+      "/token",
+      validator("json", (value, c) => {
+        const parsed = figmaTokenBodySchema.safeParse(value);
+        if (!parsed.success) {
+          return badRequestResponse(c, "invalid_figma_token_payload");
+        }
+        return parsed.data;
+      }),
+      async (c) => {
+        const body = c.req.valid("json");
+        const redirectUri = getFigmaRedirectUri();
+
+        const config = getWorkosAuthKitConfig();
+        const workos = getWorkosServerClient();
+        if (!config || !workos) {
+          return c.json({ error: "workos_not_configured" }, 503);
+        }
+
+        try {
+          const authResponse = await workos.userManagement.authenticateWithCode({
+            clientId: config.clientId,
+            code: body.code,
+            codeVerifier: body.codeVerifier,
+            session: {
+              sealSession: true,
+              cookiePassword: config.cookiePassword,
+            },
+          });
+
+          const sealedSession = authResponse.sealedSession;
+          if (!sealedSession) {
+            return c.json({ error: "session_seal_failed" }, 502);
+          }
+
+          return c.json(
+            {
+              session: {
+                sealedSession,
+                headerName: "X-Hyperlocalise-Figma-Session",
+              },
+              user: {
+                workosUserId: authResponse.user.id,
+                email: authResponse.user.email,
+                ...(authResponse.user.firstName ? { firstName: authResponse.user.firstName } : {}),
+                ...(authResponse.user.lastName ? { lastName: authResponse.user.lastName } : {}),
+                ...(authResponse.user.profilePictureUrl
+                  ? { avatarUrl: authResponse.user.profilePictureUrl }
+                  : {}),
+              },
+              ...(authResponse.organizationId
+                ? { organizationId: authResponse.organizationId }
+                : {}),
+              redirectUri,
+            },
+            200,
+          );
+        } catch {
+          return unauthorizedResponse(c, "figma_token_exchange_failed");
+        }
+      },
+    );
 }
 
 export const figmaAuthRoutes = createFigmaAuthRoutes();

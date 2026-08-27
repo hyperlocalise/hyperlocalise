@@ -17,16 +17,16 @@ import { env } from "@/lib/env";
 const DEFAULT_FIGMA_ORIGINS = ["https://www.figma.com", "https://figma.com", "null"];
 
 function parseAllowedOrigins(): Set<string> {
-    const configured = env.FIGMA_CORS_ORIGINS?.split(",").map((origin) => origin.trim()) ?? [];
-    const origins = new Set([...DEFAULT_FIGMA_ORIGINS, ...configured].filter(Boolean));
+  const configured = env.FIGMA_CORS_ORIGINS?.split(",").map((origin) => origin.trim()) ?? [];
+  const origins = new Set([...DEFAULT_FIGMA_ORIGINS, ...configured].filter(Boolean));
 
-    if (env.NODE_ENV === "development") {
-        origins.add("http://localhost:3000");
-        origins.add("https://localhost:3000");
-        origins.add("null");
-    }
+  if (env.NODE_ENV === "development") {
+    origins.add("http://localhost:3000");
+    origins.add("https://localhost:3000");
+    origins.add("null");
+  }
 
-    return origins;
+  return origins;
 }
 
 const allowedOrigins = parseAllowedOrigins();
@@ -35,23 +35,24 @@ export const FIGMA_SESSION_HEADER = "x-hyperlocalise-figma-session";
 export const FIGMA_ORGANIZATION_SLUG_HEADER = "x-hyperlocalise-organization-slug";
 
 export const figmaCorsMiddleware = createMiddleware(async (c, next) => {
-    const origin = c.req.header("origin");
-    const allowOrigin = !origin || origin === "null" || allowedOrigins.has(origin) ? (origin ?? "*") : null;
+  const origin = c.req.header("origin");
+  const allowOrigin =
+    !origin || origin === "null" || allowedOrigins.has(origin) ? (origin ?? "*") : null;
 
-    if (allowOrigin) {
-        c.header("Access-Control-Allow-Origin", allowOrigin === "null" ? "*" : allowOrigin);
-        c.header("Vary", "Origin");
-    }
+  if (allowOrigin) {
+    c.header("Access-Control-Allow-Origin", allowOrigin === "null" ? "*" : allowOrigin);
+    c.header("Vary", "Origin");
+  }
 
-    c.header(
-        "Access-Control-Allow-Headers",
-        `Content-Type, Authorization, ${FIGMA_SESSION_HEADER}, ${FIGMA_ORGANIZATION_SLUG_HEADER}`,
-    );
-    c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  c.header(
+    "Access-Control-Allow-Headers",
+    `Content-Type, Authorization, ${FIGMA_SESSION_HEADER}, ${FIGMA_ORGANIZATION_SLUG_HEADER}`,
+  );
+  c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
-    if (c.req.method === "OPTIONS") {
-        return c.body(null, 204);
-    }
+  if (c.req.method === "OPTIONS") {
+    return c.body(null, 204);
+  }
 
-    await next();
+  await next();
 });

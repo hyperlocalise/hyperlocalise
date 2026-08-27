@@ -16,31 +16,31 @@ import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
-    startFigmaLocalizationMock: vi.fn(),
-    getFigmaLocalizationStatusMock: vi.fn(),
-    generateFigmaLocalizationMock: vi.fn(),
-    pullLatestFigmaTranslationsMock: vi.fn(),
-    listOrganizationProjectsMock: vi.fn(),
-    resolveApiAuthContextFromSessionMock: vi.fn(),
+  startFigmaLocalizationMock: vi.fn(),
+  getFigmaLocalizationStatusMock: vi.fn(),
+  generateFigmaLocalizationMock: vi.fn(),
+  pullLatestFigmaTranslationsMock: vi.fn(),
+  listOrganizationProjectsMock: vi.fn(),
+  resolveApiAuthContextFromSessionMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
-    return {
-        ...actual,
-        resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
-    };
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
+  };
 });
 
 vi.mock("@/lib/figma/localize-file", () => ({
-    startFigmaLocalization: mocks.startFigmaLocalizationMock,
-    getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
-    generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
-    pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
+  startFigmaLocalization: mocks.startFigmaLocalizationMock,
+  getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
+  generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
+  pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
 }));
 
 vi.mock("@/lib/projects/organization/organization-project-service", () => ({
-    listOrganizationProjects: mocks.listOrganizationProjectsMock,
+  listOrganizationProjects: mocks.listOrganizationProjectsMock,
 }));
 
 import { createApp } from "@/api/app";
@@ -49,180 +49,195 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 const client = testClient(createApp());
 
 const authContext = {
-    user: {
-        workosUserId: "user_workos",
-        localUserId: "user_local",
-        email: "dev@example.com",
+  user: {
+    workosUserId: "user_workos",
+    localUserId: "user_local",
+    email: "dev@example.com",
+  },
+  organizations: [
+    {
+      workosOrganizationId: "org_workos",
+      localOrganizationId: "org_local",
+      name: "Acme",
+      slug: "acme",
+      membership: {
+        workosMembershipId: "mem_1",
+        role: "admin",
+        accessSource: "workos_authoritative",
+      },
     },
-    organizations: [
-        {
-            workosOrganizationId: "org_workos",
-            localOrganizationId: "org_local",
-            name: "Acme",
-            slug: "acme",
-            membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
-        },
-    ],
-    organization: {
-        workosOrganizationId: "org_workos",
-        localOrganizationId: "org_local",
-        name: "Acme",
-        slug: "acme",
-        membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
+  ],
+  organization: {
+    workosOrganizationId: "org_workos",
+    localOrganizationId: "org_local",
+    name: "Acme",
+    slug: "acme",
+    membership: {
+      workosMembershipId: "mem_1",
+      role: "admin",
+      accessSource: "workos_authoritative",
     },
-    activeOrganization: {
-        workosOrganizationId: "org_workos",
-        localOrganizationId: "org_local",
-        name: "Acme",
-        slug: "acme",
-        membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
+  },
+  activeOrganization: {
+    workosOrganizationId: "org_workos",
+    localOrganizationId: "org_local",
+    name: "Acme",
+    slug: "acme",
+    membership: {
+      workosMembershipId: "mem_1",
+      role: "admin",
+      accessSource: "workos_authoritative",
     },
-    membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
-    activeTeam: null,
-    capabilities: [],
+  },
+  membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
+  activeTeam: null,
+  capabilities: [],
 } as unknown as ApiAuthContext;
 
 const sessionHeaders = {
-    headers: {
-        "X-Hyperlocalise-Figma-Session": "sealed.session.value",
-        "X-Hyperlocalise-Organization-Slug": "acme",
-    },
+  headers: {
+    "X-Hyperlocalise-Figma-Session": "sealed.session.value",
+    "X-Hyperlocalise-Organization-Slug": "acme",
+  },
 };
 
 describe("figmaIntegrationRoutes", () => {
-    afterEach(() => {
-        vi.clearAllMocks();
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns health without auth", async () => {
+    const response = await client.api.integrations.figma.health.$get();
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("rejects session requests without a Figma session header", async () => {
+    const response = await client.api.integrations.figma.session.$get();
+    expect(response.status).toBe(401);
+  });
+
+  it("returns the signed-in session and projects", async () => {
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.listOrganizationProjectsMock.mockResolvedValue([
+      {
+        id: "proj_1",
+        name: "Marketing",
+        sourceLocale: "en",
+        targetLocales: ["es", "fr"],
+      },
+    ]);
+
+    const sessionResponse = await client.api.integrations.figma.session.$get(
+      undefined,
+      sessionHeaders,
+    );
+    expect(sessionResponse.status).toBe(200);
+    await expect(sessionResponse.json()).resolves.toMatchObject({
+      session: {
+        user: { email: "dev@example.com" },
+        organization: { slug: "acme" },
+      },
+    });
+    expect(mocks.resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
+      cookie: "wos-session=sealed.session.value",
+      organizationSlug: "acme",
     });
 
-    it("returns health without auth", async () => {
-        const response = await client.api.integrations.figma.health.$get();
-        expect(response.status).toBe(200);
-        await expect(response.json()).resolves.toEqual({ ok: true });
+    const projectsResponse = await client.api.integrations.figma.projects.$get(
+      undefined,
+      sessionHeaders,
+    );
+    expect(projectsResponse.status).toBe(200);
+    await expect(projectsResponse.json()).resolves.toEqual({
+      projects: [
+        {
+          id: "proj_1",
+          name: "Marketing",
+          sourceLocale: "en",
+          targetLocales: ["es", "fr"],
+        },
+      ],
+    });
+  });
+
+  it("creates a job from extracted Figma segments", async () => {
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.startFigmaLocalizationMock.mockResolvedValue({
+      jobId: "job_figma",
+      generated: true,
     });
 
-    it("rejects session requests without a Figma session header", async () => {
-        const response = await client.api.integrations.figma.session.$get();
-        expect(response.status).toBe(401);
-    });
-
-    it("returns the signed-in session and projects", async () => {
-        mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
-        mocks.listOrganizationProjectsMock.mockResolvedValue([
+    const response = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          projectId: "proj_1",
+          fileKey: "fileKey123",
+          sourceLocale: "en",
+          targetLocales: ["es"],
+          generate: true,
+          segments: [
             {
-                id: "proj_1",
-                name: "Marketing",
-                sourceLocale: "en",
-                targetLocales: ["es", "fr"],
+              key: "figma.segment.1:1.0",
+              nodeId: "1:1",
+              regionIndex: 0,
+              text: "Hello",
             },
-        ]);
+          ],
+        },
+      },
+      sessionHeaders,
+    );
 
-        const sessionResponse = await client.api.integrations.figma.session.$get(undefined, sessionHeaders);
-        expect(sessionResponse.status).toBe(200);
-        await expect(sessionResponse.json()).resolves.toMatchObject({
-            session: {
-                user: { email: "dev@example.com" },
-                organization: { slug: "acme" },
-            },
-        });
-        expect(mocks.resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
-            cookie: "wos-session=sealed.session.value",
-            organizationSlug: "acme",
-        });
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      job: { jobId: "job_figma", generated: true },
+    });
+    expect(mocks.startFigmaLocalizationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "proj_1",
+        fileKey: "fileKey123",
+        generate: true,
+      }),
+    );
+  });
 
-        const projectsResponse = await client.api.integrations.figma.projects.$get(
-            undefined,
-            sessionHeaders,
-        );
-        expect(projectsResponse.status).toBe(200);
-        await expect(projectsResponse.json()).resolves.toEqual({
-            projects: [
-                {
-                    id: "proj_1",
-                    name: "Marketing",
-                    sourceLocale: "en",
-                    targetLocales: ["es", "fr"],
-                },
-            ],
-        });
+  it("polls job status and pulls latest translations", async () => {
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
+      jobId: "job_figma",
+      status: "succeeded",
+      translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
+    });
+    mocks.generateFigmaLocalizationMock.mockResolvedValue({ jobId: "job_figma" });
+    mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
+      jobId: "job_figma",
+      status: "succeeded",
+      translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
     });
 
-    it("creates a job from extracted Figma segments", async () => {
-        mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
-        mocks.startFigmaLocalizationMock.mockResolvedValue({
-            jobId: "job_figma",
-            generated: true,
-        });
-
-        const response = await client.api.integrations.figma.jobs.$post(
-            {
-                json: {
-                    projectId: "proj_1",
-                    fileKey: "fileKey123",
-                    sourceLocale: "en",
-                    targetLocales: ["es"],
-                    generate: true,
-                    segments: [
-                        {
-                            key: "figma.segment.1:1.0",
-                            nodeId: "1:1",
-                            regionIndex: 0,
-                            text: "Hello",
-                        },
-                    ],
-                },
-            },
-            sessionHeaders,
-        );
-
-        expect(response.status).toBe(201);
-        await expect(response.json()).resolves.toEqual({
-            job: { jobId: "job_figma", generated: true },
-        });
-        expect(mocks.startFigmaLocalizationMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectId: "proj_1",
-                fileKey: "fileKey123",
-                generate: true,
-            }),
-        );
+    const statusResponse = await client.api.integrations.figma.jobs[":jobId"].$get(
+      { param: { jobId: "job_figma" } },
+      sessionHeaders,
+    );
+    expect(statusResponse.status).toBe(200);
+    await expect(statusResponse.json()).resolves.toMatchObject({
+      job: { status: "succeeded" },
     });
 
-    it("polls job status and pulls latest translations", async () => {
-        mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
-        mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
-            jobId: "job_figma",
-            status: "succeeded",
-            translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
-        });
-        mocks.generateFigmaLocalizationMock.mockResolvedValue({ jobId: "job_figma" });
-        mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
-            jobId: "job_figma",
-            status: "succeeded",
-            translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
-        });
+    const generateResponse = await client.api.integrations.figma.jobs[":jobId"].generate.$post(
+      { param: { jobId: "job_figma" } },
+      sessionHeaders,
+    );
+    expect(generateResponse.status).toBe(202);
 
-        const statusResponse = await client.api.integrations.figma.jobs[":jobId"].$get(
-            { param: { jobId: "job_figma" } },
-            sessionHeaders,
-        );
-        expect(statusResponse.status).toBe(200);
-        await expect(statusResponse.json()).resolves.toMatchObject({
-            job: { status: "succeeded" },
-        });
-
-        const generateResponse = await client.api.integrations.figma.jobs[":jobId"].generate.$post(
-            { param: { jobId: "job_figma" } },
-            sessionHeaders,
-        );
-        expect(generateResponse.status).toBe(202);
-
-        const pullResponse = await client.api.integrations.figma.translations.$get(
-            { query: { projectId: "proj_1", fileKey: "fileKey123" } },
-            sessionHeaders,
-        );
-        expect(pullResponse.status).toBe(200);
-        await expect(pullResponse.json()).resolves.toMatchObject({
-            translations: { status: "succeeded" },
-        });
+    const pullResponse = await client.api.integrations.figma.translations.$get(
+      { query: { projectId: "proj_1", fileKey: "fileKey123" } },
+      sessionHeaders,
+    );
+    expect(pullResponse.status).toBe(200);
+    await expect(pullResponse.json()).resolves.toMatchObject({
+      translations: { status: "succeeded" },
     });
+  });
 });

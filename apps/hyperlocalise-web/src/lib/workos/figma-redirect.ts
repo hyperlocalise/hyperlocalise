@@ -20,21 +20,21 @@ const DEFAULT_LOCAL_FIGMA_REDIRECT_URI = `http://localhost:3000${FIGMA_CALLBACK_
  * Register this exact URI in the WorkOS AuthKit redirect allowlist.
  */
 export function getFigmaRedirectUri(): string {
-    if (env.WORKOS_FIGMA_REDIRECT_URI) {
-        return env.WORKOS_FIGMA_REDIRECT_URI;
-    }
+  if (env.WORKOS_FIGMA_REDIRECT_URI) {
+    return env.WORKOS_FIGMA_REDIRECT_URI;
+  }
 
-    if (env.HYPERLOCALISE_PUBLIC_APP_URL) {
-        return new URL(FIGMA_CALLBACK_PATH, env.HYPERLOCALISE_PUBLIC_APP_URL).toString();
-    }
+  if (env.HYPERLOCALISE_PUBLIC_APP_URL) {
+    return new URL(FIGMA_CALLBACK_PATH, env.HYPERLOCALISE_PUBLIC_APP_URL).toString();
+  }
 
-    if (env.WORKOS_REDIRECT_URI) {
-        return new URL(FIGMA_CALLBACK_PATH, env.WORKOS_REDIRECT_URI).toString();
-    }
+  if (env.WORKOS_REDIRECT_URI) {
+    return new URL(FIGMA_CALLBACK_PATH, env.WORKOS_REDIRECT_URI).toString();
+  }
 
-    return DEFAULT_LOCAL_FIGMA_REDIRECT_URI;
+  return DEFAULT_LOCAL_FIGMA_REDIRECT_URI;
 }
 
 export function isFigmaRedirectUri(redirectUri: string): boolean {
-    return redirectUri.trim() === getFigmaRedirectUri();
+  return redirectUri.trim() === getFigmaRedirectUri();
 }

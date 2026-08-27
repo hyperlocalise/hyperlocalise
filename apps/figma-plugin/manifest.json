@@ -7,10 +7,7 @@
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": [
-      "https://app.hyperlocalise.com",
-      "https://*.hyperlocalise.com"
-    ],
+    "allowedDomains": ["https://app.hyperlocalise.com", "https://*.hyperlocalise.com"],
     "reasoning": "Sign in with Hyperlocalise OAuth and create, generate, and pull translation jobs.",
     "devAllowedDomains": ["http://localhost:3000"]
   }

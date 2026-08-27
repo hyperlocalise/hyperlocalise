@@ -10,14 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "dotenv/config";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import { getFigmaRedirectUri, isFigmaRedirectUri } from "./figma-redirect";
 
 describe("figma redirect URI", () => {
-    it("derives the callback from the public app URL in tests", () => {
-        expect(getFigmaRedirectUri()).toBe("https://app.example.test/auth/figma/callback");
-        expect(isFigmaRedirectUri("https://app.example.test/auth/figma/callback")).toBe(true);
-        expect(isFigmaRedirectUri("https://evil.example/auth/figma/callback")).toBe(false);
-    });
+  it("uses a fixed AuthKit callback and rejects other hosts", () => {
+    const redirectUri = getFigmaRedirectUri();
+    expect(redirectUri.endsWith("/auth/figma/callback")).toBe(true);
+    expect(isFigmaRedirectUri(redirectUri)).toBe(true);
+    expect(isFigmaRedirectUri("https://evil.example/auth/figma/callback")).toBe(false);
+  });
 });

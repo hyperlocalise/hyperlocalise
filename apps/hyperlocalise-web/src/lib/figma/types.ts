@@ -11,24 +11,24 @@
  * Version 2.0 or later.
  */
 export type FigmaDesignSegment = {
-    key: string;
-    nodeId: string;
-    regionIndex: number;
-    text: string;
+  key: string;
+  nodeId: string;
+  regionIndex: number;
+  text: string;
 };
 
 export type StartFigmaLocalizationResult = {
-    jobId: string;
-    generated: boolean;
+  jobId: string;
+  generated: boolean;
 };
 
 export type FigmaLocalizationStatus =
-    | {
-          jobId: string;
-          status: "queued" | "running";
-      }
-    | {
-          jobId: string;
-          status: "succeeded";
-          translationsByLocale: Record<string, Record<string, string>>;
-      };
+  | {
+      jobId: string;
+      status: "queued" | "running";
+    }
+  | {
+      jobId: string;
+      status: "succeeded";
+      translationsByLocale: Record<string, Record<string, string>>;
+    };

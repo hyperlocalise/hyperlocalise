@@ -15,9 +15,9 @@ import { Suspense } from "react";
 import { FigmaOAuthCallback } from "./figma-oauth-callback";
 
 export default function FigmaOAuthCallbackPage() {
-    return (
-        <Suspense>
-            <FigmaOAuthCallback />
-        </Suspense>
-    );
+  return (
+    <Suspense>
+      <FigmaOAuthCallback />
+    </Suspense>
+  );
 }
