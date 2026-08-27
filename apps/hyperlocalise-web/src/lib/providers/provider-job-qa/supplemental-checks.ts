@@ -122,6 +122,14 @@ function checkLengthExpansion(
   });
 }
 
+function forbiddenGlossaryDedupeKey(
+  locale: string,
+  term: ProviderQaGlossaryTerm,
+  forbiddenText: string,
+) {
+  return `${locale}:${term.caseSensitive ? "cs" : "ci"}:${term.caseSensitive ? forbiddenText : forbiddenText.toLowerCase()}`;
+}
+
 function checkGlossaryViolations(
   unit: ExternalTmsTranslationUnit,
   locale: string,
@@ -130,11 +138,22 @@ function checkGlossaryViolations(
   glossaryTerms: ProviderQaGlossaryTerm[],
 ): ProviderQaFinding[] {
   const findings: ProviderQaFinding[] = [];
+  const reportedForbidden = new Set<string>();
 
   for (const term of glossaryTerms) {
     if (term.forbidden) {
       const forbiddenText = term.targetTerm.trim();
-      if (forbiddenText && findGlossaryTermMatches(targetText, forbiddenText, term.caseSensitive)) {
+      if (!forbiddenText) {
+        continue;
+      }
+
+      const dedupeKey = forbiddenGlossaryDedupeKey(locale, term, forbiddenText);
+      if (reportedForbidden.has(dedupeKey)) {
+        continue;
+      }
+
+      if (findGlossaryTermMatches(targetText, forbiddenText, term.caseSensitive)) {
+        reportedForbidden.add(dedupeKey);
         findings.push(
           normalizeProviderQaFinding({
             checkType: "glossary_violation",

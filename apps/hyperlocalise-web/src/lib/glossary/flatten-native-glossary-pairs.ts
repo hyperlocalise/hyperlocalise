@@ -174,15 +174,13 @@ export function flattenNativeConceptTermsToPairs(input: {
     }
   }
 
-  if (!input.glossaryPriority || input.glossaryPriority.size === 0) {
-    return pairs;
-  }
-
   return pairs.toSorted((left, right) => {
-    const leftPriority = input.glossaryPriority!.get(left.glossaryId) ?? 0;
-    const rightPriority = input.glossaryPriority!.get(right.glossaryId) ?? 0;
-    if (leftPriority !== rightPriority) {
-      return leftPriority - rightPriority;
+    if (input.glossaryPriority && input.glossaryPriority.size > 0) {
+      const leftPriority = input.glossaryPriority.get(left.glossaryId) ?? 0;
+      const rightPriority = input.glossaryPriority.get(right.glossaryId) ?? 0;
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
     }
     if (left.glossaryName !== right.glossaryName) {
       return left.glossaryName.localeCompare(right.glossaryName);
@@ -192,6 +190,9 @@ export function flattenNativeConceptTermsToPairs(input: {
     }
     if (left.targetLocale !== right.targetLocale) {
       return left.targetLocale.localeCompare(right.targetLocale);
+    }
+    if (left.forbidden !== right.forbidden) {
+      return Number(left.forbidden) - Number(right.forbidden);
     }
     return left.targetTerm.localeCompare(right.targetTerm);
   });

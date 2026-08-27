@@ -202,4 +202,37 @@ describe("supplemental-checks glossary matching", () => {
     expect(findings.some((finding) => finding.checkType === "glossary_violation")).toBe(true);
     expect(findings.some((finding) => finding.message.includes("caisse"))).toBe(true);
   });
+
+  it("deduplicates forbidden target checks across source synonyms", () => {
+    const findings = collectSupplementalQaFindings(
+      unit({
+        sourceText: "Proceed to checkout",
+        translations: [{ locale: "fr", text: "Aller a la caisse" }],
+      }),
+      {
+        ...baseOptions,
+        glossaryTerms: [
+          {
+            sourceTerm: "checkout",
+            targetTerm: "caisse",
+            targetLocale: "fr",
+            forbidden: true,
+            caseSensitive: false,
+          },
+          {
+            sourceTerm: "cart",
+            targetTerm: "caisse",
+            targetLocale: "fr",
+            forbidden: true,
+            caseSensitive: false,
+          },
+        ],
+      },
+    );
+
+    const forbiddenFindings = findings.filter(
+      (finding) => finding.checkType === "glossary_violation",
+    );
+    expect(forbiddenFindings).toHaveLength(1);
+  });
 });

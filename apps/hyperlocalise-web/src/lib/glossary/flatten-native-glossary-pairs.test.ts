@@ -105,13 +105,13 @@ describe("flattenNativeConceptTermsToPairs", () => {
       expect.objectContaining({
         sourceTerm: "Hyperlocalise",
         targetTerm: "Hyperlocalise",
-        targetLocale: "fr",
+        targetLocale: "de",
         forbidden: false,
       }),
       expect.objectContaining({
         sourceTerm: "Hyperlocalise",
         targetTerm: "Hyperlocalise",
-        targetLocale: "de",
+        targetLocale: "fr",
         forbidden: false,
       }),
     ]);
@@ -150,12 +150,12 @@ describe("flattenNativeConceptTermsToPairs", () => {
 
     expect(pairs).toEqual([
       expect.objectContaining({
-        sourceTerm: "checkout",
+        sourceTerm: "cart",
         targetTerm: "paiement",
         forbidden: false,
       }),
       expect.objectContaining({
-        sourceTerm: "cart",
+        sourceTerm: "checkout",
         targetTerm: "paiement",
         forbidden: false,
       }),
@@ -197,5 +197,40 @@ describe("flattenNativeConceptTermsToPairs", () => {
     });
 
     expect(pairs.map((pair) => pair.glossaryId)).toEqual(["glossary-high", "glossary-low"]);
+  });
+
+  it("sorts required target pairs before forbidden alternatives", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({ id: "source-1", locale: "en", term: "checkout", status: "preferred" }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "paiement",
+            status: "preferred",
+          }),
+          baseTerm({
+            id: "target-deprecated",
+            locale: "fr",
+            term: "caisse",
+            status: "not_recommended",
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      glossaryPriority: new Map([["glossary-1", 1]]),
+    });
+
+    expect(pairs.map((pair) => pair.targetTerm)).toEqual(["paiement", "caisse"]);
   });
 });
