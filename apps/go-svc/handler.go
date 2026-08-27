@@ -79,7 +79,7 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch _, err := h.checkSpelling(r.Context(), targetLocale, req.TargetText); {
-		case errors.Is(err, ErrSpellCheckUnavailable):
+		case errors.Is(err, ErrSpellCheckUnavailable), errors.Is(err, spellcheck.ErrUnsupportedLocale):
 			skippedModes = append(skippedModes, QA_MODE_SPELLING)
 		case err != nil:
 			writeInternalError(w, "spell check failed")
