@@ -219,3 +219,7 @@
 ## 2026-11-27 - [Evalset Assertion Normalization and Locale Fallback Hierarchy]
 **Learning:** `evalset` assertion type normalization converts dashes to underscores and strips `judge.` prefixes (e.g., `judge.translation_quality`, `llm-rubric`, `g_eval`), mapping them into canonical assertion kinds. Furthermore, case expansion prioritizes `LocaleTarget` level context and reference attributes over `Vars` level defaults, providing locale-specific overrides when specified while preserving dataset-wide defaults for unconfigured locales.
 **Action:** When writing unit tests for evaluation set parsers, verify both hyphen/prefix assertion type normalization and locale-level vs suite-level variable inheritance precedence.
+
+## 2026-11-28 - [ARB Parser Edge Case Boundaries and Locale Injection]
+**Learning:** Flutter ARB parsers differentiate global `@@locale` metadata from per-message `@key` metadata. `MarshalARB` trims leading/trailing whitespace from target locales, injecting or updating `@@locale` when provided, while preserving the template's original `@@locale` when `targetLocale` is empty or whitespace-only. Furthermore, `parseARBObjectFields` enforces strict JSON root object types and detects trailing JSON tokens.
+**Action:** When testing Flutter ARB parsing and marshaling, cover whitespace locale normalization, root JSON object validation, non-string message value rejection, and metadata pruning when translatable keys are removed.
