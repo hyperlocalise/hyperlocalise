@@ -200,6 +200,7 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
       });
 
       const terms = pairs
+        .filter((pair) => rankByGlossarySource.has(`${pair.glossaryId}:${pair.sourceTerm}`))
         .map((pair) => ({
           id: pair.id,
           sourceTerm: pair.sourceTerm,

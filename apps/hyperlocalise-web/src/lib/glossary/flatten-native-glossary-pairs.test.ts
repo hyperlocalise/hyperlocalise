@@ -117,6 +117,51 @@ describe("flattenNativeConceptTermsToPairs", () => {
     ]);
   });
 
+  it("does not forbid preferred targets because a source synonym is not_recommended", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({ id: "source-preferred", locale: "en", term: "checkout", status: "preferred" }),
+          baseTerm({
+            id: "source-deprecated",
+            locale: "en",
+            term: "cart",
+            status: "not_recommended",
+          }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "paiement",
+            status: "preferred",
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(pairs).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        forbidden: false,
+      }),
+      expect.objectContaining({
+        sourceTerm: "cart",
+        targetTerm: "paiement",
+        forbidden: false,
+      }),
+    ]);
+  });
+
   it("sorts flattened pairs by glossary attachment priority", () => {
     const concepts: NativeConceptGroup[] = [
       {

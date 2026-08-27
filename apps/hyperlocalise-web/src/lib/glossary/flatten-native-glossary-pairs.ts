@@ -145,7 +145,7 @@ export function flattenNativeConceptTermsToPairs(input: {
                 sourceTerm,
                 targetTerm: preferred.text,
                 targetLocale,
-                forbidden: sourceStatus.forbidden || targetStatus.forbidden,
+                forbidden: targetStatus.forbidden,
               }),
             );
           }
