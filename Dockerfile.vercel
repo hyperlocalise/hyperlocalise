@@ -30,10 +30,14 @@ RUN set -eux; \
     mkdir -p "/runtime-libs/usr/lib/${triplet}"; \
     cp -P "/usr/lib/${triplet}/libhunspell-1.7.so.0" "/usr/lib/${triplet}/libhunspell-1.7.so.0.0.1" "/runtime-libs/usr/lib/${triplet}/"
 
+RUN bash apps/go-svc/build/fetch-dictionaries.sh /repo /dictionaries-staging/hunspell /dictionaries-staging/licenses
+
 FROM gcr.io/distroless/cc-debian12:nonroot
 WORKDIR /
 COPY --from=builder /service /service
 COPY --from=builder /runtime-libs/ /
+COPY --from=builder /dictionaries-staging/hunspell/ /usr/share/hunspell/
+COPY --from=builder /dictionaries-staging/licenses/ /usr/share/doc/hunspell-dictionaries/
 EXPOSE 8080
 USER nonroot:nonroot
 ENTRYPOINT ["/service"]
