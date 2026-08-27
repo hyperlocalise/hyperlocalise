@@ -20,6 +20,554 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "B4VkdPz+2q",
     description: "Live indicator label on the content ops activity feed",
   },
+  activityPaused: {
+    defaultMessage: "Paused",
+    id: "jvqi5j3K1U",
+    description: "Paused indicator when content ops mock autoplay is stopped",
+  },
+  activityTitle: {
+    defaultMessage: "Activity",
+    id: "PYzdvGniCi",
+    description: "Heading for the content ops activity feed",
+  },
+  activityAutoplayPause: {
+    defaultMessage: "Pause demo rotation",
+    id: "VbgjobTz9L",
+    description: "Accessible label for pausing content ops tab autoplay",
+  },
+  activityAutoplayResume: {
+    defaultMessage: "Resume demo rotation",
+    id: "vf2HgEHa0O",
+    description: "Accessible label for resuming content ops tab autoplay",
+  },
+
+  activityTimeNow: {
+    defaultMessage: "now",
+    id: "yldTcvr61y",
+    description: "Relative time label for activity feed",
+  },
+  activityTime4m: {
+    defaultMessage: "4m",
+    id: "UtCNRO3Hpb",
+    description: "Relative time label for activity feed",
+  },
+  activityTime5m: {
+    defaultMessage: "5m",
+    id: "L13YqrEkVX",
+    description: "Relative time label for activity feed",
+  },
+  activityTime6m: {
+    defaultMessage: "6m",
+    id: "UkyZJgCMc4",
+    description: "Relative time label for activity feed",
+  },
+  activityTime8m: {
+    defaultMessage: "8m",
+    id: "JxRiYxg9Qs",
+    description: "Relative time label for activity feed",
+  },
+  activityTime9m: {
+    defaultMessage: "9m",
+    id: "i47dt33mDU",
+    description: "Relative time label for activity feed",
+  },
+  activityTime10m: {
+    defaultMessage: "10m",
+    id: "OikIBnINAa",
+    description: "Relative time label for activity feed",
+  },
+  activityTime12m: {
+    defaultMessage: "12m",
+    id: "Bg6lYlgqhD",
+    description: "Relative time label for activity feed",
+  },
+
+  activitySourceBrief: {
+    defaultMessage: "Brief",
+    id: "HeC4WbLOJp",
+    description: "Activity feed source label",
+  },
+  activitySourceDrafts: {
+    defaultMessage: "Drafts",
+    id: "xC+/N2onOr",
+    description: "Activity feed source label",
+  },
+  activitySourceReview: {
+    defaultMessage: "Review",
+    id: "2rYRR19Jf0",
+    description: "Activity feed source label",
+  },
+  activitySourceAgent: {
+    defaultMessage: "Agent",
+    id: "0TbmGo1n4/",
+    description: "Activity feed source label",
+  },
+  activitySourceStaging: {
+    defaultMessage: "Staging",
+    id: "CT81WY4BD9",
+    description: "Activity feed source label",
+  },
+  activitySourceSlack: {
+    defaultMessage: "Slack",
+    id: "3n70tRu4m4",
+    description: "Activity feed source label",
+  },
+  activitySourceCms: {
+    defaultMessage: "CMS",
+    id: "70Q0NIB0wW",
+    description: "Activity feed source label",
+  },
+  activitySourceResearch: {
+    defaultMessage: "Research",
+    id: "TimJVK7Lpn",
+    description: "Activity feed source label",
+  },
+  activitySourceLocales: {
+    defaultMessage: "Locales",
+    id: "jov/yKhQef",
+    description: "Activity feed source label",
+  },
+  activitySourceGaps: {
+    defaultMessage: "Gaps",
+    id: "dYssR6em17",
+    description: "Activity feed source label",
+  },
+  activitySourceDraft: {
+    defaultMessage: "Draft",
+    id: "fEHDQiLfQy",
+    description: "Activity feed source label",
+  },
+  activitySourceQa: {
+    defaultMessage: "QA",
+    id: "xkWDMMRbBh",
+    description: "Activity feed source label",
+  },
+  activitySourcePublish: {
+    defaultMessage: "Publish",
+    id: "JRhsEwQe0f",
+    description: "Activity feed source label",
+  },
+  activitySourceIntent: {
+    defaultMessage: "Intent",
+    id: "b5cW7aN4Hd",
+    description: "Activity feed source label",
+  },
+  activitySourceSchedule: {
+    defaultMessage: "Schedule",
+    id: "Ae3sDjYSDE",
+    description: "Activity feed source label",
+  },
+  activitySourceChat: {
+    defaultMessage: "Chat",
+    id: "IdvmBW+pxV",
+    description: "Activity feed source label",
+  },
+  activitySourceGuide: {
+    defaultMessage: "Guide",
+    id: "ShxpEFKVDy",
+    description: "Activity feed source label",
+  },
+  activitySourceVerdict: {
+    defaultMessage: "Verdict",
+    id: "Z2om0bPNMD",
+    description: "Activity feed source label",
+  },
+  activitySourceKnowledge: {
+    defaultMessage: "Knowledge",
+    id: "AwFC+uLxC8",
+    description: "Activity feed source label",
+  },
+  activitySourceRule: {
+    defaultMessage: "Rule",
+    id: "j+ge9KuPgD",
+    description: "Activity feed source label",
+  },
+  activitySourceCopy: {
+    defaultMessage: "Copy",
+    id: "YmCV0t1AdI",
+    description: "Activity feed source label",
+  },
+  activitySourceApplied: {
+    defaultMessage: "Applied",
+    id: "mrC2BPzHqU",
+    description: "Activity feed source label",
+  },
+  activitySourceFlow: {
+    defaultMessage: "Flow",
+    id: "0bqwSoBvAO",
+    description: "Activity feed source label",
+  },
+  activitySourceStep: {
+    defaultMessage: "Step",
+    id: "J0BqX1wxHr",
+    description: "Activity feed source label",
+  },
+  activitySourceHandoff: {
+    defaultMessage: "Handoff",
+    id: "ictx5IinpD",
+    description: "Activity feed source label",
+  },
+  activitySourceLocalise: {
+    defaultMessage: "Localise",
+    id: "MZghIxfTxV",
+    description: "Activity feed source label",
+  },
+  activitySourceBrandQa: {
+    defaultMessage: "Brand QA",
+    id: "OF3udZacB2",
+    description: "Activity feed source label",
+  },
+  activitySourceTemplate: {
+    defaultMessage: "Template",
+    id: "3R639sxHr2",
+    description: "Activity feed source label",
+  },
+  activitySourceKeywords: {
+    defaultMessage: "Keywords",
+    id: "Srs/Utz5vI",
+    description: "Activity feed source label",
+  },
+  activitySourceEditor: {
+    defaultMessage: "Editor",
+    id: "3sph2ylLp6",
+    description: "Activity feed source label",
+  },
+  activitySourceSegment: {
+    defaultMessage: "Segment",
+    id: "ouV+kqOWV+",
+    description: "Activity feed source label",
+  },
+  activitySourceQueue: {
+    defaultMessage: "Queue",
+    id: "VAiLQOWFRD",
+    description: "Activity feed source label",
+  },
+  activitySourceGlossary: {
+    defaultMessage: "Glossary",
+    id: "q5hEzlXFsg",
+    description: "Activity feed source label",
+  },
+  activitySourceIssues: {
+    defaultMessage: "Issues",
+    id: "UvgE84P8Ua",
+    description: "Activity feed source label",
+  },
+  activitySourceTriage: {
+    defaultMessage: "Triage",
+    id: "kNiZnqyUZa",
+    description: "Activity feed source label",
+  },
+  activitySourceIntelligence: {
+    defaultMessage: "Intelligence",
+    id: "neQcg9GFWA",
+    description: "Activity feed source label",
+  },
+  activitySourceContext: {
+    defaultMessage: "Context",
+    id: "vqPmiXWIxH",
+    description: "Activity feed source label",
+  },
+  activitySourceAi: {
+    defaultMessage: "AI",
+    id: "NkoXJPgv6b",
+    description: "Activity feed source label",
+  },
+  activitySourceCat: {
+    defaultMessage: "CAT",
+    id: "9fiUHC+2VJ",
+    description: "Activity feed source label",
+  },
+
+  activityTriageAssignedFrCheckout: {
+    defaultMessage: "Assigned · FR checkout CTA too long",
+    id: "WSVwtNWuKm",
+    description: "Triage activity feed message",
+  },
+  activityTriageGlossaryBreakEs: {
+    defaultMessage: "Glossary break · es-ES · unassigned",
+    id: "ZR9JhUs4+U",
+    description: "Triage activity feed message",
+  },
+  activityTriageQaResolvedDe: {
+    defaultMessage: "QA failure resolved · de-DE headline",
+    id: "ILRMtLqdn2",
+    description: "Triage activity feed message",
+  },
+  activityTriageInProgressPayment: {
+    defaultMessage: "In progress · payment button label",
+    id: "1t9zbEkIB7",
+    description: "Triage activity feed message",
+  },
+  activityTriageOpenInCat: {
+    defaultMessage: "Open in CAT · checkout.json",
+    id: "orm3tG8EsL",
+    description: "Triage activity feed message",
+  },
+  activityTriageResolvedHero: {
+    defaultMessage: "Resolved · hero headline length check",
+    id: "505wZmu59b",
+    description: "Triage activity feed message",
+  },
+  activityTriageMistakeFr: {
+    defaultMessage: "Translation mistake flagged · fr-FR",
+    id: "mf6LDumuKi",
+    description: "Triage activity feed message",
+  },
+  activityTriageLengthFailedDe: {
+    defaultMessage: "Length check failed · de-DE",
+    id: "4Ezk2Binde",
+    description: "Triage activity feed message",
+  },
+
+  activityCampaignQ2Launch: {
+    defaultMessage: "Q2 launch · 4 markets · 12 assets",
+    id: "FX3/YLfPRM",
+    description: "Campaign activity feed message",
+  },
+  activityCampaignLandingDrafts: {
+    defaultMessage: "Localized landing pages generating",
+    id: "y9a+N9ATb+",
+    description: "Campaign activity feed message",
+  },
+  activityCampaignFrDeQueued: {
+    defaultMessage: "FR and DE queued",
+    id: "dcHDj5eTEB",
+    description: "Campaign activity feed message",
+  },
+  activityCampaignNotifiedGtm: {
+    defaultMessage: "Notified #gtm",
+    id: "17nuqX7zHl",
+    description: "Campaign activity feed message",
+  },
+  activityCampaignPublishedStaging: {
+    defaultMessage: "12 assets published to staging",
+    id: "49eBSdYB68",
+    description: "Campaign activity feed message",
+  },
+  activityCampaignBriefComplete: {
+    defaultMessage: "Q2 launch brief complete",
+    id: "CIvf6hBZPb",
+    description: "Campaign activity feed message",
+  },
+
+  activitySeoPullingVolume: {
+    defaultMessage: "Pulling search volume · core terms",
+    id: "a7JnsekqqO",
+    description: "SEO activity feed message",
+  },
+  activitySeoLocalesCompared: {
+    defaultMessage: "EN · FR · DE · JA demand compared",
+    id: "R4Wi6C8Ql2",
+    description: "SEO activity feed message",
+  },
+  activitySeoMetaH1De: {
+    defaultMessage: "Meta + H1 adapted for DE intent",
+    id: "Rr26d0W4jR",
+    description: "SEO activity feed message",
+  },
+  activitySeoNotifiedContent: {
+    defaultMessage: "Notified #content",
+    id: "9rZekOqxRy",
+    description: "SEO activity feed message",
+  },
+  activitySeoMonthlyComplete: {
+    defaultMessage: "Monthly SEO run complete",
+    id: "qQqnrMWBuX",
+    description: "SEO activity feed message",
+  },
+  activitySeoDeDraftReview: {
+    defaultMessage: "DE SEO draft awaiting review",
+    id: "l0sMLrUTNV",
+    description: "SEO activity feed message",
+  },
+  activitySeoLocalSearchIntent: {
+    defaultMessage: "Adapted for local search · not literal EN→DE",
+    id: "yTySez9tLk",
+    description: "SEO activity feed message",
+  },
+  activitySeoNextRun: {
+    defaultMessage: "Next run · 1st of month",
+    id: "sZEcE138S3",
+    description: "SEO activity feed message",
+  },
+
+  activityBrandReviewAsked: {
+    defaultMessage: "Brand review asked · DE checkout CTA",
+    id: "NsIsf9D+fH",
+    description: "Brand activity feed message",
+  },
+  activityBrandGuideRecalled: {
+    defaultMessage: "Style guide recalled · tone + CTA rules",
+    id: "luGVae/AqD",
+    description: "Brand activity feed message",
+  },
+  activityBrandOffBrandRewrite: {
+    defaultMessage: "Off-brand · suggested rewrite ready",
+    id: "oYuDY/G9ye",
+    description: "Brand activity feed message",
+  },
+  activityBrandGuideMatched: {
+    defaultMessage: "brand-voice-style-guide.pdf matched",
+    id: "oNrbP6Kfwx",
+    description: "Brand activity feed message",
+  },
+  activityBrandToneRule: {
+    defaultMessage: "Tone: friendly, direct",
+    id: "fvB4xcNYxK",
+    description: "Brand activity feed message",
+  },
+  activityBrandSuggestedCopy: {
+    defaultMessage: "Suggested · Jetzt starten",
+    id: "M/v6Ec5/ZA",
+    description: "Brand activity feed message",
+  },
+  activityBrandCorrectionApplied: {
+    defaultMessage: "Style correction applied to DE CTA",
+    id: "pD6rbm6KOO",
+    description: "Brand activity feed message",
+  },
+  activityBrandCtaLengthRule: {
+    defaultMessage: "CTA length rule enforced",
+    id: "Q8szy9VuMQ",
+    description: "Brand activity feed message",
+  },
+
+  activityFlowWorkflowActive: {
+    defaultMessage: "Brief to publish · workflow active",
+    id: "X55ISVbO+Y",
+    description: "Flow activity feed message",
+  },
+  activityFlowGtmBriefReceived: {
+    defaultMessage: "GTM brief received",
+    id: "BO4zL9cP+Z",
+    description: "Flow activity feed message",
+  },
+  activityFlowRoutingLocalise: {
+    defaultMessage: "Routing to localise",
+    id: "XVTGyntMBx",
+    description: "Flow activity feed message",
+  },
+  activityFlowLocaleDrafts: {
+    defaultMessage: "Locale drafts in progress",
+    id: "P2XJpaePEf",
+    description: "Flow activity feed message",
+  },
+  activityFlowStyleChecking: {
+    defaultMessage: "Style rules checking",
+    id: "GvFCGTKlPG",
+    description: "Flow activity feed message",
+  },
+  activityFlowReviewerQueue: {
+    defaultMessage: "Reviewer queue updated",
+    id: "GDeB6oyCIs",
+    description: "Flow activity feed message",
+  },
+  activityFlowDraftReady: {
+    defaultMessage: "Draft ready for publish",
+    id: "lyUxeHq9xA",
+    description: "Flow activity feed message",
+  },
+  activityFlowTeamNotified: {
+    defaultMessage: "Team notified · #content",
+    id: "2vvl50MJwP",
+    description: "Flow activity feed message",
+  },
+  activityFlowComplete: {
+    defaultMessage: "Brief to publish complete",
+    id: "9gMRfobxmP",
+    description: "Flow activity feed message",
+  },
+  activityFlowSeoSelected: {
+    defaultMessage: "SEO blog workflow selected",
+    id: "WWW5nLljZ1",
+    description: "Flow activity feed message",
+  },
+  activityFlowResearchActive: {
+    defaultMessage: "Research node active",
+    id: "1wx0AD55AP",
+    description: "Flow activity feed message",
+  },
+  activityFlowCmsHandoff: {
+    defaultMessage: "CMS draft handoff",
+    id: "QK7vc710Th",
+    description: "Flow activity feed message",
+  },
+  activityFlowCampaignSelected: {
+    defaultMessage: "Campaign workflow selected",
+    id: "IhrWCxkhb6",
+    description: "Flow activity feed message",
+  },
+  activityFlowAssetsRouted: {
+    defaultMessage: "Assets routed for review",
+    id: "3Z6IJTBR/U",
+    description: "Flow activity feed message",
+  },
+  activityFlowLaunchNotified: {
+    defaultMessage: "Launch channel notified",
+    id: "9RKWXCbIdt",
+    description: "Flow activity feed message",
+  },
+
+  activityEditorFileOpened: {
+    defaultMessage: "hero-section.tsx · fr-FR · 14 strings",
+    id: "so9QGdkdV9",
+    description: "Editor activity feed message",
+  },
+  activityEditorHeroNeedsReview: {
+    defaultMessage: "Homepage hero · needs review",
+    id: "vapBIbYjsV",
+    description: "Editor activity feed message",
+  },
+  activityEditorSegmentsFlagged: {
+    defaultMessage: "3 segments flagged in file",
+    id: "cBynSuVROy",
+    description: "Editor activity feed message",
+  },
+  activityEditorTermMismatch: {
+    defaultMessage: "Term mismatch · review → validation",
+    id: "LgTlWd3OgE",
+    description: "Editor activity feed message",
+  },
+  activityEditorTermSuggested: {
+    defaultMessage: "Approved term suggested for banner copy",
+    id: "RM4XFP9DWJ",
+    description: "Editor activity feed message",
+  },
+  activityEditorGlossaryCheck: {
+    defaultMessage: "Glossary check on qa-warning segment",
+    id: "ztaySGILBS",
+    description: "Editor activity feed message",
+  },
+  activityEditorIssueLinked: {
+    defaultMessage: "WEB-2 linked · checkout CTA too long",
+    id: "I+qo5eCLeO",
+    description: "Editor activity feed message",
+  },
+  activityEditorOpenQuestion: {
+    defaultMessage: "Open question · glossary violation",
+    id: "j5aTOW5nqn",
+    description: "Editor activity feed message",
+  },
+  activityEditorOpenedFromTriage: {
+    defaultMessage: "Opened from issues board",
+    id: "igAfv5C/QH",
+    description: "Editor activity feed message",
+  },
+  activityEditorTmMatch: {
+    defaultMessage: "TM match · 92% · hero headline",
+    id: "Vhmhc1uF/V",
+    description: "Editor activity feed message",
+  },
+  activityEditorContextLoaded: {
+    defaultMessage: "Component path + repo context loaded",
+    id: "V3NLDwgBXQ",
+    description: "Editor activity feed message",
+  },
+  activityEditorSuggestionReady: {
+    defaultMessage: "Suggestion ready · length check passed",
+    id: "lrzFf+e6vi",
+    description: "Editor activity feed message",
+  },
 
   tabTriage: {
     defaultMessage: "Triage open questions",

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { Chat01Icon, RefreshIcon, SentIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -26,18 +26,19 @@ import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 const TOOL_RESOLVE_MS = 520;
 const STEP_MS = 720;
 
-type PlaybackPhase = "idle" | "playing" | "done";
+export type BrandPlaybackPhase = "idle" | "playing" | "done";
 
 export function ContentOpsBrandPanel({
   pauseAutoplay = false,
   onPhaseChange,
 }: {
   pauseAutoplay?: boolean;
-  onPhaseChange?: (phase: PlaybackPhase) => void;
+  onPhaseChange?: (phase: BrandPlaybackPhase) => void;
 }) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const [phase, setPhase] = useState<PlaybackPhase>("idle");
+  const hasAutoStartedRef = useRef(false);
+  const [phase, setPhase] = useState<BrandPlaybackPhase>("idle");
   const [showTool, setShowTool] = useState(false);
   const [toolResolved, setToolResolved] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -66,13 +67,17 @@ export function ContentOpsBrandPanel({
     timersRef.current = [];
   };
 
+  const notifyPhaseChange = useEffectEvent((nextPhase: BrandPlaybackPhase) => {
+    onPhaseChange?.(nextPhase);
+  });
+
   const resetPlayback = () => {
     clearTimers();
     setPhase("idle");
     setShowTool(false);
     setToolResolved(false);
     setShowAnswer(false);
-    onPhaseChange?.("idle");
+    notifyPhaseChange("idle");
   };
 
   const schedule = (fn: () => void, delay: number) => {
@@ -86,7 +91,7 @@ export function ContentOpsBrandPanel({
     setShowTool(false);
     setToolResolved(false);
     setShowAnswer(false);
-    onPhaseChange?.("playing");
+    notifyPhaseChange("playing");
 
     let elapsed = shouldReduceMotion ? 0 : 180;
 
@@ -97,15 +102,16 @@ export function ContentOpsBrandPanel({
     schedule(() => {
       setShowAnswer(true);
       setPhase("done");
-      onPhaseChange?.("done");
+      notifyPhaseChange("done");
     }, elapsed);
-  }, [onPhaseChange, shouldReduceMotion]);
+  }, [shouldReduceMotion]);
 
   useEffect(() => {
-    if (pauseAutoplay || shouldReduceMotion) {
+    if (pauseAutoplay || shouldReduceMotion || hasAutoStartedRef.current) {
       return;
     }
 
+    hasAutoStartedRef.current = true;
     const timer = setTimeout(() => startPlayback(), 400);
     return () => clearTimeout(timer);
   }, [pauseAutoplay, shouldReduceMotion, startPlayback]);

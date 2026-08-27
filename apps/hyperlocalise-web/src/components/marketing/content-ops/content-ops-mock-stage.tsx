@@ -34,7 +34,7 @@ import {
   ContentOpsAgentTerminal,
   type ContentOpsTerminalScene,
 } from "./content-ops-agent-terminal";
-import { ContentOpsBrandPanel } from "./content-ops-brand-panel";
+import { ContentOpsBrandPanel, type BrandPlaybackPhase } from "./content-ops-brand-panel";
 import { ContentOpsEditorPanel } from "./content-ops-editor-panel";
 import { ContentOpsFlowPanel } from "./content-ops-flow-panel";
 import { ContentOpsIssuesPanel } from "./content-ops-issues-panel";
@@ -73,186 +73,223 @@ const TABS: TabConfig[] = [
   { id: "editor", labelKey: "tabEditor" },
 ];
 
+type ActivityMessages = typeof contentOpsMockStageMessages;
+
+function activityMsg(
+  intl: ReturnType<typeof useIntl>,
+  timeKey: keyof ActivityMessages,
+  sourceKey: keyof ActivityMessages,
+  messageKey: keyof ActivityMessages,
+): ContentOpsActivityItem {
+  return {
+    time: intl.formatMessage(contentOpsMockStageMessages[timeKey]),
+    source: intl.formatMessage(contentOpsMockStageMessages[sourceKey]),
+    message: intl.formatMessage(contentOpsMockStageMessages[messageKey]),
+  };
+}
+
+function activityIssue(
+  intl: ReturnType<typeof useIntl>,
+  timeKey: keyof ActivityMessages,
+  issueId: string,
+  messageKey: keyof ActivityMessages,
+): ContentOpsActivityItem {
+  return {
+    time: intl.formatMessage(contentOpsMockStageMessages[timeKey]),
+    source: issueId,
+    message: intl.formatMessage(contentOpsMockStageMessages[messageKey]),
+  };
+}
+
 function useActivityItems(tabId: ContentOpsMockTabId, stepIndex: number): ContentOpsActivityItem[] {
   const intl = useIntl();
 
   return useMemo(() => {
     const triageSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "WEB-2", message: "Assigned · FR checkout CTA too long" },
-        { time: "4m", source: "MOB-1", message: "Glossary break · es-ES · unassigned" },
-        { time: "10m", source: "WEB-3", message: "QA failure resolved · de-DE headline" },
+        activityIssue(intl, "activityTimeNow", "WEB-2", "activityTriageAssignedFrCheckout"),
+        activityIssue(intl, "activityTime4m", "MOB-1", "activityTriageGlossaryBreakEs"),
+        activityIssue(intl, "activityTime10m", "WEB-3", "activityTriageQaResolvedDe"),
       ],
       [
-        { time: "now", source: "MOB-1", message: "Glossary break · es-ES · unassigned" },
-        { time: "4m", source: "WEB-2", message: "In progress · payment button label" },
-        { time: "10m", source: "CAT", message: "Open in CAT · checkout.json" },
+        activityIssue(intl, "activityTimeNow", "MOB-1", "activityTriageGlossaryBreakEs"),
+        activityIssue(intl, "activityTime4m", "WEB-2", "activityTriageInProgressPayment"),
+        activityMsg(intl, "activityTime10m", "activitySourceCat", "activityTriageOpenInCat"),
       ],
       [
-        { time: "now", source: "WEB-3", message: "Resolved · hero headline length check" },
-        { time: "6m", source: "WEB-2", message: "Translation mistake flagged · fr-FR" },
-        { time: "12m", source: "QA", message: "Length check failed · de-DE" },
+        activityIssue(intl, "activityTimeNow", "WEB-3", "activityTriageResolvedHero"),
+        activityIssue(intl, "activityTime6m", "WEB-2", "activityTriageMistakeFr"),
+        activityMsg(intl, "activityTime12m", "activitySourceQa", "activityTriageLengthFailedDe"),
       ],
     ];
 
     const campaignSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "Brief", message: "Q2 launch · 4 markets · 12 assets" },
-        { time: "4m", source: "Drafts", message: "Localized landing pages generating" },
-        { time: "8m", source: "Review", message: "FR and DE queued" },
+        activityMsg(intl, "activityTimeNow", "activitySourceBrief", "activityCampaignQ2Launch"),
+        activityMsg(
+          intl,
+          "activityTime4m",
+          "activitySourceDrafts",
+          "activityCampaignLandingDrafts",
+        ),
+        activityMsg(intl, "activityTime8m", "activitySourceReview", "activityCampaignFrDeQueued"),
       ],
       [
-        {
-          time: "now",
-          source: "Agent",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm2),
-        },
-        {
-          time: "4m",
-          source: "Brief",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm1),
-        },
-        {
-          time: "8m",
-          source: "Review",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3),
-        },
+        activityMsg(intl, "activityTimeNow", "activitySourceAgent", "stepGtm2"),
+        activityMsg(intl, "activityTime4m", "activitySourceBrief", "stepGtm1"),
+        activityMsg(intl, "activityTime8m", "activitySourceReview", "stepGtm3"),
       ],
       [
-        {
-          time: "now",
-          source: "Review",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3),
-        },
-        {
-          time: "4m",
-          source: "Staging",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4),
-        },
-        { time: "8m", source: "Slack", message: "Notified #gtm" },
+        activityMsg(intl, "activityTimeNow", "activitySourceReview", "stepGtm3"),
+        activityMsg(intl, "activityTime4m", "activitySourceStaging", "stepGtm4"),
+        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activityCampaignNotifiedGtm"),
       ],
       [
-        {
-          time: "now",
-          source: "Staging",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4),
-        },
-        { time: "6m", source: "CMS", message: "12 assets published to staging" },
-        { time: "10m", source: "Brief", message: "Q2 launch brief complete" },
+        activityMsg(intl, "activityTimeNow", "activitySourceStaging", "stepGtm4"),
+        activityMsg(
+          intl,
+          "activityTime6m",
+          "activitySourceCms",
+          "activityCampaignPublishedStaging",
+        ),
+        activityMsg(
+          intl,
+          "activityTime10m",
+          "activitySourceBrief",
+          "activityCampaignBriefComplete",
+        ),
       ],
     ];
 
-    const seoStep3 = intl.formatMessage(contentOpsMockStageMessages.stepSeo3);
     const seoSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "Research", message: "Pulling search volume · core terms" },
-        { time: "4m", source: "Locales", message: "EN · FR · DE · JA compared" },
-        { time: "8m", source: "Gaps", message: seoStep3 },
+        activityMsg(intl, "activityTimeNow", "activitySourceResearch", "activitySeoPullingVolume"),
+        activityMsg(intl, "activityTime4m", "activitySourceLocales", "activitySeoLocalesCompared"),
+        activityMsg(intl, "activityTime8m", "activitySourceGaps", "stepSeo3"),
       ],
       [
-        { time: "now", source: "Gaps", message: seoStep3 },
-        {
-          time: "4m",
-          source: "Draft",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4),
-        },
-        { time: "8m", source: "QA", message: "Meta + H1 adapted for DE intent" },
+        activityMsg(intl, "activityTimeNow", "activitySourceGaps", "stepSeo3"),
+        activityMsg(intl, "activityTime4m", "activitySourceDraft", "stepSeo4"),
+        activityMsg(intl, "activityTime8m", "activitySourceQa", "activitySeoMetaH1De"),
       ],
       [
-        {
-          time: "now",
-          source: "Draft",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4),
-        },
-        {
-          time: "4m",
-          source: "CMS",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5),
-        },
-        { time: "8m", source: "Slack", message: "Notified #content" },
+        activityMsg(intl, "activityTimeNow", "activitySourceDraft", "stepSeo4"),
+        activityMsg(intl, "activityTime4m", "activitySourceCms", "stepSeo5"),
+        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activitySeoNotifiedContent"),
       ],
       [
-        {
-          time: "now",
-          source: "CMS",
-          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5),
-        },
-        { time: "6m", source: "Research", message: "Monthly SEO run complete" },
-        { time: "10m", source: "Gaps", message: seoStep3 },
+        activityMsg(intl, "activityTimeNow", "activitySourceCms", "stepSeo5"),
+        activityMsg(intl, "activityTime6m", "activitySourceResearch", "activitySeoMonthlyComplete"),
+        activityMsg(intl, "activityTime10m", "activitySourceGaps", "stepSeo3"),
       ],
       [
-        { time: "now", source: "Publish", message: "DE SEO draft awaiting review" },
-        { time: "5m", source: "Intent", message: "Adapted for local search · not literal EN→DE" },
-        { time: "9m", source: "Schedule", message: "Next run · 1st of month" },
+        activityMsg(intl, "activityTimeNow", "activitySourcePublish", "activitySeoDeDraftReview"),
+        activityMsg(intl, "activityTime5m", "activitySourceIntent", "activitySeoLocalSearchIntent"),
+        activityMsg(intl, "activityTime9m", "activitySourceSchedule", "activitySeoNextRun"),
       ],
     ];
 
     const brandSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "Chat", message: "Brand review asked · DE checkout CTA" },
-        { time: "4m", source: "Guide", message: "Style guide recalled · tone + CTA rules" },
-        { time: "8m", source: "Verdict", message: "Off-brand · suggested rewrite ready" },
+        activityMsg(intl, "activityTimeNow", "activitySourceChat", "activityBrandReviewAsked"),
+        activityMsg(intl, "activityTime4m", "activitySourceGuide", "activityBrandGuideRecalled"),
+        activityMsg(
+          intl,
+          "activityTime8m",
+          "activitySourceVerdict",
+          "activityBrandOffBrandRewrite",
+        ),
       ],
       [
-        { time: "now", source: "Knowledge", message: "brand-voice-style-guide.pdf matched" },
-        { time: "4m", source: "Rule", message: "Tone: friendly, direct" },
-        { time: "8m", source: "Copy", message: "Suggested · Jetzt starten" },
+        activityMsg(
+          intl,
+          "activityTimeNow",
+          "activitySourceKnowledge",
+          "activityBrandGuideMatched",
+        ),
+        activityMsg(intl, "activityTime4m", "activitySourceRule", "activityBrandToneRule"),
+        activityMsg(intl, "activityTime8m", "activitySourceCopy", "activityBrandSuggestedCopy"),
       ],
       [
-        { time: "now", source: "Applied", message: "Style correction applied to DE CTA" },
-        { time: "5m", source: "Chat", message: "Brand review asked · DE checkout CTA" },
-        { time: "10m", source: "Guide", message: "CTA length rule enforced" },
+        activityMsg(
+          intl,
+          "activityTimeNow",
+          "activitySourceApplied",
+          "activityBrandCorrectionApplied",
+        ),
+        activityMsg(intl, "activityTime5m", "activitySourceChat", "activityBrandReviewAsked"),
+        activityMsg(intl, "activityTime10m", "activitySourceGuide", "activityBrandCtaLengthRule"),
       ],
     ];
 
     const flowSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "Flow", message: "Brief to publish · workflow active" },
-        { time: "4m", source: "Step", message: "GTM brief received" },
-        { time: "8m", source: "Handoff", message: "Routing to localise" },
+        activityMsg(intl, "activityTimeNow", "activitySourceFlow", "activityFlowWorkflowActive"),
+        activityMsg(intl, "activityTime4m", "activitySourceStep", "activityFlowGtmBriefReceived"),
+        activityMsg(intl, "activityTime8m", "activitySourceHandoff", "activityFlowRoutingLocalise"),
       ],
       [
-        { time: "now", source: "Localise", message: "Locale drafts in progress" },
-        { time: "4m", source: "Brand QA", message: "Style rules checking" },
-        { time: "8m", source: "Review", message: "Reviewer queue updated" },
+        activityMsg(intl, "activityTimeNow", "activitySourceLocalise", "activityFlowLocaleDrafts"),
+        activityMsg(intl, "activityTime4m", "activitySourceBrandQa", "activityFlowStyleChecking"),
+        activityMsg(intl, "activityTime8m", "activitySourceReview", "activityFlowReviewerQueue"),
       ],
       [
-        { time: "now", source: "CMS", message: "Draft ready for publish" },
-        { time: "4m", source: "Slack", message: "Team notified · #content" },
-        { time: "8m", source: "Flow", message: "Brief to publish complete" },
+        activityMsg(intl, "activityTimeNow", "activitySourceCms", "activityFlowDraftReady"),
+        activityMsg(intl, "activityTime4m", "activitySourceSlack", "activityFlowTeamNotified"),
+        activityMsg(intl, "activityTime8m", "activitySourceFlow", "activityFlowComplete"),
       ],
       [
-        { time: "now", source: "Template", message: "SEO blog workflow selected" },
-        { time: "4m", source: "Keywords", message: "Research node active" },
-        { time: "8m", source: "Draft", message: "CMS draft handoff" },
+        activityMsg(intl, "activityTimeNow", "activitySourceTemplate", "activityFlowSeoSelected"),
+        activityMsg(intl, "activityTime4m", "activitySourceKeywords", "activityFlowResearchActive"),
+        activityMsg(intl, "activityTime8m", "activitySourceDraft", "activityFlowCmsHandoff"),
       ],
       [
-        { time: "now", source: "Template", message: "Campaign workflow selected" },
-        { time: "4m", source: "Staging", message: "Assets routed for review" },
-        { time: "8m", source: "Slack", message: "Launch channel notified" },
+        activityMsg(
+          intl,
+          "activityTimeNow",
+          "activitySourceTemplate",
+          "activityFlowCampaignSelected",
+        ),
+        activityMsg(intl, "activityTime4m", "activitySourceStaging", "activityFlowAssetsRouted"),
+        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activityFlowLaunchNotified"),
       ],
     ];
 
     const editorSets: ContentOpsActivityItem[][] = [
       [
-        { time: "now", source: "Editor", message: "hero-section.tsx · fr-FR · 14 strings" },
-        { time: "4m", source: "Segment", message: "Homepage hero · needs review" },
-        { time: "8m", source: "Queue", message: "3 segments flagged in file" },
+        activityMsg(intl, "activityTimeNow", "activitySourceEditor", "activityEditorFileOpened"),
+        activityMsg(
+          intl,
+          "activityTime4m",
+          "activitySourceSegment",
+          "activityEditorHeroNeedsReview",
+        ),
+        activityMsg(intl, "activityTime8m", "activitySourceQueue", "activityEditorSegmentsFlagged"),
       ],
       [
-        { time: "now", source: "Glossary", message: "Term mismatch · review → validation" },
-        { time: "4m", source: "QA", message: "Approved term suggested for banner copy" },
-        { time: "8m", source: "Editor", message: "Glossary check on qa-warning segment" },
+        activityMsg(
+          intl,
+          "activityTimeNow",
+          "activitySourceGlossary",
+          "activityEditorTermMismatch",
+        ),
+        activityMsg(intl, "activityTime4m", "activitySourceQa", "activityEditorTermSuggested"),
+        activityMsg(intl, "activityTime8m", "activitySourceEditor", "activityEditorGlossaryCheck"),
       ],
       [
-        { time: "now", source: "Issues", message: "WEB-2 linked · checkout CTA too long" },
-        { time: "4m", source: "MOB-1", message: "Open question · glossary violation" },
-        { time: "8m", source: "Triage", message: "Opened from issues board" },
+        activityMsg(intl, "activityTimeNow", "activitySourceIssues", "activityEditorIssueLinked"),
+        activityIssue(intl, "activityTime4m", "MOB-1", "activityEditorOpenQuestion"),
+        activityMsg(
+          intl,
+          "activityTime8m",
+          "activitySourceTriage",
+          "activityEditorOpenedFromTriage",
+        ),
       ],
       [
-        { time: "now", source: "Intelligence", message: "TM match · 92% · hero headline" },
-        { time: "4m", source: "Context", message: "Component path + repo context loaded" },
-        { time: "8m", source: "AI", message: "Suggestion ready · length check passed" },
+        activityMsg(intl, "activityTimeNow", "activitySourceIntelligence", "activityEditorTmMatch"),
+        activityMsg(intl, "activityTime4m", "activitySourceContext", "activityEditorContextLoaded"),
+        activityMsg(intl, "activityTime8m", "activitySourceAi", "activityEditorSuggestionReady"),
       ],
     ];
 
@@ -280,7 +317,7 @@ export function ContentOpsMockStage({
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [activeTab, setActiveTab] = useState<ContentOpsMockTabId>("triage");
-  const [isPaused, setIsPaused] = useState(false);
+  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
   const [playbackStep, setPlaybackStep] = useState(0);
 
   const campaignScene: ContentOpsTerminalScene = useMemo(
@@ -329,14 +366,25 @@ export function ContentOpsMockStage({
   const activityItems = useActivityItems(activeTab, playbackStep);
 
   const handleTabSelect = useCallback((tabId: ContentOpsMockTabId) => {
-    setIsPaused(true);
+    setAutoplayEnabled(false);
     setActiveTab(tabId);
     setPlaybackStep(0);
-    window.setTimeout(() => setIsPaused(false), 600);
+  }, []);
+
+  const handleAutoplayToggle = useCallback(() => {
+    setAutoplayEnabled((enabled) => !enabled);
+  }, []);
+
+  const handleBrandPhaseChange = useCallback((phase: BrandPlaybackPhase) => {
+    if (phase === "done") {
+      setPlaybackStep(2);
+    } else if (phase === "playing") {
+      setPlaybackStep(0);
+    }
   }, []);
 
   useEffect(() => {
-    if (isPaused || shouldReduceMotion) {
+    if (!autoplayEnabled || shouldReduceMotion) {
       return;
     }
 
@@ -350,7 +398,7 @@ export function ContentOpsMockStage({
     }, TAB_HOLD_MS);
 
     return () => window.clearTimeout(timer);
-  }, [activeTab, isPaused, shouldReduceMotion]);
+  }, [activeTab, autoplayEnabled, shouldReduceMotion]);
 
   const handleStepIndexChange = useCallback((stepIndex: number) => {
     setPlaybackStep(stepIndex);
@@ -360,7 +408,7 @@ export function ContentOpsMockStage({
     setPlaybackStep(nodeIndex);
   }, []);
 
-  const pauseAutoplay = isPaused || shouldReduceMotion;
+  const pauseAutoplay = !autoplayEnabled || shouldReduceMotion;
 
   useEffect(() => {
     if (activeTab !== "triage" || pauseAutoplay) {
@@ -394,7 +442,11 @@ export function ContentOpsMockStage({
         ))}
       </div>
 
-      <ContentOpsActivityFeed items={activityItems} />
+      <ContentOpsActivityFeed
+        items={activityItems}
+        autoplayEnabled={autoplayEnabled && !shouldReduceMotion}
+        onAutoplayToggle={handleAutoplayToggle}
+      />
 
       <MeshStage meshSrc={MESH_BY_TAB[activeTab]} priority={priority} layout="contained">
         <AnimatePresence mode="wait">
@@ -426,13 +478,7 @@ export function ContentOpsMockStage({
             {activeTab === "brand" ? (
               <ContentOpsBrandPanel
                 pauseAutoplay={pauseAutoplay}
-                onPhaseChange={(phase) => {
-                  if (phase === "done") {
-                    setPlaybackStep(2);
-                  } else if (phase === "playing") {
-                    setPlaybackStep(0);
-                  }
-                }}
+                onPhaseChange={handleBrandPhaseChange}
               />
             ) : null}
             {activeTab === "brief-to-publish" ? (
