@@ -10,29 +10,71 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 
-export type GlossaryTermQueryRow = {
-  id: string;
-  glossaryId: string;
-  glossaryName: string;
-  sourceTerm: string;
-  targetTerm: string;
-  targetLocale: string;
-  description: string;
-  partOfSpeech: string;
-  forbidden: boolean;
-  caseSensitive: boolean;
-  provenance: string;
-  externalKey: string | null;
-  reviewStatus: string;
-};
+import {
+  flattenNativeConceptTermsToPairs,
+  type GlossaryTermQueryRow,
+  type NativeConceptGroup,
+} from "./flatten-native-glossary-pairs";
 
-const nativeSourceTerms = alias(schema.glossaryTerms, "native_source_terms");
-const nativeTargetTerms = alias(schema.glossaryTerms, "native_target_terms");
+export type { GlossaryTermQueryRow } from "./flatten-native-glossary-pairs";
+
+function groupConceptTerms(
+  rows: Array<{
+    id: string;
+    conceptId: string;
+    glossaryId: string;
+    glossaryName: string;
+    translatable: boolean;
+    locale: string | null;
+    term: string | null;
+    status: string;
+    description: string;
+    partOfSpeech: string;
+    caseSensitive: boolean;
+    provenance: string;
+    reviewStatus: string;
+  }>,
+): NativeConceptGroup[] {
+  const concepts = new Map<string, NativeConceptGroup>();
+
+  for (const row of rows) {
+    if (!row.locale || !row.term) {
+      continue;
+    }
+
+    const existing = concepts.get(row.conceptId);
+    const termRow = {
+      id: row.id,
+      locale: row.locale,
+      term: row.term,
+      status: row.status,
+      description: row.description,
+      partOfSpeech: row.partOfSpeech,
+      caseSensitive: row.caseSensitive,
+      provenance: row.provenance,
+      reviewStatus: row.reviewStatus,
+    };
+
+    if (existing) {
+      existing.terms.push(termRow);
+      continue;
+    }
+
+    concepts.set(row.conceptId, {
+      conceptId: row.conceptId,
+      glossaryId: row.glossaryId,
+      glossaryName: row.glossaryName,
+      translatable: row.translatable,
+      terms: [termRow],
+    });
+  }
+
+  return [...concepts.values()];
+}
 
 export async function listNativeGlossaryTermPairs(
   database: DatabaseClient,
@@ -41,53 +83,64 @@ export async function listNativeGlossaryTermPairs(
     glossaryIds: string[];
     sourceLocale: string;
     targetLocales: string[];
+    glossaryPriority?: Map<string, number>;
   },
 ): Promise<GlossaryTermQueryRow[]> {
   if (input.glossaryIds.length === 0 || input.targetLocales.length === 0) {
     return [];
   }
 
-  return database
+  const rows = await database
     .select({
-      id: nativeTargetTerms.id,
-      glossaryId: nativeSourceTerms.glossaryId,
+      id: schema.glossaryTerms.id,
+      conceptId: schema.glossaryTerms.conceptId,
+      glossaryId: schema.glossaryTerms.glossaryId,
       glossaryName: schema.glossaries.name,
-      sourceTerm: sql<string>`${nativeSourceTerms.term}`,
-      targetTerm: sql<string>`${nativeTargetTerms.term}`,
-      targetLocale: sql<string>`${nativeTargetTerms.locale}`,
-      description: nativeSourceTerms.description,
-      partOfSpeech: nativeSourceTerms.partOfSpeech,
-      forbidden: nativeSourceTerms.forbidden,
-      caseSensitive: nativeSourceTerms.caseSensitive,
-      provenance: nativeSourceTerms.provenance,
-      externalKey: sql<string | null>`null`,
-      reviewStatus: nativeSourceTerms.reviewStatus,
+      translatable: schema.glossaryConcepts.translatable,
+      locale: schema.glossaryTerms.locale,
+      term: schema.glossaryTerms.term,
+      status: schema.glossaryTerms.status,
+      description: schema.glossaryTerms.description,
+      partOfSpeech: schema.glossaryTerms.partOfSpeech,
+      caseSensitive: schema.glossaryTerms.caseSensitive,
+      provenance: schema.glossaryTerms.provenance,
+      reviewStatus: schema.glossaryTerms.reviewStatus,
     })
-    .from(nativeSourceTerms)
+    .from(schema.glossaryTerms)
     .innerJoin(
-      nativeTargetTerms,
-      and(
-        eq(nativeSourceTerms.glossaryId, nativeTargetTerms.glossaryId),
-        eq(nativeSourceTerms.conceptId, nativeTargetTerms.conceptId),
-      ),
+      schema.glossaryConcepts,
+      eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
     )
-    .innerJoin(schema.glossaries, eq(nativeSourceTerms.glossaryId, schema.glossaries.id))
+    .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
     .where(
       and(
-        inArray(nativeSourceTerms.glossaryId, input.glossaryIds),
+        inArray(schema.glossaryTerms.glossaryId, input.glossaryIds),
         eq(schema.glossaries.organizationId, input.organizationId),
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
-        eq(nativeSourceTerms.locale, input.sourceLocale),
-        inArray(nativeTargetTerms.locale, input.targetLocales),
-        isNotNull(nativeSourceTerms.conceptId),
-        isNotNull(nativeSourceTerms.term),
-        isNotNull(nativeTargetTerms.term),
-        eq(nativeSourceTerms.reviewStatus, "approved"),
-        eq(nativeTargetTerms.reviewStatus, "approved"),
+        isNotNull(schema.glossaryTerms.conceptId),
+        isNotNull(schema.glossaryTerms.term),
+        isNotNull(schema.glossaryTerms.locale),
+        eq(schema.glossaryTerms.reviewStatus, "approved"),
+        or(
+          eq(schema.glossaryTerms.locale, input.sourceLocale),
+          inArray(schema.glossaryTerms.locale, input.targetLocales),
+        ),
       ),
     );
+
+  return flattenNativeConceptTermsToPairs({
+    concepts: groupConceptTerms(
+      rows.map((row) => ({
+        ...row,
+        conceptId: row.conceptId!,
+      })),
+    ),
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    glossaryPriority: input.glossaryPriority,
+  });
 }
 
 export async function listGlossaryTermsForProject(input: {
@@ -97,7 +150,10 @@ export async function listGlossaryTermsForProject(input: {
   targetLocales: string[];
 }): Promise<GlossaryTermQueryRow[]> {
   const attached = await db
-    .select({ glossaryId: schema.projectGlossaries.glossaryId })
+    .select({
+      glossaryId: schema.projectGlossaries.glossaryId,
+      priority: schema.projectGlossaries.priority,
+    })
     .from(schema.projectGlossaries)
     .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
     .where(
@@ -106,17 +162,21 @@ export async function listGlossaryTermsForProject(input: {
         eq(schema.projectGlossaries.organizationId, input.organizationId),
         eq(schema.projects.organizationId, input.organizationId),
       ),
-    );
+    )
+    .orderBy(asc(schema.projectGlossaries.priority));
 
   const glossaryIds = attached.map((item) => item.glossaryId);
   if (glossaryIds.length === 0 || input.targetLocales.length === 0) {
     return [];
   }
 
+  const glossaryPriority = new Map(attached.map((item) => [item.glossaryId, item.priority]));
+
   return listNativeGlossaryTermPairs(db, {
     glossaryIds,
     organizationId: input.organizationId,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
+    glossaryPriority,
   });
 }
