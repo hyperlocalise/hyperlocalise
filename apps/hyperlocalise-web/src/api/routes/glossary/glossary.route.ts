@@ -617,6 +617,14 @@ export function createGlossaryRoutes() {
         if (!project) {
           return projectNotFoundResponse(c);
         }
+        const projectRecord = await getOwnedProjectRecord(c.var.auth, payload.projectId);
+        if (projectRecord && projectRecord.sourceLocale !== glossary.sourceLocale) {
+          return badRequestResponse(
+            c,
+            "glossary_source_locale_mismatch",
+            "The selected project uses a different source locale",
+          );
+        }
 
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);

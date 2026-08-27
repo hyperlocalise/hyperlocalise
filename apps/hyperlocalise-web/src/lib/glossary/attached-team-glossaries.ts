@@ -29,12 +29,14 @@ export async function listAttachedTeamGlossaries(
     })
     .from(schema.projectGlossaries)
     .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
+    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
     .where(
       and(
         eq(schema.projectGlossaries.projectId, projectId),
         eq(schema.glossaries.status, "active"),
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.controlLevel, "team"),
+        eq(schema.glossaries.sourceLocale, schema.projects.sourceLocale),
       ),
     )
     .orderBy(schema.projectGlossaries.priority, schema.glossaries.name);

@@ -60,6 +60,7 @@ vi.mock("@/lib/database", () => ({
     syncJobDetails: { jobId: "syncJobId" },
     assetManagementJobDetails: { jobId: "assetJobId" },
     glossaries: { id: "glossaries" },
+    glossaryConcepts: { id: "glossaryConcepts" },
     glossaryTerms: { id: "glossaryTerms" },
     memories: { id: "memories" },
     memoryEntries: { id: "memoryEntries" },
@@ -84,6 +85,8 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
     id: "glossary_123",
     source: "native",
     controlLevel: "team",
+    sourceLocale: "en",
+    targetLocale: "fr",
   })),
   toolGetAccessibleMemory: vi.fn(async () => ({ id: "memory_123" })),
   toolGlossaryOrgMutationWhere: vi.fn(() => ({})),
@@ -665,7 +668,8 @@ describe("Agent Tools RBAC", () => {
     it.each(GLOSSARY_TERM_WRITE_ALLOWED_ROLES)(
       "allows glossary term create past the capability gate for %s",
       async (role) => {
-        const tool = createCreateGlossaryTermTool(mockCtx(role));
+        const ctx = mockCtx(role);
+        const tool = createCreateGlossaryTermTool(ctx);
         const result = await executeTool(tool, {
           glossaryId: "g_123",
           sourceTerm: "Hello",
@@ -673,6 +677,8 @@ describe("Agent Tools RBAC", () => {
         });
         expect(result.success).toBe(true);
         expect(result.error).toBeUndefined();
+        expect(dbSpy(ctx, "transaction")).toHaveBeenCalled();
+        expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
       },
     );
   });

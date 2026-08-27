@@ -278,6 +278,10 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
         };
       }
 
+      if (glossary.source === "native") {
+        return createNativeConceptFromTermTool(ctx, glossary, termData);
+      }
+
       // Check for duplicate terms within the same glossary.
       const duplicateCheck = termData.caseSensitive
         ? eq(schema.glossaryTerms.sourceTerm, termData.sourceTerm)
@@ -430,4 +434,97 @@ async function getAccessibleGlossaryForTerm(ctx: ToolContext, termId: string) {
   }
 
   return toolGetAccessibleGlossary(ctx, term.glossaryId);
+}
+
+async function createNativeConceptFromTermTool(
+  ctx: ToolContext,
+  glossary: {
+    id: string;
+    sourceLocale: string;
+    targetLocale: string | null;
+  },
+  termData: {
+    sourceTerm: string;
+    targetTerm: string;
+    description?: string;
+    partOfSpeech?: string;
+    caseSensitive: boolean;
+    forbidden: boolean;
+  },
+) {
+  const duplicateCheck = termData.caseSensitive
+    ? eq(schema.glossaryTerms.sourceTerm, termData.sourceTerm)
+    : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${termData.sourceTerm})`;
+
+  const existing = await ctx.db
+    .select({ id: schema.glossaryTerms.id })
+    .from(schema.glossaryTerms)
+    .where(and(eq(schema.glossaryTerms.glossaryId, glossary.id), duplicateCheck))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return {
+      success: false,
+      error: `Term "${termData.sourceTerm}" already exists in this glossary.`,
+    };
+  }
+
+  const created = await ctx.db.transaction(async (tx) => {
+    const [concept] = await tx
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: termData.sourceTerm,
+        definition: termData.description ?? "",
+        translatable: true,
+      })
+      .returning();
+
+    if (!concept) {
+      return null;
+    }
+
+    const terms = [
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: glossary.sourceLocale,
+        term: termData.sourceTerm,
+        sourceTerm: termData.sourceTerm,
+        targetTerm: termData.sourceTerm,
+        description: termData.description ?? "",
+        partOfSpeech: termData.partOfSpeech ?? "",
+        caseSensitive: termData.caseSensitive,
+        forbidden: termData.forbidden,
+        status: "draft" as const,
+        provenance: "manual" as const,
+      },
+      ...(glossary.targetLocale
+        ? [
+            {
+              glossaryId: glossary.id,
+              conceptId: concept.id,
+              locale: glossary.targetLocale,
+              term: termData.targetTerm,
+              sourceTerm: termData.targetTerm,
+              targetTerm: termData.targetTerm,
+              description: termData.description ?? "",
+              partOfSpeech: termData.partOfSpeech ?? "",
+              caseSensitive: termData.caseSensitive,
+              forbidden: termData.forbidden,
+              status: "draft" as const,
+              provenance: "manual" as const,
+            },
+          ]
+        : []),
+    ];
+    await tx.insert(schema.glossaryTerms).values(terms);
+    return concept;
+  });
+
+  if (!created) {
+    return { success: false, error: "Failed to create the glossary concept." };
+  }
+
+  return { success: true, concept: created };
 }
