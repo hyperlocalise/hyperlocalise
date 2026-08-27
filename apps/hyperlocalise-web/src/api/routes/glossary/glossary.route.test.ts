@@ -39,6 +39,8 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
@@ -873,6 +875,65 @@ describe("glossaryRoutes", () => {
       { headers: translatorHeaders },
     );
     expect(conceptResponse.status).toBe(201);
+  });
+
+  it("rejects translator team glossary creation on an external TMS project", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = await fixture.getLocalUserId(translator.user.workosUserId);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Crowdin Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId,
+      role: "member",
+    });
+
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    await db.insert(schema.projects).values({
+      id: projectId,
+      identifier: uniqueTestProjectIdentifier(),
+      organizationId,
+      teamId: team.id,
+      createdByUserId: userId,
+      updatedByUserId: userId,
+      name: "Materialized Crowdin Project",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "902807",
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+      isActive: true,
+    });
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Team terms from Crowdin",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          projectIds: [projectId],
+        },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "glossary_team_native_project_required",
+    });
   });
 
   it("keeps org glossaries read-only for translators", async () => {

@@ -63,6 +63,7 @@ import {
   forbiddenResponse,
   glossaryContributeForbiddenResponse,
   glossaryTeamMustBeNativeResponse,
+  glossaryTeamNativeProjectRequiredResponse,
   glossaryTeamProjectRequiredResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryContributeAllowed,
@@ -373,6 +374,9 @@ export function createGlossaryRoutes() {
       );
       if (projects.some((project) => !project)) {
         return projectNotFoundResponse(c);
+      }
+      if (controlLevel === "team" && projects.some((project) => project?.source !== "native")) {
+        return glossaryTeamNativeProjectRequiredResponse(c);
       }
       if (projects.some((project) => project?.sourceLocale !== payload.sourceLocale)) {
         return badRequestResponse(

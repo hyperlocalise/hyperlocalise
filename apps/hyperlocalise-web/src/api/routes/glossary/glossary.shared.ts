@@ -79,6 +79,14 @@ export function glossaryTeamMustBeNativeResponse(c: { json: JsonContext["json"] 
   );
 }
 
+export function glossaryTeamNativeProjectRequiredResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "glossary_team_native_project_required",
+    "Team glossaries must attach to Hyperlocalise-owned projects",
+  );
+}
+
 export type GlossaryControlLevel = "org" | "team";
 
 export function isGlossaryManageAllowed(role: ApiAuthContext["membership"]["role"]) {
