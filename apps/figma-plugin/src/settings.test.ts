@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { DEFAULT_APP_URL, mergeSettings, normalizeAppUrl } from "./settings";
+import {
+  DEFAULT_APP_URL,
+  mergeSettings,
+  normalizeAppUrl,
+  resolvePersistedProjectId,
+} from "./settings";
 
 describe("figma plugin settings", () => {
   it("normalizes the app URL and fills defaults", () => {
@@ -14,5 +19,13 @@ describe("figma plugin settings", () => {
       },
     );
     expect(mergeSettings(null).appUrl).toBe(DEFAULT_APP_URL);
+  });
+
+  it("keeps a saved project only when it still exists", () => {
+    const projects = [{ id: "project-a" }, { id: "project-b" }];
+
+    expect(resolvePersistedProjectId("project-b", projects)).toBe("project-b");
+    expect(resolvePersistedProjectId("missing", projects)).toBe("");
+    expect(resolvePersistedProjectId("", projects)).toBe("");
   });
 });

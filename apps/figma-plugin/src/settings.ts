@@ -23,6 +23,15 @@ export function normalizeAppUrl(value: string): string {
   return value.trim().replace(/\/+$/, "") || DEFAULT_APP_URL;
 }
 
+export function resolvePersistedProjectId(
+  savedProjectId: string,
+  projects: Array<{ id: string }>,
+): string {
+  return savedProjectId && projects.some((project) => project.id === savedProjectId)
+    ? savedProjectId
+    : "";
+}
+
 export function mergeSettings(value: unknown): PluginSettings {
   if (!value || typeof value !== "object") {
     return { ...DEFAULT_SETTINGS };

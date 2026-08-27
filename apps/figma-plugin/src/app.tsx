@@ -18,7 +18,12 @@ import type {
   SandboxToUiMessage,
   UiToSandboxMessage,
 } from "./plugin-messages";
-import { DEFAULT_SETTINGS, mergeSettings, normalizeAppUrl } from "./settings";
+import {
+  DEFAULT_SETTINGS,
+  mergeSettings,
+  normalizeAppUrl,
+  resolvePersistedProjectId,
+} from "./settings";
 
 import "./ui.css";
 
@@ -151,10 +156,7 @@ export function App() {
           ),
         );
         setProjects(loadedProjects);
-        const nextProjectId =
-          settings.projectId && loadedProjects.some((project) => project.id === settings.projectId)
-            ? settings.projectId
-            : (loadedProjects[0]?.id ?? "");
+        const nextProjectId = resolvePersistedProjectId(settings.projectId, loadedProjects);
         const nextProject = loadedProjects.find((project) => project.id === nextProjectId);
         persistSettings({
           ...settings,
@@ -243,6 +245,9 @@ export function App() {
       if (!settings.sealedSession || !file) {
         throw new Error("Sign in and extract text first.");
       }
+      if (!settings.projectId) {
+        throw new Error("Select a project to upload to.");
+      }
 
       const created = await createFigmaJob({
         appUrl: settings.appUrl,
@@ -307,6 +312,9 @@ export function App() {
       if (!settings.sealedSession || !file) {
         throw new Error("Sign in first.");
       }
+      if (!settings.projectId) {
+        throw new Error("Select a project to pull translations from.");
+      }
 
       const pulled = await pullFigmaTranslations({
         appUrl: settings.appUrl,
@@ -341,8 +349,8 @@ export function App() {
       <header className="header">
         <h1>Hyperlocalise</h1>
         <p className="description">
-          Extract text from this file, create a translation job, then pull generated translations
-          back onto the page.
+          Sign in, choose a project, extract text, then create a job and pull translations back onto
+          the page.
         </p>
       </header>
 
@@ -417,13 +425,16 @@ export function App() {
               }}
               disabled={busy != null || projects.length === 0}
             >
-              {projects.length === 0 ? <option value="">No projects</option> : null}
+              <option value="">
+                {projects.length === 0 ? "No projects" : "Select a project…"}
+              </option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
               ))}
             </select>
+            <p className="hint">Extracted text uploads to this project.</p>
           </label>
 
           <label className="field">
@@ -506,6 +517,7 @@ export function App() {
               className="button buttonPrimary"
               onClick={() => void handleCreateJob(true)}
               disabled={!canCreateJob}
+              title={!settings.projectId ? "Select a project to upload to" : undefined}
             >
               {busy === "generate" ? "Generating…" : "Create job and generate"}
             </button>
@@ -514,6 +526,7 @@ export function App() {
               className="button"
               onClick={() => void handleCreateJob(false)}
               disabled={!canCreateJob}
+              title={!settings.projectId ? "Select a project to upload to" : undefined}
             >
               {busy === "create" ? "Creating…" : "Create job only"}
             </button>
@@ -547,6 +560,7 @@ export function App() {
             className="button buttonPrimary"
             onClick={() => void handlePull()}
             disabled={!canPull}
+            title={!settings.projectId ? "Select a project to pull translations from" : undefined}
           >
             {busy === "pull" ? "Pulling…" : "Pull translations into Figma"}
           </button>
