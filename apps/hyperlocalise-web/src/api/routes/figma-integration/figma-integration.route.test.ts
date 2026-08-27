@@ -50,6 +50,10 @@ vi.mock("@/lib/workos/sealed-session", () => ({
 
 import { createApp } from "@/api/app";
 import type { ApiAuthContext } from "@/api/auth/workos";
+import {
+  OrganizationSlugUnresolvableError,
+  StaleOrganizationSlugError,
+} from "@/api/auth/workos-session";
 
 const client = testClient(createApp());
 
@@ -140,6 +144,113 @@ describe("figmaIntegrationRoutes", () => {
     const response = await client.api.integrations.figma.session.$get(undefined, sessionHeaders);
     expect(response.status).toBe(401);
     expect(mocks.resolveApiAuthContextFromSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a sealed session from the Authorization Bearer header", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.listOrganizationProjectsMock.mockResolvedValue([]);
+
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        Authorization: "Bearer sealed.session.from.bearer",
+        "X-Hyperlocalise-Organization-Slug": "acme",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.authenticateSealedWorkosSessionMock).toHaveBeenCalledWith(
+      "sealed.session.from.bearer",
+    );
+  });
+
+  it("does not treat hlce_ API keys as Figma sealed sessions", async () => {
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        Authorization: "Bearer hlce_test_api_key",
+        "X-Hyperlocalise-Organization-Slug": "acme",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(mocks.authenticateSealedWorkosSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps stale and unresolvable organization slug errors", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
+      new StaleOrganizationSlugError("acme", "acme-renamed"),
+    );
+
+    const staleResponse = await client.api.integrations.figma.session.$get(
+      undefined,
+      sessionHeaders,
+    );
+    expect(staleResponse.status).toBe(403);
+    await expect(staleResponse.json()).resolves.toMatchObject({
+      error: "stale_organization_slug",
+      details: {
+        requestedSlug: "acme",
+        currentSlug: "acme-renamed",
+      },
+    });
+
+    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
+      new OrganizationSlugUnresolvableError("missing-org"),
+    );
+    const unresolvableResponse = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Figma-Session": "sealed.session.value",
+        "X-Hyperlocalise-Organization-Slug": "missing-org",
+      },
+    });
+    expect(unresolvableResponse.status).toBe(403);
+    await expect(unresolvableResponse.json()).resolves.toMatchObject({
+      error: "organization_slug_unresolvable",
+    });
+  });
+
+  it("maps archived and denied organization access to forbidden", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
+      new Error("archived_organization_access"),
+    );
+
+    const archivedResponse = await client.api.integrations.figma.session.$get(
+      undefined,
+      sessionHeaders,
+    );
+    expect(archivedResponse.status).toBe(403);
+    await expect(archivedResponse.json()).resolves.toMatchObject({
+      error: "workspace_archived",
+    });
+
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValueOnce(null);
+    const deniedResponse = await client.api.integrations.figma.session.$get(
+      undefined,
+      sessionHeaders,
+    );
+    expect(deniedResponse.status).toBe(403);
+    await expect(deniedResponse.json()).resolves.toMatchObject({
+      error: "organization_access_denied",
+    });
+  });
+
+  it("allows Figma plugin origins on OPTIONS and omits Allow-Origin for unknown origins", async () => {
+    const allowed = await createApp().request("http://localhost/api/integrations/figma/health", {
+      method: "OPTIONS",
+      headers: { Origin: "https://www.figma.com" },
+    });
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe("https://www.figma.com");
+    expect(allowed.headers.get("Access-Control-Allow-Methods")).toContain("POST");
+
+    const denied = await createApp().request("http://localhost/api/integrations/figma/health", {
+      method: "GET",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(denied.status).toBe(200);
+    expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("returns the signed-in session and projects", async () => {

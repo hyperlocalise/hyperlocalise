@@ -54,7 +54,8 @@ function hasValue(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
-function publicJobOutputFiles(input: {
+/** Parses file-result outcome payloads for Figma pull/status responses. */
+export function publicJobOutputFiles(input: {
   type: string | null;
   outcomeKind: string | null;
   outcomePayload: unknown;
@@ -142,7 +143,8 @@ function readMetadataString(inputPayload: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function isFigmaIntegrationJob(inputPayload: unknown) {
+/** True when a translation job was created by the Figma plugin integration. */
+export function isFigmaIntegrationJob(inputPayload: unknown) {
   return readMetadataString(inputPayload, "integration") === "figma-plugin";
 }
 

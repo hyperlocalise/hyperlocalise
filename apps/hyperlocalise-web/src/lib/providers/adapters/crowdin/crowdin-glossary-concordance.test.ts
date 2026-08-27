@@ -150,6 +150,26 @@ describe("loadCrowdinConcordanceTranslatableByConceptId", () => {
     expect(getGlossaryConcept).toHaveBeenCalledWith(7, 3);
     expect(resolved.get("7:3")).toBe(false);
   });
+
+  it("defaults to translatable when Crowdin concept lookup fails", async () => {
+    const getGlossaryConcept = vi.fn().mockRejectedValue(new Error("crowdin_unavailable"));
+    const client = { getGlossaryConcept } as unknown as CrowdinApiClient;
+
+    const resolved = await loadCrowdinConcordanceTranslatableByConceptId({
+      client,
+      results: [
+        {
+          glossary: { id: 9, name: "Product terms" },
+          sourceTerms: [{ id: 21, conceptId: 5, languageId: "en", text: "Dashboard" }],
+          targetTerms: [],
+          concept: null,
+        },
+      ],
+    });
+
+    expect(getGlossaryConcept).toHaveBeenCalledWith(9, 5);
+    expect(resolved.get("9:5")).toBe(true);
+  });
 });
 
 describe("sortCrowdinConcordanceMatches", () => {
