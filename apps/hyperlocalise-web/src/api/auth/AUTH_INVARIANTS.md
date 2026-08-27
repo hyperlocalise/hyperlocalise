@@ -56,8 +56,10 @@ full WorkOS identity model.
    9c. **Figma plugin clients use the same WorkOS sealed session.** The plugin
    obtains a sealed session via `/api/auth/figma/*` (AuthKit PKCE) and presents
    it as `X-Hyperlocalise-Figma-Session` because the plugin iframe cannot set
-   cookies. Middleware must still call `resolveApiAuthContextFromSession`. Do
-   not mint a Figma-specific identity token.
+   cookies. Middleware must unseal that value with the WorkOS cookie password
+   and pass the verified session into `resolveApiAuthContextFromSession`. Do
+   not mint a Figma-specific identity token. Do not call `withAuth()` for this
+   channel — AuthKit only reads the request cookie / `x-workos-session` header.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable

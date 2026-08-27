@@ -24,6 +24,7 @@ export const figmaSegmentSchema = z.object({
 export const createFigmaJobBodySchema = z.object({
   projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
+  pageId: z.string().min(1).max(128),
   fileName: z.string().min(1).max(256).optional(),
   sourceLocale: z.string().min(2).max(32),
   targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50),
@@ -38,6 +39,7 @@ export const figmaJobIdParamSchema = z.object({
 export const pullFigmaTranslationsQuerySchema = z.object({
   projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
+  pageId: z.string().min(1).max(128),
 });
 
 export type CreateFigmaJobBody = z.infer<typeof createFigmaJobBodySchema>;

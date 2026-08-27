@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   pullLatestFigmaTranslationsMock: vi.fn(),
   listOrganizationProjectsMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
+  authenticateSealedWorkosSessionMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -41,6 +42,10 @@ vi.mock("@/lib/figma/localize-file", () => ({
 
 vi.mock("@/lib/projects/organization/organization-project-service", () => ({
   listOrganizationProjects: mocks.listOrganizationProjectsMock,
+}));
+
+vi.mock("@/lib/workos/sealed-session", () => ({
+  authenticateSealedWorkosSession: mocks.authenticateSealedWorkosSessionMock,
 }));
 
 import { createApp } from "@/api/app";
@@ -101,6 +106,17 @@ const sessionHeaders = {
   },
 };
 
+const verifiedSession = {
+  user: {
+    id: "user_workos",
+    email: "dev@example.com",
+    firstName: null,
+    lastName: null,
+    profilePictureUrl: null,
+  },
+  organizationId: "org_workos",
+};
+
 describe("figmaIntegrationRoutes", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -115,9 +131,19 @@ describe("figmaIntegrationRoutes", () => {
   it("rejects session requests without a Figma session header", async () => {
     const response = await client.api.integrations.figma.session.$get();
     expect(response.status).toBe(401);
+    expect(mocks.authenticateSealedWorkosSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sealed session that WorkOS cannot verify", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(null);
+
+    const response = await client.api.integrations.figma.session.$get(undefined, sessionHeaders);
+    expect(response.status).toBe(401);
+    expect(mocks.resolveApiAuthContextFromSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns the signed-in session and projects", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
     mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
     mocks.listOrganizationProjectsMock.mockResolvedValue([
       {
@@ -139,8 +165,9 @@ describe("figmaIntegrationRoutes", () => {
         organization: { slug: "acme" },
       },
     });
+    expect(mocks.authenticateSealedWorkosSessionMock).toHaveBeenCalledWith("sealed.session.value");
     expect(mocks.resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
-      cookie: "wos-session=sealed.session.value",
+      session: verifiedSession,
       organizationSlug: "acme",
     });
 
@@ -162,6 +189,7 @@ describe("figmaIntegrationRoutes", () => {
   });
 
   it("creates a job from extracted Figma segments", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
     mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
     mocks.startFigmaLocalizationMock.mockResolvedValue({
       jobId: "job_figma",
@@ -173,6 +201,7 @@ describe("figmaIntegrationRoutes", () => {
         json: {
           projectId: "proj_1",
           fileKey: "fileKey123",
+          pageId: "12:34",
           sourceLocale: "en",
           targetLocales: ["es"],
           generate: true,
@@ -197,12 +226,14 @@ describe("figmaIntegrationRoutes", () => {
       expect.objectContaining({
         projectId: "proj_1",
         fileKey: "fileKey123",
+        pageId: "12:34",
         generate: true,
       }),
     );
   });
 
   it("polls job status and pulls latest translations", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
     mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
     mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
       jobId: "job_figma",
@@ -232,12 +263,19 @@ describe("figmaIntegrationRoutes", () => {
     expect(generateResponse.status).toBe(202);
 
     const pullResponse = await client.api.integrations.figma.translations.$get(
-      { query: { projectId: "proj_1", fileKey: "fileKey123" } },
+      { query: { projectId: "proj_1", fileKey: "fileKey123", pageId: "12:34" } },
       sessionHeaders,
     );
     expect(pullResponse.status).toBe(200);
     await expect(pullResponse.json()).resolves.toMatchObject({
       translations: { status: "succeeded" },
     });
+    expect(mocks.pullLatestFigmaTranslationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "proj_1",
+        fileKey: "fileKey123",
+        pageId: "12:34",
+      }),
+    );
   });
 });

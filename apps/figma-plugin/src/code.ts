@@ -47,9 +47,29 @@ function postToUi(message: SandboxToUiMessage) {
   figma.ui.postMessage(message);
 }
 
+const LOCAL_FILE_ID_KEY = "hyperlocalise:file-id";
+
+function resolveFileKey(): string {
+  if (figma.fileKey) {
+    return figma.fileKey;
+  }
+
+  const existing = figma.root.getPluginData(LOCAL_FILE_ID_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const generated =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? `local-${crypto.randomUUID()}`
+      : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  figma.root.setPluginData(LOCAL_FILE_ID_KEY, generated);
+  return generated;
+}
+
 function currentFileInfo(): FigmaFileInfo {
   return {
-    fileKey: figma.fileKey ?? "local-file",
+    fileKey: resolveFileKey(),
     fileName: figma.root.name,
     pageId: figma.currentPage.id,
     pageName: figma.currentPage.name,

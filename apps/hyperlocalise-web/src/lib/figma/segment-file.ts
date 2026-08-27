@@ -44,6 +44,14 @@ export function parseTranslationFile(content: Record<string, unknown>): Record<s
   return translations;
 }
 
-export function buildFigmaSourcePath(fileKey: string): string {
-  return `figma/files/${fileKey}.json`;
+function sanitizeFigmaPathSegment(value: string): string {
+  const sanitized = value
+    .replace(/[^A-Za-z0-9:_-]+/g, "_")
+    .replace(/^[_-]+/, "")
+    .replace(/[_-]+$/, "");
+  return sanitized.slice(0, 128) || "unknown";
+}
+
+export function buildFigmaSourcePath(fileKey: string, pageId: string): string {
+  return `figma/files/${sanitizeFigmaPathSegment(fileKey)}/pages/${sanitizeFigmaPathSegment(pageId)}.json`;
 }

@@ -39,7 +39,7 @@ vp run build
 1. **Sign in** — PKCE OAuth popup against Hyperlocalise AuthKit.
 2. **Choose a project** — extracted text uploads to this Hyperlocalise project.
 3. **Extract text** — reads the current selection, or the whole page if nothing is selected.
-4. **Create job** — uploads extracted segments as `figma/files/{fileKey}.json`.
+4. **Create job** — uploads extracted segments as `figma/files/{fileKey}/pages/{pageId}.json`.
 5. **Generate** — enqueues the translation job and waits until it finishes.
 6. **Pull** — applies the selected locale back onto matching text nodes.
 

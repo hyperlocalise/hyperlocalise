@@ -20,6 +20,9 @@ import {
   resolveApiAuthContextFromSession,
 } from "@/api/auth/workos-session";
 
+import { authenticateSealedWorkosSession } from "@/lib/workos/sealed-session";
+import type { withAuth } from "@/lib/workos/server-auth";
+
 import { FIGMA_ORGANIZATION_SLUG_HEADER, FIGMA_SESSION_HEADER } from "./figma-cors";
 
 function readFigmaSealedSession(c: { req: { header(name: string): string | undefined } }) {
@@ -41,8 +44,9 @@ function readFigmaSealedSession(c: { req: { header(name: string): string | undef
 
 /**
  * Figma plugin UI cannot attach the WorkOS cookie, so it sends the same sealed
- * session via `X-Hyperlocalise-Figma-Session`. Verification still goes through
- * `resolveApiAuthContextFromSession` — this is not a separate identity channel.
+ * session via `X-Hyperlocalise-Figma-Session`. The header is unsealed with the
+ * WorkOS cookie password, then `resolveApiAuthContextFromSession` loads
+ * membership — this is not a separate identity channel.
  */
 export const figmaSessionAuthMiddleware = createMiddleware<{
   Variables: AuthVariables;
@@ -59,8 +63,13 @@ export const figmaSessionAuthMiddleware = createMiddleware<{
       throw new Error("missing_auth_context");
     }
 
+    const verifiedSession = await authenticateSealedWorkosSession(sealedSession);
+    if (!verifiedSession) {
+      throw new Error("missing_auth_context");
+    }
+
     const authFromSession = await resolveApiAuthContextFromSession({
-      cookie: `wos-session=${sealedSession}`,
+      session: verifiedSession as Awaited<ReturnType<typeof withAuth>>,
       organizationSlug,
     });
     if (!authFromSession) {

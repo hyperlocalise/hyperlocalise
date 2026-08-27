@@ -228,6 +228,7 @@ export async function createFigmaJob(input: {
   organizationSlug: string;
   projectId: string;
   fileKey: string;
+  pageId: string;
   fileName?: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -240,6 +241,7 @@ export async function createFigmaJob(input: {
     body: JSON.stringify({
       projectId: input.projectId,
       fileKey: input.fileKey,
+      pageId: input.pageId,
       fileName: input.fileName,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
@@ -332,6 +334,7 @@ export async function pullFigmaTranslations(input: {
   organizationSlug: string;
   projectId: string;
   fileKey: string;
+  pageId: string;
 }): Promise<{
   jobId: string | null;
   translationsByLocale: Record<string, Record<string, string>>;
@@ -339,7 +342,7 @@ export async function pullFigmaTranslations(input: {
   const response = await fetch(
     apiUrl(
       input.appUrl,
-      `/api/integrations/figma/translations?projectId=${encodeURIComponent(input.projectId)}&fileKey=${encodeURIComponent(input.fileKey)}`,
+      `/api/integrations/figma/translations?projectId=${encodeURIComponent(input.projectId)}&fileKey=${encodeURIComponent(input.fileKey)}&pageId=${encodeURIComponent(input.pageId)}`,
     ),
     { headers: sessionHeaders(input) },
   );

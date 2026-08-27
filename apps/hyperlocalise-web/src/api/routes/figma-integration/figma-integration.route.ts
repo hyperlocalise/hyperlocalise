@@ -175,6 +175,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
           auth,
           projectId: payload.projectId,
           fileKey: payload.fileKey,
+          pageId: payload.pageId,
           fileName: payload.fileName,
           sourceLocale: payload.sourceLocale,
           targetLocales: payload.targetLocales,
@@ -233,6 +234,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
           auth: c.var.auth,
           projectId: query.projectId,
           fileKey: query.fileKey,
+          pageId: query.pageId,
         });
         return c.json({ translations }, 200);
       } catch (error) {

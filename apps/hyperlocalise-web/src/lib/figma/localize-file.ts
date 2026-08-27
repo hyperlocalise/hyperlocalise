@@ -172,6 +172,7 @@ export async function startFigmaLocalization(input: {
   auth: ApiAuthContext;
   projectId: string;
   fileKey: string;
+  pageId: string;
   fileName?: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -194,7 +195,7 @@ export async function startFigmaLocalization(input: {
   }
 
   const organizationId = input.auth.organization.localOrganizationId;
-  const sourcePath = buildFigmaSourcePath(input.fileKey);
+  const sourcePath = buildFigmaSourcePath(input.fileKey, input.pageId);
   const translationFile = segmentsToTranslationFile(input.segments);
   if (Object.keys(translationFile).length === 0) {
     throw new Error("figma_no_text_segments");
@@ -220,6 +221,7 @@ export async function startFigmaLocalization(input: {
       uploadSurface: "figma_plugin",
       integration: "figma-plugin",
       figmaFileKey: input.fileKey,
+      figmaPageId: input.pageId,
     },
     adapter,
   });
@@ -235,6 +237,7 @@ export async function startFigmaLocalization(input: {
     metadata: {
       integration: "figma-plugin",
       figmaFileKey: input.fileKey,
+      figmaPageId: input.pageId,
       sourcePath,
     },
   };
@@ -372,6 +375,7 @@ export async function pullLatestFigmaTranslations(input: {
   auth: ApiAuthContext;
   projectId: string;
   fileKey: string;
+  pageId: string;
 }): Promise<
   | { jobId: null; status: "not_found" }
   | {
@@ -386,7 +390,7 @@ export async function pullLatestFigmaTranslations(input: {
   }
 
   const organizationId = input.auth.organization.localOrganizationId;
-  const sourcePath = normalizeSourcePath(buildFigmaSourcePath(input.fileKey));
+  const sourcePath = normalizeSourcePath(buildFigmaSourcePath(input.fileKey, input.pageId));
   const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
 
   const [job] = await db

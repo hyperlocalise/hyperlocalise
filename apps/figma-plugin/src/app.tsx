@@ -255,6 +255,7 @@ export function App() {
         organizationSlug: settings.organizationSlug,
         projectId: settings.projectId,
         fileKey: file.fileKey,
+        pageId: file.pageId,
         fileName: file.fileName,
         sourceLocale: settings.sourceLocale,
         targetLocales: settings.targetLocales,
@@ -322,6 +323,7 @@ export function App() {
         organizationSlug: settings.organizationSlug,
         projectId: settings.projectId,
         fileKey: file.fileKey,
+        pageId: file.pageId,
       });
       const locales = Object.keys(pulled.translationsByLocale);
       const locale = applyLocale || locales[0] || settings.targetLocales[0];

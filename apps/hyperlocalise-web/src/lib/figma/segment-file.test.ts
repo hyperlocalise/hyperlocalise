@@ -22,7 +22,8 @@ import {
 describe("figma segment file", () => {
   it("builds stable keys and source paths", () => {
     expect(figmaSegmentKey("12:34", 0)).toBe("figma.segment.12:34.0");
-    expect(buildFigmaSourcePath("abc123")).toBe("figma/files/abc123.json");
+    expect(buildFigmaSourcePath("abc123", "12:34")).toBe("figma/files/abc123/pages/12:34.json");
+    expect(buildFigmaSourcePath("../oops", "page/a")).toBe("figma/files/oops/pages/page_a.json");
   });
 
   it("round-trips translation files and skips empty text", () => {
