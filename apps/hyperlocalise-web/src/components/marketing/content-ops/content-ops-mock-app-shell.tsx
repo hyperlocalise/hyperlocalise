@@ -15,16 +15,17 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import {
-  AiChipIcon,
   BookOpenTextIcon,
+  Bookmark01Icon,
   Chat01Icon,
   CheckmarkCircle02Icon,
-  ClipboardListIcon,
+  Copy01Icon,
   CreditCardIcon,
+  CubeIcon,
   CustomerSupportIcon,
   DashboardSquare01Icon,
   File01Icon,
-  FolderKanbanIcon,
+  FlashIcon,
   InboxIcon,
   Menu01Icon,
   MinusSignCircleIcon,
@@ -55,11 +56,11 @@ type MockNavItem = {
 
 const NAV_ITEMS: MockNavItem[] = [
   { id: "inbox", labelKey: "mockNavInbox", icon: InboxIcon },
-  { id: "issues", labelKey: "mockNavIssues", icon: ClipboardListIcon },
+  { id: "issues", labelKey: "mockNavIssues", icon: Copy01Icon },
   { id: "dashboard", labelKey: "mockNavDashboard", icon: DashboardSquare01Icon },
-  { id: "projects", labelKey: "mockNavProjects", icon: FolderKanbanIcon },
-  { id: "automations", labelKey: "mockNavAutomations", icon: AiChipIcon },
-  { id: "knowledge", labelKey: "mockNavKnowledge", icon: BookOpenTextIcon },
+  { id: "projects", labelKey: "mockNavProjects", icon: CubeIcon },
+  { id: "automations", labelKey: "mockNavAutomations", icon: FlashIcon },
+  { id: "knowledge", labelKey: "mockNavKnowledge", icon: Bookmark01Icon },
 ];
 
 const ACTIVE_NAV_BY_TAB: Record<ContentOpsMockTabId, MockNavId> = {
@@ -156,7 +157,7 @@ function MockEditorFooter() {
             tabIndex={-1}
             className="shrink-0 gap-1.5 px-2"
           >
-            <HugeiconsIcon icon={ClipboardListIcon} strokeWidth={2} className="size-3.5" />
+            <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
             <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
             <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
               {MOCK_EDITOR_OPEN_ISSUES}

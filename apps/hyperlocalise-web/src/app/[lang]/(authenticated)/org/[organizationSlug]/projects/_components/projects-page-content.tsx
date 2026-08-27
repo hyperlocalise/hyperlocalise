@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, CubeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -454,7 +454,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={FolderKanbanIcon}
+        icon={CubeIcon}
         label={intl.formatMessage(projectsPageContentMessages.pageLabel)}
         title={intl.formatMessage(projectsPageContentMessages.pageTitle)}
         description={pageDescription}

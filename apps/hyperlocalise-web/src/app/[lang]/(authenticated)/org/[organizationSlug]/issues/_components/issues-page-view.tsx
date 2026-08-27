@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { ClipboardListIcon } from "@hugeicons/core-free-icons";
+import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { IssueGroupedList } from "../../_components/issue-grouped-list";
@@ -96,7 +96,7 @@ export function IssuesPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={ClipboardListIcon}
+        icon={Copy01Icon}
         label="Workspace"
         title="Issues"
         description={intl.formatMessage(issuesPageViewMessages.pageDescription)}

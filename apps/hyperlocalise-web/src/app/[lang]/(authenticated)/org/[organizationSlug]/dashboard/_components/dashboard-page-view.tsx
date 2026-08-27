@@ -20,7 +20,7 @@ import {
   Chat01Icon,
   CheckmarkCircle02Icon,
   DashboardSquare01Icon,
-  FolderKanbanIcon,
+  CubeIcon,
   SlackIcon,
   TaskDone01Icon,
   TranslationIcon,
@@ -718,7 +718,7 @@ function DashboardProjectsPanel({
     <DashboardPanel
       title={title}
       description={description}
-      icon={FolderKanbanIcon}
+      icon={CubeIcon}
       footerHref={footerHref}
       footerLabel={intl.formatMessage(dashboardPageViewMessages.viewAllProjects)}
       isLoading={isLoading}

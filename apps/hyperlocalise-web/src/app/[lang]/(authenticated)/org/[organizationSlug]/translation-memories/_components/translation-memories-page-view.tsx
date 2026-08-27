@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Database01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -175,7 +175,7 @@ export function TranslationMemoriesPageView({
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
-        icon={DatabaseSyncIcon}
+        icon={Database01Icon}
         label={intl.formatMessage(translationMemoriesPageViewMessages.pageLabel)}
         title={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
         description={intl.formatMessage(translationMemoriesPageViewMessages.pageDescription)}

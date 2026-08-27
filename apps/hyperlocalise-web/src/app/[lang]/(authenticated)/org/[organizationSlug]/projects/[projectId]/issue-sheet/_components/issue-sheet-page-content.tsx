@@ -12,7 +12,7 @@
  */
 "use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import { Copy01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -176,7 +176,7 @@ export function IssueSheetPageContent({
     <ProjectPageShell>
       <div className="space-y-6">
         <ProjectSectionHeader
-          icon={ClipboardListIcon}
+          icon={Copy01Icon}
           section={intl.formatMessage(messages.sectionTitle)}
           description={intl.formatMessage(messages.sectionDescription)}
           actions={

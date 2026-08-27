@@ -14,7 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Database01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -294,7 +294,7 @@ export function TranslationMemoryDetailPageContent({
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <HugeiconsIcon
-            icon={DatabaseSyncIcon}
+            icon={Database01Icon}
             className="size-5 text-muted-foreground"
             strokeWidth={1.8}
           />

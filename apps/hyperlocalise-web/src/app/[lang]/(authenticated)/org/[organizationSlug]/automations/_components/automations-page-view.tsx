@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { Add01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, FlashIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -201,7 +201,7 @@ export function AutomationsPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={SparklesIcon}
+        icon={FlashIcon}
         label={intl.formatMessage(
           projectId
             ? automationsPageViewMessages.pageLabelProject

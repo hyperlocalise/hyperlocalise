@@ -17,7 +17,7 @@ import {
   ArrowRight01Icon,
   Key01Icon,
   CreditCardIcon,
-  LinkSquare02Icon,
+  Globe02Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -117,7 +117,7 @@ function buildSettingsRows(
       }),
       href: `/org/${organizationSlug}/domains`,
       absoluteHref: true,
-      icon: LinkSquare02Icon,
+      icon: Globe02Icon,
       requiredCapability: "projects:read",
       requiresDomainsFeature: true,
     },
