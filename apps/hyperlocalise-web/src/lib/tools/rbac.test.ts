@@ -222,6 +222,7 @@ describe("Agent Tools RBAC", () => {
             where: vi.fn(() => ({
               limit: vi.fn(async () => [
                 {
+                  glossaryId: "g_123",
                   glossaryOrgId: "org_123",
                   memoryOrgId: "org_123",
                   controlLevel: "team",
@@ -633,6 +634,33 @@ describe("Agent Tools RBAC", () => {
         expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
       },
     );
+
+    it("denies glossary term update when the parent glossary is not accessible", async () => {
+      const { toolGetAccessibleGlossary } = await import("@/lib/agent-runtime/tools/tool-access");
+      vi.mocked(toolGetAccessibleGlossary).mockResolvedValueOnce(null);
+      const ctx = mockCtx("translator");
+      const tool = createUpdateGlossaryTermTool(ctx);
+      const result = await executeTool(tool, {
+        termId: "term_123",
+        targetTerm: "Salut",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
+    });
+
+    it("denies glossary term delete when the parent glossary is not accessible", async () => {
+      const { toolGetAccessibleGlossary } = await import("@/lib/agent-runtime/tools/tool-access");
+      vi.mocked(toolGetAccessibleGlossary).mockResolvedValueOnce(null);
+      const ctx = mockCtx("translator");
+      const tool = createDeleteGlossaryTermTool(ctx);
+      const result = await executeTool(tool, {
+        termId: "term_123",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
+    });
 
     it.each(GLOSSARY_TERM_WRITE_ALLOWED_ROLES)(
       "allows glossary term create past the capability gate for %s",

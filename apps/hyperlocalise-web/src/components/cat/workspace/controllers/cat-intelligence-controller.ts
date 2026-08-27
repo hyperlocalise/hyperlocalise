@@ -36,6 +36,7 @@ export class CatIntelligenceController {
   private contextGeneration = 0;
   private visualContextAttempts = new Set<string>();
   private inFlight = new Map<string, Promise<CatSegmentConcordanceResult | undefined>>();
+  private concordanceGenerationBySegmentId = new Map<string, number>();
   private visualContextLoadingSegmentId: string | null = null;
   private disposed = false;
 
@@ -52,6 +53,10 @@ export class CatIntelligenceController {
     if (previousServices?.lookupSegmentConcordance !== ports.services?.lookupSegmentConcordance) {
       this.loadedSegmentIds.clear();
       this.concordanceAttempts.clear();
+      for (const segmentId of this.inFlight.keys()) {
+        this.nextConcordanceGeneration(segmentId);
+        this.workspace.endConcordanceLoad(segmentId);
+      }
       this.inFlight.clear();
     }
     if (previousServices?.lookupSegmentContext !== ports.services?.lookupSegmentContext) {
@@ -99,18 +104,19 @@ export class CatIntelligenceController {
       return undefined;
     }
 
+    const generation = this.nextConcordanceGeneration(segmentId);
     const promise = (async () => {
       this.workspace.beginConcordanceLoad(segmentId);
       try {
         const concordance = await lookup(segment);
-        if (this.disposed) {
+        if (this.disposed || !this.isCurrentConcordanceGeneration(segmentId, generation)) {
           return undefined;
         }
         this.loadedSegmentIds.add(segmentId);
         this.workspace.mergeSegmentIntelligence(segmentId, concordance);
         return concordance;
       } catch (error) {
-        if (!this.disposed) {
+        if (!this.disposed && this.isCurrentConcordanceGeneration(segmentId, generation)) {
           this.workspace.upsertFormatCheck(segmentId, {
             id: `concordance-failed-${segmentId}`,
             label: this.ports.intl.formatMessage(
@@ -128,8 +134,10 @@ export class CatIntelligenceController {
         }
         return undefined;
       } finally {
-        this.workspace.endConcordanceLoad(segmentId);
-        this.inFlight.delete(segmentId);
+        if (this.isCurrentConcordanceGeneration(segmentId, generation)) {
+          this.workspace.endConcordanceLoad(segmentId);
+          this.inFlight.delete(segmentId);
+        }
       }
     })();
     this.inFlight.set(segmentId, promise);
@@ -137,6 +145,7 @@ export class CatIntelligenceController {
   }
 
   async reloadConcordance(segmentId: string) {
+    this.nextConcordanceGeneration(segmentId);
     this.loadedSegmentIds.delete(segmentId);
     this.concordanceAttempts.delete(segmentId);
     this.inFlight.delete(segmentId);
@@ -271,6 +280,16 @@ export class CatIntelligenceController {
         this.workspace.endContextLookup(segmentId);
       }
     }
+  }
+
+  private nextConcordanceGeneration(segmentId: string) {
+    const generation = (this.concordanceGenerationBySegmentId.get(segmentId) ?? 0) + 1;
+    this.concordanceGenerationBySegmentId.set(segmentId, generation);
+    return generation;
+  }
+
+  private isCurrentConcordanceGeneration(segmentId: string, generation: number) {
+    return this.concordanceGenerationBySegmentId.get(segmentId) === generation;
   }
 
   private invalidateContextLookupGeneration() {

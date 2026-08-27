@@ -354,22 +354,12 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
         return { success: false, error: "No fields provided to update." };
       }
 
-      // Verify ownership via the parent glossary.
-      const [termWithGlossary] = await ctx.db
-        .select({
-          glossaryOrgId: schema.glossaries.organizationId,
-          controlLevel: schema.glossaries.controlLevel,
-          source: schema.glossaries.source,
-        })
-        .from(schema.glossaryTerms)
-        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-        .where(eq(schema.glossaryTerms.id, termId))
-        .limit(1);
-
-      if (!termWithGlossary || termWithGlossary.glossaryOrgId !== ctx.organizationId) {
+      // Verify the parent glossary is in the caller's accessible project scope.
+      const glossary = await getAccessibleGlossaryForTerm(ctx, termId);
+      if (!glossary) {
         return { success: false, error: `Term ${termId} not found.` };
       }
-      if (!isGlossaryContributeAllowed(ctx.membershipRole, termWithGlossary)) {
+      if (!isGlossaryContributeAllowed(ctx.membershipRole, glossary)) {
         return {
           success: false,
           error: "You can only update terms on team glossaries you can access.",
@@ -402,22 +392,11 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
         };
       }
 
-      // Verify ownership via the parent glossary.
-      const [termWithGlossary] = await ctx.db
-        .select({
-          glossaryOrgId: schema.glossaries.organizationId,
-          controlLevel: schema.glossaries.controlLevel,
-          source: schema.glossaries.source,
-        })
-        .from(schema.glossaryTerms)
-        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-        .where(eq(schema.glossaryTerms.id, termId))
-        .limit(1);
-
-      if (!termWithGlossary || termWithGlossary.glossaryOrgId !== ctx.organizationId) {
+      const glossary = await getAccessibleGlossaryForTerm(ctx, termId);
+      if (!glossary) {
         return { success: false, error: `Term ${termId} not found.` };
       }
-      if (!isGlossaryContributeAllowed(ctx.membershipRole, termWithGlossary)) {
+      if (!isGlossaryContributeAllowed(ctx.membershipRole, glossary)) {
         return {
           success: false,
           error: "You can only delete terms on team glossaries you can access.",
@@ -436,4 +415,19 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
       return { success: true, deletedId: deleted[0].id };
     },
   });
+}
+
+async function getAccessibleGlossaryForTerm(ctx: ToolContext, termId: string) {
+  const [term] = await ctx.db
+    .select({ glossaryId: schema.glossaryTerms.glossaryId })
+    .from(schema.glossaryTerms)
+    .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+    .where(eq(schema.glossaryTerms.id, termId))
+    .limit(1);
+
+  if (!term) {
+    return null;
+  }
+
+  return toolGetAccessibleGlossary(ctx, term.glossaryId);
 }
