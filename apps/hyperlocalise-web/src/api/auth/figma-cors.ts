@@ -13,12 +13,11 @@
 import { createMiddleware } from "hono/factory";
 
 import { env } from "@/lib/env";
-
-const DEFAULT_FIGMA_ORIGINS = ["https://www.figma.com", "https://figma.com", "null"];
+import { DEFAULT_FIGMA_PLUGIN_ORIGINS } from "@/lib/figma/origins";
 
 function parseAllowedOrigins(): Set<string> {
   const configured = env.FIGMA_CORS_ORIGINS?.split(",").map((origin) => origin.trim()) ?? [];
-  const origins = new Set([...DEFAULT_FIGMA_ORIGINS, ...configured].filter(Boolean));
+  const origins = new Set([...DEFAULT_FIGMA_PLUGIN_ORIGINS, ...configured].filter(Boolean));
 
   if (env.NODE_ENV === "development") {
     origins.add("http://localhost:3000");

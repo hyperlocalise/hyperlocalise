@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
-export const FIGMA_OAUTH_MESSAGE_TYPE = "hyperlocalise-figma-oauth";
+import { FIGMA_OAUTH_MESSAGE_TYPE, postFigmaOAuthResult } from "@/lib/figma/origins";
 
 export function FigmaOAuthCallback() {
   const searchParams = useSearchParams();
@@ -39,16 +39,13 @@ export function FigmaOAuthCallback() {
       return;
     }
 
-    window.opener.postMessage(
-      {
-        type: FIGMA_OAUTH_MESSAGE_TYPE,
-        code,
-        state,
-        error: error ?? (status === "missing" ? "missing_authorization_code" : null),
-        errorDescription,
-      },
-      "*",
-    );
+    postFigmaOAuthResult(window.opener, {
+      type: FIGMA_OAUTH_MESSAGE_TYPE,
+      code,
+      state,
+      error: error ?? (status === "missing" ? "missing_authorization_code" : null),
+      errorDescription,
+    });
   }, [code, error, errorDescription, state, status]);
 
   return (
