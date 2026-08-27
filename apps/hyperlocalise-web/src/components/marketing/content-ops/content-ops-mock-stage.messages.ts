@@ -15,558 +15,96 @@
 import { defineMessages } from "react-intl";
 
 export const contentOpsMockStageMessages = defineMessages({
-  activityLive: {
-    defaultMessage: "Live",
-    id: "B4VkdPz+2q",
-    description: "Live indicator label on the content ops activity feed",
-  },
-  activityPaused: {
-    defaultMessage: "Paused",
-    id: "jvqi5j3K1U",
-    description: "Paused indicator when content ops mock autoplay is stopped",
-  },
-  activityTitle: {
-    defaultMessage: "Activity",
-    id: "PYzdvGniCi",
-    description: "Heading for the content ops activity feed",
-  },
-  activityAutoplayPause: {
+  autoplayPause: {
     defaultMessage: "Pause demo rotation",
     id: "VbgjobTz9L",
     description: "Accessible label for pausing content ops tab autoplay",
   },
-  activityAutoplayResume: {
+  autoplayResume: {
     defaultMessage: "Resume demo rotation",
     id: "vf2HgEHa0O",
     description: "Accessible label for resuming content ops tab autoplay",
   },
 
-  activityTimeNow: {
-    defaultMessage: "now",
-    id: "yldTcvr61y",
-    description: "Relative time label for activity feed",
+  mockWorkspaceName: {
+    defaultMessage: "Acme Corp",
+    id: "ZpIy+48cVo",
+    description: "Workspace name in the marketing app shell mock",
   },
-  activityTime4m: {
-    defaultMessage: "4m",
-    id: "UtCNRO3Hpb",
-    description: "Relative time label for activity feed",
+  mockNavInbox: {
+    defaultMessage: "Inbox",
+    id: "Aicm++b5Ie",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activityTime5m: {
-    defaultMessage: "5m",
-    id: "L13YqrEkVX",
-    description: "Relative time label for activity feed",
-  },
-  activityTime6m: {
-    defaultMessage: "6m",
-    id: "UkyZJgCMc4",
-    description: "Relative time label for activity feed",
-  },
-  activityTime8m: {
-    defaultMessage: "8m",
-    id: "JxRiYxg9Qs",
-    description: "Relative time label for activity feed",
-  },
-  activityTime9m: {
-    defaultMessage: "9m",
-    id: "i47dt33mDU",
-    description: "Relative time label for activity feed",
-  },
-  activityTime10m: {
-    defaultMessage: "10m",
-    id: "OikIBnINAa",
-    description: "Relative time label for activity feed",
-  },
-  activityTime12m: {
-    defaultMessage: "12m",
-    id: "Bg6lYlgqhD",
-    description: "Relative time label for activity feed",
-  },
-
-  activitySourceBrief: {
-    defaultMessage: "Brief",
-    id: "HeC4WbLOJp",
-    description: "Activity feed source label",
-  },
-  activitySourceDrafts: {
-    defaultMessage: "Drafts",
-    id: "xC+/N2onOr",
-    description: "Activity feed source label",
-  },
-  activitySourceReview: {
-    defaultMessage: "Review",
-    id: "2rYRR19Jf0",
-    description: "Activity feed source label",
-  },
-  activitySourceAgent: {
-    defaultMessage: "Agent",
-    id: "0TbmGo1n4/",
-    description: "Activity feed source label",
-  },
-  activitySourceStaging: {
-    defaultMessage: "Staging",
-    id: "CT81WY4BD9",
-    description: "Activity feed source label",
-  },
-  activitySourceSlack: {
-    defaultMessage: "Slack",
-    id: "3n70tRu4m4",
-    description: "Activity feed source label",
-  },
-  activitySourceCms: {
-    defaultMessage: "CMS",
-    id: "70Q0NIB0wW",
-    description: "Activity feed source label",
-  },
-  activitySourceResearch: {
-    defaultMessage: "Research",
-    id: "TimJVK7Lpn",
-    description: "Activity feed source label",
-  },
-  activitySourceLocales: {
-    defaultMessage: "Locales",
-    id: "jov/yKhQef",
-    description: "Activity feed source label",
-  },
-  activitySourceGaps: {
-    defaultMessage: "Gaps",
-    id: "dYssR6em17",
-    description: "Activity feed source label",
-  },
-  activitySourceDraft: {
-    defaultMessage: "Draft",
-    id: "fEHDQiLfQy",
-    description: "Activity feed source label",
-  },
-  activitySourceQa: {
-    defaultMessage: "QA",
-    id: "xkWDMMRbBh",
-    description: "Activity feed source label",
-  },
-  activitySourcePublish: {
-    defaultMessage: "Publish",
-    id: "JRhsEwQe0f",
-    description: "Activity feed source label",
-  },
-  activitySourceIntent: {
-    defaultMessage: "Intent",
-    id: "b5cW7aN4Hd",
-    description: "Activity feed source label",
-  },
-  activitySourceSchedule: {
-    defaultMessage: "Schedule",
-    id: "Ae3sDjYSDE",
-    description: "Activity feed source label",
-  },
-  activitySourceChat: {
-    defaultMessage: "Chat",
-    id: "IdvmBW+pxV",
-    description: "Activity feed source label",
-  },
-  activitySourceGuide: {
-    defaultMessage: "Guide",
-    id: "ShxpEFKVDy",
-    description: "Activity feed source label",
-  },
-  activitySourceVerdict: {
-    defaultMessage: "Verdict",
-    id: "Z2om0bPNMD",
-    description: "Activity feed source label",
-  },
-  activitySourceKnowledge: {
-    defaultMessage: "Knowledge",
-    id: "AwFC+uLxC8",
-    description: "Activity feed source label",
-  },
-  activitySourceRule: {
-    defaultMessage: "Rule",
-    id: "j+ge9KuPgD",
-    description: "Activity feed source label",
-  },
-  activitySourceCopy: {
-    defaultMessage: "Copy",
-    id: "YmCV0t1AdI",
-    description: "Activity feed source label",
-  },
-  activitySourceApplied: {
-    defaultMessage: "Applied",
-    id: "mrC2BPzHqU",
-    description: "Activity feed source label",
-  },
-  activitySourceFlow: {
-    defaultMessage: "Flow",
-    id: "0bqwSoBvAO",
-    description: "Activity feed source label",
-  },
-  activitySourceStep: {
-    defaultMessage: "Step",
-    id: "J0BqX1wxHr",
-    description: "Activity feed source label",
-  },
-  activitySourceHandoff: {
-    defaultMessage: "Handoff",
-    id: "ictx5IinpD",
-    description: "Activity feed source label",
-  },
-  activitySourceLocalise: {
-    defaultMessage: "Localise",
-    id: "MZghIxfTxV",
-    description: "Activity feed source label",
-  },
-  activitySourceBrandQa: {
-    defaultMessage: "Brand QA",
-    id: "OF3udZacB2",
-    description: "Activity feed source label",
-  },
-  activitySourceTemplate: {
-    defaultMessage: "Template",
-    id: "3R639sxHr2",
-    description: "Activity feed source label",
-  },
-  activitySourceKeywords: {
-    defaultMessage: "Keywords",
-    id: "Srs/Utz5vI",
-    description: "Activity feed source label",
-  },
-  activitySourceEditor: {
-    defaultMessage: "Editor",
-    id: "3sph2ylLp6",
-    description: "Activity feed source label",
-  },
-  activitySourceSegment: {
-    defaultMessage: "Segment",
-    id: "ouV+kqOWV+",
-    description: "Activity feed source label",
-  },
-  activitySourceQueue: {
-    defaultMessage: "Queue",
-    id: "VAiLQOWFRD",
-    description: "Activity feed source label",
-  },
-  activitySourceGlossary: {
-    defaultMessage: "Glossary",
-    id: "q5hEzlXFsg",
-    description: "Activity feed source label",
-  },
-  activitySourceIssues: {
+  mockNavIssues: {
     defaultMessage: "Issues",
-    id: "UvgE84P8Ua",
-    description: "Activity feed source label",
+    id: "dyxy90ZIN1",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activitySourceTriage: {
-    defaultMessage: "Triage",
-    id: "kNiZnqyUZa",
-    description: "Activity feed source label",
+  mockNavDashboard: {
+    defaultMessage: "Overview",
+    id: "FBzKoGNaC+",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activitySourceIntelligence: {
-    defaultMessage: "Intelligence",
-    id: "neQcg9GFWA",
-    description: "Activity feed source label",
+  mockNavProjects: {
+    defaultMessage: "Projects",
+    id: "WLVv78wgsr",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activitySourceContext: {
-    defaultMessage: "Context",
-    id: "vqPmiXWIxH",
-    description: "Activity feed source label",
+  mockNavAutomations: {
+    defaultMessage: "Automations",
+    id: "FG27myF7Bk",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activitySourceAi: {
-    defaultMessage: "AI",
-    id: "NkoXJPgv6b",
-    description: "Activity feed source label",
+  mockNavKnowledge: {
+    defaultMessage: "Knowledge",
+    id: "Ehcjh40kDc",
+    description: "Sidebar nav label in marketing app shell mock",
   },
-  activitySourceCat: {
-    defaultMessage: "CAT",
-    id: "9fiUHC+2VJ",
-    description: "Activity feed source label",
+  mockBreadcrumbIssues: {
+    defaultMessage: "Acme · Issues",
+    id: "yqDgUgDi10",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-
-  activityTriageAssignedFrCheckout: {
-    defaultMessage: "Assigned · FR checkout CTA too long",
-    id: "WSVwtNWuKm",
-    description: "Triage activity feed message",
+  mockBreadcrumbCampaign: {
+    defaultMessage: "Acme · Campaign brief",
+    id: "Dz/TZAVlPR",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-  activityTriageGlossaryBreakEs: {
-    defaultMessage: "Glossary break · es-ES · unassigned",
-    id: "ZR9JhUs4+U",
-    description: "Triage activity feed message",
+  mockBreadcrumbSeo: {
+    defaultMessage: "Acme · SEO blog run",
+    id: "Iu1s0Q/uDs",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-  activityTriageQaResolvedDe: {
-    defaultMessage: "QA failure resolved · de-DE headline",
-    id: "ILRMtLqdn2",
-    description: "Triage activity feed message",
+  mockBreadcrumbBrand: {
+    defaultMessage: "Acme · Brand review",
+    id: "nn0iMJAwx4",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-  activityTriageInProgressPayment: {
-    defaultMessage: "In progress · payment button label",
-    id: "1t9zbEkIB7",
-    description: "Triage activity feed message",
+  mockBreadcrumbWorkflow: {
+    defaultMessage: "Acme · Workflows",
+    id: "O8WdOBz8MN",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-  activityTriageOpenInCat: {
-    defaultMessage: "Open in CAT · checkout.json",
-    id: "orm3tG8EsL",
-    description: "Triage activity feed message",
+  mockBreadcrumbEditor: {
+    defaultMessage: "Acme · Web launch · Editor",
+    id: "Zol/03gW7r",
+    description: "Header breadcrumb in marketing app shell mock",
   },
-  activityTriageResolvedHero: {
-    defaultMessage: "Resolved · hero headline length check",
-    id: "505wZmu59b",
-    description: "Triage activity feed message",
+  mockShellPlan: {
+    defaultMessage: "Pro · 12k strings remaining",
+    id: "LGsstatwcF",
+    description: "Footer plan summary in marketing app shell mock",
   },
-  activityTriageMistakeFr: {
-    defaultMessage: "Translation mistake flagged · fr-FR",
-    id: "mf6LDumuKi",
-    description: "Triage activity feed message",
+  mockShellPlanButton: {
+    defaultMessage: "Pro",
+    id: "RKym//U9I4",
+    description: "Plan button label in marketing app shell mock editor footer",
   },
-  activityTriageLengthFailedDe: {
-    defaultMessage: "Length check failed · de-DE",
-    id: "4Ezk2Binde",
-    description: "Triage activity feed message",
-  },
-
-  activityCampaignQ2Launch: {
-    defaultMessage: "Q2 launch · 4 markets · 12 assets",
-    id: "FX3/YLfPRM",
-    description: "Campaign activity feed message",
-  },
-  activityCampaignLandingDrafts: {
-    defaultMessage: "Localized landing pages generating",
-    id: "y9a+N9ATb+",
-    description: "Campaign activity feed message",
-  },
-  activityCampaignFrDeQueued: {
-    defaultMessage: "FR and DE queued",
-    id: "dcHDj5eTEB",
-    description: "Campaign activity feed message",
-  },
-  activityCampaignNotifiedGtm: {
-    defaultMessage: "Notified #gtm",
-    id: "17nuqX7zHl",
-    description: "Campaign activity feed message",
-  },
-  activityCampaignPublishedStaging: {
-    defaultMessage: "12 assets published to staging",
-    id: "49eBSdYB68",
-    description: "Campaign activity feed message",
-  },
-  activityCampaignBriefComplete: {
-    defaultMessage: "Q2 launch brief complete",
-    id: "CIvf6hBZPb",
-    description: "Campaign activity feed message",
-  },
-
-  activitySeoPullingVolume: {
-    defaultMessage: "Pulling search volume · core terms",
-    id: "a7JnsekqqO",
-    description: "SEO activity feed message",
-  },
-  activitySeoLocalesCompared: {
-    defaultMessage: "EN · FR · DE · JA demand compared",
-    id: "R4Wi6C8Ql2",
-    description: "SEO activity feed message",
-  },
-  activitySeoMetaH1De: {
-    defaultMessage: "Meta + H1 adapted for DE intent",
-    id: "Rr26d0W4jR",
-    description: "SEO activity feed message",
-  },
-  activitySeoNotifiedContent: {
-    defaultMessage: "Notified #content",
-    id: "9rZekOqxRy",
-    description: "SEO activity feed message",
-  },
-  activitySeoMonthlyComplete: {
-    defaultMessage: "Monthly SEO run complete",
-    id: "qQqnrMWBuX",
-    description: "SEO activity feed message",
-  },
-  activitySeoDeDraftReview: {
-    defaultMessage: "DE SEO draft awaiting review",
-    id: "l0sMLrUTNV",
-    description: "SEO activity feed message",
-  },
-  activitySeoLocalSearchIntent: {
-    defaultMessage: "Adapted for local search · not literal EN→DE",
-    id: "yTySez9tLk",
-    description: "SEO activity feed message",
-  },
-  activitySeoNextRun: {
-    defaultMessage: "Next run · 1st of month",
-    id: "sZEcE138S3",
-    description: "SEO activity feed message",
-  },
-
-  activityBrandReviewAsked: {
-    defaultMessage: "Brand review asked · DE checkout CTA",
-    id: "NsIsf9D+fH",
-    description: "Brand activity feed message",
-  },
-  activityBrandGuideRecalled: {
-    defaultMessage: "Style guide recalled · tone + CTA rules",
-    id: "luGVae/AqD",
-    description: "Brand activity feed message",
-  },
-  activityBrandOffBrandRewrite: {
-    defaultMessage: "Off-brand · suggested rewrite ready",
-    id: "oYuDY/G9ye",
-    description: "Brand activity feed message",
-  },
-  activityBrandGuideMatched: {
-    defaultMessage: "brand-voice-style-guide.pdf matched",
-    id: "oNrbP6Kfwx",
-    description: "Brand activity feed message",
-  },
-  activityBrandToneRule: {
-    defaultMessage: "Tone: friendly, direct",
-    id: "fvB4xcNYxK",
-    description: "Brand activity feed message",
-  },
-  activityBrandSuggestedCopy: {
-    defaultMessage: "Suggested · Jetzt starten",
-    id: "M/v6Ec5/ZA",
-    description: "Brand activity feed message",
-  },
-  activityBrandCorrectionApplied: {
-    defaultMessage: "Style correction applied to DE CTA",
-    id: "pD6rbm6KOO",
-    description: "Brand activity feed message",
-  },
-  activityBrandCtaLengthRule: {
-    defaultMessage: "CTA length rule enforced",
-    id: "Q8szy9VuMQ",
-    description: "Brand activity feed message",
-  },
-
-  activityFlowWorkflowActive: {
-    defaultMessage: "Brief to publish · workflow active",
-    id: "X55ISVbO+Y",
-    description: "Flow activity feed message",
-  },
-  activityFlowGtmBriefReceived: {
-    defaultMessage: "GTM brief received",
-    id: "BO4zL9cP+Z",
-    description: "Flow activity feed message",
-  },
-  activityFlowRoutingLocalise: {
-    defaultMessage: "Routing to localise",
-    id: "XVTGyntMBx",
-    description: "Flow activity feed message",
-  },
-  activityFlowLocaleDrafts: {
-    defaultMessage: "Locale drafts in progress",
-    id: "P2XJpaePEf",
-    description: "Flow activity feed message",
-  },
-  activityFlowStyleChecking: {
-    defaultMessage: "Style rules checking",
-    id: "GvFCGTKlPG",
-    description: "Flow activity feed message",
-  },
-  activityFlowReviewerQueue: {
-    defaultMessage: "Reviewer queue updated",
-    id: "GDeB6oyCIs",
-    description: "Flow activity feed message",
-  },
-  activityFlowDraftReady: {
-    defaultMessage: "Draft ready for publish",
-    id: "lyUxeHq9xA",
-    description: "Flow activity feed message",
-  },
-  activityFlowTeamNotified: {
-    defaultMessage: "Team notified · #content",
-    id: "2vvl50MJwP",
-    description: "Flow activity feed message",
-  },
-  activityFlowComplete: {
-    defaultMessage: "Brief to publish complete",
-    id: "9gMRfobxmP",
-    description: "Flow activity feed message",
-  },
-  activityFlowSeoSelected: {
-    defaultMessage: "SEO blog workflow selected",
-    id: "WWW5nLljZ1",
-    description: "Flow activity feed message",
-  },
-  activityFlowResearchActive: {
-    defaultMessage: "Research node active",
-    id: "1wx0AD55AP",
-    description: "Flow activity feed message",
-  },
-  activityFlowCmsHandoff: {
-    defaultMessage: "CMS draft handoff",
-    id: "QK7vc710Th",
-    description: "Flow activity feed message",
-  },
-  activityFlowCampaignSelected: {
-    defaultMessage: "Campaign workflow selected",
-    id: "IhrWCxkhb6",
-    description: "Flow activity feed message",
-  },
-  activityFlowAssetsRouted: {
-    defaultMessage: "Assets routed for review",
-    id: "3Z6IJTBR/U",
-    description: "Flow activity feed message",
-  },
-  activityFlowLaunchNotified: {
-    defaultMessage: "Launch channel notified",
-    id: "9RKWXCbIdt",
-    description: "Flow activity feed message",
-  },
-
-  activityEditorFileOpened: {
-    defaultMessage: "hero-section.tsx · fr-FR · 14 strings",
-    id: "so9QGdkdV9",
-    description: "Editor activity feed message",
-  },
-  activityEditorHeroNeedsReview: {
-    defaultMessage: "Homepage hero · needs review",
-    id: "vapBIbYjsV",
-    description: "Editor activity feed message",
-  },
-  activityEditorSegmentsFlagged: {
-    defaultMessage: "3 segments flagged in file",
-    id: "cBynSuVROy",
-    description: "Editor activity feed message",
-  },
-  activityEditorTermMismatch: {
-    defaultMessage: "Term mismatch · review → validation",
-    id: "LgTlWd3OgE",
-    description: "Editor activity feed message",
-  },
-  activityEditorTermSuggested: {
-    defaultMessage: "Approved term suggested for banner copy",
-    id: "RM4XFP9DWJ",
-    description: "Editor activity feed message",
-  },
-  activityEditorGlossaryCheck: {
-    defaultMessage: "Glossary check on qa-warning segment",
-    id: "ztaySGILBS",
-    description: "Editor activity feed message",
-  },
-  activityEditorIssueLinked: {
-    defaultMessage: "WEB-2 linked · checkout CTA too long",
-    id: "I+qo5eCLeO",
-    description: "Editor activity feed message",
-  },
-  activityEditorOpenQuestion: {
-    defaultMessage: "Open question · glossary violation",
-    id: "j5aTOW5nqn",
-    description: "Editor activity feed message",
-  },
-  activityEditorOpenedFromTriage: {
-    defaultMessage: "Opened from issues board",
-    id: "igAfv5C/QH",
-    description: "Editor activity feed message",
-  },
-  activityEditorTmMatch: {
-    defaultMessage: "TM match · 92% · hero headline",
-    id: "Vhmhc1uF/V",
-    description: "Editor activity feed message",
-  },
-  activityEditorContextLoaded: {
-    defaultMessage: "Component path + repo context loaded",
-    id: "V3NLDwgBXQ",
-    description: "Editor activity feed message",
-  },
-  activityEditorSuggestionReady: {
-    defaultMessage: "Suggestion ready · length check passed",
-    id: "lrzFf+e6vi",
-    description: "Editor activity feed message",
+  mockShellSupport: {
+    defaultMessage: "Support",
+    id: "+wkfFZiCrl",
+    description: "Footer support link label in marketing app shell mock",
   },
 
   tabTriage: {
@@ -645,6 +183,65 @@ export const contentOpsMockStageMessages = defineMessages({
     defaultMessage: "Use Hyperlocalise Agent",
     id: "bH9+5GUIgE",
     description: "Agent terminal title in content ops mock",
+  },
+  agentRunLabel: {
+    defaultMessage: "Live run",
+    id: "wVJMgYMlXo",
+    description: "Live execution panel label in content ops agent mock",
+  },
+
+  campaignAutomationName: {
+    defaultMessage: "Q2 GTM launch",
+    id: "1N4AtoHPR5",
+    description: "Automation name in campaign agent setup mock",
+  },
+  campaignInstructions: {
+    defaultMessage:
+      "When a GTM brief is approved, localize landing page copy for each target market. Draft FR and DE first, route for review, publish to staging, and notify #gtm.",
+    id: "+TAJxozALX",
+    description: "Agent instructions in campaign setup mock",
+  },
+  seoAutomationName: {
+    defaultMessage: "Monthly SEO blogs",
+    id: "bEs1gxswwN",
+    description: "Automation name in SEO agent setup mock",
+  },
+  seoInstructions: {
+    defaultMessage:
+      "On the 1st of each month, research high-intent keyword gaps per locale, draft localised SEO posts with adapted meta and H1, run QA, write to CMS, and notify #content.",
+    id: "b8s+83F3Ce",
+    description: "Agent instructions in SEO setup mock",
+  },
+
+  toolCmsDescription: {
+    defaultMessage: "Publish localized drafts to staging.",
+    id: "/S9UR8V526",
+    description: "CMS tool description in content ops agent setup mock",
+  },
+  toolTranslateDescription: {
+    defaultMessage: "Generate locale-adapted copy from the brief.",
+    id: "PkcpFYcLp9",
+    description: "Translate tool description in content ops agent setup mock",
+  },
+  toolSlackGtmDescription: {
+    defaultMessage: "Notify #gtm when drafts are ready for review.",
+    id: "lkoT8UVKCp",
+    description: "Slack tool description in campaign agent setup mock",
+  },
+  toolSearchDescription: {
+    defaultMessage: "Compare search volume and intent across locales.",
+    id: "QO4Q6r8vEP",
+    description: "Search tool description in SEO agent setup mock",
+  },
+  toolAhrefsDescription: {
+    defaultMessage: "Pull keyword gap data for target markets.",
+    id: "DXeIUKV+HK",
+    description: "Ahrefs tool description in SEO agent setup mock",
+  },
+  toolSlackSeoDescription: {
+    defaultMessage: "Notify #content when drafts land in CMS.",
+    id: "F4InMNOq7F",
+    description: "Slack tool description in SEO agent setup mock",
   },
 
   triggerGtmBrief: {
@@ -842,6 +439,36 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "US+0MJLvUO",
     description: "Brand chat dock title",
   },
+  brandChatEmptyTitle: {
+    defaultMessage: "Ask about brand voice",
+    id: "0VtfeCWDjZ",
+    description: "Empty state title in brand chat mock",
+  },
+  brandChatEmptySubtitle: {
+    defaultMessage: "Check copy against style guides and market rules before publish.",
+    id: "O/4w7DJ8Jn",
+    description: "Empty state subtitle in brand chat mock",
+  },
+  brandContextPill: {
+    defaultMessage: "Brand voice guide",
+    id: "ngwhjoKY67",
+    description: "Context pill in brand chat mock composer",
+  },
+  brandComposerPlaceholder: {
+    defaultMessage: "Ask a follow-up…",
+    id: "Fm3OW372/a",
+    description: "Composer placeholder in brand chat mock after send",
+  },
+  brandCollapseLabel: {
+    defaultMessage: "Collapse chat",
+    id: "DQNOkP5v4I",
+    description: "Decorative collapse control in brand chat mock",
+  },
+  brandCloseLabel: {
+    defaultMessage: "Close chat",
+    id: "5n8Zj0Pp9F",
+    description: "Decorative close control in brand chat mock",
+  },
   brandChatPrompt: {
     defaultMessage:
       'Does this German CTA follow our brand guidelines? "Nutzen Sie unsere innovative Plattform"',
@@ -903,6 +530,36 @@ export const contentOpsMockStageMessages = defineMessages({
     defaultMessage: "Brief to publish · workflow",
     id: "+TDSJ1bdrZ",
     description: "Flow panel title",
+  },
+  flowNodeKindTrigger: {
+    defaultMessage: "Trigger",
+    id: "znMxHXQMhI",
+    description: "Workflow node type label for triggers in content ops flow mock",
+  },
+  flowNodeKindAction: {
+    defaultMessage: "Action",
+    id: "h08QDRNRM3",
+    description: "Workflow node type label for actions in content ops flow mock",
+  },
+  flowBriefDescription: {
+    defaultMessage: "From approved brief to CMS publish across every market.",
+    id: "M4wiL9knTM",
+    description: "Workflow description for brief-to-publish template in content ops mock",
+  },
+  flowCampaignDescription: {
+    defaultMessage: "Launch copy to staging and notify the team when review clears.",
+    id: "oXTxX56WPY",
+    description: "Workflow description for campaign template in content ops mock",
+  },
+  flowSeoDescription: {
+    defaultMessage: "Research keywords, localise drafts, and write to CMS on schedule.",
+    id: "L/LTF1REU5",
+    description: "Workflow description for SEO template in content ops flow mock",
+  },
+  flowDragHint: {
+    defaultMessage: "Drag nodes to explore",
+    id: "RTV8YbVJ6F",
+    description: "Hint shown on the draggable workflow canvas in content ops mock",
   },
   flowTemplateCampaign: {
     defaultMessage: "Campaign",

@@ -16,6 +16,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 
 type IssueRow = {
@@ -59,27 +60,21 @@ export function ContentOpsIssuesPanel({ highlightedIndex = 1 }: { highlightedInd
   ];
 
   return (
-    <div className="flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm">
-      <div className="border-b border-border/50 px-4 py-3">
-        <div className="text-sm font-semibold text-foreground">
+    <div className={CONTENT_OPS_MOCK_INNER_CLASSNAME}>
+      <div className="border-b border-border/50 px-5 py-4">
+        <div className="text-base font-semibold text-foreground">
           <FormattedMessage {...contentOpsMockStageMessages.issuesTitle} />
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          <FormattedMessage
-            {...contentOpsMockStageMessages.issuesSummary}
-            values={{ open: 2, inProgress: 1, resolved: 1 }}
-          />
         </div>
       </div>
 
-      <div className="divide-y divide-border/40">
+      <div className="flex flex-1 flex-col justify-center divide-y divide-border/40">
         {rows.map((row, index) => {
           const highlighted = index === highlightedIndex;
           return (
             <div
               key={row.id}
               className={cn(
-                "flex items-start gap-3 px-4 py-3.5 transition-colors",
+                "flex items-start gap-3 px-5 py-5 transition-colors",
                 highlighted && "bg-primary/5",
               )}
             >
@@ -110,8 +105,10 @@ export function ContentOpsIssuesPanel({ highlightedIndex = 1 }: { highlightedInd
                     <FormattedMessage {...contentOpsMockStageMessages[row.statusKey]} />
                   </span>
                 </div>
-                <p className="mt-1 text-sm font-medium leading-snug text-foreground">{row.title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{row.detail}</p>
+                <p className="mt-1.5 text-base font-medium leading-snug text-foreground">
+                  {row.title}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{row.detail}</p>
                 {highlighted ? (
                   <p className="mt-2 text-xs font-medium text-primary">
                     <FormattedMessage {...contentOpsMockStageMessages.openInCat} />

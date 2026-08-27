@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -21,6 +21,10 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { HeroFrameLoadingShell } from "@/components/marketing/hero-frame-mesh-stage";
 import { cn } from "@/lib/primitives/cn";
 
+import {
+  CONTENT_OPS_EDITOR_WORKSPACE_CLASSNAME,
+  CONTENT_OPS_MOCK_INNER_CLASSNAME,
+} from "./content-ops-mock-stage.constants";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 
 const ClientHeroFrame = dynamic(
@@ -30,8 +34,6 @@ const ClientHeroFrame = dynamic(
     ssr: false,
   },
 );
-
-const EDITOR_WORKSPACE_CLASSNAME = "flex h-[26rem] flex-col sm:h-[28rem]";
 
 type EditorSceneId = "file-content" | "glossary" | "issues" | "intelligence";
 
@@ -45,38 +47,6 @@ const SCENE_SEGMENT: Record<EditorSceneId, string> = {
 };
 
 const SCENE_HOLD_MS = 3400;
-
-type EditorSceneConfig = {
-  id: EditorSceneId;
-  labelKey:
-    | "editorSceneFileContent"
-    | "editorSceneGlossary"
-    | "editorSceneIssues"
-    | "editorSceneIntelligence";
-};
-
-const EDITOR_SCENES: EditorSceneConfig[] = [
-  { id: "file-content", labelKey: "editorSceneFileContent" },
-  { id: "glossary", labelKey: "editorSceneGlossary" },
-  { id: "issues", labelKey: "editorSceneIssues" },
-  { id: "intelligence", labelKey: "editorSceneIntelligence" },
-];
-
-function EditorPanelHighlight({ side, label }: { side: "center" | "right"; label: string }) {
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        "pointer-events-none absolute inset-y-2 z-10 rounded-xl ring-2 ring-primary/45 ring-offset-2 ring-offset-background transition-opacity duration-300",
-        side === "right" ? "right-2 w-[30%]" : "left-[28%] right-[28%]",
-      )}
-    >
-      <span className="absolute -top-2.5 left-3 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm">
-        {label}
-      </span>
-    </div>
-  );
-}
 
 function EditorIssuesOverlay() {
   const intl = useIntl();
@@ -101,7 +71,7 @@ function EditorIssuesOverlay() {
   return (
     <section
       aria-label={intl.formatMessage(contentOpsMockStageMessages.editorIssuesPanelTitle)}
-      className="absolute inset-x-3 bottom-3 z-20 flex max-h-[14rem] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[22rem]"
+      className="absolute inset-x-4 bottom-4 z-20 flex max-h-[16rem] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-4 sm:w-[24rem]"
     >
       <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
         <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
@@ -136,47 +106,8 @@ function EditorIssuesOverlay() {
   );
 }
 
-export function ContentOpsEditorPanel({
-  pauseAutoplay = false,
-  onSceneChange,
-}: {
-  pauseAutoplay?: boolean;
-  onSceneChange?: (sceneIndex: number) => void;
-}) {
-  const intl = useIntl();
+export function ContentOpsEditorPanel({ pauseAutoplay = false }: { pauseAutoplay?: boolean }) {
   const [scene, setScene] = useState<EditorSceneId>("file-content");
-
-  const sceneIndex = EDITOR_SCENE_ORDER.indexOf(scene);
-
-  const highlight = useMemo(() => {
-    switch (scene) {
-      case "glossary":
-        return {
-          side: "right" as const,
-          label: intl.formatMessage(contentOpsMockStageMessages.editorHighlightGlossary),
-        };
-      case "intelligence":
-        return {
-          side: "right" as const,
-          label: intl.formatMessage(contentOpsMockStageMessages.editorHighlightIntelligence),
-        };
-      case "file-content":
-        return {
-          side: "center" as const,
-          label: intl.formatMessage(contentOpsMockStageMessages.editorHighlightEditor),
-        };
-      default:
-        return null;
-    }
-  }, [intl, scene]);
-
-  const handleSceneSelect = useCallback((nextScene: EditorSceneId) => {
-    setScene(nextScene);
-  }, []);
-
-  useEffect(() => {
-    onSceneChange?.(sceneIndex);
-  }, [onSceneChange, sceneIndex]);
 
   useEffect(() => {
     if (pauseAutoplay) {
@@ -194,37 +125,15 @@ export function ContentOpsEditorPanel({
   }, [pauseAutoplay, scene]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2 px-0.5">
-        {EDITOR_SCENES.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => handleSceneSelect(entry.id)}
-            className={cn(
-              "cursor-pointer rounded-full border px-3 py-1.5 text-left text-xs font-medium transition-all duration-200",
-              scene === entry.id
-                ? "border-primary/35 bg-primary/8 text-foreground shadow-sm"
-                : "border-border/60 bg-background/90 text-muted-foreground hover:border-border hover:text-foreground",
-            )}
-          >
-            {intl.formatMessage(contentOpsMockStageMessages[entry.labelKey])}
-          </button>
-        ))}
-      </div>
-
-      <div className="relative">
-        <ClientHeroFrame
-          key={scene}
-          layout="contained"
-          className="shadow-lg"
-          initialSelectedSegmentId={SCENE_SEGMENT[scene]}
-          workspaceClassName={EDITOR_WORKSPACE_CLASSNAME}
-        />
-
-        {highlight ? <EditorPanelHighlight side={highlight.side} label={highlight.label} /> : null}
-        {scene === "issues" ? <EditorIssuesOverlay /> : null}
-      </div>
+    <div className={cn(CONTENT_OPS_MOCK_INNER_CLASSNAME, "relative")}>
+      <ClientHeroFrame
+        key={scene}
+        layout="contained"
+        className="rounded-none border-0 shadow-none"
+        initialSelectedSegmentId={SCENE_SEGMENT[scene]}
+        workspaceClassName={CONTENT_OPS_EDITOR_WORKSPACE_CLASSNAME}
+      />
+      {scene === "issues" ? <EditorIssuesOverlay /> : null}
     </div>
   );
 }

@@ -16,14 +16,10 @@ import { defineMessages } from "react-intl";
 
 export const principlesSectionMessages = defineMessages({
   headline: {
-    defaultMessage: "Run multilingual content ops from one place.",
-    id: "fwsHBkkvhD",
-    description: "Marketing homepage principles section headline",
-  },
-  subline: {
     defaultMessage:
-      "Triage questions, localize campaigns, publish SEO blogs in every market, keep brand consistent, automate brief to publish, and review file content in the Editor.",
-    id: "LgJRko5erC",
-    description: "Marketing homepage principles section supporting copy",
+      "Multilingual content operations, unified. <muted>From GTM brief to market release — generate more multilingual content without adding headcount.</muted>",
+    id: "3DgHaZOLH3",
+    description:
+      "Marketing homepage principles section headline; muted wraps the supporting sentence",
   },
 });

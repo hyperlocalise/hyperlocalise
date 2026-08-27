@@ -13,18 +13,29 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
-import { Chat01Icon, RefreshIcon, SentIcon } from "@hugeicons/core-free-icons";
+import {
+  BookOpenTextIcon,
+  Cancel01Icon,
+  Chat01Icon,
+  RefreshIcon,
+  SentIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tool, ToolHeader } from "@/components/ai-elements/tool";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/primitives/cn";
 
+import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 
 const TOOL_RESOLVE_MS = 520;
 const STEP_MS = 720;
+const EASE_OUT = [0.19, 1, 0.22, 1] as const;
+const COLLAPSE_GLYPH = "−";
+const MENTION_GLYPH = "@";
 
 export type BrandPlaybackPhase = "idle" | "playing" | "done";
 
@@ -43,6 +54,7 @@ export function ContentOpsBrandPanel({
   const [toolResolved, setToolResolved] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
   const prompt = intl.formatMessage(contentOpsMockStageMessages.brandChatPrompt);
   const answerSections = [
@@ -118,17 +130,21 @@ export function ContentOpsBrandPanel({
 
   useEffect(() => () => clearTimers(), []);
 
+  useEffect(() => {
+    if (!transcriptRef.current) {
+      return;
+    }
+    transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+  }, [showTool, toolResolved, showAnswer]);
+
   const showAppliedStyle = showAnswer;
 
   return (
-    <div className="grid w-full gap-4 lg:grid-cols-2">
-      <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm">
-        <div className="border-b border-border/50 px-4 py-3">
-          <div className="text-sm font-semibold text-foreground">
+    <div className={cn(CONTENT_OPS_MOCK_INNER_CLASSNAME, "grid lg:grid-cols-2")}>
+      <div className="flex flex-col border-b border-border/50 lg:border-b-0 lg:border-r">
+        <div className="border-b border-border/50 px-5 py-4">
+          <div className="text-base font-semibold text-foreground">
             <FormattedMessage {...contentOpsMockStageMessages.brandStyleTitle} />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            <FormattedMessage {...contentOpsMockStageMessages.brandStyleSubtitle} />
           </div>
         </div>
 
@@ -188,93 +204,165 @@ export function ContentOpsBrandPanel({
         </div>
       </div>
 
-      <div
-        className="flex h-[22rem] flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-lg backdrop-blur-sm sm:h-[24rem]"
-        role="region"
-        aria-label={intl.formatMessage(contentOpsMockStageMessages.brandChatTitle)}
-      >
-        <header className="flex h-11 shrink-0 items-center border-b border-border px-3">
-          <p className="text-sm font-medium text-foreground">
-            <FormattedMessage {...contentOpsMockStageMessages.brandChatTitle} />
-          </p>
-        </header>
+      <div className="flex min-h-[24rem] flex-col p-3 lg:min-h-0 lg:p-4">
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15"
+          role="region"
+          aria-label={intl.formatMessage(contentOpsMockStageMessages.brandChatTitle)}
+        >
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              <FormattedMessage {...contentOpsMockStageMessages.brandChatTitle} />
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              tabIndex={-1}
+              aria-label={intl.formatMessage(contentOpsMockStageMessages.brandCollapseLabel)}
+            >
+              <span aria-hidden className="text-base leading-none">
+                {COLLAPSE_GLYPH}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              tabIndex={-1}
+              aria-label={intl.formatMessage(contentOpsMockStageMessages.brandCloseLabel)}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+            </Button>
+          </header>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-          {phase === "idle" ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-4" />
-              </div>
-              <p className="max-w-xs text-sm text-muted-foreground">{prompt}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="ms-auto max-w-[95%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 text-foreground">
-                {prompt}
-              </div>
-
-              {showTool ? (
-                <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                  <Tool defaultOpen={toolResolved}>
-                    <ToolHeader
-                      type="dynamic-tool"
-                      toolName={intl.formatMessage(contentOpsMockStageMessages.brandToolName)}
-                      state={toolResolved ? "output-available" : "input-available"}
-                      detail={intl.formatMessage(contentOpsMockStageMessages.brandToolDetail)}
-                      input={{
-                        query: "brand voice CTA DE",
-                      }}
-                    />
-                  </Tool>
+          <div ref={transcriptRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {phase === "idle" ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
                 </div>
-              ) : null}
-
-              {showAnswer ? (
-                <motion.div
-                  initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-3 text-sm leading-6"
-                >
-                  {answerSections.map((section) => (
-                    <div key={section.label} className="space-y-1">
-                      <p className="font-medium text-foreground">{section.label}</p>
-                      <p className="text-muted-foreground">{section.body}</p>
-                    </div>
-                  ))}
-                </motion.div>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0 border-t border-border p-3">
-          <div className="flex items-center justify-end gap-2">
-            {phase === "done" ? (
-              <Button type="button" size="sm" variant="secondary" onClick={resetPlayback}>
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={RefreshIcon}
-                  strokeWidth={2}
-                  className="size-3.5"
-                />
-                <FormattedMessage {...contentOpsMockStageMessages.brandReplay} />
-              </Button>
+                <div className="max-w-sm space-y-1">
+                  <h3 className="text-balance text-sm font-semibold text-foreground">
+                    <FormattedMessage {...contentOpsMockStageMessages.brandChatEmptyTitle} />
+                  </h3>
+                  <p className="text-pretty text-sm text-muted-foreground">{prompt}</p>
+                  <p className="text-pretty text-xs text-muted-foreground">
+                    <FormattedMessage {...contentOpsMockStageMessages.brandChatEmptySubtitle} />
+                  </p>
+                </div>
+              </div>
             ) : (
-              <Button
-                type="button"
-                size="sm"
-                disabled={phase === "playing"}
-                onClick={startPlayback}
-              >
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={SentIcon}
-                  strokeWidth={2}
-                  className="size-3.5"
-                />
-                <FormattedMessage {...contentOpsMockStageMessages.brandSend} />
-              </Button>
+              <div className="flex flex-col gap-4 px-4 py-5">
+                <div className="ms-auto max-w-[90%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 text-foreground">
+                  {prompt}
+                </div>
+
+                <div className="space-y-3">
+                  <AnimatePresence initial={false}>
+                    {showTool ? (
+                      <motion.div
+                        key="brand-tool"
+                        initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: shouldReduceMotion ? 0 : 0.28,
+                          ease: EASE_OUT,
+                        }}
+                        className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
+                      >
+                        <Tool defaultOpen={toolResolved}>
+                          <ToolHeader
+                            type="dynamic-tool"
+                            toolName={intl.formatMessage(contentOpsMockStageMessages.brandToolName)}
+                            state={toolResolved ? "output-available" : "input-available"}
+                            detail={intl.formatMessage(contentOpsMockStageMessages.brandToolDetail)}
+                            input={{
+                              query: "brand voice CTA DE",
+                            }}
+                          />
+                        </Tool>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+
+                  {showAnswer ? (
+                    <motion.div
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: EASE_OUT }}
+                      className="space-y-4 text-sm leading-6 text-foreground"
+                    >
+                      {answerSections.map((section) => (
+                        <div key={section.label} className="space-y-1">
+                          <p className="font-medium text-foreground">{section.label}</p>
+                          <p className="text-muted-foreground">{section.body}</p>
+                        </div>
+                      ))}
+                    </motion.div>
+                  ) : null}
+                </div>
+              </div>
             )}
+          </div>
+
+          <div className="shrink-0 border-t border-border bg-background p-3">
+            <div className="overflow-hidden rounded-xl border border-border bg-muted/30 shadow-sm">
+              <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-muted-foreground">
+                  {MENTION_GLYPH}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
+                  <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={1.8} className="size-3" />
+                  <FormattedMessage {...contentOpsMockStageMessages.brandContextPill} />
+                </span>
+              </div>
+              <div className="flex items-end gap-2 px-3 py-3">
+                <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
+                  {phase === "idle" ? (
+                    prompt
+                  ) : (
+                    <span className="text-muted-foreground">
+                      <FormattedMessage {...contentOpsMockStageMessages.brandComposerPlaceholder} />
+                    </span>
+                  )}
+                </p>
+                {phase === "done" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 rounded-full px-3"
+                    onClick={resetPlayback}
+                  >
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={RefreshIcon}
+                      strokeWidth={2}
+                      className="size-3.5"
+                    />
+                    <FormattedMessage {...contentOpsMockStageMessages.brandReplay} />
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 rounded-full px-3"
+                    disabled={phase === "playing"}
+                    aria-label={intl.formatMessage(contentOpsMockStageMessages.brandSend)}
+                    onClick={startPlayback}
+                  >
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={SentIcon}
+                      strokeWidth={2}
+                      className="size-3.5"
+                    />
+                    <FormattedMessage {...contentOpsMockStageMessages.brandSend} />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

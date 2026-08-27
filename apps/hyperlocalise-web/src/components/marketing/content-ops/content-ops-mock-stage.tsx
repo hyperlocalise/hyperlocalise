@@ -13,9 +13,18 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock01Icon, Rocket01Icon } from "@hugeicons/core-free-icons";
+import {
+  Clock01Icon,
+  File01Icon,
+  LanguageSquareIcon,
+  PauseIcon,
+  PlayIcon,
+  Rocket01Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import { useIntl } from "react-intl";
 
 import {
@@ -26,19 +35,18 @@ import {
 import { cn } from "@/lib/primitives/cn";
 
 import {
-  ContentOpsActivityFeed,
-  type ContentOpsActivityItem,
-  type ContentOpsMockTabId,
-} from "./content-ops-activity-feed";
-import {
   ContentOpsAgentTerminal,
   type ContentOpsTerminalScene,
 } from "./content-ops-agent-terminal";
-import { ContentOpsBrandPanel, type BrandPlaybackPhase } from "./content-ops-brand-panel";
+import { ContentOpsBrandPanel } from "./content-ops-brand-panel";
 import { ContentOpsEditorPanel } from "./content-ops-editor-panel";
 import { ContentOpsFlowPanel } from "./content-ops-flow-panel";
+import { ContentOpsMockAppShell } from "./content-ops-mock-app-shell";
 import { ContentOpsIssuesPanel } from "./content-ops-issues-panel";
-import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
+import {
+  contentOpsMockStageMessages,
+  type ContentOpsMockTabId,
+} from "./content-ops-mock-stage.messages";
 
 const TAB_HOLD_MS = 9000;
 const TAB_ORDER: ContentOpsMockTabId[] = [
@@ -73,240 +81,6 @@ const TABS: TabConfig[] = [
   { id: "editor", labelKey: "tabEditor" },
 ];
 
-type ActivityMessages = typeof contentOpsMockStageMessages;
-
-function activityMsg(
-  intl: ReturnType<typeof useIntl>,
-  timeKey: keyof ActivityMessages,
-  sourceKey: keyof ActivityMessages,
-  messageKey: keyof ActivityMessages,
-): ContentOpsActivityItem {
-  return {
-    time: intl.formatMessage(contentOpsMockStageMessages[timeKey]),
-    source: intl.formatMessage(contentOpsMockStageMessages[sourceKey]),
-    message: intl.formatMessage(contentOpsMockStageMessages[messageKey]),
-  };
-}
-
-function activityIssue(
-  intl: ReturnType<typeof useIntl>,
-  timeKey: keyof ActivityMessages,
-  issueId: string,
-  messageKey: keyof ActivityMessages,
-): ContentOpsActivityItem {
-  return {
-    time: intl.formatMessage(contentOpsMockStageMessages[timeKey]),
-    source: issueId,
-    message: intl.formatMessage(contentOpsMockStageMessages[messageKey]),
-  };
-}
-
-function useActivityItems(tabId: ContentOpsMockTabId, stepIndex: number): ContentOpsActivityItem[] {
-  const intl = useIntl();
-
-  return useMemo(() => {
-    const triageSets: ContentOpsActivityItem[][] = [
-      [
-        activityIssue(intl, "activityTimeNow", "WEB-2", "activityTriageAssignedFrCheckout"),
-        activityIssue(intl, "activityTime4m", "MOB-1", "activityTriageGlossaryBreakEs"),
-        activityIssue(intl, "activityTime10m", "WEB-3", "activityTriageQaResolvedDe"),
-      ],
-      [
-        activityIssue(intl, "activityTimeNow", "MOB-1", "activityTriageGlossaryBreakEs"),
-        activityIssue(intl, "activityTime4m", "WEB-2", "activityTriageInProgressPayment"),
-        activityMsg(intl, "activityTime10m", "activitySourceCat", "activityTriageOpenInCat"),
-      ],
-      [
-        activityIssue(intl, "activityTimeNow", "WEB-3", "activityTriageResolvedHero"),
-        activityIssue(intl, "activityTime6m", "WEB-2", "activityTriageMistakeFr"),
-        activityMsg(intl, "activityTime12m", "activitySourceQa", "activityTriageLengthFailedDe"),
-      ],
-    ];
-
-    const campaignSets: ContentOpsActivityItem[][] = [
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceBrief", "activityCampaignQ2Launch"),
-        activityMsg(
-          intl,
-          "activityTime4m",
-          "activitySourceDrafts",
-          "activityCampaignLandingDrafts",
-        ),
-        activityMsg(intl, "activityTime8m", "activitySourceReview", "activityCampaignFrDeQueued"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceAgent", "stepGtm2"),
-        activityMsg(intl, "activityTime4m", "activitySourceBrief", "stepGtm1"),
-        activityMsg(intl, "activityTime8m", "activitySourceReview", "stepGtm3"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceReview", "stepGtm3"),
-        activityMsg(intl, "activityTime4m", "activitySourceStaging", "stepGtm4"),
-        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activityCampaignNotifiedGtm"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceStaging", "stepGtm4"),
-        activityMsg(
-          intl,
-          "activityTime6m",
-          "activitySourceCms",
-          "activityCampaignPublishedStaging",
-        ),
-        activityMsg(
-          intl,
-          "activityTime10m",
-          "activitySourceBrief",
-          "activityCampaignBriefComplete",
-        ),
-      ],
-    ];
-
-    const seoSets: ContentOpsActivityItem[][] = [
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceResearch", "activitySeoPullingVolume"),
-        activityMsg(intl, "activityTime4m", "activitySourceLocales", "activitySeoLocalesCompared"),
-        activityMsg(intl, "activityTime8m", "activitySourceGaps", "stepSeo3"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceGaps", "stepSeo3"),
-        activityMsg(intl, "activityTime4m", "activitySourceDraft", "stepSeo4"),
-        activityMsg(intl, "activityTime8m", "activitySourceQa", "activitySeoMetaH1De"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceDraft", "stepSeo4"),
-        activityMsg(intl, "activityTime4m", "activitySourceCms", "stepSeo5"),
-        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activitySeoNotifiedContent"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceCms", "stepSeo5"),
-        activityMsg(intl, "activityTime6m", "activitySourceResearch", "activitySeoMonthlyComplete"),
-        activityMsg(intl, "activityTime10m", "activitySourceGaps", "stepSeo3"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourcePublish", "activitySeoDeDraftReview"),
-        activityMsg(intl, "activityTime5m", "activitySourceIntent", "activitySeoLocalSearchIntent"),
-        activityMsg(intl, "activityTime9m", "activitySourceSchedule", "activitySeoNextRun"),
-      ],
-    ];
-
-    const brandSets: ContentOpsActivityItem[][] = [
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceChat", "activityBrandReviewAsked"),
-        activityMsg(intl, "activityTime4m", "activitySourceGuide", "activityBrandGuideRecalled"),
-        activityMsg(
-          intl,
-          "activityTime8m",
-          "activitySourceVerdict",
-          "activityBrandOffBrandRewrite",
-        ),
-      ],
-      [
-        activityMsg(
-          intl,
-          "activityTimeNow",
-          "activitySourceKnowledge",
-          "activityBrandGuideMatched",
-        ),
-        activityMsg(intl, "activityTime4m", "activitySourceRule", "activityBrandToneRule"),
-        activityMsg(intl, "activityTime8m", "activitySourceCopy", "activityBrandSuggestedCopy"),
-      ],
-      [
-        activityMsg(
-          intl,
-          "activityTimeNow",
-          "activitySourceApplied",
-          "activityBrandCorrectionApplied",
-        ),
-        activityMsg(intl, "activityTime5m", "activitySourceChat", "activityBrandReviewAsked"),
-        activityMsg(intl, "activityTime10m", "activitySourceGuide", "activityBrandCtaLengthRule"),
-      ],
-    ];
-
-    const flowSets: ContentOpsActivityItem[][] = [
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceFlow", "activityFlowWorkflowActive"),
-        activityMsg(intl, "activityTime4m", "activitySourceStep", "activityFlowGtmBriefReceived"),
-        activityMsg(intl, "activityTime8m", "activitySourceHandoff", "activityFlowRoutingLocalise"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceLocalise", "activityFlowLocaleDrafts"),
-        activityMsg(intl, "activityTime4m", "activitySourceBrandQa", "activityFlowStyleChecking"),
-        activityMsg(intl, "activityTime8m", "activitySourceReview", "activityFlowReviewerQueue"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceCms", "activityFlowDraftReady"),
-        activityMsg(intl, "activityTime4m", "activitySourceSlack", "activityFlowTeamNotified"),
-        activityMsg(intl, "activityTime8m", "activitySourceFlow", "activityFlowComplete"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceTemplate", "activityFlowSeoSelected"),
-        activityMsg(intl, "activityTime4m", "activitySourceKeywords", "activityFlowResearchActive"),
-        activityMsg(intl, "activityTime8m", "activitySourceDraft", "activityFlowCmsHandoff"),
-      ],
-      [
-        activityMsg(
-          intl,
-          "activityTimeNow",
-          "activitySourceTemplate",
-          "activityFlowCampaignSelected",
-        ),
-        activityMsg(intl, "activityTime4m", "activitySourceStaging", "activityFlowAssetsRouted"),
-        activityMsg(intl, "activityTime8m", "activitySourceSlack", "activityFlowLaunchNotified"),
-      ],
-    ];
-
-    const editorSets: ContentOpsActivityItem[][] = [
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceEditor", "activityEditorFileOpened"),
-        activityMsg(
-          intl,
-          "activityTime4m",
-          "activitySourceSegment",
-          "activityEditorHeroNeedsReview",
-        ),
-        activityMsg(intl, "activityTime8m", "activitySourceQueue", "activityEditorSegmentsFlagged"),
-      ],
-      [
-        activityMsg(
-          intl,
-          "activityTimeNow",
-          "activitySourceGlossary",
-          "activityEditorTermMismatch",
-        ),
-        activityMsg(intl, "activityTime4m", "activitySourceQa", "activityEditorTermSuggested"),
-        activityMsg(intl, "activityTime8m", "activitySourceEditor", "activityEditorGlossaryCheck"),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceIssues", "activityEditorIssueLinked"),
-        activityIssue(intl, "activityTime4m", "MOB-1", "activityEditorOpenQuestion"),
-        activityMsg(
-          intl,
-          "activityTime8m",
-          "activitySourceTriage",
-          "activityEditorOpenedFromTriage",
-        ),
-      ],
-      [
-        activityMsg(intl, "activityTimeNow", "activitySourceIntelligence", "activityEditorTmMatch"),
-        activityMsg(intl, "activityTime4m", "activitySourceContext", "activityEditorContextLoaded"),
-        activityMsg(intl, "activityTime8m", "activitySourceAi", "activityEditorSuggestionReady"),
-      ],
-    ];
-
-    const setsByTab: Record<ContentOpsMockTabId, ContentOpsActivityItem[][]> = {
-      triage: triageSets,
-      campaign: campaignSets,
-      "seo-blog": seoSets,
-      brand: brandSets,
-      "brief-to-publish": flowSets,
-      editor: editorSets,
-    };
-
-    const sets = setsByTab[tabId];
-    return sets[Math.min(stepIndex, sets.length - 1)] ?? sets[0]!;
-  }, [intl, stepIndex, tabId]);
-}
-
 export function ContentOpsMockStage({
   className,
   priority = false,
@@ -318,17 +92,39 @@ export function ContentOpsMockStage({
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [activeTab, setActiveTab] = useState<ContentOpsMockTabId>("triage");
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
-  const [playbackStep, setPlaybackStep] = useState(0);
+  const [triageHighlightIndex, setTriageHighlightIndex] = useState(0);
 
   const campaignScene: ContentOpsTerminalScene = useMemo(
     () => ({
       id: "campaign",
-      triggerIcon: <HugeiconsIcon icon={Rocket01Icon} strokeWidth={1.8} className="size-3" />,
+      automationName: intl.formatMessage(contentOpsMockStageMessages.campaignAutomationName),
+      triggerIcon: <HugeiconsIcon icon={Rocket01Icon} strokeWidth={1.8} className="size-3.5" />,
       triggerLabel: intl.formatMessage(contentOpsMockStageMessages.triggerGtmBrief),
+      instructions: intl.formatMessage(contentOpsMockStageMessages.campaignInstructions),
       tools: [
-        intl.formatMessage(contentOpsMockStageMessages.toolCms),
-        intl.formatMessage(contentOpsMockStageMessages.toolTranslate),
-        intl.formatMessage(contentOpsMockStageMessages.toolSlack),
+        {
+          icon: <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3.5" />,
+          label: intl.formatMessage(contentOpsMockStageMessages.toolCms),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolCmsDescription),
+        },
+        {
+          icon: <HugeiconsIcon icon={LanguageSquareIcon} strokeWidth={1.8} className="size-3.5" />,
+          label: intl.formatMessage(contentOpsMockStageMessages.toolTranslate),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolTranslateDescription),
+        },
+        {
+          icon: (
+            <Image
+              src="/images/slack-logo.svg"
+              alt=""
+              width={14}
+              height={14}
+              className="size-3.5"
+            />
+          ),
+          label: intl.formatMessage(contentOpsMockStageMessages.toolSlack),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolSlackGtmDescription),
+        },
       ],
       steps: [
         intl.formatMessage(contentOpsMockStageMessages.stepGtm1),
@@ -344,13 +140,39 @@ export function ContentOpsMockStage({
     const highlightStep = intl.formatMessage(contentOpsMockStageMessages.stepSeo3);
     return {
       id: "seo-blog",
-      triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3" />,
+      automationName: intl.formatMessage(contentOpsMockStageMessages.seoAutomationName),
+      triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3.5" />,
       triggerLabel: intl.formatMessage(contentOpsMockStageMessages.triggerSeoSchedule),
+      instructions: intl.formatMessage(contentOpsMockStageMessages.seoInstructions),
       tools: [
-        intl.formatMessage(contentOpsMockStageMessages.toolSearch),
-        intl.formatMessage(contentOpsMockStageMessages.toolAhrefs),
-        intl.formatMessage(contentOpsMockStageMessages.toolCms),
-        intl.formatMessage(contentOpsMockStageMessages.toolSlack),
+        {
+          icon: <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} className="size-3.5" />,
+          label: intl.formatMessage(contentOpsMockStageMessages.toolSearch),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolSearchDescription),
+        },
+        {
+          icon: <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} className="size-3.5" />,
+          label: intl.formatMessage(contentOpsMockStageMessages.toolAhrefs),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolAhrefsDescription),
+        },
+        {
+          icon: <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3.5" />,
+          label: intl.formatMessage(contentOpsMockStageMessages.toolCms),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolCmsDescription),
+        },
+        {
+          icon: (
+            <Image
+              src="/images/slack-logo.svg"
+              alt=""
+              width={14}
+              height={14}
+              className="size-3.5"
+            />
+          ),
+          label: intl.formatMessage(contentOpsMockStageMessages.toolSlack),
+          description: intl.formatMessage(contentOpsMockStageMessages.toolSlackSeoDescription),
+        },
       ],
       steps: [
         intl.formatMessage(contentOpsMockStageMessages.stepSeo1),
@@ -363,24 +185,14 @@ export function ContentOpsMockStage({
     };
   }, [intl]);
 
-  const activityItems = useActivityItems(activeTab, playbackStep);
-
   const handleTabSelect = useCallback((tabId: ContentOpsMockTabId) => {
     setAutoplayEnabled(false);
     setActiveTab(tabId);
-    setPlaybackStep(0);
+    setTriageHighlightIndex(0);
   }, []);
 
   const handleAutoplayToggle = useCallback(() => {
     setAutoplayEnabled((enabled) => !enabled);
-  }, []);
-
-  const handleBrandPhaseChange = useCallback((phase: BrandPlaybackPhase) => {
-    if (phase === "done") {
-      setPlaybackStep(2);
-    } else if (phase === "playing") {
-      setPlaybackStep(0);
-    }
   }, []);
 
   useEffect(() => {
@@ -391,22 +203,13 @@ export function ContentOpsMockStage({
     const timer = window.setTimeout(() => {
       setActiveTab((current) => {
         const index = TAB_ORDER.indexOf(current);
-        const next = TAB_ORDER[(index + 1) % TAB_ORDER.length]!;
-        return next;
+        return TAB_ORDER[(index + 1) % TAB_ORDER.length]!;
       });
-      setPlaybackStep(0);
+      setTriageHighlightIndex(0);
     }, TAB_HOLD_MS);
 
     return () => window.clearTimeout(timer);
   }, [activeTab, autoplayEnabled, shouldReduceMotion]);
-
-  const handleStepIndexChange = useCallback((stepIndex: number) => {
-    setPlaybackStep(stepIndex);
-  }, []);
-
-  const handleFlowNodeChange = useCallback((nodeIndex: number) => {
-    setPlaybackStep(nodeIndex);
-  }, []);
 
   const pauseAutoplay = !autoplayEnabled || shouldReduceMotion;
 
@@ -416,39 +219,51 @@ export function ContentOpsMockStage({
     }
 
     const timer = window.setInterval(() => {
-      setPlaybackStep((step) => step + 1);
+      setTriageHighlightIndex((step) => step + 1);
     }, 2600);
 
     return () => window.clearInterval(timer);
   }, [activeTab, pauseAutoplay]);
 
   return (
-    <div className={cn("space-y-5", className)}>
-      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => handleTabSelect(tab.id)}
-            className={cn(
-              "shrink-0 cursor-pointer rounded-full border px-4 py-2 text-left text-sm font-medium transition-all duration-200",
-              activeTab === tab.id
-                ? "border-primary/35 bg-primary/8 text-foreground shadow-sm"
-                : "border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground",
-            )}
-          >
-            {intl.formatMessage(contentOpsMockStageMessages[tab.labelKey])}
-          </button>
-        ))}
+    <div className={cn("space-y-4", className)}>
+      <div className="flex items-center gap-2">
+        <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => handleTabSelect(tab.id)}
+              className={cn(
+                "shrink-0 cursor-pointer rounded-full border px-4 py-2 text-left text-sm font-medium transition-all duration-200",
+                activeTab === tab.id
+                  ? "border-primary/35 bg-primary/8 text-foreground shadow-sm"
+                  : "border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {intl.formatMessage(contentOpsMockStageMessages[tab.labelKey])}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={handleAutoplayToggle}
+          className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+          aria-label={intl.formatMessage(
+            autoplayEnabled && !shouldReduceMotion
+              ? contentOpsMockStageMessages.autoplayPause
+              : contentOpsMockStageMessages.autoplayResume,
+          )}
+        >
+          <HugeiconsIcon
+            icon={autoplayEnabled && !shouldReduceMotion ? PauseIcon : PlayIcon}
+            strokeWidth={2}
+            className="size-3.5"
+          />
+        </button>
       </div>
 
-      <ContentOpsActivityFeed
-        items={activityItems}
-        autoplayEnabled={autoplayEnabled && !shouldReduceMotion}
-        onAutoplayToggle={handleAutoplayToggle}
-      />
-
-      <MeshStage meshSrc={MESH_BY_TAB[activeTab]} priority={priority} layout="contained">
+      <MeshStage meshSrc={MESH_BY_TAB[activeTab]} priority={priority} layout="breakout">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -458,41 +273,26 @@ export function ContentOpsMockStage({
             transition={{ duration: 0.28, ease: [0.19, 1, 0.22, 1] }}
             className="w-full"
           >
-            {activeTab === "triage" ? (
-              <ContentOpsIssuesPanel highlightedIndex={playbackStep % 3} />
-            ) : null}
-            {activeTab === "campaign" ? (
-              <ContentOpsAgentTerminal
-                scene={campaignScene}
-                pauseAutoplay={pauseAutoplay}
-                onStepIndexChange={handleStepIndexChange}
-              />
-            ) : null}
-            {activeTab === "seo-blog" ? (
-              <ContentOpsAgentTerminal
-                scene={seoScene}
-                pauseAutoplay={pauseAutoplay}
-                onStepIndexChange={handleStepIndexChange}
-              />
-            ) : null}
-            {activeTab === "brand" ? (
-              <ContentOpsBrandPanel
-                pauseAutoplay={pauseAutoplay}
-                onPhaseChange={handleBrandPhaseChange}
-              />
-            ) : null}
-            {activeTab === "brief-to-publish" ? (
-              <ContentOpsFlowPanel
-                pauseAutoplay={pauseAutoplay}
-                onActiveNodeChange={handleFlowNodeChange}
-              />
-            ) : null}
-            {activeTab === "editor" ? (
-              <ContentOpsEditorPanel
-                pauseAutoplay={pauseAutoplay}
-                onSceneChange={handleStepIndexChange}
-              />
-            ) : null}
+            <ContentOpsMockAppShell activeTab={activeTab}>
+              {activeTab === "triage" ? (
+                <ContentOpsIssuesPanel highlightedIndex={triageHighlightIndex % 3} />
+              ) : null}
+              {activeTab === "campaign" ? (
+                <ContentOpsAgentTerminal scene={campaignScene} pauseAutoplay={pauseAutoplay} />
+              ) : null}
+              {activeTab === "seo-blog" ? (
+                <ContentOpsAgentTerminal scene={seoScene} pauseAutoplay={pauseAutoplay} />
+              ) : null}
+              {activeTab === "brand" ? (
+                <ContentOpsBrandPanel pauseAutoplay={pauseAutoplay} />
+              ) : null}
+              {activeTab === "brief-to-publish" ? (
+                <ContentOpsFlowPanel pauseAutoplay={pauseAutoplay} />
+              ) : null}
+              {activeTab === "editor" ? (
+                <ContentOpsEditorPanel pauseAutoplay={pauseAutoplay} />
+              ) : null}
+            </ContentOpsMockAppShell>
           </motion.div>
         </AnimatePresence>
       </MeshStage>
