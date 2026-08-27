@@ -28,7 +28,9 @@ uses dedicated routes so the grouped term workspace has room to grow.
 - The web app exposes glossary detail at `/glossaries/:glossaryId`, existing
   concept detail at `/glossaries/:glossaryId/concepts/:conceptId`, and concept
   creation at `/glossaries/:glossaryId/concepts/new`.
-- The existing flat term endpoints are not used for native concept data.
+- The existing flat term endpoints are not used for native concept data. See
+  [2026-08-28: Eliminate term-based glossary design](./2026-08-28-eliminate-term-based-glossary-design.md)
+  for the follow-up decision to remove those endpoints and ignore leftover flat rows.
 - Concept management is native-only. Provider-backed glossaries remain
   read-only and provider-owned.
 

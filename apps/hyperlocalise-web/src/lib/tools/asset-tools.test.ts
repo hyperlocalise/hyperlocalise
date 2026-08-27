@@ -84,22 +84,45 @@ async function createGlossaryWithTerm(input: {
       name: input.name,
       description: "",
       sourceLocale: "en",
-      targetLocale: "fr",
+      targetLocale: null,
       status: "active",
     })
     .returning();
 
-  const [term] = await db
-    .insert(schema.glossaryTerms)
+  const [concept] = await db
+    .insert(schema.glossaryConcepts)
     .values({
       glossaryId: glossary.id,
-      sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
-      description: "",
+      primaryTerm: input.sourceTerm,
     })
     .returning();
 
-  return { glossary, term };
+  const [sourceTermRow] = await db
+    .insert(schema.glossaryTerms)
+    .values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: input.sourceTerm,
+      sourceTerm: input.sourceTerm,
+      targetTerm: input.sourceTerm,
+      description: "",
+      reviewStatus: "approved",
+    })
+    .returning();
+
+  await db.insert(schema.glossaryTerms).values({
+    glossaryId: glossary.id,
+    conceptId: concept.id,
+    locale: "fr",
+    term: input.targetTerm,
+    sourceTerm: input.targetTerm,
+    targetTerm: input.targetTerm,
+    description: "",
+    reviewStatus: "approved",
+  });
+
+  return { glossary, term: sourceTermRow, concept };
 }
 
 async function createMemoryWithEntry(input: {

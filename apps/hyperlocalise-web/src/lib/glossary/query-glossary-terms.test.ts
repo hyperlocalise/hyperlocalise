@@ -76,7 +76,7 @@ async function createAttachedGlossaryTerm(input: {
       name: input.glossaryName,
       description: "",
       sourceLocale: "en",
-      targetLocale: "fr",
+      targetLocale: null,
       status: "active",
     })
     .returning();
@@ -87,19 +87,42 @@ async function createAttachedGlossaryTerm(input: {
     glossaryId: glossary.id,
   });
 
-  const [term] = await db
+  const [concept] = await db
+    .insert(schema.glossaryConcepts)
+    .values({
+      glossaryId: glossary.id,
+      primaryTerm: input.sourceTerm,
+    })
+    .returning();
+
+  const [sourceTermRow] = await db
     .insert(schema.glossaryTerms)
     .values({
       glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: input.sourceTerm,
       sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
+      targetTerm: input.sourceTerm,
       description: "",
       provenance: "manual",
       reviewStatus: "approved",
     })
     .returning();
 
-  return { glossary, term };
+  await db.insert(schema.glossaryTerms).values({
+    glossaryId: glossary.id,
+    conceptId: concept.id,
+    locale: "fr",
+    term: input.targetTerm,
+    sourceTerm: input.targetTerm,
+    targetTerm: input.targetTerm,
+    description: "",
+    provenance: "manual",
+    reviewStatus: "approved",
+  });
+
+  return { glossary, term: sourceTermRow, concept };
 }
 
 afterEach(async () => {
@@ -161,6 +184,47 @@ describe("listGlossaryTermsForProject", () => {
       sourceTerm: "checkout",
       targetTerm: "paiement",
       targetLocale: "fr",
+    });
+  });
+
+  it("ignores leftover term-based rows without a concept_id", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Concept Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const [glossary] = await db
+      .select({ id: schema.glossaries.id })
+      .from(schema.glossaries)
+      .where(inArray(schema.glossaries.organizationId, [organization.id]))
+      .limit(1);
+
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      sourceTerm: "legacy",
+      targetTerm: "héritage",
+      description: "",
+      provenance: "manual",
+      reviewStatus: "approved",
+    });
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms).toHaveLength(1);
+    expect(terms[0]).toMatchObject({
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
     });
   });
 
@@ -241,7 +305,7 @@ describe("listGlossaryTermsForProject", () => {
 });
 
 describe("queryNativeGlossaryTermCounts", () => {
-  it("counts native glossary terms and returns zero for empty glossaries", async () => {
+  it("counts only concept-linked glossary terms and returns zero for empty glossaries", async () => {
     const organization = await createOrganization();
     const [emptyGlossary, populatedGlossary] = await db
       .insert(schema.glossaries)
@@ -261,10 +325,32 @@ describe("queryNativeGlossaryTermCounts", () => {
       ])
       .returning();
 
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: populatedGlossary.id,
+        primaryTerm: "checkout",
+      })
+      .returning();
+
     await db.insert(schema.glossaryTerms).values([
       {
         glossaryId: populatedGlossary.id,
+        conceptId: concept.id,
+        locale: "en",
+        term: "checkout",
         sourceTerm: "checkout",
+        targetTerm: "checkout",
+        description: "",
+        provenance: "manual",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: populatedGlossary.id,
+        conceptId: concept.id,
+        locale: "fr",
+        term: "caisse",
+        sourceTerm: "caisse",
         targetTerm: "caisse",
         description: "",
         provenance: "manual",
@@ -272,8 +358,8 @@ describe("queryNativeGlossaryTermCounts", () => {
       },
       {
         glossaryId: populatedGlossary.id,
-        sourceTerm: "payment",
-        targetTerm: "paiement",
+        sourceTerm: "legacy",
+        targetTerm: "héritage",
         description: "",
         provenance: "manual",
         reviewStatus: "approved",
@@ -298,7 +384,7 @@ describe("Glossary project counts", () => {
         name: "Attached glossary",
         description: "",
         sourceLocale: "en",
-        targetLocale: "fr",
+        targetLocale: null,
         status: "active",
       })
       .returning();

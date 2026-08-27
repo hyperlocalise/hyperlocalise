@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -93,35 +94,52 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
         }
       }
 
+      const glossarySourceTerms = alias(schema.glossaryTerms, "glossary_source_terms");
+      const glossaryTargetTerms = alias(schema.glossaryTerms, "glossary_target_terms");
+
       const conditions = [
-        sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+        sql`${glossarySourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
         await toolProjectLinkedGlossaryWhere(ctx),
         eq(schema.glossaries.sourceLocale, sourceLocale),
-        eq(schema.glossaries.targetLocale, targetLocale),
         eq(schema.glossaries.status, "active"),
+        eq(schema.glossaries.source, "native"),
+        eq(glossarySourceTerms.locale, sourceLocale),
+        eq(glossaryTargetTerms.locale, targetLocale),
+        isNotNull(glossarySourceTerms.conceptId),
+        isNotNull(glossarySourceTerms.term),
+        isNotNull(glossaryTargetTerms.term),
+        eq(glossarySourceTerms.reviewStatus, "approved"),
+        eq(glossaryTargetTerms.reviewStatus, "approved"),
       ];
 
       if (glossaryIds) {
-        conditions.push(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
+        conditions.push(inArray(glossarySourceTerms.glossaryId, glossaryIds));
       }
 
       const terms = await db
         .select({
-          id: schema.glossaryTerms.id,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
-          description: schema.glossaryTerms.description,
-          partOfSpeech: schema.glossaryTerms.partOfSpeech,
-          caseSensitive: schema.glossaryTerms.caseSensitive,
-          forbidden: schema.glossaryTerms.forbidden,
-          glossaryId: schema.glossaryTerms.glossaryId,
+          id: glossaryTargetTerms.id,
+          sourceTerm: sql<string>`${glossarySourceTerms.term}`,
+          targetTerm: sql<string>`${glossaryTargetTerms.term}`,
+          description: glossarySourceTerms.description,
+          partOfSpeech: glossarySourceTerms.partOfSpeech,
+          caseSensitive: glossarySourceTerms.caseSensitive,
+          forbidden: glossarySourceTerms.forbidden,
+          glossaryId: glossarySourceTerms.glossaryId,
           glossaryName: schema.glossaries.name,
-          rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+          rank: sql<number>`ts_rank(${glossarySourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
             "rank",
           ),
         })
-        .from(schema.glossaryTerms)
-        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+        .from(glossarySourceTerms)
+        .innerJoin(
+          glossaryTargetTerms,
+          and(
+            eq(glossarySourceTerms.glossaryId, glossaryTargetTerms.glossaryId),
+            eq(glossarySourceTerms.conceptId, glossaryTargetTerms.conceptId),
+          ),
+        )
+        .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
         .where(and(...conditions))
         .orderBy(desc(sql`rank`))
         .limit(limit);

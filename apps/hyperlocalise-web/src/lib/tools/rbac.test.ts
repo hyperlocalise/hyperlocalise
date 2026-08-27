@@ -109,10 +109,7 @@ import {
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   createCreateGlossaryTool,
-  createCreateGlossaryTermTool,
-  createDeleteGlossaryTermTool,
   createDeleteGlossaryTool,
-  createUpdateGlossaryTermTool,
   createUpdateGlossaryTool,
 } from "./glossary-tools";
 import {
@@ -509,7 +506,6 @@ describe("Agent Tools RBAC", () => {
       const result = await executeTool(tool, {
         name: "Test",
         sourceLocale: "en",
-        targetLocale: "fr",
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
@@ -520,7 +516,6 @@ describe("Agent Tools RBAC", () => {
       const result = await executeTool(tool, {
         name: "Test",
         sourceLocale: "en",
-        targetLocale: "fr",
       });
       expect(result.success).not.toBe(false);
       expect(result.error).toBeUndefined();
@@ -544,58 +539,6 @@ describe("Agent Tools RBAC", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("permission");
     });
-
-    it.each(WRITE_DENIED_ROLES)("denies glossary term create for %s", async (role) => {
-      const ctx = mockCtx(role);
-      const tool = createCreateGlossaryTermTool(ctx);
-      const result = await executeTool(tool, {
-        glossaryId: "g_123",
-        sourceTerm: "Hello",
-        targetTerm: "Bonjour",
-      });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
-      expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
-    });
-
-    it.each(WRITE_DENIED_ROLES)("denies glossary term update for %s", async (role) => {
-      const ctx = mockCtx(role);
-      const tool = createUpdateGlossaryTermTool(ctx);
-      const result = await executeTool(tool, {
-        termId: "term_123",
-        targetTerm: "Salut",
-      });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
-      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
-      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
-    });
-
-    it.each(WRITE_DENIED_ROLES)("denies glossary term delete for %s", async (role) => {
-      const ctx = mockCtx(role);
-      const tool = createDeleteGlossaryTermTool(ctx);
-      const result = await executeTool(tool, {
-        termId: "term_123",
-      });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
-      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
-      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
-    });
-
-    it.each(WRITE_ALLOWED_ROLES)(
-      "allows glossary term create past the capability gate for %s",
-      async (role) => {
-        const tool = createCreateGlossaryTermTool(mockCtx(role));
-        const result = await executeTool(tool, {
-          glossaryId: "g_123",
-          sourceTerm: "Hello",
-          targetTerm: "Bonjour",
-        });
-        expect(result.success).toBe(true);
-        expect(result.error).toBeUndefined();
-      },
-    );
   });
 
   describe("Translation Memory Tools", () => {

@@ -179,7 +179,12 @@ export async function executeProviderJobQaForContent(input: {
   content: ExternalTmsTaskContent;
   pullRunId: string;
 }) {
-  const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const glossaryTerms = await loadProjectGlossaryTerms({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale: input.content.sourceLocale ?? "en",
+    targetLocales: input.content.targetLocales,
+  });
   const report = await runProviderJobQa(input.content, {
     targetLocales: input.content.targetLocales,
     sourceLocale: input.content.sourceLocale,
@@ -366,7 +371,12 @@ export async function completeProviderAgentQaRun(input: {
   hyperlocaliseJobId?: string | null;
   actorUserId?: string | null;
 }): Promise<ProviderAgentQaResult> {
-  const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const glossaryTerms = await loadProjectGlossaryTerms({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale: input.content.sourceLocale ?? "en",
+    targetLocales: input.content.targetLocales,
+  });
   const [translationMemoryUsage, glossaryUsage] = await Promise.all([
     collectTranslationMemoryUsageForUnits({
       projectId: input.projectId,

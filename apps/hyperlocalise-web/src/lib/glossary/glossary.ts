@@ -86,24 +86,6 @@ export const glossaryTermStatusValues = [
 ] as const;
 export type GlossaryTermStatus = (typeof glossaryTermStatusValues)[number];
 
-export type GlossaryTermRecord = {
-  id: string;
-  glossaryId: string;
-  glossaryName: string;
-  sourceTerm: string;
-  targetTerm: string;
-  targetLocale: string | null;
-  description: string;
-  partOfSpeech: string;
-  url?: string | null;
-  lemma?: string | null;
-  forbidden: boolean;
-  caseSensitive: boolean;
-  provenance: string;
-  externalKey: string | null;
-  reviewStatus: string;
-};
-
 export type GlossaryProjectRecord = {
   projectId: string;
   projectName: string;
@@ -112,19 +94,6 @@ export type GlossaryProjectRecord = {
   targetLocales: string[];
   externalUrl: string | null;
 };
-
-export type GlossaryTermCreateInput = {
-  sourceTerm: string;
-  targetTerm: string;
-  description?: string;
-  partOfSpeech?: string;
-  url?: string;
-  lemma?: string | null;
-  caseSensitive: boolean;
-  forbidden: boolean;
-};
-
-export type GlossaryTermUpdateInput = Partial<GlossaryTermCreateInput>;
 
 export type GlossaryConceptImportEntry = {
   conceptKey: string;
@@ -344,16 +313,6 @@ export abstract class Glossary {
   abstract importConcepts(
     entries: GlossaryConceptImportEntry[],
   ): Promise<{ concepts: GlossaryConcept[]; skipped: number }>;
-  abstract listTerms(): Promise<GlossaryTermRecord[]>;
-  abstract createGlossaryTerm(input: GlossaryTermCreateInput): Promise<GlossaryTermRecord | null>;
-  abstract createGlossaryTerms(
-    inputs: GlossaryTermCreateInput[],
-  ): Promise<{ created: GlossaryTermRecord[]; skipped: number }>;
-  abstract updateGlossaryTerm(
-    termId: string,
-    input: GlossaryTermUpdateInput,
-  ): Promise<GlossaryTermRecord | { error: "duplicate" } | null>;
-  abstract deleteGlossaryTerm(termId: string): Promise<boolean>;
   abstract attachProject(projectId: string, priority: number): Promise<void>;
   abstract detachProject(projectId: string): Promise<void>;
   abstract createTerm(

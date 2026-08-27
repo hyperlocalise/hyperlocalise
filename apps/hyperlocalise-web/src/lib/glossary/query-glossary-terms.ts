@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -90,38 +90,6 @@ export async function listNativeGlossaryTermPairs(
     );
 }
 
-export async function listGlossaryTermsByGlossaryId(input: {
-  organizationId: string;
-  glossaryId: string;
-}): Promise<GlossaryTermQueryRow[]> {
-  return db
-    .select({
-      id: schema.glossaryTerms.id,
-      glossaryId: schema.glossaryTerms.glossaryId,
-      glossaryName: schema.glossaries.name,
-      sourceTerm: schema.glossaryTerms.sourceTerm,
-      targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-      description: schema.glossaryTerms.description,
-      partOfSpeech: schema.glossaryTerms.partOfSpeech,
-      forbidden: schema.glossaryTerms.forbidden,
-      caseSensitive: schema.glossaryTerms.caseSensitive,
-      provenance: schema.glossaryTerms.provenance,
-      externalKey: sql<string | null>`null`,
-      reviewStatus: schema.glossaryTerms.reviewStatus,
-    })
-    .from(schema.glossaryTerms)
-    .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-    .where(
-      and(
-        eq(schema.glossaries.organizationId, input.organizationId),
-        eq(schema.glossaryTerms.glossaryId, input.glossaryId),
-        isNull(schema.glossaryTerms.conceptId),
-        eq(schema.glossaries.status, "active"),
-      ),
-    );
-}
-
 export async function listGlossaryTermsForProject(input: {
   organizationId: string;
   projectId: string;
@@ -145,43 +113,10 @@ export async function listGlossaryTermsForProject(input: {
     return [];
   }
 
-  const [legacyTerms, nativeConceptTerms] = await Promise.all([
-    db
-      .select({
-        id: schema.glossaryTerms.id,
-        glossaryId: schema.glossaryTerms.glossaryId,
-        glossaryName: schema.glossaries.name,
-        sourceTerm: schema.glossaryTerms.sourceTerm,
-        targetTerm: schema.glossaryTerms.targetTerm,
-        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-        description: schema.glossaryTerms.description,
-        partOfSpeech: schema.glossaryTerms.partOfSpeech,
-        forbidden: schema.glossaryTerms.forbidden,
-        caseSensitive: schema.glossaryTerms.caseSensitive,
-        provenance: schema.glossaryTerms.provenance,
-        externalKey: sql<string | null>`null`,
-        reviewStatus: schema.glossaryTerms.reviewStatus,
-      })
-      .from(schema.glossaryTerms)
-      .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-      .where(
-        and(
-          inArray(schema.glossaryTerms.glossaryId, glossaryIds),
-          isNull(schema.glossaryTerms.conceptId),
-          eq(schema.glossaries.organizationId, input.organizationId),
-          eq(schema.glossaries.sourceLocale, input.sourceLocale),
-          inArray(schema.glossaries.targetLocale, input.targetLocales),
-          eq(schema.glossaries.status, "active"),
-          eq(schema.glossaryTerms.reviewStatus, "approved"),
-        ),
-      ),
-    listNativeGlossaryTermPairs(db, {
-      glossaryIds,
-      organizationId: input.organizationId,
-      sourceLocale: input.sourceLocale,
-      targetLocales: input.targetLocales,
-    }),
-  ]);
-
-  return [...legacyTerms, ...nativeConceptTerms];
+  return listNativeGlossaryTermPairs(db, {
+    glossaryIds,
+    organizationId: input.organizationId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+  });
 }

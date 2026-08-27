@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
@@ -434,15 +434,22 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       const entries = await db
         .select({
           id: schema.glossaryTerms.id,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
+          conceptId: schema.glossaryTerms.conceptId,
+          locale: schema.glossaryTerms.locale,
+          term: schema.glossaryTerms.term,
           description: schema.glossaryTerms.description,
           partOfSpeech: schema.glossaryTerms.partOfSpeech,
           forbidden: schema.glossaryTerms.forbidden,
         })
         .from(schema.glossaryTerms)
-        .where(eq(schema.glossaryTerms.glossaryId, glossaryId))
-        .orderBy(schema.glossaryTerms.sourceTerm)
+        .where(
+          and(
+            eq(schema.glossaryTerms.glossaryId, glossaryId),
+            isNotNull(schema.glossaryTerms.conceptId),
+            isNotNull(schema.glossaryTerms.term),
+          ),
+        )
+        .orderBy(schema.glossaryTerms.term)
         .limit(limit);
 
       return {

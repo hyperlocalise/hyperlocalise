@@ -62,6 +62,10 @@ vi.mock("@/lib/translation/file-memory", () => ({
     reuseFileTranslationMemoryEntriesMock(...args),
 }));
 
+vi.mock("@/lib/glossary/query-glossary-terms", () => ({
+  listGlossaryTermsForProject: vi.fn(async () => []),
+}));
+
 vi.mock("@/lib/database", () => ({
   db: {
     select: () => ({

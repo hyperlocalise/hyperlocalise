@@ -67,8 +67,9 @@ export const glossaries = pgTable(
     name: text("name").notNull(),
     // Optional operator-facing summary for the glossary.
     description: text("description").notNull().default(""),
-    // Locale pair that the glossary terms apply to.
+    // Default source locale for native glossaries and provider-backed locale scoping.
     sourceLocale: text("source_locale").notNull(),
+    // Native glossaries leave this null; matching uses concept-term locale. Retained for provider-backed rows and the unique index.
     targetLocale: text("target_locale"),
     // Lifecycle state for draft, active, and archived libraries.
     status: assetStatusEnum("status").notNull().default("active"),
@@ -201,9 +202,8 @@ export const glossaryConcepts = pgTable(
 );
 
 /**
- * Stores individual terminology entries inside a glossary, including native concept fields,
- * provider-compatible source/target fields, provenance, review status, metadata, and a lexical
- * search vector.
+ * Stores individual terminology entries inside a glossary, including native concept locale terms,
+ * provenance, review status, metadata, and a lexical search vector.
  */
 export const glossaryTerms = pgTable(
   "glossary_terms",
@@ -214,15 +214,15 @@ export const glossaryTerms = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
-    // Native concept parent. Null identifies retained provider-compatible rows.
+    // Native concept parent. Null marks leftover term-based rows; native reads ignore those rows.
     conceptId: uuid("concept_id").references(() => glossaryConcepts.id, { onDelete: "cascade" }),
     // Canonical locale for native concept terms.
     locale: text("locale"),
     // Canonical native term used for matching and display.
     term: text("term"),
-    // Source-side term to match against translation input.
+    // Deprecated term-based pair column. Still written because the column is NOT NULL. Do not query for native matching; use locale + term.
     sourceTerm: text("source_term").notNull(),
-    // Preferred target-side rendering for the source term.
+    // Deprecated term-based pair column. Still written because the column is NOT NULL. Do not query for native matching; use locale + term.
     targetTerm: text("target_term").notNull(),
     // Optional human-readable explanation for reviewers and prompts.
     description: text("description").notNull().default(""),
@@ -253,7 +253,7 @@ export const glossaryTerms = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
-    // Generated Postgres full-text document used for fast lexical glossary retrieval.
+    // Generated Postgres full-text document from deprecated pair columns until a later schema pass. Native concordance searches term.
     // `to_tsvector` lowercases tokens, so callers must still post-filter case-sensitive terms.
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
       setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||

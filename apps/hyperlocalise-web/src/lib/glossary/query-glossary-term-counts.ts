@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { count, inArray } from "drizzle-orm";
+import { and, count, inArray, isNotNull } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
@@ -34,9 +34,12 @@ export async function queryNativeGlossaryTermCounts(glossaries: Glossary[]) {
     })
     .from(schema.glossaryTerms)
     .where(
-      inArray(
-        schema.glossaryTerms.glossaryId,
-        nativeGlossaries.map((glossary) => glossary.id),
+      and(
+        inArray(
+          schema.glossaryTerms.glossaryId,
+          nativeGlossaries.map((glossary) => glossary.id),
+        ),
+        isNotNull(schema.glossaryTerms.conceptId),
       ),
     )
     .groupBy(schema.glossaryTerms.glossaryId);
