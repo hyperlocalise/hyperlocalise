@@ -28,7 +28,7 @@ export default async function GlossariesPage({
     <Suspense fallback={null}>
       <GlossariesPageContent
         organizationSlug={organizationSlug}
-        canCreateGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
+        canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
       />
     </Suspense>
   );

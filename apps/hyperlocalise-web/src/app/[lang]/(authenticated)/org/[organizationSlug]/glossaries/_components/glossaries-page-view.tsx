@@ -204,7 +204,7 @@ export function GlossariesPageView({
   createForm: GlossaryCreateForm;
   onCreateFormChange: (form: GlossaryCreateForm) => void;
   projects: Array<{ id: string; name: string; sourceLocale: string }>;
-  createErrors: { name?: string };
+  createErrors: { name?: string; projectIds?: string };
   isCreating: boolean;
   onSubmitCreateGlossary: () => void;
 }) {
@@ -438,7 +438,7 @@ export function GlossariesPageView({
         </div>
       ) : null}
 
-      {useLiveCrowdinGlossaries && nativeQuery.isSuccess && nativeTotal > GLOSSARIES_PAGE_SIZE ? (
+      {useLiveProviderGlossaries && nativeQuery.isSuccess && nativeTotal > GLOSSARIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
             <FormattedMessage
@@ -653,6 +653,11 @@ export function GlossariesPageView({
                   </Command>
                 </PopoverContent>
               </Popover>
+              <FieldError
+                errors={
+                  createErrors.projectIds ? [{ message: createErrors.projectIds }] : undefined
+                }
+              />
               <TypographyP className="text-xs text-muted-foreground">
                 <FormattedMessage {...glossariesPageViewMessages.projectOptional} />
               </TypographyP>

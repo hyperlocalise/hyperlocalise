@@ -61,8 +61,13 @@ import {
 import {
   externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
+  glossaryContributeForbiddenResponse,
+  glossaryTeamMustBeNativeResponse,
+  glossaryTeamProjectRequiredResponse,
   invalidGlossaryPayloadResponse,
-  isGlossaryMutationAllowed,
+  isGlossaryContributeAllowed,
+  isGlossaryManageAllowed,
+  resolveCreateGlossaryControlLevel,
   getOwnedGlossary,
   glossaryNotFoundResponse,
 } from "./glossary.shared";
@@ -135,6 +140,7 @@ async function createNativeGlossary(
         description: payload.description ?? "",
         sourceLocale: payload.sourceLocale,
         targetLocale: null,
+        controlLevel: payload.controlLevel ?? "org",
       })
       .returning();
 
@@ -348,13 +354,20 @@ export function createGlossaryRoutes() {
       );
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+      const payload = c.req.valid("json");
+      const controlLevel = resolveCreateGlossaryControlLevel(
+        c.var.auth.membership.role,
+        payload.controlLevel,
+      );
+      if (!controlLevel) {
         return forbiddenResponse(c);
       }
 
-      const payload = c.req.valid("json");
       const requestedProjectIds =
         payload.projectIds ?? (payload.projectId ? [payload.projectId] : []);
+      if (controlLevel === "team" && requestedProjectIds.length === 0) {
+        return glossaryTeamProjectRequiredResponse(c);
+      }
       const projects = await mapWithConcurrency(requestedProjectIds, 5, (projectId) =>
         getOwnedProjectRecord(c.var.auth, projectId),
       );
@@ -369,7 +382,11 @@ export function createGlossaryRoutes() {
         );
       }
       const projectIds = projects.flatMap((project) => (project ? [project.id] : []));
-      const glossary = await createNativeGlossary(c.var.auth, payload, projectIds);
+      const glossary = await createNativeGlossary(
+        c.var.auth,
+        { ...payload, controlLevel },
+        projectIds,
+      );
       return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, projectIds.length) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
@@ -433,16 +450,15 @@ export function createGlossaryRoutes() {
       validateGlossaryParams,
       validateCreateGlossaryTermBody,
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
         if (!glossary) {
           return glossaryNotFoundResponse(c);
+        }
+        if (!isGlossaryContributeAllowed(c.var.auth.membership.role, glossary)) {
+          return glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, glossary);
         }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) {
@@ -477,7 +493,7 @@ export function createGlossaryRoutes() {
       validateGlossaryParams,
       validateImportGlossaryTermsBody,
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+        if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
           return forbiddenResponse(c);
         }
 
@@ -521,16 +537,15 @@ export function createGlossaryRoutes() {
       validateGlossaryTermParams,
       validateUpdateGlossaryTermBody,
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
         if (!glossary) {
           return glossaryNotFoundResponse(c);
+        }
+        if (!isGlossaryContributeAllowed(c.var.auth.membership.role, glossary)) {
+          return glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, glossary);
         }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
@@ -547,15 +562,14 @@ export function createGlossaryRoutes() {
       },
     )
     .delete("/:glossaryId/terms/:termId", validateGlossaryTermParams, async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
+      }
+      if (!isGlossaryContributeAllowed(c.var.auth.membership.role, glossary)) {
+        return glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, glossary);
       }
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
@@ -582,7 +596,7 @@ export function createGlossaryRoutes() {
       validateGlossaryParams,
       validateAttachGlossaryProjectBody,
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+        if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
           return forbiddenResponse(c);
         }
 
@@ -608,7 +622,7 @@ export function createGlossaryRoutes() {
       },
     )
     .delete("/:glossaryId/projects/:projectId", validateGlossaryProjectParams, async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -632,7 +646,7 @@ export function createGlossaryRoutes() {
       return c.body(null, 204);
     })
     .patch("/:glossaryId", validateGlossaryParams, validateUpdateGlossaryBody, async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -642,6 +656,9 @@ export function createGlossaryRoutes() {
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
+      }
+      if (payload.controlLevel === "team" && glossary.source !== "native") {
+        return glossaryTeamMustBeNativeResponse(c);
       }
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
@@ -663,7 +680,7 @@ export function createGlossaryRoutes() {
       );
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
+      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 

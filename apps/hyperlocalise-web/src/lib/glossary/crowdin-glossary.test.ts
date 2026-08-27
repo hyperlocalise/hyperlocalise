@@ -114,6 +114,7 @@ function liveGlossary(overrides: Partial<GlossaryRecord> = {}): GlossaryRecord {
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     providerMetadata: {},
+    controlLevel: "org",
     createdAt: new Date("2026-08-20T00:00:00Z"),
     updatedAt: new Date("2026-08-20T00:00:00Z"),
     ...overrides,

@@ -43,8 +43,12 @@ export function createGlossaryDetailMswHandlers({
       HttpResponse.json({ glossary: currentGlossary }),
     ),
     http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
-      const body = (await request.json()) as { name?: string };
-      currentGlossary = { ...currentGlossary, name: body.name ?? currentGlossary.name };
+      const body = (await request.json()) as { name?: string; controlLevel?: "org" | "team" };
+      currentGlossary = {
+        ...currentGlossary,
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.controlLevel !== undefined ? { controlLevel: body.controlLevel } : {}),
+      };
       return HttpResponse.json({
         glossary: currentGlossary,
       });

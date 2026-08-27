@@ -15,7 +15,11 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { hasCapability } from "@/api/auth/policy";
+import {
+  isGlossaryContributeAllowed,
+  isGlossaryContributorRole,
+  isGlossaryManageAllowed,
+} from "@/api/routes/glossary/glossary.shared";
 
 import { localePattern } from "./locale";
 import {
@@ -80,7 +84,7 @@ export function createCreateGlossaryTool(ctx: ToolContext) {
         .describe("BCP-47 target locale tag."),
     }),
     execute: async ({ name, description, sourceLocale, targetLocale }) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -130,7 +134,7 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -172,7 +176,7 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
       glossaryId: z.string().describe("The glossary ID to delete."),
     }),
     execute: async ({ glossaryId }) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -253,7 +257,7 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
       forbidden: z.boolean().default(false).describe("Whether this translation is forbidden."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryContributorRole(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -266,6 +270,12 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
       const glossary = await toolGetAccessibleGlossary(ctx, glossaryId);
       if (!glossary) {
         return { success: false, error: `Glossary ${glossaryId} not found.` };
+      }
+      if (!isGlossaryContributeAllowed(ctx.membershipRole, glossary)) {
+        return {
+          success: false,
+          error: "You can only add terms to team glossaries you can access.",
+        };
       }
 
       // Check for duplicate terms within the same glossary.
@@ -329,7 +339,7 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryContributorRole(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -346,7 +356,11 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
 
       // Verify ownership via the parent glossary.
       const [termWithGlossary] = await ctx.db
-        .select({ glossaryOrgId: schema.glossaries.organizationId })
+        .select({
+          glossaryOrgId: schema.glossaries.organizationId,
+          controlLevel: schema.glossaries.controlLevel,
+          source: schema.glossaries.source,
+        })
         .from(schema.glossaryTerms)
         .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
         .where(eq(schema.glossaryTerms.id, termId))
@@ -354,6 +368,12 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
 
       if (!termWithGlossary || termWithGlossary.glossaryOrgId !== ctx.organizationId) {
         return { success: false, error: `Term ${termId} not found.` };
+      }
+      if (!isGlossaryContributeAllowed(ctx.membershipRole, termWithGlossary)) {
+        return {
+          success: false,
+          error: "You can only update terms on team glossaries you can access.",
+        };
       }
 
       const [term] = await ctx.db
@@ -374,7 +394,7 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
       termId: z.string().describe("The term ID to delete."),
     }),
     execute: async ({ termId }) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryContributorRole(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -384,7 +404,11 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
 
       // Verify ownership via the parent glossary.
       const [termWithGlossary] = await ctx.db
-        .select({ glossaryOrgId: schema.glossaries.organizationId })
+        .select({
+          glossaryOrgId: schema.glossaries.organizationId,
+          controlLevel: schema.glossaries.controlLevel,
+          source: schema.glossaries.source,
+        })
         .from(schema.glossaryTerms)
         .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
         .where(eq(schema.glossaryTerms.id, termId))
@@ -392,6 +416,12 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
 
       if (!termWithGlossary || termWithGlossary.glossaryOrgId !== ctx.organizationId) {
         return { success: false, error: `Term ${termId} not found.` };
+      }
+      if (!isGlossaryContributeAllowed(ctx.membershipRole, termWithGlossary)) {
+        return {
+          success: false,
+          error: "You can only delete terms on team glossaries you can access.",
+        };
       }
 
       const deleted = await ctx.db

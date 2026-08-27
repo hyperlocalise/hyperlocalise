@@ -250,6 +250,7 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({
       catQueue: {
         sourcePath: "*",
+        canContributeTeamGlossary: false,
         segments: [{ externalStringId: "1001", sourcePath: "crowdin/home.json" }],
       },
     });
@@ -1645,6 +1646,7 @@ describe("project file CAT routes", () => {
     expect(body.catFile).toBeUndefined();
     expect(body.catQueue).toMatchObject({
       sourcePath: "crowdin/home.json",
+      canContributeTeamGlossary: false,
       pagination: {
         offset: 25,
         limit: 25,
@@ -2170,6 +2172,7 @@ describe("project file CAT routes", () => {
 
     expect(hiddenQueue.status).toBe(200);
     const hiddenBody = (await hiddenQueue.json()) as ProjectFileCatQueueResponse;
+    expect(hiddenBody.catQueue.canContributeTeamGlossary).toBe(true);
     expect(hiddenBody.catQueue.segments).toHaveLength(2);
     expect(hiddenBody.catQueue.segments.every((segment) => segment.isHidden === true)).toBe(true);
 

@@ -772,6 +772,16 @@ export const projectFileCatResponseSchema = z.object({
     targetLocale: z.string(),
     canEditTranslations: z.boolean(),
     truncated: z.boolean(),
+    teamGlossaries: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+        }),
+      )
+      .optional(),
+    canContributeTeamGlossary: z.boolean().optional(),
+    teamName: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

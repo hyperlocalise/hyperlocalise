@@ -13,7 +13,13 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { BookOpenTextIcon, BulbIcon, Cancel01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  BookOpenTextIcon,
+  BulbIcon,
+  Cancel01Icon,
+  RefreshIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -47,6 +53,7 @@ import type {
 } from "@/components/cat/shared/types";
 
 import { normalizedCatGlossaryTermStatus } from "./cat-glossary-term-status";
+import { CatAddToGlossary } from "./cat-add-to-glossary";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
@@ -178,6 +185,15 @@ function TranslationMemoryRow({
 
 export function CatIntelligencePanel({
   intelligence,
+  sourceText = "",
+  targetText = "",
+  sourceLocale,
+  targetLocale,
+  organizationSlug,
+  projectId,
+  teamGlossaries = [],
+  canContributeTeamGlossary = false,
+  teamName,
   isLookingUpContext = false,
   isConcordanceLoading = false,
   isVisualContextLoading = false,
@@ -190,9 +206,18 @@ export function CatIntelligencePanel({
   onRefreshContext,
   onUseTmMatch,
   onSetMaxLength,
+  onGlossaryTermAdded,
 }: {
   intelligence: CatSegmentIntelligence;
+  sourceText?: string;
   targetText?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  organizationSlug?: string;
+  projectId?: string;
+  teamGlossaries?: { id: string; name: string }[];
+  canContributeTeamGlossary?: boolean;
+  teamName?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
   isVisualContextLoading?: boolean;
@@ -205,10 +230,22 @@ export function CatIntelligencePanel({
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
+  onGlossaryTermAdded?: () => void;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
   const [isGlossaryPanelOpen, setIsGlossaryPanelOpen] = useState(false);
+  const [isAddingConcept, setIsAddingConcept] = useState(false);
+  const [createdTeamGlossaries, setCreatedTeamGlossaries] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const resolvedTeamGlossaries = useMemo(() => {
+    const seen = new Set(teamGlossaries.map((glossary) => glossary.id));
+    return [
+      ...teamGlossaries,
+      ...createdTeamGlossaries.filter((glossary) => !seen.has(glossary.id)),
+    ];
+  }, [createdTeamGlossaries, teamGlossaries]);
   const glossaryConcepts = useMemo(
     // Concept-only guidance. Legacy flat glossaryTerms (no glossaryConcepts) are intentionally
     // not synthesized here; concordance must return concept payloads for the panel to populate.
@@ -301,6 +338,17 @@ export function CatIntelligencePanel({
     }
     setPendingLowMatch(null);
   }
+
+  function closeGlossaryPanel() {
+    setIsAddingConcept(false);
+    setIsGlossaryPanelOpen(false);
+  }
+
+  const canAddConcept =
+    canEditTranslations && Boolean(sourceLocale && targetLocale) && canContributeTeamGlossary;
+  const addToGlossaryNote = teamName
+    ? intl.formatMessage(catIntelligencePanelMessages.addToGlossaryNote, { teamName })
+    : intl.formatMessage(catIntelligencePanelMessages.addToGlossaryNoteFallback);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border">
@@ -464,9 +512,24 @@ export function CatIntelligencePanel({
           aria-label={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}
         >
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+            {isAddingConcept ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={intl.formatMessage(catIntelligencePanelMessages.addToGlossaryBack)}
+                onClick={() => setIsAddingConcept(false)}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-3.5" />
+              </Button>
+            ) : null}
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-base font-medium text-foreground">
-                <FormattedMessage {...catIntelligencePanelMessages.glossaryGuidance} />
+                {isAddingConcept ? (
+                  <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryTitle} />
+                ) : (
+                  <FormattedMessage {...catIntelligencePanelMessages.glossaryGuidance} />
+                )}
               </h2>
             </div>
             <Button
@@ -474,7 +537,7 @@ export function CatIntelligencePanel({
               variant="ghost"
               size="icon-xs"
               aria-label={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidanceClose)}
-              onClick={() => setIsGlossaryPanelOpen(false)}
+              onClick={closeGlossaryPanel}
             >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
             </Button>
@@ -482,38 +545,85 @@ export function CatIntelligencePanel({
 
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-3 p-4">
-              <p className="text-sm text-muted-foreground">
-                <FormattedMessage {...catIntelligencePanelMessages.glossaryGuidanceDescription} />
-              </p>
-              {isConcordanceLoading ? (
-                <ConcordanceSkeleton />
-              ) : glossaryConcepts.length === 0 ? (
-                <div className="flex min-h-56 flex-col items-center justify-center rounded-xl bg-muted/30 px-6 text-center">
-                  <HugeiconsIcon
-                    icon={BookOpenTextIcon}
-                    className="size-7 text-muted-foreground"
-                    aria-hidden="true"
+              {isAddingConcept && canAddConcept && sourceLocale && targetLocale ? (
+                <>
+                  <p className="text-sm text-muted-foreground">{addToGlossaryNote}</p>
+                  <CatAddToGlossary
+                    key={`${sourceText}\0${targetText}\0${sourceLocale}\0${targetLocale}`}
+                    organizationSlug={organizationSlug}
+                    projectId={projectId}
+                    sourceLocale={sourceLocale}
+                    targetLocale={targetLocale}
+                    sourceTerm={sourceText}
+                    targetTerm={targetText}
+                    teamGlossaries={resolvedTeamGlossaries}
+                    canContribute={canContributeTeamGlossary}
+                    showTitle={false}
+                    onAdded={() => {
+                      setIsAddingConcept(false);
+                      onGlossaryTermAdded?.();
+                    }}
+                    onTeamGlossaryCreated={(glossary) => {
+                      setCreatedTeamGlossaries((current) =>
+                        current.some((item) => item.id === glossary.id)
+                          ? current
+                          : [...current, glossary],
+                      );
+                    }}
                   />
-                  <p className="mt-3 text-base font-medium text-foreground">
-                    <FormattedMessage
-                      {...catIntelligencePanelMessages.glossaryGuidanceEmptyTitle}
-                    />
-                  </p>
-                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                    <FormattedMessage
-                      {...catIntelligencePanelMessages.glossaryGuidanceEmptyDescription}
-                    />
-                  </p>
-                </div>
+                </>
               ) : (
-                glossaryConcepts.map((concept) => (
-                  <CatGlossaryConceptCard
-                    key={concept.id}
-                    concept={concept}
-                    expanded={expandedGlossaryConceptIds.has(concept.id)}
-                    onToggle={() => toggleGlossaryConcept(concept.id)}
-                  />
-                ))
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    <FormattedMessage
+                      {...catIntelligencePanelMessages.glossaryGuidanceDescription}
+                    />
+                  </p>
+                  {canAddConcept ? (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+                      <p className="min-w-0 text-sm text-muted-foreground">{addToGlossaryNote}</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => setIsAddingConcept(true)}
+                      >
+                        <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryAction} />
+                      </Button>
+                    </div>
+                  ) : null}
+                  {isConcordanceLoading ? (
+                    <ConcordanceSkeleton />
+                  ) : glossaryConcepts.length === 0 ? (
+                    <div className="flex min-h-56 flex-col items-center justify-center rounded-xl bg-muted/30 px-6 text-center">
+                      <HugeiconsIcon
+                        icon={BookOpenTextIcon}
+                        className="size-7 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <p className="mt-3 text-base font-medium text-foreground">
+                        <FormattedMessage
+                          {...catIntelligencePanelMessages.glossaryGuidanceEmptyTitle}
+                        />
+                      </p>
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                        <FormattedMessage
+                          {...catIntelligencePanelMessages.glossaryGuidanceEmptyDescription}
+                        />
+                      </p>
+                    </div>
+                  ) : (
+                    glossaryConcepts.map((concept) => (
+                      <CatGlossaryConceptCard
+                        key={concept.id}
+                        concept={concept}
+                        teamName={teamName}
+                        expanded={expandedGlossaryConceptIds.has(concept.id)}
+                        onToggle={() => toggleGlossaryConcept(concept.id)}
+                      />
+                    ))
+                  )}
+                </>
               )}
             </div>
           </ScrollArea>

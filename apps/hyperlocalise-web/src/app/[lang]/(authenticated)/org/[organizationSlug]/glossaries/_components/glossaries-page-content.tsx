@@ -164,10 +164,10 @@ function useGlossaryFilters() {
 
 export function GlossariesPageContent({
   organizationSlug,
-  canCreateGlossaries,
+  canManageGlossaries,
 }: {
   organizationSlug: string;
-  canCreateGlossaries: boolean;
+  canManageGlossaries: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -177,12 +177,12 @@ export function GlossariesPageContent({
   const [crowdinOrderBy, setCrowdinOrderBy] = useState(CROWDIN_GLOSSARIES_DEFAULT_ORDER);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<GlossaryCreateForm>(() => createEmptyGlossaryForm());
-  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const [createErrors, setCreateErrors] = useState<{ name?: string; projectIds?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderGlossaries = Boolean(activeTmsProvider);
   const useLiveCrowdinGlossaries = activeTmsProvider?.providerKind === "crowdin";
-  const allowCreateGlossaries = canCreateGlossaries && !useLiveProviderGlossaries;
+  const allowCreateGlossaries = canManageGlossaries;
   const {
     filters,
     searchQuery,
@@ -194,7 +194,7 @@ export function GlossariesPageContent({
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
-    enabled: !useLiveProviderGlossaries,
+    enabled: allowCreateGlossaries,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -293,7 +293,7 @@ export function GlossariesPageContent({
 
   const nativeGlossariesQuery = useQuery<WorkspaceGlossariesResult>({
     queryKey: ["native-glossaries", organizationSlug, page, filters],
-    enabled: useLiveCrowdinGlossaries,
+    enabled: useLiveProviderGlossaries,
     queryFn: () => fetchWorkspaceGlossaries(organizationSlug, intl, page, filters, "native"),
   });
 
@@ -352,6 +352,7 @@ export function GlossariesPageContent({
           name: values.name.trim(),
           description: values.description.trim(),
           sourceLocale: values.sourceLocale,
+          controlLevel: "org",
           projectIds: values.projectIds,
         },
       });
@@ -369,6 +370,7 @@ export function GlossariesPageContent({
     },
     onSuccess: async (body) => {
       await queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
+      await queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] });
       setCreateDialogOpen(false);
       setCreateForm(createEmptyGlossaryForm());
       toast.success(intl.formatMessage(glossariesPageContentMessages.glossaryCreated));
@@ -401,7 +403,7 @@ export function GlossariesPageContent({
   );
 
   const nativeGlossaries = useMemo(() => {
-    if (useLiveCrowdinGlossaries) {
+    if (useLiveProviderGlossaries) {
       return (nativeGlossariesQuery.data?.glossaries ?? []).map((glossary) =>
         mapGlossaryToListRow(glossary, projectIdByExternalKey, intl),
       );
@@ -413,7 +415,7 @@ export function GlossariesPageContent({
     nativeGlossariesQuery.data?.glossaries,
     persistedRows,
     projectIdByExternalKey,
-    useLiveCrowdinGlossaries,
+    useLiveProviderGlossaries,
   ]);
 
   const externalGlossaries = useMemo(
@@ -432,22 +434,22 @@ export function GlossariesPageContent({
     ],
   );
 
-  const nativeTotal = useLiveCrowdinGlossaries
+  const nativeTotal = useLiveProviderGlossaries
     ? (nativeGlossariesQuery.data?.total ?? 0)
     : nativeGlossaries.length;
   const externalTotal = useLiveCrowdinGlossaries
     ? (liveCrowdinGlossariesQuery.data?.total ?? 0)
     : externalGlossaries.length;
-  const glossaryTotal = useLiveCrowdinGlossaries
+  const glossaryTotal = useLiveProviderGlossaries
     ? nativeTotal + externalTotal
     : isWorkspaceGlossariesResult(glossariesQuery.data)
       ? glossariesQuery.data.total
       : externalTotal;
   const totalPages = Math.max(
     1,
-    Math.ceil((useLiveCrowdinGlossaries ? nativeTotal : glossaryTotal) / GLOSSARIES_PAGE_SIZE),
+    Math.ceil((useLiveProviderGlossaries ? nativeTotal : glossaryTotal) / GLOSSARIES_PAGE_SIZE),
   );
-  const paginationTotal = useLiveCrowdinGlossaries ? nativeTotal : glossaryTotal;
+  const paginationTotal = useLiveProviderGlossaries ? nativeTotal : glossaryTotal;
   const pageStart = paginationTotal === 0 ? 0 : (page - 1) * GLOSSARIES_PAGE_SIZE + 1;
   const pageEnd = Math.min(page * GLOSSARIES_PAGE_SIZE, paginationTotal);
 
@@ -465,11 +467,11 @@ export function GlossariesPageContent({
   }, [organizationSlug, useLiveProviderGlossaries, useLiveCrowdinGlossaries]);
 
   useEffect(() => {
-    const paginationQuery = useLiveCrowdinGlossaries ? nativeGlossariesQuery : glossariesQuery;
+    const paginationQuery = useLiveProviderGlossaries ? nativeGlossariesQuery : glossariesQuery;
     if (paginationQuery.isSuccess && page > totalPages) {
       setPage(totalPages);
     }
-  }, [glossariesQuery, nativeGlossariesQuery, page, totalPages, useLiveCrowdinGlossaries]);
+  }, [glossariesQuery, nativeGlossariesQuery, page, totalPages, useLiveProviderGlossaries]);
 
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
@@ -478,23 +480,13 @@ export function GlossariesPageContent({
     ? Boolean(activeTmsProvider)
     : credentialsQuery.isSuccess && connectedCredentials.length > 0;
 
-  const idleQueryState = {
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    error: null,
-  } as const;
-  const nativeQueryState = useLiveCrowdinGlossaries
-    ? nativeGlossariesQuery
-    : useLiveProviderGlossaries
-      ? idleQueryState
-      : glossariesQuery;
+  const nativeQueryState = useLiveProviderGlossaries ? nativeGlossariesQuery : glossariesQuery;
   const externalQueryState = useLiveCrowdinGlossaries
     ? liveCrowdinGlossariesQuery
     : glossariesQuery;
 
   function submitCreateGlossary() {
-    const errors: { name?: string } = {};
+    const errors: { name?: string; projectIds?: string } = {};
     if (!createForm.name.trim()) {
       errors.name = intl.formatMessage(glossariesPageContentMessages.nameRequired);
     }

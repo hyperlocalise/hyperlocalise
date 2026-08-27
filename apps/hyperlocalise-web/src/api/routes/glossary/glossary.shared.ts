@@ -55,8 +55,86 @@ export function nativeGlossaryConceptsOnlyResponse(c: { json: JsonContext["json"
   );
 }
 
-export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
+export function glossaryTeamProjectRequiredResponse(c: { json: JsonContext["json"] }) {
+  return sharedForbiddenResponse(
+    c,
+    "glossary_team_project_required",
+    "Team glossaries must attach at least one accessible project",
+  );
+}
+
+export function glossaryOrgControlledResponse(c: { json: JsonContext["json"] }) {
+  return sharedForbiddenResponse(
+    c,
+    "glossary_org_controlled",
+    "This glossary is org-controlled and cannot be edited by translators",
+  );
+}
+
+export function glossaryTeamMustBeNativeResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "glossary_team_must_be_native",
+    "Team glossaries must be Hyperlocalise-owned",
+  );
+}
+
+export type GlossaryControlLevel = "org" | "team";
+
+export function isGlossaryManageAllowed(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "glossaries:write");
+}
+
+export function isGlossaryContributorRole(role: ApiAuthContext["membership"]["role"]) {
+  return role === "translator" || isGlossaryManageAllowed(role);
+}
+
+export function resolveCreateGlossaryControlLevel(
+  role: ApiAuthContext["membership"]["role"],
+  requested: GlossaryControlLevel | undefined,
+): GlossaryControlLevel | null {
+  if (isGlossaryManageAllowed(role)) {
+    return requested ?? "org";
+  }
+  if (role === "translator") {
+    if (requested === "org") {
+      return null;
+    }
+    return "team";
+  }
+  return null;
+}
+
+export function isGlossaryContributeAllowed(
+  role: ApiAuthContext["membership"]["role"],
+  glossary: Pick<GlossaryRecord, "controlLevel" | "source">,
+) {
+  if (isGlossaryManageAllowed(role)) {
+    return true;
+  }
+  return role === "translator" && glossary.controlLevel === "team" && glossary.source === "native";
+}
+
+export function glossaryContributeForbiddenResponse(
+  c: { json: JsonContext["json"] },
+  role: ApiAuthContext["membership"]["role"],
+  glossary: Pick<GlossaryRecord, "controlLevel" | "source">,
+) {
+  if (role === "translator" && (glossary.controlLevel === "org" || glossary.source !== "native")) {
+    return glossaryOrgControlledResponse(c);
+  }
+  return forbiddenResponse(c);
+}
+
+export async function getContributableGlossary(auth: ApiAuthContext, glossaryId: string) {
+  const glossary = await getOwnedGlossary(auth, glossaryId);
+  if (!glossary) {
+    return { kind: "not_found" as const };
+  }
+  if (!isGlossaryContributeAllowed(auth.membership.role, glossary)) {
+    return { kind: "forbidden" as const, glossary };
+  }
+  return { kind: "ok" as const, glossary };
 }
 
 export async function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
@@ -94,6 +172,7 @@ export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string)
       targetLocale: liveGlossary.targetLocale || null,
       status: "active",
       source: "external_tms",
+      controlLevel: "org",
       externalProviderKind: "crowdin",
       externalProviderCredentialId: null,
       externalProjectId: liveGlossary.externalProjectId,

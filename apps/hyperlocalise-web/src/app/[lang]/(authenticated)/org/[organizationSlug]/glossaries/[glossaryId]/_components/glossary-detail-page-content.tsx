@@ -765,16 +765,21 @@ function ConceptDetailSkeleton() {
           <Skeleton className="h-8 w-64 max-w-full" />
           <Skeleton className="h-4 w-40" />
         </div>
-        <div className="grid min-h-[36rem] gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
-          <div className="grid content-start gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-28 w-full" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-24 w-full" />
+        <div className="grid min-h-[36rem] content-start gap-5">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="grid gap-2 sm:col-span-2 xl:col-span-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <Skeleton className="h-9 w-28 self-end" />
           </div>
           <div className="grid content-start gap-4">
             <div className="flex items-center justify-between gap-3">
@@ -818,11 +823,13 @@ export function GlossaryDetailPageContent({
   organizationSlug,
   glossaryId,
   canManageGlossaries,
+  canContributeTeamGlossaries = false,
   conceptId,
 }: {
   organizationSlug: string;
   glossaryId: string;
   canManageGlossaries: boolean;
+  canContributeTeamGlossaries?: boolean;
   conceptId?: string;
 }) {
   const intl = useIntl();
@@ -870,7 +877,11 @@ export function GlossaryDetailPageContent({
   const isLiveCrowdin =
     glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
   const isConceptGlossary = isNative || isLiveCrowdin;
-  const canEdit = canManageGlossaries && isConceptGlossary;
+  const canManage = canManageGlossaries && isConceptGlossary;
+  const canContribute =
+    isConceptGlossary &&
+    (canManageGlossaries ||
+      (canContributeTeamGlossaries && glossary?.controlLevel === "team" && isNative));
   const sourceLanguage = glossary?.languages.find((language) => language.isSource) ?? {
     locale: glossary?.sourceLocale ?? "",
     name: getLocaleLabel(glossary?.sourceLocale ?? ""),
@@ -1224,6 +1235,28 @@ export function GlossaryDetailPageContent({
       toast.success(intl.formatMessage(messages.glossaryNameUpdated));
     },
   });
+  const updateGlossaryControlLevel = useMutation({
+    mutationFn: async (controlLevel: "org" | "team") => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].$patch({
+        param: { organizationSlug, glossaryId },
+        json: { controlLevel },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.updateControlLevelFailed)),
+        );
+      return (await response.json()).glossary as GlossaryRecord;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["glossary", organizationSlug, glossaryId],
+      });
+      toast.success(intl.formatMessage(messages.glossaryControlLevelUpdated));
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const saveGlossaryName = async () => {
     const name = nameDraft.trim();
@@ -1407,11 +1440,46 @@ export function GlossaryDetailPageContent({
                 className="size-5 text-muted-foreground"
                 strokeWidth={1.8}
               />
-              <Badge variant="outline">
-                <FormattedMessage
-                  {...(isNative ? messages.sourceWorkspace : messages.sourceProvider)}
-                />
-              </Badge>
+              {canManage && isNative ? (
+                <Select
+                  value={glossary.controlLevel}
+                  onValueChange={(value) => {
+                    if (value === "org" || value === "team") {
+                      updateGlossaryControlLevel.mutate(value);
+                    }
+                  }}
+                  disabled={updateGlossaryControlLevel.isPending}
+                >
+                  <SelectTrigger
+                    className="h-7 w-auto min-w-24"
+                    aria-label={intl.formatMessage(messages.controlLevelLabel)}
+                  >
+                    <SelectValue>
+                      {glossary.controlLevel === "team"
+                        ? intl.formatMessage(messages.controlLevelTeam)
+                        : intl.formatMessage(messages.controlLevelOrg)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="org" label={intl.formatMessage(messages.controlLevelOrg)}>
+                      <FormattedMessage {...messages.controlLevelOrg} />
+                    </SelectItem>
+                    <SelectItem value="team" label={intl.formatMessage(messages.controlLevelTeam)}>
+                      <FormattedMessage {...messages.controlLevelTeam} />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant="outline">
+                  <FormattedMessage
+                    {...(isNative
+                      ? glossary.controlLevel === "team"
+                        ? messages.controlLevelTeam
+                        : messages.controlLevelOrg
+                      : messages.sourceProvider)}
+                  />
+                </Badge>
+              )}
               {glossary.languages.map((language) => (
                 <Badge
                   key={language.locale}
@@ -1427,7 +1495,7 @@ export function GlossaryDetailPageContent({
                 </Badge>
               ))}
             </div>
-            {canEdit ? (
+            {canManage ? (
               <>
                 <TypographyH1 className="sr-only">{glossary.name}</TypographyH1>
                 <Textarea
@@ -1482,25 +1550,29 @@ export function GlossaryDetailPageContent({
                     <FormattedMessage {...messages.conceptsDescription} />
                   </TypographyP>
                 </div>
-                {canEdit ? (
+                {canManage || canContribute ? (
                   <div className="flex flex-wrap gap-2">
-                    <Input
-                      type="file"
-                      accept=".csv,.tbx,text/csv"
-                      className="max-w-xs"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) importConcepts.mutate(file);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => router.push(`${glossaryHref}/concepts/new`)}
-                    >
-                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-                      <FormattedMessage {...messages.addConcept} />
-                    </Button>
+                    {canManage ? (
+                      <Input
+                        type="file"
+                        accept=".csv,.tbx,text/csv"
+                        className="max-w-xs"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) importConcepts.mutate(file);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    ) : null}
+                    {canContribute ? (
+                      <Button
+                        type="button"
+                        onClick={() => router.push(`${glossaryHref}/concepts/new`)}
+                      >
+                        <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                        <FormattedMessage {...messages.addConcept} />
+                      </Button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1668,53 +1740,57 @@ export function GlossaryDetailPageContent({
                   </DialogDescription>
                 </DialogHeader>
               )}
-              <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
-                <div className="flex min-w-0 flex-col gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
-                  <Field className="gap-1.5">
-                    <FieldLabel>
-                      <FormattedMessage {...messages.primaryTermLabel} />
-                    </FieldLabel>
-                    <Input value={sourceTermText} disabled={!canEdit} readOnly />
-                  </Field>
-                  <Field className="gap-1.5">
-                    <FieldLabel>
-                      <FormattedMessage {...messages.subjectLabel} />
-                    </FieldLabel>
-                    <Input
-                      value={conceptDraft.subject}
-                      onChange={(event) =>
-                        setConceptDraft((draft) => ({ ...draft, subject: event.target.value }))
-                      }
-                      disabled={!canEdit}
-                    />
-                  </Field>
-                  <Field className="gap-1.5">
-                    <FieldLabel>
-                      <FormattedMessage {...messages.definitionLabel} />
-                    </FieldLabel>
-                    <Textarea
-                      value={conceptDraft.definition}
-                      onChange={(event) =>
-                        setConceptDraft((draft) => ({ ...draft, definition: event.target.value }))
-                      }
-                      disabled={!canEdit}
-                    />
-                  </Field>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={conceptDraft.translatable}
-                      onCheckedChange={(checked) =>
-                        setConceptDraft((draft) => ({ ...draft, translatable: Boolean(checked) }))
-                      }
-                      disabled={!canEdit}
-                    />
-                    <FormattedMessage {...messages.translatableLabel} />
-                  </label>
+              <div className="grid min-h-0 gap-5">
+                <div className="grid gap-4">
+                  <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+                    <Field className="min-w-0 gap-1.5">
+                      <FieldLabel>
+                        <FormattedMessage {...messages.primaryTermLabel} />
+                      </FieldLabel>
+                      <Input value={sourceTermText} disabled={!canContribute} readOnly />
+                    </Field>
+                    <Field className="min-w-0 gap-1.5">
+                      <FieldLabel>
+                        <FormattedMessage {...messages.subjectLabel} />
+                      </FieldLabel>
+                      <Input
+                        value={conceptDraft.subject}
+                        onChange={(event) =>
+                          setConceptDraft((draft) => ({ ...draft, subject: event.target.value }))
+                        }
+                        disabled={!canContribute}
+                      />
+                    </Field>
+                    <Field className="min-w-0 gap-1.5 sm:col-span-2 xl:col-span-1">
+                      <FieldLabel>
+                        <FormattedMessage {...messages.definitionLabel} />
+                      </FieldLabel>
+                      <Textarea
+                        value={conceptDraft.definition}
+                        onChange={(event) =>
+                          setConceptDraft((draft) => ({ ...draft, definition: event.target.value }))
+                        }
+                        disabled={!canContribute}
+                        rows={2}
+                        className="min-h-9"
+                      />
+                    </Field>
+                    <label className="flex h-9 items-center gap-2 text-sm xl:mb-px">
+                      <Checkbox
+                        checked={conceptDraft.translatable}
+                        onCheckedChange={(checked) =>
+                          setConceptDraft((draft) => ({ ...draft, translatable: Boolean(checked) }))
+                        }
+                        disabled={!canContribute}
+                      />
+                      <FormattedMessage {...messages.translatableLabel} />
+                    </label>
+                  </div>
                   <details className="rounded-md border border-border p-3">
                     <summary className="cursor-pointer text-sm font-medium">
                       <FormattedMessage {...messages.conceptDetails} />
                     </summary>
-                    <div className="mt-3 grid gap-3">
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <Field className="gap-1.5">
                         <FieldLabel>
                           <FormattedMessage {...messages.noteLabel} />
@@ -1724,7 +1800,7 @@ export function GlossaryDetailPageContent({
                           onChange={(event) =>
                             setConceptDraft((draft) => ({ ...draft, note: event.target.value }))
                           }
-                          disabled={!canEdit}
+                          disabled={!canContribute}
                         />
                       </Field>
                       <Field className="gap-1.5">
@@ -1736,7 +1812,7 @@ export function GlossaryDetailPageContent({
                           onChange={(event) =>
                             setConceptDraft((draft) => ({ ...draft, url: event.target.value }))
                           }
-                          disabled={!canEdit}
+                          disabled={!canContribute}
                         />
                       </Field>
                     </div>
@@ -1761,7 +1837,7 @@ export function GlossaryDetailPageContent({
                       type="button"
                       variant="outline"
                       className="w-full sm:w-auto"
-                      disabled={!canEdit || availableTermLocales.length === 0}
+                      disabled={!canContribute || availableTermLocales.length === 0}
                       onClick={() => setLocalePickerOpen(true)}
                     >
                       <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
@@ -1838,7 +1914,7 @@ export function GlossaryDetailPageContent({
                                       </Badge>
                                     ) : null}
                                   </span>
-                                  {canEdit ? (
+                                  {canContribute ? (
                                     <Button
                                       type="button"
                                       size="xs"
@@ -2197,7 +2273,7 @@ export function GlossaryDetailPageContent({
                                   </Badge>
                                 ) : null}
                               </span>
-                              {canEdit ? (
+                              {canContribute ? (
                                 <Button
                                   type="button"
                                   size="xs"
@@ -2247,7 +2323,7 @@ export function GlossaryDetailPageContent({
                                         <tr className="border-t border-border">
                                           <td className="px-3 py-2">
                                             <div className="flex items-center gap-2">
-                                              {canEdit ? (
+                                              {canContribute ? (
                                                 <Textarea
                                                   className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                                   value={draft.term}
@@ -2263,7 +2339,7 @@ export function GlossaryDetailPageContent({
                                             </div>
                                           </td>
                                           <td className="px-3 py-2">
-                                            {canEdit ? (
+                                            {canContribute ? (
                                               <PartOfSpeechPicker
                                                 value={draft.partOfSpeech}
                                                 onValueChange={(value) =>
@@ -2277,7 +2353,7 @@ export function GlossaryDetailPageContent({
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
-                                            {canEdit ? (
+                                            {canContribute ? (
                                               <GenderPicker
                                                 value={draft.gender ?? ""}
                                                 onValueChange={(value) =>
@@ -2289,7 +2365,7 @@ export function GlossaryDetailPageContent({
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
-                                            {canEdit ? (
+                                            {canContribute ? (
                                               <TermTypePicker
                                                 value={draft.termType ?? ""}
                                                 onValueChange={(value) =>
@@ -2301,7 +2377,7 @@ export function GlossaryDetailPageContent({
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
-                                            {canEdit ? (
+                                            {canContribute ? (
                                               <Select
                                                 value={draft.status}
                                                 onValueChange={(value) =>
@@ -2396,7 +2472,7 @@ export function GlossaryDetailPageContent({
                                                         messages.termDescriptionPlaceholder,
                                                       )}
                                                       value={draft.description}
-                                                      disabled={!canEdit}
+                                                      disabled={!canContribute}
                                                       onChange={(event) =>
                                                         updateTermDraft(term.id, {
                                                           description: event.target.value,
@@ -2414,7 +2490,7 @@ export function GlossaryDetailPageContent({
                                                           messages.termUrlPlaceholder,
                                                         )}
                                                         value={draft.url}
-                                                        disabled={!canEdit}
+                                                        disabled={!canContribute}
                                                         onChange={(event) =>
                                                           updateTermDraft(term.id, {
                                                             url: event.target.value,
@@ -2455,7 +2531,7 @@ export function GlossaryDetailPageContent({
                                                       messages.termNotePlaceholder,
                                                     )}
                                                     value={draft.note}
-                                                    disabled={!canEdit}
+                                                    disabled={!canContribute}
                                                     onChange={(event) =>
                                                       updateTermDraft(term.id, {
                                                         note: event.target.value,
@@ -2468,7 +2544,7 @@ export function GlossaryDetailPageContent({
                                                     ID {term.id} · {formatDate(term.createdAt)} ·{" "}
                                                     {formatDate(term.updatedAt)}
                                                   </TypographyP>
-                                                  {canEdit ? (
+                                                  {canContribute ? (
                                                     <Button
                                                       type="button"
                                                       variant="destructive"
@@ -2489,7 +2565,7 @@ export function GlossaryDetailPageContent({
                                       </Fragment>
                                     );
                                   })}
-                                  {newTermLocale === group.locale && canEdit ? (
+                                  {newTermLocale === group.locale && canContribute ? (
                                     <Fragment>
                                       <tr className="border-t border-emerald-500/30 bg-emerald-500/5">
                                         <td className="px-3 py-2">
@@ -2699,7 +2775,7 @@ export function GlossaryDetailPageContent({
                   </div>
                 </div>
               </div>
-              {canEdit ? (
+              {canContribute ? (
                 <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                   <Button
                     type="button"
@@ -2748,7 +2824,7 @@ export function GlossaryDetailPageContent({
               />
             </TypographyP>
           </div>
-          {canEdit && isNative ? (
+          {canManage && isNative ? (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
                 value={selectedProjectId}
@@ -2804,7 +2880,7 @@ export function GlossaryDetailPageContent({
                     {project.projectName}
                   </Link>
                 )}
-                {canEdit && isNative ? (
+                {canManage && isNative ? (
                   <Button
                     type="button"
                     size="sm"

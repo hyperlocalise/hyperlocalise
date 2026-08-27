@@ -89,6 +89,35 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.fileContext.canAddComments).toBe(true);
   });
 
+  it("maps the project team name into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        provider: null,
+        teamName: "Product",
+        canContributeTeamGlossary: true,
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.teamName).toBe("Product");
+    expect(state.fileContext.canContributeTeamGlossary).toBe(true);
+  });
+
+  it("does not allow adding concepts on external TMS projects", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        canContributeTeamGlossary: true,
+        teamName: "Product",
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.providerKind).toBe("crowdin");
+    expect(state.fileContext.canContributeTeamGlossary).toBe(false);
+  });
+
   it("uses Save to provider as the primary action label for TMS projects", () => {
     const state = projectFileCatToWorkspaceState(catFile(), "en-US", testIntl);
 

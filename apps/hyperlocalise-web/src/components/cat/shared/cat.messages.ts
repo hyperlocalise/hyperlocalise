@@ -585,6 +585,111 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "4DQSOq1CB0",
     description: "Empty state description for the glossary guidance panel",
   },
+  addToGlossaryTitle: {
+    defaultMessage: "Add concept",
+    id: "yHzpNMhujK",
+    description: "Heading for adding a CAT segment as a team glossary concept",
+  },
+  addToGlossaryNote: {
+    defaultMessage: "Share with {teamName} and reuse later.",
+    id: "nTBn9mPYFS",
+    description: "Helper note that CAT glossary concepts are shared with the project team",
+  },
+  addToGlossaryNoteFallback: {
+    defaultMessage: "Share with teammates and reuse later.",
+    id: "/D28C5kx7B",
+    description: "Fallback CAT add-concept note when the project has no team name",
+  },
+  addToGlossaryBack: {
+    defaultMessage: "Back to glossary guidance",
+    id: "lWnvtdmY79",
+    description: "Accessible label to leave the CAT add-concept panel",
+  },
+  addToGlossaryPickerLabel: {
+    defaultMessage: "Team glossary",
+    id: "eAP4Lzg+22",
+    description: "Label for choosing which attached team glossary receives the new concept",
+  },
+  addToGlossaryPrimaryLabel: {
+    defaultMessage: "Primary term",
+    id: "4NxMcshAkK",
+    description: "Label for the concept primary term when adding from CAT",
+  },
+  addToGlossaryDefinitionLabel: {
+    defaultMessage: "Definition",
+    id: "5jQYM3pK9b",
+    description: "Label for the concept definition when adding from CAT",
+  },
+  addToGlossaryTranslatableLabel: {
+    defaultMessage: "Translatable",
+    id: "H8w9IQ1LTK",
+    description: "Label for whether the CAT glossary concept can have target-language terms",
+  },
+  addToGlossaryTargetLabel: {
+    defaultMessage: "Target term",
+    id: "wXVgCxM5O7",
+    description: "Label for the target-language term on a CAT glossary concept",
+  },
+  addToGlossaryAction: {
+    defaultMessage: "Add concept",
+    id: "se+wYPhHUq",
+    description: "Button that creates a draft glossary concept from CAT",
+  },
+  addToGlossaryEmpty: {
+    defaultMessage: "Attach a team glossary to this project to add concepts from CAT.",
+    id: "sADsr3MvMv",
+    description: "Empty state when CAT has no attached team glossary to write to",
+  },
+  addToGlossarySuccess: {
+    defaultMessage: "Concept added to the team glossary",
+    id: "VKgVfj+ht+",
+    description: "Toast after a CAT concept is added to a team glossary",
+  },
+  addToGlossaryFailed: {
+    defaultMessage: "Unable to add the concept to the glossary",
+    id: "D8eMH5CIKZ",
+    description: "Fallback error when CAT add-to-glossary fails",
+  },
+  addToGlossaryUnavailable: {
+    defaultMessage: "No team glossary is available for this project",
+    id: "OcefiTvR3e",
+    description: "Error when CAT add-to-glossary is missing a glossary target",
+  },
+  addToGlossaryCreateOption: {
+    defaultMessage: "Create new",
+    id: "fJMsDnWedi",
+    description: "Picker option to create a team glossary from CAT",
+  },
+  addToGlossaryCreateNameLabel: {
+    defaultMessage: "Glossary name",
+    id: "+iTCqdA5ec",
+    description: "Accessible label for the new team glossary name in CAT",
+  },
+  addToGlossaryCreateNamePlaceholder: {
+    defaultMessage: "Team terms",
+    id: "SzpWu9LEY1",
+    description: "Placeholder and default name for a team glossary created from CAT",
+  },
+  addToGlossaryCreateAction: {
+    defaultMessage: "Create",
+    id: "2hGlbn4iZa",
+    description: "Button that creates a team glossary from CAT",
+  },
+  addToGlossaryCreateCancel: {
+    defaultMessage: "Cancel",
+    id: "520zX1ohk1",
+    description: "Button that closes the CAT create-team-glossary field",
+  },
+  addToGlossaryCreateSuccess: {
+    defaultMessage: "Team glossary created",
+    id: "MqGC1CaGM9",
+    description: "Toast after a team glossary is created from CAT",
+  },
+  addToGlossaryCreateFailed: {
+    defaultMessage: "Unable to create the team glossary",
+    id: "KwXDYK7tXX",
+    description: "Fallback error when CAT cannot create a team glossary",
+  },
   translationMemory: {
     defaultMessage: "Translation memory",
     id: "okYWXGLSBl",

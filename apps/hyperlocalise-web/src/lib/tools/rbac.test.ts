@@ -80,7 +80,11 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
   toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
   toolCanAccessGlossary: vi.fn(async () => true),
   toolCanAccessMemory: vi.fn(async () => true),
-  toolGetAccessibleGlossary: vi.fn(async () => ({ id: "glossary_123" })),
+  toolGetAccessibleGlossary: vi.fn(async () => ({
+    id: "glossary_123",
+    source: "native",
+    controlLevel: "team",
+  })),
   toolGetAccessibleMemory: vi.fn(async () => ({ id: "memory_123" })),
   toolGlossaryOrgMutationWhere: vi.fn(() => ({})),
   toolMemoryOrgMutationWhere: vi.fn(() => ({})),
@@ -135,6 +139,18 @@ const WRITE_DENIED_ROLES = [
 const WRITE_ALLOWED_ROLES = [
   "admin",
   "localization_manager",
+] as const satisfies readonly OrganizationMembershipRole[];
+
+const GLOSSARY_TERM_WRITE_DENIED_ROLES = [
+  "developer",
+  "reviewer",
+  "member",
+] as const satisfies readonly OrganizationMembershipRole[];
+
+const GLOSSARY_TERM_WRITE_ALLOWED_ROLES = [
+  "admin",
+  "localization_manager",
+  "translator",
 ] as const satisfies readonly OrganizationMembershipRole[];
 
 const JOB_CREATE_DENIED_ROLES = ["member"] as const satisfies readonly OrganizationMembershipRole[];
@@ -204,7 +220,14 @@ describe("Agent Tools RBAC", () => {
           })),
           innerJoin: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ glossaryOrgId: "org_123", memoryOrgId: "org_123" }]),
+              limit: vi.fn(async () => [
+                {
+                  glossaryOrgId: "org_123",
+                  memoryOrgId: "org_123",
+                  controlLevel: "team",
+                  source: "native",
+                },
+              ]),
             })),
           })),
         })),
@@ -545,8 +568,30 @@ describe("Agent Tools RBAC", () => {
       expect(result.error).toContain("permission");
     });
 
-    it.each(WRITE_DENIED_ROLES)("denies glossary term create for %s", async (role) => {
-      const ctx = mockCtx(role);
+    it.each(GLOSSARY_TERM_WRITE_DENIED_ROLES)(
+      "denies glossary term create for %s",
+      async (role) => {
+        const ctx = mockCtx(role);
+        const tool = createCreateGlossaryTermTool(ctx);
+        const result = await executeTool(tool, {
+          glossaryId: "g_123",
+          sourceTerm: "Hello",
+          targetTerm: "Bonjour",
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("permission");
+        expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
+      },
+    );
+
+    it("denies glossary term create for translator on an org glossary", async () => {
+      const { toolGetAccessibleGlossary } = await import("@/lib/agent-runtime/tools/tool-access");
+      vi.mocked(toolGetAccessibleGlossary).mockResolvedValueOnce({
+        id: "glossary_123",
+        source: "native",
+        controlLevel: "org",
+      } as never);
+      const ctx = mockCtx("translator");
       const tool = createCreateGlossaryTermTool(ctx);
       const result = await executeTool(tool, {
         glossaryId: "g_123",
@@ -554,36 +599,42 @@ describe("Agent Tools RBAC", () => {
         targetTerm: "Bonjour",
       });
       expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
+      expect(result.error).toContain("team glossaries");
       expect(dbSpy(ctx, "insert")).not.toHaveBeenCalled();
     });
 
-    it.each(WRITE_DENIED_ROLES)("denies glossary term update for %s", async (role) => {
-      const ctx = mockCtx(role);
-      const tool = createUpdateGlossaryTermTool(ctx);
-      const result = await executeTool(tool, {
-        termId: "term_123",
-        targetTerm: "Salut",
-      });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
-      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
-      expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
-    });
+    it.each(GLOSSARY_TERM_WRITE_DENIED_ROLES)(
+      "denies glossary term update for %s",
+      async (role) => {
+        const ctx = mockCtx(role);
+        const tool = createUpdateGlossaryTermTool(ctx);
+        const result = await executeTool(tool, {
+          termId: "term_123",
+          targetTerm: "Salut",
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("permission");
+        expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+        expect(dbSpy(ctx, "update")).not.toHaveBeenCalled();
+      },
+    );
 
-    it.each(WRITE_DENIED_ROLES)("denies glossary term delete for %s", async (role) => {
-      const ctx = mockCtx(role);
-      const tool = createDeleteGlossaryTermTool(ctx);
-      const result = await executeTool(tool, {
-        termId: "term_123",
-      });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("permission");
-      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
-      expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
-    });
+    it.each(GLOSSARY_TERM_WRITE_DENIED_ROLES)(
+      "denies glossary term delete for %s",
+      async (role) => {
+        const ctx = mockCtx(role);
+        const tool = createDeleteGlossaryTermTool(ctx);
+        const result = await executeTool(tool, {
+          termId: "term_123",
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("permission");
+        expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+        expect(dbSpy(ctx, "delete")).not.toHaveBeenCalled();
+      },
+    );
 
-    it.each(WRITE_ALLOWED_ROLES)(
+    it.each(GLOSSARY_TERM_WRITE_ALLOWED_ROLES)(
       "allows glossary term create past the capability gate for %s",
       async (role) => {
         const tool = createCreateGlossaryTermTool(mockCtx(role));

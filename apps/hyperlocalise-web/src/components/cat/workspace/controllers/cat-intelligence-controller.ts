@@ -136,6 +136,13 @@ export class CatIntelligenceController {
     return promise;
   }
 
+  async reloadConcordance(segmentId: string) {
+    this.loadedSegmentIds.delete(segmentId);
+    this.concordanceAttempts.delete(segmentId);
+    this.inFlight.delete(segmentId);
+    return this.loadConcordance(segmentId);
+  }
+
   panelVisible(segmentId: string) {
     const segment = this.workspace.getSegmentView(segmentId);
     if (!segment) {

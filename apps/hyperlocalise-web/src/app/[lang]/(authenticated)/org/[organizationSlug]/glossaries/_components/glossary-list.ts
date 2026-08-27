@@ -50,6 +50,7 @@ export type GlossaryListRow = {
   externalProjectName: string | null;
   externalGlossaryId: string | null;
   externalResourceType: ApiGlossary["externalResourceType"];
+  controlLevel: ApiGlossary["controlLevel"];
   resourceTypeLabel: string;
   sourceLocale: string;
   targetLocale: string | null;
@@ -161,7 +162,12 @@ function formatLanguages(languages: ApiGlossary["languages"], intl?: GlossaryLis
 
 function resourceTypeLabelFor(glossary: ApiGlossary, intl?: GlossaryListIntl) {
   if (glossary.source === "native") {
-    return resolveMessage(intl, glossaryListMessages.resourceTypeWorkspaceGlossary);
+    return resolveMessage(
+      intl,
+      glossary.controlLevel === "team"
+        ? glossaryListMessages.resourceTypeTeamGlossary
+        : glossaryListMessages.resourceTypeOrgGlossary,
+    );
   }
 
   if (glossary.externalResourceType === "term_base") {
@@ -221,6 +227,7 @@ export function mapGlossaryToListRow(
     externalProjectName: null,
     externalGlossaryId: glossary.externalGlossaryId,
     externalResourceType: glossary.externalResourceType,
+    controlLevel: glossary.controlLevel,
     resourceTypeLabel: resourceTypeLabelFor(glossary, intl),
     sourceLocale: glossary.sourceLocale,
     targetLocale: glossary.targetLocale,
@@ -296,6 +303,7 @@ export function mapLiveTmsProviderGlossaryToListRow(
     externalProjectName: glossary.projectName?.trim() || null,
     externalGlossaryId: glossary.id.split(":").at(-1) ?? glossary.id,
     externalResourceType: "glossary",
+    controlLevel: "org",
     resourceTypeLabel: resolveMessage(intl, glossaryListMessages.resourceTypeGlossary),
     sourceLocale,
     targetLocale,

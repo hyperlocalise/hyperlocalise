@@ -6,7 +6,7 @@
 
 ## Status
 
-Proposed. Not implemented.
+Implemented.
 
 ## Context
 

@@ -70,6 +70,12 @@ members. Reviewers can approve reviews and write-back but cannot manage
 integrations or members. Localization managers share operational administration
 with admins except billing write.
 
+Translators do **not** receive `glossaries:write`. They may still create team
+glossaries (Hyperlocalise-owned, attached to at least one accessible project)
+and add concepts or terms on team glossaries they can access. Org and external
+glossaries stay read-only for translators. That exception lives in glossary
+route helpers, not in this capability table.
+
 ## Scope: organization vs project/team/locale
 
 These roles are **organization-wide** in WorkOS and in `organization_memberships`.

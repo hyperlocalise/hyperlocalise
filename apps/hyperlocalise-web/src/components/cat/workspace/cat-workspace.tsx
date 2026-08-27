@@ -102,6 +102,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   organizationSlug,
   projectId,
   nativeIssuesEnabled = false,
+  onReloadConcordance,
 }: CatWorkspaceViewProps) {
   const store = useCatWorkspace();
   const viewMode = store.ui.viewMode;
@@ -421,6 +422,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           }
           primaryActionLabel={shell.primaryActionLabel}
           segmentShareUrl={segmentShareUrl}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          onGlossaryTermAdded={
+            intelligenceSegment ? () => onReloadConcordance?.(intelligenceSegment.id) : undefined
+          }
         />
       </CatPanelErrorBoundary>
     );
@@ -603,7 +609,17 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
       >
         <CatIntelligencePanel
           intelligence={selectedSegmentIntelligence}
+          sourceText={editorSegment.sourceText}
           targetText={editorSegment.targetText}
+          sourceLocale={editorSegment.sourceLocale}
+          targetLocale={editorSegment.targetLocale}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          teamGlossaries={shell.fileContext.teamGlossaries ?? []}
+          canContributeTeamGlossary={
+            Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
+          }
+          teamName={shell.fileContext.teamName}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
@@ -622,6 +638,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (maxLength) => editing.onSetMaxLength!(editorSegment.id, maxLength)
               : undefined
           }
+          onGlossaryTermAdded={() => onReloadConcordance?.(editorSegment.id)}
         />
       </CatPanelErrorBoundary>
     );

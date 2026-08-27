@@ -34,6 +34,7 @@ export function toGlossaryRecord(
     languages: resolvedLanguages,
     status: glossary.status,
     source: glossary.source,
+    controlLevel: glossary.controlLevel,
     externalProviderKind: glossary.externalProviderKind,
     externalProjectId: glossary.externalProjectId,
     externalResourceType: glossary.externalResourceType,

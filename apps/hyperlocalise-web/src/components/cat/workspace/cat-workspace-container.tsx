@@ -312,6 +312,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           organizationSlug={lazySegment?.organizationSlug}
           projectId={lazySegment?.projectId}
           nativeIssuesEnabled={nativeIssuesEnabled}
+          onReloadConcordance={(segmentId) => {
+            void controller.handleReloadConcordance(segmentId);
+          }}
         />
       </CatPanelErrorBoundary>
 

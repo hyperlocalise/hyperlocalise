@@ -35,6 +35,7 @@ export default async function GlossaryConceptPage({
         glossaryId={glossaryId}
         conceptId={conceptId}
         canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
+        canContributeTeamGlossaries={auth.membership.role === "translator"}
       />
     </Suspense>
   );

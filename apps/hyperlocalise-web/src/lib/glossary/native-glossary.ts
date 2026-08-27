@@ -277,10 +277,21 @@ export class NativeGlossary extends Glossary {
     return attachedProjects.map((project) => ({ ...project, externalUrl: null }));
   }
 
-  async update(payload: { name?: string; description?: string }) {
+  async update(payload: {
+    name?: string;
+    description?: string;
+    sourceLocale?: string;
+    controlLevel?: "org" | "team";
+  }) {
+    const updates = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(updates).length === 0) {
+      return this.input.glossary;
+    }
     const [glossary] = await db
       .update(schema.glossaries)
-      .set(payload)
+      .set(updates)
       .where(
         and(
           eq(schema.glossaries.id, this.input.glossary.id),

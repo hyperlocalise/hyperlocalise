@@ -135,6 +135,31 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "RsvatD0q4G",
     description: "Badge for a provider-managed glossary",
   },
+  controlLevelLabel: {
+    defaultMessage: "Control",
+    id: "a2m0NIdEkK",
+    description: "Accessible label for changing glossary org versus team control",
+  },
+  controlLevelOrg: {
+    defaultMessage: "Org",
+    id: "P/pTxjwRBx",
+    description: "Badge and option for an org-controlled glossary",
+  },
+  controlLevelTeam: {
+    defaultMessage: "Team",
+    id: "XcO+si/Q8F",
+    description: "Badge and option for a team-controlled glossary",
+  },
+  updateControlLevelFailed: {
+    defaultMessage: "Unable to update glossary control",
+    id: "D5orYD5Bde",
+    description: "Fallback error when updating glossary control fails",
+  },
+  glossaryControlLevelUpdated: {
+    defaultMessage: "Glossary control updated",
+    id: "9lt1Pn+9+H",
+    description: "Toast after glossary control is updated successfully",
+  },
   localePair: {
     defaultMessage: "{sourceLocale} → {targetLocale}",
     id: "BOP4Yb+urd",

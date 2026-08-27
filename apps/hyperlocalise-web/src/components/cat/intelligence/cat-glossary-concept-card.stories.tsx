@@ -24,12 +24,19 @@ import {
   untranslatableGlossaryConceptFixture,
 } from "./cat-glossary-concept-card.fixture";
 
-function ConceptCardStoryHost({ concept }: { concept: CatGlossaryConcept }) {
+function ConceptCardStoryHost({
+  concept,
+  teamName,
+}: {
+  concept: CatGlossaryConcept;
+  teamName?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <CatGlossaryConceptCard
       concept={concept}
+      teamName={teamName}
       expanded={expanded}
       onToggle={() => setExpanded((current) => !current)}
     />
@@ -51,6 +58,7 @@ const meta = {
   ],
   args: {
     concept: matchedGlossaryConceptFixture,
+    teamName: "Product",
   },
 } satisfies Meta<typeof ConceptCardStoryHost>;
 
@@ -63,6 +71,8 @@ export const MatchedConcept: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Reseller")).toBeInTheDocument();
+    await expect(canvas.getByText("Partner Program")).toBeInTheDocument();
+    await expect(canvas.getByText("Product")).toBeInTheDocument();
     await expect(canvas.getByText("Đại lý")).toBeInTheDocument();
     await expect(canvas.getByText("Preferred")).toBeInTheDocument();
     await expect(canvas.queryByText("Untranslatable")).not.toBeInTheDocument();

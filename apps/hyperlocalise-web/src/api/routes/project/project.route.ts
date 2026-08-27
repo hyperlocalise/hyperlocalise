@@ -182,6 +182,7 @@ import {
   updateProjectCatBehaviorBodySchema,
   type CreateProjectBody,
   type ProjectFileCatQuery,
+  type ProjectFileCatQueueFile,
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -195,6 +196,11 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
+import {
+  getProjectTeamName,
+  listAttachedTeamGlossaries,
+} from "@/lib/glossary/attached-team-glossaries";
+import { isGlossaryContributorRole } from "@/api/routes/glossary/glossary.shared";
 import {
   isAiActionAllowed,
   isProjectCatBehaviorMutationAllowed,
@@ -845,6 +851,24 @@ type CreateProjectRoutesOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
+async function withCatTeamGlossaryContext(
+  auth: AuthVariables["auth"],
+  projectId: string,
+  catQueue: ProjectFileCatQueueFile,
+): Promise<ProjectFileCatQueueFile> {
+  const [teamGlossaries, teamName] = await Promise.all([
+    listAttachedTeamGlossaries(projectId),
+    getProjectTeamName(projectId),
+  ]);
+  return {
+    ...catQueue,
+    teamGlossaries,
+    canContributeTeamGlossary:
+      catQueue.provider == null && isGlossaryContributorRole(auth.membership.role),
+    ...(teamName ? { teamName } : {}),
+  };
+}
+
 export async function loadProjectFileCatQueue(
   auth: AuthVariables["auth"],
   projectId: string,
@@ -891,11 +915,15 @@ export async function loadProjectFileCatQueue(
 
     return {
       kind: "ok" as const,
-      catQueue: await attachCatSegmentLocks({
-        organizationId: auth.organization.localOrganizationId,
+      catQueue: await withCatTeamGlossaryContext(
+        auth,
         projectId,
-        catQueue,
-      }),
+        await attachCatSegmentLocks({
+          organizationId: auth.organization.localOrganizationId,
+          projectId,
+          catQueue,
+        }),
+      ),
     };
   }
 
@@ -938,11 +966,15 @@ export async function loadProjectFileCatQueue(
 
     return {
       kind: "ok" as const,
-      catQueue: await attachCatSegmentLocks({
-        organizationId: auth.organization.localOrganizationId,
+      catQueue: await withCatTeamGlossaryContext(
+        auth,
         projectId,
-        catQueue: enrichedCatQueue,
-      }),
+        await attachCatSegmentLocks({
+          organizationId: auth.organization.localOrganizationId,
+          projectId,
+          catQueue: enrichedCatQueue,
+        }),
+      ),
     };
   } catch (error) {
     return { kind: "provider_error" as const, error };

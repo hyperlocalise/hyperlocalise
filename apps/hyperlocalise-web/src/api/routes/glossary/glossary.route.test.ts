@@ -809,4 +809,133 @@ describe("glossaryRoutes", () => {
       createConceptSpy.mockRestore();
     }
   });
+
+  it("lets translators create a team glossary attached to an accessible project", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId: await fixture.getLocalUserId(translator.user.workosUserId),
+      role: "member",
+    });
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Alpha Project",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Team terms",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          projectIds: [project.id],
+        },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      glossary: { id: string; controlLevel: string; source: string };
+    };
+    expect(created.glossary).toMatchObject({ controlLevel: "team", source: "native" });
+
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId: created.glossary.id },
+        json: { primaryTerm: "Checkout", translatable: true },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(conceptResponse.status).toBe(201);
+  });
+
+  it("keeps org glossaries read-only for translators", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+
+    const orgCreate = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
+    expect(orgCreate.status).toBe(201);
+    const orgCreateBody = (await orgCreate.json()) as {
+      glossary: { id: string; controlLevel: string };
+    };
+    expect(orgCreateBody.glossary.controlLevel).toBe("org");
+    const orgGlossaryId = orgCreateBody.glossary.id;
+
+    const translatorOrgCreate = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Org from translator",
+          sourceLocale: "en",
+          controlLevel: "org",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(translatorOrgCreate.status).toBe(403);
+
+    const translatorTeamWithoutProject = await client.api.orgs[
+      ":organizationSlug"
+    ].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Team without project",
+          sourceLocale: "en",
+          controlLevel: "team",
+        },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(translatorTeamWithoutProject.status).toBe(403);
+    await expect(translatorTeamWithoutProject.json()).resolves.toMatchObject({
+      error: "glossary_team_project_required",
+    });
+
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId: orgGlossaryId },
+        json: { primaryTerm: "Checkout", translatable: true },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(conceptResponse.status).toBe(403);
+    await expect(conceptResponse.json()).resolves.toMatchObject({
+      error: "glossary_org_controlled",
+    });
+  });
 });
