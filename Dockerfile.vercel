@@ -23,11 +23,17 @@ RUN go mod download
 
 RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -o /dev/null ./apps/go-svc/internal/hunspell
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
+RUN CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
 
-FROM gcr.io/distroless/static-debian12:nonroot
+RUN set -eux; \
+    triplet="$(gcc -dumpmachine)"; \
+    mkdir -p "/runtime-libs/usr/lib/${triplet}"; \
+    cp -P "/usr/lib/${triplet}/libhunspell-1.7.so.0" "/usr/lib/${triplet}/libhunspell-1.7.so.0.0.1" "/runtime-libs/usr/lib/${triplet}/"
+
+FROM gcr.io/distroless/cc-debian12:nonroot
 WORKDIR /
 COPY --from=builder /service /service
+COPY --from=builder /runtime-libs/ /
 EXPOSE 8080
 USER nonroot:nonroot
 ENTRYPOINT ["/service"]
