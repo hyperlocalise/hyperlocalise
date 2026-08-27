@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 export {
+  hasGlossaryExpectedTarget,
   mergeGlossaryMatches,
   normalizeGlossaryTermStatus,
   normalizeProviderGlossaryMatch,

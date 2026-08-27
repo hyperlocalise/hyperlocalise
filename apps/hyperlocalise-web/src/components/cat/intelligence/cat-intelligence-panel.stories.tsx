@@ -18,55 +18,19 @@ import type { CatSegmentIntelligence } from "@/components/cat/shared/types";
 
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
 import { requestCatGlossaryGuidance } from "./cat-glossary-guidance-event";
+import {
+  matchedGlossaryConceptFixture,
+  primaryTermFallbackGlossaryConceptFixture,
+  sourceOnlyGlossaryConceptFixture,
+  untranslatableGlossaryConceptFixture,
+} from "./cat-glossary-concept-card.fixture";
 
 const defaultTargetText = catSegmentsFixture[1]?.targetText ?? "";
 
 const conceptIntelligence: CatSegmentIntelligence = {
   ...catIntelligenceFixture,
   glossaryConcepts: [
-    {
-      id: "concept-reseller",
-      glossaryId: "glossary-partner",
-      glossaryName: "Partner Program",
-      glossaryUrl: "/org/acme/glossaries/glossary-partner",
-      conceptUrl: "/org/acme/glossaries/glossary-partner/concepts/concept-reseller",
-      primaryTerm: "Reseller",
-      definition: "A company or individual authorized to resell our product.",
-      sourceTerms: [
-        {
-          id: "reseller-en",
-          locale: "en",
-          text: "Reseller",
-          status: "preferred",
-          preferred: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "neuter",
-        },
-      ],
-      targetTerms: [
-        {
-          id: "reseller-vi-preferred",
-          locale: "vi",
-          text: "Đại lý",
-          status: "preferred",
-          preferred: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "neuter",
-        },
-        {
-          id: "reseller-vi-alternate",
-          locale: "vi",
-          text: "Nhà bán lại",
-          status: "not_recommended",
-          forbidden: true,
-          termType: "full form",
-          partOfSpeech: "noun",
-          gender: "masculine",
-        },
-      ],
-    },
+    matchedGlossaryConceptFixture,
     {
       id: "concept-review",
       glossaryId: "glossary-product",
@@ -74,6 +38,7 @@ const conceptIntelligence: CatSegmentIntelligence = {
       glossaryUrl: "/org/acme/glossaries/glossary-product",
       conceptUrl: "/org/acme/glossaries/glossary-product/concepts/concept-review",
       primaryTerm: "Review",
+      translatable: true,
       sourceTerms: [{ id: "review-en", locale: "en", text: "Review", preferred: true }],
       targetTerms: [{ id: "review-vi", locale: "vi", text: "Đánh giá", preferred: true }],
     },
@@ -185,6 +150,62 @@ export const ReadOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
+  },
+};
+
+const untranslatableConceptIntelligence: CatSegmentIntelligence = {
+  ...catIntelligenceFixture,
+  glossaryConcepts: [untranslatableGlossaryConceptFixture],
+};
+
+export const UntranslatableConcept: Story = {
+  args: {
+    intelligence: untranslatableConceptIntelligence,
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("Untranslatable")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise FR")).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
+    await expect(canvas.getByText("Brand name that must stay in English.")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlocalise FR")).not.toBeInTheDocument();
+  },
+};
+
+const sourceOnlyConceptIntelligence: CatSegmentIntelligence = {
+  ...catIntelligenceFixture,
+  glossaryConcepts: [sourceOnlyGlossaryConceptFixture],
+};
+
+export const SourceOnlyConcept: Story = {
+  args: {
+    intelligence: sourceOnlyConceptIntelligence,
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("Dashboard")).toBeInTheDocument();
+    await expect(canvas.getByText("Draft")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
+    await expect(canvas.getAllByText("Dashboard")).toHaveLength(2);
+  },
+};
+
+export const PrimaryTermFallback: Story = {
+  args: {
+    intelligence: {
+      ...catIntelligenceFixture,
+      glossaryConcepts: [primaryTermFallbackGlossaryConceptFixture],
+    },
+  },
+  play: async ({ canvas }) => {
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("API")).toBeInTheDocument();
+    await expect(canvas.getByText("Draft")).toBeInTheDocument();
   },
 };
 

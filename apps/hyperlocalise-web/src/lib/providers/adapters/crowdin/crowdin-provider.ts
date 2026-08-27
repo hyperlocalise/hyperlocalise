@@ -58,7 +58,12 @@ import {
   toNativeGlossaryLocale,
 } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
-import { mapCrowdinGlossaryConcordanceSearchResult } from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
+import {
+  loadCrowdinConcordanceTranslatableByConceptId,
+  mapCrowdinGlossaryConcordanceSearchResult,
+  resolveCrowdinConcordanceTranslatableFromResult,
+  sortCrowdinConcordanceMatches,
+} from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
 import {
   TmsProvider,
   type TmsProviderCommentPushScope,
@@ -2767,6 +2772,10 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     const glossaryTerms: NormalizedGlossaryMatch[] = [];
+    const translatableByConceptId = await loadCrowdinConcordanceTranslatableByConceptId({
+      client: input.client,
+      results: glossaryResults,
+    });
 
     for (const [index, result] of glossaryResults.entries()) {
       const externalGlossaryId = String(result.glossary.id);
@@ -2778,6 +2787,10 @@ export class CrowdinTmsProvider extends TmsProvider {
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
         stableTermIdGlossaryKey: externalGlossaryId,
+        translatable: resolveCrowdinConcordanceTranslatableFromResult(
+          result,
+          translatableByConceptId,
+        ),
       });
       if (match) {
         glossaryTerms.push(match);
@@ -2803,7 +2816,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       );
 
     return {
-      glossaryTerms: glossaryTerms.slice(0, glossaryLimit),
+      glossaryTerms: sortCrowdinConcordanceMatches(glossaryTerms, glossaryLimit),
       translationMemoryMatches,
     };
   }

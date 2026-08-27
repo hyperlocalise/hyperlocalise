@@ -95,7 +95,8 @@ export function AppShellFooter({
                 className="gap-1.5 px-2"
                 onClick={requestCatGlossaryGuidance}
                 aria-label={intl.formatMessage(
-                  glossaryGuidanceStatus.preferredCount > 0 ||
+                  glossaryGuidanceStatus.matchCount > 0 ||
+                    glossaryGuidanceStatus.preferredCount > 0 ||
                     glossaryGuidanceStatus.notRecommendedCount > 0
                     ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
                     : appShellFooterMessages.glossaryGuidanceAriaLabel,

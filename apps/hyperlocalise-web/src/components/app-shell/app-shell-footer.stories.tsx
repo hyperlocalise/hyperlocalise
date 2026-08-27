@@ -12,7 +12,7 @@
  */
 import { useEffect, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, userEvent } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import {
@@ -20,7 +20,12 @@ import {
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
 } from "@/components/cat/issues/cat-issue-guidance-event";
-import { CAT_GLOSSARY_GUIDANCE_OPEN_EVENT } from "@/components/cat/intelligence/cat-glossary-guidance-event";
+import {
+  CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
+  setCatGlossaryGuidanceStatus,
+  type CatGlossaryGuidanceStatus,
+} from "@/components/cat/intelligence/cat-glossary-guidance-event";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { AppShellFooter } from "./app-shell-footer";
@@ -48,9 +53,29 @@ function FooterStoryFrame({ children }: { children: ReactNode }) {
 
 function GuidanceStatusFrame({ children }: { children: ReactNode }) {
   setCatIssueGuidanceStatus({ available: true, openIssueCount: 2 });
+  setCatGlossaryGuidanceStatus({ preferredCount: 2, notRecommendedCount: 1, matchCount: 2 });
 
   useEffect(() => {
-    return () => setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+    return () => {
+      setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+      setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
+    };
+  }, []);
+
+  return children;
+}
+
+function GlossaryStatusFrame({
+  status,
+  children,
+}: {
+  status: CatGlossaryGuidanceStatus;
+  children: ReactNode;
+}) {
+  setCatGlossaryGuidanceStatus(status);
+
+  useEffect(() => {
+    return () => setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
   }, []);
 
   return children;
@@ -112,22 +137,60 @@ export const GuidanceAvailable: Story = {
     window.addEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, glossaryGuidanceOpened);
     window.addEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, issueGuidanceOpened);
 
-    await expect(
-      canvas.getByRole("button", { name: "Open glossary guidance" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Open issues, 2 open" })).toBeInTheDocument();
-    await expect(canvas.getByText("2")).toBeInTheDocument();
+    const glossaryButton = canvas.getByRole("button", {
+      name: "Glossary guidance, concept matches available",
+    });
+    const issuesButton = canvas.getByRole("button", { name: "Open issues, 2 open" });
+
+    await expect(glossaryButton).toBeInTheDocument();
+    await expect(issuesButton).toBeInTheDocument();
+    await expect(within(glossaryButton).getByText("2")).toBeInTheDocument();
+    await expect(within(glossaryButton).getByText("1")).toBeInTheDocument();
+    await expect(within(issuesButton).getByText("2")).toBeInTheDocument();
 
     try {
-      await userEvent.click(canvas.getByRole("button", { name: "Open glossary guidance" }));
+      await userEvent.click(glossaryButton);
       await expect(glossaryGuidanceOpened).toHaveBeenCalledTimes(1);
 
-      await userEvent.click(canvas.getByRole("button", { name: "Open issues, 2 open" }));
+      await userEvent.click(issuesButton);
       await expect(issueGuidanceOpened).toHaveBeenCalledTimes(1);
     } finally {
       window.removeEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, glossaryGuidanceOpened);
       window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, issueGuidanceOpened);
     }
+  },
+};
+
+export const GlossaryDraftMatchAvailable: Story = {
+  args: {
+    showGlossaryGuidance: true,
+  },
+  decorators: [
+    (Story) => (
+      <GlossaryStatusFrame status={{ preferredCount: 0, notRecommendedCount: 0, matchCount: 1 }}>
+        <Story />
+      </GlossaryStatusFrame>
+    ),
+  ],
+  play: async ({ canvas }) => {
+    const glossaryButton = canvas.getByRole("button", {
+      name: "Glossary guidance, concept matches available",
+    });
+
+    await expect(glossaryButton).toBeInTheDocument();
+    await expect(within(glossaryButton).queryByText("1")).not.toBeInTheDocument();
+    await expect(within(glossaryButton).queryByText("2")).not.toBeInTheDocument();
+  },
+};
+
+export const GlossaryDefault: Story = {
+  args: {
+    showGlossaryGuidance: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("button", { name: "Open glossary guidance" }),
+    ).toBeInTheDocument();
   },
 };
 

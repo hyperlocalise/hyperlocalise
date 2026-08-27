@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  hasGlossaryExpectedTarget,
   mergeGlossaryMatches,
   normalizeGlossaryTermStatus,
   normalizeProviderGlossaryMatch,
@@ -282,6 +283,73 @@ describe("context and agent run projections", () => {
       preferred: false,
       forbidden: false,
       glossaryName: "Synced glossary",
+    });
+  });
+
+  it("omits source-only translatable matches from context and agent usage", () => {
+    const sourceOnly = normalizeSyncedDatabaseGlossaryMatch({
+      id: "term-2",
+      glossaryId: "glossary-1",
+      glossaryName: "Synced glossary",
+      sourceTerm: "Dashboard",
+      targetTerm: "",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      description: null,
+      forbidden: false,
+      caseSensitive: false,
+      rank: 1,
+      providerKind: null,
+      externalResourceId: null,
+      externalTermId: null,
+      concept: {
+        id: "concept-1",
+        primaryTerm: "Dashboard",
+        translatable: true,
+        sourceTerms: [{ id: "s1", locale: "en", text: "Dashboard", status: "draft" }],
+        targetTerms: [],
+      },
+    });
+
+    expect(hasGlossaryExpectedTarget(sourceOnly)).toBe(false);
+    expect(toContextGlossaryMatch(sourceOnly)).toBeNull();
+    expect(toAgentRunGlossaryMatchUsage(sourceOnly)).toBeNull();
+  });
+
+  it("includes untranslatable matches with source as the expected target", () => {
+    const untranslatable = normalizeSyncedDatabaseGlossaryMatch({
+      id: "term-3",
+      glossaryId: "glossary-1",
+      glossaryName: "Synced glossary",
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      description: null,
+      forbidden: false,
+      preferred: true,
+      caseSensitive: false,
+      rank: 1,
+      providerKind: null,
+      externalResourceId: null,
+      externalTermId: null,
+      concept: {
+        id: "concept-2",
+        primaryTerm: "Hyperlocalise",
+        translatable: false,
+        sourceTerms: [{ id: "s1", locale: "en", text: "Hyperlocalise", status: "preferred" }],
+        targetTerms: [{ id: "t1", locale: "fr", text: "Hyperlocalise FR", status: "preferred" }],
+      },
+    });
+
+    expect(hasGlossaryExpectedTarget(untranslatable)).toBe(true);
+    expect(toContextGlossaryMatch(untranslatable)).toMatchObject({
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+    });
+    expect(toAgentRunGlossaryMatchUsage(untranslatable)).toMatchObject({
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
     });
   });
 });

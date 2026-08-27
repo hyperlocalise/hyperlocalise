@@ -727,6 +727,7 @@ export interface CrowdinGlossaryConcordanceSearchResult {
     subject?: string | null;
     definition?: string | null;
     url?: string | null;
+    translatable?: boolean;
   } | null;
 }
 

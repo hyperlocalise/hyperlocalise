@@ -244,4 +244,98 @@ describe("searchCrowdinCatConcordance", () => {
     });
     expect(result.glossaryTerms[0]?.externalConceptId).toBe("3");
   });
+
+  it("maps untranslatable Crowdin concepts with source as the expected target", async () => {
+    const client = {
+      glossaryConcordanceSearch: vi.fn().mockResolvedValue([
+        {
+          glossary: { id: 7, name: "Brand terms" },
+          concept: { id: 3, translatable: false },
+          sourceTerms: [{ id: 11, languageId: "en", text: "Hyperlocalise", status: "preferred" }],
+          targetTerms: [{ id: 12, languageId: "fr", text: "Hyperlocalise FR", status: "preferred" }],
+        },
+      ]),
+      concordanceSearch: vi.fn().mockResolvedValue([]),
+    } as unknown as CrowdinApiClient;
+
+    const result = await crowdinTmsProvider.searchCatConcordance({
+      client,
+      externalProjectId: "42",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Hyperlocalise",
+    });
+
+    expect(result.glossaryTerms[0]).toMatchObject({
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+      concept: {
+        translatable: false,
+      },
+    });
+  });
+
+  it("keeps source-only translatable Crowdin concepts with an empty target term", async () => {
+    const client = {
+      glossaryConcordanceSearch: vi.fn().mockResolvedValue([
+        {
+          glossary: { id: 7, name: "Product terms" },
+          concept: { id: 4, translatable: true },
+          sourceTerms: [{ id: 11, languageId: "en", text: "Dashboard", status: "draft" }],
+          targetTerms: [],
+        },
+      ]),
+      concordanceSearch: vi.fn().mockResolvedValue([]),
+    } as unknown as CrowdinApiClient;
+
+    const result = await crowdinTmsProvider.searchCatConcordance({
+      client,
+      externalProjectId: "42",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Dashboard",
+    });
+
+    expect(result.glossaryTerms[0]).toMatchObject({
+      sourceTerm: "Dashboard",
+      targetTerm: "",
+      concept: {
+        translatable: true,
+        targetTerms: [],
+      },
+    });
+  });
+
+  it("loads missing translatable flags from getGlossaryConcept", async () => {
+    const getGlossaryConcept = vi.fn().mockResolvedValue({ translatable: false });
+    const client = {
+      glossaryConcordanceSearch: vi.fn().mockResolvedValue([
+        {
+          glossary: { id: 7, name: "Brand terms" },
+          concept: null,
+          sourceTerms: [{ id: 11, conceptId: 3, languageId: "en", text: "Hyperlocalise" }],
+          targetTerms: [],
+        },
+      ]),
+      concordanceSearch: vi.fn().mockResolvedValue([]),
+      getGlossaryConcept,
+    } as unknown as CrowdinApiClient;
+
+    const result = await crowdinTmsProvider.searchCatConcordance({
+      client,
+      externalProjectId: "42",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Hyperlocalise",
+    });
+
+    expect(getGlossaryConcept).toHaveBeenCalledWith(7, 3);
+    expect(result.glossaryTerms[0]).toMatchObject({
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+      concept: {
+        translatable: false,
+      },
+    });
+  });
 });

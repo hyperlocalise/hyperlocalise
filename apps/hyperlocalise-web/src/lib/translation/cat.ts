@@ -38,6 +38,7 @@ import type {
   NormalizedGlossaryConceptTerm,
   NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
+import { hasGlossaryExpectedTarget } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import {
   defaultGlossaryMatchResolution,
@@ -139,6 +140,10 @@ function resolveCatGlossaryNavigationUrls(
   return { glossaryUrl, conceptUrl };
 }
 
+function toCatGlossaryTermsForAi(matches: NormalizedGlossaryMatch[]): CatGlossaryTerm[] {
+  return matches.filter(hasGlossaryExpectedTarget).map(toCatGlossaryTerm);
+}
+
 function toCatGlossaryConcept(
   match: NormalizedGlossaryMatch,
   organizationSlug?: string,
@@ -155,6 +160,7 @@ function toCatGlossaryConcept(
       primaryTerm: concept.primaryTerm || match.sourceTerm,
       subject: concept.subject,
       definition: concept.definition ?? match.description,
+      translatable: concept.translatable ?? true,
       sourceTerms: concept.sourceTerms.map(toCatGlossaryConceptTerm),
       targetTerms: concept.targetTerms.map(toCatGlossaryConceptTerm),
     };
@@ -168,6 +174,7 @@ function toCatGlossaryConcept(
     conceptUrl: navigationUrls.conceptUrl,
     primaryTerm: match.sourceTerm,
     definition: match.description,
+    translatable: true,
     sourceTerms: [
       {
         id: `${match.id}:source`,
@@ -177,15 +184,17 @@ function toCatGlossaryConcept(
         forbidden: match.termStatus.forbidden,
       },
     ],
-    targetTerms: [
-      {
-        id: `${match.id}:target`,
-        locale: match.targetLocale,
-        text: match.targetTerm,
-        preferred: match.termStatus.preferred,
-        forbidden: match.termStatus.forbidden,
-      },
-    ],
+    targetTerms: match.targetTerm.trim()
+      ? [
+          {
+            id: `${match.id}:target`,
+            locale: match.targetLocale,
+            text: match.targetTerm,
+            preferred: match.termStatus.preferred,
+            forbidden: match.termStatus.forbidden,
+          },
+        ]
+      : [],
   };
 }
 
@@ -427,7 +436,7 @@ export class CatConcordanceService {
 
         if (liveMatches) {
           return {
-            glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
+            glossaryTerms: toCatGlossaryTermsForAi(liveMatches.glossaryTerms),
             glossaryConcepts: toCatGlossaryConcepts(
               liveMatches.glossaryTerms,
               input.organizationSlug,
@@ -463,7 +472,7 @@ export class CatConcordanceService {
     ]);
 
     return {
-      glossaryTerms: glossaryMatches.map(toCatGlossaryTerm),
+      glossaryTerms: toCatGlossaryTermsForAi(glossaryMatches),
       glossaryConcepts: toCatGlossaryConcepts(glossaryMatches, input.organizationSlug),
       translationMemoryMatches: translationMemoryMatches.map((match) =>
         toCatTranslationMemoryMatch(match, input.sourceText),

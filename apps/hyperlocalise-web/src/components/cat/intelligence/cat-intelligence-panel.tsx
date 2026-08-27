@@ -219,10 +219,11 @@ export function CatIntelligencePanel({
   const glossaryGuidanceStatus = useMemo(() => {
     const terms = glossaryConcepts.flatMap((concept) => [
       ...concept.sourceTerms,
-      ...concept.targetTerms,
+      ...(concept.translatable === false ? [] : concept.targetTerms),
     ]);
 
     return {
+      matchCount: glossaryConcepts.length,
       preferredCount: terms.filter((term) => normalizedCatGlossaryTermStatus(term) === "preferred")
         .length,
       notRecommendedCount: terms.filter(
@@ -240,11 +241,13 @@ export function CatIntelligencePanel({
 
   useEffect(() => {
     setCatGlossaryGuidanceStatus(
-      isConcordanceLoading ? { preferredCount: 0, notRecommendedCount: 0 } : glossaryGuidanceStatus,
+      isConcordanceLoading
+        ? { preferredCount: 0, notRecommendedCount: 0, matchCount: 0 }
+        : glossaryGuidanceStatus,
     );
 
     return () => {
-      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0 });
+      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0, matchCount: 0 });
     };
   }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
 

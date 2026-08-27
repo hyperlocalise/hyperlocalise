@@ -566,7 +566,10 @@ export class GlossaryConcordanceService {
       usage.push({
         externalStringId: unit.externalStringId,
         key: unit.key,
-        matches: matches.map(toAgentRunGlossaryMatchUsage),
+        matches: matches.flatMap((match) => {
+          const usage = toAgentRunGlossaryMatchUsage(match);
+          return usage ? [usage] : [];
+        }),
       });
     }
 

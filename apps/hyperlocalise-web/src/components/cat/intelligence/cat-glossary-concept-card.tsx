@@ -104,7 +104,21 @@ function TermStatusIcon({ status }: { status: CatGlossaryTermStatus }) {
   );
 }
 
-function ConceptTermRow({ term }: { term: CatGlossaryConceptTerm }) {
+function UntranslatableBadge({ intl }: { intl: ReturnType<typeof useIntl> }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-500/30 px-1.5 py-0.5 text-xs font-medium text-slate-300">
+      {intl.formatMessage(catIntelligencePanelMessages.glossaryUntranslatable)}
+    </span>
+  );
+}
+
+function ConceptTermRow({
+  term,
+  showUntranslatableBadge = false,
+}: {
+  term: CatGlossaryConceptTerm;
+  showUntranslatableBadge?: boolean;
+}) {
   const intl = useIntl();
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const status = termStatus(term, intl);
@@ -140,15 +154,19 @@ function ConceptTermRow({ term }: { term: CatGlossaryConceptTerm }) {
           {term.text}
         </p>
         <div className="flex flex-wrap gap-1">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium",
-              status.className,
-            )}
-          >
-            <TermStatusIcon status={status.status} />
-            {status.label}
-          </span>
+          {showUntranslatableBadge ? (
+            <UntranslatableBadge intl={intl} />
+          ) : (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium",
+                status.className,
+              )}
+            >
+              <TermStatusIcon status={status.status} />
+              {status.label}
+            </span>
+          )}
           {metadata.map((value) => (
             <span
               key={value}
@@ -183,23 +201,74 @@ function ConceptTermRow({ term }: { term: CatGlossaryConceptTerm }) {
   );
 }
 
-function CollapsedTargetTermRow({ term }: { term: CatGlossaryConceptTerm }) {
+function CollapsedTermRow({
+  term,
+  showUntranslatableBadge = false,
+}: {
+  term: CatGlossaryConceptTerm;
+  showUntranslatableBadge?: boolean;
+}) {
   const intl = useIntl();
   const status = termStatus(term, intl);
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-1.5">
       <span className="min-w-0 truncate text-sm font-medium text-foreground">{term.text}</span>
-      <span
-        className={cn(
-          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium",
-          status.className,
-        )}
-      >
-        <TermStatusIcon status={status.status} />
-        {status.label}
-      </span>
+      {showUntranslatableBadge ? (
+        <UntranslatableBadge intl={intl} />
+      ) : (
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-medium",
+            status.className,
+          )}
+        >
+          <TermStatusIcon status={status.status} />
+          {status.label}
+        </span>
+      )}
     </div>
   );
+}
+
+function resolveConceptDisplayTerms(concept: CatGlossaryConcept) {
+  const isUntranslatable = concept.translatable === false;
+  const fallbackSourceTerm: CatGlossaryConceptTerm[] = concept.primaryTerm.trim()
+    ? [
+        {
+          id: `${concept.id}:primary`,
+          locale: concept.sourceTerms[0]?.locale ?? "source",
+          text: concept.primaryTerm,
+        },
+      ]
+    : [];
+  const sourceTerms =
+    concept.sourceTerms.length > 0 ? concept.sourceTerms : fallbackSourceTerm;
+  const hasTargetTerms = concept.targetTerms.length > 0;
+
+  if (isUntranslatable) {
+    return {
+      isUntranslatable: true,
+      sourceTerms,
+      targetTerms: [] as CatGlossaryConceptTerm[],
+      collapsedTerms: sourceTerms,
+    };
+  }
+
+  if (hasTargetTerms) {
+    return {
+      isUntranslatable: false,
+      sourceTerms,
+      targetTerms: concept.targetTerms,
+      collapsedTerms: concept.targetTerms,
+    };
+  }
+
+  return {
+    isUntranslatable: false,
+    sourceTerms,
+    targetTerms: [] as CatGlossaryConceptTerm[],
+    collapsedTerms: sourceTerms,
+  };
 }
 
 export function CatGlossaryConceptCard({
@@ -213,8 +282,8 @@ export function CatGlossaryConceptCard({
 }) {
   const intl = useIntl();
   const contentId = `glossary-concept-${concept.id.replaceAll(/[^a-zA-Z0-9_-]/g, "-")}`;
-  const sourceTerms = concept.sourceTerms.length > 0 ? concept.sourceTerms : concept.targetTerms;
-  const targetTerms = concept.targetTerms.length > 0 ? concept.targetTerms : concept.sourceTerms;
+  const { isUntranslatable, sourceTerms, targetTerms, collapsedTerms } =
+    resolveConceptDisplayTerms(concept);
 
   return (
     <article className="overflow-hidden rounded-xl bg-muted/40">
@@ -250,8 +319,12 @@ export function CatGlossaryConceptCard({
 
       {!expanded ? (
         <div className="space-y-1 px-3 pb-2">
-          {targetTerms.map((term) => (
-            <CollapsedTargetTermRow key={term.id} term={term} />
+          {collapsedTerms.map((term) => (
+            <CollapsedTermRow
+              key={term.id}
+              term={term}
+              showUntranslatableBadge={isUntranslatable}
+            />
           ))}
         </div>
       ) : null}
@@ -271,14 +344,20 @@ export function CatGlossaryConceptCard({
         <div className="space-y-2">
           <div className="space-y-1">
             {sourceTerms.map((term) => (
-              <ConceptTermRow key={term.id} term={term} />
+              <ConceptTermRow
+                key={term.id}
+                term={term}
+                showUntranslatableBadge={isUntranslatable}
+              />
             ))}
           </div>
-          <div className="space-y-1">
-            {targetTerms.map((term) => (
-              <ConceptTermRow key={term.id} term={term} />
-            ))}
-          </div>
+          {targetTerms.length > 0 ? (
+            <div className="space-y-1">
+              {targetTerms.map((term) => (
+                <ConceptTermRow key={term.id} term={term} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -160,6 +160,7 @@ export interface CatGlossaryConcept {
   primaryTerm: string;
   subject?: string | null;
   definition?: string | null;
+  translatable?: boolean;
   sourceTerms: CatGlossaryConceptTerm[];
   targetTerms: CatGlossaryConceptTerm[];
 }

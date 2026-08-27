@@ -42,6 +42,7 @@ export type NormalizedGlossaryConcept = {
   subject?: string | null;
   definition?: string | null;
   glossaryUrl?: string | null;
+  translatable?: boolean;
   sourceTerms: NormalizedGlossaryConceptTerm[];
   targetTerms: NormalizedGlossaryConceptTerm[];
 };
@@ -97,6 +98,22 @@ export type AgentRunGlossaryMatchUsage = {
   resourceId: string;
   externalResourceId: string | null;
 };
+
+function isNonEmptyGlossaryTerm(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function hasGlossaryExpectedTarget(match: {
+  targetTerm: string;
+  sourceTerm: string;
+  concept?: Pick<NormalizedGlossaryConcept, "translatable"> | null;
+}): boolean {
+  if (match.concept?.translatable === false) {
+    return isNonEmptyGlossaryTerm(match.sourceTerm);
+  }
+
+  return isNonEmptyGlossaryTerm(match.targetTerm);
+}
 
 export type ProviderGlossaryMatchInput = {
   sourceTerm: string;
@@ -203,13 +220,20 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
   };
 }
 
-export function toContextGlossaryMatch(match: NormalizedGlossaryMatch): ContextGlossaryMatch {
+export function toContextGlossaryMatch(match: NormalizedGlossaryMatch): ContextGlossaryMatch | null {
+  if (!hasGlossaryExpectedTarget(match)) {
+    return null;
+  }
+
+  const targetTerm =
+    match.concept?.translatable === false ? match.sourceTerm.trim() : match.targetTerm.trim();
+
   return {
     id: match.id,
     glossaryId: match.glossaryId,
     glossaryName: match.glossaryName,
     sourceTerm: match.sourceTerm,
-    targetTerm: match.targetTerm,
+    targetTerm,
     targetLocale: match.targetLocale,
     description: match.description,
     forbidden: match.termStatus.forbidden,
@@ -224,12 +248,19 @@ export function toContextGlossaryMatch(match: NormalizedGlossaryMatch): ContextG
 
 export function toAgentRunGlossaryMatchUsage(
   match: NormalizedGlossaryMatch,
-): AgentRunGlossaryMatchUsage {
+): AgentRunGlossaryMatchUsage | null {
+  if (!hasGlossaryExpectedTarget(match)) {
+    return null;
+  }
+
+  const targetTerm =
+    match.concept?.translatable === false ? match.sourceTerm.trim() : match.targetTerm.trim();
+
   return {
     glossaryId: match.glossaryId,
     glossaryName: match.glossaryName,
     sourceTerm: match.sourceTerm,
-    targetTerm: match.targetTerm,
+    targetTerm,
     targetLocale: match.targetLocale,
     forbidden: match.termStatus.forbidden,
     preferred: match.termStatus.preferred,

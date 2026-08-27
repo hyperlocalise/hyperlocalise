@@ -17,10 +17,13 @@ import {
   toNativeGlossaryLocale,
 } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import type {
+  CrowdinApiClient,
   CrowdinGlossaryConcordanceSearchResult,
   CrowdinGlossaryConcordanceTerm,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
+  hasGlossaryExpectedTarget,
   normalizeProviderGlossaryMatch,
   type NormalizedGlossaryConcept,
   type NormalizedGlossaryConceptTerm,
@@ -68,6 +71,76 @@ export function resolveCrowdinConcordanceExternalConceptId(
   return termConceptId != null ? String(termConceptId) : null;
 }
 
+export function resolveCrowdinConcordanceTranslatableKey(
+  result: CrowdinGlossaryConcordanceSearchResult,
+): string | null {
+  const conceptId = resolveCrowdinConcordanceExternalConceptId(result);
+  if (conceptId == null) {
+    return null;
+  }
+
+  return `${result.glossary.id}:${conceptId}`;
+}
+
+export function resolveCrowdinConcordanceTranslatableFromResult(
+  result: CrowdinGlossaryConcordanceSearchResult,
+  resolvedByConceptId?: Map<string, boolean>,
+): boolean {
+  if (result.concept?.translatable !== undefined) {
+    return result.concept.translatable;
+  }
+
+  const key = resolveCrowdinConcordanceTranslatableKey(result);
+  if (key != null) {
+    const resolved = resolvedByConceptId?.get(key);
+    if (resolved !== undefined) {
+      return resolved;
+    }
+  }
+
+  return true;
+}
+
+export async function loadCrowdinConcordanceTranslatableByConceptId(input: {
+  client: CrowdinApiClient;
+  results: CrowdinGlossaryConcordanceSearchResult[];
+}): Promise<Map<string, boolean>> {
+  const pending = new Map<string, { glossaryId: number; conceptId: number }>();
+
+  for (const result of input.results) {
+    if (result.concept?.translatable !== undefined) {
+      continue;
+    }
+
+    const key = resolveCrowdinConcordanceTranslatableKey(result);
+    if (key == null) {
+      continue;
+    }
+
+    const conceptId = resolveCrowdinConcordanceExternalConceptId(result);
+    if (conceptId == null) {
+      continue;
+    }
+
+    pending.set(key, {
+      glossaryId: result.glossary.id,
+      conceptId: Number(conceptId),
+    });
+  }
+
+  const resolved = new Map<string, boolean>();
+  await mapWithConcurrency([...pending.entries()], 5, async ([key, { glossaryId, conceptId }]) => {
+    try {
+      const concept = await input.client.getGlossaryConcept(glossaryId, conceptId);
+      resolved.set(key, concept.translatable);
+    } catch {
+      resolved.set(key, true);
+    }
+  });
+
+  return resolved;
+}
+
 export function toCrowdinConcordanceConceptTerm(
   term: CrowdinGlossaryConcordanceTerm,
   preferredLocales: string[],
@@ -94,14 +167,19 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
   sourceLocale: string;
   targetLocale: string;
   stableTermIdGlossaryKey?: string;
+  translatable?: boolean;
 }): NormalizedGlossaryMatch | null {
   const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
   const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
   const sourceTerm = pickCrowdinConcordanceTermText(input.result.sourceTerms, sourceLanguageId);
   const targetTerm = pickCrowdinConcordanceTermText(input.result.targetTerms, targetLanguageId);
-  if (!sourceTerm || !targetTerm) {
+  if (!sourceTerm) {
     return null;
   }
+
+  const translatable = input.translatable ?? true;
+  const isUntranslatable = translatable === false;
+  const effectiveTargetTerm = isUntranslatable ? sourceTerm : (targetTerm ?? "");
 
   const externalGlossaryId = String(input.result.glossary.id);
   const status =
@@ -123,6 +201,7 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
     subject: input.result.concept?.subject,
     definition: input.result.concept?.definition,
     glossaryUrl: null,
+    translatable,
     sourceTerms: input.result.sourceTerms.map((term) =>
       toCrowdinConcordanceConceptTerm(term, preferredLocales),
     ),
@@ -133,7 +212,7 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
 
   return normalizeProviderGlossaryMatch({
     sourceTerm,
-    targetTerm,
+    targetTerm: effectiveTargetTerm,
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     providerKind: "crowdin",
@@ -146,4 +225,20 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
     status: { status },
     concept,
   });
+}
+
+export function sortCrowdinConcordanceMatches(
+  matches: NormalizedGlossaryMatch[],
+  limit: number,
+): NormalizedGlossaryMatch[] {
+  return matches
+    .toSorted((left, right) => {
+      const leftHasExpectedTarget = hasGlossaryExpectedTarget(left);
+      const rightHasExpectedTarget = hasGlossaryExpectedTarget(right);
+      if (leftHasExpectedTarget !== rightHasExpectedTarget) {
+        return leftHasExpectedTarget ? -1 : 1;
+      }
+      return right.rank - left.rank;
+    })
+    .slice(0, limit);
 }

@@ -153,7 +153,12 @@ export class TranslationContextBuilder {
           sourceText: jobInput.sourceText,
           glossaryMatchResolution: options?.glossaryMatchResolution,
         })
-        .then((matches) => matches.map(toContextGlossaryMatch)),
+        .then((matches) =>
+          matches.flatMap((match) => {
+            const contextMatch = toContextGlossaryMatch(match);
+            return contextMatch ? [contextMatch] : [];
+          }),
+        ),
       this.memoryService
         .searchForContext({
           projectId,

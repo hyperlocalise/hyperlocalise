@@ -20,6 +20,7 @@ import {
   normalizedGlossaryTermStatusFromStatus,
 } from "@/lib/providers/contracts/glossary-term-status";
 import {
+  hasGlossaryExpectedTarget,
   normalizeSyncedDatabaseGlossaryMatch,
   type NormalizedGlossaryConcept,
   type NormalizedGlossaryConceptTerm,
@@ -128,6 +129,7 @@ function buildNormalizedConcept(input: {
     subject: input.concept.subject,
     definition: input.concept.definition,
     glossaryUrl: input.glossaryUrl ?? null,
+    translatable: input.concept.translatable ?? true,
     sourceTerms: conceptTerms.filter((term) => term.locale === input.sourceLocale),
     targetTerms: filterConcordanceTargetTerms(conceptTerms, input.targetLocales),
   };
@@ -1048,16 +1050,62 @@ export class NativeGlossary extends Glossary {
       });
 
       for (const targetLocale of query.targetLocales) {
+        const isUntranslatable = concept.translatable === false;
         const preferredTarget = pickPreferredTermForLocale(
           normalizedConcept.targetTerms,
           targetLocale,
         );
-        if (!preferredTarget) {
+        const sourceStatus = normalizedGlossaryTermStatusFromStatus(hit.sourceStatus);
+
+        if (isUntranslatable) {
+          matches.push(
+            normalizeSyncedDatabaseGlossaryMatch({
+              id: `${hit.matchedSourceTermId}:${targetLocale}`,
+              glossaryId: hit.glossaryId,
+              glossaryName: hit.glossaryName,
+              sourceTerm: hit.matchedSourceTerm,
+              targetTerm: hit.matchedSourceTerm,
+              sourceLocale,
+              targetLocale,
+              description: concept.definition || null,
+              forbidden: sourceStatus.forbidden,
+              preferred: sourceStatus.preferred,
+              caseSensitive: hit.caseSensitive ?? false,
+              rank: hit.rank || 1,
+              providerKind: null,
+              externalResourceId: null,
+              externalTermId: null,
+              concept: normalizedConcept,
+            }),
+          );
           continue;
         }
 
-        const sourceStatus = normalizedGlossaryTermStatusFromStatus(hit.sourceStatus);
-        const targetStatus = normalizedGlossaryTermStatusFromStatus(preferredTarget.status);
+        if (preferredTarget) {
+          const targetStatus = normalizedGlossaryTermStatusFromStatus(preferredTarget.status);
+
+          matches.push(
+            normalizeSyncedDatabaseGlossaryMatch({
+              id: `${hit.matchedSourceTermId}:${targetLocale}`,
+              glossaryId: hit.glossaryId,
+              glossaryName: hit.glossaryName,
+              sourceTerm: hit.matchedSourceTerm,
+              targetTerm: preferredTarget.text,
+              sourceLocale,
+              targetLocale,
+              description: concept.definition || null,
+              forbidden: sourceStatus.forbidden || targetStatus.forbidden,
+              preferred: targetStatus.preferred,
+              caseSensitive: hit.caseSensitive ?? false,
+              rank: hit.rank || 1,
+              providerKind: null,
+              externalResourceId: null,
+              externalTermId: null,
+              concept: normalizedConcept,
+            }),
+          );
+          continue;
+        }
 
         matches.push(
           normalizeSyncedDatabaseGlossaryMatch({
@@ -1065,12 +1113,12 @@ export class NativeGlossary extends Glossary {
             glossaryId: hit.glossaryId,
             glossaryName: hit.glossaryName,
             sourceTerm: hit.matchedSourceTerm,
-            targetTerm: preferredTarget.text,
+            targetTerm: "",
             sourceLocale,
             targetLocale,
             description: concept.definition || null,
-            forbidden: sourceStatus.forbidden || targetStatus.forbidden,
-            preferred: targetStatus.preferred,
+            forbidden: sourceStatus.forbidden,
+            preferred: false,
             caseSensitive: hit.caseSensitive ?? false,
             rank: hit.rank || 1,
             providerKind: null,
@@ -1082,6 +1130,15 @@ export class NativeGlossary extends Glossary {
       }
     }
 
-    return matches.toSorted((left, right) => right.rank - left.rank).slice(0, limit);
+    return matches
+      .toSorted((left, right) => {
+        const leftHasExpectedTarget = hasGlossaryExpectedTarget(left);
+        const rightHasExpectedTarget = hasGlossaryExpectedTarget(right);
+        if (leftHasExpectedTarget !== rightHasExpectedTarget) {
+          return leftHasExpectedTarget ? -1 : 1;
+        }
+        return right.rank - left.rank;
+      })
+      .slice(0, limit);
   }
 }

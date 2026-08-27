@@ -20,7 +20,12 @@ import type {
   CrowdinGlossaryConcordanceSearchResult,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import { mapCrowdinGlossaryConcordanceSearchResult } from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
+import {
+  loadCrowdinConcordanceTranslatableByConceptId,
+  mapCrowdinGlossaryConcordanceSearchResult,
+  resolveCrowdinConcordanceTranslatableFromResult,
+  sortCrowdinConcordanceMatches,
+} from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -690,6 +695,7 @@ export async function searchAttachedCrowdinGlossaryConcordance(input: {
   const limit = input.query.limit ?? 20;
   const sourceLanguageId = toCrowdinGlossaryLanguageId(input.query.sourceLocale);
   const matches: NormalizedGlossaryMatch[] = [];
+  const resultsByTargetLocale = new Map<string, CrowdinGlossaryConcordanceSearchResult[]>();
 
   for (const targetLocale of input.query.targetLocales) {
     const targetLanguageId = toCrowdinGlossaryLanguageId(targetLocale);
@@ -704,6 +710,16 @@ export async function searchAttachedCrowdinGlossaryConcordance(input: {
       continue;
     }
 
+    resultsByTargetLocale.set(targetLocale, results);
+  }
+
+  const allResults = [...resultsByTargetLocale.values()].flat();
+  const translatableByConceptId = await loadCrowdinConcordanceTranslatableByConceptId({
+    client,
+    results: allResults,
+  });
+
+  for (const [targetLocale, results] of resultsByTargetLocale) {
     for (const [index, result] of results.entries()) {
       const glossary = glossariesByCrowdinId.get(result.glossary.id);
       if (!glossary) {
@@ -718,6 +734,10 @@ export async function searchAttachedCrowdinGlossaryConcordance(input: {
         sourceLocale: input.query.sourceLocale,
         targetLocale,
         stableTermIdGlossaryKey: glossary.id,
+        translatable: resolveCrowdinConcordanceTranslatableFromResult(
+          result,
+          translatableByConceptId,
+        ),
       });
       if (match) {
         matches.push(match);
@@ -725,5 +745,5 @@ export async function searchAttachedCrowdinGlossaryConcordance(input: {
     }
   }
 
-  return matches.toSorted((left, right) => right.rank - left.rank).slice(0, limit);
+  return sortCrowdinConcordanceMatches(matches, limit);
 }
