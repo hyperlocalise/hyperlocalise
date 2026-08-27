@@ -86,9 +86,10 @@ function HeroSignal({
   title: React.ReactNode;
   description: React.ReactNode;
 }) {
+  const reduced = useReducedMotion();
   return (
     <motion.div
-      variants={itemVariants}
+      variants={reduced ? staticVariants : itemVariants}
       className="flex items-center gap-3 rounded-lg border border-primary/30 bg-background/75 px-3 py-2 backdrop-blur-md"
     >
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/8 text-primary">
@@ -133,7 +134,7 @@ export function KnowledgeHero({
               nativeButton={false}
               render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
             >
-              Request a Demo
+              <FormattedMessage {...knowledgeMockMessages.requestDemo} />
               <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
             </Button>
           </Reveal>
