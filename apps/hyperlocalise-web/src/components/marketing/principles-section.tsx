@@ -14,26 +14,24 @@
  */
 import { FormattedMessage } from "react-intl";
 
-import { TypographyH2 } from "@/components/ui/typography";
+import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
-import { HeroFrameMeshStage } from "./hero-frame-mesh-stage";
+import { ContentOpsMockStage } from "./content-ops/content-ops-mock-stage";
 import { principlesSectionMessages } from "./principles-section.messages";
 
 export function PrinciplesSection() {
   return (
     <section id="overview">
-      <div className="max-w-5xl">
+      <div className="max-w-3xl space-y-4">
         <TypographyH2>
-          <FormattedMessage
-            {...principlesSectionMessages.headline}
-            values={{
-              muted: (chunks) => <span className="text-muted-foreground">{chunks}</span>,
-            }}
-          />
+          <FormattedMessage {...principlesSectionMessages.headline} />
         </TypographyH2>
+        <TypographyP className="text-lg text-muted-foreground">
+          <FormattedMessage {...principlesSectionMessages.subline} />
+        </TypographyP>
       </div>
 
-      <HeroFrameMeshStage className="mt-12 sm:mt-16" />
+      <ContentOpsMockStage className="mt-12 sm:mt-16" priority />
     </section>
   );
 }
