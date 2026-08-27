@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { visualWorkflowDemoDraft } from "./demo-draft";
 import { createDefaultConfig } from "./node-catalog";
 import { fromCanonicalDraft, toCanonicalDraft } from "./to-canonical-draft";
 import { validateMockWorkflow } from "./validate-mock-workflow";
@@ -89,6 +90,13 @@ describe("validateMockWorkflow", () => {
       [],
     );
     expect(issues.map((issue) => issue.code)).toEqual(["multiple_triggers", "orphan_node"]);
+  });
+
+  it("accepts the shipped sample graph", () => {
+    expect(
+      validateMockWorkflow(visualWorkflowDemoDraft.nodes, visualWorkflowDemoDraft.edges),
+    ).toEqual([]);
+    expect(visualWorkflowDemoDraft.name).toBe("Lead ping");
   });
 
   it("accepts a connected trigger to http graph", () => {

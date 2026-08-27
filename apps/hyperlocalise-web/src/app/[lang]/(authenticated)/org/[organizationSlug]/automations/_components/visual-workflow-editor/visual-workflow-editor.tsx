@@ -29,6 +29,7 @@ import {
   getVisualNodeDimensions,
   isTriggerType,
 } from "@/lib/visual-workflows/mock/node-catalog";
+import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/mock/demo-draft";
 import { toCanonicalDraft } from "@/lib/visual-workflows/mock/to-canonical-draft";
 import type {
   MockNodeRunStatus,
@@ -46,7 +47,6 @@ import {
 } from "./visual-workflow-canvas-actions";
 import { VisualWorkflowChrome } from "./visual-workflow-chrome";
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
-import { visualWorkflowDemoDraft } from "./visual-workflow-editor.fixture";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 
