@@ -36,6 +36,26 @@ function parsePatchPath(value: string) {
   return normalizeWorkspacePath(stripDiffPathPrefix(path));
 }
 
+const DISALLOWED_GIT_FILE_MODE = "120000|160000";
+const GIT_MODE_HEADER = new RegExp(
+  `^(?:old mode|new mode|new file mode|deleted file mode)\\s+0*(?:${DISALLOWED_GIT_FILE_MODE})\\s*$`,
+);
+const GIT_INDEX_MODE = new RegExp(
+  `^index\\s+[0-9a-f]+\\.\\.[0-9a-f]+\\s+0*(?:${DISALLOWED_GIT_FILE_MODE})\\s*$`,
+  "i",
+);
+
+/** Reject git symlink (120000) and submodule/gitlink (160000) modes before `git apply`. */
+export function disallowedGitFileModeError(patch: string): string | undefined {
+  for (const rawLine of patch.split("\n")) {
+    const line = rawLine.replace(/\r$/, "");
+    if (GIT_MODE_HEADER.test(line) || GIT_INDEX_MODE.test(line)) {
+      return "Patch must not create or modify symbolic links or git submodules.";
+    }
+  }
+  return undefined;
+}
+
 function extractPatchPaths(patch: string): { paths: string[]; error?: string } {
   const paths = new Set<string>();
 
@@ -71,6 +91,7 @@ WHEN NOT TO USE:
 
 IMPORTANT:
 - The patch is validated with git apply --check before it is applied
+- Symbolic links and git submodules (modes 120000 and 160000) are rejected
 - This is a repository write action and may be denied by workspace policy`,
     inputSchema: applyPatchInputSchema,
     execute: async ({ patch }) => {
@@ -87,6 +108,11 @@ IMPORTANT:
 
       if (!patch.trim()) {
         return { success: false as const, error: "Patch is empty." };
+      }
+
+      const modeError = disallowedGitFileModeError(patch);
+      if (modeError) {
+        return { success: false as const, error: modeError };
       }
 
       const { paths, error } = extractPatchPaths(patch);

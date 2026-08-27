@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-import { createApplyPatchTool } from "./apply-patch";
+import { createApplyPatchTool, disallowedGitFileModeError } from "./apply-patch";
 import { createWriteTool } from "./write";
 import type { RepoToolContext } from "./types";
 
@@ -153,5 +153,82 @@ describe("createApplyPatchTool", () => {
       error: "Patch contains a path outside the workspace.",
     });
     expect(writeWorkspaceFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects git symlink and submodule file modes before writing the patch", async () => {
+    const { exec, repo, writeWorkspaceFile } = createRepoContext();
+    const applyPatch = createApplyPatchTool(createWriteContext(), repo);
+    const symlinkPatch = [
+      "diff --git a/playwright b/playwright",
+      "new file mode 120000",
+      "index 0000000..2aae6c3",
+      "--- /dev/null",
+      "+++ b/playwright",
+      "@@ -0,0 +1 @@",
+      "+/tmp/hyperlocalise-browser-runtime/node_modules/playwright",
+      "",
+    ].join("\n");
+
+    const result = await applyPatch.execute!({ patch: symlinkPatch }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Patch must not create or modify symbolic links or git submodules.",
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("rejects index-line symlink modes and submodule gitlinks", () => {
+    expect(
+      disallowedGitFileModeError(
+        [
+          "diff --git a/link b/link",
+          "index 1111111..2222222 120000",
+          "--- a/link",
+          "+++ b/link",
+          "@@ -1 +1 @@",
+          "-/old",
+          "+/tmp/hyperlocalise-browser-runtime",
+          "",
+        ].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+
+    expect(
+      disallowedGitFileModeError(
+        [
+          "diff --git a/vendor/lib b/vendor/lib",
+          "new file mode 160000",
+          "index 0000000..abcdef1",
+          "--- /dev/null",
+          "+++ b/vendor/lib",
+          "@@ -0,0 +1 @@",
+          "+Subproject commit abcdef1",
+          "",
+        ].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+
+    expect(
+      disallowedGitFileModeError(
+        ["old mode 100644", "new mode 120000", "--- a/src/app.tsx", "+++ b/src/app.tsx"].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+  });
+
+  it("does not treat file content that mentions git modes as a symlink patch", () => {
+    const patch = [
+      "diff --git a/README.md b/README.md",
+      "index 1111111..2222222 100644",
+      "--- a/README.md",
+      "+++ b/README.md",
+      "@@ -1 +1,2 @@",
+      " docs",
+      "+new file mode 120000",
+      "",
+    ].join("\n");
+
+    expect(disallowedGitFileModeError(patch)).toBeUndefined();
   });
 });

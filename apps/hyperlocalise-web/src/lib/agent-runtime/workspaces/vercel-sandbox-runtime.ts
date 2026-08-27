@@ -133,8 +133,68 @@ function extractVercelSandboxErrorDetails(error: unknown) {
   };
 }
 
+export const SANDBOX_WRITE_SYMLINK_DENIED = 42;
+export const SANDBOX_WRITE_PATH_INVALID = 43;
+export const SANDBOX_WRITE_OUTSIDE_WORKSPACE = 44;
+export const SANDBOX_WRITE_ROOT_UNAVAILABLE = 45;
+
 function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+/**
+ * Write only after the destination canonicalizes inside `pwd -P`.
+ * Rejects leaf or parent-path symlinks so planted or applyPatch-created
+ * links cannot escape the workspace.
+ */
+export function buildSandboxWriteFileScript(path: string, base64Content: string): string {
+  return [
+    "set -euo pipefail",
+    `target=${shellQuote(path)}`,
+    `encoded=${shellQuote(base64Content)}`,
+    "root=$(pwd -P)",
+    `if [ -z "$root" ]; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
+    `if [ -z "$target" ]; then exit ${SANDBOX_WRITE_PATH_INVALID}; fi`,
+    `if [ -L "$target" ]; then exit ${SANDBOX_WRITE_SYMLINK_DENIED}; fi`,
+    'case "$target" in',
+    "  /*) dest=$target ;;",
+    "  *) dest=$root/$target ;;",
+    "esac",
+    `if ! command -v realpath >/dev/null 2>&1; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
+    'resolved=$(realpath -m -- "$dest")',
+    'case "$resolved" in',
+    `  "$root"|"$root"/*) ;;`,
+    `  *) exit ${SANDBOX_WRITE_OUTSIDE_WORKSPACE} ;;`,
+    "esac",
+    "remaining=$target",
+    "current=.",
+    // Relative paths only: walk each component and refuse any symlink.
+    'if [ "${target#/}" = "$target" ]; then',
+    '  while [ -n "$remaining" ]; do',
+    '    case "$remaining" in',
+    "      */*)",
+    "        component=${remaining%%/*}",
+    "        remaining=${remaining#*/}",
+    "        ;;",
+    "      *)",
+    "        component=$remaining",
+    "        remaining=",
+    "        ;;",
+    "    esac",
+    '    [ -n "$component" ] || continue',
+    '    [ "$component" = "." ] && continue',
+    `    if [ "$component" = ".." ]; then exit ${SANDBOX_WRITE_OUTSIDE_WORKSPACE}; fi`,
+    '    if [ "$current" = "." ]; then',
+    "      current=$component",
+    "    else",
+    "      current=$current/$component",
+    "    fi",
+    `    if [ -L "$current" ]; then exit ${SANDBOX_WRITE_SYMLINK_DENIED}; fi`,
+    "  done",
+    "fi",
+    'mkdir -p -- "$(dirname -- "$resolved")"',
+    'printf %s "$encoded" | base64 -d > "$resolved"',
+  ].join("\n");
 }
 
 export class VercelSandboxRuntime implements WorkspaceRuntime {
@@ -205,8 +265,14 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     const encoded = Buffer.from(content).toString("base64");
     const result = await this.runCommand("bash", [
       "-lc",
-      `mkdir -p "$(dirname ${shellQuote(path)})" && printf %s ${shellQuote(encoded)} | base64 -d > ${shellQuote(path)}`,
+      buildSandboxWriteFileScript(path, encoded),
     ]);
+    if (result.exitCode === SANDBOX_WRITE_SYMLINK_DENIED) {
+      throw new Error("Symlink writes are not allowed.");
+    }
+    if (result.exitCode === SANDBOX_WRITE_OUTSIDE_WORKSPACE) {
+      throw new Error("Path resolves outside the workspace.");
+    }
     if (result.exitCode !== 0) {
       throw new Error(result.output || `Failed to write ${path}`);
     }
