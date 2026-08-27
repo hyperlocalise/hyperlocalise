@@ -25,6 +25,7 @@ export async function loadProjectGlossaryTerms(input: {
   return rows.map((row) => ({
     sourceTerm: row.sourceTerm,
     targetTerm: row.targetTerm,
+    targetLocale: row.targetLocale,
     forbidden: row.forbidden,
     caseSensitive: row.caseSensitive,
   }));

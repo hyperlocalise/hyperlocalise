@@ -48,13 +48,17 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function findGlossaryMatches(text: string, term: ProviderQaGlossaryTerm) {
+function findGlossaryTermMatches(text: string, termText: string, caseSensitive: boolean) {
   // Use a more robust approach for word boundaries that handles non-word characters at the start or end of a term.
   // Specifically, ensure that a match is only valid if it's not preceded or followed by a word character ([a-zA-Z0-9_]).
-  const patternStr = `(?<![a-zA-Z0-9_])${escapeRegExp(term.sourceTerm)}(?![a-zA-Z0-9_])`;
-  const pattern = term.caseSensitive ? new RegExp(patternStr) : new RegExp(patternStr, "i");
+  const patternStr = `(?<![a-zA-Z0-9_])${escapeRegExp(termText)}(?![a-zA-Z0-9_])`;
+  const pattern = caseSensitive ? new RegExp(patternStr) : new RegExp(patternStr, "i");
 
   return pattern.test(text);
+}
+
+function findGlossaryMatches(text: string, term: ProviderQaGlossaryTerm) {
+  return findGlossaryTermMatches(text, term.sourceTerm, term.caseSensitive);
 }
 
 function checkStaleUnchangedTarget(
@@ -128,17 +132,20 @@ function checkGlossaryViolations(
   const findings: ProviderQaFinding[] = [];
 
   for (const term of glossaryTerms) {
-    if (term.forbidden && findGlossaryMatches(targetText, term)) {
-      findings.push(
-        normalizeProviderQaFinding({
-          checkType: "glossary_violation",
-          severity: "error",
-          message: `Forbidden term "${term.sourceTerm}" appears in the target`,
-          suggestedFix: `Remove or replace "${term.sourceTerm}" in the target translation.`,
-          confidence: confidenceForProviderCheckType("glossary_violation"),
-          item: itemRef(unit, { locale, field: "target" }),
-        }),
-      );
+    if (term.forbidden) {
+      const forbiddenText = term.targetTerm.trim();
+      if (forbiddenText && findGlossaryTermMatches(targetText, forbiddenText, term.caseSensitive)) {
+        findings.push(
+          normalizeProviderQaFinding({
+            checkType: "glossary_violation",
+            severity: "error",
+            message: `Forbidden term "${forbiddenText}" appears in the target`,
+            suggestedFix: `Remove or replace "${forbiddenText}" in the target translation.`,
+            confidence: confidenceForProviderCheckType("glossary_violation"),
+            item: itemRef(unit, { locale, field: "target" }),
+          }),
+        );
+      }
       continue;
     }
 
@@ -198,9 +205,10 @@ export function collectSupplementalQaFindings(
       findings.push(lengthExpansion);
     }
 
-    if (glossaryTerms.length > 0) {
+    const localeGlossaryTerms = glossaryTerms.filter((term) => term.targetLocale === locale);
+    if (localeGlossaryTerms.length > 0) {
       findings.push(
-        ...checkGlossaryViolations(unit, locale, sourceText, targetText, glossaryTerms),
+        ...checkGlossaryViolations(unit, locale, sourceText, targetText, localeGlossaryTerms),
       );
     }
   }

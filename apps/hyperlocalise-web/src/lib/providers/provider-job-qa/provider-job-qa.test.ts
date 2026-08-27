@@ -231,6 +231,7 @@ describe("supplemental provider QA checks", () => {
           {
             sourceTerm: "Save",
             targetTerm: "Enregistrer",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },

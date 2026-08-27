@@ -22,7 +22,7 @@ import {
 
 export type { GlossaryTermQueryRow } from "./flatten-native-glossary-pairs";
 
-function groupConceptTerms(
+export function groupConceptTerms(
   rows: Array<{
     id: string;
     conceptId: string;

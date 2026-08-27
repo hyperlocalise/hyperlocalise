@@ -42,6 +42,7 @@ describe("supplemental-checks glossary matching", () => {
           {
             sourceTerm: "Save",
             targetTerm: "Enregistrer",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },
@@ -64,6 +65,7 @@ describe("supplemental-checks glossary matching", () => {
           {
             sourceTerm: "C#",
             targetTerm: "C# (langage)",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },
@@ -86,6 +88,7 @@ describe("supplemental-checks glossary matching", () => {
           {
             sourceTerm: ".NET",
             targetTerm: ".NET Framework",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },
@@ -108,6 +111,7 @@ describe("supplemental-checks glossary matching", () => {
           {
             sourceTerm: "Go!",
             targetTerm: "En avant !",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },
@@ -130,6 +134,7 @@ describe("supplemental-checks glossary matching", () => {
           {
             sourceTerm: "cab",
             targetTerm: "taxi",
+            targetLocale: "fr",
             forbidden: false,
             caseSensitive: false,
           },
@@ -138,5 +143,63 @@ describe("supplemental-checks glossary matching", () => {
     );
 
     expect(findings.some((f) => f.checkType === "glossary_violation")).toBe(false);
+  });
+
+  it("scopes glossary checks to the target locale being evaluated", () => {
+    const findings = collectSupplementalQaFindings(
+      unit({
+        sourceText: "checkout",
+        translations: [
+          { locale: "fr", text: "Paiement" },
+          { locale: "de", text: "Kasse" },
+        ],
+      }),
+      {
+        targetLocales: ["fr", "de"],
+        sourceLocale: "en",
+        glossaryTerms: [
+          {
+            sourceTerm: "checkout",
+            targetTerm: "Paiement",
+            targetLocale: "fr",
+            forbidden: false,
+            caseSensitive: false,
+          },
+          {
+            sourceTerm: "checkout",
+            targetTerm: "Kasse",
+            targetLocale: "de",
+            forbidden: false,
+            caseSensitive: false,
+          },
+        ],
+      },
+    );
+
+    expect(findings).toEqual([]);
+  });
+
+  it("flags forbidden target terms by matching the deprecated target text", () => {
+    const findings = collectSupplementalQaFindings(
+      unit({
+        sourceText: "Proceed to checkout",
+        translations: [{ locale: "fr", text: "Aller a la caisse" }],
+      }),
+      {
+        ...baseOptions,
+        glossaryTerms: [
+          {
+            sourceTerm: "checkout",
+            targetTerm: "caisse",
+            targetLocale: "fr",
+            forbidden: true,
+            caseSensitive: false,
+          },
+        ],
+      },
+    );
+
+    expect(findings.some((finding) => finding.checkType === "glossary_violation")).toBe(true);
+    expect(findings.some((finding) => finding.message.includes("caisse"))).toBe(true);
   });
 });

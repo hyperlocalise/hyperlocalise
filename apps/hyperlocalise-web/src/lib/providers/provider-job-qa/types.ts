@@ -59,6 +59,7 @@ export type ProviderQaReport = {
 export type ProviderQaGlossaryTerm = {
   sourceTerm: string;
   targetTerm: string;
+  targetLocale: string;
   forbidden: boolean;
   caseSensitive: boolean;
 };
