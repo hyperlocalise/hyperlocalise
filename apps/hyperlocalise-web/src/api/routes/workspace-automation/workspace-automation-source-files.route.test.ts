@@ -151,7 +151,7 @@ describe("workspace automation source files", () => {
       automationId: created.automation.id,
       organizationId,
       projectId,
-      sourceFileId: version.repositorySourceFileId,
+      sourceFileId: version.storedFileId,
       sourceFileVersionId: version.id,
       sourcePath: "locales/en.json",
       sourceHash: "hash-en",
