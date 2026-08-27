@@ -97,52 +97,93 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
       const glossarySourceTerms = alias(schema.glossaryTerms, "glossary_source_terms");
       const glossaryTargetTerms = alias(schema.glossaryTerms, "glossary_target_terms");
 
-      const conditions = [
+      const sharedConditions = [
         sql`${glossarySourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
         await toolProjectLinkedGlossaryWhere(ctx),
         eq(schema.glossaries.sourceLocale, sourceLocale),
         eq(schema.glossaries.status, "active"),
         eq(schema.glossaries.source, "native"),
         eq(glossarySourceTerms.locale, sourceLocale),
-        eq(glossaryTargetTerms.locale, targetLocale),
         isNotNull(glossarySourceTerms.conceptId),
         isNotNull(glossarySourceTerms.term),
-        isNotNull(glossaryTargetTerms.term),
         eq(glossarySourceTerms.reviewStatus, "approved"),
-        eq(glossaryTargetTerms.reviewStatus, "approved"),
       ];
 
       if (glossaryIds) {
-        conditions.push(inArray(glossarySourceTerms.glossaryId, glossaryIds));
+        sharedConditions.push(inArray(glossarySourceTerms.glossaryId, glossaryIds));
       }
 
-      const terms = await db
-        .select({
-          id: glossaryTargetTerms.id,
-          sourceTerm: sql<string>`${glossarySourceTerms.term}`,
-          targetTerm: sql<string>`${glossaryTargetTerms.term}`,
-          description: glossarySourceTerms.description,
-          partOfSpeech: glossarySourceTerms.partOfSpeech,
-          caseSensitive: glossarySourceTerms.caseSensitive,
-          forbidden: glossarySourceTerms.forbidden,
-          glossaryId: glossarySourceTerms.glossaryId,
-          glossaryName: schema.glossaries.name,
-          rank: sql<number>`ts_rank(${glossarySourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
+      const rank =
+        sql<number>`ts_rank(${glossarySourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+          "rank",
+        );
+
+      const [translatableTerms, nonTranslatableTerms] = await Promise.all([
+        db
+          .select({
+            id: glossaryTargetTerms.id,
+            sourceTerm: sql<string>`${glossarySourceTerms.term}`,
+            targetTerm: sql<string>`${glossaryTargetTerms.term}`,
+            description: glossarySourceTerms.description,
+            partOfSpeech: glossarySourceTerms.partOfSpeech,
+            caseSensitive: glossarySourceTerms.caseSensitive,
+            forbidden: glossarySourceTerms.forbidden,
+            glossaryId: glossarySourceTerms.glossaryId,
+            glossaryName: schema.glossaries.name,
+            rank,
+          })
+          .from(glossarySourceTerms)
+          .innerJoin(
+            glossaryTargetTerms,
+            and(
+              eq(glossarySourceTerms.glossaryId, glossaryTargetTerms.glossaryId),
+              eq(glossarySourceTerms.conceptId, glossaryTargetTerms.conceptId),
+            ),
+          )
+          .innerJoin(
+            schema.glossaryConcepts,
+            and(
+              eq(schema.glossaryConcepts.id, glossarySourceTerms.conceptId),
+              eq(schema.glossaryConcepts.translatable, true),
+            ),
+          )
+          .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
+          .where(
+            and(
+              ...sharedConditions,
+              eq(glossaryTargetTerms.locale, targetLocale),
+              isNotNull(glossaryTargetTerms.term),
+              eq(glossaryTargetTerms.reviewStatus, "approved"),
+            ),
           ),
-        })
-        .from(glossarySourceTerms)
-        .innerJoin(
-          glossaryTargetTerms,
-          and(
-            eq(glossarySourceTerms.glossaryId, glossaryTargetTerms.glossaryId),
-            eq(glossarySourceTerms.conceptId, glossaryTargetTerms.conceptId),
-          ),
-        )
-        .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
-        .where(and(...conditions))
-        .orderBy(desc(sql`rank`))
-        .limit(limit);
+        db
+          .select({
+            id: glossarySourceTerms.id,
+            sourceTerm: sql<string>`${glossarySourceTerms.term}`,
+            targetTerm: sql<string>`${glossarySourceTerms.term}`,
+            description: glossarySourceTerms.description,
+            partOfSpeech: glossarySourceTerms.partOfSpeech,
+            caseSensitive: glossarySourceTerms.caseSensitive,
+            forbidden: glossarySourceTerms.forbidden,
+            glossaryId: glossarySourceTerms.glossaryId,
+            glossaryName: schema.glossaries.name,
+            rank,
+          })
+          .from(glossarySourceTerms)
+          .innerJoin(
+            schema.glossaryConcepts,
+            and(
+              eq(schema.glossaryConcepts.id, glossarySourceTerms.conceptId),
+              eq(schema.glossaryConcepts.translatable, false),
+            ),
+          )
+          .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
+          .where(and(...sharedConditions)),
+      ]);
+
+      const terms = [...translatableTerms, ...nonTranslatableTerms]
+        .toSorted((left, right) => right.rank - left.rank)
+        .slice(0, limit);
 
       return {
         terms: terms.map((t) => ({

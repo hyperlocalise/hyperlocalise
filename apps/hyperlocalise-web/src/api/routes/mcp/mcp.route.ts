@@ -22,6 +22,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
+import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   buildAccessibleProjectsWhere,
@@ -431,7 +432,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         };
       }
 
-      const entries = await db
+      const rows = await db
         .select({
           id: schema.glossaryTerms.id,
           conceptId: schema.glossaryTerms.conceptId,
@@ -439,6 +440,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           term: schema.glossaryTerms.term,
           description: schema.glossaryTerms.description,
           partOfSpeech: schema.glossaryTerms.partOfSpeech,
+          status: schema.glossaryTerms.status,
           forbidden: schema.glossaryTerms.forbidden,
         })
         .from(schema.glossaryTerms)
@@ -451,6 +453,17 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         )
         .orderBy(schema.glossaryTerms.term)
         .limit(limit);
+
+      const entries = rows.map((row) => ({
+        id: row.id,
+        conceptId: row.conceptId,
+        locale: row.locale,
+        term: row.term,
+        description: row.description,
+        partOfSpeech: row.partOfSpeech,
+        status: row.status,
+        forbidden: row.forbidden || normalizedGlossaryTermStatusFromStatus(row.status).forbidden,
+      }));
 
       return {
         content: [{ type: "text", text: JSON.stringify({ entries }, null, 2) }],
