@@ -144,9 +144,15 @@ describe("searchAttachedCrowdinGlossaryConcordance", () => {
     });
 
     expect(mocks.glossaryConcordanceSearch).toHaveBeenCalledTimes(2);
-    expect(matches).toHaveLength(2);
+    expect(matches).toHaveLength(4);
     expect(matches.map((match) => match.glossaryId)).toEqual(
-      expect.arrayContaining(["crowdin:glossary:718785", "crowdin:glossary:900001"]),
+      expect.arrayContaining([
+        "crowdin:glossary:718785",
+        "crowdin:glossary:900001",
+        "crowdin:glossary:718785",
+        "crowdin:glossary:900001",
+      ]),
     );
+    expect(new Set(matches.map((match) => match.targetLocale))).toEqual(new Set(["fr", "de"]));
   });
 });

@@ -38,7 +38,7 @@ function ConceptCardStoryHost({ concept }: { concept: CatGlossaryConcept }) {
 
 const meta = {
   title: "CAT/Glossary Concept Card",
-  component: CatGlossaryConceptCard,
+  component: ConceptCardStoryHost,
   parameters: {
     layout: "centered",
   },
@@ -49,13 +49,18 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof CatGlossaryConceptCard>;
+  args: {
+    concept: matchedGlossaryConceptFixture,
+  },
+} satisfies Meta<typeof ConceptCardStoryHost>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const MatchedConcept: Story = {
-  render: () => <ConceptCardStoryHost concept={matchedGlossaryConceptFixture} />,
+  args: {
+    concept: matchedGlossaryConceptFixture,
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Reseller")).toBeInTheDocument();
     await expect(canvas.getByText("Đại lý")).toBeInTheDocument();
@@ -69,7 +74,9 @@ export const MatchedConcept: Story = {
 };
 
 export const UntranslatableConcept: Story = {
-  render: () => <ConceptCardStoryHost concept={untranslatableGlossaryConceptFixture} />,
+  args: {
+    concept: untranslatableGlossaryConceptFixture,
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByText("Untranslatable")).toBeInTheDocument();
@@ -83,7 +90,9 @@ export const UntranslatableConcept: Story = {
 };
 
 export const SourceOnlyConcept: Story = {
-  render: () => <ConceptCardStoryHost concept={sourceOnlyGlossaryConceptFixture} />,
+  args: {
+    concept: sourceOnlyGlossaryConceptFixture,
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Dashboard")).toBeInTheDocument();
     await expect(canvas.getByText("Draft")).toBeInTheDocument();
@@ -96,7 +105,9 @@ export const SourceOnlyConcept: Story = {
 };
 
 export const PrimaryTermFallback: Story = {
-  render: () => <ConceptCardStoryHost concept={primaryTermFallbackGlossaryConceptFixture} />,
+  args: {
+    concept: primaryTermFallbackGlossaryConceptFixture,
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("API")).toBeInTheDocument();
     await expect(canvas.getByText("Draft")).toBeInTheDocument();
