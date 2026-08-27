@@ -1,9 +1,18 @@
 # syntax=docker/dockerfile:1
 # Go container service build. Build context is the repository root.
+#
+# Use a Debian/glibc builder so the cgo_hunspell wrapper can build
+# against Hunspell's development headers and pkg-config metadata.
 
-FROM golang:1.27.0-alpine AS builder
+FROM golang:1.27.0-bookworm AS builder
 WORKDIR /repo
-RUN apk add --no-cache git ca-certificates
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates=20250419~deb12u1 \
+        git=1:2.39.5-0+deb12u3 \
+        libhunspell-dev=1.7.1-1 \
+        pkg-config=1.8.1-1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
 COPY third_party ./third_party
@@ -11,6 +20,9 @@ COPY internal/i18n ./internal/i18n
 COPY apps/go-svc ./apps/go-svc
 
 RUN go mod download
+
+RUN CGO_ENABLED=1 GOOS=linux go build -tags cgo_hunspell -o /dev/null ./apps/go-svc/internal/hunspell
+
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /service ./apps/go-svc
 
 FROM gcr.io/distroless/static-debian12:nonroot
