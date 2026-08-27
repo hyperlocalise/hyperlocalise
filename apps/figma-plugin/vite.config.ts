@@ -22,6 +22,11 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
   root: srcDir,
+  define: {
+    HYPERLOCALISE_APP_URL: JSON.stringify(
+      process.env.HYPERLOCALISE_APP_URL ?? "https://app.hyperlocalise.com",
+    ),
+  },
   plugins: [react(), viteSingleFile()],
   resolve: {
     alias: {

@@ -1,7 +1,7 @@
 {
   "name": "figma-plugin",
   "private": true,
-  "description": "Figma text translation plugin template (placeholder)",
+  "description": "Figma plugin for Hyperlocalise OAuth, text extraction, and translation jobs",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "build": "vp build && vp build --config vite.code.config.ts",

@@ -1,92 +1,181 @@
-import { convertWordsToLorem } from "./lorem_generator";
+import type { FigmaFileInfo, SandboxToUiMessage, UiToSandboxMessage } from "./plugin-messages";
+import { SETTINGS_STORAGE_KEY } from "./plugin-messages";
+import { createFigmaSegment } from "./segment-file";
+import { mergeSettings } from "./settings";
 
-type TranslateMode = "with-formatting" | "without-formatting";
+figma.showUI(__html__, { themeColors: true, width: 360, height: 620 });
 
-type PluginMessage = { type: "translate"; mode: TranslateMode } | { type: "cancel" };
+figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
+    try {
+        if (msg.type === "cancel") {
+            figma.closePlugin();
+            return;
+        }
 
-figma.showUI(__html__, { themeColors: true, width: 320, height: 360 });
+        if (msg.type === "boot") {
+            const settings = mergeSettings(await figma.clientStorage.getAsync(SETTINGS_STORAGE_KEY));
+            postToUi({ type: "ready", settings, file: currentFileInfo() });
+            return;
+        }
 
-figma.ui.onmessage = async (msg: PluginMessage) => {
-  if (msg.type === "cancel") {
-    figma.closePlugin();
-    return;
-  }
+        if (msg.type === "storage-set") {
+            await figma.clientStorage.setAsync(SETTINGS_STORAGE_KEY, msg.settings);
+            return;
+        }
 
-  if (msg.type !== "translate") {
-    return;
-  }
+        if (msg.type === "extract") {
+            const textNodes = collectTextNodes();
+            const segments = extractSegments(textNodes, msg.preserveFormatting);
+            postToUi({ type: "extracted", segments, file: currentFileInfo() });
+            return;
+        }
 
-  const textNodes = figma.currentPage.findAll((node) => node.type === "TEXT") as TextNode[];
-
-  if (msg.mode === "without-formatting") {
-    await translateWithoutFormatting(textNodes);
-  } else {
-    await translateWithFormatting(textNodes);
-  }
-
-  figma.ui.postMessage({ type: "done" });
+        if (msg.type === "apply") {
+            const textNodes = collectTextNodes();
+            const count = await applyTranslations(textNodes, msg.translations, msg.preserveFormatting);
+            postToUi({ type: "applied", count });
+        }
+    } catch (error) {
+        postToUi({
+            type: "error",
+            message: error instanceof Error ? error.message : "Figma plugin action failed.",
+        });
+    }
 };
 
-async function translateWithoutFormatting(nodes: TextNode[]) {
-  for (const node of nodes) {
-    if (!node.characters.trim()) {
-      continue;
-    }
-
-    await loadFontsForNode(node);
-    const translated = await getTranslation([[node.characters]]);
-    const nextText = translated[0]?.[0];
-    if (nextText) {
-      node.characters = nextText;
-    }
-  }
+function postToUi(message: SandboxToUiMessage) {
+    figma.ui.postMessage(message);
 }
 
-async function translateWithFormatting(nodes: TextNode[]) {
-  for (const node of nodes) {
-    if (!node.characters.trim()) {
-      continue;
+function currentFileInfo(): FigmaFileInfo {
+    return {
+        fileKey: figma.fileKey ?? "local-file",
+        fileName: figma.root.name,
+        pageId: figma.currentPage.id,
+        pageName: figma.currentPage.name,
+    };
+}
+
+function collectTextNodes(): TextNode[] {
+    const selected = figma.currentPage.selection.flatMap((node) => {
+        if (node.type === "TEXT") {
+            return [node];
+        }
+        if ("findAll" in node) {
+            return node.findAll((child) => child.type === "TEXT") as TextNode[];
+        }
+        return [];
+    });
+
+    if (selected.length > 0) {
+        return selected;
     }
 
-    await loadFontsForNode(node);
+    return figma.currentPage.findAll((node) => node.type === "TEXT") as TextNode[];
+}
 
-    const segments = node.getStyledTextSegments(["fontName"]);
-    const request = segments.map((segment) => [segment.characters]);
-    const response = await getTranslation(request);
+function extractSegments(nodes: TextNode[], preserveFormatting: boolean) {
+    const segments = [];
 
-    for (let index = segments.length - 1; index >= 0; index--) {
-      const segment = segments[index];
-      const translatedText = response[index]?.[0];
-      if (!segment || !translatedText || translatedText === segment.characters) {
-        continue;
-      }
+    for (const node of nodes) {
+        if (!node.characters.trim()) {
+            continue;
+        }
 
-      const fontName = segment.fontName;
+        if (!preserveFormatting) {
+            segments.push(
+                createFigmaSegment({
+                    nodeId: node.id,
+                    regionIndex: 0,
+                    text: node.characters,
+                }),
+            );
+            continue;
+        }
 
-      node.deleteCharacters(segment.start, segment.end);
-      node.insertCharacters(segment.start, translatedText);
-      await figma.loadFontAsync(fontName);
-      node.setRangeFontName(segment.start, segment.start + translatedText.length, fontName);
+        const styled = node.getStyledTextSegments(["fontName"]);
+        styled.forEach((segment, regionIndex) => {
+            if (!segment.characters.trim()) {
+                return;
+            }
+            segments.push(
+                createFigmaSegment({
+                    nodeId: node.id,
+                    regionIndex,
+                    text: segment.characters,
+                }),
+            );
+        });
     }
-  }
+
+    return segments;
+}
+
+async function applyTranslations(
+    nodes: TextNode[],
+    translations: Record<string, string>,
+    preserveFormatting: boolean,
+) {
+    let applied = 0;
+
+    for (const node of nodes) {
+        if (!node.characters.trim()) {
+            continue;
+        }
+
+        await loadFontsForNode(node);
+
+        if (!preserveFormatting) {
+            const nextText = translations[createFigmaSegment({
+                nodeId: node.id,
+                regionIndex: 0,
+                text: node.characters,
+            }).key];
+            if (!nextText || nextText === node.characters) {
+                continue;
+            }
+            node.characters = nextText;
+            applied += 1;
+            continue;
+        }
+
+        const styled = node.getStyledTextSegments(["fontName"]);
+        for (let index = styled.length - 1; index >= 0; index -= 1) {
+            const segment = styled[index];
+            if (!segment) {
+                continue;
+            }
+            const nextText = translations[createFigmaSegment({
+                nodeId: node.id,
+                regionIndex: index,
+                text: segment.characters,
+            }).key];
+            if (!nextText || nextText === segment.characters) {
+                continue;
+            }
+
+            node.deleteCharacters(segment.start, segment.end);
+            node.insertCharacters(segment.start, nextText);
+            await figma.loadFontAsync(segment.fontName);
+            node.setRangeFontName(segment.start, segment.start + nextText.length, segment.fontName);
+            applied += 1;
+        }
+    }
+
+    return applied;
 }
 
 async function loadFontsForNode(node: TextNode) {
-  if (node.fontName !== figma.mixed) {
-    await figma.loadFontAsync(node.fontName);
-    return;
-  }
-
-  const length = node.characters.length;
-  for (let index = 0; index < length; index++) {
-    const fontName = node.getRangeFontName(index, index + 1);
-    if (fontName !== figma.mixed) {
-      await figma.loadFontAsync(fontName);
+    if (node.fontName !== figma.mixed) {
+        await figma.loadFontAsync(node.fontName);
+        return;
     }
-  }
-}
 
-async function getTranslation(text: string[][]): Promise<string[][]> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return text.map((row) => convertWordsToLorem(row));
+    const length = node.characters.length;
+    for (let index = 0; index < length; index += 1) {
+        const fontName = node.getRangeFontName(index, index + 1);
+        if (fontName !== figma.mixed) {
+            await figma.loadFontAsync(fontName);
+        }
+    }
 }

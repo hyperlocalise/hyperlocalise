@@ -1,12 +1,17 @@
 {
   "name": "Hyperlocalise",
-  "id": "hyperlocalise-figma-placeholder",
+  "id": "hyperlocalise-figma-plugin",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": ["none"]
+    "allowedDomains": [
+      "https://app.hyperlocalise.com",
+      "https://*.hyperlocalise.com"
+    ],
+    "reasoning": "Sign in with Hyperlocalise OAuth and create, generate, and pull translation jobs.",
+    "devAllowedDomains": ["http://localhost:3000"]
   }
 }
