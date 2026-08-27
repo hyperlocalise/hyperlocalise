@@ -27,7 +27,10 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 import { Glossary } from "./glossary";
 import { NativeGlossary } from "./native-glossary";
 import { queryNativeGlossaryTermCounts } from "./query-glossary-term-counts";
-import { listGlossaryTermsForProject } from "./query-glossary-terms";
+import {
+  listGlossaryTermsForProject,
+  resolveProjectGlossarySourceLocale,
+} from "./query-glossary-terms";
 
 const createdOrganizationIds = new Set<string>();
 
@@ -535,6 +538,74 @@ describe("listGlossaryTermsForProject", () => {
       highPriorityGlossary.id,
       lowPriorityGlossary.id,
     ]);
+  });
+
+  it("caps flattened pairs when maxPairs is provided", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Alpha",
+      sourceTerm: "alpha",
+      targetTerm: "alpha-fr",
+    });
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Beta",
+      sourceTerm: "beta",
+      targetTerm: "beta-fr",
+    });
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      maxPairs: 1,
+    });
+
+    expect(terms).toHaveLength(1);
+  });
+});
+
+describe("resolveProjectGlossarySourceLocale", () => {
+  it("falls back to the project source locale when provider content omits it", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "de" })
+      .where(inArray(schema.projects.id, [project.id]));
+
+    await expect(
+      resolveProjectGlossarySourceLocale({
+        organizationId: organization.id,
+        projectId: project.id,
+        contentSourceLocale: null,
+      }),
+    ).resolves.toBe("de");
+  });
+
+  it("prefers the provider content source locale when present", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "de" })
+      .where(inArray(schema.projects.id, [project.id]));
+
+    await expect(
+      resolveProjectGlossarySourceLocale({
+        organizationId: organization.id,
+        projectId: project.id,
+        contentSourceLocale: "en",
+      }),
+    ).resolves.toBe("en");
   });
 });
 

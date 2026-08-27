@@ -10,17 +10,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { listGlossaryTermsForProject } from "@/lib/glossary/query-glossary-terms";
+import {
+  listGlossaryTermsForProject,
+  resolveProjectGlossarySourceLocale,
+} from "@/lib/glossary/query-glossary-terms";
 
 import type { ProviderQaGlossaryTerm } from "./types";
 
 export async function loadProjectGlossaryTerms(input: {
   organizationId: string;
   projectId: string;
-  sourceLocale: string;
+  sourceLocale?: string | null;
   targetLocales: string[];
 }): Promise<ProviderQaGlossaryTerm[]> {
-  const rows = await listGlossaryTermsForProject(input);
+  const sourceLocale = await resolveProjectGlossarySourceLocale({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    contentSourceLocale: input.sourceLocale,
+  });
+  const rows = await listGlossaryTermsForProject({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale,
+    targetLocales: input.targetLocales,
+  });
 
   return rows.map((row) => ({
     sourceTerm: row.sourceTerm,

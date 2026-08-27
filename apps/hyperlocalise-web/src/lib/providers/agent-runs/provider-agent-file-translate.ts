@@ -32,7 +32,10 @@ import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
-import { listGlossaryTermsForProject } from "@/lib/glossary/query-glossary-terms";
+import {
+  listGlossaryTermsForProject,
+  FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+} from "@/lib/glossary/query-glossary-terms";
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
@@ -59,6 +62,7 @@ async function loadFileGlossaryTerms(input: {
     projectId: input.projectId,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
+    maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
   });
 
   return attachedTerms

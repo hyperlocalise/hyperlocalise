@@ -22,6 +22,33 @@ import {
 
 export type { GlossaryTermQueryRow } from "./flatten-native-glossary-pairs";
 
+/** Upper bound for file-translation glossary context before source-text filtering. */
+export const FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT = 500;
+
+export async function resolveProjectGlossarySourceLocale(input: {
+  organizationId: string;
+  projectId: string;
+  contentSourceLocale?: string | null;
+}): Promise<string> {
+  const trimmedContentLocale = input.contentSourceLocale?.trim();
+  if (trimmedContentLocale) {
+    return trimmedContentLocale;
+  }
+
+  const [project] = await db
+    .select({ sourceLocale: schema.projects.sourceLocale })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  return project?.sourceLocale?.trim() || "en";
+}
+
 export function groupConceptTerms(
   rows: Array<{
     id: string;
@@ -84,6 +111,7 @@ export async function listNativeGlossaryTermPairs(
     sourceLocale: string;
     targetLocales: string[];
     glossaryPriority?: Map<string, number>;
+    maxPairs?: number;
   },
 ): Promise<GlossaryTermQueryRow[]> {
   if (input.glossaryIds.length === 0 || input.targetLocales.length === 0) {
@@ -140,7 +168,7 @@ export async function listNativeGlossaryTermPairs(
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     glossaryPriority: input.glossaryPriority,
-  });
+  }).slice(0, input.maxPairs);
 }
 
 export async function listGlossaryTermsForProject(input: {
@@ -148,6 +176,7 @@ export async function listGlossaryTermsForProject(input: {
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
+  maxPairs?: number;
 }): Promise<GlossaryTermQueryRow[]> {
   const attached = await db
     .select({
@@ -178,5 +207,6 @@ export async function listGlossaryTermsForProject(input: {
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     glossaryPriority,
+    maxPairs: input.maxPairs,
   });
 }
