@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -22,6 +22,10 @@ import {
 } from "@/api/routes/glossary/glossary.shared";
 
 import { localePattern } from "./locale";
+import {
+  assertNativeGlossaryTargetLocale,
+  resolveNativeGlossaryTargetLocale,
+} from "@/lib/glossary/resolve-native-glossary-target-locale";
 import {
   toolGetAccessibleGlossary,
   toolGlossaryOrgMutationWhere,
@@ -528,14 +532,45 @@ async function createNativeConceptFromTermTool(
     forbidden: boolean;
   },
 ) {
-  const duplicateCheck = termData.caseSensitive
+  let targetLocale: string;
+  try {
+    targetLocale = assertNativeGlossaryTargetLocale(
+      await resolveNativeGlossaryTargetLocale({
+        glossary,
+        projectId: ctx.projectId,
+        database: ctx.db,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    throw error;
+  }
+
+  const sourceTermMatch = termData.caseSensitive
+    ? eq(schema.glossaryTerms.term, termData.sourceTerm)
+    : sql`lower(${schema.glossaryTerms.term}) = lower(${termData.sourceTerm})`;
+  const legacySourceTermMatch = termData.caseSensitive
     ? eq(schema.glossaryTerms.sourceTerm, termData.sourceTerm)
     : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${termData.sourceTerm})`;
 
   const existing = await ctx.db
     .select({ id: schema.glossaryTerms.id })
     .from(schema.glossaryTerms)
-    .where(and(eq(schema.glossaryTerms.glossaryId, glossary.id), duplicateCheck))
+    .where(
+      and(
+        eq(schema.glossaryTerms.glossaryId, glossary.id),
+        or(
+          and(
+            isNotNull(schema.glossaryTerms.conceptId),
+            eq(schema.glossaryTerms.locale, glossary.sourceLocale),
+            sourceTermMatch,
+          ),
+          and(isNull(schema.glossaryTerms.conceptId), legacySourceTermMatch),
+        ),
+      ),
+    )
     .limit(1);
 
   if (existing.length > 0) {
@@ -560,39 +595,32 @@ async function createNativeConceptFromTermTool(
       return null;
     }
 
+    const sharedFields = {
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      description: termData.description ?? "",
+      partOfSpeech: termData.partOfSpeech ?? "",
+      caseSensitive: termData.caseSensitive,
+      forbidden: termData.forbidden,
+      status: "draft" as const,
+      provenance: "manual" as const,
+    };
+
     const terms = [
       {
-        glossaryId: glossary.id,
-        conceptId: concept.id,
+        ...sharedFields,
         locale: glossary.sourceLocale,
         term: termData.sourceTerm,
         sourceTerm: termData.sourceTerm,
-        targetTerm: termData.sourceTerm,
-        description: termData.description ?? "",
-        partOfSpeech: termData.partOfSpeech ?? "",
-        caseSensitive: termData.caseSensitive,
-        forbidden: termData.forbidden,
-        status: "draft" as const,
-        provenance: "manual" as const,
+        targetTerm: termData.targetTerm,
       },
-      ...(glossary.targetLocale
-        ? [
-            {
-              glossaryId: glossary.id,
-              conceptId: concept.id,
-              locale: glossary.targetLocale,
-              term: termData.targetTerm,
-              sourceTerm: termData.targetTerm,
-              targetTerm: termData.targetTerm,
-              description: termData.description ?? "",
-              partOfSpeech: termData.partOfSpeech ?? "",
-              caseSensitive: termData.caseSensitive,
-              forbidden: termData.forbidden,
-              status: "draft" as const,
-              provenance: "manual" as const,
-            },
-          ]
-        : []),
+      {
+        ...sharedFields,
+        locale: targetLocale,
+        term: termData.targetTerm,
+        sourceTerm: termData.sourceTerm,
+        targetTerm: termData.targetTerm,
+      },
     ];
     await tx.insert(schema.glossaryTerms).values(terms);
     return concept;

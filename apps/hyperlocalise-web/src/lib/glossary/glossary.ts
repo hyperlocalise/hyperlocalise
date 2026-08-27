@@ -110,12 +110,14 @@ export type GlossaryProjectRecord = {
   priority: number;
   sourceLocale: string | null;
   targetLocales: string[];
+  source: string;
   externalUrl: string | null;
 };
 
 export type GlossaryTermCreateInput = {
   sourceTerm: string;
   targetTerm: string;
+  targetLocale?: string;
   description?: string;
   partOfSpeech?: string;
   url?: string;
@@ -247,7 +249,9 @@ export class GlossaryValidationError extends Error {
     readonly code:
       | "invalid_part_of_speech"
       | "stale_glossary_term_id"
-      | "crowdin_validation_failed",
+      | "crowdin_validation_failed"
+      | "glossary_target_locale_required"
+      | "glossary_target_locale_ambiguous",
     message: string,
     readonly details?: unknown,
   ) {

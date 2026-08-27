@@ -91,6 +91,7 @@ export const updateGlossaryBodySchema = z
 export const createGlossaryTermBodySchema = z.object({
   sourceTerm: z.string().trim().min(1).max(1_000),
   targetTerm: z.string().trim().min(1).max(1_000),
+  targetLocale: localeInputSchema.optional(),
   description: z.string().max(10_000).optional(),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   url: z.string().url().max(2_000).optional().or(z.literal("")),

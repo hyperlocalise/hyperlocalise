@@ -344,6 +344,7 @@ export class CrowdinGlossary extends Glossary {
       priority: 0,
       sourceLocale: project.sourceLanguageId,
       targetLocales: project.targetLanguageIds,
+      source: "external_tms",
       externalUrl: sanitizeExternalUrl(project.webUrl),
     }));
   }

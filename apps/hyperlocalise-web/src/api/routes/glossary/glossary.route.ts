@@ -65,6 +65,7 @@ import {
   glossaryTeamMustBeNativeResponse,
   glossaryTeamNativeProjectRequiredResponse,
   glossaryTeamProjectRequiredResponse,
+  glossarySourceLocaleAttachedProjectsResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryContributeAllowed,
   isGlossaryManageAllowed,
@@ -472,6 +473,9 @@ export function createGlossaryRoutes() {
         try {
           term = await product.createGlossaryTerm(payload);
         } catch (error) {
+          if (error instanceof GlossaryValidationError) {
+            return badRequestResponse(c, error.code, error.message, error.details);
+          }
           if (error instanceof Error && error.message === "provider_credential_not_found") {
             return externalTmsGlossaryImmutableResponse(c);
           }
@@ -625,6 +629,9 @@ export function createGlossaryRoutes() {
             "The selected project uses a different source locale",
           );
         }
+        if (glossary.controlLevel === "team" && projectRecord?.source !== "native") {
+          return glossaryTeamNativeProjectRequiredResponse(c);
+        }
 
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
@@ -675,6 +682,30 @@ export function createGlossaryRoutes() {
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
+
+      const attachedProjects =
+        payload.controlLevel === "team" ||
+        (payload.sourceLocale !== undefined && payload.sourceLocale !== glossary.sourceLocale)
+          ? await product.listProjects()
+          : [];
+
+      if (payload.controlLevel === "team") {
+        if (attachedProjects.length === 0) {
+          return glossaryTeamProjectRequiredResponse(c);
+        }
+        if (attachedProjects.some((project) => project.source !== "native")) {
+          return glossaryTeamNativeProjectRequiredResponse(c);
+        }
+      }
+
+      if (
+        payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== glossary.sourceLocale &&
+        attachedProjects.some((project) => project.sourceLocale !== payload.sourceLocale)
+      ) {
+        return glossarySourceLocaleAttachedProjectsResponse(c);
+      }
+
       const updated = await product.update(payload);
 
       if (!updated) {

@@ -50,6 +50,10 @@ import type {
 } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
+import {
+  assertNativeGlossaryTargetLocale,
+  resolveNativeGlossaryTargetLocale,
+} from "./resolve-native-glossary-target-locale";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
 
@@ -259,6 +263,7 @@ export class NativeGlossary extends Glossary {
         priority: schema.projectGlossaries.priority,
         sourceLocale: schema.projects.sourceLocale,
         targetLocales: schema.projects.targetLocales,
+        source: schema.projects.source,
       })
       .from(schema.projectGlossaries)
       .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
@@ -705,7 +710,12 @@ export class NativeGlossary extends Glossary {
       required: false,
     });
     const sourceLocale = this.input.glossary.sourceLocale;
-    const targetLocale = this.input.glossary.targetLocale;
+    const targetLocale = assertNativeGlossaryTargetLocale(
+      await resolveNativeGlossaryTargetLocale({
+        glossary: this.input.glossary,
+        explicitTargetLocale: input.targetLocale,
+      }),
+    );
     const sourceTermMatch = input.caseSensitive
       ? eq(schema.glossaryTerms.term, input.sourceTerm)
       : sql`lower(${schema.glossaryTerms.term}) = lower(${input.sourceTerm})`;
@@ -843,6 +853,125 @@ export class NativeGlossary extends Glossary {
             ...input,
             partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }),
           };
+
+    const [existing] = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(
+        and(
+          eq(schema.glossaryTerms.id, termId),
+          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+        ),
+      )
+      .limit(1);
+    if (!existing) {
+      return null;
+    }
+
+    if (existing.conceptId) {
+      const conceptId = existing.conceptId;
+      const loaded = await this.loadConcept(conceptId);
+      if (!loaded) {
+        return null;
+      }
+
+      const sourceLocale = this.input.glossary.sourceLocale;
+      const sourceRow = loaded.terms.find((term) => term.locale === sourceLocale);
+      const targetRows = loaded.terms.filter((term) => term.locale !== sourceLocale);
+
+      if (normalizedInput.sourceTerm !== undefined) {
+        const sourceTermMatch = normalizedInput.caseSensitive
+          ? eq(schema.glossaryTerms.term, normalizedInput.sourceTerm)
+          : sql`lower(${schema.glossaryTerms.term}) = lower(${normalizedInput.sourceTerm})`;
+        const duplicate = await db
+          .select({ id: schema.glossaryTerms.id })
+          .from(schema.glossaryTerms)
+          .where(
+            and(
+              eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+              ne(schema.glossaryTerms.conceptId, conceptId),
+              isNotNull(schema.glossaryTerms.conceptId),
+              eq(schema.glossaryTerms.locale, sourceLocale),
+              sourceTermMatch,
+            ),
+          )
+          .limit(1);
+        if (duplicate.length > 0) {
+          return { error: "duplicate" as const };
+        }
+      }
+
+      const sharedFieldUpdates = Object.fromEntries(
+        Object.entries({
+          description: normalizedInput.description,
+          partOfSpeech: normalizedInput.partOfSpeech,
+          url: normalizedInput.url,
+          lemma: normalizedInput.lemma,
+          caseSensitive: normalizedInput.caseSensitive,
+          forbidden: normalizedInput.forbidden,
+        }).filter(([, value]) => value !== undefined),
+      );
+
+      await db.transaction(async (tx) => {
+        if (Object.keys(sharedFieldUpdates).length > 0) {
+          await tx
+            .update(schema.glossaryTerms)
+            .set(sharedFieldUpdates)
+            .where(
+              and(
+                eq(schema.glossaryTerms.conceptId, conceptId),
+                eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+              ),
+            );
+        }
+
+        if (normalizedInput.sourceTerm !== undefined && sourceRow) {
+          await tx
+            .update(schema.glossaryTerms)
+            .set({
+              term: normalizedInput.sourceTerm,
+              sourceTerm: normalizedInput.sourceTerm,
+              targetTerm: normalizedInput.targetTerm ?? sourceRow.targetTerm,
+            })
+            .where(eq(schema.glossaryTerms.id, sourceRow.id));
+
+          await tx
+            .update(schema.glossaryConcepts)
+            .set({ primaryTerm: normalizedInput.sourceTerm })
+            .where(eq(schema.glossaryConcepts.id, conceptId));
+        }
+
+        if (normalizedInput.targetTerm !== undefined) {
+          for (const targetRow of targetRows) {
+            await tx
+              .update(schema.glossaryTerms)
+              .set({
+                term: normalizedInput.targetTerm,
+                targetTerm: normalizedInput.targetTerm,
+                sourceTerm:
+                  normalizedInput.sourceTerm ?? sourceRow?.sourceTerm ?? targetRow.sourceTerm,
+              })
+              .where(eq(schema.glossaryTerms.id, targetRow.id));
+          }
+        }
+      });
+
+      const reloaded = await this.loadConcept(conceptId);
+      if (!reloaded) {
+        return null;
+      }
+
+      const sourceTermRow = reloaded.terms.find((term) => term.locale === sourceLocale);
+      const targetTermRow = reloaded.terms.find((term) => term.locale !== sourceLocale);
+      const preferredRow = targetTermRow ?? sourceTermRow ?? existing;
+
+      return this.toGlossaryTermRecord({
+        ...preferredRow,
+        sourceTerm: sourceTermRow?.term ?? sourceTermRow?.sourceTerm ?? "",
+        targetTerm: targetTermRow?.term ?? targetTermRow?.targetTerm ?? "",
+      });
+    }
+
     if (normalizedInput.sourceTerm !== undefined) {
       const duplicate = await db
         .select({ id: schema.glossaryTerms.id })
@@ -875,6 +1004,23 @@ export class NativeGlossary extends Glossary {
   }
 
   async deleteGlossaryTerm(termId: string) {
+    const [existing] = await db
+      .select({ conceptId: schema.glossaryTerms.conceptId })
+      .from(schema.glossaryTerms)
+      .where(
+        and(
+          eq(schema.glossaryTerms.id, termId),
+          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+        ),
+      )
+      .limit(1);
+    if (!existing) {
+      return false;
+    }
+    if (existing.conceptId) {
+      return this.deleteConcept(existing.conceptId);
+    }
+
     const deleted = await db
       .delete(schema.glossaryTerms)
       .where(

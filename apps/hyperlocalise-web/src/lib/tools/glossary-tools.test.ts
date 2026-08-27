@@ -35,8 +35,118 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
 }));
 
 import { schema } from "@/lib/database";
-import { createUpdateGlossaryTermTool } from "./glossary-tools";
+import { createCreateGlossaryTermTool, createUpdateGlossaryTermTool } from "./glossary-tools";
 import type { ToolContext } from "./types";
+
+describe("createCreateGlossaryTermTool", () => {
+  it("inserts target locale rows using project context when glossary targetLocale is null", async () => {
+    toolGetAccessibleGlossaryMock.mockResolvedValueOnce({
+      id: "glossary_123",
+      source: "native",
+      controlLevel: "team",
+      sourceLocale: "en",
+      targetLocale: null,
+    } as unknown as Awaited<ReturnType<typeof toolGetAccessibleGlossaryMock>>);
+
+    const transaction = vi.fn(async (callback: (tx: unknown) => Promise<void>) =>
+      callback({
+        insert: vi.fn(() => ({
+          values: vi.fn(() => ({
+            returning: vi.fn(async () => [{ id: "concept_123" }]),
+          })),
+        })),
+      }),
+    );
+
+    const selectMock = vi
+      .fn()
+      .mockImplementationOnce(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [{ targetLocales: ["fr-FR"] }]),
+          })),
+        })),
+      }))
+      .mockImplementationOnce(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => []),
+          })),
+        })),
+      }));
+
+    const ctx = {
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "translator",
+      projectId: "project_123",
+      db: {
+        transaction,
+        select: selectMock,
+      },
+    } as unknown as ToolContext;
+
+    const tool = createCreateGlossaryTermTool(ctx);
+    const result = (await tool.execute!(
+      {
+        glossaryId: "glossary_123",
+        sourceTerm: "Hello",
+        targetTerm: "Bonjour",
+        caseSensitive: false,
+        forbidden: false,
+      },
+      { toolCallId: "tool_1", messages: [], context: {} },
+    )) as { success: boolean };
+
+    expect(result.success).toBe(true);
+    expect(transaction).toHaveBeenCalled();
+  });
+
+  it("returns an error when no target locale can be resolved", async () => {
+    toolGetAccessibleGlossaryMock.mockResolvedValueOnce({
+      id: "glossary_123",
+      source: "native",
+      controlLevel: "team",
+      sourceLocale: "en",
+      targetLocale: null,
+    } as unknown as Awaited<ReturnType<typeof toolGetAccessibleGlossaryMock>>);
+
+    const selectMock = vi.fn(() => ({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(async () => []),
+        })),
+      })),
+    }));
+
+    const ctx = {
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "translator",
+      projectId: null,
+      db: {
+        select: selectMock,
+      },
+    } as unknown as ToolContext;
+
+    const tool = createCreateGlossaryTermTool(ctx);
+    const result = (await tool.execute!(
+      {
+        glossaryId: "glossary_123",
+        sourceTerm: "Hello",
+        targetTerm: "Bonjour",
+        caseSensitive: false,
+        forbidden: false,
+      },
+      { toolCallId: "tool_1", messages: [], context: {} },
+    )) as { success: boolean; error?: string };
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("target locale");
+  });
+});
 
 describe("createUpdateGlossaryTermTool", () => {
   it("updates canonical term fields for concept-backed rows", async () => {

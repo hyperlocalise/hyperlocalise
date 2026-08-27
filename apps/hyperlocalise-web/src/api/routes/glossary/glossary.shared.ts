@@ -87,6 +87,14 @@ export function glossaryTeamNativeProjectRequiredResponse(c: { json: JsonContext
   );
 }
 
+export function glossarySourceLocaleAttachedProjectsResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "glossary_source_locale_attached_projects",
+    "Cannot change the glossary source locale while attached projects use a different source locale",
+  );
+}
+
 export type GlossaryControlLevel = "org" | "team";
 
 export function isGlossaryManageAllowed(role: ApiAuthContext["membership"]["role"]) {
