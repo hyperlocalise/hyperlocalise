@@ -185,6 +185,7 @@ function TranslationMemoryRow({
 
 export function CatIntelligencePanel({
   intelligence,
+  segmentId,
   sourceText = "",
   targetText = "",
   sourceLocale,
@@ -209,6 +210,7 @@ export function CatIntelligencePanel({
   onGlossaryTermAdded,
 }: {
   intelligence: CatSegmentIntelligence;
+  segmentId?: string;
   sourceText?: string;
   targetText?: string;
   sourceLocale?: string;
@@ -549,7 +551,9 @@ export function CatIntelligencePanel({
                 <>
                   <p className="text-sm text-muted-foreground">{addToGlossaryNote}</p>
                   <CatAddToGlossary
-                    key={`${sourceText}\0${targetText}\0${sourceLocale}\0${targetLocale}`}
+                    key={
+                      segmentId ?? `${sourceText}\0${targetText}\0${sourceLocale}\0${targetLocale}`
+                    }
                     organizationSlug={organizationSlug}
                     projectId={projectId}
                     sourceLocale={sourceLocale}

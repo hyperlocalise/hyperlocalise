@@ -154,6 +154,7 @@ export function CatSideBySideIntelligencePanel({
   const intelligencePanel = (
     <CatIntelligencePanel
       intelligence={intelligence}
+      segmentId={segment.id}
       sourceText={segment.sourceText}
       targetText={segment.targetText}
       sourceLocale={segment.sourceLocale}

@@ -359,15 +359,77 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
       }
 
       // Verify the parent glossary is in the caller's accessible project scope.
-      const glossary = await getAccessibleGlossaryForTerm(ctx, termId);
-      if (!glossary) {
+      const accessible = await getAccessibleTermContext(ctx, termId);
+      if (!accessible) {
         return { success: false, error: `Term ${termId} not found.` };
       }
+      const { glossary, term: accessibleTerm } = accessible;
       if (!isGlossaryContributeAllowed(ctx.membershipRole, glossary)) {
         return {
           success: false,
           error: "You can only update terms on team glossaries you can access.",
         };
+      }
+
+      if (accessibleTerm.conceptId) {
+        const nextText =
+          rest.sourceTerm !== undefined
+            ? rest.sourceTerm
+            : rest.targetTerm !== undefined
+              ? rest.targetTerm
+              : undefined;
+        const termUpdates = Object.fromEntries(
+          Object.entries({
+            description: rest.description,
+            partOfSpeech: rest.partOfSpeech,
+            caseSensitive: rest.caseSensitive,
+            forbidden: rest.forbidden,
+            reviewStatus: rest.reviewStatus,
+            ...(nextText !== undefined
+              ? { term: nextText, sourceTerm: nextText, targetTerm: nextText }
+              : {}),
+          }).filter(([, value]) => value !== undefined),
+        );
+
+        if (Object.keys(termUpdates).length === 0) {
+          return { success: false, error: "No fields provided to update." };
+        }
+
+        await ctx.db.transaction(async (tx) => {
+          await tx
+            .update(schema.glossaryTerms)
+            .set(termUpdates)
+            .where(eq(schema.glossaryTerms.id, termId));
+
+          if (
+            nextText !== undefined &&
+            accessibleTerm.locale === glossary.sourceLocale &&
+            accessibleTerm.conceptId
+          ) {
+            await tx
+              .update(schema.glossaryConcepts)
+              .set({ primaryTerm: nextText })
+              .where(eq(schema.glossaryConcepts.id, accessibleTerm.conceptId));
+          }
+        });
+
+        const [term] = await ctx.db
+          .select({
+            id: schema.glossaryTerms.id,
+            sourceTerm: schema.glossaryTerms.sourceTerm,
+            targetTerm: schema.glossaryTerms.targetTerm,
+            description: schema.glossaryTerms.description,
+            partOfSpeech: schema.glossaryTerms.partOfSpeech,
+            caseSensitive: schema.glossaryTerms.caseSensitive,
+            forbidden: schema.glossaryTerms.forbidden,
+            reviewStatus: schema.glossaryTerms.reviewStatus,
+            createdAt: schema.glossaryTerms.createdAt,
+          })
+          .from(schema.glossaryTerms)
+          .where(eq(schema.glossaryTerms.id, termId))
+          .limit(1);
+
+        return { success: true, term };
       }
 
       const [term] = await ctx.db
@@ -422,8 +484,17 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
 }
 
 async function getAccessibleGlossaryForTerm(ctx: ToolContext, termId: string) {
+  const accessible = await getAccessibleTermContext(ctx, termId);
+  return accessible?.glossary ?? null;
+}
+
+async function getAccessibleTermContext(ctx: ToolContext, termId: string) {
   const [term] = await ctx.db
-    .select({ glossaryId: schema.glossaryTerms.glossaryId })
+    .select({
+      glossaryId: schema.glossaryTerms.glossaryId,
+      conceptId: schema.glossaryTerms.conceptId,
+      locale: schema.glossaryTerms.locale,
+    })
     .from(schema.glossaryTerms)
     .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
     .where(eq(schema.glossaryTerms.id, termId))
@@ -433,7 +504,12 @@ async function getAccessibleGlossaryForTerm(ctx: ToolContext, termId: string) {
     return null;
   }
 
-  return toolGetAccessibleGlossary(ctx, term.glossaryId);
+  const glossary = await toolGetAccessibleGlossary(ctx, term.glossaryId);
+  if (!glossary) {
+    return null;
+  }
+
+  return { glossary, term };
 }
 
 async function createNativeConceptFromTermTool(

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -704,36 +704,102 @@ export class NativeGlossary extends Glossary {
     const normalizedPartOfSpeech = normalizeGlossaryPartOfSpeech(input.partOfSpeech, {
       required: false,
     });
+    const sourceLocale = this.input.glossary.sourceLocale;
+    const targetLocale = this.input.glossary.targetLocale;
+    const sourceTermMatch = input.caseSensitive
+      ? eq(schema.glossaryTerms.term, input.sourceTerm)
+      : sql`lower(${schema.glossaryTerms.term}) = lower(${input.sourceTerm})`;
+    const legacySourceTermMatch = input.caseSensitive
+      ? eq(schema.glossaryTerms.sourceTerm, input.sourceTerm)
+      : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${input.sourceTerm})`;
+
     const duplicate = await db
       .select({ id: schema.glossaryTerms.id })
       .from(schema.glossaryTerms)
       .where(
         and(
           eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          isNull(schema.glossaryTerms.conceptId),
-          input.caseSensitive
-            ? eq(schema.glossaryTerms.sourceTerm, input.sourceTerm)
-            : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${input.sourceTerm})`,
+          or(
+            and(
+              isNotNull(schema.glossaryTerms.conceptId),
+              eq(schema.glossaryTerms.locale, sourceLocale),
+              sourceTermMatch,
+            ),
+            and(isNull(schema.glossaryTerms.conceptId), legacySourceTermMatch),
+          ),
         ),
       )
       .limit(1);
     if (duplicate.length > 0) return null;
 
-    const [term] = await db
-      .insert(schema.glossaryTerms)
-      .values({
+    const created = await db.transaction(async (tx) => {
+      const [concept] = await tx
+        .insert(schema.glossaryConcepts)
+        .values({
+          glossaryId: this.input.glossary.id,
+          primaryTerm: input.sourceTerm,
+          definition: input.description ?? "",
+          translatable: true,
+        })
+        .returning();
+      if (!concept) {
+        return null;
+      }
+
+      const sharedFields = {
         glossaryId: this.input.glossary.id,
-        sourceTerm: input.sourceTerm,
-        targetTerm: input.targetTerm,
+        conceptId: concept.id,
         description: input.description ?? "",
         partOfSpeech: normalizedPartOfSpeech ?? "",
         url: input.url || null,
         lemma: input.lemma ?? null,
         caseSensitive: input.caseSensitive,
         forbidden: input.forbidden,
-      })
-      .returning();
-    return term ? this.toGlossaryTermRecord(term) : null;
+        status: "draft" as const,
+        provenance: "manual" as const,
+      };
+
+      return tx
+        .insert(schema.glossaryTerms)
+        .values([
+          {
+            ...sharedFields,
+            locale: sourceLocale,
+            term: input.sourceTerm,
+            sourceTerm: input.sourceTerm,
+            targetTerm: input.targetTerm,
+          },
+          ...(targetLocale
+            ? [
+                {
+                  ...sharedFields,
+                  locale: targetLocale,
+                  term: input.targetTerm,
+                  sourceTerm: input.sourceTerm,
+                  targetTerm: input.targetTerm,
+                },
+              ]
+            : []),
+        ])
+        .returning();
+    });
+
+    if (!created || created.length === 0) {
+      return null;
+    }
+
+    const preferredRow =
+      (targetLocale ? created.find((row) => row.locale === targetLocale) : undefined) ??
+      created.find((row) => row.locale === sourceLocale);
+    if (!preferredRow) {
+      return null;
+    }
+
+    return this.toGlossaryTermRecord({
+      ...preferredRow,
+      sourceTerm: input.sourceTerm,
+      targetTerm: input.targetTerm,
+    });
   }
 
   async createGlossaryTerms(inputs: GlossaryTermCreateInput[]) {

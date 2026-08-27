@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { CatAddToGlossary } from "./cat-add-to-glossary";
@@ -123,5 +124,58 @@ export const Empty: Story = {
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
     await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  },
+};
+
+function SegmentRemountDemo({
+  initialSegmentId,
+  nextSegmentId,
+  sourceTerm,
+  targetTerm,
+}: {
+  initialSegmentId: string;
+  nextSegmentId: string;
+  sourceTerm: string;
+  targetTerm: string;
+}) {
+  const [segmentId, setSegmentId] = useState(initialSegmentId);
+
+  return (
+    <div className="space-y-3">
+      <button type="button" onClick={() => setSegmentId(nextSegmentId)}>
+        Switch segment
+      </button>
+      <CatAddToGlossary
+        key={segmentId}
+        organizationSlug="acme"
+        projectId="project_1"
+        sourceLocale="en"
+        targetLocale="vi"
+        sourceTerm={sourceTerm}
+        targetTerm={targetTerm}
+        teamGlossaries={[{ id: "glossary-team-1", name: "Product team terms" }]}
+        canContribute
+        onAdded={fn()}
+      />
+    </div>
+  );
+}
+
+export const ResetsDraftsOnSegmentChange: Story = {
+  render: () => (
+    <SegmentRemountDemo
+      initialSegmentId="seg-1"
+      nextSegmentId="seg-2"
+      sourceTerm="Dashboard"
+      targetTerm="Bảng điều khiển"
+    />
+  ),
+  play: async ({ canvas, userEvent }) => {
+    const definition = canvas.getByRole("textbox", { name: "Definition" });
+    await userEvent.type(definition, "Keep this segment-specific");
+    await expect(definition).toHaveValue("Keep this segment-specific");
+    await userEvent.click(canvas.getByRole("button", { name: "Switch segment" }));
+    await expect(canvas.getByRole("textbox", { name: "Definition" })).toHaveValue("");
+    await expect(canvas.getByRole("textbox", { name: "Primary term" })).toHaveValue("Dashboard");
   },
 };

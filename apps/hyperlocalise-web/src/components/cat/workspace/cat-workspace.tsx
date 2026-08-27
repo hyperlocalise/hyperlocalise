@@ -609,6 +609,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
       >
         <CatIntelligencePanel
           intelligence={selectedSegmentIntelligence}
+          segmentId={editorSegment.id}
           sourceText={editorSegment.sourceText}
           targetText={editorSegment.targetText}
           sourceLocale={editorSegment.sourceLocale}
