@@ -17,6 +17,10 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { OAuthProtectedResourceMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 import {
   createAuthorizationCode,
@@ -114,6 +118,34 @@ async function refreshToken(refreshToken: string) {
     },
     body,
   });
+}
+
+async function authenticatedMcpHeaders() {
+  const identity = fixture.createWorkosIdentity();
+  const headers = await fixture.authHeadersFor(identity);
+
+  const accessToken = generateMcpToken();
+  const refreshToken = generateMcpToken();
+
+  const auth = globalThis.__testApiAuthContext;
+  if (!auth) {
+    throw new Error("expected test auth context");
+  }
+
+  await db.insert(schema.mcpSessions).values({
+    userId: auth.user.localUserId,
+    organizationId: auth.organization.localOrganizationId,
+    scope: "mcp",
+    accessTokenHash: hashMcpToken(accessToken),
+    refreshTokenHash: hashMcpToken(refreshToken),
+    expiresAt: new Date(Date.now() + 60_000),
+    refreshExpiresAt: new Date(Date.now() + 120_000),
+  });
+
+  return {
+    ...headers,
+    authorization: `Bearer ${accessToken}`,
+  };
 }
 
 function setMcpAuthEnabled(value: boolean) {
@@ -686,5 +718,279 @@ describe("mcpRoutes", () => {
       error: "invalid_request",
     });
     expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  it.each([
+    ["canonical endpoint", "/mcp/sse"],
+    ["compatibility alias", "/mcp/message"],
+  ])("returns 405 for an authenticated GET to the $0", async (_label, endpoint) => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request(`http://localhost${endpoint}`, {
+      method: "GET",
+      headers,
+    });
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+  });
+
+  it("closes the MCP server when POST handling fails", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const handleRequestSpy = vi
+      .spyOn(WebStandardStreamableHTTPServerTransport.prototype, "handleRequest")
+      .mockRejectedValueOnce(new Error("transport failure"));
+
+    const closeSpy = vi.spyOn(McpServer.prototype, "close");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+        }),
+      });
+
+      expect(response.status).toBe(500);
+      expect(handleRequestSpy).toHaveBeenCalledOnce();
+      expect(closeSpy).toHaveBeenCalledOnce();
+    } finally {
+      handleRequestSpy.mockRestore();
+      closeSpy.mockRestore();
+    }
+  });
+
+  it("closes the MCP server after a successful JSON POST response", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const closeSpy = vi.spyOn(McpServer.prototype, "close");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+
+      await expect(response.json()).resolves.toMatchObject({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          tools: expect.any(Array),
+        },
+      });
+
+      expect(closeSpy).toHaveBeenCalledOnce();
+    } finally {
+      closeSpy.mockRestore();
+    }
+  });
+
+  it("supports the stateless MCP POST lifecycle on the canonical endpoint", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const postMcp = (message: unknown) =>
+      app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+    const initializeResponse = await postMcp({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: {
+          name: "HL-608 integration test",
+          version: "1.0.0",
+        },
+      },
+    });
+
+    expect(initializeResponse.status).toBe(200);
+    await expect(initializeResponse.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        protocolVersion: "2025-11-25",
+      },
+    });
+
+    const initializedResponse = await postMcp({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      params: {},
+    });
+
+    expect(initializedResponse.status).toBe(202);
+
+    const toolsListResponse = await postMcp({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    });
+
+    expect(toolsListResponse.status).toBe(200);
+    await expect(toolsListResponse.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 2,
+      result: {
+        tools: expect.any(Array),
+      },
+    });
+
+    const toolsCallResponse = await postMcp({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: {
+        name: "list_projects",
+        arguments: {
+          limit: 1,
+        },
+      },
+    });
+
+    expect(toolsCallResponse.status).toBe(200);
+    await expect(toolsCallResponse.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 3,
+      result: {
+        content: expect.any(Array),
+      },
+    });
+  });
+
+  it("keeps /mcp/message as a POST compatibility alias", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/message", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        tools: expect.any(Array),
+      },
+    });
+  });
+
+  it("works with a real Streamable HTTP MCP client without GET reconnects or errors", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const requestMethods: string[] = [];
+    const transportErrors: Error[] = [];
+
+    const transport = new StreamableHTTPClientTransport(new URL("http://localhost/mcp/sse"), {
+      requestInit: {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+      },
+      fetch: async (url, init) => {
+        requestMethods.push(init?.method ?? "GET");
+        return app.request(String(url), init);
+      },
+    });
+
+    transport.onerror = (error) => {
+      transportErrors.push(error);
+    };
+
+    const client = new Client(
+      {
+        name: "HL-608 integration test",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {},
+      },
+    );
+
+    try {
+      await client.connect(transport);
+
+      const tools = await client.listTools();
+      expect(tools.tools.length).toBeGreaterThan(0);
+
+      const result = await client.callTool({
+        name: "list_projects",
+        arguments: {
+          limit: 1,
+        },
+      });
+
+      expect(result.content).toEqual(expect.any(Array));
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(4);
+      expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
+      expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
+      expect(transportErrors).toEqual([]);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("preserves MCP protocol-version validation for POST requests", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        "mcp-protocol-version": "unsupported-version",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(400);
   });
 });

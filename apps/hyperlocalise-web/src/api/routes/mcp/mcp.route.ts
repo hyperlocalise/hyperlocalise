@@ -479,17 +479,27 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 }
 
 async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpAuth"]) {
+  if (request.method !== "POST") {
+    return new Response(null, {
+      status: 405,
+      headers: {
+        Allow: "POST",
+      },
+    });
+  }
+
   const server = await createMcpServerForRequest(auth);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
 
-  await server.connect(transport);
-  const response = await transport.handleRequest(request);
-  await server.close();
-
-  return response;
+  try {
+    await server.connect(transport);
+    return await transport.handleRequest(request);
+  } finally {
+    await server.close();
+  }
 }
 
 const validateAuthorizationQuery = validator("query", (value, c) => {
@@ -515,6 +525,8 @@ const validateRegisterBody = validator("json", (value, c) => {
 export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
   const apiBasePath = options.apiBasePath ?? "/api";
 
+  // `/mcp/sse` is the canonical Streamable HTTP endpoint advertised by
+  // protected-resource metadata. `/mcp/message` remains a compatibility alias.
   return new Hono<{ Variables: McpAuthVariables }>()
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
