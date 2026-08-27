@@ -220,7 +220,9 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
   };
 }
 
-export function toContextGlossaryMatch(match: NormalizedGlossaryMatch): ContextGlossaryMatch | null {
+export function toContextGlossaryMatch(
+  match: NormalizedGlossaryMatch,
+): ContextGlossaryMatch | null {
   if (!hasGlossaryExpectedTarget(match)) {
     return null;
   }

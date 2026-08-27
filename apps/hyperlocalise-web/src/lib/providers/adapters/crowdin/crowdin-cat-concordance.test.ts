@@ -252,7 +252,9 @@ describe("searchCrowdinCatConcordance", () => {
           glossary: { id: 7, name: "Brand terms" },
           concept: { id: 3, translatable: false },
           sourceTerms: [{ id: 11, languageId: "en", text: "Hyperlocalise", status: "preferred" }],
-          targetTerms: [{ id: 12, languageId: "fr", text: "Hyperlocalise FR", status: "preferred" }],
+          targetTerms: [
+            { id: 12, languageId: "fr", text: "Hyperlocalise FR", status: "preferred" },
+          ],
         },
       ]),
       concordanceSearch: vi.fn().mockResolvedValue([]),

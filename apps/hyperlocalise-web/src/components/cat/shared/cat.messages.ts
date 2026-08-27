@@ -677,7 +677,7 @@ export const catIntelligencePanelMessages = defineMessages({
   },
   glossaryUntranslatable: {
     defaultMessage: "Untranslatable",
-    id: "glossaryUntranslatableCat",
+    id: 'IKexpxBOZ5',
     description: "Status badge for a glossary concept marked as untranslatable",
   },
   projectGlossary: {

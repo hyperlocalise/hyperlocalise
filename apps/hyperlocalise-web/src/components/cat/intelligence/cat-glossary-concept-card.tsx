@@ -241,8 +241,7 @@ function resolveConceptDisplayTerms(concept: CatGlossaryConcept) {
         },
       ]
     : [];
-  const sourceTerms =
-    concept.sourceTerms.length > 0 ? concept.sourceTerms : fallbackSourceTerm;
+  const sourceTerms = concept.sourceTerms.length > 0 ? concept.sourceTerms : fallbackSourceTerm;
   const hasTargetTerms = concept.targetTerms.length > 0;
 
   if (isUntranslatable) {
