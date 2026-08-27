@@ -214,6 +214,15 @@ export const env = createEnv({
     /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
+    /**
+     * WorkOS AuthKit redirect URI for the Figma plugin PKCE popup.
+     * Defaults to `{HYPERLOCALISE_PUBLIC_APP_URL}/auth/figma/callback`.
+     */
+    WORKOS_FIGMA_REDIRECT_URI: z.url().optional(),
+
+    /** Comma-separated browser origins allowed to call the Figma plugin API. */
+    FIGMA_CORS_ORIGINS: z.string().min(1).optional(),
+
     /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
     CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
 
@@ -330,6 +339,8 @@ export const env = createEnv({
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    WORKOS_FIGMA_REDIRECT_URI: process.env.WORKOS_FIGMA_REDIRECT_URI,
+    FIGMA_CORS_ORIGINS: process.env.FIGMA_CORS_ORIGINS,
     CROWDIN_APP_CLIENT_ID:
       process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
     CROWDIN_APP_CLIENT_SECRET:
