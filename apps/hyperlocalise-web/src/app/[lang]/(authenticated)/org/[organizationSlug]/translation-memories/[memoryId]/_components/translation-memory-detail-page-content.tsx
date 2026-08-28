@@ -20,11 +20,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import type {
-  MemoryEntryRecord,
-  MemoryProjectRecord,
-  MemoryRecord,
-} from "@/api/routes/memory/memory.schema";
+import type { MemoryProjectRecord, MemoryRecord } from "@/api/routes/memory/memory.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";

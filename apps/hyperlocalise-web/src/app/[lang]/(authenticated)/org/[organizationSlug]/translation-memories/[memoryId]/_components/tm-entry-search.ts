@@ -15,65 +15,65 @@ import { ApiResponseError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import {
-    tmEntryListStateToApiQuery,
-    type TmEntryListApiQuery,
-    type TmEntryListUrlState,
+  tmEntryListStateToApiQuery,
+  type TmEntryListApiQuery,
+  type TmEntryListUrlState,
 } from "./tm-entry-list-state";
 
 export const TM_ENTRY_SEARCH_QUERY_KEY = "translation-memory-entries" as const;
 
 export function tmEntrySearchQueryKey(
-    organizationSlug: string,
-    memoryId: string,
-    query: TmEntryListApiQuery,
+  organizationSlug: string,
+  memoryId: string,
+  query: TmEntryListApiQuery,
 ) {
-    return [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId, query] as const;
+  return [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId, query] as const;
 }
 
 export function isInvalidCursorError(error: unknown): boolean {
-    return error instanceof ApiResponseError && error.code === "invalid_cursor";
+  return error instanceof ApiResponseError && error.code === "invalid_cursor";
 }
 
 export function isAbortError(error: unknown): boolean {
-    return (
-        (error instanceof DOMException && error.name === "AbortError") ||
-        (error instanceof Error && error.name === "AbortError")
-    );
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
 }
 
 export function shouldApplyTmEntrySearchResult(input: {
-    requestId: number;
-    latestRequestId: number;
-    aborted?: boolean;
+  requestId: number;
+  latestRequestId: number;
+  aborted?: boolean;
 }): boolean {
-    return !input.aborted && input.requestId === input.latestRequestId;
+  return !input.aborted && input.requestId === input.latestRequestId;
 }
 
 export async function fetchTmEntrySearchPage(input: {
-    organizationSlug: string;
-    memoryId: string;
-    state: TmEntryListUrlState;
-    cursor?: string | null;
-    signal?: AbortSignal;
-    fallbackMessage: string;
+  organizationSlug: string;
+  memoryId: string;
+  state: TmEntryListUrlState;
+  cursor?: string | null;
+  signal?: AbortSignal;
+  fallbackMessage: string;
 }): Promise<MemoryEntriesResponse> {
-    const query = tmEntryListStateToApiQuery(input.state, { cursor: input.cursor });
-    const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-    ].entries.$get(
-        {
-            param: {
-                organizationSlug: input.organizationSlug,
-                memoryId: input.memoryId,
-            },
-            query,
-        },
-        { init: { signal: input.signal } },
-    );
+  const query = tmEntryListStateToApiQuery(input.state, { cursor: input.cursor });
+  const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+    ":memoryId"
+  ].entries.$get(
+    {
+      param: {
+        organizationSlug: input.organizationSlug,
+        memoryId: input.memoryId,
+      },
+      query,
+    },
+    { init: { signal: input.signal } },
+  );
 
-    if (!response.ok) {
-        throw await readApiResponseError(response, input.fallbackMessage);
-    }
+  if (!response.ok) {
+    throw await readApiResponseError(response, input.fallbackMessage);
+  }
 
-    return (await response.json()) as MemoryEntriesResponse;
+  return (await response.json()) as MemoryEntriesResponse;
 }
