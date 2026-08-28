@@ -27,10 +27,7 @@ func newTestHunspellChecker(t *testing.T, dictDir string, dictionaries map[strin
 	t.Helper()
 
 	registry := spellcheck.NewRegistry(dictionaries)
-	checker, err := newHunspellSpellChecker(dictDir, registry)
-	if err != nil {
-		t.Fatalf("newHunspellSpellChecker() error = %v, want nil", err)
-	}
+	checker := newHunspellSpellChecker(dictDir, registry)
 	t.Cleanup(func() {
 		if err := checker.Close(); err != nil {
 			t.Errorf("Close() error = %v, want nil", err)
@@ -127,6 +124,30 @@ func TestHunspellSpellCheckerCheckPropagatesContextCancellation(t *testing.T) {
 	}
 }
 
+func TestNewHunspellSpellCheckerPartialLoadFromFixtures(t *testing.T) {
+	dir := t.TempDir()
+	writeFixtureCopy(t, dir, "locale-ok", validDictDir)
+	writeFixtureCopy(t, dir, "locale-bad", noSetDictDir)
+
+	checker := newTestHunspellChecker(t, dir, map[string]spellcheck.DictionaryFiles{
+		"aa-AA": {AffFile: "locale-ok.aff", DicFile: "locale-ok.dic"},
+		"zz-ZZ": {AffFile: "locale-bad.aff", DicFile: "locale-bad.dic"},
+	})
+
+	got, err := checker.Check(context.Background(), "aa-AA", []string{"hello"})
+	if err != nil {
+		t.Fatalf("Check(aa-AA) error = %v, want nil", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Check(aa-AA, %q) = %+v, want no issues", "hello", got)
+	}
+
+	_, err = checker.Check(context.Background(), "zz-ZZ", []string{"hello"})
+	if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+		t.Fatalf("Check(zz-ZZ) error = %v, want error wrapping spellcheck.ErrUnsupportedLocale", err)
+	}
+}
+
 func TestHunspellSpellCheckerChecksAreIsolatedPerLocale(t *testing.T) {
 	dir := t.TempDir()
 	writeFixtureCopy(t, dir, "locale-a", validDictDir)
@@ -154,23 +175,52 @@ func TestHunspellSpellCheckerChecksAreIsolatedPerLocale(t *testing.T) {
 	}
 }
 
-func TestNewHunspellSpellCheckerMissingDictionaryFile(t *testing.T) {
+func TestNewHunspellSpellCheckerSkipsMissingDictionaryFile(t *testing.T) {
 	registry := spellcheck.NewRegistry(map[string]spellcheck.DictionaryFiles{
 		"xx-YY": {AffFile: "does-not-exist.aff", DicFile: "does-not-exist.dic"},
 	})
 
-	_, err := newHunspellSpellChecker(t.TempDir(), registry)
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("newHunspellSpellChecker() error = %v, want error wrapping os.ErrNotExist", err)
+	checker := newHunspellSpellChecker(t.TempDir(), registry)
+	t.Cleanup(func() {
+		if err := checker.Close(); err != nil {
+			t.Errorf("Close() error = %v, want nil", err)
+		}
+	})
+
+	_, err := checker.Check(context.Background(), "xx-YY", []string{"hello"})
+	if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+		t.Fatalf("Check() error = %v, want error wrapping spellcheck.ErrUnsupportedLocale for a locale whose files are missing", err)
 	}
 }
 
-func TestNewHunspellSpellCheckerInvalidDictionary(t *testing.T) {
+func TestNewHunspellSpellCheckerLoadsISO88591Dictionary(t *testing.T) {
+	checker := newTestHunspellChecker(t, nonUTF8DictDir, map[string]spellcheck.DictionaryFiles{
+		"de-DE": {AffFile: "test.aff", DicFile: "test.dic"},
+	})
+
+	got, err := checker.Check(context.Background(), "de-DE", []string{"hello"})
+	if err != nil {
+		t.Fatalf("Check() error = %v, want nil (ISO8859-1 dictionaries are transcoded to UTF-8)", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Check() = %+v, want no issues for a word present in the ISO8859-1 dictionary", got)
+	}
+}
+
+func TestNewHunspellSpellCheckerSkipsInvalidDictionary(t *testing.T) {
+	unknownDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(unknownDir, "test.aff"), []byte("SET EBCDIC\n"), 0o600); err != nil {
+		t.Fatalf("write unknown-encoding aff: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(unknownDir, "test.dic"), []byte("1\nhello\n"), 0o600); err != nil {
+		t.Fatalf("write unknown-encoding dic: %v", err)
+	}
+
 	tests := []struct {
 		name    string
 		dictDir string
 	}{
-		{name: "declared non-UTF-8 encoding", dictDir: nonUTF8DictDir},
+		{name: "unknown encoding", dictDir: unknownDir},
 		{name: "missing SET declaration", dictDir: noSetDictDir},
 	}
 
@@ -180,39 +230,32 @@ func TestNewHunspellSpellCheckerInvalidDictionary(t *testing.T) {
 				"xx-YY": {AffFile: "test.aff", DicFile: "test.dic"},
 			})
 
-			_, err := newHunspellSpellChecker(tt.dictDir, registry)
-			if err == nil {
-				t.Fatal("newHunspellSpellChecker() error = nil, want a clear startup error")
-			}
-			if !strings.Contains(err.Error(), "xx-YY") {
-				t.Errorf("newHunspellSpellChecker() error = %q, want it to mention the failing locale %q", err.Error(), "xx-YY")
+			checker := newHunspellSpellChecker(tt.dictDir, registry)
+			t.Cleanup(func() {
+				if err := checker.Close(); err != nil {
+					t.Errorf("Close() error = %v, want nil", err)
+				}
+			})
+
+			_, err := checker.Check(context.Background(), "xx-YY", []string{"hello"})
+			if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+				t.Fatalf("Check() error = %v, want error wrapping spellcheck.ErrUnsupportedLocale for a locale whose dictionary failed to load", err)
 			}
 		})
 	}
 }
 
-func TestNewHunspellSpellCheckerClosesAlreadyOpenedHandlesOnFailure(t *testing.T) {
+func TestNewHunspellSpellCheckerKeepsLoadedLocalesWhenOneFails(t *testing.T) {
 	original := newHunspellDictionary
 	t.Cleanup(func() { newHunspellDictionary = original })
 
-	var (
-		mu     sync.Mutex
-		opened []*hunspell.Dictionary
-	)
 	syntheticErr := errors.New("synthetic dictionary load failure")
 
 	newHunspellDictionary = func(affPath, dicPath string) (*hunspell.Dictionary, error) {
 		if strings.Contains(affPath, "fail") {
 			return nil, syntheticErr
 		}
-		dict, err := original(affPath, dicPath)
-		if err != nil {
-			return nil, err
-		}
-		mu.Lock()
-		opened = append(opened, dict)
-		mu.Unlock()
-		return dict, nil
+		return original(affPath, dicPath)
 	}
 
 	registry := spellcheck.NewRegistry(map[string]spellcheck.DictionaryFiles{
@@ -221,18 +264,24 @@ func TestNewHunspellSpellCheckerClosesAlreadyOpenedHandlesOnFailure(t *testing.T
 		"cc-CC": {AffFile: "fail.aff", DicFile: "test.dic"},
 	})
 
-	_, err := newHunspellSpellChecker(validDictDir, registry)
-	if !errors.Is(err, syntheticErr) {
-		t.Fatalf("newHunspellSpellChecker() error = %v, want error wrapping the synthetic failure", err)
+	checker := newHunspellSpellChecker(validDictDir, registry)
+	t.Cleanup(func() {
+		if err := checker.Close(); err != nil {
+			t.Errorf("Close() error = %v, want nil", err)
+		}
+	})
+
+	got, err := checker.Check(context.Background(), "aa-AA", []string{"hello"})
+	if err != nil {
+		t.Fatalf("Check(aa-AA) error = %v, want nil (a later locale failure must not drop locales that already loaded)", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Check(aa-AA, %q) = %+v, want no issues", "hello", got)
 	}
 
-	if len(opened) != 2 {
-		t.Fatalf("opened %d dictionary handle(s) before the failure, want 2 (aa-AA, bb-BB)", len(opened))
-	}
-	for i, dict := range opened {
-		if _, err := dict.Spell("hello"); !errors.Is(err, hunspell.ErrClosed) {
-			t.Errorf("opened dictionary #%d: Spell() after newHunspellSpellChecker() failure error = %v, want hunspell.ErrClosed (newHunspellSpellChecker must close handles it already opened)", i, err)
-		}
+	_, err = checker.Check(context.Background(), "cc-CC", []string{"hello"})
+	if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+		t.Fatalf("Check(cc-CC) error = %v, want error wrapping spellcheck.ErrUnsupportedLocale for the failed locale", err)
 	}
 }
 
@@ -242,10 +291,7 @@ func TestHunspellSpellCheckerCloseIsIdempotentAndClosesEveryHandle(t *testing.T)
 		"bb-BB": {AffFile: "test.aff", DicFile: "test.dic"},
 	})
 
-	checker, err := newHunspellSpellChecker(validDictDir, registry)
-	if err != nil {
-		t.Fatalf("newHunspellSpellChecker() error = %v, want nil", err)
-	}
+	checker := newHunspellSpellChecker(validDictDir, registry)
 
 	if err := checker.Close(); err != nil {
 		t.Fatalf("first Close() error = %v, want nil", err)
@@ -259,16 +305,26 @@ func TestHunspellSpellCheckerCloseIsIdempotentAndClosesEveryHandle(t *testing.T)
 	}
 }
 
-func TestNewSpellCheckerFailsFastWhenDictionariesAreMissing(t *testing.T) {
+func TestNewSpellCheckerStartsWhenDictionariesAreMissing(t *testing.T) {
 	checker, closeFn, err := newSpellChecker(t.TempDir())
-	if err == nil {
-		t.Fatal("newSpellChecker() error = nil, want an error because no real dictionaries exist in an empty directory")
+	if err != nil {
+		t.Fatalf("newSpellChecker() error = %v, want nil (missing dictionaries must not fail startup)", err)
 	}
-	if checker != nil {
-		t.Errorf("newSpellChecker() checker = %v, want nil on error", checker)
+	if checker == nil {
+		t.Fatal("newSpellChecker() checker = nil, want a checker that skips spelling")
 	}
-	if closeFn != nil {
-		t.Error("newSpellChecker() closeFn is non-nil, want nil on error")
+	if closeFn == nil {
+		t.Fatal("newSpellChecker() closeFn is nil, want a close function")
+	}
+	t.Cleanup(func() {
+		if err := closeFn(); err != nil {
+			t.Errorf("closeFn() error = %v, want nil", err)
+		}
+	})
+
+	_, err = checker.Check(context.Background(), "de-DE", []string{"Hallo"})
+	if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+		t.Fatalf("Check() error = %v, want error wrapping spellcheck.ErrUnsupportedLocale when no dictionaries loaded", err)
 	}
 }
 

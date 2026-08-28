@@ -11,21 +11,14 @@ package hunspell
 import "C"
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"unsafe"
 )
 
 // ErrClosed is returned by Dictionary methods once Close has been called.
 var ErrClosed = errors.New("hunspell: dictionary is closed")
-
-var (
-	errAffixEncodingUndeclared = errors.New("hunspell: affix file has no SET declaration")
-	errAffixEncodingNotUTF8    = errors.New("hunspell: affix file declares a non-UTF-8 encoding")
-)
 
 const maxSuggestions = 5
 
@@ -35,8 +28,11 @@ type Dictionary struct {
 	closed bool
 }
 
-// New loads a UTF-8 Hunspell affix and dictionary pair.
-// Affix files without SET default to ISO8859-1 and are rejected.
+// New loads a Hunspell affix and dictionary pair for use with UTF-8 words.
+// Dictionaries that already declare UTF-8 are loaded as-is. Known 8-bit
+// encodings are transcoded to UTF-8 first so Go strings can be passed to
+// the C API. Affix files without SET, or with an unknown SET encoding, are
+// rejected because Hunspell defaults undeclared dictionaries to ISO8859-1.
 func New(affPath, dicPath string) (*Dictionary, error) {
 	if _, err := os.Stat(affPath); err != nil {
 		return nil, fmt.Errorf("hunspell: affix file: %w", err)
@@ -45,20 +41,15 @@ func New(affPath, dicPath string) (*Dictionary, error) {
 		return nil, fmt.Errorf("hunspell: dictionary file: %w", err)
 	}
 
-	encoding, declared, err := affEncoding(affPath)
+	loadAff, loadDic, cleanup, err := prepareUTF8Dictionary(affPath, dicPath)
 	if err != nil {
-		return nil, fmt.Errorf("hunspell: reading affix file encoding: %w", err)
+		return nil, err
 	}
-	if !declared {
-		return nil, fmt.Errorf("%w: %q (Hunspell defaults undeclared dictionaries to ISO8859-1, not UTF-8)", errAffixEncodingUndeclared, affPath)
-	}
-	if encoding != "UTF-8" {
-		return nil, fmt.Errorf("%w: %q declares %q, only UTF-8 dictionaries are supported", errAffixEncodingNotUTF8, affPath, encoding)
-	}
+	defer cleanup()
 
-	cAffPath := C.CString(affPath)
+	cAffPath := C.CString(loadAff)
 	defer C.free(unsafe.Pointer(cAffPath))
-	cDicPath := C.CString(dicPath)
+	cDicPath := C.CString(loadDic)
 	defer C.free(unsafe.Pointer(cDicPath))
 
 	handle := C.Hunspell_create(cAffPath, cDicPath)
@@ -67,26 +58,6 @@ func New(affPath, dicPath string) (*Dictionary, error) {
 	}
 
 	return &Dictionary{handle: handle}, nil
-}
-
-func affEncoding(affPath string) (encoding string, declared bool, err error) {
-	f, err := os.Open(affPath)
-	if err != nil {
-		return "", false, err
-	}
-	defer func() { _ = f.Close() }()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) > 0 && fields[0] == "SET" {
-			if len(fields) > 1 {
-				return fields[1], true, nil
-			}
-			return "", true, nil
-		}
-	}
-	return "", false, scanner.Err()
 }
 
 // Spell reports whether word is recognized by the loaded dictionary.

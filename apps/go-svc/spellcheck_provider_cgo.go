@@ -27,15 +27,18 @@ type hunspellSpellChecker struct {
 
 var _ SpellChecker = (*hunspellSpellChecker)(nil)
 
-func newHunspellSpellChecker(dictDir string, registry *spellcheck.Registry) (*hunspellSpellChecker, error) {
+func newHunspellSpellChecker(dictDir string, registry *spellcheck.Registry) *hunspellSpellChecker {
 	locales := registry.SupportedLocales()
 	handles := make(map[string]*localeHandle, len(locales))
 
 	for _, locale := range locales {
 		files, err := registry.Resolve(locale)
 		if err != nil {
-			rollbackHandles(handles)
-			return nil, fmt.Errorf("spellcheck: resolve locale %q: %w", locale, err)
+			slog.Warn("spellcheck: dictionary resolve failed",
+				"locale", locale,
+				"error", err,
+			)
+			continue
 		}
 
 		affPath := filepath.Join(dictDir, files.AffFile)
@@ -49,20 +52,24 @@ func newHunspellSpellChecker(dictDir string, registry *spellcheck.Registry) (*hu
 				"dic_path", dicPath,
 				"error", err,
 			)
-			rollbackHandles(handles)
-			return nil, fmt.Errorf("spellcheck: load dictionary for locale %q: %w", locale, err)
+			continue
 		}
 
 		handles[locale] = &localeHandle{dict: dict}
 	}
 
-	return &hunspellSpellChecker{handles: handles}, nil
-}
-
-func rollbackHandles(handles map[string]*localeHandle) {
-	if err := closeHandles(handles); err != nil {
-		slog.Warn("spellcheck: error closing dictionaries during startup rollback", "error", err)
+	if len(handles) == 0 {
+		slog.Warn("spellcheck: no dictionaries loaded; spelling will be skipped for all locales")
+	} else if len(handles) < len(locales) {
+		slog.Warn("spellcheck: loaded a subset of dictionaries",
+			"loaded", len(handles),
+			"configured", len(locales),
+		)
+	} else {
+		slog.Info("spellcheck: dictionaries loaded", "loaded", len(handles))
 	}
+
+	return &hunspellSpellChecker{handles: handles}
 }
 
 func closeHandles(handles map[string]*localeHandle) error {
@@ -85,7 +92,7 @@ func (c *hunspellSpellChecker) Check(ctx context.Context, locale string, words [
 
 	handle, ok := c.handles[locale]
 	if !ok {
-		slog.Info("spellcheck: skipping check for unsupported locale",
+		slog.Info("spellcheck: skipping check for locale without a loaded dictionary",
 			"locale", locale,
 			"word_count", len(words),
 		)
@@ -126,12 +133,6 @@ func (c *hunspellSpellChecker) Close() error {
 }
 
 func newSpellChecker(dictDir string) (SpellChecker, func() error, error) {
-	registry := spellcheck.LoadRegistry()
-
-	checker, err := newHunspellSpellChecker(dictDir, registry)
-	if err != nil {
-		return nil, nil, err
-	}
-
+	checker := newHunspellSpellChecker(dictDir, spellcheck.LoadRegistry())
 	return checker, checker.Close, nil
 }

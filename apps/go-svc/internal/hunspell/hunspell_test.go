@@ -60,9 +60,145 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestNewRejectsNonUTF8Dictionaries(t *testing.T) {
-	t.Run("declared non-UTF-8 encoding", func(t *testing.T) {
-		_, err := New(nonUTF8Aff, nonUTF8Dic)
+func TestNewEncoding(t *testing.T) {
+	t.Run("ISO8859-1 ASCII dictionary loads", func(t *testing.T) {
+		d, err := New(nonUTF8Aff, nonUTF8Dic)
+		if err != nil {
+			t.Fatalf("New() error = %v, want nil (ISO8859-1 is transcoded to UTF-8)", err)
+		}
+		t.Cleanup(func() {
+			if err := d.Close(); err != nil {
+				t.Errorf("Close() error = %v, want nil", err)
+			}
+		})
+
+		got, err := d.Spell("hello")
+		if err != nil {
+			t.Fatalf("Spell() error = %v, want nil", err)
+		}
+		if !got {
+			t.Error(`Spell("hello") = false, want true after ISO8859-1 transcoding`)
+		}
+	})
+
+	t.Run("ISO8859-1 latin-1 word is queryable as UTF-8", func(t *testing.T) {
+		dir := t.TempDir()
+		aff := filepath.Join(dir, "test.aff")
+		dic := filepath.Join(dir, "test.dic")
+		if err := os.WriteFile(aff, []byte("SET ISO8859-1\n"), 0o600); err != nil {
+			t.Fatalf("write aff: %v", err)
+		}
+		if err := os.WriteFile(dic, []byte{'1', '\n', 'c', 'a', 'f', 0xE9, '\n'}, 0o600); err != nil {
+			t.Fatalf("write dic: %v", err)
+		}
+
+		d, err := New(aff, dic)
+		if err != nil {
+			t.Fatalf("New() error = %v, want nil", err)
+		}
+		t.Cleanup(func() {
+			if err := d.Close(); err != nil {
+				t.Errorf("Close() error = %v, want nil", err)
+			}
+		})
+
+		got, err := d.Spell("café")
+		if err != nil {
+			t.Fatalf("Spell() error = %v, want nil", err)
+		}
+		if !got {
+			t.Error(`Spell("café") = false, want true: the ISO8859-1 byte 0xE9 must become UTF-8 before Hunspell_create`)
+		}
+	})
+
+	t.Run("ISO8859-2 word is queryable as UTF-8", func(t *testing.T) {
+		dir := t.TempDir()
+		aff := filepath.Join(dir, "test.aff")
+		dic := filepath.Join(dir, "test.dic")
+		if err := os.WriteFile(aff, []byte("SET ISO8859-2\n"), 0o600); err != nil {
+			t.Fatalf("write aff: %v", err)
+		}
+		if err := os.WriteFile(dic, []byte{'1', '\n', 0xB3, '\n'}, 0o600); err != nil {
+			t.Fatalf("write dic: %v", err)
+		}
+
+		d, err := New(aff, dic)
+		if err != nil {
+			t.Fatalf("New() error = %v, want nil", err)
+		}
+		t.Cleanup(func() {
+			if err := d.Close(); err != nil {
+				t.Errorf("Close() error = %v, want nil", err)
+			}
+		})
+
+		got, err := d.Spell("ł")
+		if err != nil {
+			t.Fatalf("Spell() error = %v, want nil", err)
+		}
+		if !got {
+			t.Error(`Spell("ł") = false, want true after ISO8859-2 transcoding`)
+		}
+	})
+
+	t.Run("UTF-8 BOM is stripped so SET is recognized", func(t *testing.T) {
+		dir := t.TempDir()
+		aff := filepath.Join(dir, "test.aff")
+		valid, err := os.ReadFile(validAff)
+		if err != nil {
+			t.Fatalf("read valid aff: %v", err)
+		}
+		if err := os.WriteFile(aff, append(append([]byte{}, utf8BOM...), valid...), 0o600); err != nil {
+			t.Fatalf("write bom aff: %v", err)
+		}
+
+		d, err := New(aff, validDic)
+		if err != nil {
+			t.Fatalf("New() error = %v, want nil for a UTF-8 dictionary that starts with a BOM", err)
+		}
+		t.Cleanup(func() {
+			if err := d.Close(); err != nil {
+				t.Errorf("Close() error = %v, want nil", err)
+			}
+		})
+
+		got, err := d.Spell("hello")
+		if err != nil {
+			t.Fatalf("Spell() error = %v, want nil", err)
+		}
+		if !got {
+			t.Error(`Spell("hello") = false, want true after BOM stripping`)
+		}
+	})
+
+	t.Run("SET UTF8 alias is treated as UTF-8", func(t *testing.T) {
+		dir := t.TempDir()
+		aff := filepath.Join(dir, "test.aff")
+		if err := os.WriteFile(aff, []byte("SET UTF8\n"), 0o600); err != nil {
+			t.Fatalf("write aff: %v", err)
+		}
+
+		d, err := New(aff, validDic)
+		if err != nil {
+			t.Fatalf("New() error = %v, want nil for SET UTF8", err)
+		}
+		if err := d.Close(); err != nil {
+			t.Errorf("Close() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("unknown encoding is rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		aff := filepath.Join(dir, "test.aff")
+		dic := filepath.Join(dir, "test.dic")
+		if err := os.WriteFile(aff, []byte("SET EBCDIC\n"), 0o600); err != nil {
+			t.Fatalf("write aff: %v", err)
+		}
+		if err := os.WriteFile(dic, []byte("1\nhello\n"), 0o600); err != nil {
+			t.Fatalf("write dic: %v", err)
+		}
+
+		_, err := New(aff, dic)
 		if !errors.Is(err, errAffixEncodingNotUTF8) {
 			t.Fatalf("New() error = %v, want error wrapping errAffixEncodingNotUTF8", err)
 		}

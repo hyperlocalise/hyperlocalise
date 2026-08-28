@@ -6,17 +6,27 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # in hunspell.go for local setup instructions.
 go_library(
     name = "hunspell",
-    srcs = ["hunspell.go"],
+    srcs = [
+        "encoding.go",
+        "hunspell.go",
+    ],
     cgo = True,
     clinkopts = ["-lhunspell"],
     gotags = ["cgo_hunspell"],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/hunspell",
     visibility = ["//visibility:public"],
+    deps = [
+        "@org_golang_x_text//encoding",
+        "@org_golang_x_text//encoding/charmap",
+    ],
 )
 
 go_test(
     name = "hunspell_test",
-    srcs = ["hunspell_test.go"],
+    srcs = [
+        "encoding_test.go",
+        "hunspell_test.go",
+    ],
     data = glob(["testdata/**"]),
     embed = [":hunspell"],
     gotags = ["cgo_hunspell"],

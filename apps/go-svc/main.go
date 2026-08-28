@@ -50,7 +50,9 @@ func main() {
 
 	spellChecker, closeSpellChecker, err := newSpellChecker(dictDir)
 	if err != nil {
-		log.Fatalf("configure spell checker: %v", err)
+		log.Printf("configure spell checker: %v; continuing without spell check", err)
+		spellChecker = NoopSpellChecker{}
+		closeSpellChecker = func() error { return nil }
 	}
 
 	defer func() {

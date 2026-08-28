@@ -17,6 +17,10 @@ that mapping is trusted (source, pinned version, licence, evidence).
   mapping is unsupported rather than silently pointed at a different
   regional variant or a generic/base-language dictionary.
 - Unsupported locales have no dictionary mapping at all.
+- The Hunspell wrapper speaks UTF-8 at the C API boundary. Dictionaries
+  that declare a known 8-bit encoding are transcoded to UTF-8 at load
+  time. A leading UTF-8 BOM is stripped so `SET` is still recognized.
+  Undeclared or unknown encodings are skipped.
 
 ## Supported locales (20)
 
@@ -76,13 +80,15 @@ These locales have **no** dictionary mapping.
 Future fallback support for `en-SG` and `fr-CA` (or a segmentation step for
 `th-TH`) may be considered in a later release.
 
-## API behavior for unsupported locales
+## API behavior for unsupported or unloaded locales
 
-When spelling is requested for a locale with no dictionary mapping, spelling
-is not executed for that request, and `spelling` is reported in the
-response's `skippedModes` list. This is a description of the intended
-contract, not new behavior implemented by this change: the API contract for
-an unavailable spell-check capability already reports `spelling` in
-`skippedModes` (see `ErrSpellCheckUnavailable` handling in
+When spelling is requested for a locale with no dictionary mapping, or
+whose dictionary failed to load at startup, spelling is not executed for
+that request, and `spelling` is reported in the response's `skippedModes`
+list. A single failed dictionary must not take the service down: other
+locales keep their loaded dictionaries, and the rest of segment validation
+continues. The API contract for an unavailable spell-check capability
+already reports `spelling` in `skippedModes` (see
+`ErrSpellCheckUnavailable` and `ErrUnsupportedLocale` handling in
 [`apps/go-svc/handler.go`](../../../apps/go-svc/handler.go) and
 [`apps/go-svc/spellcheck.go`](../../../apps/go-svc/spellcheck.go)).
