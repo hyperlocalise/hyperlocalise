@@ -92,6 +92,8 @@ func (c *hunspellSpellChecker) Check(ctx context.Context, locale string, words [
 		return nil, fmt.Errorf("%w: %q", spellcheck.ErrUnsupportedLocale, locale)
 	}
 
+	words = uniqueWords(words)
+
 	handle.mu.Lock()
 	defer handle.mu.Unlock()
 

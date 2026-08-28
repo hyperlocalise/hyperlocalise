@@ -81,6 +81,27 @@ func TestHunspellSpellCheckerCheckSupportedLocale(t *testing.T) {
 	}
 }
 
+func TestHunspellSpellCheckerCheckDeduplicatesRepeatedWords(t *testing.T) {
+	checker := newTestHunspellChecker(t, validDictDir, map[string]spellcheck.DictionaryFiles{
+		"xx-YY": {AffFile: "test.aff", DicFile: "test.dic"},
+	})
+
+	got, err := checker.Check(context.Background(), "xx-YY", []string{
+		"helo", "hello", "helo", "helo", "zzzqqqxxx", "hello", "zzzqqqxxx",
+	})
+	if err != nil {
+		t.Fatalf("Check() error = %v, want nil", err)
+	}
+
+	want := []SpellingIssue{
+		{Word: "helo", Suggestions: []string{"hello"}},
+		{Word: "zzzqqqxxx", Suggestions: nil},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Check() = %+v, want %+v", got, want)
+	}
+}
+
 func TestHunspellSpellCheckerCheckUnsupportedLocale(t *testing.T) {
 	checker := newTestHunspellChecker(t, validDictDir, map[string]spellcheck.DictionaryFiles{
 		"xx-YY": {AffFile: "test.aff", DicFile: "test.dic"},

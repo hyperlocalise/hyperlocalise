@@ -60,3 +60,36 @@ func TestCheckSpellingNoopWhenUnconfigured(t *testing.T) {
 	require.ErrorIs(t, err, ErrSpellCheckUnavailable)
 	require.Nil(t, issues)
 }
+
+func TestCheckSpellingDeduplicatesTokens(t *testing.T) {
+	fake := &fakeSpellChecker{}
+	h := &handler{spellChecker: fake}
+
+	_, err := h.checkSpelling(context.Background(), "en-US", "helo helo hello helo")
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"helo", "hello"}, fake.receivedWords)
+}
+
+func TestUniqueWords(t *testing.T) {
+	tests := []struct {
+		name  string
+		words []string
+		want  []string
+	}{
+		{name: "nil", words: nil, want: nil},
+		{name: "empty", words: []string{}, want: []string{}},
+		{name: "single word", words: []string{"hello"}, want: []string{"hello"}},
+		{name: "already unique", words: []string{"hello", "world"}, want: []string{"hello", "world"}},
+		{name: "repeated misspelling", words: []string{"helo", "helo", "helo"}, want: []string{"helo"}},
+		{name: "preserves first-seen order", words: []string{"helo", "hello", "helo", "world", "hello"}, want: []string{"helo", "hello", "world"}},
+		{name: "case-sensitive", words: []string{"Hello", "hello", "Hello"}, want: []string{"Hello", "hello"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := uniqueWords(tt.words)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

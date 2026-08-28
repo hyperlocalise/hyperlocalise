@@ -41,7 +41,7 @@ func newHandler() *handler {
 }
 
 func (h *handler) checkSpelling(ctx context.Context, locale, text string) ([]SpellingIssue, error) {
-	return h.spellChecker.Check(ctx, locale, spellcheck.Tokenize(text))
+	return h.spellChecker.Check(ctx, locale, uniqueWords(spellcheck.Tokenize(text)))
 }
 
 func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
