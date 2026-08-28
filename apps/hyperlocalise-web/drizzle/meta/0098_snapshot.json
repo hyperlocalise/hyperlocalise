@@ -1,5 +1,5 @@
 {
-  "id": "589227f2-e471-47d3-ab34-a0c223642e06",
+  "id": "3b9f2926-5f2b-44c6-8e39-39db7b84fa30",
   "prevId": "28357ac8-77bf-4ceb-a379-1d01b0d2cb3b",
   "version": "7",
   "dialect": "postgresql",
@@ -4241,14 +4241,6 @@
           "notNull": true,
           "default": "'native'"
         },
-        "control_level": {
-          "name": "control_level",
-          "type": "glossary_control_level",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'org'"
-        },
         "external_provider_kind": {
           "name": "external_provider_kind",
           "type": "external_tms_provider_kind",
@@ -4577,12 +4569,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "glossaries_team_control_is_native": {
-          "name": "glossaries_team_control_is_native",
-          "value": "\"glossaries\".\"control_level\" <> 'team' OR \"glossaries\".\"source\" = 'native'"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.glossary_concepts": {
@@ -5509,9 +5496,34 @@
           "notNull": true,
           "default": "'approved'"
         },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modified_by_user_id": {
+          "name": "modified_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_by_user_id": {
+          "name": "reviewed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -5827,6 +5839,33 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_memory_entries_memory_normalized_source": {
+          "name": "idx_memory_entries_memory_normalized_source",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_source_text",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -5855,6 +5894,32 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "memory_entries_modified_by_user_id_users_id_fk": {
+          "name": "memory_entries_modified_by_user_id_users_id_fk",
+          "tableFrom": "memory_entries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "modified_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "memory_entries_reviewed_by_user_id_users_id_fk": {
+          "name": "memory_entries_reviewed_by_user_id_users_id_fk",
+          "tableFrom": "memory_entries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "reviewed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5866,6 +5931,172 @@
           "value": "\"memory_entries\".\"match_score\" >= 0 AND \"memory_entries\".\"match_score\" <= 100"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.memory_entry_events": {
+      "name": "memory_entry_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "memory_entry_id": {
+          "name": "memory_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_id": {
+          "name": "memory_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changed_fields": {
+          "name": "changed_fields",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_memory_entry_events_entry_occurred_at": {
+          "name": "idx_memory_entry_events_entry_occurred_at",
+          "columns": [
+            {
+              "expression": "memory_entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entry_events_memory_occurred_at": {
+          "name": "idx_memory_entry_events_memory_occurred_at",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "memory_entry_events_memory_entry_id_memory_entries_id_fk": {
+          "name": "memory_entry_events_memory_entry_id_memory_entries_id_fk",
+          "tableFrom": "memory_entry_events",
+          "tableTo": "memory_entries",
+          "columnsFrom": [
+            "memory_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "memory_entry_events_memory_id_memories_id_fk": {
+          "name": "memory_entry_events_memory_id_memories_id_fk",
+          "tableFrom": "memory_entry_events",
+          "tableTo": "memories",
+          "columnsFrom": [
+            "memory_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "memory_entry_events_actor_user_id_users_id_fk": {
+          "name": "memory_entry_events_actor_user_id_users_id_fk",
+          "tableFrom": "memory_entry_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.project_glossaries": {
@@ -20143,14 +20374,6 @@
       "values": [
         "glossary",
         "term_base"
-      ]
-    },
-    "public.glossary_control_level": {
-      "name": "glossary_control_level",
-      "schema": "public",
-      "values": [
-        "org",
-        "team"
       ]
     },
     "public.glossary_sync_state": {

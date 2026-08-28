@@ -104,11 +104,14 @@ export const createMemoryEntryBodySchema = z.object({
 
 export const updateMemoryEntryBodySchema = z
   .object({
+    expectedVersion: z.number().int().min(1),
     sourceLocale: z.string().trim().min(1).max(50).optional(),
     targetLocale: z.string().trim().min(1).max(50).optional(),
     sourceText: z.string().trim().min(1).max(100_000).optional(),
     targetText: z.string().trim().min(1).max(100_000).optional(),
     matchScore: z.number().int().min(0).max(100).optional(),
+    reviewStatus: memoryEntryReviewStatusSchema.optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .refine(
     (value) =>
@@ -116,7 +119,9 @@ export const updateMemoryEntryBodySchema = z
       value.targetLocale !== undefined ||
       value.sourceText !== undefined ||
       value.targetText !== undefined ||
-      value.matchScore !== undefined,
+      value.matchScore !== undefined ||
+      value.reviewStatus !== undefined ||
+      value.metadata !== undefined,
     { message: "at least one field must be provided" },
   );
 
@@ -175,15 +180,74 @@ export const memoryEntryRecordSchema = z.object({
   matchScore: z.number().int(),
   provenance: z.string(),
   reviewStatus: z.string(),
+  version: z.number().int(),
   externalKey: z.string().nullable(),
   createdByUserId: z.string().nullable(),
+  modifiedByUserId: z.string().nullable(),
+  reviewedByUserId: z.string().nullable(),
   importBatchId: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  reviewedAt: z.string().datetime().nullable(),
+});
+
+export const memoryEntryActorSchema = z.object({
+  userId: z.string().nullable(),
+  displayName: z.string().nullable(),
+  at: z.string().datetime().nullable(),
+  source: z.enum(["created", "modified", "reviewed", "imported", "provider"]),
+});
+
+export const memoryEntryProvenanceSchema = z.object({
+  origin: z.string(),
+  provider: z.string().nullable(),
+  importBatchId: z.string().nullable(),
+  context: z.string().nullable(),
+  created: memoryEntryActorSchema,
+  modified: memoryEntryActorSchema,
+  reviewed: memoryEntryActorSchema,
+  imported: memoryEntryActorSchema,
+  providerSupplied: memoryEntryActorSchema,
+});
+
+export const memoryEntryVariantRecordSchema = z.object({
+  id: z.string(),
+  sourceLocale: z.string(),
+  targetLocale: z.string(),
+  sourceText: z.string(),
+  targetText: z.string(),
+  context: z.string().nullable(),
+  reviewStatus: z.string(),
+});
+
+export const memoryEntryAuditEventRecordSchema = z.object({
+  id: z.string(),
+  eventType: z.enum(["created", "updated", "reviewed", "imported", "synced"]),
+  actorKind: z.enum(["user", "import", "provider", "system"]),
+  actorUserId: z.string().nullable(),
+  actorDisplayName: z.string().nullable(),
+  version: z.number().int(),
+  changedFields: z.array(z.string()),
+  attributes: z.record(z.string(), z.unknown()),
+  occurredAt: z.string().datetime(),
+});
+
+export const memoryEntryCapabilitiesSchema = z.object({
+  canEdit: z.boolean(),
+  readOnlyReason: z.enum(["external_tms", "reference_only"]).nullable(),
 });
 
 export const memoryEntryResponseSchema = z.object({
   memoryEntry: memoryEntryRecordSchema,
+});
+
+export const memoryEntryDetailResponseSchema = z.object({
+  memoryEntry: memoryEntryRecordSchema,
+  provenance: memoryEntryProvenanceSchema,
+  variants: z.array(memoryEntryVariantRecordSchema),
+  auditEvents: z.array(memoryEntryAuditEventRecordSchema),
+  capabilities: memoryEntryCapabilitiesSchema,
 });
 
 export const memoryProjectRecordSchema = z.object({
@@ -231,7 +295,12 @@ export type AttachMemoryProjectBody = z.infer<typeof attachMemoryProjectBodySche
 export type MemoryRecord = z.infer<typeof memoryRecordSchema>;
 export type MemoryResponse = z.infer<typeof memoryResponseSchema>;
 export type MemoryEntryRecord = z.infer<typeof memoryEntryRecordSchema>;
+export type MemoryEntryActor = z.infer<typeof memoryEntryActorSchema>;
 export type MemoryEntryResponse = z.infer<typeof memoryEntryResponseSchema>;
+export type MemoryEntryDetailResponse = z.infer<typeof memoryEntryDetailResponseSchema>;
+export type MemoryEntryProvenance = z.infer<typeof memoryEntryProvenanceSchema>;
+export type MemoryEntryVariantRecord = z.infer<typeof memoryEntryVariantRecordSchema>;
+export type MemoryEntryAuditEventRecord = z.infer<typeof memoryEntryAuditEventRecordSchema>;
 export type MemoriesResponse = z.infer<typeof memoriesResponseSchema>;
 export type MemoryEntriesResponse = z.infer<typeof memoryEntriesResponseSchema>;
 export type MemoryProjectRecord = z.infer<typeof memoryProjectRecordSchema>;

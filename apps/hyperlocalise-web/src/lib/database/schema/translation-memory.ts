@@ -413,10 +413,22 @@ export const memoryEntries = pgTable(
     externalKey: text("external_key"),
     // Review status for agent suggestions vs human-approved entries.
     reviewStatus: text("review_status").notNull().default("approved"),
+    // Optimistic-concurrency version. Incremented on every successful write, including upserts.
+    version: integer("version").notNull().default(1),
     // User who created the entry, if known.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    // User who last modified the entry, if known.
+    modifiedByUserId: uuid("modified_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // User who last reviewed the entry, if known.
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // When the entry was last reviewed.
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     // Shared identifier for entries written by one import request.
     importBatchId: uuid("import_batch_id"),
     // Extensible metadata for import payloads or audit tags.
@@ -470,6 +482,64 @@ export const memoryEntries = pgTable(
     index("idx_memory_entries_memory_provenance").on(table.memoryId, table.provenance),
     index("idx_memory_entries_memory_created_by").on(table.memoryId, table.createdByUserId),
     index("idx_memory_entries_memory_import_batch").on(table.memoryId, table.importBatchId),
+    index("idx_memory_entries_memory_normalized_source").on(
+      table.memoryId,
+      table.sourceLocale,
+      table.normalizedSourceText,
+    ),
+  ],
+);
+
+export type MemoryEntryEventType = "created" | "updated" | "reviewed" | "imported" | "synced";
+export type MemoryEntryEventActorKind = "user" | "import" | "provider" | "system";
+
+/**
+ * Append-only audit timeline for translation-memory entries. Events store field names
+ * and identifiers only — never raw source or target text.
+ */
+export const memoryEntryEvents = pgTable(
+  "memory_entry_events",
+  {
+    // Stable audit event identifier.
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Entry this event belongs to.
+    memoryEntryId: uuid("memory_entry_id")
+      .notNull()
+      .references(() => memoryEntries.id, { onDelete: "cascade" }),
+    // Parent TM container, denormalized for scoped queries.
+    memoryId: uuid("memory_id")
+      .notNull()
+      .references(() => memories.id, { onDelete: "cascade" }),
+    // Canonical safe-write lifecycle event.
+    eventType: text("event_type").$type<MemoryEntryEventType>().notNull(),
+    // How the actor is attributed: user, import batch, provider, or system.
+    actorKind: text("actor_kind").$type<MemoryEntryEventActorKind>().notNull(),
+    // User who performed the change, when the actor is a workspace member.
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Entry version after this event was applied.
+    version: integer("version").notNull(),
+    // Changed field names only. Do not store raw linguistic content.
+    changedFields: jsonb("changed_fields")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Safe identifiers such as importBatchId, provider, or reviewStatus.
+    attributes: jsonb("attributes")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // When the event occurred.
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_memory_entry_events_entry_occurred_at").on(
+      table.memoryEntryId,
+      table.occurredAt,
+      table.id,
+    ),
+    index("idx_memory_entry_events_memory_occurred_at").on(table.memoryId, table.occurredAt),
   ],
 );
 

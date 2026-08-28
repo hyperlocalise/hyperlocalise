@@ -43,6 +43,21 @@ export function externalTmsMemoryImmutableResponse(c: { json: JsonContext["json"
   );
 }
 
+export function memoryEntryReadOnlyResponse(
+  c: { json: JsonContext["json"] },
+  reason: "external_tms" | "reference_only",
+) {
+  if (reason === "reference_only") {
+    return sharedForbiddenResponse(
+      c,
+      "memory_entry_read_only",
+      "This translation memory is reference-only and cannot be edited",
+    );
+  }
+
+  return externalTmsMemoryImmutableResponse(c);
+}
+
 export function isMemoryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "memories:write");
 }

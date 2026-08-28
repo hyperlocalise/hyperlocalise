@@ -491,7 +491,7 @@ describe("glossaryRoutes", () => {
       .update(schema.glossaries)
       .set({
         source: "external_tms",
-        externalProviderKind: "crowdin",
+        externalProviderKind: "lokalise",
         externalProjectId: "external-project-1",
         externalResourceType: "glossary",
         externalGlossaryId: "external-glossary-1",
@@ -725,7 +725,7 @@ describe("glossaryRoutes", () => {
     expect(conceptResponse.status).toBe(201);
     expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
       status: "created",
-      source: "glossary",
+      source: "glossary_concept",
     });
     trackSpy.mockRestore();
   });
