@@ -33,12 +33,24 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type {
+  MemoryEntryDetailResponse,
+  MemoryEntryResponse,
+} from "@/api/routes/memory/memory.schema";
 import { db, schema } from "@/lib/database";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
 const client = testClient(createApp());
 const fixture = createMemoryTestFixture(client);
+
+async function readDetail(response: Response): Promise<MemoryEntryDetailResponse> {
+  return (await response.json()) as MemoryEntryDetailResponse;
+}
+
+async function readCreatedEntry(response: Response): Promise<MemoryEntryResponse> {
+  return (await response.json()) as MemoryEntryResponse;
+}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -80,7 +92,7 @@ describe("memory entry detail", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = await readDetail(response);
     expect(body.memoryEntry).toMatchObject({
       id: entry.id,
       sourceText: "Save changes",
@@ -134,7 +146,7 @@ describe("memory entry detail", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = await readDetail(response);
     expect(body.provenance.created.userId).toBeNull();
     expect(body.provenance.reviewed.at).toBeNull();
     expect(body.provenance.imported.at).toBeNull();
@@ -183,8 +195,8 @@ describe("memory entry detail", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
-    const variantIds = body.variants.map((variant: { id: string }) => variant.id).toSorted();
+    const body = await readDetail(response);
+    const variantIds = body.variants.map((variant) => variant.id).toSorted();
     expect(variantIds).toEqual([grouped.id, localeVariant.id].toSorted());
   });
 
@@ -210,7 +222,7 @@ describe("memory entry detail", () => {
       { headers },
     );
     expect(created.status).toBe(201);
-    const createdBody = await created.json();
+    const createdBody = await readCreatedEntry(created);
 
     const updated = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
@@ -224,15 +236,15 @@ describe("memory entry detail", () => {
         json: {
           expectedVersion: createdBody.memoryEntry.version,
           targetText: "Texto actualizado",
-          reviewStatus: "approved",
+          reviewStatus: "pending",
         },
       },
       { headers },
     );
     expect(updated.status).toBe(200);
-    const detail = await updated.json();
+    const detail = await readDetail(updated);
 
-    expect(detail.auditEvents.map((event: { eventType: string }) => event.eventType)).toEqual([
+    expect(detail.auditEvents.map((event) => event.eventType)).toEqual([
       "created",
       "updated",
       "reviewed",
@@ -267,40 +279,42 @@ describe("memory entry detail", () => {
       },
       { headers },
     );
-    const createdBody = await created.json();
+    const createdBody = await readCreatedEntry(created);
 
-    const first = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$patch(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            memoryId: memory.id,
-            entryId: createdBody.memoryEntry.id,
-          },
-          json: {
-            expectedVersion: createdBody.memoryEntry.version,
-            targetText: "First writer",
-          },
+    const first = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: createdBody.memoryEntry.id,
         },
-        { headers },
-      );
+        json: {
+          expectedVersion: createdBody.memoryEntry.version,
+          targetText: "First writer",
+        },
+      },
+      { headers },
+    );
     expect(first.status).toBe(200);
 
-    const stale = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$patch(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            memoryId: memory.id,
-            entryId: createdBody.memoryEntry.id,
-          },
-          json: {
-            expectedVersion: createdBody.memoryEntry.version,
-            targetText: "Stale writer",
-          },
+    const stale = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: createdBody.memoryEntry.id,
         },
-        { headers },
-      );
+        json: {
+          expectedVersion: createdBody.memoryEntry.version,
+          targetText: "Stale writer",
+        },
+      },
+      { headers },
+    );
 
     expect(stale.status).toBe(409);
     await expect(stale.json()).resolves.toMatchObject({
@@ -314,18 +328,19 @@ describe("memory entry detail", () => {
       },
     });
 
-    const latest = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$get(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            memoryId: memory.id,
-            entryId: createdBody.memoryEntry.id,
-          },
+    const latest = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: createdBody.memoryEntry.id,
         },
-        { headers },
-      );
-    const latestBody = await latest.json();
+      },
+      { headers },
+    );
+    const latestBody = await readDetail(latest);
     expect(latestBody.memoryEntry.targetText).toBe("First writer");
     expect(latestBody.memoryEntry.version).toBe(2);
   });

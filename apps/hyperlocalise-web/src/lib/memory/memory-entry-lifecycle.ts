@@ -69,7 +69,9 @@ const MUTABLE_FIELD_NAMES = [
   "metadata",
 ] as const;
 
-export function memoryEntryCapabilities(memory: Pick<Memory, "source" | "capabilityMode">): MemoryEntryCapabilities {
+export function memoryEntryCapabilities(
+  memory: Pick<Memory, "source" | "capabilityMode">,
+): MemoryEntryCapabilities {
   if (memory.source === "external_tms") {
     return { canEdit: false, readOnlyReason: "external_tms" };
   }
@@ -203,15 +205,14 @@ export async function recordMemoryEntryCreatedEvents(input: {
     return [];
   }
 
-  return db.insert(schema.memoryEntryEvents).values(
-    input.entries.map((entry) => createdEventValues({ entry, actorUserId: input.actorUserId })),
-  );
+  return db
+    .insert(schema.memoryEntryEvents)
+    .values(
+      input.entries.map((entry) => createdEventValues({ entry, actorUserId: input.actorUserId })),
+    );
 }
 
-function changedFieldNames(
-  current: MemoryEntryRow,
-  updates: MemoryEntryMutableFields,
-): string[] {
+function changedFieldNames(current: MemoryEntryRow, updates: MemoryEntryMutableFields): string[] {
   return MUTABLE_FIELD_NAMES.filter((field) => {
     const next = updates[field];
     if (next === undefined) {

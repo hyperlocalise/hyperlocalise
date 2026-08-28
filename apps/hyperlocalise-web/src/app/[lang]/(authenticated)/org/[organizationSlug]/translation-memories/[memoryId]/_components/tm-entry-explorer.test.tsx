@@ -428,11 +428,10 @@ describe("TmEntryExplorer", () => {
       expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: "Back to results" }));
+    await user.click(screen.getAllByRole("button", { name: "Close" })[0]!);
 
     await waitFor(() => {
       expect(screen.queryByText("Translation memory entry")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Back to results" })).not.toBeInTheDocument();
     });
     expect(screen.getByDisplayValue("checkout")).toBeInTheDocument();
     expect(screen.getByText("Checkout")).toBeInTheDocument();

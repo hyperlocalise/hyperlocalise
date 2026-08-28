@@ -295,6 +295,7 @@ export type AttachMemoryProjectBody = z.infer<typeof attachMemoryProjectBodySche
 export type MemoryRecord = z.infer<typeof memoryRecordSchema>;
 export type MemoryResponse = z.infer<typeof memoryResponseSchema>;
 export type MemoryEntryRecord = z.infer<typeof memoryEntryRecordSchema>;
+export type MemoryEntryActor = z.infer<typeof memoryEntryActorSchema>;
 export type MemoryEntryResponse = z.infer<typeof memoryEntryResponseSchema>;
 export type MemoryEntryDetailResponse = z.infer<typeof memoryEntryDetailResponseSchema>;
 export type MemoryEntryProvenance = z.infer<typeof memoryEntryProvenanceSchema>;

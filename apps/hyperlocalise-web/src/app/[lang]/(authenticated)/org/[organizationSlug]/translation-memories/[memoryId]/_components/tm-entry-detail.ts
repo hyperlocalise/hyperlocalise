@@ -16,11 +16,7 @@ import { apiClient } from "@/lib/api-client-instance";
 
 export const TM_ENTRY_DETAIL_QUERY_KEY = "translation-memory-entry-detail" as const;
 
-export function tmEntryDetailQueryKey(
-  organizationSlug: string,
-  memoryId: string,
-  entryId: string,
-) {
+export function tmEntryDetailQueryKey(organizationSlug: string, memoryId: string, entryId: string) {
   return [TM_ENTRY_DETAIL_QUERY_KEY, organizationSlug, memoryId, entryId] as const;
 }
 

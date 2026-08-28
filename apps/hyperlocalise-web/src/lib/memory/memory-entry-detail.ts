@@ -118,7 +118,11 @@ function actor(input: {
   source: MemoryEntryActor["source"];
 }): MemoryEntryActor {
   const at =
-    input.at instanceof Date ? input.at.toISOString() : typeof input.at === "string" ? input.at : null;
+    input.at instanceof Date
+      ? input.at.toISOString()
+      : typeof input.at === "string"
+        ? input.at
+        : null;
   return {
     userId: input.userId,
     displayName: input.displayName,
@@ -314,7 +318,10 @@ export async function getMemoryEntryDetail(input: {
     .select()
     .from(schema.memoryEntries)
     .where(
-      and(eq(schema.memoryEntries.id, input.entryId), eq(schema.memoryEntries.memoryId, input.memory.id)),
+      and(
+        eq(schema.memoryEntries.id, input.entryId),
+        eq(schema.memoryEntries.memoryId, input.memory.id),
+      ),
     )
     .limit(1);
 
@@ -323,11 +330,7 @@ export async function getMemoryEntryDetail(input: {
   }
 
   const [names, variants, auditEvents] = await Promise.all([
-    loadActorNames([
-      entry.createdByUserId,
-      entry.modifiedByUserId,
-      entry.reviewedByUserId,
-    ]),
+    loadActorNames([entry.createdByUserId, entry.modifiedByUserId, entry.reviewedByUserId]),
     loadVariants(entry),
     loadAuditEvents(entry),
   ]);

@@ -22,11 +22,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import {
-  conflictResponse,
-  badRequestResponse,
-  validationErrorResponse,
-} from "@/api/errors";
+import { conflictResponse, badRequestResponse, validationErrorResponse } from "@/api/errors";
 import { apiErrorResponse } from "@/api/response.schema";
 import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";

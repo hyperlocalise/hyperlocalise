@@ -514,7 +514,10 @@ export const memoryEntryEvents = pgTable(
     // Entry version after this event was applied.
     version: integer("version").notNull(),
     // Changed field names only. Do not store raw linguistic content.
-    changedFields: jsonb("changed_fields").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    changedFields: jsonb("changed_fields")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     // Safe identifiers such as importBatchId, provider, or reviewStatus.
     attributes: jsonb("attributes")
       .$type<Record<string, unknown>>()

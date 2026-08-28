@@ -48,7 +48,11 @@ import { apiClient } from "@/lib/api-client-instance";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
 
 import { tmEntryDetailMessages as messages } from "./tm-entry-detail.messages";
-import { fetchTmEntryDetail, isStaleMemoryEntryError, tmEntryDetailQueryKey } from "./tm-entry-detail";
+import {
+  fetchTmEntryDetail,
+  isStaleMemoryEntryError,
+  tmEntryDetailQueryKey,
+} from "./tm-entry-detail";
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
@@ -71,7 +75,8 @@ function formFromDetail(detail: MemoryEntryDetailResponse): EntryForm {
     sourceText: detail.memoryEntry.sourceText,
     targetText: detail.memoryEntry.targetText,
     reviewStatus:
-      detail.memoryEntry.reviewStatus === "pending" || detail.memoryEntry.reviewStatus === "rejected"
+      detail.memoryEntry.reviewStatus === "pending" ||
+      detail.memoryEntry.reviewStatus === "rejected"
         ? detail.memoryEntry.reviewStatus
         : "approved",
     context: detail.provenance.context ?? "",
@@ -336,7 +341,9 @@ export function TmEntryDetailSheet({
                     value={form.sourceLocale}
                     locales={localeOptions}
                     onValueChange={(locale) =>
-                      setForm((current) => (current ? { ...current, sourceLocale: locale } : current))
+                      setForm((current) =>
+                        current ? { ...current, sourceLocale: locale } : current,
+                      )
                     }
                   />
                   <TmEntryLocaleField
@@ -344,7 +351,9 @@ export function TmEntryDetailSheet({
                     value={form.targetLocale}
                     locales={localeOptions}
                     onValueChange={(locale) =>
-                      setForm((current) => (current ? { ...current, targetLocale: locale } : current))
+                      setForm((current) =>
+                        current ? { ...current, targetLocale: locale } : current,
+                      )
                     }
                   />
                   <Field className="gap-1.5">
@@ -468,7 +477,9 @@ export function TmEntryDetailSheet({
                       <TypographyP className="text-xs font-medium text-muted-foreground">
                         <FormattedMessage {...messages.importBatchLabel} />
                       </TypographyP>
-                      <TypographyP className="text-sm">{detail.provenance.importBatchId}</TypographyP>
+                      <TypographyP className="text-sm">
+                        {detail.provenance.importBatchId}
+                      </TypographyP>
                     </div>
                   ) : null}
                   <ProvenanceRow

@@ -33,7 +33,9 @@ describe("tm entry detail helpers", () => {
       ),
     ).toBe(true);
     expect(
-      isStaleMemoryEntryError(new ApiResponseError("not found", { code: "memory_not_found", status: 404 })),
+      isStaleMemoryEntryError(
+        new ApiResponseError("not found", { code: "memory_not_found", status: 404 }),
+      ),
     ).toBe(false);
   });
 });
