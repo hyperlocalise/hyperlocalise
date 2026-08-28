@@ -35,7 +35,7 @@ import {
   glossaryTermProvenanceEnum,
   projectSourceEnum,
 } from "./enums";
-import { organizations, users } from "./organizations";
+import { organizations, teams, users } from "./organizations";
 import { organizationExternalTmsProviderCredentials } from "./providers";
 import { projects } from "./projects";
 
@@ -78,6 +78,8 @@ export const glossaries = pgTable(
     source: projectSourceEnum("source").notNull().default("native"),
     // Org-wide vs team control. Team is Hyperlocalise-owned only.
     controlLevel: glossaryControlLevelEnum("control_level").notNull().default("org"),
+    // Owning team for team-controlled native glossaries.
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
     // Provider kind when sourced from external TMS.
     externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
     // External provider credential backing this glossary.
@@ -143,6 +145,7 @@ export const glossaries = pgTable(
       table.targetLocale,
     ),
     index("idx_glossaries_created_by_user_id").on(table.createdByUserId),
+    index("idx_glossaries_team_id").on(table.teamId),
     index("idx_glossaries_sync_state").on(table.syncState),
     index("idx_glossaries_external_provider").on(
       table.organizationId,
@@ -152,6 +155,10 @@ export const glossaries = pgTable(
     check(
       "glossaries_team_control_is_native",
       sql`${table.controlLevel} <> 'team' OR ${table.source} = 'native'`,
+    ),
+    check(
+      "glossaries_team_id_requires_team_control",
+      sql`${table.teamId} IS NULL OR ${table.controlLevel} = 'team'`,
     ),
   ],
 );

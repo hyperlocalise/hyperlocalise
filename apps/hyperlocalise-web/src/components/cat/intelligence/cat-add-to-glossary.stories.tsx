@@ -16,6 +16,9 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import { CatAddToGlossary } from "./cat-add-to-glossary";
 
+const teamProductId = "team-product";
+const teamMarketingId = "team-marketing";
+
 const meta = {
   title: "CAT/Add to Team Glossary",
   component: CatAddToGlossary,
@@ -32,14 +35,16 @@ const meta = {
   args: {
     organizationSlug: "acme",
     projectId: "project_1",
+    teamId: teamProductId,
+    teamName: "Product",
     sourceLocale: "en",
     targetLocale: "vi",
     sourceTerm: "Dashboard",
     targetTerm: "Bảng điều khiển",
     canContribute: true,
     teamGlossaries: [
-      { id: "glossary-team-1", name: "Product team terms" },
-      { id: "glossary-team-2", name: "Marketing team terms" },
+      { id: "glossary-team-1", name: "Product team terms", teamId: teamProductId },
+      { id: "glossary-team-2", name: "Marketing team terms", teamId: teamMarketingId },
     ],
     onAdded: fn(),
     onTeamGlossaryCreated: fn(),
@@ -52,28 +57,31 @@ type Story = StoryObj<typeof meta>;
 export const Picker: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Primary term" })).toHaveValue("Dashboard");
     await expect(canvas.getByRole("textbox", { name: "Definition" })).toHaveValue("");
     await expect(canvas.getByRole("checkbox", { name: "Translatable" })).toBeChecked();
     await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
       "Product team terms",
     );
+    await expect(canvas.getAllByRole("combobox").length).toBeGreaterThan(1);
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
     await expect(
       await body.findByRole("option", { name: "Marketing team terms" }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     await expect(body.getByRole("option", { name: "Create new" })).toBeInTheDocument();
   },
 };
 
 export const SingleTeamGlossary: Story = {
   args: {
-    teamGlossaries: [{ id: "glossary-team-1", name: "Product team terms" }],
+    teamGlossaries: [{ id: "glossary-team-1", name: "Product team terms", teamId: teamProductId }],
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
       "Product team terms",
     );
@@ -94,9 +102,11 @@ export const Untranslatable: Story = {
     await expect(canvas.getByRole("textbox", { name: "Target term" })).toHaveValue(
       "Bảng điều khiển",
     );
+    const metadataComboboxCount = canvas.getAllByRole("combobox").length;
     await userEvent.click(canvas.getByRole("checkbox", { name: "Translatable" }));
     await expect(canvas.getByRole("checkbox", { name: "Translatable" })).not.toBeChecked();
     await expect(canvas.queryByRole("textbox", { name: "Target term" })).not.toBeInTheDocument();
+    await expect(canvas.getAllByRole("combobox").length).toBeLessThan(metadataComboboxCount);
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
   },
 };
@@ -106,7 +116,9 @@ export const CreateNew: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
     await userEvent.click(await body.findByRole("option", { name: "Create new" }));
-    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue("Team terms");
+    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
+      "Shared with Product.",
+    );
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
     await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
@@ -120,7 +132,10 @@ export const Empty: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
-    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue("Team terms");
+    await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
+      "Shared with Product.",
+    );
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
     await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
@@ -149,11 +164,15 @@ function SegmentRemountDemo({
         key={segmentId}
         organizationSlug="acme"
         projectId="project_1"
+        teamId={teamProductId}
+        teamName="Product"
         sourceLocale="en"
         targetLocale="vi"
         sourceTerm={sourceTerm}
         targetTerm={targetTerm}
-        teamGlossaries={[{ id: "glossary-team-1", name: "Product team terms" }]}
+        teamGlossaries={[
+          { id: "glossary-team-1", name: "Product team terms", teamId: teamProductId },
+        ]}
         canContribute
         onAdded={fn()}
       />

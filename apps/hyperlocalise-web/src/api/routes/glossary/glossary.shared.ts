@@ -89,6 +89,14 @@ export function glossaryTeamNativeProjectRequiredResponse(c: { json: JsonContext
   );
 }
 
+export function glossaryTeamNotFoundResponse(c: { json: JsonContext["json"] }) {
+  return notFoundResponse(c, "glossary_team_not_found", "Team not found");
+}
+
+export function glossaryTeamMembershipRequiredResponse(c: { json: JsonContext["json"] }) {
+  return forbiddenResponse(c);
+}
+
 export function glossarySourceLocaleAttachedProjectsResponse(c: { json: JsonContext["json"] }) {
   return badRequestResponse(
     c,
@@ -278,6 +286,7 @@ export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string)
       status: "active",
       source: "external_tms",
       controlLevel: "org",
+      teamId: null,
       externalProviderKind: "crowdin",
       externalProviderCredentialId: null,
       externalProjectId: liveGlossary.externalProjectId,

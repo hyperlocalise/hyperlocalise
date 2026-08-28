@@ -19,8 +19,15 @@ import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  emptyGlossaryTermMetadataDraft,
+  GlossaryTermMetadataFields,
+  glossaryTermMetadataToPayload,
+  type GlossaryTermMetadataDraft,
+} from "@/components/glossary/glossary-term-property-pickers";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GlossaryPartOfSpeech } from "@/lib/glossary/glossary";
 import { cn } from "@/lib/primitives/cn";
 import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,16 +46,20 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
 
+import {
+  formatCatSharedWithTeamGlossaryName,
+  type CatTeamGlossaryOption,
+} from "./cat-team-glossary";
+
 const CREATE_TEAM_GLOSSARY_VALUE = "__create__";
 
-export type CatTeamGlossaryOption = {
-  id: string;
-  name: string;
-};
+export type { CatTeamGlossaryOption };
 
 export function CatAddToGlossary({
   organizationSlug,
   projectId,
+  teamId,
+  teamName,
   sourceLocale,
   targetLocale,
   sourceTerm,
@@ -61,6 +72,8 @@ export function CatAddToGlossary({
 }: {
   organizationSlug?: string;
   projectId?: string;
+  teamId: string;
+  teamName: string;
   sourceLocale: string;
   targetLocale: string;
   sourceTerm: string;
@@ -76,21 +89,40 @@ export function CatAddToGlossary({
   const definitionId = useId();
   const targetTermId = useId();
   const newGlossaryNameId = useId();
-  const canCreate = Boolean(canContribute && organizationSlug && projectId && sourceLocale);
+  const canCreate = Boolean(
+    canContribute && organizationSlug && projectId && sourceLocale && teamId,
+  );
+  const scopedTeamGlossaries = useMemo(
+    () => teamGlossaries.filter((glossary) => glossary.teamId === teamId),
+    [teamGlossaries, teamId],
+  );
+  const defaultGlossaryName = useMemo(
+    () => formatCatSharedWithTeamGlossaryName(intl, teamName),
+    [intl, teamName],
+  );
   const [createdGlossaries, setCreatedGlossaries] = useState<CatTeamGlossaryOption[]>([]);
   const glossaries = useMemo(() => {
-    const seen = new Set(teamGlossaries.map((glossary) => glossary.id));
-    return [...teamGlossaries, ...createdGlossaries.filter((glossary) => !seen.has(glossary.id))];
-  }, [createdGlossaries, teamGlossaries]);
+    const seen = new Set(scopedTeamGlossaries.map((glossary) => glossary.id));
+    return [
+      ...scopedTeamGlossaries,
+      ...createdGlossaries.filter(
+        (glossary) => !seen.has(glossary.id) && glossary.teamId === teamId,
+      ),
+    ];
+  }, [createdGlossaries, scopedTeamGlossaries, teamId]);
   const [selectedGlossaryId, setSelectedGlossaryId] = useState(glossaries[0]?.id ?? "");
   const [isCreating, setIsCreating] = useState(glossaries.length === 0 && canCreate);
-  const [newGlossaryName, setNewGlossaryName] = useState(() =>
-    intl.formatMessage(catIntelligencePanelMessages.addToGlossaryCreateNamePlaceholder),
-  );
+  const [newGlossaryName, setNewGlossaryName] = useState(defaultGlossaryName);
   const [primaryTerm, setPrimaryTerm] = useState(sourceTerm);
   const [definition, setDefinition] = useState("");
   const [translatable, setTranslatable] = useState(true);
   const [targetDraft, setTargetDraft] = useState(targetTerm);
+  const [sourceMetadata, setSourceMetadata] = useState<GlossaryTermMetadataDraft>(
+    () => emptyGlossaryTermMetadataDraft,
+  );
+  const [targetMetadata, setTargetMetadata] = useState<GlossaryTermMetadataDraft>(
+    () => emptyGlossaryTermMetadataDraft,
+  );
 
   const selectedGlossary =
     glossaries.find((glossary) => glossary.id === selectedGlossaryId) ?? glossaries[0];
@@ -113,6 +145,7 @@ export function CatAddToGlossary({
           name,
           sourceLocale,
           controlLevel: "team",
+          teamId,
           projectIds: [projectId],
         },
       });
@@ -130,6 +163,7 @@ export function CatAddToGlossary({
       const created: CatTeamGlossaryOption = {
         id: body.glossary.id,
         name: body.glossary.name,
+        teamId,
       };
       setCreatedGlossaries((current) =>
         current.some((glossary) => glossary.id === created.id) ? current : [...current, created],
@@ -151,25 +185,27 @@ export function CatAddToGlossary({
       }
       const source = primaryTerm.trim();
       const target = translatable ? targetDraft.trim() : "";
+      const sourcePayload = glossaryTermMetadataToPayload(sourceMetadata);
+      const targetPayload = glossaryTermMetadataToPayload(targetMetadata);
+      const buildTerm = (
+        locale: string,
+        term: string,
+        payload: ReturnType<typeof glossaryTermMetadataToPayload>,
+      ) => {
+        const { partOfSpeech, ...metadata } = payload;
+
+        return {
+          locale,
+          term,
+          caseSensitive: false as const,
+          forbidden: false as const,
+          ...metadata,
+          ...(partOfSpeech ? { partOfSpeech: partOfSpeech as GlossaryPartOfSpeech } : {}),
+        };
+      };
       const terms = [
-        {
-          locale: sourceLocale,
-          term: source,
-          status: "draft" as const,
-          caseSensitive: false,
-          forbidden: false,
-        },
-        ...(target
-          ? [
-              {
-                locale: targetLocale,
-                term: target,
-                status: "draft" as const,
-                caseSensitive: false,
-                forbidden: false,
-              },
-            ]
-          : []),
+        buildTerm(sourceLocale, source, sourcePayload),
+        ...(target ? [buildTerm(targetLocale, target, targetPayload)] : []),
       ];
       const trimmedDefinition = definition.trim();
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
@@ -210,11 +246,10 @@ export function CatAddToGlossary({
   const glossaryName =
     selectedGlossary?.name ??
     intl.formatMessage(catIntelligencePanelMessages.addToGlossaryCreateOption);
+  const sharedWithTeamNote = formatCatSharedWithTeamGlossaryName(intl, teamName);
 
   const startCreating = () => {
-    setNewGlossaryName(
-      intl.formatMessage(catIntelligencePanelMessages.addToGlossaryCreateNamePlaceholder),
-    );
+    setNewGlossaryName(defaultGlossaryName);
     setIsCreating(true);
   };
 
@@ -226,32 +261,41 @@ export function CatAddToGlossary({
         </h3>
       ) : null}
       <div className={cn("grid gap-3", showTitle && "mt-3")}>
-        <div className={translatable ? "grid grid-cols-2 gap-3" : "grid gap-3"}>
+        <p className="text-sm text-muted-foreground">{sharedWithTeamNote}</p>
+        <Field className="min-w-0 gap-1.5">
+          <FieldLabel htmlFor={primaryTermId}>
+            <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryPrimaryLabel} />
+          </FieldLabel>
+          <Input
+            id={primaryTermId}
+            value={primaryTerm}
+            onChange={(event) => setPrimaryTerm(event.target.value)}
+            disabled={isBusy}
+          />
+          <GlossaryTermMetadataFields
+            value={sourceMetadata}
+            onChange={setSourceMetadata}
+            disabled={isBusy}
+          />
+        </Field>
+        {translatable ? (
           <Field className="min-w-0 gap-1.5">
-            <FieldLabel htmlFor={primaryTermId}>
-              <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryPrimaryLabel} />
+            <FieldLabel htmlFor={targetTermId}>
+              <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryTargetLabel} />
             </FieldLabel>
             <Input
-              id={primaryTermId}
-              value={primaryTerm}
-              onChange={(event) => setPrimaryTerm(event.target.value)}
+              id={targetTermId}
+              value={targetDraft}
+              onChange={(event) => setTargetDraft(event.target.value)}
+              disabled={isBusy}
+            />
+            <GlossaryTermMetadataFields
+              value={targetMetadata}
+              onChange={setTargetMetadata}
               disabled={isBusy}
             />
           </Field>
-          {translatable ? (
-            <Field className="min-w-0 gap-1.5">
-              <FieldLabel htmlFor={targetTermId}>
-                <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryTargetLabel} />
-              </FieldLabel>
-              <Input
-                id={targetTermId}
-                value={targetDraft}
-                onChange={(event) => setTargetDraft(event.target.value)}
-                disabled={isBusy}
-              />
-            </Field>
-          ) : null}
-        </div>
+        ) : null}
         <Field className="gap-1.5">
           <FieldLabel htmlFor={definitionId}>
             <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryDefinitionLabel} />
@@ -291,9 +335,7 @@ export function CatAddToGlossary({
                   onChange={(event) => setNewGlossaryName(event.target.value)}
                   disabled={isBusy}
                   className="h-8"
-                  placeholder={intl.formatMessage(
-                    catIntelligencePanelMessages.addToGlossaryCreateNamePlaceholder,
-                  )}
+                  placeholder={defaultGlossaryName}
                 />
               </Field>
               <Button

@@ -1,0 +1,76 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  filterCatTeamGlossariesForTeam,
+  groupCatGlossaryConceptsByTeam,
+  resolveCatContributorTeams,
+} from "./cat-team-glossary";
+
+describe("resolveCatContributorTeams", () => {
+  it("returns membership teams when present", () => {
+    expect(
+      resolveCatContributorTeams({
+        contributorTeams: [{ id: "team-a", name: "Alpha" }],
+        projectTeamId: "team-b",
+        projectTeamName: "Beta",
+      }),
+    ).toEqual([{ id: "team-a", name: "Alpha" }]);
+  });
+
+  it("falls back to the project team when memberships are empty", () => {
+    expect(
+      resolveCatContributorTeams({
+        contributorTeams: [],
+        projectTeamId: "team-b",
+        projectTeamName: "Beta",
+      }),
+    ).toEqual([{ id: "team-b", name: "Beta" }]);
+  });
+});
+
+describe("groupCatGlossaryConceptsByTeam", () => {
+  const concepts = [
+    { id: "org-concept", glossaryId: "glossary-org" },
+    { id: "team-concept", glossaryId: "glossary-team" },
+    { id: "other-team-concept", glossaryId: "glossary-other" },
+  ];
+
+  it("keeps org concepts separate and groups team concepts by team", () => {
+    const { orgConceptIds, conceptsByTeamId } = groupCatGlossaryConceptsByTeam({
+      concepts,
+      teamGlossaryIds: new Set(["glossary-team", "glossary-other"]),
+      glossaryTeamById: new Map([
+        ["glossary-team", "team-a"],
+        ["glossary-other", "team-b"],
+      ]),
+      contributorTeamIds: new Set(["team-a", "team-b"]),
+    });
+
+    expect(orgConceptIds).toEqual(new Set(["org-concept"]));
+    expect(conceptsByTeamId.get("team-a")).toEqual([concepts[1]]);
+    expect(conceptsByTeamId.get("team-b")).toEqual([concepts[2]]);
+  });
+});
+
+describe("filterCatTeamGlossariesForTeam", () => {
+  it("returns glossaries owned by the requested team", () => {
+    const glossaries = [
+      { id: "g1", name: "Product", teamId: "team-a" },
+      { id: "g2", name: "Marketing", teamId: "team-b" },
+    ];
+
+    expect(filterCatTeamGlossariesForTeam(glossaries, "team-a")).toEqual([glossaries[0]]);
+  });
+});

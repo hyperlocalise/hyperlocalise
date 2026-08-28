@@ -223,6 +223,8 @@ function fileContextFor(catFile: CatFile, sourceLocale: string): CatFileContext 
     canAddComments: Boolean(catFile.canEditTranslations),
     truncated: catFile.truncated,
     teamGlossaries: catFile.teamGlossaries ?? [],
+    contributorTeams: catFile.contributorTeams ?? [],
+    ...(catFile.projectTeamId ? { projectTeamId: catFile.projectTeamId } : {}),
     canContributeTeamGlossary: Boolean(catFile.canContributeTeamGlossary) && providerKind == null,
     ...(catFile.teamName ? { teamName: catFile.teamName } : {}),
   };

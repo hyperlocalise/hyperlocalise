@@ -62,6 +62,7 @@ export const createGlossaryBodySchema = z
     description: z.string().max(10_000).optional(),
     sourceLocale: localeInputSchema,
     controlLevel: glossaryControlLevelSchema.optional(),
+    teamId: z.string().uuid().optional(),
     projectIds: z.array(projectIdSchema).max(100).optional(),
     // Keep accepting the original single-project payload for API compatibility.
     projectId: projectIdSchema.optional(),
@@ -73,6 +74,13 @@ export const createGlossaryBodySchema = z
         code: "custom",
         message: "projectIds must be unique",
         path: ["projectIds"],
+      });
+    }
+    if (value.controlLevel === "org" && value.teamId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "teamId is only allowed for team glossaries",
+        path: ["teamId"],
       });
     }
   });

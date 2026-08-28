@@ -617,6 +617,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           organizationSlug={organizationSlug}
           projectId={projectId}
           teamGlossaries={shell.fileContext.teamGlossaries ?? []}
+          contributorTeams={shell.fileContext.contributorTeams ?? []}
+          projectTeamId={shell.fileContext.projectTeamId}
           canContributeTeamGlossary={
             Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
           }

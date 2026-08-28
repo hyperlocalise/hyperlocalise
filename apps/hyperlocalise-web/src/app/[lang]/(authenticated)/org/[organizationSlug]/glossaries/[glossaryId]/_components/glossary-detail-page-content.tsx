@@ -26,7 +26,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type {
@@ -40,14 +40,6 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,19 +70,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  GenderDisplay,
+  GenderPicker,
+  PartOfSpeechDisplay,
+  PartOfSpeechPicker,
+  StatusLabel,
+  TermTypeDisplay,
+  TermTypePicker,
+  statusBadgeClass,
+  statusPickerContentClassName,
+  statusPickerItemClass,
+  statusPickerTriggerClass,
+} from "@/components/glossary/glossary-term-property-pickers";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 import {
-  glossaryGenderValues,
-  glossaryPartOfSpeechValues,
   glossaryTermStatusValues,
-  glossaryTermTypeValues,
   selectGlossaryPrimaryTerm,
   type GlossaryPartOfSpeech,
-  type GlossaryTermType,
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
 
@@ -129,9 +129,6 @@ const emptyConceptDraft: ConceptDraft = {
   note: "",
   url: "",
 };
-const genderOptions = glossaryGenderValues;
-const termTypeOptions = glossaryTermTypeValues;
-const partOfSpeechOptions = glossaryPartOfSpeechValues;
 const statusOptions = glossaryTermStatusValues;
 const emptyTermDraft: TermDraft = {
   term: "",
@@ -201,386 +198,6 @@ function areConceptDraftsEqual(left: ConceptDraft, right: ConceptDraft) {
   );
 }
 
-function readableEnumLabel(value: string) {
-  const label = value.replace(/_/g, " ");
-  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : label;
-}
-
-const partOfSpeechMarks: Record<string, string> = {
-  noun: "N",
-  "proper noun": "PN",
-  verb: "V",
-  auxiliary: "Aux",
-  adjective: "Adj",
-  adverb: "Adv",
-  pronoun: "Pro",
-  adposition: "Adp",
-  preposition: "Prep",
-  conjunction: "Conj",
-  "coordinating conjunction": "CConj",
-  "subordinating conjunction": "SConj",
-  determiner: "Det",
-  interjection: "Int",
-  numeral: "Num",
-  particle: "Part",
-  article: "Art",
-  abbreviation: "Abbr",
-  phrase: "Phr",
-  other: "Other",
-};
-
-function partOfSpeechMark(value: string) {
-  return partOfSpeechMarks[value.trim().toLowerCase()] ?? "Other";
-}
-
-const genderMarks: Record<string, string> = {
-  masculine: "M",
-  feminine: "F",
-  neuter: "N",
-  other: "O",
-};
-
-function TermMark({ mark }: { mark: string }) {
-  return (
-    <Badge
-      variant="outline"
-      className="h-5 min-w-7 justify-center rounded-md border-border/70 bg-muted/35 px-1 py-0 text-[11px] font-medium leading-4 text-foreground"
-      aria-hidden="true"
-    >
-      {mark}
-    </Badge>
-  );
-}
-
-function PartOfSpeechMark({ value }: { value: string }) {
-  return <TermMark mark={partOfSpeechMark(value)} />;
-}
-
-function genderMark(value: string) {
-  return genderMarks[value.trim().toLowerCase()] ?? "O";
-}
-
-function GenderMark({ value }: { value: string }) {
-  return <TermMark mark={genderMark(value)} />;
-}
-
-function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
-  if (!value) {
-    return <span className="truncate text-muted-foreground">—</span>;
-  }
-
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <span className="flex w-10 shrink-0 items-center">
-        <PartOfSpeechMark value={value} />
-      </span>
-      <span className="truncate">{readableEnumLabel(value)}</span>
-    </span>
-  );
-}
-
-function PartOfSpeechPicker({
-  value,
-  onValueChange,
-  disabled = false,
-  className,
-}: {
-  value: string;
-  onValueChange: (value: string) => void;
-  disabled?: boolean;
-  className?: string;
-}) {
-  const intl = useIntl();
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const options = useMemo(() => partOfSpeechOptionsFor(value), [value]);
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      setSearch("");
-    }
-  };
-
-  const selectValue = (nextValue: string) => {
-    onValueChange(nextValue);
-    handleOpenChange(false);
-  };
-
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={disabled}
-            aria-label={`${intl.formatMessage(messages.partOfSpeechLabel)}: ${
-              value ? readableEnumLabel(value) : "—"
-            }`}
-            className={cn(
-              termPropertyTriggerClassName,
-              "w-[80px] max-w-[80px] shrink-0 justify-start gap-2 text-left",
-              className,
-            )}
-          />
-        }
-      >
-        {value ? (
-          <PartOfSpeechMark value={value} />
-        ) : (
-          <span className="truncate text-muted-foreground">—</span>
-        )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={4}
-        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
-      >
-        <Command>
-          <CommandInput
-            placeholder={intl.formatMessage(messages.partOfSpeechSearchPlaceholder)}
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandList className="max-h-64" label={intl.formatMessage(messages.partOfSpeechLabel)}>
-            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option}
-                  value={`${option} ${readableEnumLabel(option)} ${partOfSpeechMark(option)}`}
-                  data-checked={value === option || undefined}
-                  aria-label={readableEnumLabel(option)}
-                  onSelect={() => selectValue(option)}
-                >
-                  <PartOfSpeechDisplay value={option} />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function GenderDisplay({ value }: { value: string | null | undefined }) {
-  if (!value) {
-    return <span className="truncate text-muted-foreground">—</span>;
-  }
-
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <span className="flex w-10 shrink-0 items-center">
-        <GenderMark value={value} />
-      </span>
-      <span className="truncate">{readableEnumLabel(value)}</span>
-    </span>
-  );
-}
-
-function GenderPicker({
-  value,
-  onValueChange,
-  disabled = false,
-}: {
-  value: string;
-  onValueChange: (value: string | null) => void;
-  disabled?: boolean;
-}) {
-  const intl = useIntl();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={disabled}
-            aria-label={`${intl.formatMessage(messages.genderLabel)}: ${
-              value ? readableEnumLabel(value) : "—"
-            }`}
-            className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
-          />
-        }
-      >
-        {value ? (
-          <GenderMark value={value} />
-        ) : (
-          <span className="truncate text-muted-foreground">—</span>
-        )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={4}
-        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
-      >
-        <Command>
-          <CommandList className="max-h-64" label={intl.formatMessage(messages.genderLabel)}>
-            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
-            <CommandGroup>
-              {genderOptions.map((option) => (
-                <CommandItem
-                  key={option}
-                  value={`${option} ${readableEnumLabel(option)} ${genderMark(option)}`}
-                  data-checked={value === option || undefined}
-                  aria-label={readableEnumLabel(option)}
-                  onSelect={() => {
-                    onValueChange(option);
-                    setOpen(false);
-                  }}
-                >
-                  <GenderDisplay value={option} />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-const termTypeMarks: Record<GlossaryTermType, string> = {
-  "full form": "FF",
-  acronym: "AC",
-  abbreviation: "AB",
-  "short form": "SF",
-  phrase: "PH",
-  variant: "VAR",
-};
-
-const termTypeDescriptionMessages: Record<GlossaryTermType, MessageDescriptor> = {
-  "full form": messages.termTypeFullFormDescription,
-  acronym: messages.termTypeAcronymDescription,
-  abbreviation: messages.termTypeAbbreviationDescription,
-  "short form": messages.termTypeShortFormDescription,
-  phrase: messages.termTypePhraseDescription,
-  variant: messages.termTypeVariantDescription,
-};
-
-function termTypeMark(value: string) {
-  return termTypeMarks[value.trim().toLowerCase() as GlossaryTermType] ?? "VAR";
-}
-
-function TermTypeDisplay({ value }: { value: string | null | undefined }) {
-  if (!value) {
-    return <span className="truncate text-muted-foreground">—</span>;
-  }
-
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <span className="flex w-10 shrink-0 items-center">
-        <TermMark mark={termTypeMark(value)} />
-      </span>
-      <span className="truncate">{readableEnumLabel(value)}</span>
-    </span>
-  );
-}
-
-function TermTypePicker({
-  value,
-  onValueChange,
-  disabled = false,
-}: {
-  value: string;
-  onValueChange: (value: string | null) => void;
-  disabled?: boolean;
-}) {
-  const intl = useIntl();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={disabled}
-            aria-label={`${intl.formatMessage(messages.typeLabel)}: ${
-              value ? readableEnumLabel(value) : "—"
-            }`}
-            className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
-          />
-        }
-      >
-        {value ? (
-          <TermMark mark={termTypeMark(value)} />
-        ) : (
-          <span className="truncate text-muted-foreground">—</span>
-        )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={4}
-        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
-      >
-        <Command>
-          <CommandList className="max-h-64" label={intl.formatMessage(messages.typeLabel)}>
-            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
-            <CommandGroup>
-              {termTypeOptions.map((option) => (
-                <CommandItem
-                  key={option}
-                  value={`${option} ${readableEnumLabel(option)} ${termTypeMark(option)}`}
-                  data-checked={value === option || undefined}
-                  aria-label={readableEnumLabel(option)}
-                  onSelect={() => {
-                    onValueChange(option);
-                    setOpen(false);
-                  }}
-                  className="items-start py-2.5"
-                >
-                  <span className="flex min-w-0 items-start gap-2">
-                    <span className="flex w-10 shrink-0 pt-0.5">
-                      <TermMark mark={termTypeMark(option)} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate">{readableEnumLabel(option)}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {intl.formatMessage(termTypeDescriptionMessages[option])}
-                      </span>
-                    </span>
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function partOfSpeechOptionsFor(value: string) {
-  return value && !partOfSpeechOptions.includes(value as GlossaryPartOfSpeech)
-    ? [value, ...partOfSpeechOptions]
-    : partOfSpeechOptions;
-}
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -589,107 +206,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : DATE_FORMATTER.format(date);
-}
-
-const termPropertyTriggerClassName =
-  "h-8 w-[100px] shrink-0 border-transparent bg-transparent px-2.5 text-sm font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
-
-function statusClass(status: TermDraft["status"]) {
-  if (status === "preferred") {
-    return "!border-emerald-500/30 !bg-emerald-500/10 !text-emerald-700 dark:!text-emerald-300";
-  }
-  if (status === "admitted") {
-    return "!border-sky-500/30 !bg-sky-500/10 !text-sky-700 dark:!text-sky-300";
-  }
-  if (status === "draft") {
-    return "!border-amber-500/30 !bg-amber-500/10 !text-amber-700 dark:!text-amber-300";
-  }
-  if (status === "not_recommended") {
-    return "!border-rose-500/30 !bg-rose-500/10 !text-rose-700 dark:!text-rose-300";
-  }
-  return "!border-slate-500/30 !bg-slate-500/10 !text-slate-700 dark:!text-slate-300";
-}
-
-function statusBadgeClass(status: TermDraft["status"]) {
-  return cn(statusClass(status), "px-1.5 py-0 text-[11px] leading-5");
-}
-
-function statusPickerTriggerClass() {
-  return "h-8 w-[140px] shrink-0 justify-end rounded-md border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
-}
-
-function statusPickerItemClass(_status: TermDraft["status"]) {
-  return "rounded-lg px-2 py-1.5 hover:bg-muted! focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!";
-}
-
-const statusPickerContentClassName = "min-w-44 p-1.5";
-
-function TermStatusIcon({
-  status,
-  className,
-}: {
-  status: TermDraft["status"];
-  className?: string;
-}) {
-  const iconClassName = cn("size-4 shrink-0", className);
-
-  if (status === "preferred") {
-    return (
-      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
-        <circle cx="8" cy="8" r="7" className="fill-emerald-500" />
-        <path
-          d="m5 8.2 2 2 4-4"
-          stroke="white"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-
-  if (status === "admitted") {
-    return (
-      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
-        <circle cx="8" cy="8" r="6" className="stroke-sky-500" strokeWidth="1.75" />
-        <circle cx="8" cy="8" r="2.25" className="fill-sky-500" />
-      </svg>
-    );
-  }
-
-  if (status === "draft") {
-    return (
-      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
-        <circle cx="8" cy="8" r="6" className="stroke-amber-500" strokeWidth="1.75" />
-        <path d="M8 2a6 6 0 0 1 0 12Z" className="fill-amber-500" />
-      </svg>
-    );
-  }
-
-  if (status === "not_recommended") {
-    return (
-      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
-        <circle cx="8" cy="8" r="6" className="stroke-rose-500" strokeWidth="1.75" />
-        <path d="M5.5 8h5" className="stroke-rose-500" strokeWidth="1.75" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
-      <circle cx="8" cy="8" r="7" className="fill-slate-500" />
-      <path d="m5.5 5.5 5 5m0-5-5 5" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function StatusLabel({ status, className }: { status: TermDraft["status"]; className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1.5", className)}>
-      <TermStatusIcon status={status} />
-      <span>{readableEnumLabel(status)}</span>
-    </span>
-  );
 }
 
 function TermStatusSkeleton({ compact = false }: { compact?: boolean }) {

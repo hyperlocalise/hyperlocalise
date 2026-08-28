@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { count, desc } from "drizzle-orm";
+import { count, desc, eq, and } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -23,6 +23,7 @@ import { db, schema } from "@/lib/database";
 import { Glossary, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
+import { isUserMemberOfTeam } from "@/lib/glossary/attached-team-glossaries";
 import {
   queryNativeGlossaryTermCountForGlossary,
   queryNativeGlossaryTermCounts,
@@ -56,8 +57,10 @@ import {
   externalGlossaryLocaleReadonlyResponse,
   externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
+  glossaryTeamMembershipRequiredResponse,
   glossaryTeamMustBeNativeResponse,
   glossaryTeamNativeProjectRequiredResponse,
+  glossaryTeamNotFoundResponse,
   glossaryTeamProjectRequiredResponse,
   glossarySourceLocaleAttachedProjectsResponse,
   glossarySourceLocaleExistingTermsResponse,
@@ -125,12 +128,16 @@ type CreateNativeGlossaryResult =
   | { status: "created"; glossary: NativeGlossary; projectCount: number }
   | { status: "project_not_found" }
   | { status: "team_native_project_required" }
-  | { status: "source_locale_mismatch" };
+  | { status: "source_locale_mismatch" }
+  | { status: "team_not_found" }
+  | { status: "team_membership_required" };
 
 type CreateNativeGlossaryTxResult =
   | { error: "project_not_found" }
   | { error: "team_native_project_required" }
   | { error: "source_locale_mismatch" }
+  | { error: "team_not_found" }
+  | { error: "team_membership_required" }
   | { glossary: NativeGlossary; projectCount: number };
 
 async function createNativeGlossary(
@@ -142,7 +149,12 @@ async function createNativeGlossary(
   const uniqueProjectIds = [...new Set(projectIds)];
 
   const result = await db.transaction(async (tx): Promise<CreateNativeGlossaryTxResult> => {
-    const lockedProjects: Array<{ id: string; source: string; sourceLocale: string | null }> = [];
+    const lockedProjects: Array<{
+      id: string;
+      source: string;
+      sourceLocale: string | null;
+      teamId: string | null;
+    }> = [];
 
     for (const projectId of uniqueProjectIds.toSorted()) {
       const [project] = await tx
@@ -150,6 +162,7 @@ async function createNativeGlossary(
           id: schema.projects.id,
           source: schema.projects.source,
           sourceLocale: schema.projects.sourceLocale,
+          teamId: schema.projects.teamId,
         })
         .from(schema.projects)
         .where(await ownedProjectWhere(auth, projectId))
@@ -178,6 +191,36 @@ async function createNativeGlossary(
       return { error: "source_locale_mismatch" as const };
     }
 
+    let resolvedTeamId: string | null = null;
+    if (payload.controlLevel === "team") {
+      resolvedTeamId = payload.teamId ?? lockedProjects[0]?.teamId ?? null;
+      if (!resolvedTeamId) {
+        return { error: "team_not_found" as const };
+      }
+
+      const [team] = await tx
+        .select({ id: schema.teams.id })
+        .from(schema.teams)
+        .where(
+          and(eq(schema.teams.id, resolvedTeamId), eq(schema.teams.organizationId, organizationId)),
+        )
+        .limit(1);
+
+      if (!team) {
+        return { error: "team_not_found" as const };
+      }
+
+      const isMember = await isUserMemberOfTeam(
+        auth.user.localUserId,
+        resolvedTeamId,
+        organizationId,
+        tx,
+      );
+      if (!isMember) {
+        return { error: "team_membership_required" as const };
+      }
+    }
+
     const [created] = await tx
       .insert(schema.glossaries)
       .values({
@@ -188,6 +231,7 @@ async function createNativeGlossary(
         sourceLocale: payload.sourceLocale,
         targetLocale: null,
         controlLevel: payload.controlLevel,
+        teamId: resolvedTeamId,
       })
       .returning();
 
@@ -353,6 +397,10 @@ export function createGlossaryRoutes() {
             "glossary_source_locale_mismatch",
             "The selected project uses a different source locale",
           );
+        case "team_not_found":
+          return glossaryTeamNotFoundResponse(c);
+        case "team_membership_required":
+          return glossaryTeamMembershipRequiredResponse(c);
         case "created":
           return c.json(
             {

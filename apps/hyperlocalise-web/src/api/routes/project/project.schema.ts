@@ -777,9 +777,19 @@ export const projectFileCatResponseSchema = z.object({
         z.object({
           id: z.string(),
           name: z.string(),
+          teamId: z.string(),
         }),
       )
       .optional(),
+    contributorTeams: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+        }),
+      )
+      .optional(),
+    projectTeamId: z.string().optional(),
     canContributeTeamGlossary: z.boolean().optional(),
     teamName: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),

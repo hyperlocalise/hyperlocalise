@@ -162,6 +162,8 @@ export function CatSideBySideIntelligencePanel({
       organizationSlug={organizationSlug}
       projectId={projectId}
       teamGlossaries={fileContext.teamGlossaries ?? []}
+      contributorTeams={fileContext.contributorTeams ?? []}
+      projectTeamId={fileContext.projectTeamId}
       canContributeTeamGlossary={
         Boolean(fileContext.canContributeTeamGlossary) && fileContext.providerKind == null
       }

@@ -92,7 +92,9 @@ export interface CatFileContext {
   canEditTranslations: boolean;
   canAddComments: boolean;
   truncated?: boolean;
-  teamGlossaries?: { id: string; name: string }[];
+  teamGlossaries?: { id: string; name: string; teamId: string }[];
+  contributorTeams?: { id: string; name: string }[];
+  projectTeamId?: string;
   canContributeTeamGlossary?: boolean;
   teamName?: string;
 }

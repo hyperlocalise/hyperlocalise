@@ -591,13 +591,18 @@ export const catIntelligencePanelMessages = defineMessages({
     description: "Heading for adding a CAT segment as a team glossary concept",
   },
   addToGlossaryNote: {
-    defaultMessage: "Share with {teamName} and reuse later.",
-    id: "nTBn9mPYFS",
+    defaultMessage: "Shared with {teamName}.",
+    id: "0P74I0pkYn",
     description: "Helper note that CAT glossary concepts are shared with the project team",
   },
+  addToGlossarySharedWithTeam: {
+    defaultMessage: "Shared with {teamName}.",
+    id: "lqlgwfZWDU",
+    description: "Default team glossary name and helper copy when adding from CAT",
+  },
   addToGlossaryNoteFallback: {
-    defaultMessage: "Share with teammates and reuse later.",
-    id: "/D28C5kx7B",
+    defaultMessage: "Shared with teammates.",
+    id: "HdldZ1uNLS",
     description: "Fallback CAT add-concept note when the project has no team name",
   },
   addToGlossaryBack: {
@@ -655,6 +660,11 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "OcefiTvR3e",
     description: "Error when CAT add-to-glossary is missing a glossary target",
   },
+  addToGlossaryTeamEmpty: {
+    defaultMessage: "No matching terms for {teamName}.",
+    id: "sjTUZFh0+J",
+    description: "Empty state when a team section has no matching glossary concepts",
+  },
   addToGlossaryCreateOption: {
     defaultMessage: "Create new",
     id: "fJMsDnWedi",
@@ -664,11 +674,6 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "Glossary name",
     id: "+iTCqdA5ec",
     description: "Accessible label for the new team glossary name in CAT",
-  },
-  addToGlossaryCreateNamePlaceholder: {
-    defaultMessage: "Team terms",
-    id: "SzpWu9LEY1",
-    description: "Placeholder and default name for a team glossary created from CAT",
   },
   addToGlossaryCreateAction: {
     defaultMessage: "Create",
