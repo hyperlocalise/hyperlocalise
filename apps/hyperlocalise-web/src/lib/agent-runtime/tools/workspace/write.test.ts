@@ -75,6 +75,41 @@ describe("createWriteTool", () => {
     expect(writeWorkspaceFile).toHaveBeenCalledWith("src/mock.tsx", "export const value = 1;\n");
   });
 
+  it.each([".git/config", "./.git/hooks/pre-commit", "vendor/lib/.git/config", ".git"])(
+    "denies writes to git metadata path %s",
+    async (filePath) => {
+      const { repo, writeWorkspaceFile } = createRepoContext();
+      const write = createWriteTool(createWriteContext(), repo);
+
+      const result = await write.execute!(
+        {
+          filePath,
+          content: "[core]\nfsmonitor = sh ./payload\n",
+        },
+        toolCallInfo,
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        error: "Writes under .git/ are not allowed.",
+      });
+      expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows writes to .gitignore", async () => {
+    const { repo, writeWorkspaceFile } = createRepoContext();
+    const write = createWriteTool(createWriteContext(), repo);
+
+    const result = await write.execute!(
+      { filePath: ".gitignore", content: "node_modules\n" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, path: ".gitignore" });
+    expect(writeWorkspaceFile).toHaveBeenCalledWith(".gitignore", "node_modules\n");
+  });
+
   it("denies writes when repository write context is unavailable", async () => {
     const { repo, writeWorkspaceFile } = createRepoContext();
     const write = createWriteTool(
@@ -165,6 +200,32 @@ describe("createApplyPatchTool", () => {
     expect(result).toMatchObject({
       success: false,
       error: "Patch contains a path outside the workspace.",
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects patches that target .git/config", async () => {
+    const { repo, writeWorkspaceFile } = createRepoContext();
+    const applyPatch = createApplyPatchTool(createWriteContext(), repo);
+
+    const result = await applyPatch.execute!(
+      {
+        patch: [
+          "diff --git a/.git/config b/.git/config",
+          "--- a/.git/config",
+          "+++ b/.git/config",
+          "@@ -1 +1,2 @@",
+          " [core]",
+          "+	fsmonitor = sh ./payload",
+          "",
+        ].join("\n"),
+      },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Patch must not modify files under .git/.",
     });
     expect(writeWorkspaceFile).not.toHaveBeenCalled();
   });

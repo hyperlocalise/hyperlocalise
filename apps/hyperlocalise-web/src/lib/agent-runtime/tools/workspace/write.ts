@@ -16,7 +16,12 @@ import { z } from "zod";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 
-import { normalizeWorkspacePath, toShellRelativePath } from "./path";
+import {
+  GIT_METADATA_WRITE_ERROR,
+  isGitMetadataPath,
+  normalizeWorkspacePath,
+  toShellRelativePath,
+} from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
@@ -43,6 +48,7 @@ WHEN NOT TO USE:
 IMPORTANT:
 - This writes the complete file contents
 - Read existing files first before overwriting them
+- Paths under .git/ are rejected
 - This is a repository write action and may be denied by workspace policy`,
     inputSchema: writeInputSchema,
     execute: async ({ filePath, content }) => {
@@ -60,6 +66,9 @@ IMPORTANT:
       const path = normalizeWorkspacePath(filePath);
       if (!path) {
         return { success: false as const, error: "Path must stay within the workspace." };
+      }
+      if (isGitMetadataPath(path)) {
+        return { success: false as const, error: GIT_METADATA_WRITE_ERROR };
       }
 
       try {

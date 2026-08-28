@@ -42,6 +42,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import {
   catEditorPanelMessages,
@@ -56,6 +57,7 @@ import type {
 import { normalizedCatGlossaryTermStatus } from "./cat-glossary-term-status";
 import { CatAddToGlossary } from "./cat-add-to-glossary";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
+import { isCatGlossaryConceptVisibleForTargetLocale } from "./cat-glossary-utils";
 import {
   collectVisibleCatGlossaryConcepts,
   filterCatTeamGlossariesForTeam,
@@ -315,8 +317,18 @@ export function CatIntelligencePanel({
   const glossaryConcepts = useMemo(
     // Concept-only guidance. Legacy flat glossaryTerms (no glossaryConcepts) are intentionally
     // not synthesized here; concordance must return concept payloads for the panel to populate.
-    () => intelligence.glossaryConcepts ?? [],
-    [intelligence.glossaryConcepts],
+    () =>
+      (intelligence.glossaryConcepts ?? []).filter((concept) =>
+        isCatGlossaryConceptVisibleForTargetLocale(concept, targetLocale),
+      ),
+    [intelligence.glossaryConcepts, targetLocale],
+  );
+  const ungroupedTeamIds = useMemo(
+    () =>
+      projectTeamId && projectTeamSlug === DEFAULT_WORKSPACE_TEAM_SLUG
+        ? new Set([projectTeamId])
+        : new Set<string>(),
+    [projectTeamId, projectTeamSlug],
   );
   const { orgConceptIds, conceptsByTeamId } = useMemo(
     () =>
@@ -325,8 +337,9 @@ export function CatIntelligencePanel({
         teamGlossaryIds,
         glossaryTeamById,
         contributorTeamIds,
+        ungroupedTeamIds,
       }),
-    [contributorTeamIds, glossaryConcepts, glossaryTeamById, teamGlossaryIds],
+    [contributorTeamIds, glossaryConcepts, glossaryTeamById, teamGlossaryIds, ungroupedTeamIds],
   );
   const orgGlossaryConcepts = useMemo(
     () => glossaryConcepts.filter((concept) => orgConceptIds.has(concept.id)),
@@ -785,16 +798,10 @@ export function CatIntelligencePanel({
                                   </div>
                                 ) : (
                                   <p className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground">
-                                    {team.name ? (
-                                      <FormattedMessage
-                                        {...catIntelligencePanelMessages.addToGlossaryTeamEmpty}
-                                        values={{ teamName: team.name }}
-                                      />
-                                    ) : (
-                                      <FormattedMessage
-                                        {...catIntelligencePanelMessages.addToGlossaryTeamEmptyUnnamed}
-                                      />
-                                    )}
+                                    <FormattedMessage
+                                      {...catIntelligencePanelMessages.addToGlossaryTeamEmpty}
+                                      values={{ teamName: team.name }}
+                                    />
                                   </p>
                                 )}
                               </section>

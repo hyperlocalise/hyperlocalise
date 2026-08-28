@@ -31,10 +31,6 @@ export function isHiddenDefaultContributorTeam(team: { slug?: string }) {
   return team.slug === DEFAULT_WORKSPACE_TEAM_SLUG;
 }
 
-function unlabeledDefaultProjectTeam(projectTeamId: string): CatContributorTeam {
-  return { id: projectTeamId, name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG };
-}
-
 export function formatCatSharedWithTeamGlossaryName(intl: IntlShape, teamName: string) {
   if (!teamName.trim()) {
     return intl.formatMessage(catIntelligencePanelMessages.addToGlossaryNoteFallback);
@@ -67,24 +63,10 @@ export function resolveCatContributorTeams({
       return [{ id: projectTeamId, name: projectTeamName, slug: projectTeamSlug }];
     }
 
-    if (projectTeamId) {
-      return [unlabeledDefaultProjectTeam(projectTeamId)];
-    }
-
     return [];
   }
 
-  const teams = [...visibleTeams];
-
-  if (
-    projectTeamId &&
-    projectTeamSlug === DEFAULT_WORKSPACE_TEAM_SLUG &&
-    !teams.some((team) => team.id === projectTeamId)
-  ) {
-    teams.push(unlabeledDefaultProjectTeam(projectTeamId));
-  }
-
-  return teams;
+  return visibleTeams;
 }
 
 export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryId: string }>({
@@ -92,11 +74,13 @@ export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryI
   teamGlossaryIds,
   glossaryTeamById,
   contributorTeamIds,
+  ungroupedTeamIds = new Set<string>(),
 }: {
   concepts: T[];
   teamGlossaryIds: Set<string>;
   glossaryTeamById: Map<string, string>;
   contributorTeamIds: Set<string>;
+  ungroupedTeamIds?: Set<string>;
 }) {
   const orgConceptIds = new Set<string>();
   const conceptsByTeamId = new Map<string, T[]>();
@@ -112,7 +96,16 @@ export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryI
     }
 
     const teamId = glossaryTeamById.get(concept.glossaryId);
-    if (!teamId || !conceptsByTeamId.has(teamId)) {
+    if (!teamId) {
+      continue;
+    }
+
+    if (ungroupedTeamIds.has(teamId)) {
+      orgConceptIds.add(concept.id);
+      continue;
+    }
+
+    if (!conceptsByTeamId.has(teamId)) {
       continue;
     }
 

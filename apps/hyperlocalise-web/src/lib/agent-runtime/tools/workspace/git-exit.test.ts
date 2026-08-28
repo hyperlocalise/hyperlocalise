@@ -21,6 +21,14 @@ describe("git-exit", () => {
     expect(gitSubcommand(["-C", "repo", "--no-pager", "log"])).toBe("log");
   });
 
+  it("finds the subcommand after -c config overrides", () => {
+    expect(
+      gitSubcommand(["-c", "core.fsmonitor=", "-c", "diff.external=", "status", "--short"]),
+    ).toBe("status");
+    expect(gitSubcommand(["-C", "repo", "-c", "core.fsmonitor=", "diff"])).toBe("diff");
+    expect(gitSubcommand(["-ccore.fsmonitor=", "log"])).toBe("log");
+  });
+
   it("treats git diff exit 0 and 1 as success", () => {
     expect(
       isSuccessfulAllowlistedExit({

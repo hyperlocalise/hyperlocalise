@@ -41,6 +41,7 @@ vi.mock("@/lib/database", () => ({
       id: "id",
       organizationId: "organization_id",
       createdByUserId: "created_by_user_id",
+      controlLevel: "control_level",
     },
     projectGlossaries: {
       glossaryId: "glossary_id",
@@ -149,6 +150,27 @@ describe("canAccessGlossary", () => {
     const result = await canAccessGlossary(createAuthContext("member"), "glossary_1");
 
     expect(result).toEqual({ id: "glossary_1" });
+    expect(dbSelectMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("uses the no-project org/creator scope when the member has no accessible projects", async () => {
+    // backfill → visible teams → accessible projects → glossary lookup
+    mockSelectQueue([[], [], [], [{ id: "glossary_org" }]]);
+
+    const { canAccessGlossary } = await import("./team-access");
+    const result = await canAccessGlossary(createAuthContext("member"), "glossary_org");
+
+    expect(result).toEqual({ id: "glossary_org" });
+    expect(dbSelectMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("denies glossaries outside the no-project org/creator scope", async () => {
+    mockSelectQueue([[], [], [], []]);
+
+    const { canAccessGlossary } = await import("./team-access");
+    const result = await canAccessGlossary(createAuthContext("member"), "glossary_team_only");
+
+    expect(result).toBeNull();
     expect(dbSelectMock).toHaveBeenCalledTimes(4);
   });
 });

@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
@@ -145,9 +146,9 @@ function ConceptTermRow({
     <div className="flex min-h-9 items-center gap-2 rounded-lg bg-input/30 px-2.5 py-1.5">
       <Badge
         variant="outline"
-        className="h-5 shrink-0 rounded-md border-input bg-background/30 px-1.5 text-[10px] uppercase tracking-wide"
+        className="h-5 shrink-0 rounded-md border-input bg-background/30 px-1.5 text-[10px] tracking-wide"
       >
-        {term.locale}
+        {canonicalizeLocale(term.locale) ?? term.locale}
       </Badge>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         <p className="min-w-24 flex-1 break-words text-sm font-medium leading-tight text-foreground">

@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { CatGlossaryConcept } from "@/components/cat/shared/types";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
+
 export function applyGlossaryTermToTarget(
   segmentSourceText: string,
   currentTargetText: string,
@@ -32,4 +35,33 @@ export function applyGlossaryTermToTarget(
   }
 
   return term.target;
+}
+
+function canonicalLocaleOrSelf(locale: string) {
+  return canonicalizeLocale(locale) ?? locale;
+}
+
+export function catGlossaryConceptHasTargetLocaleTerm(
+  concept: Pick<CatGlossaryConcept, "targetTerms">,
+  targetLocale: string,
+) {
+  const canonicalTargetLocale = canonicalLocaleOrSelf(targetLocale);
+  return concept.targetTerms.some(
+    (term) => canonicalLocaleOrSelf(term.locale) === canonicalTargetLocale,
+  );
+}
+
+export function isCatGlossaryConceptVisibleForTargetLocale(
+  concept: Pick<CatGlossaryConcept, "translatable" | "targetTerms">,
+  targetLocale: string | undefined,
+) {
+  if (concept.translatable === false) {
+    return true;
+  }
+
+  if (!targetLocale?.trim()) {
+    return true;
+  }
+
+  return catGlossaryConceptHasTargetLocaleTerm(concept, targetLocale);
 }

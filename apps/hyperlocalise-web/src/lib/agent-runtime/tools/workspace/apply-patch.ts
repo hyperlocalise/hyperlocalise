@@ -16,7 +16,7 @@ import { z } from "zod";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 
-import { normalizeWorkspacePath } from "./path";
+import { isGitMetadataPath, normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
@@ -46,6 +46,7 @@ const GIT_INDEX_MODE = new RegExp(
 );
 
 const SPECIAL_GIT_PATH_ERROR = "Patch must not create or modify symbolic links or git submodules.";
+const GIT_METADATA_PATCH_ERROR = "Patch must not modify files under .git/.";
 
 /** Reject git symlink (120000) and submodule/gitlink (160000) modes before `git apply`. */
 export function disallowedGitFileModeError(patch: string): string | undefined {
@@ -129,6 +130,9 @@ function extractPatchPaths(patch: string): { paths: string[]; error?: string } {
       }
       continue;
     }
+    if (isGitMetadataPath(path)) {
+      return { paths: [], error: GIT_METADATA_PATCH_ERROR };
+    }
     paths.add(path);
   }
 
@@ -150,6 +154,7 @@ WHEN NOT TO USE:
 IMPORTANT:
 - The patch is validated with git apply --check before it is applied
 - Symbolic links and git submodules (modes 120000 and 160000) are rejected, including existing checkout targets
+- Paths under .git/ are rejected
 - This is a repository write action and may be denied by workspace policy`,
     inputSchema: applyPatchInputSchema,
     execute: async ({ patch }) => {

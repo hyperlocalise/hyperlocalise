@@ -33,6 +33,7 @@ vi.mock("@vercel/sandbox", () => ({
 
 import {
   buildSandboxWriteFileScript,
+  SANDBOX_WRITE_GIT_METADATA_DENIED,
   SANDBOX_WRITE_OUTSIDE_WORKSPACE,
   SANDBOX_WRITE_SYMLINK_DENIED,
   VercelSandboxCommandError,
@@ -180,6 +181,25 @@ describe("VercelSandboxRuntime", () => {
       expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
     );
   });
+
+  it("maps git-metadata write denials from the sandbox guard", async () => {
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: SANDBOX_WRITE_GIT_METADATA_DENIED,
+      output: async () => "",
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await expect(
+      runtime.writeFile(".git/config", "[core]\nfsmonitor=sh ./payload\n"),
+    ).rejects.toThrow("Writes under .git/ are not allowed.");
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+      "bash",
+      expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
+    );
+  });
 });
 
 describe("buildSandboxWriteFileScript", () => {
@@ -244,5 +264,20 @@ describe("buildSandboxWriteFileScript", () => {
       exitCode: SANDBOX_WRITE_OUTSIDE_WORKSPACE,
     });
     await rm(outsideFile, { force: true });
+  });
+
+  it("refuses writes under .git while still allowing .gitignore", async () => {
+    const root = await createWorkspaceRoot();
+    await mkdir(join(root, ".git"), { recursive: true });
+
+    await expect(
+      runWriteGuard(root, ".git/config", "[core]\nfsmonitor=sh ./payload\n"),
+    ).resolves.toEqual({
+      exitCode: SANDBOX_WRITE_GIT_METADATA_DENIED,
+    });
+    await expect(runWriteGuard(root, ".gitignore", "node_modules\n")).resolves.toEqual({
+      exitCode: 0,
+    });
+    await expect(readFile(join(root, ".gitignore"), "utf8")).resolves.toBe("node_modules\n");
   });
 });

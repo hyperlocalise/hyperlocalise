@@ -57,7 +57,8 @@ function hasValue(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
-function publicJobOutputFiles(input: {
+/** Parses file-result outcome payloads for Canva pull/status responses. */
+export function publicJobOutputFiles(input: {
   type: string | null;
   outcomeKind: string | null;
   outcomePayload: unknown;
@@ -125,7 +126,8 @@ async function loadTranslationsByLocale(input: {
   return translationsByLocale;
 }
 
-function readCanvaConnectionIdFromJobInput(inputPayload: unknown): string | null {
+/** Reads the Canva connection id from nested fileInput metadata when present. */
+export function readCanvaConnectionIdFromJobInput(inputPayload: unknown): string | null {
   if (!inputPayload || typeof inputPayload !== "object") {
     return null;
   }
@@ -146,7 +148,8 @@ function readCanvaConnectionIdFromJobInput(inputPayload: unknown): string | null
     : null;
 }
 
-function isCanvaIntegrationJob(inputPayload: unknown) {
+/** True when a translation job was created by the Canva app integration. */
+export function isCanvaIntegrationJob(inputPayload: unknown) {
   if (!inputPayload || typeof inputPayload !== "object") {
     return false;
   }
