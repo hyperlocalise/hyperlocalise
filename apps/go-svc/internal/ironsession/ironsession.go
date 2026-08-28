@@ -20,16 +20,17 @@ import (
 )
 
 const (
-	macPrefix           = "Fe26.2"
-	passwordID          = "1"
-	minPasswordLength   = 32
-	keyLength           = 32
-	ivLength            = 16
-	saltBytes           = 32
-	pbkdf2Iterations    = 1
-	ironSessionVersion  = "2"
-	versionDelimiter    = "~"
-	sealedPartCount     = 8
+	macPrefix          = "Fe26.2"
+	passwordID         = "1"
+	minPasswordLength  = 32
+	keyLength          = 32
+	ivLength           = 16
+	saltBytes          = 32
+	pbkdf2Iterations   = 1
+	ironSessionVersion = "2"
+	versionDelimiter   = "~"
+	sealedPartCount    = 8
+	maxPlaintextBytes  = 1 << 20
 )
 
 // ErrInvalidSeal is returned when the cookie is not a valid iron-session blob.
@@ -188,7 +189,10 @@ func encryptAES256CBC(password, salt string, iv, plaintext []byte) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	padded := pkcs7Pad(plaintext, aes.BlockSize)
+	padded, err := pkcs7Pad(plaintext, aes.BlockSize)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]byte, len(padded))
 	cipher.NewCBCEncrypter(block, iv).CryptBlocks(out, padded)
 	return out, nil
@@ -211,14 +215,24 @@ func decryptAES256CBC(password, salt string, iv, ciphertext []byte) ([]byte, err
 	return pkcs7Unpad(plain)
 }
 
-func pkcs7Pad(data []byte, blockSize int) []byte {
+func pkcs7Pad(data []byte, blockSize int) ([]byte, error) {
+	if blockSize <= 0 || blockSize > 255 {
+		return nil, errors.New("invalid block size")
+	}
+	if len(data) > maxPlaintextBytes {
+		return nil, errors.New("plaintext too large")
+	}
 	pad := blockSize - (len(data) % blockSize)
-	out := make([]byte, len(data)+pad)
+	n := len(data) + pad
+	if n < len(data) {
+		return nil, errors.New("plaintext too large")
+	}
+	out := make([]byte, n)
 	copy(out, data)
-	for i := len(data); i < len(out); i++ {
+	for i := len(data); i < n; i++ {
 		out[i] = byte(pad)
 	}
-	return out
+	return out, nil
 }
 
 func pkcs7Unpad(data []byte) ([]byte, error) {

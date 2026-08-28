@@ -67,6 +67,15 @@ func TestUnsealRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestSealRejectsOversizedPayload(t *testing.T) {
+	t.Parallel()
+
+	huge := strings.Repeat("x", maxPlaintextBytes+1)
+	if _, err := Seal(huge, testPassword); err == nil {
+		t.Fatal("expected oversized payload to fail")
+	}
+}
+
 func TestUnsealRejectsShortPassword(t *testing.T) {
 	t.Parallel()
 
