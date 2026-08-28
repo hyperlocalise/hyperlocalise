@@ -74,6 +74,7 @@ import {
   resolveCreateGlossaryControlLevel,
   getOwnedGlossary,
   glossaryNotFoundResponse,
+  canContributeToGlossary,
 } from "./glossary.shared";
 
 function toGlossaryRecordWithTeamName(
@@ -468,8 +469,10 @@ export function createGlossaryRoutes() {
           : undefined;
       const projectCount = product ? await product.queryProjectCount() : 0;
       const teamNamesById = await queryGlossaryTeamNamesById([glossary]);
+      const canContribute = await canContributeToGlossary(c.var.auth, glossary);
       if (product) {
         const remote = await product.get();
+        const resolvedGlossary = remote ?? glossary;
         const languages =
           glossary.source === "native"
             ? await queryNativeGlossaryLanguagesForGlossary(glossary)
@@ -478,19 +481,20 @@ export function createGlossaryRoutes() {
           {
             glossary: languages
               ? toGlossaryRecordWithTeamName(
-                  remote ?? glossary,
+                  resolvedGlossary,
                   teamNamesById,
                   languages,
                   termCount,
                   projectCount,
                 )
               : toGlossaryRecordWithTeamName(
-                  remote ?? glossary,
+                  resolvedGlossary,
                   teamNamesById,
                   undefined,
                   termCount,
                   projectCount,
                 ),
+            canContribute,
           },
           200,
         );
@@ -505,6 +509,7 @@ export function createGlossaryRoutes() {
             termCount,
             projectCount,
           ),
+          canContribute,
         },
         200,
       );

@@ -24,6 +24,7 @@ export function createGlossaryDetailMswHandlers({
   attachedProjects = [],
   projects = [],
   conceptsLoading = false,
+  canContribute = true,
   onConceptUpdate,
   onTermDelete,
 }: {
@@ -32,6 +33,7 @@ export function createGlossaryDetailMswHandlers({
   attachedProjects?: GlossaryProjectRecord[];
   projects?: Array<{ id: string; name: string; sourceLocale: string }>;
   conceptsLoading?: boolean;
+  canContribute?: boolean;
   onConceptUpdate?: (termIds: string[]) => void;
   onTermDelete?: (termId: string) => void;
 }) {
@@ -40,7 +42,7 @@ export function createGlossaryDetailMswHandlers({
 
   return [
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId", () =>
-      HttpResponse.json({ glossary: currentGlossary }),
+      HttpResponse.json({ glossary: currentGlossary, canContribute }),
     ),
     http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
       const body = (await request.json()) as { name?: string };

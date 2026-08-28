@@ -295,6 +295,7 @@ export const glossaryProjectRecordSchema = z.object({
 
 export const glossaryResponseSchema = z.object({
   glossary: glossaryRecordSchema,
+  canContribute: z.boolean(),
 });
 
 export const glossariesResponseSchema = z.object({

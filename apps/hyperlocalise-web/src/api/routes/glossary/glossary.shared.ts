@@ -256,6 +256,17 @@ async function isTeamGlossaryContributorAllowed(
   );
 }
 
+export async function canContributeToGlossary(
+  auth: ApiAuthContext,
+  glossary: Pick<GlossaryRecord, "controlLevel" | "source" | "teamId">,
+) {
+  if (!isGlossaryContributeAllowed(auth.membership.role, glossary)) {
+    return false;
+  }
+
+  return isTeamGlossaryContributorAllowed(auth, glossary);
+}
+
 export function glossaryContributeForbiddenResponse(
   c: { json: JsonContext["json"] },
   role: ApiAuthContext["membership"]["role"],

@@ -338,6 +338,7 @@ export class NativeGlossary extends Glossary {
         .select({
           controlLevel: schema.glossaries.controlLevel,
           sourceLocale: schema.glossaries.sourceLocale,
+          teamId: schema.glossaries.teamId,
         })
         .from(schema.glossaries)
         .where(
@@ -369,6 +370,7 @@ export class NativeGlossary extends Glossary {
         .select({
           source: schema.projects.source,
           sourceLocale: schema.projects.sourceLocale,
+          teamId: schema.projects.teamId,
         })
         .from(schema.projectGlossaries)
         .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
@@ -389,6 +391,15 @@ export class NativeGlossary extends Glossary {
         }
         if (attachments.some((attachment) => attachment.source !== "native")) {
           return { status: "team_native_project_required" };
+        }
+        if (!glossaryRow.teamId && !updates.teamId) {
+          const ownerTeamId = attachments.find(
+            (attachment) => attachment.source === "native" && attachment.teamId,
+          )?.teamId;
+          if (!ownerTeamId) {
+            return { status: "team_project_required" };
+          }
+          updates.teamId = ownerTeamId;
         }
       }
 
@@ -846,6 +857,7 @@ export class NativeGlossary extends Glossary {
         .select({
           source: schema.projects.source,
           sourceLocale: schema.projects.sourceLocale,
+          teamId: schema.projects.teamId,
         })
         .from(schema.projects)
         .where(
@@ -865,6 +877,7 @@ export class NativeGlossary extends Glossary {
         .select({
           controlLevel: schema.glossaries.controlLevel,
           sourceLocale: schema.glossaries.sourceLocale,
+          teamId: schema.glossaries.teamId,
         })
         .from(schema.glossaries)
         .where(
@@ -900,6 +913,18 @@ export class NativeGlossary extends Glossary {
           target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
           set: { priority },
         });
+
+      if (
+        glossaryRow.controlLevel === "team" &&
+        !glossaryRow.teamId &&
+        projectRow.source === "native" &&
+        projectRow.teamId
+      ) {
+        await tx
+          .update(schema.glossaries)
+          .set({ teamId: projectRow.teamId })
+          .where(eq(schema.glossaries.id, this.input.glossary.id));
+      }
 
       return { status: "attached" };
     });

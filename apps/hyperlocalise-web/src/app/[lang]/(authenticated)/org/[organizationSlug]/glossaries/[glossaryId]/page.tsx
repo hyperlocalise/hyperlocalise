@@ -30,7 +30,6 @@ export default async function GlossaryDetailPage({
         organizationSlug={organizationSlug}
         glossaryId={glossaryId}
         canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
-        canContributeTeamGlossaries={auth.membership.role === "translator"}
       />
     </Suspense>
   );

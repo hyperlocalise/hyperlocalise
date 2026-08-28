@@ -34,6 +34,7 @@ import type {
   GlossaryConceptTermRecord,
   GlossaryProjectRecord,
   GlossaryRecord,
+  GlossaryResponse,
   CreateGlossaryConceptBody,
   UpsertGlossaryConceptTermBody,
 } from "@/api/routes/glossary/glossary.schema";
@@ -347,13 +348,11 @@ export function GlossaryDetailPageContent({
   organizationSlug,
   glossaryId,
   canManageGlossaries,
-  canContributeTeamGlossaries = false,
   conceptId,
 }: {
   organizationSlug: string;
   glossaryId: string;
   canManageGlossaries: boolean;
-  canContributeTeamGlossaries?: boolean;
   conceptId?: string;
 }) {
   const intl = useIntl();
@@ -394,19 +393,17 @@ export function GlossaryDetailPageContent({
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.loadGlossaryFailed)),
         );
-      return (await response.json()).glossary as GlossaryRecord;
+      return (await response.json()) as GlossaryResponse;
     },
   });
-  const glossary = glossaryQuery.data;
+  const glossary = glossaryQuery.data?.glossary;
+  const glossaryCanContribute = glossaryQuery.data?.canContribute ?? false;
   const isNative = glossary?.source === "native";
   const isLiveCrowdin =
     glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
   const isConceptGlossary = isNative || isLiveCrowdin;
   const canManage = canManageGlossaries && isConceptGlossary;
-  const canContribute =
-    isConceptGlossary &&
-    (canManageGlossaries ||
-      (canContributeTeamGlossaries && glossary?.controlLevel === "team" && isNative));
+  const canContribute = isConceptGlossary && (canManage || glossaryCanContribute);
   const sourceLanguage = glossary?.languages.find((language) => language.isSource) ?? {
     locale: glossary?.sourceLocale ?? "",
     name: getLocaleLabel(glossary?.sourceLocale ?? ""),

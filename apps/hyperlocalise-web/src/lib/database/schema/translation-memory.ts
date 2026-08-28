@@ -160,6 +160,10 @@ export const glossaries = pgTable(
       "glossaries_team_id_requires_team_control",
       sql`${table.teamId} IS NULL OR ${table.controlLevel} = 'team'`,
     ),
+    check(
+      "glossaries_team_control_requires_team_id",
+      sql`${table.controlLevel} <> 'team' OR ${table.teamId} IS NOT NULL`,
+    ),
   ],
 );
 

@@ -125,7 +125,6 @@ const meta = {
     organizationSlug: "acme",
     glossaryId,
     canManageGlossaries: true,
-    canContributeTeamGlossaries: false,
   },
 } satisfies Meta<typeof GlossaryDetailPageContent>;
 
@@ -190,12 +189,16 @@ const providerGlossaryFixture: GlossaryRecord = {
   externalGlossaryId: "tb-42",
 };
 
-function createListStoryParameters(glossary: GlossaryRecord) {
+function createListStoryParameters(
+  glossary: GlossaryRecord,
+  { canContribute = true }: { canContribute?: boolean } = {},
+) {
   return {
     msw: {
       handlers: createGlossaryDetailMswHandlers({
         glossary,
         concepts: conceptsFixture,
+        canContribute,
       }),
     },
     nextjs: {
@@ -223,9 +226,8 @@ export const TeamManagerConceptList: Story = {
 export const TeamTranslatorConceptList: Story = {
   args: {
     canManageGlossaries: false,
-    canContributeTeamGlossaries: true,
   },
-  parameters: createListStoryParameters(teamGlossaryFixture),
+  parameters: createListStoryParameters(teamGlossaryFixture, { canContribute: true }),
   play: async ({ canvas }) => {
     await expect(
       await canvas.findByRole("heading", { name: "Product team terms" }),
@@ -242,9 +244,8 @@ export const TeamTranslatorConceptList: Story = {
 export const OrgTranslatorReadOnly: Story = {
   args: {
     canManageGlossaries: false,
-    canContributeTeamGlossaries: true,
   },
-  parameters: createListStoryParameters(glossaryFixture),
+  parameters: createListStoryParameters(glossaryFixture, { canContribute: false }),
   play: async ({ canvas }) => {
     await expect(
       await canvas.findByRole("heading", { name: "Product terminology" }),
@@ -261,9 +262,8 @@ export const OrgTranslatorReadOnly: Story = {
 export const ProviderReadOnly: Story = {
   args: {
     canManageGlossaries: false,
-    canContributeTeamGlossaries: true,
   },
-  parameters: createListStoryParameters(providerGlossaryFixture),
+  parameters: createListStoryParameters(providerGlossaryFixture, { canContribute: false }),
   play: async ({ canvas }) => {
     await expect(
       await canvas.findByRole("heading", { name: "Phrase Term Base" }),
