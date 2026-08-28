@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -33,6 +34,8 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 }
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -68,7 +71,7 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, withOptionalPrefix(publicPathPrefix, mux))
+	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

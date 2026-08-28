@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ironsession",
+    srcs = ["ironsession.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/ironsession",
+    visibility = ["//apps/go-svc:__pkg__"],
+)
+
+go_test(
+    name = "ironsession_test",
+    srcs = ["ironsession_test.go"],
+    embed = [":ironsession"],
+)

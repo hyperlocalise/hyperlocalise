@@ -21,11 +21,11 @@ type mockSessionVerifier struct {
 	err    error
 }
 
-func (m mockSessionVerifier) Verify(_ context.Context, _ string) (AuthClaims, error) {
+func (m mockSessionVerifier) Verify(_ context.Context, _ string) (SessionResult, error) {
 	if m.err != nil {
-		return AuthClaims{}, m.err
+		return SessionResult{}, m.err
 	}
-	return m.claims, nil
+	return SessionResult{Claims: m.claims}, nil
 }
 
 func TestHealth(t *testing.T) {
