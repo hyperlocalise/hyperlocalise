@@ -95,6 +95,14 @@ export function glossarySourceLocaleAttachedProjectsResponse(c: { json: JsonCont
   );
 }
 
+export function glossarySourceLocaleExistingTermsResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "glossary_source_locale_existing_terms",
+    "Cannot change the glossary source locale while terms exist in the current source language",
+  );
+}
+
 export type GlossaryControlLevel = "org" | "team";
 
 export function isGlossaryManageAllowed(role: ApiAuthContext["membership"]["role"]) {

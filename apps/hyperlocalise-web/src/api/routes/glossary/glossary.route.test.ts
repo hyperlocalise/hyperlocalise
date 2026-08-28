@@ -1276,4 +1276,66 @@ describe("glossaryRoutes", () => {
       projects: [{ projectId: secondProject.id }],
     });
   });
+
+  it("rejects changing source locale when unattached glossary has terms at the current locale", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(conceptResponse.status).toBe(201);
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
+      {
+        param: { organizationSlug, glossaryId },
+        json: { sourceLocale: "fr-FR" },
+      },
+      { headers: adminHeaders },
+    );
+    expect(patchResponse.status).toBe(400);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: "glossary_source_locale_existing_terms",
+    });
+  });
+
+  it("allows changing source locale on an unattached glossary without terms", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
+      {
+        param: { organizationSlug, glossaryId },
+        json: { sourceLocale: "fr-FR" },
+      },
+      { headers: adminHeaders },
+    );
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      glossary: { sourceLocale: "fr-FR" },
+    });
+  });
 });

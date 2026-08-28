@@ -694,6 +694,62 @@ export class NativeGlossary extends Glossary {
       );
   }
 
+  async detachProjectWithTeamGuard(
+    projectId: string,
+  ): Promise<"detached" | "team_project_required" | "not_attached"> {
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT id FROM glossaries WHERE id = ${this.input.glossary.id} AND organization_id = ${this.input.auth.organization.localOrganizationId} FOR UPDATE`,
+      );
+
+      const attachments = await tx
+        .select({
+          projectId: schema.projects.id,
+          source: schema.projects.source,
+        })
+        .from(schema.projectGlossaries)
+        .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          ),
+        );
+
+      const target = attachments.find((attachment) => attachment.projectId === projectId);
+      if (!target) {
+        return "not_attached";
+      }
+
+      if (this.input.glossary.controlLevel === "team") {
+        const nativeCount = attachments.filter(
+          (attachment) => attachment.source === "native",
+        ).length;
+        if (target.source === "native" && nativeCount <= 1) {
+          return "team_project_required";
+        }
+      }
+
+      await tx
+        .delete(schema.projectGlossaries)
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.projectId, projectId),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          ),
+        );
+
+      return "detached";
+    });
+  }
+
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
     const term = await db.transaction(async (tx) => {
