@@ -16,7 +16,7 @@ import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messag
 import {
   DEFAULT_WORKSPACE_TEAM_NAME,
   DEFAULT_WORKSPACE_TEAM_SLUG,
-} from "@/lib/teams/default-workspace-team";
+} from "@/lib/teams/default-workspace-team-constants";
 
 export type CatContributorTeam = {
   id: string;

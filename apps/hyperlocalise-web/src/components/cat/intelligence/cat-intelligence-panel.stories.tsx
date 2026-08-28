@@ -315,10 +315,10 @@ export const AddToTeamGlossary: Story = {
     );
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
+    await expect(await body.findByRole("option", { name: "Create new" })).toBeInTheDocument();
     await expect(
-      await body.findByRole("option", { name: "Marketing team terms" }),
+      body.queryByRole("option", { name: "Marketing team terms" }),
     ).not.toBeInTheDocument();
-    await expect(body.getByRole("option", { name: "Create new" })).toBeInTheDocument();
   },
 };
 

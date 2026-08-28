@@ -15,8 +15,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { TeamMembershipRole } from "@/lib/database/types";
 
-export const DEFAULT_WORKSPACE_TEAM_SLUG = "default";
-export const DEFAULT_WORKSPACE_TEAM_NAME = "Default team";
+import {
+  DEFAULT_WORKSPACE_TEAM_NAME,
+  DEFAULT_WORKSPACE_TEAM_SLUG,
+} from "./default-workspace-team-constants";
+
+export { DEFAULT_WORKSPACE_TEAM_NAME, DEFAULT_WORKSPACE_TEAM_SLUG };
 
 export async function ensureDefaultWorkspaceTeam(
   organizationId: string,

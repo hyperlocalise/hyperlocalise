@@ -15,7 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_WORKSPACE_TEAM_NAME,
   DEFAULT_WORKSPACE_TEAM_SLUG,
-} from "@/lib/teams/default-workspace-team";
+} from "@/lib/teams/default-workspace-team-constants";
 
 import {
   collectVisibleCatGlossaryConcepts,

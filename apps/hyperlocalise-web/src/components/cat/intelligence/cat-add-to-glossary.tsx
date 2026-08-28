@@ -330,9 +330,6 @@ export function CatAddToGlossary({
             checked={translatable}
             onCheckedChange={(checked) => setTranslatable(checked === true)}
             disabled={isBusy}
-            aria-label={intl.formatMessage(
-              catIntelligencePanelMessages.addToGlossaryTranslatableLabel,
-            )}
           />
           <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryTranslatableLabel} />
         </label>
