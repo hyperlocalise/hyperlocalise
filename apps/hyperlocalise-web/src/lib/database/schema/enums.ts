@@ -103,6 +103,11 @@ export const externalTmsTerminologyResourceTypeEnum = pgEnum(
  */
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
 /**
+ * Distinguishes org-wide terminology from team glossaries. Team control is
+ * Hyperlocalise-owned only; external TMS libraries are always org.
+ */
+export const glossaryControlLevelEnum = pgEnum("glossary_control_level", ["org", "team"]);
+/**
  * Tracks provider-backed terminology and translation-memory sync state for UI status, retries, and diagnostics.
  */
 export const glossarySyncStateEnum = pgEnum("glossary_sync_state", [

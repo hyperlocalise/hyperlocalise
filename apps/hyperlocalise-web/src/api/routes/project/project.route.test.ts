@@ -853,3 +853,55 @@ describe("project identifier uniqueness", () => {
     });
   });
 });
+
+describe("project source locale updates", () => {
+  it("rejects changing source locale when attached glossaries use a different locale", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(admin);
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const team = await ensureDefaultWorkspaceTeam(
+      globalThis.__testApiAuthContext!.organization.localOrganizationId,
+    );
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Locale Guard Project",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const glossaryResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Locale Guard Glossary",
+          sourceLocale: "en-US",
+          projectIds: [project.id],
+        },
+      },
+      { headers },
+    );
+    expect(glossaryResponse.status).toBe(201);
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { sourceLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(patchResponse.status).toBe(400);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: "project_source_locale_attached_glossaries",
+    });
+  });
+});

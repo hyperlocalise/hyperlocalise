@@ -165,6 +165,7 @@ export interface CatWorkspaceViewProps {
   organizationSlug?: string;
   projectId?: string;
   nativeIssuesEnabled?: boolean;
+  onReloadConcordance?: (segmentId: string) => void;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

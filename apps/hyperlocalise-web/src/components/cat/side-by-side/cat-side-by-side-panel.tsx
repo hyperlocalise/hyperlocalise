@@ -102,6 +102,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   primaryActionLabel,
   segmentShareUrl = null,
   className,
+  organizationSlug,
+  projectId,
+  onGlossaryTermAdded,
 }: {
   segments: CatSegment[];
   focusedSegmentId: string;
@@ -163,6 +166,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   className?: string;
+  organizationSlug?: string;
+  projectId?: string;
+  onGlossaryTermAdded?: () => void;
 }) {
   const store = useCatWorkspace();
   const hoveredSegmentId = store.ui.hoveredSegmentId;
@@ -342,6 +348,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           isMaxLengthSaving={isMaxLengthSaving}
           onSetMaxLength={onSetMaxLength}
           placement="right"
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          onGlossaryTermAdded={onGlossaryTermAdded}
           className="h-full"
         />
       }

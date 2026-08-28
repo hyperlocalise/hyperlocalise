@@ -56,9 +56,7 @@ function pkceChallenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
-async function mcpAccessTokenForMember(
-  memberAuth: NonNullable<typeof globalThis.__testApiAuthContext>,
-) {
+async function mcpAccessTokenForAuth(auth: NonNullable<typeof globalThis.__testApiAuthContext>) {
   const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
   const code = createAuthorizationCode({
     clientId: "test-client",
@@ -66,8 +64,8 @@ async function mcpAccessTokenForMember(
     codeChallenge: pkceChallenge(verifier),
     codeChallengeMethod: "S256",
     scope: "mcp",
-    userId: memberAuth.user.localUserId,
-    organizationId: memberAuth.organization.localOrganizationId,
+    userId: auth.user.localUserId,
+    organizationId: auth.organization.localOrganizationId,
   });
 
   const response = await mcpApp.request("http://localhost/mcp/token", {
@@ -145,11 +143,17 @@ afterEach(async () => {
 });
 
 describe("MCP team-scoped access", () => {
-  it("scopes list_projects and get_project to the member's teams", async () => {
+  it("scopes projects and issues to the member's teams", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
 
     await projectFixture.authHeadersFor(admin);
+
+    const adminAuth = globalThis.__testApiAuthContext;
+    if (!adminAuth) {
+      throw new Error("expected admin auth context");
+    }
+
     await projectFixture.authHeadersFor(member);
     const memberAuth = globalThis.__testApiAuthContext;
     if (!memberAuth) {
@@ -198,7 +202,82 @@ describe("MCP team-scoped access", () => {
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
-    const accessToken = await mcpAccessTokenForMember(memberAuth);
+    const [alphaIssue, betaIssue] = await db
+      .insert(schema.issueSheetIssues)
+      .values([
+        {
+          organizationId: memberAuth.organization.localOrganizationId,
+          projectId: alphaProjectBody.project.id,
+          number: 1,
+          identifier: "ALPHA-1",
+          title: "Accessible team issue",
+          issueType: "qa_failure",
+          status: "open",
+        },
+        {
+          organizationId: memberAuth.organization.localOrganizationId,
+          projectId: betaProjectBody.project.id,
+          number: 1,
+          identifier: "BETA-1",
+          title: "Inaccessible team issue",
+          issueType: "qa_failure",
+          status: "open",
+        },
+      ])
+      .returning({
+        id: schema.issueSheetIssues.id,
+      });
+
+    if (!alphaIssue || !betaIssue) {
+      throw new Error("expected issue fixtures");
+    }
+
+    const { organization: externalOrganization, project: externalProject } =
+      await projectFixture.createStoredProjectFixture();
+
+    const [externalIssue] = await db
+      .insert(schema.issueSheetIssues)
+      .values({
+        organizationId: externalOrganization.id,
+        projectId: externalProject.id,
+        number: 1,
+        identifier: "EXTERNAL-1",
+        title: "External organization issue",
+        issueType: "qa_failure",
+        status: "open",
+      })
+      .returning({
+        id: schema.issueSheetIssues.id,
+      });
+
+    if (!externalIssue) {
+      throw new Error("expected external issue fixture");
+    }
+
+    const accessToken = await mcpAccessTokenForAuth(memberAuth);
+
+    const adminAccessToken = await mcpAccessTokenForAuth(adminAuth);
+
+    const adminIssuesResponse = await callMcpTool(adminAccessToken, "list_issues", {
+      status: "open",
+      limit: 50,
+      offset: 0,
+    });
+
+    expect(adminIssuesResponse.status).toBe(200);
+
+    const adminIssuesBody = parseToolResultText(await adminIssuesResponse.json()) as {
+      total: number;
+      issues: Array<{
+        id: string;
+      }>;
+    };
+
+    expect(adminIssuesBody.issues.map((issue) => issue.id)).not.toContain(externalIssue.id);
+    expect(adminIssuesBody.total).toBe(2);
+    expect(adminIssuesBody.issues.map((issue) => issue.id).sort()).toEqual(
+      [alphaIssue.id, betaIssue.id].sort(),
+    );
 
     const listResponse = await callMcpTool(accessToken, "list_projects", { limit: 50 });
     expect(listResponse.status).toBe(200);
@@ -210,6 +289,35 @@ describe("MCP team-scoped access", () => {
     const getDeniedResponse = await callMcpTool(accessToken, "get_project", {
       projectId: betaProjectBody.project.id,
     });
+
+    const issuesResponse = await callMcpTool(accessToken, "list_issues", {
+      status: "open",
+      limit: 50,
+      offset: 0,
+    });
+
+    expect(issuesResponse.status).toBe(200);
+
+    const issuesBody = parseToolResultText(await issuesResponse.json()) as {
+      total: number;
+      issues: Array<{
+        id: string;
+        projectId: string;
+        title: string;
+      }>;
+    };
+
+    expect(issuesBody.issues.map((issue) => issue.id)).not.toContain(externalIssue.id);
+    expect(issuesBody.total).toBe(1);
+    expect(issuesBody.issues).toEqual([
+      expect.objectContaining({
+        id: alphaIssue.id,
+        projectId: alphaProjectBody.project.id,
+        title: "Accessible team issue",
+      }),
+    ]);
+    expect(issuesBody.issues.map((issue) => issue.id)).not.toContain(betaIssue.id);
+
     expect(getDeniedResponse.status).toBe(200);
     const getDeniedBody = parseToolResultText(await getDeniedResponse.json()) as {
       project: { id: string } | null;

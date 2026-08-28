@@ -35,6 +35,7 @@ import {
   isUniqueViolation,
   organizationMemberNotFoundResponse,
   slugifyTeamName,
+  teamHasGlossariesResponse,
   teamHasProjectsResponse,
   teamNotFoundResponse,
   teamSlugAlreadyExistsResponse,
@@ -274,6 +275,16 @@ export function createTeamRoutes() {
 
       if (projectUsingTeam) {
         return teamHasProjectsResponse(c);
+      }
+
+      const [glossaryUsingTeam] = await db
+        .select({ id: schema.glossaries.id })
+        .from(schema.glossaries)
+        .where(eq(schema.glossaries.teamId, team.id))
+        .limit(1);
+
+      if (glossaryUsingTeam) {
+        return teamHasGlossariesResponse(c);
       }
 
       await db

@@ -411,5 +411,7 @@ export function useCatWorkspaceRuntime({
     canLoadVisualContext,
     canUseAiRecommendation,
     handleIntelligencePanelVisible,
+    handleReloadConcordance: (segmentId: string) =>
+      intelligenceController.reloadConcordance(segmentId),
   };
 }

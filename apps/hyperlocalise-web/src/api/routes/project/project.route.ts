@@ -27,6 +27,10 @@ import {
   serviceUnavailableResponse,
 } from "@/api/errors";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
+import {
+  deleteProjectWithTeamGlossaryGuard,
+  glossaryTeamProjectRequiredResponse,
+} from "@/api/routes/glossary/glossary.shared";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -182,6 +186,7 @@ import {
   updateProjectCatBehaviorBodySchema,
   type CreateProjectBody,
   type ProjectFileCatQuery,
+  type ProjectFileCatQueueFile,
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -195,6 +200,16 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
+import {
+  getProjectTeamContext,
+  hasAttachedGlossarySourceLocaleConflict,
+  listAttachedTeamGlossaries,
+  listContributorTeams,
+} from "@/lib/glossary/attached-team-glossaries";
+import {
+  isGlossaryContributorRole,
+  isGlossaryManageAllowed,
+} from "@/api/routes/glossary/glossary.shared";
 import {
   isAiActionAllowed,
   isProjectCatBehaviorMutationAllowed,
@@ -243,6 +258,7 @@ import {
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
   | "external_project_locales_readonly"
+  | "project_source_locale_attached_glossaries"
   | "identifier_taken"
   | "invalid_identifier"
   | ProjectLocalePatchError;
@@ -262,6 +278,8 @@ const projectLocalePatchErrorMessages: Record<
   string
 > = {
   external_project_locales_readonly: "External TMS project locales are read-only",
+  project_source_locale_attached_glossaries:
+    "Cannot change the project source locale while attached glossaries use a different source locale",
   invalid_source_locale: "Invalid source locale",
   invalid_target_locales: "Invalid target locales",
   source_in_targets: "Source locale cannot also be a target locale",
@@ -478,6 +496,39 @@ const projectStore: ProjectStore = {
 
     if (Object.keys(updateValues).length === 0) {
       return ok(existing);
+    }
+
+    if (updateValues.sourceLocale !== undefined) {
+      const projectWhere = await ownedProjectWhere(auth, projectId);
+      return db.transaction(async (tx) => {
+        const [lockedProject] = await tx
+          .select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(projectWhere)
+          .limit(1)
+          .for("update");
+
+        if (!lockedProject) {
+          return ok(null);
+        }
+
+        if (
+          await hasAttachedGlossarySourceLocaleConflict(projectId, updateValues.sourceLocale!, tx)
+        ) {
+          return err({
+            code: "project_source_locale_attached_glossaries",
+            message: projectLocalePatchErrorMessages.project_source_locale_attached_glossaries,
+          });
+        }
+
+        const [project] = await tx
+          .update(schema.projects)
+          .set(updateValues)
+          .where(projectWhere)
+          .returning();
+
+        return ok(project ?? null);
+      });
     }
 
     const [project] = await db
@@ -845,6 +896,29 @@ type CreateProjectRoutesOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
+async function withCatTeamGlossaryContext(
+  auth: AuthVariables["auth"],
+  projectId: string,
+  catQueue: ProjectFileCatQueueFile,
+): Promise<ProjectFileCatQueueFile> {
+  const [teamGlossaries, projectTeam, contributorTeams] = await Promise.all([
+    listAttachedTeamGlossaries(projectId),
+    getProjectTeamContext(projectId),
+    listContributorTeams(auth.user.localUserId, auth.organization.localOrganizationId, {
+      organizationWideAccess: isGlossaryManageAllowed(auth.membership.role),
+    }),
+  ]);
+  return {
+    ...catQueue,
+    teamGlossaries,
+    contributorTeams,
+    canContributeTeamGlossary:
+      catQueue.provider == null && isGlossaryContributorRole(auth.membership.role),
+    ...(projectTeam?.teamId ? { projectTeamId: projectTeam.teamId } : {}),
+    ...(projectTeam?.teamName ? { teamName: projectTeam.teamName } : {}),
+  };
+}
+
 export async function loadProjectFileCatQueue(
   auth: AuthVariables["auth"],
   projectId: string,
@@ -891,11 +965,15 @@ export async function loadProjectFileCatQueue(
 
     return {
       kind: "ok" as const,
-      catQueue: await attachCatSegmentLocks({
-        organizationId: auth.organization.localOrganizationId,
+      catQueue: await withCatTeamGlossaryContext(
+        auth,
         projectId,
-        catQueue,
-      }),
+        await attachCatSegmentLocks({
+          organizationId: auth.organization.localOrganizationId,
+          projectId,
+          catQueue,
+        }),
+      ),
     };
   }
 
@@ -938,11 +1016,15 @@ export async function loadProjectFileCatQueue(
 
     return {
       kind: "ok" as const,
-      catQueue: await attachCatSegmentLocks({
-        organizationId: auth.organization.localOrganizationId,
+      catQueue: await withCatTeamGlossaryContext(
+        auth,
         projectId,
-        catQueue: enrichedCatQueue,
-      }),
+        await attachCatSegmentLocks({
+          organizationId: auth.organization.localOrganizationId,
+          projectId,
+          catQueue: enrichedCatQueue,
+        }),
+      ),
     };
   } catch (error) {
     return { kind: "provider_error" as const, error };
@@ -3666,9 +3748,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const params = c.req.valid("param");
-      const deleted = await projectStore.delete(c.var.auth, params.projectId);
+      const deleteResult = await deleteProjectWithTeamGlossaryGuard(c.var.auth, params.projectId);
 
-      if (!deleted) {
+      if (deleteResult === "team_project_required") {
+        return glossaryTeamProjectRequiredResponse(c);
+      }
+
+      if (deleteResult === "not_found") {
         return projectNotFoundResponse(c);
       }
 

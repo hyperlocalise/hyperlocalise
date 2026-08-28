@@ -15,6 +15,8 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import type { Glossary as GlossaryRecord } from "@/lib/database/types";
+import { queryNativeGlossaryHasTermsAtLocale } from "@/lib/glossary/query-glossary-term-counts";
 import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
@@ -255,6 +257,7 @@ export class NativeGlossary extends Glossary {
         priority: schema.projectGlossaries.priority,
         sourceLocale: schema.projects.sourceLocale,
         targetLocales: schema.projects.targetLocales,
+        source: schema.projects.source,
       })
       .from(schema.projectGlossaries)
       .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
@@ -273,10 +276,16 @@ export class NativeGlossary extends Glossary {
     return attachedProjects.map((project) => ({ ...project, externalUrl: null }));
   }
 
-  async update(payload: { name?: string; description?: string }) {
+  async update(payload: { name?: string; description?: string; sourceLocale?: string }) {
+    const updates = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(updates).length === 0) {
+      return this.input.glossary;
+    }
     const [glossary] = await db
       .update(schema.glossaries)
-      .set(payload)
+      .set(updates)
       .where(
         and(
           eq(schema.glossaries.id, this.input.glossary.id),
@@ -285,6 +294,105 @@ export class NativeGlossary extends Glossary {
       )
       .returning();
     return glossary ?? null;
+  }
+
+  async updateWithAttachmentGuard(payload: {
+    name?: string;
+    description?: string;
+    sourceLocale?: string;
+  }): Promise<
+    | { status: "updated"; glossary: GlossaryRecord }
+    | { status: "not_found" }
+    | { status: "source_locale_attached_projects" }
+    | { status: "source_locale_existing_terms" }
+  > {
+    const updates = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(updates).length === 0) {
+      return { status: "updated", glossary: this.input.glossary };
+    }
+
+    const needsAttachmentValidation =
+      payload.sourceLocale !== undefined &&
+      payload.sourceLocale !== this.input.glossary.sourceLocale;
+
+    if (!needsAttachmentValidation) {
+      const glossary = await this.update(payload);
+      return glossary ? { status: "updated", glossary } : { status: "not_found" };
+    }
+
+    const accessibleProjectsWhere = await buildAccessibleProjectsWhere(this.input.auth);
+
+    return db.transaction(async (tx) => {
+      const [glossaryRow] = await tx
+        .select({
+          sourceLocale: schema.glossaries.sourceLocale,
+        })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return { status: "not_found" };
+      }
+
+      if (
+        payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== glossaryRow.sourceLocale &&
+        (await queryNativeGlossaryHasTermsAtLocale(
+          this.input.glossary.id,
+          glossaryRow.sourceLocale,
+          tx,
+        ))
+      ) {
+        return { status: "source_locale_existing_terms" };
+      }
+
+      const attachments = await tx
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projectGlossaries)
+        .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+            accessibleProjectsWhere,
+          ),
+        );
+
+      if (
+        payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== glossaryRow.sourceLocale &&
+        attachments.some((attachment) => attachment.sourceLocale !== payload.sourceLocale)
+      ) {
+        return { status: "source_locale_attached_projects" };
+      }
+
+      const [glossary] = await tx
+        .update(schema.glossaries)
+        .set(updates)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .returning();
+
+      return glossary ? { status: "updated", glossary } : { status: "not_found" };
+    });
   }
 
   async delete() {
@@ -298,6 +406,25 @@ export class NativeGlossary extends Glossary {
       )
       .returning({ id: schema.glossaries.id });
     return deleted.length > 0;
+  }
+
+  private async lockGlossaryRow(database: DatabaseClient = db) {
+    const [glossaryRow] = await database
+      .select({
+        id: schema.glossaries.id,
+        sourceLocale: schema.glossaries.sourceLocale,
+      })
+      .from(schema.glossaries)
+      .where(
+        and(
+          eq(schema.glossaries.id, this.input.glossary.id),
+          eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    return glossaryRow ?? null;
   }
 
   private async loadConcept(conceptId: string, database: DatabaseClient = db) {
@@ -430,6 +557,10 @@ export class NativeGlossary extends Glossary {
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
     const created = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return null;
+      }
+
       const [concept] = await tx
         .insert(schema.glossaryConcepts)
         .values({
@@ -467,6 +598,9 @@ export class NativeGlossary extends Glossary {
       }
       return concept;
     });
+    if (!created) {
+      return null;
+    }
     return this.getConcept(created.id);
   }
 
@@ -475,6 +609,10 @@ export class NativeGlossary extends Glossary {
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
     const updated = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return false;
+      }
+
       const loaded = await this.loadConcept(conceptId, tx);
       if (!loaded) return false;
 
@@ -565,6 +703,10 @@ export class NativeGlossary extends Glossary {
 
   async importConcepts(entries: GlossaryConceptImportEntry[]) {
     const result = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return { importedIds: [] as string[], skipped: entries.length };
+      }
+
       const importedIds: string[] = [];
       let skipped = 0;
       const grouped = new Map<string, GlossaryConceptImportEntry[]>();
@@ -667,6 +809,84 @@ export class NativeGlossary extends Glossary {
       });
   }
 
+  async attachProjectWithGuard(
+    projectId: string,
+    priority: number,
+    _project: { source: string; sourceLocale: string },
+  ): Promise<
+    | { status: "attached" }
+    | { status: "not_found" }
+    | { status: "team_native_project_required" }
+    | { status: "source_locale_mismatch" }
+  > {
+    const organizationId = this.input.auth.organization.localOrganizationId;
+
+    return db.transaction(async (tx) => {
+      const [projectRow] = await tx
+        .select({
+          source: schema.projects.source,
+          sourceLocale: schema.projects.sourceLocale,
+          teamId: schema.projects.teamId,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, projectId),
+            eq(schema.projects.organizationId, organizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!projectRow?.sourceLocale) {
+        return { status: "source_locale_mismatch" };
+      }
+
+      const [glossaryRow] = await tx
+        .select({
+          controlLevel: schema.glossaries.controlLevel,
+          sourceLocale: schema.glossaries.sourceLocale,
+          teamId: schema.glossaries.teamId,
+        })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, organizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return { status: "not_found" };
+      }
+
+      if (projectRow.sourceLocale !== glossaryRow.sourceLocale) {
+        return { status: "source_locale_mismatch" };
+      }
+
+      if (glossaryRow.controlLevel === "team" && projectRow.source !== "native") {
+        return { status: "team_native_project_required" };
+      }
+
+      await tx
+        .insert(schema.projectGlossaries)
+        .values({
+          organizationId,
+          projectId,
+          glossaryId: this.input.glossary.id,
+          priority,
+        })
+        .onConflictDoUpdate({
+          target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
+          set: { priority },
+        });
+
+      return { status: "attached" };
+    });
+  }
+
   async detachProject(projectId: string) {
     await db
       .delete(schema.projectGlossaries)
@@ -682,9 +902,81 @@ export class NativeGlossary extends Glossary {
       );
   }
 
+  async detachProjectWithTeamGuard(
+    projectId: string,
+  ): Promise<"detached" | "team_project_required" | "not_attached"> {
+    return db.transaction(async (tx) => {
+      const [glossaryRow] = await tx
+        .select({ controlLevel: schema.glossaries.controlLevel })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return "not_attached";
+      }
+
+      const attachments = await tx
+        .select({
+          projectId: schema.projects.id,
+          source: schema.projects.source,
+        })
+        .from(schema.projectGlossaries)
+        .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          ),
+        );
+
+      const target = attachments.find((attachment) => attachment.projectId === projectId);
+      if (!target) {
+        return "not_attached";
+      }
+
+      if (glossaryRow.controlLevel === "team") {
+        const nativeCount = attachments.filter(
+          (attachment) => attachment.source === "native",
+        ).length;
+        if (target.source === "native" && nativeCount <= 1) {
+          return "team_project_required";
+        }
+      }
+
+      await tx
+        .delete(schema.projectGlossaries)
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.projectId, projectId),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          ),
+        );
+
+      return "detached";
+    });
+  }
+
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
     const term = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return null;
+      }
+
       const concept = await this.loadConcept(conceptId, tx);
       if (!concept) return null;
 

@@ -15,6 +15,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
+import { recordMemoryEntryCreatedEvents } from "@/lib/memory/memory-entry-lifecycle";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -367,6 +368,10 @@ export async function applyMemoryImport(input: {
       .values(values)
       .onConflictDoNothing()
       .returning();
+    await recordMemoryEntryCreatedEvents({
+      entries: inserted,
+      actorUserId: input.createdByUserId,
+    });
     createdEntries.push(...inserted);
     const insertedKeys = new Set(
       inserted.map((row) => sourceKey(row.sourceLocale, row.targetLocale, row.sourceText)),

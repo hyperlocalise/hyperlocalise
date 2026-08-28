@@ -311,6 +311,49 @@ describe("CatIntelligenceController", () => {
       );
     });
 
+    it("ignores stale concordance results after reload", async () => {
+      const resolvers: Array<(value: CatSegmentConcordanceResult) => void> = [];
+      const lookup = vi.fn(
+        () =>
+          new Promise<CatSegmentConcordanceResult>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      );
+      const { controller, workspace } = createController(undefined, {
+        intl,
+        services: { lookupSegmentConcordance: lookup },
+      });
+
+      const first = controller.loadConcordance("seg-02");
+      const reload = controller.reloadConcordance("seg-02");
+      expect(lookup).toHaveBeenCalledTimes(2);
+
+      resolvers[1]?.({
+        glossaryTerms: [
+          { id: "fresh", source: "Second", target: "Nouveau", approved: true, forbidden: false },
+        ],
+        translationMemoryMatches: [],
+      });
+      await reload;
+
+      expect(workspace.segmentIntelligence["seg-02"]?.glossaryTerms).toEqual([
+        expect.objectContaining({ id: "fresh", target: "Nouveau" }),
+      ]);
+      expect(workspace.concordanceLoadingSegmentId).toBeNull();
+
+      resolvers[0]?.({
+        glossaryTerms: [
+          { id: "stale", source: "Second", target: "Ancien", approved: true, forbidden: false },
+        ],
+        translationMemoryMatches: [],
+      });
+      await first;
+
+      expect(workspace.segmentIntelligence["seg-02"]?.glossaryTerms).toEqual([
+        expect.objectContaining({ id: "fresh", target: "Nouveau" }),
+      ]);
+    });
+
     it("does not merge intelligence after disposal", async () => {
       let resolveLookup: ((value: CatSegmentConcordanceResult) => void) | undefined;
       const lookup = vi.fn(

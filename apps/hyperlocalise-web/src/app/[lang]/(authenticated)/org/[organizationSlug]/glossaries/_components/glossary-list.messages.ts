@@ -36,10 +36,15 @@ export const glossaryListMessages = defineMessages({
     id: "jy07sgszKV",
     description: "Fallback when a glossary term count is unavailable",
   },
-  resourceTypeWorkspaceGlossary: {
-    defaultMessage: "Workspace glossary",
-    id: "zSrEHMT3CA",
-    description: "Resource type badge for native workspace glossaries",
+  resourceTypeOrgGlossary: {
+    defaultMessage: "Org",
+    id: "oM8LHFdchK",
+    description: "Resource type badge for an org-controlled Hyperlocalise glossary",
+  },
+  resourceTypeTeamGlossary: {
+    defaultMessage: "Team",
+    id: "gMcYjhS5Ca",
+    description: "Resource type badge for a team-controlled Hyperlocalise glossary",
   },
   resourceTypeGlossary: {
     defaultMessage: "Glossary",

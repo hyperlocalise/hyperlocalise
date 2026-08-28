@@ -41,6 +41,8 @@ describe("glossary-list", () => {
         targetLocale: "de",
         status: "active",
         source: "native",
+        controlLevel: "org",
+        teamId: null,
         externalProviderKind: null,
         externalProjectId: null,
         externalResourceType: null,
@@ -74,6 +76,8 @@ describe("glossary-list", () => {
         targetLocale: "fr",
         status: "active",
         source: "external_tms",
+        controlLevel: "org",
+        teamId: null,
         externalProviderKind: "phrase",
         externalProjectId: "phrase-project-9",
         externalResourceType: "term_base",
@@ -93,7 +97,7 @@ describe("glossary-list", () => {
       projectMap,
     );
 
-    expect(native.resourceTypeLabel).toBe("Workspace glossary");
+    expect(native.resourceTypeLabel).toBe("Org");
     expect(native.localeSummary).toBe("English (en), German (de)");
     expect(native.sourceLocaleLabel).toBe("English");
     expect(native.secondaryLocaleSummary).toBe("German");
@@ -150,6 +154,8 @@ describe("glossary-list", () => {
         targetLocale: "de",
         status: "active",
         source: "external_tms",
+        controlLevel: "org",
+        teamId: null,
         externalProviderKind: "crowdin",
         externalProjectId: "crowdin-project-1",
         externalResourceType: "glossary",
@@ -170,6 +176,81 @@ describe("glossary-list", () => {
     );
 
     expect(row.externalUrl).toBeNull();
+  });
+
+  it("labels team-controlled native glossaries with the team name when available", () => {
+    const row = mapGlossaryToListRow(
+      {
+        id: "glossary-team",
+        organizationId: "org-1",
+        createdByUserId: null,
+        name: "Team terms",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+        source: "native",
+        controlLevel: "team",
+        teamId: "team-product-1",
+        teamName: "Product",
+        externalProviderKind: null,
+        externalProjectId: null,
+        externalResourceType: null,
+        externalGlossaryId: null,
+        localeCoverage: ["en"],
+        languages: [{ locale: "en", name: "English", isSource: true }],
+        termCount: 3,
+        syncState: null,
+        termCapabilities: {},
+        externalUrl: null,
+        lastSyncedAt: null,
+        lastSyncErrorAt: null,
+        lastSyncErrorMessage: null,
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-01T00:00:00.000Z",
+      },
+      new Map(),
+    );
+
+    expect(row.resourceTypeLabel).toBe("Product");
+    expect(row.controlLevel).toBe("team");
+  });
+
+  it("falls back to Team when a team glossary has no team name", () => {
+    const row = mapGlossaryToListRow(
+      {
+        id: "glossary-team",
+        organizationId: "org-1",
+        createdByUserId: null,
+        name: "Team terms",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+        source: "native",
+        controlLevel: "team",
+        teamId: "team-product-1",
+        teamName: null,
+        externalProviderKind: null,
+        externalProjectId: null,
+        externalResourceType: null,
+        externalGlossaryId: null,
+        localeCoverage: ["en"],
+        languages: [{ locale: "en", name: "English", isSource: true }],
+        termCount: 3,
+        syncState: null,
+        termCapabilities: {},
+        externalUrl: null,
+        lastSyncedAt: null,
+        lastSyncErrorAt: null,
+        lastSyncErrorMessage: null,
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-01T00:00:00.000Z",
+      },
+      new Map(),
+    );
+
+    expect(row.resourceTypeLabel).toBe("Team");
   });
 
   it("falls back when an external provider has no known logo", () => {

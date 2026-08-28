@@ -221,8 +221,12 @@ export async function buildProjectLinkedGlossaryWhere(auth: ApiAuthContext): Pro
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  const orgGlossaryScope = eq(schema.glossaries.controlLevel, "org");
   if (accessibleProjectIds.length === 0) {
-    return and(organizationScope, eq(schema.glossaries.createdByUserId, auth.user.localUserId))!;
+    return and(
+      organizationScope,
+      or(eq(schema.glossaries.createdByUserId, auth.user.localUserId), orgGlossaryScope),
+    )!;
   }
 
   const linkedGlossaryIds = db
@@ -234,6 +238,7 @@ export async function buildProjectLinkedGlossaryWhere(auth: ApiAuthContext): Pro
     organizationScope,
     or(
       eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+      orgGlossaryScope,
       inArray(schema.glossaries.id, linkedGlossaryIds),
     ),
   )!;
@@ -343,6 +348,7 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  const orgGlossaryScope = eq(schema.glossaries.controlLevel, "org");
   if (accessibleProjectIds.length === 0) {
     const [glossary] = await db
       .select({ id: schema.glossaries.id })
@@ -351,7 +357,7 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
         and(
           eq(schema.glossaries.id, glossaryId),
           eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
-          eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+          or(eq(schema.glossaries.createdByUserId, auth.user.localUserId), orgGlossaryScope),
         ),
       )
       .limit(1);
@@ -371,6 +377,7 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
         eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
         or(
           eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+          orgGlossaryScope,
           inArray(schema.projectGlossaries.projectId, accessibleProjectIds),
         ),
       ),

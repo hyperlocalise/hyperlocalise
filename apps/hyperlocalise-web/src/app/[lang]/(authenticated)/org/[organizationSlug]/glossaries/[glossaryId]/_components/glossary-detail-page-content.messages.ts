@@ -135,6 +135,42 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "RsvatD0q4G",
     description: "Badge for a provider-managed glossary",
   },
+  controlLevelOrg: {
+    defaultMessage: "Org",
+    id: "P/pTxjwRBx",
+    description: "Badge and option for an org-controlled glossary",
+  },
+  controlLevelTeam: {
+    defaultMessage: "Team",
+    id: "XcO+si/Q8F",
+    description: "Badge and option for a team-controlled glossary",
+  },
+  deleteGlossary: {
+    defaultMessage: "Delete glossary",
+    id: "M66Lw6ds7d",
+    description: "Button to delete the current glossary",
+  },
+  confirmDeleteGlossaryTitle: {
+    defaultMessage: "Delete this glossary?",
+    id: "vDWu8NEPDA",
+    description: "Title of the glossary deletion confirmation dialog",
+  },
+  confirmDeleteGlossaryDescription: {
+    defaultMessage:
+      "This permanently deletes {glossaryName} and all of its concepts and terms. This action cannot be undone.",
+    id: "TwXDgIzwCq",
+    description: "Description of the glossary deletion confirmation dialog",
+  },
+  deleteGlossaryFailed: {
+    defaultMessage: "Unable to delete glossary",
+    id: "T4Nt0cVH3/",
+    description: "Fallback error when deleting a glossary fails",
+  },
+  glossaryDeleted: {
+    defaultMessage: "Glossary deleted",
+    id: "NflNg4/F7g",
+    description: "Toast after a glossary is deleted successfully",
+  },
   localePair: {
     defaultMessage: "{sourceLocale} → {targetLocale}",
     id: "BOP4Yb+urd",

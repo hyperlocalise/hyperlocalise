@@ -92,3 +92,9 @@ export function teamHasProjectsResponse(c: {
 }) {
   return c.json({ error: "team_has_projects" }, 409);
 }
+
+export function teamHasGlossariesResponse(c: {
+  json(body: { error: string }, status: 409): Response;
+}) {
+  return c.json({ error: "team_has_glossaries" }, 409);
+}

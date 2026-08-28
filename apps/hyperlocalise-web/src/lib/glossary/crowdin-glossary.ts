@@ -341,17 +341,30 @@ export class CrowdinGlossary extends Glossary {
       priority: 0,
       sourceLocale: project.sourceLanguageId,
       targetLocales: project.targetLanguageIds,
+      source: "external_tms",
       externalUrl: sanitizeExternalUrl(project.webUrl),
     }));
   }
 
-  async update(payload: { name?: string; description?: string }) {
+  async update(payload: { name?: string; description?: string; sourceLocale?: string }) {
+    if (payload.sourceLocale !== undefined) {
+      return null;
+    }
+
     const context = await this.context();
-    const patches = Object.entries(payload).map(([key, value]) => ({
-      op: "replace" as const,
-      path: `/${key}`,
-      value,
-    }));
+    const patches = Object.entries({
+      name: payload.name,
+      description: payload.description,
+    })
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => ({
+        op: "replace" as const,
+        path: `/${key}`,
+        value,
+      }));
+    if (patches.length === 0) {
+      return this.input.glossary;
+    }
     const glossary = await crowdinTmsProvider.updateLiveGlossary(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),

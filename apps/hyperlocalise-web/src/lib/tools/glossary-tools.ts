@@ -15,7 +15,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { hasCapability } from "@/api/auth/policy";
+import { isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
 
 import { localePattern } from "./locale";
 import {
@@ -73,7 +73,7 @@ export function createCreateGlossaryTool(ctx: ToolContext) {
         .describe("BCP-47 source locale tag."),
     }),
     execute: async ({ name, description, sourceLocale }) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -115,7 +115,7 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:
@@ -157,7 +157,7 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
       glossaryId: z.string().describe("The glossary ID to delete."),
     }),
     execute: async ({ glossaryId }) => {
-      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
+      if (!isGlossaryManageAllowed(ctx.membershipRole)) {
         return {
           success: false,
           error:

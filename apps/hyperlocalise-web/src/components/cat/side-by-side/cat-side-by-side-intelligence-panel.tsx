@@ -35,6 +35,7 @@ import type {
   CatSegmentIntelligence,
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
+import { useCatWorkspace } from "@/components/cat/workspace/cat-workspace-context";
 
 export function CatSideBySideIntelligencePanel({
   segment,
@@ -68,6 +69,9 @@ export function CatSideBySideIntelligencePanel({
   onSetMaxLength,
   placement = "bottom",
   className,
+  organizationSlug,
+  projectId,
+  onGlossaryTermAdded,
 }: {
   segment: CatSegment | null;
   intelligence: CatSegmentIntelligence | null;
@@ -100,9 +104,14 @@ export function CatSideBySideIntelligencePanel({
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   placement?: "bottom" | "right";
   className?: string;
+  organizationSlug?: string;
+  projectId?: string;
+  onGlossaryTermAdded?: () => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
+  const workspace = useCatWorkspace();
+  const fileContext = workspace.fileContext;
   const canTriggerFindContext =
     Boolean(onAskQuestion) &&
     canLookupFreshContext &&
@@ -145,7 +154,20 @@ export function CatSideBySideIntelligencePanel({
   const intelligencePanel = (
     <CatIntelligencePanel
       intelligence={intelligence}
+      segmentId={segment.id}
+      sourceText={segment.sourceText}
       targetText={segment.targetText}
+      sourceLocale={segment.sourceLocale}
+      targetLocale={segment.targetLocale}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      teamGlossaries={fileContext.teamGlossaries ?? []}
+      contributorTeams={fileContext.contributorTeams ?? []}
+      projectTeamId={fileContext.projectTeamId}
+      canContributeTeamGlossary={
+        Boolean(fileContext.canContributeTeamGlossary) && fileContext.providerKind == null
+      }
+      teamName={fileContext.teamName}
       isLookingUpContext={isLookingUpContext}
       isConcordanceLoading={isConcordanceLoading}
       isVisualContextLoading={isVisualContextLoading}
@@ -158,6 +180,7 @@ export function CatSideBySideIntelligencePanel({
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
       onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
+      onGlossaryTermAdded={onGlossaryTermAdded}
     />
   );
   const commentsPanel = (

@@ -43,10 +43,12 @@ import {
 import {
   externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
+  getContributableGlossary,
   getOwnedGlossary,
+  glossaryContributeForbiddenResponse,
   glossaryNotFoundResponse,
   invalidGlossaryPayloadResponse,
-  isGlossaryMutationAllowed,
+  isGlossaryManageAllowed,
   nativeGlossaryConceptsOnlyResponse,
 } from "./glossary.shared";
 
@@ -378,11 +380,15 @@ export function createGlossaryConceptRoutes() {
       validator("param", validateGlossaryParams),
       validator("json", (value, c) => validateJson(createGlossaryConceptBodySchema, value, c)),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId } = c.req.valid("param");
         const payload = c.req.valid("json");
-        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
+        const owned = await getContributableGlossary(c.var.auth, glossaryId);
+        if (owned.kind !== "ok") {
+          return owned.kind === "not_found"
+            ? glossaryNotFoundResponse(c)
+            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+        }
+        const { glossary } = owned;
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         let created;
@@ -406,7 +412,7 @@ export function createGlossaryConceptRoutes() {
       validator("param", validateGlossaryParams),
       validator("json", (value, c) => validateJson(importGlossaryTermsBodySchema, value, c)),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
+        if (!isGlossaryManageAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId } = c.req.valid("param");
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
@@ -440,11 +446,15 @@ export function createGlossaryConceptRoutes() {
       validator("param", validateConceptParams),
       validator("json", (value, c) => validateJson(updateGlossaryConceptBodySchema, value, c)),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId, conceptId } = c.req.valid("param");
         const payload = c.req.valid("json") as UpdateGlossaryConceptBody;
-        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
+        const owned = await getContributableGlossary(c.var.auth, glossaryId);
+        if (owned.kind !== "ok") {
+          return owned.kind === "not_found"
+            ? glossaryNotFoundResponse(c)
+            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+        }
+        const { glossary } = owned;
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const current = await product.getConcept(conceptId);
@@ -488,10 +498,14 @@ export function createGlossaryConceptRoutes() {
       },
     )
     .delete("/:conceptId", validator("param", validateConceptParams), async (c) => {
-      if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
       const { glossaryId, conceptId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
+      const owned = await getContributableGlossary(c.var.auth, glossaryId);
+      if (owned.kind !== "ok") {
+        return owned.kind === "not_found"
+          ? glossaryNotFoundResponse(c)
+          : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+      }
+      const { glossary } = owned;
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
       const deleted = await product.deleteConcept(conceptId);
@@ -514,11 +528,15 @@ export function createGlossaryConceptRoutes() {
       validator("param", validateConceptParams),
       validator("json", (value, c) => validateJson(createGlossaryConceptTermBodySchema, value, c)),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId, conceptId } = c.req.valid("param");
         const payload = c.req.valid("json") as CreateGlossaryConceptTermBody;
-        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
+        const owned = await getContributableGlossary(c.var.auth, glossaryId);
+        if (owned.kind !== "ok") {
+          return owned.kind === "not_found"
+            ? glossaryNotFoundResponse(c)
+            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+        }
+        const { glossary } = owned;
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const concept = await product.getConcept(conceptId);
@@ -557,11 +575,15 @@ export function createGlossaryConceptRoutes() {
       validator("param", validateConceptTermParams),
       validator("json", (value, c) => validateJson(updateGlossaryConceptTermBodySchema, value, c)),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId, conceptId, termId } = c.req.valid("param");
         const payload = c.req.valid("json") as UpdateGlossaryConceptTermBody;
-        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
+        const owned = await getContributableGlossary(c.var.auth, glossaryId);
+        if (owned.kind !== "ok") {
+          return owned.kind === "not_found"
+            ? glossaryNotFoundResponse(c)
+            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+        }
+        const { glossary } = owned;
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const current = await product.getConcept(conceptId);
@@ -606,10 +628,14 @@ export function createGlossaryConceptRoutes() {
       "/:conceptId/terms/:termId",
       validator("param", validateConceptTermParams),
       async (c) => {
-        if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) return forbiddenResponse(c);
         const { glossaryId, conceptId, termId } = c.req.valid("param");
-        const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
+        const owned = await getContributableGlossary(c.var.auth, glossaryId);
+        if (owned.kind !== "ok") {
+          return owned.kind === "not_found"
+            ? glossaryNotFoundResponse(c)
+            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
+        }
+        const { glossary } = owned;
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const concept = await product.getConcept(conceptId);

@@ -114,6 +114,8 @@ function liveGlossary(overrides: Partial<GlossaryRecord> = {}): GlossaryRecord {
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     providerMetadata: {},
+    controlLevel: "org",
+    teamId: null,
     createdAt: new Date("2026-08-20T00:00:00Z"),
     updatedAt: new Date("2026-08-20T00:00:00Z"),
     ...overrides,
@@ -194,5 +196,27 @@ describe("CrowdinGlossary.delete", () => {
 
     await expect(glossary.delete()).resolves.toBe(false);
     expect(mocks.deleteLiveGlossary).toHaveBeenCalledWith(expect.anything(), 55);
+  });
+});
+
+describe("CrowdinGlossary.update", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.resolveCrowdinContext.mockResolvedValue({
+      organizationId: "org-1",
+      externalProjectId: "902807",
+      sourceLocale: "en",
+      credential: { id: "cred-1" },
+      secretMaterial: "secret",
+    });
+  });
+
+  it("rejects unsupported source locale updates", async () => {
+    const glossary = new CrowdinGlossary({
+      auth: authContext(),
+      glossary: liveGlossary(),
+    });
+
+    await expect(glossary.update({ sourceLocale: "fr-FR" })).resolves.toBeNull();
   });
 });

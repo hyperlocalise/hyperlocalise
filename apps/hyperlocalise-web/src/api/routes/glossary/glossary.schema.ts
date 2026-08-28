@@ -54,14 +54,36 @@ export const listGlossaryQuerySchema = z
   })
   .optional();
 
-export const createGlossaryBodySchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().max(10_000).optional(),
-  sourceLocale: localeInputSchema,
-  projectIds: z.array(projectIdSchema).max(100).optional(),
-  // Keep accepting the original single-project payload for API compatibility.
-  projectId: projectIdSchema.optional(),
-});
+export const glossaryControlLevelSchema = z.enum(["org", "team"]);
+
+export const createGlossaryBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().max(10_000).optional(),
+    sourceLocale: localeInputSchema,
+    controlLevel: glossaryControlLevelSchema.optional(),
+    teamId: z.string().uuid().optional(),
+    projectIds: z.array(projectIdSchema).max(100).optional(),
+    // Keep accepting the original single-project payload for API compatibility.
+    projectId: projectIdSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const projectIds = value.projectIds ?? (value.projectId ? [value.projectId] : []);
+    if (new Set(projectIds).size !== projectIds.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "projectIds must be unique",
+        path: ["projectIds"],
+      });
+    }
+    if (value.teamId && value.controlLevel !== "team") {
+      ctx.addIssue({
+        code: "custom",
+        message: "teamId is only allowed for team glossaries",
+        path: ["teamId"],
+      });
+    }
+  });
 
 export const updateGlossaryBodySchema = z
   .object({
@@ -175,6 +197,9 @@ export const glossaryRecordSchema = z.object({
   targetLocale: z.string().nullable(),
   status: z.string(),
   source: z.enum(["native", "external_tms"]),
+  controlLevel: glossaryControlLevelSchema,
+  teamId: z.string().uuid().nullable(),
+  teamName: z.string().nullable().optional(),
   externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
   externalProjectId: z.string().nullable(),
   externalResourceType: z.enum(["glossary", "term_base"]).nullable(),
@@ -268,6 +293,7 @@ export const glossaryProjectRecordSchema = z.object({
 
 export const glossaryResponseSchema = z.object({
   glossary: glossaryRecordSchema,
+  canContribute: z.boolean(),
 });
 
 export const glossariesResponseSchema = z.object({

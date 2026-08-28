@@ -21,6 +21,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 
 import {
   createAuthorizationCode,
@@ -962,8 +963,58 @@ describe("mcpRoutes", () => {
         },
       });
 
+      const issuesResult = await client.callTool({
+        name: "list_issues",
+        arguments: {
+          limit: 1,
+          offset: 0,
+        },
+      });
+
+      const issuesContent = (
+        issuesResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
+
+      if (!issuesContent?.text) {
+        throw new Error("expected list_issues text content");
+      }
+
+      const issuesOutput = JSON.parse(issuesContent.text) as {
+        total: number;
+        pagination: {
+          limit: number;
+          offset: number;
+          hasMore: boolean;
+          nextOffset: number | null;
+        };
+        issues: unknown[];
+      };
+
+      expect(issuesOutput).toEqual({
+        total: 0,
+        summary: {
+          total: 0,
+          open: 0,
+          inProgress: 0,
+          resolved: 0,
+          wontFix: 0,
+        },
+        pagination: {
+          limit: 1,
+          offset: 0,
+          hasMore: false,
+          nextOffset: null,
+        },
+        issues: [],
+      });
+
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(4);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(5);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -992,5 +1043,271 @@ describe("mcpRoutes", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it("advertises the list_issues tool with a bounded input schema", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "list_issues");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("organization");
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: expect.any(Object),
+      view: expect.any(Object),
+      status: expect.any(Object),
+      issueType: expect.any(Object),
+      priority: expect.any(Object),
+      locale: expect.any(Object),
+      assignee: expect.any(Object),
+      search: expect.any(Object),
+      sort: expect.any(Object),
+      sortDir: expect.any(Object),
+      limit: expect.any(Object),
+      offset: expect.any(Object),
+    });
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+      locale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32,
+      },
+      search: {
+        type: "string",
+        maxLength: 200,
+      },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 100,
+        default: 50,
+      },
+      offset: {
+        type: "integer",
+        minimum: 0,
+        default: 0,
+      },
+    });
+  });
+
+  it("returns compact issues with pagination metadata", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const description = "x".repeat(600);
+
+    const listSpy = vi.spyOn(organizationIssueService, "list").mockResolvedValueOnce({
+      total: 3,
+      summary: {
+        total: 3,
+        open: 2,
+        inProgress: 1,
+        resolved: 0,
+        wontFix: 0,
+      },
+      issues: [
+        {
+          id: "issue-id",
+          identifier: "HL-123",
+          number: 123,
+          projectId: "project-id",
+          projectName: "Example project",
+          title: "Example issue",
+          description,
+          issueType: "qa_failure",
+          status: "open",
+          targetLocale: "fr-FR",
+          sourcePath: "src/messages.json",
+          segmentId: "segment-id",
+          linkKind: null,
+          linkLabel: null,
+          linkUrl: null,
+          templateKey: null,
+          reporter: null,
+          assignee: "Thomas",
+          assigneeUserId: "user-id",
+          key: "homepage.title",
+          sourceText: "Welcome",
+          priority: "P0",
+          createdAt: "2026-08-28T00:00:00.000Z",
+          updatedAt: "2026-08-28T01:00:00.000Z",
+          resolvedAt: null,
+        },
+      ],
+    });
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_issues",
+            arguments: {
+              projectId: "project-id",
+              view: "qa_triage",
+              status: "open",
+              issueType: "qa_failure",
+              priority: "P0",
+              locale: "fr-FR",
+              assignee: "me",
+              search: "Example",
+              sort: "created_at",
+              sortDir: "asc",
+              limit: 1,
+              offset: 1,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      const output = JSON.parse(text!) as {
+        total: number;
+        pagination: {
+          limit: number;
+          offset: number;
+          hasMore: boolean;
+          nextOffset: number | null;
+        };
+        issues: Array<{
+          id: string;
+          description: string;
+        }>;
+      };
+
+      expect(output).toMatchObject({
+        total: 3,
+        pagination: {
+          limit: 1,
+          offset: 1,
+          hasMore: true,
+          nextOffset: 2,
+        },
+      });
+      expect(output.issues[0]).toMatchObject({
+        id: "issue-id",
+        description: "x".repeat(500),
+      });
+
+      expect(listSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organization: expect.any(Object),
+          user: expect.any(Object),
+        }),
+        {
+          projectId: "project-id",
+          view: "qa_triage",
+          status: "open",
+          issueType: "qa_failure",
+          priority: "P0",
+          locale: "fr-FR",
+          assignee: "me",
+          search: "Example",
+          sort: "created_at",
+          sortDir: "asc",
+          limit: 1,
+          offset: 1,
+        },
+      );
+    } finally {
+      listSpy.mockRestore();
+    }
+  });
+
+  it.each([
+    ["out-of-range pagination", { limit: 101, offset: -1 }],
+    ["a type-invalid status", { status: 1 }],
+    ["a type-invalid search", { search: [] }],
+  ])("returns invalid_issue_query for %s", async (_label, args) => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "list_issues",
+          arguments: args,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    const text = body.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+    expect(text).toContain("invalid_issue_query");
   });
 });

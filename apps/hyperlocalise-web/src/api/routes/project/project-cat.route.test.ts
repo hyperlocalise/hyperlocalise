@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { app } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -29,6 +29,8 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
+import { createTeamTestFixture } from "../team/team.fixture";
+import type { TeamResponse } from "../team/team.schema";
 import { ok } from "@/lib/primitives/result/results";
 import type {
   ProjectFileCatConcordanceResponse,
@@ -136,6 +138,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const client = testClient(app);
 const projectFixture = createProjectTestFixture(client);
+const teamFixture = createTeamTestFixture(client);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -250,6 +253,7 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({
       catQueue: {
         sourcePath: "*",
+        canContributeTeamGlossary: false,
         segments: [{ externalStringId: "1001", sourcePath: "crowdin/home.json" }],
       },
     });
@@ -1645,6 +1649,7 @@ describe("project file CAT routes", () => {
     expect(body.catFile).toBeUndefined();
     expect(body.catQueue).toMatchObject({
       sourcePath: "crowdin/home.json",
+      canContributeTeamGlossary: false,
       pagination: {
         offset: 25,
         limit: 25,
@@ -2170,6 +2175,7 @@ describe("project file CAT routes", () => {
 
     expect(hiddenQueue.status).toBe(200);
     const hiddenBody = (await hiddenQueue.json()) as ProjectFileCatQueueResponse;
+    expect(hiddenBody.catQueue.canContributeTeamGlossary).toBe(true);
     expect(hiddenBody.catQueue.segments).toHaveLength(2);
     expect(hiddenBody.catQueue.segments.every((segment) => segment.isHidden === true)).toBe(true);
 
@@ -2961,5 +2967,100 @@ describe("project file CAT routes", () => {
     );
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("returns all organization teams in CAT contributorTeams for operators", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await projectFixture.authHeadersFor(admin);
+    const translatorHeaders = await projectFixture.authHeadersFor(translator);
+    const adminUserId = await projectFixture.getLocalUserId(admin.user.workosUserId);
+    const translatorUserId = await projectFixture.getLocalUserId(translator.user.workosUserId);
+
+    const alphaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "CAT Alpha" });
+    expect(alphaTeamResponse.status).toBe(201);
+    const alphaTeam = ((await alphaTeamResponse.json()) as TeamResponse).team;
+
+    const betaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "CAT Beta" });
+    expect(betaTeamResponse.status).toBe(201);
+    const betaTeam = ((await betaTeamResponse.json()) as TeamResponse).team;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: alphaTeam.id,
+      userId: translatorUserId,
+      role: "member",
+    });
+
+    await db
+      .delete(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, betaTeam.id),
+          eq(schema.teamMemberships.userId, adminUserId),
+        ),
+      );
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "CAT Alpha Project",
+          teamId: alphaTeam.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as { project: { id: string } }).project;
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId,
+      projectId: project.id,
+      sourcePath,
+    });
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const adminQueueResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: { organizationSlug, projectId: project.id },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers: adminHeaders },
+    );
+    expect(adminQueueResponse.status).toBe(200);
+    const adminBody = (await adminQueueResponse.json()) as ProjectFileCatQueueResponse;
+    expect(adminBody.catQueue.contributorTeams?.map((team) => team.name)).toEqual(
+      expect.arrayContaining(["CAT Alpha", "CAT Beta"]),
+    );
+
+    const translatorQueueResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: { organizationSlug, projectId: project.id },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(translatorQueueResponse.status).toBe(200);
+    const translatorBody = (await translatorQueueResponse.json()) as ProjectFileCatQueueResponse;
+    expect(translatorBody.catQueue.contributorTeams).toEqual([
+      { id: alphaTeam.id, name: "CAT Alpha" },
+    ]);
   });
 });

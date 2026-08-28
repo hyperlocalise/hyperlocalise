@@ -272,10 +272,12 @@ function resolveConceptDisplayTerms(concept: CatGlossaryConcept) {
 
 export function CatGlossaryConceptCard({
   concept,
+  teamName,
   expanded,
   onToggle,
 }: {
   concept: CatGlossaryConcept;
+  teamName?: string;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -308,6 +310,14 @@ export function CatGlossaryConceptCard({
           >
             {concept.glossaryName}
           </Badge>
+          {teamName ? (
+            <Badge
+              variant="outline"
+              className="h-6 max-w-full truncate rounded-md px-2 text-xs font-normal"
+            >
+              {teamName}
+            </Badge>
+          ) : null}
         </span>
         <HugeiconsIcon
           icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}

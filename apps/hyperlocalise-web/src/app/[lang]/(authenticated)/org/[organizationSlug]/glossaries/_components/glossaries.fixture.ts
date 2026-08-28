@@ -39,6 +39,8 @@ function createApiGlossary(overrides: Partial<GlossaryRecord> = {}): GlossaryRec
     targetLocale: null,
     status: "active",
     source: "native",
+    controlLevel: "org",
+    teamId: null,
     externalProviderKind: null,
     externalProjectId: null,
     externalResourceType: null,
@@ -70,6 +72,20 @@ export function createGlossaryListRow(overrides: Partial<GlossaryListRow> = {}):
 
 export const glossariesFixture: GlossaryListRow[] = [
   createGlossaryListRow(),
+  mapGlossaryToListRow(
+    createApiGlossary({
+      id: "44444444-4444-4444-8444-444444444444",
+      name: "Product team terms",
+      description: "Team terminology for the product squad",
+      controlLevel: "team",
+      teamId: "team-product-1",
+      teamName: "Product",
+      localeCoverage: ["en-US"],
+      languages: [{ locale: "en-US", name: "American English", isSource: true }],
+      termCount: 18,
+    }),
+    projectMap,
+  ),
   mapGlossaryToListRow(
     createApiGlossary({
       id: "22222222-2222-4222-8222-222222222222",

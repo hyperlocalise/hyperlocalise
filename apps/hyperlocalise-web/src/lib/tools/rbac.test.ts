@@ -60,6 +60,7 @@ vi.mock("@/lib/database", () => ({
     syncJobDetails: { jobId: "syncJobId" },
     assetManagementJobDetails: { jobId: "assetJobId" },
     glossaries: { id: "glossaries" },
+    glossaryConcepts: { id: "glossaryConcepts" },
     glossaryTerms: { id: "glossaryTerms" },
     memories: { id: "memories" },
     memoryEntries: { id: "memoryEntries" },
@@ -80,7 +81,13 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
   toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
   toolCanAccessGlossary: vi.fn(async () => true),
   toolCanAccessMemory: vi.fn(async () => true),
-  toolGetAccessibleGlossary: vi.fn(async () => ({ id: "glossary_123" })),
+  toolGetAccessibleGlossary: vi.fn(async () => ({
+    id: "glossary_123",
+    source: "native",
+    controlLevel: "team",
+    sourceLocale: "en",
+    targetLocale: "fr",
+  })),
   toolGetAccessibleMemory: vi.fn(async () => ({ id: "memory_123" })),
   toolGlossaryOrgMutationWhere: vi.fn(() => ({})),
   toolMemoryOrgMutationWhere: vi.fn(() => ({})),
@@ -158,6 +165,9 @@ describe("Agent Tools RBAC", () => {
           insert: vi.fn(() => ({
             values: vi.fn(() => ({
               returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              })),
             })),
           })),
           update: vi.fn(() => ({
@@ -201,7 +211,15 @@ describe("Agent Tools RBAC", () => {
           })),
           innerJoin: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ glossaryOrgId: "org_123", memoryOrgId: "org_123" }]),
+              limit: vi.fn(async () => [
+                {
+                  glossaryId: "g_123",
+                  glossaryOrgId: "org_123",
+                  memoryOrgId: "org_123",
+                  controlLevel: "team",
+                  source: "native",
+                },
+              ]),
             })),
           })),
         })),

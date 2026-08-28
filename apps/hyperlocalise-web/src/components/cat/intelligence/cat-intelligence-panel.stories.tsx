@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, userEvent } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { catSegmentsFixture, catIntelligenceFixture } from "@/components/cat/shared/cat.fixture";
 import type { CatSegmentIntelligence } from "@/components/cat/shared/types";
@@ -24,6 +24,9 @@ import {
   sourceOnlyGlossaryConceptFixture,
   untranslatableGlossaryConceptFixture,
 } from "./cat-glossary-concept-card.fixture";
+
+const teamProductId = "team-product";
+const teamMarketingId = "team-marketing";
 
 const defaultTargetText = catSegmentsFixture[1]?.targetText ?? "";
 
@@ -68,6 +71,7 @@ const meta = {
     showVisualContext: false,
     canEditTranslations: true,
     canLookupFreshContext: true,
+    teamName: "Product",
   },
 } satisfies Meta<typeof CatIntelligencePanel>;
 
@@ -79,11 +83,14 @@ export const Results: Story = {
     await expect(
       canvas.getByRole("heading", { name: "Translation Intelligence" }),
     ).toBeInTheDocument();
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
-    await expect(canvas.getByText("Reseller")).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getAllByText("Reseller").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Partner Program")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Product", { exact: true })).toHaveLength(2);
     await expect(
       canvas.getByText("A company or individual authorized to resell our product."),
     ).toBeInTheDocument();
@@ -106,9 +113,9 @@ export const Results: Story = {
         "/org/acme/glossaries/glossary-product/concepts/concept-review",
       ]),
     );
-    await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Use" })).toHaveLength(3);
+    await expect(canvas.queryByRole("heading", { name: "Add concept" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
   },
 };
 
@@ -117,8 +124,10 @@ export const Loading: Story = {
     isConcordanceLoading: true,
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(canvas.queryByText("Dashboard card", { exact: true })).not.toBeInTheDocument();
   },
@@ -134,8 +143,10 @@ export const Empty: Story = {
     },
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
     await expect(
       canvas.getByText("No project glossary concepts match this string."),
@@ -163,8 +174,10 @@ export const UntranslatableConcept: Story = {
     intelligence: untranslatableConceptIntelligence,
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("Untranslatable")).toBeInTheDocument();
     await expect(canvas.getByText("Hyperlocalise FR")).not.toBeInTheDocument();
 
@@ -184,8 +197,10 @@ export const SourceOnlyConcept: Story = {
     intelligence: sourceOnlyConceptIntelligence,
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("Dashboard")).toBeInTheDocument();
     await expect(canvas.getByText("Draft")).toBeInTheDocument();
 
@@ -202,8 +217,10 @@ export const PrimaryTermFallback: Story = {
     },
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("API")).toBeInTheDocument();
     await expect(canvas.getByText("Draft")).toBeInTheDocument();
   },
@@ -217,8 +234,10 @@ export const ConceptOnlyEmpty: Story = {
     },
   },
   play: async ({ canvas }) => {
-    requestCatGlossaryGuidance();
-    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
     await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
     await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
     await expect(canvas.queryByText("Bảng điều khiển", { exact: true })).not.toBeInTheDocument();
@@ -251,5 +270,142 @@ export const LowMatchConfirmation: Story = {
     await expect(args.onUseTmMatch).toHaveBeenCalledWith(
       expect.objectContaining({ id: "tm-low-match", matchPercent: 62 }),
     );
+  },
+};
+
+export const AddToTeamGlossary: Story = {
+  args: {
+    sourceText: "Dashboard",
+    targetText: "Bảng điều khiển",
+    sourceLocale: "en",
+    targetLocale: "vi",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    canContributeTeamGlossary: true,
+    teamName: "Product",
+    projectTeamId: teamProductId,
+    contributorTeams: [
+      { id: teamProductId, name: "Product" },
+      { id: teamMarketingId, name: "Marketing" },
+    ],
+    teamGlossaries: [
+      { id: "glossary-team-1", name: "Product team terms", teamId: teamProductId },
+      { id: "glossary-team-2", name: "Marketing team terms", teamId: teamMarketingId },
+    ],
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("heading", { name: "Product", level: 3 })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Marketing", level: 3 })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Add concept" })).toHaveLength(2);
+    await expect(canvas.queryByRole("textbox", { name: "Primary term" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getAllByRole("button", { name: "Add concept" })[0]!);
+    await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Primary term" })).toHaveValue("Dashboard");
+    await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
+      "Product team terms",
+    );
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
+    await expect(
+      await body.findByRole("option", { name: "Marketing team terms" }),
+    ).not.toBeInTheDocument();
+    await expect(body.getByRole("option", { name: "Create new" })).toBeInTheDocument();
+  },
+};
+
+export const AddToSingleTeamGlossary: Story = {
+  args: {
+    sourceText: "Dashboard",
+    targetText: "Bảng điều khiển",
+    sourceLocale: "en",
+    targetLocale: "vi",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    canContributeTeamGlossary: true,
+    teamName: "Product",
+    projectTeamId: teamProductId,
+    contributorTeams: [{ id: teamProductId, name: "Product" }],
+    teamGlossaries: [{ id: "glossary-team-1", name: "Product team terms", teamId: teamProductId }],
+  },
+  play: async ({ canvas }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("heading", { name: "Product", level: 3 })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add concept" }));
+    await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
+      "Product team terms",
+    );
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
+  },
+};
+
+export const TeamSectionsWithOrgAndTeamMatches: Story = {
+  args: {
+    intelligence: conceptIntelligence,
+    canContributeTeamGlossary: true,
+    projectTeamId: teamProductId,
+    contributorTeams: [
+      { id: teamProductId, name: "Product" },
+      { id: teamMarketingId, name: "Marketing" },
+    ],
+    teamGlossaries: [
+      { id: "glossary-product", name: "Product UI", teamId: teamProductId },
+      { id: "glossary-team-2", name: "Marketing team terms", teamId: teamMarketingId },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByText("Partner Program")).toBeInTheDocument();
+    await expect(canvas.getByText("Reseller")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Product", level: 3 })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Marketing", level: 3 })).toBeInTheDocument();
+    await expect(canvas.getByText("Review")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Add concept" })).toHaveLength(2);
+  },
+};
+
+export const AddToTeamGlossaryEmpty: Story = {
+  args: {
+    sourceText: "Dashboard",
+    targetText: "Bảng điều khiển",
+    sourceLocale: "en",
+    targetLocale: "vi",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    canContributeTeamGlossary: true,
+    teamName: "Product",
+    projectTeamId: teamProductId,
+    contributorTeams: [{ id: teamProductId, name: "Product" }],
+    teamGlossaries: [],
+    intelligence: {
+      ...catIntelligenceFixture,
+      glossaryConcepts: [],
+      translationMemoryMatches: [],
+    },
+  },
+  play: async ({ canvas }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByText("No matching terms for Product.")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add concept" }));
+    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
+      "Shared with Product.",
+    );
+    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
   },
 };

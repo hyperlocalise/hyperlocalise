@@ -92,6 +92,7 @@ export type GlossaryProjectRecord = {
   priority: number;
   sourceLocale: string | null;
   targetLocales: string[];
+  source: string;
   externalUrl: string | null;
 };
 
@@ -216,7 +217,9 @@ export class GlossaryValidationError extends Error {
     readonly code:
       | "invalid_part_of_speech"
       | "stale_glossary_term_id"
-      | "crowdin_validation_failed",
+      | "crowdin_validation_failed"
+      | "glossary_target_locale_required"
+      | "glossary_target_locale_ambiguous",
     message: string,
     readonly details?: unknown,
   ) {
@@ -300,7 +303,11 @@ export abstract class Glossary {
 
   abstract get(): Promise<NativeGlossary | null>;
   abstract listProjects(): Promise<GlossaryProjectRecord[]>;
-  abstract update(payload: { name?: string; description?: string }): Promise<NativeGlossary | null>;
+  abstract update(payload: {
+    name?: string;
+    description?: string;
+    sourceLocale?: string;
+  }): Promise<NativeGlossary | null>;
   abstract delete(): Promise<boolean>;
   abstract listConcepts(): Promise<GlossaryConcept[]>;
   abstract getConcept(conceptId: string): Promise<GlossaryConcept | null>;

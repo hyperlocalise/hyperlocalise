@@ -20,6 +20,7 @@ export function toGlossaryRecord(
   languages: GlossaryRecord["languages"] = defaultGlossaryLanguages(glossary),
   termCount: number | null = glossary.termCount,
   projectCount = 0,
+  teamName: string | null = null,
 ): GlossaryRecord {
   const resolvedLanguages = languages.length > 0 ? languages : defaultGlossaryLanguages(glossary);
 
@@ -34,6 +35,9 @@ export function toGlossaryRecord(
     languages: resolvedLanguages,
     status: glossary.status,
     source: glossary.source,
+    controlLevel: glossary.controlLevel,
+    teamId: glossary.teamId ?? null,
+    teamName,
     externalProviderKind: glossary.externalProviderKind,
     externalProjectId: glossary.externalProjectId,
     externalResourceType: glossary.externalResourceType,
