@@ -346,13 +346,8 @@ export class CrowdinGlossary extends Glossary {
     }));
   }
 
-  async update(payload: {
-    name?: string;
-    description?: string;
-    sourceLocale?: string;
-    controlLevel?: "org" | "team";
-  }) {
-    if (payload.sourceLocale !== undefined || payload.controlLevel !== undefined) {
+  async update(payload: { name?: string; description?: string; sourceLocale?: string }) {
+    if (payload.sourceLocale !== undefined) {
       return null;
     }
 

@@ -79,7 +79,7 @@ export const glossaries = pgTable(
     // Org-wide vs team control. Team is Hyperlocalise-owned only.
     controlLevel: glossaryControlLevelEnum("control_level").notNull().default("org"),
     // Owning team for team-controlled native glossaries.
-    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "restrict" }),
     // Provider kind when sourced from external TMS.
     externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
     // External provider credential backing this glossary.
@@ -159,10 +159,6 @@ export const glossaries = pgTable(
     check(
       "glossaries_team_id_requires_team_control",
       sql`${table.teamId} IS NULL OR ${table.controlLevel} = 'team'`,
-    ),
-    check(
-      "glossaries_team_control_requires_team_id",
-      sql`${table.controlLevel} <> 'team' OR ${table.teamId} IS NOT NULL`,
     ),
   ],
 );

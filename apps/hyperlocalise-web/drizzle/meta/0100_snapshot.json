@@ -1,5 +1,5 @@
 {
-  "id": "9ccadc83-05bb-4be8-857b-35a92093f03a",
+  "id": "d636886a-e218-4541-9f0f-fbce14d1a3f8",
   "prevId": "fd86b445-f70a-46af-a7ed-d9652ad16fed",
   "version": "7",
   "dialect": "postgresql",
@@ -4591,7 +4591,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "glossaries_external_provider_credential_id_organization_external_tms_provider_credentials_id_fk": {

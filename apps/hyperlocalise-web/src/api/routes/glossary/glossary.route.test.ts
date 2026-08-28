@@ -1048,7 +1048,7 @@ describe("glossaryRoutes", () => {
     });
   });
 
-  it("rejects switching to team control without attached projects", async () => {
+  it("rejects changing control level after creation", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = admin.organization.slug ?? "missing-slug";
     const adminHeaders = await fixture.authHeadersFor(admin);
@@ -1062,132 +1062,13 @@ describe("glossaryRoutes", () => {
     ].$patch(
       {
         param: { organizationSlug, glossaryId },
-        json: { controlLevel: "team" },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(403);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "glossary_team_project_required",
-    });
-  });
-
-  it("allows switching to team control when a native project is attached", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Promote Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Promote Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(projectResponse.status).toBe(201);
-    const project = ((await projectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Promote glossary",
-          sourceLocale: "en-US",
-          controlLevel: "org",
-          projectIds: [project.id],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { controlLevel: "team" },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(200);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      glossary: { id: glossaryId, controlLevel: "team", projectCount: 1 },
-    });
-  });
-
-  it("rejects switching to team control when an external project is attached", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const userId = await fixture.getLocalUserId(admin.user.workosUserId);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Patch Guard Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const externalProjectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId: "902809",
-    });
-    await db.insert(schema.projects).values({
-      id: externalProjectId,
-      identifier: uniqueTestProjectIdentifier(),
-      organizationId,
-      teamId: team.id,
-      createdByUserId: userId,
-      updatedByUserId: userId,
-      name: "External Patch Project",
-      source: "external_tms",
-      externalProviderKind: "crowdin",
-      externalProjectId: "902809",
-      sourceLocale: "en-US",
-      targetLocales: ["es-ES"],
-      isActive: true,
-    });
-
-    const createResponse = await fixture.createGlossaryViaApi(
-      admin,
-      { sourceLocale: "en-US" },
-      adminHeaders,
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { projectId: externalProjectId, priority: 0 },
-      },
-      { headers: adminHeaders },
-    );
-    expect(attachResponse.status).toBe(200);
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { controlLevel: "team" },
+        json: { controlLevel: "team" } as { name?: string },
       },
       { headers: adminHeaders },
     );
     expect(patchResponse.status).toBe(400);
     await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "glossary_team_native_project_required",
+      error: "invalid_glossary_payload",
     });
   });
 

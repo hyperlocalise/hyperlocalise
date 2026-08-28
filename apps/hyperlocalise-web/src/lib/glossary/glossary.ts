@@ -307,7 +307,6 @@ export abstract class Glossary {
     name?: string;
     description?: string;
     sourceLocale?: string;
-    controlLevel?: "org" | "team";
   }): Promise<NativeGlossary | null>;
   abstract delete(): Promise<boolean>;
   abstract listConcepts(): Promise<GlossaryConcept[]>;

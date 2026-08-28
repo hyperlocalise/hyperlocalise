@@ -90,14 +90,12 @@ export const updateGlossaryBodySchema = z
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(10_000).optional(),
     sourceLocale: localeInputSchema.optional(),
-    controlLevel: glossaryControlLevelSchema.optional(),
   })
   .refine(
     (value) =>
       value.name !== undefined ||
       value.description !== undefined ||
-      value.sourceLocale !== undefined ||
-      value.controlLevel !== undefined,
+      value.sourceLocale !== undefined,
     {
       message: "at least one field must be provided",
     },
