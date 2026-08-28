@@ -24,7 +24,7 @@ import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
-import type { WorkspaceAutomationWebSearchProvider } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationWebSearchProvider } from "@/lib/agents/workspace-automation-types";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { WorkspaceOrchestratorSession } from "../context";

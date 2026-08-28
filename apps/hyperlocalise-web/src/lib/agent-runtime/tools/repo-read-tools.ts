@@ -18,7 +18,8 @@ import { isHlWriteFlagName } from "@/lib/agent-runtime/tools/hl-write-flags";
 import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
+import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./workspace/redact";
+import type { RepoToolContext } from "./workspace/types";
 import {
   bindGitClone,
   resolveGitCloneRoot,
@@ -29,8 +30,8 @@ import {
 import { isSuccessfulAllowlistedExit } from "./workspace/git-exit";
 import { normalizeWorkspacePath } from "./workspace/path";
 
-export type { RepoToolContext } from "./workspace";
-export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES } from "./workspace";
+export type { RepoToolContext } from "./workspace/types";
+export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES } from "./workspace/redact";
 
 const DANGEROUS_FLAGS = new Set([
   "token",

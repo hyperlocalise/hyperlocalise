@@ -38,7 +38,7 @@ vi.mock("drizzle-orm", () => ({
   sql: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: selectMock,
   },

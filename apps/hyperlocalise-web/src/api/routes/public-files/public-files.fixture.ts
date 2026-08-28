@@ -14,7 +14,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import {
   encryptProviderCredential,

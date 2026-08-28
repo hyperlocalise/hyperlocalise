@@ -24,7 +24,7 @@ import {
   hashApiKey,
 } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 const { reconcileWorkosMembershipsForUserMock } = vi.hoisted(() => ({

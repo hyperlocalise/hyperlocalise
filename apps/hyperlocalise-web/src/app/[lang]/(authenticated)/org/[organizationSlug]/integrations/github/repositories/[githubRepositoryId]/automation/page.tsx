@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export default async function GithubRepositoryAutomationPage({

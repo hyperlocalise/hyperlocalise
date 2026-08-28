@@ -49,7 +49,7 @@ vi.mock("@/lib/log", () => ({
   })),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     insert: mocks.insert,
   },

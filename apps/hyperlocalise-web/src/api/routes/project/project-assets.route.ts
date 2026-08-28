@@ -17,8 +17,9 @@ import { z } from "zod";
 
 import { canAccessStoredFile } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 import { fileNotFoundResponse } from "../file/file.shared";

@@ -26,7 +26,7 @@ export async function claimSourceFileIngestStep(input: {
 export async function getStoredFileMetadataStep(fileId: string, organizationId: string) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const [file] = await db
     .select({
@@ -146,7 +146,7 @@ export async function getProjectTargetLocalesStep(input: {
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const [project] = await db
     .select({

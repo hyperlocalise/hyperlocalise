@@ -15,7 +15,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { flattenNativeConceptTermsToPairs } from "@/lib/glossary/flatten-native-glossary-pairs";
 import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";

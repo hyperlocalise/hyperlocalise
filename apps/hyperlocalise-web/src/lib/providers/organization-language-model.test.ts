@@ -38,7 +38,7 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: () => ({
       from: () => ({

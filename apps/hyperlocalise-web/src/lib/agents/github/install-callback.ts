@@ -12,7 +12,7 @@
  */
 import { and, eq, gt, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import { getGitHubApp } from "@/lib/agents/github/app";

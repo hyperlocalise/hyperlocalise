@@ -20,7 +20,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,

@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { OrganizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";

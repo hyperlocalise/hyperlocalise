@@ -12,7 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { commitVersionedDocument } from "@/lib/versioned-document/commit-versioned-document";
 import type { VersionedDocumentCurrentRow } from "@/lib/versioned-document/versioned-document.types";
@@ -77,7 +77,7 @@ export async function getKnowledgeMemoryForOrganization(
 }
 
 // A function, not a module-level constant: accessing schema.knowledgeMemories.* at import time
-// breaks any test that mocks @/lib/database without a full knowledgeMemories shape, even
+// breaks any test that mocks @/lib/database/client without a full knowledgeMemories shape, even
 // transitively (vi.mock hoisting runs before this module's top-level code either way).
 function knowledgeMemoryHeadColumns() {
   return {

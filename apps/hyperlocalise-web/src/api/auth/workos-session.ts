@@ -21,7 +21,7 @@ import {
 } from "@/api/auth/workos-membership-reconcile";
 import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 import { hasPendingOrganizationMembershipForWorkosUser } from "@/lib/workos/missing-organization-access";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";

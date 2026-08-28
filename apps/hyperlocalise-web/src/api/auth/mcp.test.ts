@@ -24,7 +24,7 @@ import {
 } from "@/api/auth/mcp";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 const app = createMcpTestApp();
 const fixture = createProjectTestFixture();

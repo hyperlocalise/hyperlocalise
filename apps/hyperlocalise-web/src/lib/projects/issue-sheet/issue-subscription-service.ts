@@ -13,7 +13,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { formatMemberDisplayName } from "@/api/routes/member/member.shared";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 import { userHasIssueProjectAccess } from "./issue-sheet-assignee";

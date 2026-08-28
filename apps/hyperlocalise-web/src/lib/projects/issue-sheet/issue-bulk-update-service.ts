@@ -13,7 +13,7 @@
 import type { IssueBulkActionBody } from "@/api/routes/issues/issues-bulk.schema";
 import { canAccessProject } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {

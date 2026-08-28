@@ -19,7 +19,7 @@ import type {
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { NativeCatCommentService } from "@/lib/projects/cat/native-cat-comment-service";
 import {

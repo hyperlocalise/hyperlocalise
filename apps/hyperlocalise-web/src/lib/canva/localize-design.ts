@@ -18,14 +18,14 @@ import {
   resolveApiKeyTeamAccessContext,
   getAccessibleProjectForApiKey,
 } from "@/api/auth/api-key-access";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   formatUsageControlError,
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import type { FileStorageAdapter } from "@/lib/file-storage";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,

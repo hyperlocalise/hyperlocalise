@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { syncWorkosUser } from "@/api/auth/workos-sync";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
 import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 import {

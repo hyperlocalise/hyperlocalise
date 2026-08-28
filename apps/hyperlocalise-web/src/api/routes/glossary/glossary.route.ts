@@ -16,10 +16,10 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { ownedProjectWhere } from "@/api/auth/team-access";
-import { badRequestResponse } from "@/api/errors";
+import { badRequestResponse } from "@/api/response.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { Glossary, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";

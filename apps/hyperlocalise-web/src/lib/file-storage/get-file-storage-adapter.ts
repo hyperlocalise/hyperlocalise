@@ -32,15 +32,3 @@ export function getFileStorageAdapter(): FileStorageAdapter {
       return adapter;
   }
 }
-
-export type {
-  DeleteStoredObjectInput,
-  FileStorageAccess,
-  FileStorageAdapter,
-  FileStorageProvider,
-  GetSignedUrlInput,
-  GetStoredObjectInput,
-  GetStoredObjectResult,
-  PutStoredObjectInput,
-  PutStoredObjectResult,
-} from "./types";

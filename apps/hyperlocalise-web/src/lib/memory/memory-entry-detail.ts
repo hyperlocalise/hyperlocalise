@@ -12,7 +12,7 @@
  */
 import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import type { MemoryEntryEventActorKind, MemoryEntryEventType } from "@/lib/database/schema";
 

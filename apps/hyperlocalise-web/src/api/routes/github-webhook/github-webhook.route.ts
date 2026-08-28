@@ -14,7 +14,7 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { createLogger } from "@/lib/log";
 import { getGitHubBot } from "@/lib/agents/github/bot";

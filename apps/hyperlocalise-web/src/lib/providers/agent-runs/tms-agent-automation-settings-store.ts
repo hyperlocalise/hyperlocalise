@@ -12,7 +12,7 @@
  */
 import { and, eq, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   DEFAULT_TMS_AGENT_AUTOMATION_SETTINGS,

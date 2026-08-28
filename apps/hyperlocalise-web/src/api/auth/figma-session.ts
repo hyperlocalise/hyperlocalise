@@ -12,7 +12,7 @@
  */
 import { createMiddleware } from "hono/factory";
 
-import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/errors";
+import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { type AuthVariables, type ApiAuthContext } from "@/api/auth/workos";
 import {
   OrganizationSlugUnresolvableError,

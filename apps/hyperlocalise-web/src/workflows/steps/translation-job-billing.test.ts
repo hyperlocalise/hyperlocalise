@@ -32,7 +32,7 @@ vi.mock("@/lib/env", async (importOriginal) => {
 });
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   completeFileTranslationJobStep,
   markEmailTranslationJobSucceeded,

@@ -16,9 +16,9 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleJobsWhere, buildAccessibleProjectsWhere } from "@/api/auth/team-access";
-import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import {
   createStoredFile,
   getStoredFileContent,

@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import {
   searchGlossaryConcordance,

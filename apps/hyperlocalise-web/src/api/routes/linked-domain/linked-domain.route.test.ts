@@ -53,7 +53,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { ok } from "@/lib/primitives/result/results";
 

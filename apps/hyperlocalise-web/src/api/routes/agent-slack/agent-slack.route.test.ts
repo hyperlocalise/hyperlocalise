@@ -19,7 +19,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { verifySlackState } from "@/lib/agents/slack/oauth-state";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 
 const mocks = vi.hoisted(() => ({

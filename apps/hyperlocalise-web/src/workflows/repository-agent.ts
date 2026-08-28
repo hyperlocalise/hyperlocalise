@@ -55,7 +55,7 @@ async function runRepositoryAgentStep(input: {
   "use step";
 
   const { ToolLoopAgent } = await import("ai");
-  const { db } = await import("@/lib/database");
+  const { db } = await import("@/lib/database/client");
   const { buildHyperlocaliseAgentInstructions, getHyperlocaliseAgentModel } =
     await import("@/lib/agent-runtime/loops/hyperlocalise-agent");
   const { WORKFLOW_AGENT_TIMEOUT } = await import("@/lib/agent-runtime/subagents/constants");

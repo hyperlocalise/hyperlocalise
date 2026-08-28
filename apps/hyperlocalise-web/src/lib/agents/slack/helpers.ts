@@ -12,7 +12,7 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 export async function findSlackConnector(teamId: string, options: { enabledOnly?: boolean } = {}) {
   const conditions = [

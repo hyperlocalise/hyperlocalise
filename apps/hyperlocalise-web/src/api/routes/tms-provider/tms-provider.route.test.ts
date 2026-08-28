@@ -18,7 +18,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import * as policy from "@/api/auth/policy";
 import { app } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   getActiveOrganizationExternalTmsProviderCredential,
   upsertCrowdinOAuthProviderCredential,
@@ -112,7 +112,7 @@ function createLiveProviderJob(overrides: Partial<TmsProviderLiveJob> = {}): Tms
 
 describe("tmsProviderRoutes", () => {
   beforeAll(async () => {
-    await import("@/lib/database").then(({ db }) => db.$client.query("select 1"));
+    await import("@/lib/database/client").then(({ db }) => db.$client.query("select 1"));
   });
 
   afterEach(async () => {

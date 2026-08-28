@@ -16,7 +16,7 @@ import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationToolConfig,
   WorkspaceAutomationTriggerConfig,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubTool,

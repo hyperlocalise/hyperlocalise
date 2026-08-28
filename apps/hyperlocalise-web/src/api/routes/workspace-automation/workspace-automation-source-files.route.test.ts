@@ -49,7 +49,7 @@ vi.mock("@/lib/agents/workspace-automation-dispatcher", async (importOriginal) =
 import { createApp } from "@/api/app";
 import { createMemoryFileStorageAdapter } from "@/api/routes/file/file.fixture";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";

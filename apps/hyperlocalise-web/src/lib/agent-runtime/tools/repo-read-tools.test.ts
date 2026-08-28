@@ -16,7 +16,10 @@ import { z } from "zod";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { createFuzzySearchTool, createGrepTool, createReadTool, parseGrepLine } from "./workspace";
+import { createFuzzySearchTool } from "./workspace/fuzzy-search";
+import { createGrepTool } from "./workspace/grep";
+import { parseGrepLine } from "./workspace/parse-grep-line";
+import { createReadTool } from "./workspace/read";
 
 import {
   buildHlArgs,

@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { completeAgentRun, createAgentRun, startAgentRun } from "../agent-runs/agent-runs";

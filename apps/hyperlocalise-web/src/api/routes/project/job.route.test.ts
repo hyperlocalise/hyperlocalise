@@ -19,7 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app, createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";

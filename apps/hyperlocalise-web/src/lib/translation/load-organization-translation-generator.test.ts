@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,

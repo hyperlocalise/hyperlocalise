@@ -44,7 +44,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 

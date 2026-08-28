@@ -22,7 +22,7 @@ import { and, eq } from "drizzle-orm";
 import { app } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { ensureImageVariantsForSourceFile } from "@/lib/projects/files/image-variant-service";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";

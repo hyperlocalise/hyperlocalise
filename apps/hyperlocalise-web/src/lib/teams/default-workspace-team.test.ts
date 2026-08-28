@@ -13,7 +13,7 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 
 import {

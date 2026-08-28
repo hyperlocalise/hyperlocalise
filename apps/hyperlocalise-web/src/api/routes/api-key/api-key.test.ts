@@ -34,7 +34,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createApiKeyTestFixture } from "./api-key.fixture";

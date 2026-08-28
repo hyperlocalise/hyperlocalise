@@ -13,7 +13,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { E2E_BASE_URL, E2E_DEFAULT_LOCALE } from "../constants";
 import { getE2ePage, loginAsAdmin, useE2eBrowser } from "../fixtures/browser";

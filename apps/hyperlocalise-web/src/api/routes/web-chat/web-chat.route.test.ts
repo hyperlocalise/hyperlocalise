@@ -48,7 +48,7 @@ vi.mock("@/agents/automations/workspace/agent/channels/web-chat", () => ({
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   WEB_CHAT_HISTORY_LIMIT,
   WEB_CHAT_MAX_IMAGE_BYTES,

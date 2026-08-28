@@ -22,7 +22,7 @@ import {
   createSlackState as createSignedSlackState,
   SLACK_STATE_TTL_MS,
 } from "@/lib/agents/slack/oauth-state";
-import { db, schema, type DatabaseTransaction } from "@/lib/database";
+import { db, schema, type DatabaseTransaction } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createSlackOAuthRoutes } from "./slack-oauth.route";
 

@@ -16,7 +16,7 @@ import { validator } from "hono/validator";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { listWorkspaceFiles } from "@/lib/projects/files/project-file-service";
 
 import { projectFilesQuerySchema } from "../project/project.schema";

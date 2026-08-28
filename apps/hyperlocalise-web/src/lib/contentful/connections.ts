@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import {
   decryptProviderCredential,
   encryptProviderCredential,

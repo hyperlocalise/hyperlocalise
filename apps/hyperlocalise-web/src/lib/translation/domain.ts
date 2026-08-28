@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
-import type { schema } from "@/lib/database";
+import type * as schema from "@/lib/database/schema";
 import type { ContextGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { ContextTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 

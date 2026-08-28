@@ -83,7 +83,7 @@ vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   listHiddenProjectTranslationKeysForSourcePath: listHiddenKeysMock,
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     insert: insertMock,
     select: selectMock,

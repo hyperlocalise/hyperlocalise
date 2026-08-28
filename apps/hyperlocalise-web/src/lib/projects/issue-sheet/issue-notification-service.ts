@@ -14,7 +14,7 @@ import { and, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-or
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type {
   IssueNotificationPayload,
   IssueNotificationType,

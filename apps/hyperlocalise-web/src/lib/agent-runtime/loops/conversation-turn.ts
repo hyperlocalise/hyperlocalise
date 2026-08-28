@@ -19,7 +19,7 @@ import type {
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { and, eq } from "drizzle-orm";
 import {

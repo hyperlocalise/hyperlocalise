@@ -25,11 +25,9 @@ import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
 import { buildWorkspaceTools, createTranslationJobTool } from "@/lib/agent-runtime/tools/registry";
-import {
-  createFetchTool,
-  createTodoWriteTool,
-  workspaceSessionToolNames,
-} from "@/lib/agent-runtime/tools/workspace";
+import { createFetchTool } from "@/lib/agent-runtime/tools/workspace/fetch";
+import { createTodoWriteTool } from "@/lib/agent-runtime/tools/workspace/todo";
+import { workspaceSessionToolNames } from "@/lib/agent-runtime/tools/workspace/tool-names";
 import {
   createGetKnowledgeMemoryTool,
   createUpdateKnowledgeMemoryTool,

@@ -77,7 +77,7 @@ import {
   getGitHubStateSecret,
   signGitHubState,
 } from "@/lib/agents/github/oauth-state";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import GitHubCallbackPage from "./page";
 
 const fixture = createProjectTestFixture();

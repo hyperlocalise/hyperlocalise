@@ -59,7 +59,7 @@ import { eq } from "drizzle-orm";
 import { createApp } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   encryptProviderCredential,

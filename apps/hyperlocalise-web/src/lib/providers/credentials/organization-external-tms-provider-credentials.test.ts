@@ -20,7 +20,7 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   decryptCrowdinOAuthTokenBundle,

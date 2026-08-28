@@ -12,7 +12,7 @@
  */
 import { eq, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 export async function lookupUserByEmail(email: string) {
   const [user] = await db

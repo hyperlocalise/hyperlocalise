@@ -28,7 +28,7 @@ import {
 } from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 

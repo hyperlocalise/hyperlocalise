@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, lt } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { err, type Result } from "@/lib/primitives/result/results";
 import { mergeVersionedDocumentRevisionPage } from "@/lib/versioned-document/merge-versioned-document-revision-page";
 import {

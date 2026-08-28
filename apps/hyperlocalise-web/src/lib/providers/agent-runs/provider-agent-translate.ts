@@ -576,7 +576,7 @@ export async function executeProviderAgentTranslation(input: {
 
   const [jobDetails] = run.hyperlocaliseJobId
     ? await (async () => {
-        const { db, schema } = await import("@/lib/database");
+        const { db, schema } = await import("@/lib/database/client");
         const { eq } = await import("drizzle-orm");
         return db
           .select({

@@ -12,7 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { VerifiedCrowdinAppJwt } from "@/lib/crowdin-app/jwt";

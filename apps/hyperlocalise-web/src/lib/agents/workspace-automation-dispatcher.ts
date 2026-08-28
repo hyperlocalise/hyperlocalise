@@ -38,15 +38,17 @@ import {
   enqueueWorkspaceAutomationRunOnce,
   getWorkspaceAutomationById,
   getWorkspaceAutomationRunByIdempotencyKey,
-  hasWorkspaceAutomationContentfulWorkflow,
-  hasWorkspaceAutomationCreateNativeTmsJobTool,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
+} from "./workspace-automations";
+import {
+  hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunTriggerSource,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 import type { WorkspaceAutomationExecutionQueue } from "@/lib/workflow/types";
 import { createWorkspaceAutomationExecutionQueue } from "@/workflows/adapters";
 

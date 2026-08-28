@@ -38,7 +38,7 @@ import {
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";

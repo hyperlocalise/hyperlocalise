@@ -14,7 +14,7 @@ import "server-only";
 
 import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
@@ -54,8 +54,6 @@ import {
   type WorkspaceAutomationToolConfig,
   type WorkspaceAutomationTriggerConfig,
 } from "./workspace-automation-types";
-
-export * from "./workspace-automation-types";
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
 type AutomationRunRow = typeof schema.workspaceAutomationRuns.$inferSelect;

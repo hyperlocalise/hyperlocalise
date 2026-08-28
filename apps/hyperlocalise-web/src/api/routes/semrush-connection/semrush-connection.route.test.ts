@@ -36,7 +36,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { createWorkspaceAutomation } from "@/lib/agents/workspace-automations";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 
 const client = testClient(createApp());

@@ -14,7 +14,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";

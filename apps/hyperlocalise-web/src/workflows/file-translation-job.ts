@@ -478,7 +478,7 @@ async function assembleFileTranslationContextStep(input: {
   "use step";
 
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
   const { listGlossaryTermsForProject, FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT } =
     await import("@/lib/glossary/query-glossary-terms");
   const { sourceContainsTerm } =

@@ -12,7 +12,7 @@
  */
 import { and, asc, count, desc, eq, gte, lte, or, sql, type SQL } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { buildTranslationMemoryTsQuery } from "@/lib/translation/translation-memory-ts-query";
 

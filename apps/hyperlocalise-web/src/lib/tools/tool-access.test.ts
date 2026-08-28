@@ -15,7 +15,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";

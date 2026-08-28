@@ -53,7 +53,7 @@ vi.mock("drizzle-orm", () => ({
   notInArray: notInArrayMock,
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: selectMock,
     transaction: transactionMock,

@@ -13,7 +13,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";

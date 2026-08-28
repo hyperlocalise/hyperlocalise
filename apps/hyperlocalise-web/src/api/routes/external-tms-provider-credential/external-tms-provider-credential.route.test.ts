@@ -17,7 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
   EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
@@ -48,7 +48,7 @@ const fixture = createProviderCredentialTestFixture(client);
 
 describe("externalTmsProviderCredentialRoutes", () => {
   beforeAll(async () => {
-    await import("@/lib/database").then(({ db }) => db.$client.query("select 1"));
+    await import("@/lib/database/client").then(({ db }) => db.$client.query("select 1"));
   });
 
   afterEach(async () => {

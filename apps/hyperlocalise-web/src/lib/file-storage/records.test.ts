@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import type { FileStorageAdapter, PutStoredObjectInput } from ".";
+import type { FileStorageAdapter, PutStoredObjectInput } from "./types";
 import {
   createStoredFile,
   createStoredFileId,

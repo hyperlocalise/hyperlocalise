@@ -12,7 +12,7 @@
  */
 import { and, eq, ne } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team";
 
 export type AttachedTeamGlossary = {

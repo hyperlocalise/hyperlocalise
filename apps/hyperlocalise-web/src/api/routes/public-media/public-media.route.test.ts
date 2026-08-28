@@ -16,7 +16,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { PUBLIC_MEDIA_CACHE_CONTROL } from "@/api/routes/public-media/public-media.route";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { publicMediaMetadata } from "@/lib/projects/files/public-media";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";

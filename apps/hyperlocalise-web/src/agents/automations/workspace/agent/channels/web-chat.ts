@@ -32,14 +32,14 @@ import { listRecentWebChatMessages } from "@/lib/agents/workspace-automation-web
 import {
   hasWorkspaceAutomationKnowledgeFilesTool,
   type WorkspaceAutomationRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import {
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { bufferFromStream } from "@/lib/primitives/streams";
 import { eq } from "drizzle-orm";
 

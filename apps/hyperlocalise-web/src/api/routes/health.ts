@@ -12,7 +12,7 @@
  */
 import { Hono } from "hono";
 
-import { isDatabaseHealthy } from "@/lib/database";
+import { isDatabaseHealthy } from "@/lib/database/client";
 
 export const healthRoutes = new Hono().get("/", async (c) => {
   const isHealthy = await isDatabaseHealthy();

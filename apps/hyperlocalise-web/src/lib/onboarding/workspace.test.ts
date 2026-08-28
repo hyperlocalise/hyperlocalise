@@ -25,7 +25,7 @@ vi.mock("@/lib/workos/provision-workspace-in-workos", () => ({
   deleteProvisionedWorkosOrganization: deleteProvisionedWorkosOrganizationMock,
 }));
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team";
 
 import { createWorkspaceForSessionUser } from "./workspace";

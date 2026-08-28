@@ -42,7 +42,7 @@ const { createStoredFileMock, createRepositorySourceFileVersionMock, deleteStore
     deleteStoredObjectMock: vi.fn(),
   }));
 
-vi.mock("@/lib/file-storage", () => ({
+vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: vi.fn(() => ({
     provider: "vercel_blob",
     delete: deleteStoredObjectMock,

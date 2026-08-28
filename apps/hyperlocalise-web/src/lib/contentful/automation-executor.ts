@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";

@@ -15,7 +15,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 const listTmsProviderLiveProjectsMock = vi.fn();
 const getActiveCredentialMock = vi.fn();
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   schema: {
     projects: {
       id: "id",

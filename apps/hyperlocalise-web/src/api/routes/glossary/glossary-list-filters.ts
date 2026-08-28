@@ -14,7 +14,7 @@ import { and, eq, ilike, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildProjectLinkedGlossaryWhere } from "@/api/auth/team-access";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 
 import type { ListGlossaryQuery } from "./glossary.schema";
 

@@ -16,7 +16,7 @@ import { err, ok } from "@/lib/primitives/result/results";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createNotifyEmailTool } from "./notify_email";

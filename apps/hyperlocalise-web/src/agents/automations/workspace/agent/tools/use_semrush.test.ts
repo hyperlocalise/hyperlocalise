@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import { err, ok } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";

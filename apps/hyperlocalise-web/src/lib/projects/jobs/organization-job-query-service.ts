@@ -19,7 +19,7 @@ import {
   overviewTriageLookbackCutoff,
 } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";

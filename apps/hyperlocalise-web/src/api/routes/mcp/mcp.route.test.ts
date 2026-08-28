@@ -35,7 +35,7 @@ import {
 } from "@/api/auth/mcp";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 
 import { createProjectTestFixture } from "../project/project.fixture";

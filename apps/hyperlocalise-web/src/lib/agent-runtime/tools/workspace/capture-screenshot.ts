@@ -16,7 +16,7 @@ import { z } from "zod";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import {
   installChromiumSystemDependenciesFunction,

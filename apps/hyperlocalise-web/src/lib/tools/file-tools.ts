@@ -15,8 +15,8 @@ import { z } from "zod";
 
 import { and, eq } from "drizzle-orm";
 
-import { schema } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import * as schema from "@/lib/database/schema";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { bufferFromStream } from "@/lib/primitives/streams";
 import { inferSupportedBinaryTranslationFileFormat } from "@/lib/translation/file-formats";
 

@@ -73,7 +73,7 @@ import { createApp } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { ORGANIZATION_SLUG_HEADER } from "@/lib/billing/autumn-public-config";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 const app = createApp();
 const fixture = createAuthTestFixture();

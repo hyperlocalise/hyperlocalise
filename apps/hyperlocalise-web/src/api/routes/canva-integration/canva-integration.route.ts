@@ -23,7 +23,7 @@ import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
 import { bindCanvaConnectionBrand, touchCanvaConnectionUsage } from "@/lib/canva/connections";
 import { resolveCanvaDesignId } from "@/lib/canva/auth";
 import { getCanvaLocalizationStatus, startCanvaLocalization } from "@/lib/canva/localize-design";
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { env } from "@/lib/env";
 

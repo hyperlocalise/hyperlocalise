@@ -21,7 +21,7 @@ vi.mock("@/lib/providers/organization-language-model", () => ({
   loadLatestOrganizationProviderCredential: loadLatestOrganizationProviderCredentialMock,
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: (...args: unknown[]) => selectMock(...args),
   },

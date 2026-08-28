@@ -37,9 +37,9 @@ import {
   resolvePublicWebChatAgent,
 } from "@/lib/agents/workspace-automation-web-chat";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
-import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { createStoredFile } from "@/lib/file-storage/records";
 
 import {

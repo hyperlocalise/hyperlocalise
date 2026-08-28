@@ -14,7 +14,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   WEB_CHAT_HISTORY_LIMIT,
@@ -25,10 +25,8 @@ import {
   buildWorkspaceAutomationWebChatPath,
   buildWorkspaceAutomationWebChatUrl,
 } from "./workspace-automation-web-chat-url";
-import {
-  getWorkspaceAutomationById,
-  type WorkspaceAutomationRecord,
-} from "./workspace-automations";
+import { getWorkspaceAutomationById } from "./workspace-automations";
+import { type WorkspaceAutomationRecord } from "./workspace-automation-types";
 
 export {
   buildWebChatSourceThreadId,

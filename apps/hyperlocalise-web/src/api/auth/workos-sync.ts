@@ -15,7 +15,7 @@ import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-import { db, type DatabaseClient } from "@/lib/database";
+import { db, type DatabaseClient } from "@/lib/database/client";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,

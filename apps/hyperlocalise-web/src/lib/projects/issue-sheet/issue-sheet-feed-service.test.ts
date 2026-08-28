@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";

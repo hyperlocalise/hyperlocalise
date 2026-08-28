@@ -22,12 +22,13 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { conflictResponse, badRequestResponse, validationErrorResponse } from "@/api/errors";
+import { validationErrorResponse } from "@/api/errors";
+import { conflictResponse, badRequestResponse } from "@/api/response.schema";
 import { apiErrorResponse } from "@/api/response.schema";
 import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import { applyMemoryImport, parseMemoryImportContent } from "@/lib/memory/import-memory-entries";
 import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";

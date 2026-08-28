@@ -67,7 +67,7 @@ vi.mock("@/lib/glossary/query-glossary-terms", () => ({
   listGlossaryTermsForProject: vi.fn(async () => []),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: () => ({
       from: () => ({

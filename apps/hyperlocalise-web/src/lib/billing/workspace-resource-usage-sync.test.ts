@@ -24,7 +24,7 @@ vi.mock("drizzle-orm", () => ({
   sql: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     transaction: mocks.transactionMock,
   },

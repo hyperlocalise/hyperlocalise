@@ -14,7 +14,7 @@ import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { render } from "@react-email/render";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";

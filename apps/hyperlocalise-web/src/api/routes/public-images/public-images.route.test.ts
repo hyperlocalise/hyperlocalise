@@ -18,7 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import {

@@ -15,7 +15,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {

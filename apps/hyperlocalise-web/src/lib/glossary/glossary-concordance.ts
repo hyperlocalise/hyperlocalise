@@ -13,7 +13,7 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { searchAttachedCrowdinGlossaryConcordance } from "@/lib/glossary/crowdin-glossary";

@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import {
   setProjectTranslationKeysHidden,

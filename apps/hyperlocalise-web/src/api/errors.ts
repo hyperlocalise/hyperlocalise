@@ -23,8 +23,6 @@ import {
   type JsonContext,
 } from "./response.schema";
 
-export * from "./response.schema";
-
 const logger = createLogger("api-errors");
 
 // ---------------------------------------------------------------------------

@@ -19,8 +19,8 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";

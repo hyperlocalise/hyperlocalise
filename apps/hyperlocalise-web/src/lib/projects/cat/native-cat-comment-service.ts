@@ -13,7 +13,7 @@
 import { and, asc, eq, inArray, notExists, or } from "drizzle-orm";
 
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 

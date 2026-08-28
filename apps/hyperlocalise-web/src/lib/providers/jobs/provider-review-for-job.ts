@@ -12,7 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { mergeProviderReviewReports } from "@/lib/providers/provider-job-review/normalize-provider-review";

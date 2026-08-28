@@ -12,13 +12,11 @@
  */
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import type { GithubRepositoryAutomationJobStatus } from "./github/github-repository-automation-jobs";
-import {
-  updateWorkspaceAutomationRun,
-  type WorkspaceAutomationRunStatus,
-} from "./workspace-automations";
+import { updateWorkspaceAutomationRun } from "./workspace-automations";
+import { type WorkspaceAutomationRunStatus } from "./workspace-automation-types";
 
 function mapGithubJobStatusToRunStatus(
   status: GithubRepositoryAutomationJobStatus,

@@ -13,7 +13,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { assertCapability } from "@/api/auth/policy";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type {
   LlmProvider,
   OrganizationLlmProviderCredential,

@@ -12,7 +12,7 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   listTmsProviderLiveProjects,

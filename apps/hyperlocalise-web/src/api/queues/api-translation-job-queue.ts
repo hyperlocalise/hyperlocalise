@@ -12,7 +12,7 @@
  */
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";

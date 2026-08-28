@@ -15,7 +15,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,

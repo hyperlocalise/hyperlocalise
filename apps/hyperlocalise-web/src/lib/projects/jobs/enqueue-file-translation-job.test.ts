@@ -63,7 +63,7 @@ vi.mock("@/lib/billing/usage-control", () => ({
   usageFeatureIds: { translationJobs: "translation_jobs" },
 }));
 
-vi.mock("@/lib/database", () => {
+vi.mock("@/lib/database/client", () => {
   const createSelectBuilder = () => {
     const builder = {
       from: vi.fn(() => builder),

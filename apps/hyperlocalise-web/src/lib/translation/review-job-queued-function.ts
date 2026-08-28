@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { ReviewJobEventData } from "@/lib/workflow/types";
 
 type ReviewJobConfig = {

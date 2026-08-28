@@ -13,7 +13,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Resend } from "resend";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { IssueNotificationEmailEventData } from "@/lib/workflow/types";
 
 function resendFromAddress(env: {

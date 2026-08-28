@@ -14,7 +14,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 const createdWorkosOrganizationIds = new Set<string>();

@@ -14,9 +14,9 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 

@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createGithubWebhookRoutes } from "./github-webhook.route";
 
 const fixture = createProjectTestFixture();

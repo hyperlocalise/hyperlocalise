@@ -12,7 +12,7 @@
  */
 import { eq } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
 import { createLogger } from "@/lib/log";
 

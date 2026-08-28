@@ -14,7 +14,7 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { assertCapability } from "@/api/auth/policy";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   decryptProviderCredential,

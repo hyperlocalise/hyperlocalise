@@ -34,7 +34,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();

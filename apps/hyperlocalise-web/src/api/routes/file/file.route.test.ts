@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createProjectTestFixture } from "../project/project.fixture";
 import type { ProjectResponse } from "../project/project.schema";

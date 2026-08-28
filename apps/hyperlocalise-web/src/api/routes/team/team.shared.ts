@@ -14,8 +14,8 @@ import { and, eq } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import type { JsonContext } from "@/api/errors";
-import { db, schema } from "@/lib/database";
+import type { JsonContext } from "@/api/response.schema";
+import { db, schema } from "@/lib/database/client";
 import type { TeamMembershipRole } from "@/lib/database/types";
 
 export { slugifyTeamName } from "./team-slug";

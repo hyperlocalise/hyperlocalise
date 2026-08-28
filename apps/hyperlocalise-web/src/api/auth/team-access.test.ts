@@ -18,7 +18,7 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 const dbSelectMock = vi.fn();
 const getTmsProviderLiveProjectMock = vi.fn();
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: dbSelectMock,
   },

@@ -30,7 +30,7 @@ import {
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { buildFindContextSkillInstructions } from "@/lib/agent-runtime/skills/find-context-instructions";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { serializeErrorForLog } from "@/lib/log";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";

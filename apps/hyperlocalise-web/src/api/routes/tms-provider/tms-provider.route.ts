@@ -28,8 +28,8 @@ import {
   conflictResponse,
   notFoundResponse,
   serviceUnavailableResponse,
-} from "@/api/errors";
-import { db, schema } from "@/lib/database";
+} from "@/api/response.schema";
+import { db, schema } from "@/lib/database/client";
 import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-runs";
 import {
   getJobProviderActionDefinition,

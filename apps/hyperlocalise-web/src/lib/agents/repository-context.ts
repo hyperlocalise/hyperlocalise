@@ -13,7 +13,7 @@
 import type { GitHubRawMessage } from "@chat-adapter/github";
 import { and, eq, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
 

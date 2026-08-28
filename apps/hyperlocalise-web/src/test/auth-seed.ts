@@ -16,7 +16,7 @@ import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 export function withMembershipAccessSource<

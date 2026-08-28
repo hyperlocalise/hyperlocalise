@@ -15,7 +15,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables, type ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { TeamMembershipRole } from "@/lib/database/types";
 
 import {

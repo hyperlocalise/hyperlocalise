@@ -43,7 +43,7 @@ vi.mock("@/lib/projects/organization/organization-project-service", () => ({
     mocks.ensureOrganizationProjectRecord(...args),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: (...args: unknown[]) => mocks.select(...args),
   },

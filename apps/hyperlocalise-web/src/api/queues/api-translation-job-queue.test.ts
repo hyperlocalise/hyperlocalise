@@ -39,7 +39,7 @@ vi.mock("@/lib/flags/workspace-flags", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createApiTranslationJobQueue } from "./api-translation-job-queue";

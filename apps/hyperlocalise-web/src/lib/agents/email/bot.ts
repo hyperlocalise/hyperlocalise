@@ -22,7 +22,7 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";

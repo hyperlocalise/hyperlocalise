@@ -12,8 +12,8 @@
  */
 import { MetadataRoute } from "next";
 
-import { productSlugs } from "@/components/marketing/product";
-import { useCaseSlugs } from "@/components/marketing/use-case";
+import { productSlugs } from "@/components/marketing/product/product-page-content";
+import { useCaseSlugs } from "@/components/marketing/use-case/use-case-page-content";
 import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts, getPostBySlug, parseBlogPostDate } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";

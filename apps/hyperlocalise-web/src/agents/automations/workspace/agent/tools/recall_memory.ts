@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
-import { hasWorkspaceAutomationKnowledgeTool } from "@/lib/agents/workspace-automations";
+import { hasWorkspaceAutomationKnowledgeTool } from "@/lib/agents/workspace-automation-types";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
 import {

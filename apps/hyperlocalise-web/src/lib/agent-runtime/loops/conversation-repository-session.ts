@@ -14,7 +14,7 @@ import { and, eq, lte } from "drizzle-orm";
 
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 const logger = createLogger("conversation-repository-session");

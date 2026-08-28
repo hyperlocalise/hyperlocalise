@@ -26,7 +26,7 @@ vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     delete: vi.fn(() => ({
       where: vi.fn(async () => {}),
@@ -49,7 +49,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/file-storage", () => ({
+vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: vi.fn(() => ({
     delete: deleteStoredObjectMock,
   })),

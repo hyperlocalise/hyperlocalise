@@ -12,7 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import {
   buildImageLocalizationPrompt,

@@ -13,8 +13,8 @@
 import { eq } from "drizzle-orm";
 
 import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
-import type { DatabaseClient } from "@/lib/database";
-import { db, schema } from "@/lib/database";
+import type { DatabaseClient } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {

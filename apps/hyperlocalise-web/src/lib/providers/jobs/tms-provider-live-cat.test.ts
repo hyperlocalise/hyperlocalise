@@ -15,7 +15,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { isErr } from "@/lib/primitives/result/results";
 import { upsertCrowdinPatProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";

@@ -32,7 +32,7 @@ vi.mock("@/lib/log", () => ({
   serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
 }));
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   acquireWebRepositorySandboxLease,
   getWebConversationRepositorySession,

@@ -20,7 +20,7 @@ import {
   buildVideoLocalizationPrompt,
   localizedVideoOutputFilename,
 } from "@/lib/agents/video-localization";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {

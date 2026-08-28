@@ -16,7 +16,7 @@ import {
   dispatchWorkspaceAutomationForSourceUpload,
   dispatchWorkspaceAutomationsForSourceUpload,
 } from "@/lib/agents/workspace-automation-dispatcher";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import type { SourceFileIngestEventData, SourceFileIngestQueue } from "@/lib/workflow/types";
 

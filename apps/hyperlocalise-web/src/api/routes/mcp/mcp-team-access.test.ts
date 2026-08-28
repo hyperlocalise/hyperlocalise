@@ -19,7 +19,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { testClient } from "hono/testing";
 
 import { createProjectTestFixture } from "../project/project.fixture";

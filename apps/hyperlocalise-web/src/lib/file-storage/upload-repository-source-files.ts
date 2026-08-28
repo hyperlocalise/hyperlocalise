@@ -10,8 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { db } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db } from "@/lib/database/client";
+import { getFileStorageAdapter } from "./get-file-storage-adapter";
 import { createLogger } from "@/lib/log";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import {

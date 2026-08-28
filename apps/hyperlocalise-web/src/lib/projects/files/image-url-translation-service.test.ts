@@ -36,7 +36,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {

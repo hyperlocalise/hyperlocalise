@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
 // ponytail: defensive bound only, not a real constraint — a single org's issue graph
 // is never anywhere near this size. Guards against an unbounded loop, not a real case.

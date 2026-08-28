@@ -28,8 +28,8 @@ import {
   getAccessibleProjectIds,
   hasOrganizationWideProjectAccess,
 } from "@/api/auth/team-access";
-import { badRequestResponse } from "@/api/errors";
-import { db, schema } from "@/lib/database";
+import { badRequestResponse } from "@/api/response.schema";
+import { db, schema } from "@/lib/database/client";
 import {
   formatUsageControlError,
   reserveUsageEvent,

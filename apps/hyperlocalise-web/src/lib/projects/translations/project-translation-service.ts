@@ -18,7 +18,7 @@ import type {
   ProjectFileCatQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";

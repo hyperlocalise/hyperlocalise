@@ -32,7 +32,7 @@ vi.mock("@/lib/agents/workspace-automation-dispatcher", () => ({
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 

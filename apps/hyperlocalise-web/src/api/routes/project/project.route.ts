@@ -25,7 +25,7 @@ import {
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   serviceUnavailableResponse,
-} from "@/api/errors";
+} from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
@@ -38,9 +38,10 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
-import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";

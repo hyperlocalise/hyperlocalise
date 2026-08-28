@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 

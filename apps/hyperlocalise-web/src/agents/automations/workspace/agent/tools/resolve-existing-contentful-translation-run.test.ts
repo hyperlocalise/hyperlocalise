@@ -15,7 +15,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { resolveExistingContentfulTranslationRunId } from "./resolve-existing-contentful-translation-run";
@@ -24,7 +24,7 @@ const { dbSelectMock } = vi.hoisted(() => ({
   dbSelectMock: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: dbSelectMock,
   },

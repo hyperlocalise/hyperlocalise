@@ -13,7 +13,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   LocalisationAuditDailyQuotaExceededError,

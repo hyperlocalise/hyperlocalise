@@ -29,7 +29,7 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {},
   schema: {
     interactionMessages: {

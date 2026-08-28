@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 
 import { syncWorkosOrganization } from "@/api/auth/workos-sync";
 import { cleanupWorkosTestRecords } from "@/api/test-cleanup";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
 

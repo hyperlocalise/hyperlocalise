@@ -12,7 +12,7 @@
  */
 import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Glossary } from "@/lib/database/types";
 
 export async function queryNativeGlossaryTermCounts(glossaries: Glossary[]) {

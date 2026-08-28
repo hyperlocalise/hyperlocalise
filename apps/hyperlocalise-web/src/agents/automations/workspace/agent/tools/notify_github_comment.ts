@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { upsertWorkspaceAutomationPullRequestComment } from "@/lib/agents/github/upsert-workspace-automation-pull-request-comment";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { buildOrchestratorRunSummaryMessage } from "../summary-message";

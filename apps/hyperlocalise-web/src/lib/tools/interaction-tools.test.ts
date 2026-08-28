@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createResolveInteractionTool } from "./interaction-tools";
 
 const createdWorkosOrganizationIds = new Set<string>();

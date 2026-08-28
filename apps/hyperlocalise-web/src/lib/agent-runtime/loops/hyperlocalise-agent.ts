@@ -20,7 +20,7 @@ import {
   type ToolSet,
 } from "ai";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 import { getHyperlocaliseAgentModel } from "./model";

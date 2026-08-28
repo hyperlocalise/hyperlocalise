@@ -37,7 +37,7 @@ import {
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import { createWorkspaceOrchestratorAgent } from "./agent";
 import { createWorkspaceOrchestratorSession } from "./context";

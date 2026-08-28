@@ -13,7 +13,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import { recordMemoryEntryCreatedEvents } from "@/lib/memory/memory-entry-lifecycle";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";

@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createUseGithubRepositoryTool } from "./use_github_repository";
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
   composeGithubRepoInstructions: vi.fn((..._args: unknown[]) => "instructions"),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({

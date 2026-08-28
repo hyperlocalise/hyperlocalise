@@ -18,7 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 
 import {

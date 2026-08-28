@@ -37,8 +37,8 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
-import { db, schema } from "@/lib/database";
+} from "@/lib/agents/workspace-automation-types";
+import { db, schema } from "@/lib/database/client";
 import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
 import { eq } from "drizzle-orm";
 

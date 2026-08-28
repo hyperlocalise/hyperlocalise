@@ -20,7 +20,7 @@ import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent/channels/web";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
 
 import { resolveChatGlossarySearchCapability } from "./chat-glossary-search-capability";

@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { validator } from "hono/validator";
 
-import { conflictResponse, badRequestResponse } from "@/api/errors";
+import { conflictResponse, badRequestResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";

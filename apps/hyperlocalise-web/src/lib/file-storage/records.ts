@@ -12,9 +12,10 @@
  */
 import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
-import { getFileStorageAdapter, type FileStorageAdapter } from ".";
+import type { FileStorageAdapter } from "./types";
+import { getFileStorageAdapter } from "./get-file-storage-adapter";
 
 async function readStoredObjectBody(body: ReadableStream) {
   const arrayBuffer = await new Response(body).arrayBuffer();

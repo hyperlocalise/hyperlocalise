@@ -16,7 +16,7 @@ const { interactionMessagesMock } = vi.hoisted(() => ({
   interactionMessagesMock: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({

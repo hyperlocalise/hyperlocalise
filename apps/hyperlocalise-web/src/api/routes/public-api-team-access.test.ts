@@ -45,7 +45,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { ProjectResponse } from "@/api/routes/project/project.schema";
 import { createTeamTestFixture } from "@/api/routes/team/team.fixture";
 import type { TeamResponse } from "@/api/routes/team/team.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient(createApp({ fileStorageAdapter }));

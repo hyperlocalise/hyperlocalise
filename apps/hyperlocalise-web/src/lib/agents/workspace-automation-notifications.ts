@@ -17,7 +17,7 @@ import {
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 
 function buildRunSummaryMessage(input: {
   automation: WorkspaceAutomationRecord;

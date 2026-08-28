@@ -12,7 +12,7 @@
  */
 import { Hono } from "hono";
 
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,

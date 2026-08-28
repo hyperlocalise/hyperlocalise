@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   deleteOrganizationGitHubInstallationRepositories,

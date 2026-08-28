@@ -17,7 +17,7 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";

@@ -37,7 +37,7 @@ vi.mock("@/lib/flags/workspace-flags", () => ({
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createRecallMemoryTool } from "./recall_memory";

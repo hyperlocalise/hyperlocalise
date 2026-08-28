@@ -16,7 +16,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 import { createTeamTestFixture } from "./team.fixture";
 import type { TeamResponse } from "./team.schema";

@@ -15,7 +15,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   isProjectTranslationKeyHidden,

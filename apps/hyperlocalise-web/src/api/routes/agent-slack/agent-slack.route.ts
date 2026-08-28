@@ -36,7 +36,7 @@ import {
   getSlackStateSecret,
   SLACK_STATE_TTL_MS,
 } from "@/lib/agents/slack/oauth-state";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";

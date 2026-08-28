@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import type { WriteAction } from "@/lib/agent-contracts/write-gate";
 

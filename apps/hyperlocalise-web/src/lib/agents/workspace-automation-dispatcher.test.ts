@@ -15,7 +15,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { type Result } from "@/lib/primitives/result/results";
 
 import { createContentfulConnection } from "@/lib/contentful/connections";

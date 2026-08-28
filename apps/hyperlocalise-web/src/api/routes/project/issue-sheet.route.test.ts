@@ -19,7 +19,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";

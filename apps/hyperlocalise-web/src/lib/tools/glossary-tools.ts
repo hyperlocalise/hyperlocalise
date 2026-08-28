@@ -14,7 +14,7 @@ import { desc } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
 
 import { localePattern } from "./locale";

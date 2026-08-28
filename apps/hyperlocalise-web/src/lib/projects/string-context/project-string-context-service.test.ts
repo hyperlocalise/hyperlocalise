@@ -51,7 +51,7 @@ vi.mock("@/lib/billing/agent-runtime-usage", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {

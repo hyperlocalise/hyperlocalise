@@ -17,7 +17,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { runIssueSheetCsvImport } from "./issue-sheet-csv-import-runner";
 import { IssueSheetService } from "./issue-sheet-service";

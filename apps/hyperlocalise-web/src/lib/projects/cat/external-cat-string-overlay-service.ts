@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createStoredFile, deleteStoredFile } from "@/lib/file-storage/records";
 import {
   IMAGE_URL_CONTENT_KIND,

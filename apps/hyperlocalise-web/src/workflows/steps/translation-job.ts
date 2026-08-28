@@ -58,7 +58,7 @@ export async function markEmailTranslationJobRunning(input: {
 }) {
   "use step";
   const { and, eq, isNull, or } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const [updatedJob] = await db
     .update(schema.jobs)
@@ -97,7 +97,7 @@ export async function markEmailTranslationJobSucceeded(input: {
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const succeededJob = await db.transaction(async (tx) => {
     const [updatedJob] = await tx
@@ -165,7 +165,7 @@ export async function markEmailTranslationJobFailed(input: {
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   await db.transaction(async (tx) => {
     const [updatedJob] = await tx
@@ -211,7 +211,7 @@ export async function markEmailTranslationJobFailed(input: {
 export async function getProjectOrganizationStep(projectId: string): Promise<string> {
   "use step";
   const { eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const [project] = await db
     .select({ organizationId: schema.projects.organizationId })
@@ -229,7 +229,7 @@ export async function getProjectOrganizationStep(projectId: string): Promise<str
 export async function getStoredFileStep(fileId: string, organizationId: string) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const [file] = await db
     .select()
@@ -265,7 +265,7 @@ export async function getStoredFileContentStep(fileId: string, organizationId: s
   "use step";
   const { get } = await import("@vercel/blob");
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
   const { env } = await import("@/lib/env");
 
   const [file] = await db
@@ -303,7 +303,7 @@ export async function storeOutputFileStep(input: {
 }) {
   "use step";
   const { del, put } = await import("@vercel/blob");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
   const { env } = await import("@/lib/env");
   const { createStoredFileId, sha256Hex, storageKey } = await import("@/lib/file-storage/records");
 
@@ -419,7 +419,7 @@ export async function completeFileTranslationJobStep(input: {
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
+  const { db, schema } = await import("@/lib/database/client");
 
   const didSucceed = await db.transaction(async (tx) => {
     const [updatedJob] = await tx

@@ -36,7 +36,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";

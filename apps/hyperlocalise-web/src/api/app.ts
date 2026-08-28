@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
 
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type {
   EmailAgentTaskQueue,
   JobQueue,

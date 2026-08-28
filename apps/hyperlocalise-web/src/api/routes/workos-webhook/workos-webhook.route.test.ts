@@ -44,8 +44,8 @@ vi.mock("@/api/auth/workos-sync", () => ({
   revokeOrganizationMembershipAccess: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/lib/database", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/database")>();
+vi.mock("@/lib/database/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database/client")>();
 
   return {
     ...actual,
@@ -61,7 +61,7 @@ describe("workosWebhookRoutes", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/api/auth/workos-sync");
-    vi.doUnmock("@/lib/database");
+    vi.doUnmock("@/lib/database/client");
   });
 
   it("returns 401 for invalid signature", async () => {

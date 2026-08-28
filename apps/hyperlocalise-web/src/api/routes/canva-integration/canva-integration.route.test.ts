@@ -50,7 +50,7 @@ vi.mock("@/lib/canva/auth", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import { createCanvaConnection } from "@/lib/canva/connections";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 

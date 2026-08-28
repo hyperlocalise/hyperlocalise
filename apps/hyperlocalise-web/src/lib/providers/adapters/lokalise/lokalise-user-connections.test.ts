@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS,

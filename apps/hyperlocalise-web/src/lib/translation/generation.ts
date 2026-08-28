@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { LlmProvider } from "@/lib/database/types";
 import {
   getManagedLanguageModel,

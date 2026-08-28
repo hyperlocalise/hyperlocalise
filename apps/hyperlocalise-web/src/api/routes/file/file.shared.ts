@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { notFoundResponse } from "@/api/errors";
+import { notFoundResponse } from "@/api/response.schema";
 
 export function fileNotFoundResponse(c: { json: Parameters<typeof notFoundResponse>[0]["json"] }) {
   return notFoundResponse(c, "not_found", "File not found");

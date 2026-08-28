@@ -12,7 +12,7 @@
  */
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
-import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
+import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const OPEN_JOB_STATUSES = ["queued", "running", "waiting_for_review"] as const;

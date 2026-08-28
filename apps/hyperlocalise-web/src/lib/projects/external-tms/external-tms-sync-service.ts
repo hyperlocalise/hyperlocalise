@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import type { TmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {

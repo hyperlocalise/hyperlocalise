@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
 import { createFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-translation-job";
 

@@ -18,8 +18,8 @@ import {
   workspaceResourceFeatureIds,
   type WorkspaceResourceFeatureId,
 } from "@/lib/billing/workspace-resource-limits";
-import type { DatabaseTransaction } from "@/lib/database";
-import { db, schema } from "@/lib/database";
+import type { DatabaseTransaction } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 
 const AUTUMN_API_VERSION = "2.2.0";
 const AUTUMN_TRACK_USAGE_URL = "https://api.useautumn.com/v1/balances.track";

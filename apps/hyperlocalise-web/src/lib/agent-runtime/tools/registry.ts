@@ -25,19 +25,17 @@ import {
 import { createTranslationJobTool } from "./translation-tools";
 import { resolveToolPolicy } from "./policy";
 import { wrapToolSetWithLogging } from "./tool-logging";
-import {
-  createBashTool,
-  createApplyPatchTool,
-  createCaptureScreenshotTool,
-  createFetchTool,
-  createFuzzySearchTool,
-  createGlobTool,
-  createGrepTool,
-  createReadTool,
-  createTodoWriteTool,
-  createWriteTool,
-  type RepoToolContext,
-} from "./workspace";
+import { createApplyPatchTool } from "./workspace/apply-patch";
+import { createBashTool } from "./workspace/bash";
+import { createCaptureScreenshotTool } from "./workspace/capture-screenshot";
+import { createFetchTool } from "./workspace/fetch";
+import { createFuzzySearchTool } from "./workspace/fuzzy-search";
+import { createGlobTool } from "./workspace/glob";
+import { createGrepTool } from "./workspace/grep";
+import { createReadTool } from "./workspace/read";
+import { createTodoWriteTool } from "./workspace/todo";
+import type { RepoToolContext } from "./workspace/types";
+import { createWriteTool } from "./workspace/write";
 
 /** Re-export for callers that must stay behind the registry mock boundary in tests. */
 export { createTranslationJobTool };

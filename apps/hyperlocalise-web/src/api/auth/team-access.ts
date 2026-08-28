@@ -14,7 +14,7 @@ import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {

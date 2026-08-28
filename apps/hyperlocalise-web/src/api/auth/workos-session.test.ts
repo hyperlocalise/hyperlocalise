@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { eq } from "drizzle-orm";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";

@@ -20,7 +20,7 @@ import {
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
 import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automation-executor";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import type {

@@ -28,14 +28,14 @@ export {
   getRoleDescription,
   getRoleLabel,
 } from "@/lib/members/member-management";
+import { validationErrorResponse } from "@/api/errors";
 import {
   conflictResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
-  validationErrorResponse,
   type JsonContext,
-} from "@/api/errors";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+} from "@/api/response.schema";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import {

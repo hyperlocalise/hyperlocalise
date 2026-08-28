@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 
 export type ExternalTmsMemoryCapabilityMode =
   (typeof schema.externalTmsMemoryCapabilityModeEnum.enumValues)[number];

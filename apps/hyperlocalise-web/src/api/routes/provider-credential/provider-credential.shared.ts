@@ -12,7 +12,7 @@
  */
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import type { JsonContext } from "@/api/errors";
+import type { JsonContext } from "@/api/response.schema";
 
 export function invalidProviderCredentialPayloadResponse(c: { json: JsonContext["json"] }) {
   return c.json({ error: "invalid_provider_credential_payload" }, 400);

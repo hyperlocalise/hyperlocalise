@@ -20,7 +20,7 @@ import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import {
   GITHUB_STATE_TTL_MS,

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { createLogger, type Logger } from "@/lib/log";
 
 /**

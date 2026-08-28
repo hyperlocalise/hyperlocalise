@@ -41,7 +41,7 @@ vi.mock("@/lib/contentful/discover-contentful-space", () => ({
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient(createApp());

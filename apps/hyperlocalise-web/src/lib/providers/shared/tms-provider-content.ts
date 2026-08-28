@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {

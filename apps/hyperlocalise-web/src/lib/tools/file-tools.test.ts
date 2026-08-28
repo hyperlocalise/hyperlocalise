@@ -34,7 +34,7 @@ const {
   };
 });
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   schema: {
     storedFiles: {
       id: "id",
@@ -48,7 +48,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/file-storage", () => ({
+vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: getFileStorageAdapterMock,
 }));
 

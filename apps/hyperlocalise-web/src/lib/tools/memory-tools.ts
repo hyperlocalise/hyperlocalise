@@ -14,7 +14,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { hasCapability } from "@/api/auth/policy";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 

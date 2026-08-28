@@ -30,14 +30,14 @@ const {
   readTranslatedFileMock: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     transaction: dbTransactionMock,
   },
   schema: {},
 }));
 
-vi.mock("@/lib/file-storage", () => ({
+vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: vi.fn(() => ({
     provider: "vercel_blob",
     delete: deleteStoredObjectMock,

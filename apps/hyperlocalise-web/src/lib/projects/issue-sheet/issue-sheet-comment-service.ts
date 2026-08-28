@@ -15,7 +15,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { isOrganizationAdminRole } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCasePagesBySlug } from "@/components/marketing/use-case";
+import { useCasePagesBySlug } from "@/components/marketing/use-case/use-case-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   createMarketingOgImage,

@@ -23,12 +23,12 @@ import { and, eq, gt, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
-import { forbiddenResponse } from "@/api/errors";
+import { forbiddenResponse } from "@/api/response.schema";
 import {
   isMembershipReconcileFresh,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";

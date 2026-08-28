@@ -12,7 +12,7 @@
  */
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import type { GithubRepoAutomationDispatchPayload } from "./github-repository-automation-settings";
 

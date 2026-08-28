@@ -13,7 +13,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { UseCasePage, useCasePagesBySlug, useCaseSlugs } from "@/components/marketing/use-case";
+import { UseCasePage } from "@/components/marketing/use-case/use-case-page";
+import {
+  useCasePagesBySlug,
+  useCaseSlugs,
+} from "@/components/marketing/use-case/use-case-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   DEFAULT_APP_LOCALE,

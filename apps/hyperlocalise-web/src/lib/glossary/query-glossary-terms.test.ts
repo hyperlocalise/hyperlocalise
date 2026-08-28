@@ -21,7 +21,7 @@ vi.hoisted(() => {
   process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
 });
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { Glossary } from "./glossary";

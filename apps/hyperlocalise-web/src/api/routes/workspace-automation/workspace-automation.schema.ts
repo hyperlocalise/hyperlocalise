@@ -16,7 +16,7 @@ import {
   workspaceAutomationConfigSchema,
   workspaceAutomationModelSchema,
   workspaceAutomationStatusSchema,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationIdParamSchema = z.object({

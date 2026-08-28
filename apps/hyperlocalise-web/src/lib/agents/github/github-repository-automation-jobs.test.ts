@@ -19,7 +19,7 @@ vi.mock("@/workflows/steps/workspace-automation-run-sync", () => ({
   syncWorkspaceAutomationRunsForGithubJobStep: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   claimGithubRepositoryAutomationJob,

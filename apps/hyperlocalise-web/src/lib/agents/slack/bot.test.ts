@@ -224,7 +224,7 @@ vi.mock("@/lib/log", () => ({
   serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
 }));
 
-vi.mock("@/lib/database", () => {
+vi.mock("@/lib/database/client", () => {
   return {
     db: {
       select: vi.fn(() => ({

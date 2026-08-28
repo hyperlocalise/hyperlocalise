@@ -26,7 +26,7 @@ import {
 } from "@/lib/billing/agent-runtime-usage";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 const agentStepLimit = 8;
 

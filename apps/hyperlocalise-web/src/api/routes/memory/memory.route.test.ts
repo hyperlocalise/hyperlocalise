@@ -35,7 +35,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 

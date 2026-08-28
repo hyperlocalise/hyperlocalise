@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";

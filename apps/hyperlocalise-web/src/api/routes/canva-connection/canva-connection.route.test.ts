@@ -33,7 +33,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 

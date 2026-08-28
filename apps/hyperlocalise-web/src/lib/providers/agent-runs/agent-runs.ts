@@ -20,7 +20,7 @@ import {
 } from "@/lib/billing/usage-control";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
 

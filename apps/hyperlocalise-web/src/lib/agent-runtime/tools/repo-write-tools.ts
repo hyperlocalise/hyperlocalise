@@ -16,8 +16,8 @@ import { z } from "zod";
 import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { auditRepositoryMutation } from "@/lib/agent-runtime/tools/audit";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
-import { schema } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import * as schema from "@/lib/database/schema";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,

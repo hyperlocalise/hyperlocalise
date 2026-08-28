@@ -22,7 +22,7 @@ import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
 } from "@/lib/billing/workspace-resource-limits";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { env } from "@/lib/env";
 
 type SlackOAuthResult = Awaited<

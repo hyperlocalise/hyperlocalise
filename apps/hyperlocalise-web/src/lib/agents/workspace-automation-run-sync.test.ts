@@ -15,7 +15,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import { syncWorkspaceAutomationRunsForGithubJob } from "./workspace-automation-run-sync";

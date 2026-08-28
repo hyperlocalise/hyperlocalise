@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { DatabaseClient, DatabaseTransaction } from "@/lib/database";
+import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import type {
   VersionedDocumentCommitError,

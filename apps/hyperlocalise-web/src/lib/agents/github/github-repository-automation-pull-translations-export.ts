@@ -12,8 +12,8 @@
  */
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { resolveSourcePath, resolveTargetPath } from "@/lib/i18n/i18n-pathresolver";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { bufferFromStream } from "@/lib/primitives/streams";

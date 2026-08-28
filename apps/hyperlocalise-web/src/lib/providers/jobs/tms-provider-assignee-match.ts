@@ -12,7 +12,7 @@
  */
 import { sql, type SQL } from "drizzle-orm";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 
 export function normalizeProviderAssigneeCandidates(candidates: string[]): string[] {
   return Array.from(

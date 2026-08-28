@@ -12,7 +12,7 @@
  */
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   decryptProviderCredential,
   encryptProviderCredential,

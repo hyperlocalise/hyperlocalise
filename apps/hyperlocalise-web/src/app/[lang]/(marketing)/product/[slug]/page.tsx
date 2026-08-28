@@ -13,7 +13,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ProductPage, productPagesBySlug, productSlugs } from "@/components/marketing/product";
+import { ProductPage } from "@/components/marketing/product/product-page";
+import {
+  productPagesBySlug,
+  productSlugs,
+} from "@/components/marketing/product/product-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   DEFAULT_APP_LOCALE,

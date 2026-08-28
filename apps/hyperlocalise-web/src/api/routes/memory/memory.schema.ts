@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import {
   TMX_DEFAULT_MAX_UNITS,
   TMX_MAX_IMPORT_CONTENT_CHARS,

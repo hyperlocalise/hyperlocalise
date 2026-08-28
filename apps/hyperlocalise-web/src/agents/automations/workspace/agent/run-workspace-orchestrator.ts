@@ -12,7 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
@@ -23,9 +23,11 @@ import {
   getWorkspaceAutomationById,
   getWorkspaceAutomationRunById,
   updateWorkspaceAutomationRun,
+} from "@/lib/agents/workspace-automations";
+import {
   type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunStatus,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";

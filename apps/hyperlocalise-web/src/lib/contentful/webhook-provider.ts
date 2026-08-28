@@ -15,7 +15,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { env } from "@/lib/env";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 

@@ -13,7 +13,7 @@
 import { and, inArray, isNotNull } from "drizzle-orm";
 
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { Glossary } from "@/lib/database/types";
 

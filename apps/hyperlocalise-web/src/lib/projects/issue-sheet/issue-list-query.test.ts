@@ -13,7 +13,7 @@
 import { eq, inArray, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vite-plus/test";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 
 import {
   buildIssueListFilterConditions,

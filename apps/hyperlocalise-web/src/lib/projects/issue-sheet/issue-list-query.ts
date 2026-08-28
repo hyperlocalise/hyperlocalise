@@ -13,7 +13,7 @@
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 
 import {
   type IssueListSortDirection,

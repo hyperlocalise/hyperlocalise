@@ -19,7 +19,7 @@ import {
   maskProviderCredentialSuffix,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { createContentfulConnection, updateContentfulConnection } from "./connections";
 

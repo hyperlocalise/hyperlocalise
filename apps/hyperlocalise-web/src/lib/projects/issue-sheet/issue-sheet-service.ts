@@ -25,7 +25,7 @@ import {
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { IssueSheetColumnConfig } from "@/lib/database/schema/issue-sheet";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";

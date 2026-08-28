@@ -44,7 +44,7 @@ vi.mock("@/lib/file-storage/records", () => ({
   getStoredFileForJobScope: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     transaction: vi.fn(),
     insert: vi.fn(() => ({

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { schema } from "@/lib/database";
+import type * as schema from "@/lib/database/schema";
 import type { Result } from "@/lib/primitives/result/results";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import type {

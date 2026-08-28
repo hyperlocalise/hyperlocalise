@@ -15,7 +15,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 
 import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-reconcile";
 import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 

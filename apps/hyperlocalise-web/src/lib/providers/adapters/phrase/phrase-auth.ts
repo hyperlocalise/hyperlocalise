@@ -12,7 +12,7 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   encryptProviderCredential,

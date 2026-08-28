@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createNativeTmsJobTool } from "./create_native_tms_job";
@@ -34,7 +34,7 @@ vi.mock("@/lib/agents/workspace-automations", () => ({
   updateWorkspaceAutomationRun: (...args: unknown[]) => mocks.updateWorkspaceAutomationRun(...args),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({

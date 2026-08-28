@@ -17,7 +17,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { userNotificationPreferencesService } from "@/lib/notifications/user-notification-preferences-service";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({

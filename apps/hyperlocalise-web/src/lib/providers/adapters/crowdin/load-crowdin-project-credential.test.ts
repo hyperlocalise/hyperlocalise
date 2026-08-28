@@ -29,7 +29,7 @@ vi.mock("@/lib/security/provider-credential-crypto", () => ({
   unwrapProviderCredentialCrypto: vi.fn((value: unknown) => value),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({

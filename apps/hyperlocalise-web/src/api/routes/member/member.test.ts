@@ -71,7 +71,7 @@ vi.mock("@/lib/workos/server-client", () => ({
 
 import { createApp } from "@/api/app";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createMemberTestFixture } from "./member.fixture";

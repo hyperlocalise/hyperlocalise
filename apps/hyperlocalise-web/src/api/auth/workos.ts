@@ -13,7 +13,7 @@
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
-import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/errors";
+import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import type { OrganizationMembershipAccessSource } from "@/lib/workos/membership-access";

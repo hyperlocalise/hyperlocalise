@@ -73,7 +73,7 @@ const {
   };
 });
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: selectMock,
   },

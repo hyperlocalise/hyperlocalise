@@ -21,14 +21,12 @@ import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section"
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
+import { FeatureMeshCardsSection } from "@/components/marketing/feature-mesh-cards-section";
+import { FinalCtaSection } from "@/components/marketing/final-cta-section";
+import { HeroSection } from "@/components/marketing/hero-section";
+import { PrinciplesSection } from "@/components/marketing/principles-section";
+import { RecentBlogPostsSection } from "@/components/marketing/recent-blog-posts-section";
 import { TourfinderTestimonialSection } from "@/components/marketing/tourfinder-testimonial-section";
-import {
-  FeatureMeshCardsSection,
-  FinalCtaSection,
-  HeroSection,
-  PrinciplesSection,
-  RecentBlogPostsSection,
-} from "@/components/marketing";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts } from "@/lib/blog/blog-post";

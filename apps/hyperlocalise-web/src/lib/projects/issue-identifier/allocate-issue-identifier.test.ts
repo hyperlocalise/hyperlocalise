@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   allocateNextIssueIdentifier,
   allocateUniqueProjectIdentifier,

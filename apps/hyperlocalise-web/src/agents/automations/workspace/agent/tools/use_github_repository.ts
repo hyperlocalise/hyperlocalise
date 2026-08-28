@@ -29,7 +29,7 @@ import {
 } from "@/lib/billing/agent-runtime-usage";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   createGithubRepositoryAutomationSandbox,
   stopGithubRepositoryAutomationSandbox,

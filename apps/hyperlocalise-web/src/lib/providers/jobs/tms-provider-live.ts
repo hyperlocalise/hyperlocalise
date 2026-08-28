@@ -12,7 +12,7 @@
  */
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { createLogger } from "@/lib/log";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,

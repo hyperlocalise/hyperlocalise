@@ -19,7 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";

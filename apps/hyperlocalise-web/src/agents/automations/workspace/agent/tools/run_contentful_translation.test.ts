@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import { ok } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -47,7 +47,7 @@ vi.mock("@/lib/agents/workspace-automations", () => ({
   updateWorkspaceAutomationRun: mocks.updateWorkspaceAutomationRun,
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: dbSelectMock,
   },

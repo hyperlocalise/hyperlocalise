@@ -23,7 +23,7 @@ import {
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import { getTemplateExecutorAgent } from "./workspace-template-manifest";
 

@@ -16,7 +16,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { isJobCreateAllowed } from "@/api/auth/capability-guards";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
@@ -38,7 +38,7 @@ import {
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
-import type { DatabaseTransaction } from "@/lib/database";
+import type { DatabaseTransaction } from "@/lib/database/client";
 
 import {
   toolAccessibleJobsWhere,

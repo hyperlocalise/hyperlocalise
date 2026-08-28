@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAhrefsConnection } from "@/lib/ahrefs/connections";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { type Result } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -30,9 +30,7 @@ import { claimGithubRepositoryAutomationJob } from "./github/github-repository-a
 import {
   createWorkspaceAutomation,
   createWorkspaceAutomationRun,
-  formatWorkspaceAutomationAuthorName,
   getWorkspaceAutomationById,
-  hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
   listDueWorkspaceAutomations,
   listWorkspaceAutomations,
@@ -40,8 +38,12 @@ import {
   pauseWorkspaceAutomation,
   updateWorkspaceAutomation,
   updateWorkspaceAutomationRun,
-  workspaceAutomationConfigSchema,
 } from "./workspace-automations";
+import {
+  formatWorkspaceAutomationAuthorName,
+  hoistLegacyWorkspaceAutomationProjectId,
+  workspaceAutomationConfigSchema,
+} from "./workspace-automation-types";
 
 const organizationIds: string[] = [];
 

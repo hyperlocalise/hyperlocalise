@@ -18,7 +18,7 @@ import { createZodValidator } from "@/api/errors";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 
 import {

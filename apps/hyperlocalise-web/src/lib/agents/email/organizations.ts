@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 
 import { and, eq, or, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 const inboundEmailDomain = "inbox.hyperlocalise.com";
 

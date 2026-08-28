@@ -13,7 +13,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import { filterAssignableAssigneeUserIds } from "./issue-sheet-assignee";

@@ -27,7 +27,7 @@ import {
 } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { clearReplacingWorkosMembershipSentinel } from "@/api/test-cleanup";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   REPLACING_WORKOS_MEMBERSHIP_ID,

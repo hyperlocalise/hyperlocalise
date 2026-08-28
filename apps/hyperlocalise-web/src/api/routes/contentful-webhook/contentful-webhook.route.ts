@@ -26,7 +26,7 @@ import {
   shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
 } from "@/lib/contentful/webhook";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { eq } from "drizzle-orm";
 

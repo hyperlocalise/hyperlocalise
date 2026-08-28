@@ -20,7 +20,7 @@ import {
   syncWorkosOrganization,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
-import type { DatabaseClient } from "@/lib/database";
+import type { DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import * as schema from "@/lib/database/schema";
 import { env } from "@/lib/env";

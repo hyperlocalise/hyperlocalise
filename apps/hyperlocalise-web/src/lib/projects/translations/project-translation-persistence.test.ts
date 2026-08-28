@@ -43,7 +43,7 @@ vi.mock("drizzle-orm", () => ({
   ),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     insert: insertMock,
     select: selectMock,

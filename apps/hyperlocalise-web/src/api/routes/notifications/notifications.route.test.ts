@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { IssueNotificationService } from "@/lib/projects/issue-sheet/issue-notification-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";

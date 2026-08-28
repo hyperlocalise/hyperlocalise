@@ -15,13 +15,13 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { validationErrorResponse } from "@/api/errors";
 import {
   apiErrorResponse,
   badRequestResponse,
   forbiddenResponse,
   notFoundResponse,
-  validationErrorResponse,
-} from "@/api/errors";
+} from "@/api/response.schema";
 import { getOwnedProject, projectNotFoundResponse } from "@/api/routes/project/project.shared";
 import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";

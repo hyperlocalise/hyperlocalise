@@ -15,7 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushCommitAutomationIdempotencyKey,

@@ -15,7 +15,7 @@ import { createMiddleware } from "hono/factory";
 import type { ResolvedIdentity } from "autumn-js/backend";
 import { autumnHandler } from "autumn-js/hono";
 
-import { forbiddenResponse } from "@/api/errors";
+import { forbiddenResponse } from "@/api/response.schema";
 import { hasCapability } from "@/api/auth/policy";
 import { createWorkosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {

@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 async function createClient(isHealthy: boolean) {
   vi.resetModules();
 
-  vi.doMock("@/lib/database", () => ({
+  vi.doMock("@/lib/database/client", () => ({
     isDatabaseHealthy: vi.fn().mockResolvedValue(isHealthy),
   }));
 
@@ -28,7 +28,7 @@ async function createClient(isHealthy: boolean) {
 describe("healthRoutes", () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock("@/lib/database");
+    vi.doUnmock("@/lib/database/client");
   });
 
   it("returns 200 when database is healthy", async () => {

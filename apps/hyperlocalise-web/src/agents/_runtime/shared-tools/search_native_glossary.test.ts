@@ -38,7 +38,7 @@ vi.mock("@/lib/glossary/glossary-concordance", () => ({
   searchGlossaryConcordance: (...args: unknown[]) => searchGlossaryConcordanceMock(...args),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   schema: {
     projectGlossaries: {
       glossaryId: "project_glossaries.glossary_id",

@@ -28,7 +28,7 @@ vi.mock("@/api/auth/team-access", () => ({
   canAccessStoredFile: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   schema: {
     projects: {
       id: "id",

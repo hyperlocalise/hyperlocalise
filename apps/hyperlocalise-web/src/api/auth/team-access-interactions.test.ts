@@ -17,7 +17,7 @@ import type { SQL } from "drizzle-orm";
 
 const dbSelectMock = vi.fn();
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: dbSelectMock,
   },

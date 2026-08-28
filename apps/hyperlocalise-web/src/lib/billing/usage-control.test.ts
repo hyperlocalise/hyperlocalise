@@ -20,7 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   completeAndTrackBillableUsage,

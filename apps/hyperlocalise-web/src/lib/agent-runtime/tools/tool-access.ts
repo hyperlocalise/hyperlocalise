@@ -23,7 +23,7 @@ import {
   canAccessStoredFile,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import {
   isLiveProviderMemoryId,

@@ -37,7 +37,7 @@ import type {
   MemoryEntryDetailResponse,
   MemoryEntryResponse,
 } from "@/api/routes/memory/memory.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 

@@ -21,8 +21,9 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { canAccessStoredFile } from "@/api/auth/team-access";
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import {
   uploadSourceFile,
   type SourceFileUploadError,

@@ -16,7 +16,7 @@ import type { GithubRepositoryAutomationJobRecord } from "@/lib/agents/github/gi
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createRunGithubWorkflowsTool } from "./run_github_workflows";

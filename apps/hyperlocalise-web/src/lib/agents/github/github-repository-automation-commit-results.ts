@@ -12,7 +12,7 @@
  */
 import { eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { HlCheckReport } from "@/lib/providers/provider-job-qa/hl-check-types";
 
 export type GithubRepositoryAutomationCommitResultStatus =

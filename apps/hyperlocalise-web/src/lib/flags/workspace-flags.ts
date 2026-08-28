@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
 import { createWorkosIdentify } from "./identify-workos-context";

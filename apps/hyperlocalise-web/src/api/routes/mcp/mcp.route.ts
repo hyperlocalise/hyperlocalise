@@ -58,7 +58,7 @@ import {
 } from "@/api/auth/mcp";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
 import { isErr } from "@/lib/primitives/result/results";

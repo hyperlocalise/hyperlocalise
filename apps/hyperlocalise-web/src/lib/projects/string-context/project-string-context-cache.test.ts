@@ -14,7 +14,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { eq } from "drizzle-orm";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import {
   getCachedProjectFileStringRepositoryContext,

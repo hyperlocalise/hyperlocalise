@@ -24,7 +24,7 @@ import {
   pullLatestFigmaTranslations,
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 

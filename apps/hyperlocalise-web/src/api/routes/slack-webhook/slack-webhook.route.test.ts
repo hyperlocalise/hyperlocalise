@@ -17,7 +17,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createSlackWebhookRoutes } from "./slack-webhook.route";
 

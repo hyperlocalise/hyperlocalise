@@ -43,10 +43,12 @@ import {
   listWorkspaceAutomationRuns,
   listWorkspaceAutomations,
   updateWorkspaceAutomation,
+} from "@/lib/agents/workspace-automations";
+import {
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -58,9 +60,9 @@ import {
   getGithubAutoReviewSettings,
   upsertGithubAutoReviewSettings,
 } from "@/lib/agents/github/github-auto-review-settings";
-import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
 

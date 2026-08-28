@@ -30,7 +30,7 @@ vi.mock("@/lib/glossary/crowdin-glossary", () => ({
     mocks.searchAttachedCrowdinGlossaryConcordance(...args),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: (selection?: unknown) => {
       if (selection && typeof selection === "object" && "glossary" in selection) {

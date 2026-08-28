@@ -15,8 +15,9 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { isPublicMediaStoredFile } from "@/lib/projects/files/public-media";
 
 import { fileNotFoundResponse } from "../file/file.shared";

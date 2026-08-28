@@ -14,7 +14,7 @@ import { tool } from "ai";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import type { ToolContext } from "@/lib/tools/types";
 
 /**

@@ -13,7 +13,7 @@
 import { eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";

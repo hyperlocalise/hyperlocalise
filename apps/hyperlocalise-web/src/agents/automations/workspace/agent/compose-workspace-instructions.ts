@@ -13,7 +13,7 @@
 import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 
 import type { WorkspaceOrchestratorPlan } from "./plan";
-import type { WorkspaceAutomationTriggerConfig } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationTriggerConfig } from "@/lib/agents/workspace-automation-types";
 import { resolveWorkspaceOrchestratorSharedSkills } from "./workspace-template-manifest";
 
 export function composeWorkspaceAutomationInstructions(input: {

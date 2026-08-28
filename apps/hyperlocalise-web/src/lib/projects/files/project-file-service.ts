@@ -21,8 +21,8 @@ import type {
   ProjectFilesQuery,
   WorkspaceFileRecord,
 } from "@/api/routes/project/project.schema";
-import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { normalizeProjectFileContent } from "@/lib/projects/files/project-file-content";
 import {

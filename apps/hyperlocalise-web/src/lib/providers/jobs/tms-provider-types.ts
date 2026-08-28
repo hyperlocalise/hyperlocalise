@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { JobKind } from "@/lib/database/types";
-import type { schema } from "@/lib/database";
+import type * as schema from "@/lib/database/schema";
 import type { Result } from "@/lib/primitives/result/results";
 
 import type {

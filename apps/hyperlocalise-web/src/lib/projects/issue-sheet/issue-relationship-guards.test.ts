@@ -15,7 +15,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { wouldCreateCycle } from "./issue-relationship-guards";
 

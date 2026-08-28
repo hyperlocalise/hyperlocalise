@@ -12,7 +12,7 @@
  */
 import { and, asc, eq, gt, or } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { TMX_EXPORT_PAGE_SIZE } from "./tmx/tmx-constants";
 import {

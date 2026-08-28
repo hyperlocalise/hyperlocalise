@@ -17,7 +17,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import {
   commitKnowledgeMemoryForOrganization,
   getKnowledgeMemoryForOrganization,

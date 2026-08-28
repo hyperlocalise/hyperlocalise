@@ -18,7 +18,7 @@ import { hasCapability } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse } from "@/api/response.schema";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { mentionSuggestionsQuerySchema } from "./mention-suggestions.schema";
 

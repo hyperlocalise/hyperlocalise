@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import {
   projectTranslationService,

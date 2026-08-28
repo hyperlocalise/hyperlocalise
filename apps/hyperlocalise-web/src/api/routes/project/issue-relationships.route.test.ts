@@ -19,7 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import { createProjectTestFixture } from "./project.fixture";
 

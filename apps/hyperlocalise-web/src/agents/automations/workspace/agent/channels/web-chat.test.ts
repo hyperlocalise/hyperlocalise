@@ -12,7 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 const {
   listRecentWebChatMessagesMock,
@@ -65,12 +65,12 @@ vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: (...args: unknown[]) => addInteractionMessageMock(...args),
 }));
 
-vi.mock("@/lib/file-storage", () => ({
+vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: (...args: unknown[]) => getFileStorageAdapterMock(...args),
 }));
 
-vi.mock("@/lib/database", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/database")>();
+vi.mock("@/lib/database/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database/client")>();
   return {
     ...actual,
     db: {

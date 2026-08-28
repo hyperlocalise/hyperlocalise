@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { FileStorageAdapter, PutStoredObjectInput } from "@/lib/file-storage";
+import type { FileStorageAdapter, PutStoredObjectInput } from "@/lib/file-storage/types";
 
 export function createMemoryFileStorageAdapter(): FileStorageAdapter {
   const store = new Map<string, { buffer: Buffer; contentType: string }>();

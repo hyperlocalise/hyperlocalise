@@ -35,7 +35,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 import { isOk } from "@/lib/primitives/result/results";
 

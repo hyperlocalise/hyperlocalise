@@ -15,7 +15,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";

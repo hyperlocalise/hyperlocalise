@@ -14,7 +14,7 @@ import { and, eq, or, sql } from "drizzle-orm";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import type { IssueSheetRelationshipKind } from "@/lib/database/schema/issue-sheet";
 import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { err, ok, type Result } from "@/lib/primitives/result/results";

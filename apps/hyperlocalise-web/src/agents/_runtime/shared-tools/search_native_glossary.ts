@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { schema } from "@/lib/database";
+import * as schema from "@/lib/database/schema";
 import { searchGlossaryConcordance } from "@/lib/glossary/glossary-concordance";
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
 

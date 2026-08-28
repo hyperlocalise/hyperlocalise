@@ -12,7 +12,7 @@
  */
 import { and, eq, ne, sql } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";

@@ -14,7 +14,7 @@ import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
   WorkspaceAutomationRunStatus,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorPlan, WorkspaceOrchestratorToolName } from "./plan";
 

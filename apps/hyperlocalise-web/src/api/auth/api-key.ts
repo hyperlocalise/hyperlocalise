@@ -18,8 +18,8 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
-import { db, schema } from "@/lib/database";
+import { forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
+import { db, schema } from "@/lib/database/client";
 
 export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
   auth: {

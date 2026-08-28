@@ -14,17 +14,17 @@ import { and, count, eq, inArray, sql } from "drizzle-orm";
 
 import { ownedProjectWhere } from "@/api/auth/team-access";
 
+import { validationErrorResponse } from "@/api/errors";
 import {
   badRequestResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
-  validationErrorResponse,
   type JsonContext,
-} from "@/api/errors";
+} from "@/api/response.schema";
 import { canAccessGlossary } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { getTmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";

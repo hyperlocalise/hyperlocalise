@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export const GITHUB_AUTO_REVIEW_ADDITIONAL_PROMPT_MAX_LENGTH = 8_000;

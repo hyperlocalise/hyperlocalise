@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, gte, or } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 import type { ContentfulWebhookEvent } from "./types";
 import { isPublishFromHyperlocaliseWriteback } from "./webhook";

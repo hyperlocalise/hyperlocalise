@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { db } from "@/lib/database";
+import type { db } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import type {
   RepositoryAgentActor,

@@ -15,8 +15,8 @@ import { and, count, eq, ne, sql } from "drizzle-orm";
 
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { getAutumnSecretKey } from "@/lib/billing/autumn-config";
-import type { DatabaseClient, DatabaseTransaction } from "@/lib/database";
-import { db, schema } from "@/lib/database";
+import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";

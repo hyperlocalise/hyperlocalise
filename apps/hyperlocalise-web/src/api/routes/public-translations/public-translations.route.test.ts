@@ -17,7 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";

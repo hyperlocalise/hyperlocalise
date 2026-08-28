@@ -12,7 +12,7 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {},
   schema: {
     connectors: {},

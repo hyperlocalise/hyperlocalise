@@ -15,13 +15,13 @@ import type { z } from "zod";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
+import { validationErrorResponse } from "@/api/errors";
 import {
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
-  validationErrorResponse,
   type JsonContext,
-} from "@/api/errors";
-import { schema } from "@/lib/database";
+} from "@/api/response.schema";
+import * as schema from "@/lib/database/schema";
 
 export function invalidApiKeyPayloadResponse(
   c: { json: JsonContext["json"] },

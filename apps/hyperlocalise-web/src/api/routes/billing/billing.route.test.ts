@@ -40,7 +40,7 @@ vi.mock("@/lib/billing/workspace-resource-usage-sync", () => ({
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { db } from "@/lib/database/client";
 
 const app = createApp();
 const fixture = createAuthTestFixture();

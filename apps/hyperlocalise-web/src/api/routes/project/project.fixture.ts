@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import type { AppType } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { testClient } from "hono/testing";

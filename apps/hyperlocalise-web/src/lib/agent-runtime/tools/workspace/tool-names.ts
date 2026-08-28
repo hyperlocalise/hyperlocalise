@@ -10,10 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { createResendAdapter } from "./adapter";
-export type {
-  ResendAdapter,
-  ResendAdapterConfig,
-  ResendRawMessage,
-  ResendThreadId,
-} from "./adapter";
+export const workspacePrimitiveToolNames = [
+  "read",
+  "grep",
+  "fuzzySearch",
+  "glob",
+  "bash",
+  "write",
+  "applyPatch",
+  "captureScreenshot",
+  "fetch",
+] as const;
+
+export const workspaceSessionToolNames = ["todoWrite"] as const;

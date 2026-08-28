@@ -27,7 +27,7 @@ import {
   createInteraction,
   findInteractionBySourceThreadId,
 } from "@/lib/conversations/interactions";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import type { RepositoryAgentTaskQueue } from "@/lib/workflow/types";
 import { eq } from "drizzle-orm";

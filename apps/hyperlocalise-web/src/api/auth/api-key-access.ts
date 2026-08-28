@@ -19,7 +19,7 @@ import {
   isMembershipReconcileFresh,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 

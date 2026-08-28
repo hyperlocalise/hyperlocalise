@@ -13,7 +13,7 @@
 import { and, eq } from "drizzle-orm";
 import type { UIMessage } from "ai";
 
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 
 const sourceFileIdPattern = /\bsourceFileId=/;
 

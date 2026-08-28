@@ -17,15 +17,15 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { validationErrorResponse } from "@/api/errors";
 import {
   badRequestResponse,
   conflictResponse,
   forbiddenResponse,
   internalErrorResponse,
   notFoundResponse,
-  validationErrorResponse,
-} from "@/api/errors";
-import { db, schema } from "@/lib/database";
+} from "@/api/response.schema";
+import { db, schema } from "@/lib/database/client";
 import { activeOrganizationCookieName } from "@/lib/workos/active-organization";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 

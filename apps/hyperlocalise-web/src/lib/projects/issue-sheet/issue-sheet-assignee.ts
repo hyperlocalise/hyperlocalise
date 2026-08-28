@@ -14,7 +14,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import { formatMemberDisplayName } from "@/api/routes/member/member.shared";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";

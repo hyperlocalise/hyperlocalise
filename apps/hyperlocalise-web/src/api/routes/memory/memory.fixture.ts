@@ -13,7 +13,7 @@
 import type { AppType } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { testClient } from "hono/testing";
 

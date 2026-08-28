@@ -16,7 +16,7 @@ import { err, ok } from "@/lib/primitives/result/results";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createNotifyGithubCommentTool } from "./notify_github_comment";
@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => ({
   buildOrchestratorRunSummaryMessage: vi.fn(),
 }));
 
-vi.mock("@/lib/database", () => ({
+vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({

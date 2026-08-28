@@ -14,8 +14,8 @@ import type { Thread } from "chat";
 import { eq, inArray } from "drizzle-orm";
 
 import { addInteractionMessage } from "@/lib/conversations/interactions";
-import { db, schema } from "@/lib/database";
-import { getFileStorageAdapter } from "@/lib/file-storage";
+import { db, schema } from "@/lib/database/client";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 

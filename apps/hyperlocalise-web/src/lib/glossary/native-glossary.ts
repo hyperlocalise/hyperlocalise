@@ -14,7 +14,7 @@ import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
-import { db, schema, type DatabaseClient } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { queryNativeGlossaryHasTermsAtLocale } from "@/lib/glossary/query-glossary-term-counts";
 import {

@@ -16,7 +16,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { OrganizationIssuesQuery } from "@/api/routes/issues/issues.schema";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { db, schema } from "@/lib/database/client";
 import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 import {
