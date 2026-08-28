@@ -323,6 +323,7 @@ export function ProjectFileCatWorkspace({
         sourceText: segment.sourceText,
         targetText: value,
         sourcePath,
+        targetLocale: segment.targetLocale,
         maxLength: segment.maxLength,
         signal: options?.signal,
         intl,

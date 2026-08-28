@@ -187,6 +187,25 @@ describe("CatEditorPanel UI", () => {
     expect(screen.getByText("Translation exceeds 80 characters.")).toBeInTheDocument();
   });
 
+  it("renders spelling warnings for the active segment", () => {
+    renderEditorPanel({
+      formatChecks: [
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: "Possible misspelling: recieve.",
+          category: "spelling",
+          relatedTokens: ["recieve"],
+        },
+      ],
+    });
+
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
+    expect(screen.getByText("Possible misspelling: recieve.")).toBeInTheDocument();
+    expect(screen.getByText("Check")).toBeInTheDocument();
+  });
+
   it("shows the segment key above the source heading", () => {
     renderEditorPanel();
 

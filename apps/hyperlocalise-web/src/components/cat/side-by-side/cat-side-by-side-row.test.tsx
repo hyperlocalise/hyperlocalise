@@ -313,6 +313,35 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByRole("status", { name: /Checking format & QA/i })).toBeInTheDocument();
   });
 
+  it("shows a spelling warning icon and details for focused text rows", () => {
+    renderRow({
+      formatChecks: [
+        {
+          id: "format-parity",
+          label: "Placeholders & markup",
+          status: "pass",
+          message: "No placeholders required.",
+          category: "placeholder",
+        },
+        {
+          id: "spelling",
+          label: "Spelling",
+          status: "warn",
+          message: "Possible misspelling: recieve.",
+          category: "spelling",
+          relatedTokens: ["recieve"],
+        },
+      ],
+    });
+
+    const icon = screen.getByRole("img", { name: /Format & QA warning/i });
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("data-status", "warn");
+    expect(screen.getByText("Spelling")).toBeInTheDocument();
+    expect(screen.getByText("Possible misspelling: recieve.")).toBeInTheDocument();
+    expect(screen.queryByText("Placeholders & markup")).not.toBeInTheDocument();
+  });
+
   it("shows a format check warning icon and details for focused text rows", () => {
     renderRow({
       formatChecks: [

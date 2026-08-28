@@ -28,6 +28,16 @@ export type CatRiskLevel = "low" | "medium" | "high" | "good";
 
 export type CatFormatCheckStatus = "pass" | "warn" | "fail";
 
+export type CatFormatCheckCategory =
+  | "length"
+  | "placeholder"
+  | "icu"
+  | "syntax"
+  | "terminology"
+  | "glossary"
+  | "qa"
+  | "spelling";
+
 export type CatSegmentCommentType = "comment" | "issue";
 
 export type CatIssueType =
@@ -133,7 +143,7 @@ export interface CatFormatCheck {
   label: string;
   status: CatFormatCheckStatus;
   message: string;
-  category?: "length" | "placeholder" | "icu" | "syntax" | "terminology" | "glossary" | "qa";
+  category?: CatFormatCheckCategory;
   relatedTokens?: string[];
 }
 

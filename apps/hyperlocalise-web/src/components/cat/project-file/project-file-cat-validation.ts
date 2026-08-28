@@ -13,28 +13,45 @@
 import { z } from "zod";
 
 import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
-import type { CatFormatCheck } from "@/components/cat/shared/types";
+import type { CatFormatCheck, CatFormatCheckCategory } from "@/components/cat/shared/types";
 import { readApiError } from "@/lib/api-error";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { projectFileCatValidationMessages } from "./project-file-cat-validation.messages";
+
+const CAT_FORMAT_CHECK_CATEGORIES = [
+  "length",
+  "placeholder",
+  "icu",
+  "syntax",
+  "terminology",
+  "glossary",
+  "qa",
+  "spelling",
+] as const satisfies readonly CatFormatCheckCategory[];
 
 const catFormatCheckSchema = z.object({
   id: z.string(),
   label: z.string(),
   status: z.enum(["pass", "warn", "fail"]),
   message: z.string(),
-  category: z
-    .enum(["length", "placeholder", "icu", "syntax", "terminology", "glossary", "qa"])
-    .optional(),
+  category: z.enum(CAT_FORMAT_CHECK_CATEGORIES).optional(),
   relatedTokens: z.array(z.string()).optional(),
 });
 
 const catSegmentValidationResponseSchema = z.object({
   checks: z.array(catFormatCheckSchema),
+  skippedModes: z.array(z.string()).optional(),
 });
 
-export const CAT_SEGMENT_QA_MODES = ["not_localized", "whitespace_only", "same_as_source"] as const;
+export const CAT_SEGMENT_SPELLING_MODE = "spelling" as const;
+
+export const CAT_SEGMENT_QA_MODES = [
+  "not_localized",
+  "whitespace_only",
+  "same_as_source",
+  CAT_SEGMENT_SPELLING_MODE,
+] as const;
 
 const CAT_SEGMENT_VALIDATION_ENABLED = true;
 
@@ -48,6 +65,7 @@ export async function fetchCatSegmentValidation(
     sourceText: string;
     targetText: string;
     sourcePath: string;
+    targetLocale: string;
     maxLength?: number;
     signal?: AbortSignal;
     intl: CatFormatMessageIntl;
@@ -61,6 +79,10 @@ export async function fetchCatSegmentValidation(
   const requestFailedMessage = input.intl.formatMessage(
     projectFileCatValidationMessages.requestFailed,
   );
+  const targetLocale = input.targetLocale.trim();
+  const modes = targetLocale
+    ? CAT_SEGMENT_QA_MODES
+    : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 
   const responseResult = await fromThrowableAsync(
     fetcher("/api/go-svc/v1/validate/segment", {
@@ -74,7 +96,8 @@ export async function fetchCatSegmentValidation(
         targetText: input.targetText,
         sourcePath: input.sourcePath,
         ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
-        modes: CAT_SEGMENT_QA_MODES,
+        ...(targetLocale ? { targetLocale } : {}),
+        modes,
       }),
       signal: input.signal,
     }),
@@ -116,5 +139,10 @@ export async function fetchCatSegmentValidation(
     });
   }
 
-  return ok(parsed.data.checks);
+  const skippedModes = new Set(parsed.data.skippedModes ?? []);
+  const checks = parsed.data.checks.filter(
+    (check) => !(skippedModes.has(CAT_SEGMENT_SPELLING_MODE) && check.category === "spelling"),
+  );
+
+  return ok(checks);
 }
