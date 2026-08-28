@@ -680,6 +680,13 @@
       "when": 1787780296108,
       "tag": "0096_vengeful_mother_askani",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1787879235868,
+      "tag": "0097_regular_infant_terrible",
+      "breakpoints": true
     }
   ]
 }

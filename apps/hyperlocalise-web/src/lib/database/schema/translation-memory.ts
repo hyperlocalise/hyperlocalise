@@ -406,6 +406,12 @@ export const memoryEntries = pgTable(
     externalKey: text("external_key"),
     // Review status for agent suggestions vs human-approved entries.
     reviewStatus: text("review_status").notNull().default("approved"),
+    // User who created the entry, if known.
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Shared identifier for entries written by one import request.
+    importBatchId: uuid("import_batch_id"),
     // Extensible metadata for import payloads or audit tags.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -415,6 +421,13 @@ export const memoryEntries = pgTable(
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
       setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(target_text, '')), 'B')
+    `),
+    // Explorer/management search document: source, target, identifiers, and string metadata.
+    managementSearchVector: tsvector("management_search_vector").generatedAlwaysAs(sql`
+      setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(target_text, '')), 'B') ||
+      setweight(to_tsvector('simple', coalesce(external_key, '')), 'A') ||
+      setweight(jsonb_to_tsvector('simple', coalesce(metadata, '{}'::jsonb), '["string"]'), 'C')
     `),
     // When the TM entry was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -443,6 +456,13 @@ export const memoryEntries = pgTable(
     ),
     index("idx_memory_entries_external_key").on(table.externalKey),
     index("idx_memory_entries_search_vector").using("gin", table.searchVector),
+    index("idx_memory_entries_management_search_vector").using("gin", table.managementSearchVector),
+    index("idx_memory_entries_memory_created_at_id").on(table.memoryId, table.createdAt, table.id),
+    index("idx_memory_entries_memory_updated_at_id").on(table.memoryId, table.updatedAt, table.id),
+    index("idx_memory_entries_memory_review_status").on(table.memoryId, table.reviewStatus),
+    index("idx_memory_entries_memory_provenance").on(table.memoryId, table.provenance),
+    index("idx_memory_entries_memory_created_by").on(table.memoryId, table.createdByUserId),
+    index("idx_memory_entries_memory_import_batch").on(table.memoryId, table.importBatchId),
   ],
 );
 
