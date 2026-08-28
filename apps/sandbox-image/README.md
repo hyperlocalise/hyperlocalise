@@ -45,6 +45,14 @@ verified against pinned upstream commits and SHA-256 checksums.
 |------|----------|
 | `/usr/share/hunspell` | 20 `.aff`/`.dic` pairs; also exported as `DICPATH` so `hunspell -d en_US` works without an absolute path |
 | `/usr/share/doc/hunspell-dictionaries/<locale>` | licence evidence, required because the dictionaries are redistributed under GPL/LGPL/MPL terms |
+| `/usr/share/doc/hunspell-dictionaries/SHA256SUMS` | checksums of the staged dictionaries, asserted at build time |
+
+The apt `hunspell` package depends on `hunspell-en-us`, which ships its own
+`en_US` into `/usr/share/hunspell`. The pinned set has to win, which today it
+does only because the `COPY` runs after the apt install. Rather than rely on
+that ordering, the build verifies the shipped files against `SHA256SUMS` and
+fails if anything replaced them — so moving those steps breaks the build
+instead of silently swapping a dictionary.
 
 Dictionary basenames do **not** always follow the BCP 47 tag: `de-DE` maps to
 `de_DE_frami` and `fr-FR` to `fr`. Resolve them through

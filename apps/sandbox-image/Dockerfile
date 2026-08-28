@@ -36,6 +36,10 @@ COPY apps/go-svc/build/fetch-dictionaries.sh /repo/apps/go-svc/build/fetch-dicti
 
 RUN bash /repo/apps/go-svc/build/fetch-dictionaries.sh /repo /dictionaries-staging/hunspell /dictionaries-staging/licenses
 
+# Checksums of what was staged, so the runtime stage can prove the dictionaries
+# it ends up with are these and not a distro package's.
+RUN cd /dictionaries-staging/hunspell && sha256sum ./*.aff ./*.dic > /dictionaries-staging/SHA256SUMS
+
 FROM ubuntu:26.04
 
 USER root
@@ -113,13 +117,20 @@ RUN set -eux; \
 # Pinned dictionaries plus their licence evidence. The dictionaries are
 # GPL/LGPL/MPL licensed and redistributed in this image, so the licence files
 # must ship alongside them.
+#
+# This must stay after the apt install above: `hunspell` depends on
+# hunspell-en-us, which ships its own en_US into the same directory, and these
+# pinned files have to be the ones that survive.
 COPY --from=dictionaries /dictionaries-staging/hunspell/ ${HUNSPELL_DICT_DIR}/
 COPY --from=dictionaries /dictionaries-staging/licenses/ /usr/share/doc/hunspell-dictionaries/
+COPY --from=dictionaries /dictionaries-staging/SHA256SUMS /usr/share/doc/hunspell-dictionaries/SHA256SUMS
 
-# Fail the build if a dictionary is unreadable or loses its encoding: en_US
-# covers the ASCII path, de_DE_frami covers UTF-8 round-tripping.
+# Fail the build if the shipped dictionaries are not the staged ones (a distro
+# package winning the directory), if one is unreadable, or if a locale loses its
+# encoding: en_US covers the ASCII path, de_DE_frami UTF-8 round-tripping.
 RUN set -eux; \
     chmod -R a+rX "${HUNSPELL_DICT_DIR}" /usr/share/doc/hunspell-dictionaries; \
+    (cd "${HUNSPELL_DICT_DIR}" && sha256sum -c --quiet /usr/share/doc/hunspell-dictionaries/SHA256SUMS); \
     [ "$(printf 'hello\nhelo\n' | hunspell -d "${HUNSPELL_DICT_DIR}/en_US" -l)" = "helo" ]; \
     [ "$(printf 'Stra\303\237e\nStrasze\n' | hunspell -d "${HUNSPELL_DICT_DIR}/de_DE_frami" -l)" = "Strasze" ]
 

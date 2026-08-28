@@ -109,10 +109,23 @@ for entry in $LOCALES; do
     esac
 done
 
+DOC_DIR=/usr/share/doc/hunspell-dictionaries
+
 echo
 echo "=== licence evidence ==="
-echo "locales with licence files : $(find /usr/share/doc/hunspell-dictionaries -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
-echo "licence files total        : $(find /usr/share/doc/hunspell-dictionaries -type f 2>/dev/null | wc -l)"
+echo "locales with licence files : $(find "$DOC_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+echo "licence files total        : $(find "$DOC_DIR" -mindepth 2 -type f 2>/dev/null | wc -l)"
+
+# The apt hunspell package depends on hunspell-en-us, which ships its own en_US
+# into DICT_DIR. Confirm the pinned files are the ones present.
+echo
+echo "=== dictionaries match the staged (pinned) set ==="
+if (cd "$DICT_DIR" && sha256sum -c --quiet "$DOC_DIR/SHA256SUMS"); then
+    echo "sha256sum -c: all $(wc -l < "$DOC_DIR/SHA256SUMS") files OK"
+else
+    echo "FAIL: shipped dictionaries do not match SHA256SUMS"
+    fail=$((fail + 1))
+fi
 
 echo
 echo "=== result: ${pass} locale(s) verified, ${fail} failed ==="
