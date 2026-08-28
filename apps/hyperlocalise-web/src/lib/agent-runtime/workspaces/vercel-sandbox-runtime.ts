@@ -137,6 +137,7 @@ export const SANDBOX_WRITE_SYMLINK_DENIED = 42;
 export const SANDBOX_WRITE_PATH_INVALID = 43;
 export const SANDBOX_WRITE_OUTSIDE_WORKSPACE = 44;
 export const SANDBOX_WRITE_ROOT_UNAVAILABLE = 45;
+export const SANDBOX_WRITE_GIT_METADATA_DENIED = 46;
 
 function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
@@ -165,6 +166,10 @@ export function buildSandboxWriteFileScript(path: string, base64Content: string)
     'case "$resolved" in',
     `  "$root"|"$root"/*) ;;`,
     `  *) exit ${SANDBOX_WRITE_OUTSIDE_WORKSPACE} ;;`,
+    "esac",
+    // Deny `.git/config` and other git metadata. `*/.git/*` does not match `.gitignore`.
+    'case "/$resolved/" in',
+    `  */.git/*) exit ${SANDBOX_WRITE_GIT_METADATA_DENIED} ;;`,
     "esac",
     "remaining=$target",
     "current=.",
@@ -269,6 +274,9 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     ]);
     if (result.exitCode === SANDBOX_WRITE_SYMLINK_DENIED) {
       throw new Error("Symlink writes are not allowed.");
+    }
+    if (result.exitCode === SANDBOX_WRITE_GIT_METADATA_DENIED) {
+      throw new Error("Writes under .git/ are not allowed.");
     }
     if (result.exitCode === SANDBOX_WRITE_OUTSIDE_WORKSPACE) {
       throw new Error("Path resolves outside the workspace.");

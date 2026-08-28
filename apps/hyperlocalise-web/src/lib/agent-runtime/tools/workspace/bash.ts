@@ -17,6 +17,7 @@ import { flagBasename, HL_WRITE_FLAG_NAMES } from "@/lib/agent-runtime/tools/hl-
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { isSuccessfulAllowlistedExit } from "./git-exit";
+import { hardenGitArgs } from "./git-harden";
 import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
@@ -43,9 +44,10 @@ const DISALLOWED_FLAG_NAMES = new Set([
   ...HL_WRITE_FLAG_NAMES,
 ]);
 
-// git log/diff/show `--output`/`-o` writes a file. Keep these git-only:
+// git log/diff/show `--output`/`-o` writes a file. `--textconv` / `--ext-diff`
+// run helper programs from `.git/config`. Keep these git-only:
 // `find -o` is OR, and `hl status --output csv` is a format, not a path.
-const DISALLOWED_GIT_OUTPUT_FLAG_NAMES = new Set(["output", "o"]);
+const DISALLOWED_GIT_FLAG_NAMES = new Set(["output", "o", "textconv", "ext-diff"]);
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
@@ -80,7 +82,7 @@ function isDisallowedGitOutputFlag(token: string): boolean {
     return false;
   }
   const name = flagBasename(token);
-  if (DISALLOWED_GIT_OUTPUT_FLAG_NAMES.has(name)) {
+  if (DISALLOWED_GIT_FLAG_NAMES.has(name)) {
     return true;
   }
   // git accepts `-ofile` as `-o` with an attached filename.
@@ -210,6 +212,9 @@ IMPORTANT:
           } else if (bin === "find" && args[0] !== workdir) {
             execArgs = [workdir, ...args];
           }
+        }
+        if (bin === "git") {
+          execArgs = hardenGitArgs(execArgs);
         }
 
         const result = await ctx.bash.exec(bin, { args: execArgs });

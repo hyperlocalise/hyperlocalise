@@ -10,8 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
+import { hardenGitArgs } from "@/lib/agent-runtime/tools/workspace/git-harden";
+import {
+  GIT_METADATA_WRITE_ERROR,
+  isGitMetadataPath,
+} from "@/lib/agent-runtime/tools/workspace/path";
 import type { RepoToolContext } from "@/lib/agent-runtime/tools/workspace/types";
+import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 
 /**
  * Minimal Bash adapter backed by a Vercel sandbox for repo read/search tools.
@@ -22,7 +27,8 @@ export function createSandboxRepoBash(sandboxId: string): RepoToolContext["bash"
   return {
     async exec(command, options) {
       const args = options?.args ?? [];
-      const result = await workspace.runCommand(command, args);
+      const execArgs = command === "git" ? hardenGitArgs(args) : args;
+      const result = await workspace.runCommand(command, execArgs);
       return {
         exitCode: result.exitCode,
         stdout: result.output,
@@ -34,6 +40,9 @@ export function createSandboxRepoBash(sandboxId: string): RepoToolContext["bash"
       return workspace.readFile(path);
     },
     async writeWorkspaceFile(path, content) {
+      if (isGitMetadataPath(path)) {
+        throw new Error(GIT_METADATA_WRITE_ERROR);
+      }
       await workspace.writeFile(path, content);
     },
   };
