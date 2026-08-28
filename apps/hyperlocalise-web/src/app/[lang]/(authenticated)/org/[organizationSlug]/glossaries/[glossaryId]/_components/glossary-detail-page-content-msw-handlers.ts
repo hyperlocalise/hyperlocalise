@@ -43,16 +43,19 @@ export function createGlossaryDetailMswHandlers({
       HttpResponse.json({ glossary: currentGlossary }),
     ),
     http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
-      const body = (await request.json()) as { name?: string; controlLevel?: "org" | "team" };
+      const body = (await request.json()) as { name?: string };
       currentGlossary = {
         ...currentGlossary,
         ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(body.controlLevel !== undefined ? { controlLevel: body.controlLevel } : {}),
       };
       return HttpResponse.json({
         glossary: currentGlossary,
       });
     }),
+    http.delete(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {
       if (conceptsLoading) await delay("infinite");
       return HttpResponse.json({

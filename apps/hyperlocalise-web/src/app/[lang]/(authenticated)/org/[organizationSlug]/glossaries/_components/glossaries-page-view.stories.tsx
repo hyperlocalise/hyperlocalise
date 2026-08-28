@@ -76,7 +76,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(canvas.getByText("Org")).toBeInTheDocument();
     await expect(canvas.getByText("Product team terms")).toBeInTheDocument();
-    await expect(canvas.getByText("Team")).toBeInTheDocument();
+    await expect(canvas.getByText("Product")).toBeInTheDocument();
     await expect(canvas.getAllByText("English (United States)").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Vietnamese (Vietnam)")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();

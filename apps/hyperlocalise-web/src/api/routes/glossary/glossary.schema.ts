@@ -200,6 +200,8 @@ export const glossaryRecordSchema = z.object({
   status: z.string(),
   source: z.enum(["native", "external_tms"]),
   controlLevel: glossaryControlLevelSchema,
+  teamId: z.string().uuid().nullable(),
+  teamName: z.string().nullable().optional(),
   externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
   externalProjectId: z.string().nullable(),
   externalResourceType: z.enum(["glossary", "term_base"]).nullable(),

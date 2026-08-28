@@ -674,7 +674,6 @@ export function CatIntelligencePanel({
                             <CatGlossaryConceptCard
                               key={concept.id}
                               concept={concept}
-                              teamName={teamName}
                               expanded={expandedGlossaryConceptIds.has(concept.id)}
                               onToggle={() => toggleGlossaryConcept(concept.id)}
                             />

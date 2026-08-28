@@ -162,6 +162,13 @@ function formatLanguages(languages: ApiGlossary["languages"], intl?: GlossaryLis
 
 function resourceTypeLabelFor(glossary: ApiGlossary, intl?: GlossaryListIntl) {
   if (glossary.source === "native") {
+    if (glossary.controlLevel === "team") {
+      const teamName = glossary.teamName?.trim();
+      if (teamName) {
+        return teamName;
+      }
+    }
+
     return resolveMessage(
       intl,
       glossary.controlLevel === "team"

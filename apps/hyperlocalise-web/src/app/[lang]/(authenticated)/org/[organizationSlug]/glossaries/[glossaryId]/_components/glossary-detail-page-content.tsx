@@ -208,6 +208,18 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : DATE_FORMATTER.format(date);
 }
 
+function teamControlLevelDisplayLabel(
+  glossary: GlossaryRecord,
+  intl: ReturnType<typeof useIntl>,
+): string {
+  const teamName = glossary.teamName?.trim();
+  if (teamName) {
+    return teamName;
+  }
+
+  return intl.formatMessage(messages.controlLevelTeam);
+}
+
 function TermStatusSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <span
@@ -365,6 +377,7 @@ export function GlossaryDetailPageContent({
   const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
   const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
+  const [deleteGlossaryDialogOpen, setDeleteGlossaryDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
   const skipNameBlurSave = useRef(false);
@@ -747,25 +760,27 @@ export function GlossaryDetailPageContent({
       toast.success(intl.formatMessage(messages.glossaryNameUpdated));
     },
   });
-  const updateGlossaryControlLevel = useMutation({
-    mutationFn: async (controlLevel: "org" | "team") => {
+  const deleteGlossary = useMutation({
+    mutationFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
-      ].$patch({
+      ].$delete({
         param: { organizationSlug, glossaryId },
-        json: { controlLevel },
       });
-      if (!response.ok)
+      if (!response.ok) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.updateControlLevelFailed)),
+          await readApiError(response, intl.formatMessage(messages.deleteGlossaryFailed)),
         );
-      return (await response.json()).glossary as GlossaryRecord;
+      }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["glossary", organizationSlug, glossaryId],
-      });
-      toast.success(intl.formatMessage(messages.glossaryControlLevelUpdated));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] }),
+        queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] }),
+      ]);
+      toast.success(intl.formatMessage(messages.glossaryDeleted));
+      setDeleteGlossaryDialogOpen(false);
+      router.push(`/org/${organizationSlug}/glossaries`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -958,46 +973,17 @@ export function GlossaryDetailPageContent({
                 className="size-5 text-muted-foreground"
                 strokeWidth={1.8}
               />
-              {canManage && isNative ? (
-                <Select
-                  value={glossary.controlLevel}
-                  onValueChange={(value) => {
-                    if (value === "org" || value === "team") {
-                      updateGlossaryControlLevel.mutate(value);
-                    }
-                  }}
-                  disabled={updateGlossaryControlLevel.isPending}
-                >
-                  <SelectTrigger
-                    className="h-7 w-auto min-w-24"
-                    aria-label={intl.formatMessage(messages.controlLevelLabel)}
-                  >
-                    <SelectValue>
-                      {glossary.controlLevel === "team"
-                        ? intl.formatMessage(messages.controlLevelTeam)
-                        : intl.formatMessage(messages.controlLevelOrg)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="org" label={intl.formatMessage(messages.controlLevelOrg)}>
-                      <FormattedMessage {...messages.controlLevelOrg} />
-                    </SelectItem>
-                    <SelectItem value="team" label={intl.formatMessage(messages.controlLevelTeam)}>
-                      <FormattedMessage {...messages.controlLevelTeam} />
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Badge variant="outline">
-                  <FormattedMessage
-                    {...(isNative
-                      ? glossary.controlLevel === "team"
-                        ? messages.controlLevelTeam
-                        : messages.controlLevelOrg
-                      : messages.sourceProvider)}
-                  />
-                </Badge>
-              )}
+              <Badge variant="outline">
+                {isNative ? (
+                  glossary.controlLevel === "team" ? (
+                    teamControlLevelDisplayLabel(glossary, intl)
+                  ) : (
+                    <FormattedMessage {...messages.controlLevelOrg} />
+                  )
+                ) : (
+                  <FormattedMessage {...messages.sourceProvider} />
+                )}
+              </Badge>
               {glossary.languages.map((language) => (
                 <Badge
                   key={language.locale}
@@ -1055,6 +1041,19 @@ export function GlossaryDetailPageContent({
             <TypographyP className="max-w-3xl text-sm leading-6 text-muted-foreground">
               {glossary.description || intl.formatMessage(messages.descriptionFallback)}
             </TypographyP>
+            {canManage && isNative ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteGlossaryDialogOpen(true)}
+                  disabled={deleteGlossary.isPending}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+                  <FormattedMessage {...messages.deleteGlossary} />
+                </Button>
+              </div>
+            ) : null}
           </section>
 
           {isConceptGlossary ? (
@@ -2414,6 +2413,45 @@ export function GlossaryDetailPageContent({
           </div>
         </section>
       ) : null}
+
+      <AlertDialog
+        open={deleteGlossaryDialogOpen}
+        onOpenChange={(open) => {
+          if (!deleteGlossary.isPending) {
+            setDeleteGlossaryDialogOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.confirmDeleteGlossaryTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(messages.confirmDeleteGlossaryDescription, {
+                glossaryName: glossary.name,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteGlossary.isPending}>
+              <FormattedMessage {...messages.cancelEdit} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteGlossary.isPending}
+              onClick={() => deleteGlossary.mutate()}
+            >
+              {deleteGlossary.isPending ? (
+                <Spinner />
+              ) : (
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              )}
+              <FormattedMessage {...messages.deleteGlossary} />
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={Boolean(termToDeleteId)}

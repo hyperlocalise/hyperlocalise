@@ -33,6 +33,10 @@ import {
   queryNativeGlossaryLanguages,
   queryNativeGlossaryLanguagesForGlossary,
 } from "@/lib/glossary/query-glossary-languages";
+import {
+  queryGlossaryTeamNamesById,
+  resolveGlossaryTeamName,
+} from "@/lib/glossary/query-glossary-team-names";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {
@@ -51,6 +55,7 @@ import {
   updateGlossaryBodySchema,
   type AttachGlossaryProjectBody,
   type CreateGlossaryBody,
+  type GlossaryRecord,
   type ListGlossaryQuery,
 } from "./glossary.schema";
 import {
@@ -70,6 +75,22 @@ import {
   getOwnedGlossary,
   glossaryNotFoundResponse,
 } from "./glossary.shared";
+
+function toGlossaryRecordWithTeamName(
+  glossary: Parameters<typeof toGlossaryRecord>[0],
+  teamNamesById: ReadonlyMap<string, string>,
+  languages?: GlossaryRecord["languages"],
+  termCount?: number | null,
+  projectCount = 0,
+) {
+  return toGlossaryRecord(
+    glossary,
+    languages,
+    termCount,
+    projectCount,
+    resolveGlossaryTeamName(glossary, teamNamesById),
+  );
+}
 
 type GlossaryListResult = {
   glossaries: NativeGlossary[];
@@ -338,6 +359,7 @@ export function createGlossaryRoutes() {
         projectCountsByGlossaryId,
         productsByGlossaryId,
       } = await listGlossaries(c.var.auth, query);
+      const teamNamesById = await queryGlossaryTeamNamesById(glossaries);
       const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
         const product = productsByGlossaryId.get(glossary.id);
         const termCount =
@@ -347,11 +369,24 @@ export function createGlossaryRoutes() {
           const remote = await product.get();
           const languages = languagesByGlossaryId.get(glossary.id);
           return languages
-            ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
-            : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount);
+            ? toGlossaryRecordWithTeamName(
+                remote ?? glossary,
+                teamNamesById,
+                languages,
+                termCount,
+                projectCount,
+              )
+            : toGlossaryRecordWithTeamName(
+                remote ?? glossary,
+                teamNamesById,
+                undefined,
+                termCount,
+                projectCount,
+              );
         }
-        return toGlossaryRecord(
+        return toGlossaryRecordWithTeamName(
           glossary,
+          teamNamesById,
           languagesByGlossaryId.get(glossary.id),
           termCount,
           projectCount,
@@ -401,11 +436,13 @@ export function createGlossaryRoutes() {
           return glossaryTeamNotFoundResponse(c);
         case "team_membership_required":
           return glossaryTeamMembershipRequiredResponse(c);
-        case "created":
+        case "created": {
+          const teamNamesById = await queryGlossaryTeamNamesById([createResult.glossary]);
           return c.json(
             {
-              glossary: toGlossaryRecord(
+              glossary: toGlossaryRecordWithTeamName(
                 createResult.glossary,
+                teamNamesById,
                 undefined,
                 0,
                 createResult.projectCount,
@@ -413,6 +450,7 @@ export function createGlossaryRoutes() {
             },
             201,
           );
+        }
       }
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
@@ -429,6 +467,7 @@ export function createGlossaryRoutes() {
           ? await queryNativeGlossaryTermCountForGlossary(glossary)
           : undefined;
       const projectCount = product ? await product.queryProjectCount() : 0;
+      const teamNamesById = await queryGlossaryTeamNamesById([glossary]);
       if (product) {
         const remote = await product.get();
         const languages =
@@ -438,15 +477,35 @@ export function createGlossaryRoutes() {
         return c.json(
           {
             glossary: languages
-              ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
-              : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount),
+              ? toGlossaryRecordWithTeamName(
+                  remote ?? glossary,
+                  teamNamesById,
+                  languages,
+                  termCount,
+                  projectCount,
+                )
+              : toGlossaryRecordWithTeamName(
+                  remote ?? glossary,
+                  teamNamesById,
+                  undefined,
+                  termCount,
+                  projectCount,
+                ),
           },
           200,
         );
       }
 
       return c.json(
-        { glossary: toGlossaryRecord(glossary, undefined, termCount, projectCount) },
+        {
+          glossary: toGlossaryRecordWithTeamName(
+            glossary,
+            teamNamesById,
+            undefined,
+            termCount,
+            projectCount,
+          ),
+        },
         200,
       );
     })
@@ -606,8 +665,17 @@ export function createGlossaryRoutes() {
           case "updated": {
             const termCount = await queryNativeGlossaryTermCountForGlossary(result.glossary);
             const projectCount = await product.queryProjectCount();
+            const teamNamesById = await queryGlossaryTeamNamesById([result.glossary]);
             return c.json(
-              { glossary: toGlossaryRecord(result.glossary, undefined, termCount, projectCount) },
+              {
+                glossary: toGlossaryRecordWithTeamName(
+                  result.glossary,
+                  teamNamesById,
+                  undefined,
+                  termCount,
+                  projectCount,
+                ),
+              },
               200,
             );
           }
@@ -625,8 +693,17 @@ export function createGlossaryRoutes() {
           ? await queryNativeGlossaryTermCountForGlossary(updated)
           : undefined;
       const projectCount = await product.queryProjectCount();
+      const teamNamesById = await queryGlossaryTeamNamesById([updated]);
       return c.json(
-        { glossary: toGlossaryRecord(updated, undefined, termCount, projectCount) },
+        {
+          glossary: toGlossaryRecordWithTeamName(
+            updated,
+            teamNamesById,
+            undefined,
+            termCount,
+            projectCount,
+          ),
+        },
         200,
       );
     })
