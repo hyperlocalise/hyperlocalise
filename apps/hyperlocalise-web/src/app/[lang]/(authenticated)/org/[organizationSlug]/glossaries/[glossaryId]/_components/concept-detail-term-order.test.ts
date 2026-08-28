@@ -93,16 +93,25 @@ describe("sortConceptDetailCreatingTerms", () => {
   it("keeps the seeded source term before additional drafts in the same locale", () => {
     expect(
       compareConceptDetailCreatingTerms(
-        { id: "new-source-en-US", term: "" },
-        { id: "new-abc", term: "Variant" },
+        { id: "new-source-en-US", status: "draft", term: "" },
+        { id: "new-abc", status: "draft", term: "Variant" },
       ),
     ).toBeLessThan(0);
 
     const terms = sortConceptDetailCreatingTerms([
-      { id: "new-abc", term: "Variant" },
-      { id: "new-source-en-US", term: "Agency" },
+      { id: "new-abc", status: "draft", term: "Variant" },
+      { id: "new-source-en-US", status: "draft", term: "Agency" },
     ]);
 
     expect(terms.map((term) => term.id)).toEqual(["new-source-en-US", "new-abc"]);
+  });
+
+  it("ranks preferred drafts ahead of the seeded source term", () => {
+    const terms = sortConceptDetailCreatingTerms([
+      { id: "new-source-en-US", status: "draft", term: "Agency" },
+      { id: "new-abc", status: "preferred", term: "Payment" },
+    ]);
+
+    expect(terms.map((term) => term.id)).toEqual(["new-abc", "new-source-en-US"]);
   });
 });

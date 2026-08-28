@@ -60,9 +60,13 @@ export function sortConceptDetailPersistedTerms<
 }
 
 export function compareConceptDetailCreatingTerms(
-  left: { id: string; term: string },
-  right: { id: string; term: string },
+  left: { id: string; status: string; term: string },
+  right: { id: string; status: string; term: string },
 ): number {
+  const leftPreferred = left.status === "preferred";
+  const rightPreferred = right.status === "preferred";
+  if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1;
+
   const leftIsSeed = left.id.startsWith("new-source-");
   const rightIsSeed = right.id.startsWith("new-source-");
   if (leftIsSeed !== rightIsSeed) return leftIsSeed ? -1 : 1;
@@ -70,8 +74,8 @@ export function compareConceptDetailCreatingTerms(
   return left.term.localeCompare(right.term);
 }
 
-export function sortConceptDetailCreatingTerms<T extends { id: string; term: string }>(
-  terms: T[],
-): T[] {
+export function sortConceptDetailCreatingTerms<
+  T extends { id: string; status: string; term: string },
+>(terms: T[]): T[] {
   return terms.toSorted(compareConceptDetailCreatingTerms);
 }
