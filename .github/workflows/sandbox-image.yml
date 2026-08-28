@@ -5,12 +5,16 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - apps/sandbox-image/**
+      - apps/go-svc/build/fetch-dictionaries.sh
+      - internal/i18n/spellcheck/DICTIONARIES.md
       - .github/workflows/sandbox-image.yml
   push:
     branches:
       - main
     paths:
       - apps/sandbox-image/**
+      - apps/go-svc/build/fetch-dictionaries.sh
+      - internal/i18n/spellcheck/DICTIONARIES.md
       - .github/workflows/sandbox-image.yml
   workflow_dispatch:
 
@@ -100,7 +104,9 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: apps/sandbox-image
+          # Repository root: the dictionary stage stages files from
+          # internal/i18n/spellcheck and apps/go-svc/build.
+          context: .
           file: apps/sandbox-image/Dockerfile
           platforms: linux/amd64
           # PRs: build-only with a local tag (no registry auth).
