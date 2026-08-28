@@ -17,22 +17,22 @@ import { defineMessages } from "react-intl";
 export const tmEntryLocaleFieldMessages = defineMessages({
   useCustomLocale: {
     defaultMessage: "Use a custom locale",
-    id: "tmEntryLocaleUseCustom",
+    id: "9p6Zd7Fce0",
     description: "Button that reveals a custom BCP-47 locale input",
   },
   customLocalePlaceholder: {
     defaultMessage: "e.g. sw-KE",
-    id: "tmEntryLocaleCustomPlaceholder",
+    id: "g9zYSipfZt",
     description: "Placeholder for a custom BCP-47 locale tag",
   },
   applyCustomLocale: {
     defaultMessage: "Use locale",
-    id: "tmEntryLocaleApplyCustom",
+    id: "it5/fNQT1d",
     description: "Button that applies a custom BCP-47 locale",
   },
   invalidCustomLocale: {
     defaultMessage: "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).",
-    id: "tmEntryLocaleInvalidCustom",
+    id: "cn9H9r7cR1",
     description: "Validation error for an invalid custom translation memory locale",
   },
 });

@@ -55,9 +55,7 @@ export function TmEntryLocaleField({
 
   return (
     <Field className="gap-1.5">
-      <FieldLabel>
-        {label}
-      </FieldLabel>
+      <FieldLabel>{label}</FieldLabel>
       <IssueLocalePicker
         value={value}
         locales={locales}
@@ -92,7 +90,13 @@ export function TmEntryLocaleField({
               placeholder={intl.formatMessage(messages.customLocalePlaceholder)}
               aria-label={intl.formatMessage(messages.customLocalePlaceholder)}
             />
-            <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={applyCustomLocale}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={applyCustomLocale}
+            >
               <FormattedMessage {...messages.applyCustomLocale} />
             </Button>
           </div>

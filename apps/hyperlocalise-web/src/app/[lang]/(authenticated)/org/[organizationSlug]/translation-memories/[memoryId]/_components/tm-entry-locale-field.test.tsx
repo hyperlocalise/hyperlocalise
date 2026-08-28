@@ -55,7 +55,9 @@ describe("TmEntryLocaleField", () => {
     await user.click(screen.getByRole("button", { name: "Use locale" }));
 
     expect(onValueChange).toHaveBeenCalledWith("sw-KE");
-    expect(screen.getByRole("combobox", { name: "Source locale" })).toHaveTextContent("sw-KE");
+    expect(screen.getByRole("combobox", { name: "Source locale" })).toHaveTextContent(
+      "Swahili (Kenya)",
+    );
   });
 
   it("rejects an invalid custom locale", async () => {
