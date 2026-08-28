@@ -328,16 +328,42 @@ const mcpAuthEnabledMiddleware = createMiddleware(async (c, next) => {
   await next();
 });
 
-const mcpListIssuesInputSchema = organizationIssuesQuerySchema.check((context) => {
-  if (context.issues.length > 0) {
-    context.issues.push({
-      code: "custom",
-      input: context.value,
-      message: "invalid_issue_query",
-      path: [],
-    });
-  }
-});
+const invalidIssueQuery = Symbol("invalid_issue_query");
+const issueQueryShape = organizationIssuesQuerySchema.shape;
+
+const mcpListIssuesInputSchema = z
+  .object({
+    view: issueQueryShape.view.catch(invalidIssueQuery as never).meta({ default: undefined }),
+    status: issueQueryShape.status.catch(invalidIssueQuery as never).meta({ default: undefined }),
+    issueType: issueQueryShape.issueType
+      .catch(invalidIssueQuery as never)
+      .meta({ default: undefined }),
+    priority: issueQueryShape.priority
+      .catch(invalidIssueQuery as never)
+      .meta({ default: undefined }),
+    locale: issueQueryShape.locale.catch(invalidIssueQuery as never).meta({ default: undefined }),
+    assignee: issueQueryShape.assignee
+      .catch(invalidIssueQuery as never)
+      .meta({ default: undefined }),
+    projectId: issueQueryShape.projectId
+      .catch(invalidIssueQuery as never)
+      .meta({ default: undefined }),
+    search: issueQueryShape.search.catch(invalidIssueQuery as never).meta({ default: undefined }),
+    sort: issueQueryShape.sort.catch(invalidIssueQuery as never).meta({ default: "status" }),
+    sortDir: issueQueryShape.sortDir.catch(invalidIssueQuery as never).meta({ default: undefined }),
+    limit: issueQueryShape.limit.catch(invalidIssueQuery as never).meta({ default: 50 }),
+    offset: issueQueryShape.offset.catch(invalidIssueQuery as never).meta({ default: 0 }),
+  })
+  .check((context) => {
+    if (Object.values(context.value).some((value) => (value as unknown) === invalidIssueQuery)) {
+      context.issues.push({
+        code: "custom",
+        input: context.value,
+        message: "invalid_issue_query",
+        path: [],
+      });
+    }
+  });
 
 function compactMcpIssue(issue: OrganizationIssueListItem) {
   return {

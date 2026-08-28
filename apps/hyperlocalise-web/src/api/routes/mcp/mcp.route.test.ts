@@ -1267,7 +1267,11 @@ describe("mcpRoutes", () => {
     }
   });
 
-  it("returns invalid_issue_query for invalid list_issues filters", async () => {
+  it.each([
+    ["out-of-range pagination", { limit: 101, offset: -1 }],
+    ["a type-invalid status", { status: 1 }],
+    ["a type-invalid search", { search: [] }],
+  ])("returns invalid_issue_query for %s", async (_label, args) => {
     const headers = await authenticatedMcpHeaders();
 
     const response = await app.request("http://localhost/mcp/sse", {
@@ -1283,10 +1287,7 @@ describe("mcpRoutes", () => {
         method: "tools/call",
         params: {
           name: "list_issues",
-          arguments: {
-            limit: 101,
-            offset: -1,
-          },
+          arguments: args,
         },
       }),
     });
