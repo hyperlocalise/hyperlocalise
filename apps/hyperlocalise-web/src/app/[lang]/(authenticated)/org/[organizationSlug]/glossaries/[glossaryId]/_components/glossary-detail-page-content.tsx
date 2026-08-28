@@ -96,6 +96,11 @@ import {
 
 import { availableConceptTermLocales } from "./available-concept-term-locales";
 import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
+import {
+  sortConceptDetailCreatingTerms,
+  sortConceptDetailPersistedTerms,
+  sortConceptDetailTermGroups,
+} from "./concept-detail-term-order";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 type ConceptDraft = {
@@ -765,21 +770,16 @@ function ConceptDetailSkeleton() {
           <Skeleton className="h-8 w-64 max-w-full" />
           <Skeleton className="h-4 w-40" />
         </div>
-        <div className="grid min-h-[36rem] content-start gap-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-            <div className="grid gap-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-            <div className="grid gap-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-            <div className="grid gap-2 sm:col-span-2 xl:col-span-1">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-            <Skeleton className="h-9 w-28 self-end" />
+        <div className="grid min-h-[36rem] gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
+          <div className="grid content-start gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-24 w-full" />
           </div>
           <div className="grid content-start gap-4">
             <div className="flex items-center justify-between gap-3">
@@ -1346,7 +1346,7 @@ export function GlossaryDetailPageContent({
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
   const availableTermLocales = availableConceptTermLocales();
-  const termGroups = (selected?.terms ?? [])
+  const unsortedTermGroups = (selected?.terms ?? [])
     .filter((term) => !deletedTermIds.has(term.id))
     .filter(
       (term) =>
@@ -1360,28 +1360,36 @@ export function GlossaryDetailPageContent({
       else groups.push({ locale: term.locale, terms: [term] });
       return groups;
     }, []);
-  if (
+  const termGroupsWithPendingLocale =
     newTermLocale &&
-    !termGroups.some((group) => group.locale === newTermLocale) &&
+    !unsortedTermGroups.some((group) => group.locale === newTermLocale) &&
     (!normalizedLanguageFilter ||
       getLocaleLabel(newTermLocale).toLowerCase().includes(normalizedLanguageFilter) ||
       newTermLocale.toLowerCase().includes(normalizedLanguageFilter))
-  ) {
-    termGroups.push({ locale: newTermLocale, terms: [] });
-  }
-  const creatingTermGroups = creatingTermDrafts
-    .filter(
-      (term) =>
-        !normalizedLanguageFilter ||
-        getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter) ||
-        term.locale.toLowerCase().includes(normalizedLanguageFilter),
-    )
-    .reduce<Array<{ locale: string; terms: CreatingTermDraft[] }>>((groups, term) => {
-      const group = groups.find((item) => item.locale === term.locale);
-      if (group) group.terms.push(term);
-      else groups.push({ locale: term.locale, terms: [term] });
-      return groups;
-    }, []);
+      ? [...unsortedTermGroups, { locale: newTermLocale, terms: [] }]
+      : unsortedTermGroups;
+  const termGroups = sortConceptDetailTermGroups(
+    termGroupsWithPendingLocale,
+    sourceLanguage.locale,
+    sortConceptDetailPersistedTerms,
+  );
+  const creatingTermGroups = sortConceptDetailTermGroups(
+    creatingTermDrafts
+      .filter(
+        (term) =>
+          !normalizedLanguageFilter ||
+          getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter) ||
+          term.locale.toLowerCase().includes(normalizedLanguageFilter),
+      )
+      .reduce<Array<{ locale: string; terms: CreatingTermDraft[] }>>((groups, term) => {
+        const group = groups.find((item) => item.locale === term.locale);
+        if (group) group.terms.push(term);
+        else groups.push({ locale: term.locale, terms: [term] });
+        return groups;
+      }, []),
+    sourceLanguage.locale,
+    sortConceptDetailCreatingTerms,
+  );
   const conceptIsDirty = isCreatingConcept
     ? Boolean(sourceTermText.trim())
     : selectedConcept
@@ -1740,57 +1748,53 @@ export function GlossaryDetailPageContent({
                   </DialogDescription>
                 </DialogHeader>
               )}
-              <div className="grid min-h-0 gap-5">
-                <div className="grid gap-4">
-                  <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-                    <Field className="min-w-0 gap-1.5">
-                      <FieldLabel>
-                        <FormattedMessage {...messages.primaryTermLabel} />
-                      </FieldLabel>
-                      <Input value={sourceTermText} disabled={!canContribute} readOnly />
-                    </Field>
-                    <Field className="min-w-0 gap-1.5">
-                      <FieldLabel>
-                        <FormattedMessage {...messages.subjectLabel} />
-                      </FieldLabel>
-                      <Input
-                        value={conceptDraft.subject}
-                        onChange={(event) =>
-                          setConceptDraft((draft) => ({ ...draft, subject: event.target.value }))
-                        }
-                        disabled={!canContribute}
-                      />
-                    </Field>
-                    <Field className="min-w-0 gap-1.5 sm:col-span-2 xl:col-span-1">
-                      <FieldLabel>
-                        <FormattedMessage {...messages.definitionLabel} />
-                      </FieldLabel>
-                      <Textarea
-                        value={conceptDraft.definition}
-                        onChange={(event) =>
-                          setConceptDraft((draft) => ({ ...draft, definition: event.target.value }))
-                        }
-                        disabled={!canContribute}
-                        rows={2}
-                        className="min-h-9"
-                      />
-                    </Field>
-                    <label className="flex h-9 items-center gap-2 text-sm xl:mb-px">
-                      <Checkbox
-                        checked={conceptDraft.translatable}
-                        onCheckedChange={(checked) =>
-                          setConceptDraft((draft) => ({ ...draft, translatable: Boolean(checked) }))
-                        }
-                        disabled={!canContribute}
-                      />
-                      <FormattedMessage {...messages.translatableLabel} />
-                    </label>
-                  </div>
+              <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
+                <div className="flex min-w-0 flex-col gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
+                  <Field className="gap-1.5">
+                    <FieldLabel>
+                      <FormattedMessage {...messages.primaryTermLabel} />
+                    </FieldLabel>
+                    <Input value={sourceTermText} disabled={!canContribute} readOnly />
+                  </Field>
+                  <Field className="gap-1.5">
+                    <FieldLabel>
+                      <FormattedMessage {...messages.subjectLabel} />
+                    </FieldLabel>
+                    <Input
+                      value={conceptDraft.subject}
+                      onChange={(event) =>
+                        setConceptDraft((draft) => ({ ...draft, subject: event.target.value }))
+                      }
+                      disabled={!canContribute}
+                    />
+                  </Field>
+                  <Field className="gap-1.5">
+                    <FieldLabel>
+                      <FormattedMessage {...messages.definitionLabel} />
+                    </FieldLabel>
+                    <Textarea
+                      value={conceptDraft.definition}
+                      onChange={(event) =>
+                        setConceptDraft((draft) => ({ ...draft, definition: event.target.value }))
+                      }
+                      disabled={!canContribute}
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={conceptDraft.translatable}
+                      onCheckedChange={(checked) =>
+                        setConceptDraft((draft) => ({ ...draft, translatable: Boolean(checked) }))
+                      }
+                      disabled={!canContribute}
+                    />
+                    <FormattedMessage {...messages.translatableLabel} />
+                  </label>
                   <details className="rounded-md border border-border p-3">
                     <summary className="cursor-pointer text-sm font-medium">
                       <FormattedMessage {...messages.conceptDetails} />
                     </summary>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-3 grid gap-3">
                       <Field className="gap-1.5">
                         <FieldLabel>
                           <FormattedMessage {...messages.noteLabel} />
