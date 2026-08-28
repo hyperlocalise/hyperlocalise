@@ -1040,6 +1040,60 @@ describe("glossaryRoutes", () => {
     });
   });
 
+  it("allows switching to team control when a native project is attached", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Promote Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Promote Project",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Promote glossary",
+          sourceLocale: "en-US",
+          controlLevel: "org",
+          projectIds: [project.id],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
+      {
+        param: { organizationSlug, glossaryId },
+        json: { controlLevel: "team" },
+      },
+      { headers: adminHeaders },
+    );
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      glossary: { id: glossaryId, controlLevel: "team", projectCount: 1 },
+    });
+  });
+
   it("rejects switching to team control when an external project is attached", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = admin.organization.slug ?? "missing-slug";

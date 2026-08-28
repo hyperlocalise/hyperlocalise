@@ -15,6 +15,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
@@ -297,6 +298,92 @@ export class NativeGlossary extends Glossary {
       )
       .returning();
     return glossary ?? null;
+  }
+
+  async updateWithAttachmentGuard(payload: {
+    name?: string;
+    description?: string;
+    sourceLocale?: string;
+    controlLevel?: "org" | "team";
+  }): Promise<
+    | { status: "updated"; glossary: GlossaryRecord }
+    | { status: "not_found" }
+    | { status: "team_project_required" }
+    | { status: "team_native_project_required" }
+    | { status: "source_locale_attached_projects" }
+  > {
+    const updates = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(updates).length === 0) {
+      return { status: "updated", glossary: this.input.glossary };
+    }
+
+    const needsAttachmentValidation =
+      payload.controlLevel === "team" ||
+      (payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== this.input.glossary.sourceLocale);
+
+    if (!needsAttachmentValidation) {
+      const glossary = await this.update(payload);
+      return glossary ? { status: "updated", glossary } : { status: "not_found" };
+    }
+
+    const accessibleProjectsWhere = await buildAccessibleProjectsWhere(this.input.auth);
+
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT id FROM glossaries WHERE id = ${this.input.glossary.id} AND organization_id = ${this.input.auth.organization.localOrganizationId} FOR UPDATE`,
+      );
+
+      const attachments = await tx
+        .select({
+          source: schema.projects.source,
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projectGlossaries)
+        .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+        .where(
+          and(
+            eq(
+              schema.projectGlossaries.organizationId,
+              this.input.auth.organization.localOrganizationId,
+            ),
+            eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+            accessibleProjectsWhere,
+          ),
+        );
+
+      if (payload.controlLevel === "team") {
+        if (attachments.length === 0) {
+          return { status: "team_project_required" };
+        }
+        if (attachments.some((attachment) => attachment.source !== "native")) {
+          return { status: "team_native_project_required" };
+        }
+      }
+
+      if (
+        payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== this.input.glossary.sourceLocale &&
+        attachments.some((attachment) => attachment.sourceLocale !== payload.sourceLocale)
+      ) {
+        return { status: "source_locale_attached_projects" };
+      }
+
+      const [glossary] = await tx
+        .update(schema.glossaries)
+        .set(updates)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .returning();
+
+      return glossary ? { status: "updated", glossary } : { status: "not_found" };
+    });
   }
 
   async delete() {
@@ -698,9 +785,21 @@ export class NativeGlossary extends Glossary {
     projectId: string,
   ): Promise<"detached" | "team_project_required" | "not_attached"> {
     return db.transaction(async (tx) => {
-      await tx.execute(
-        sql`SELECT id FROM glossaries WHERE id = ${this.input.glossary.id} AND organization_id = ${this.input.auth.organization.localOrganizationId} FOR UPDATE`,
-      );
+      const [glossaryRow] = await tx
+        .select({ controlLevel: schema.glossaries.controlLevel })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return "not_attached";
+      }
 
       const attachments = await tx
         .select({
@@ -724,7 +823,7 @@ export class NativeGlossary extends Glossary {
         return "not_attached";
       }
 
-      if (this.input.glossary.controlLevel === "team") {
+      if (glossaryRow.controlLevel === "team") {
         const nativeCount = attachments.filter(
           (attachment) => attachment.source === "native",
         ).length;

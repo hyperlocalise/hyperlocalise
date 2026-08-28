@@ -408,10 +408,7 @@ export function createGlossaryRoutes() {
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
 
-      if (glossary.controlLevel === "team") {
-        if (!(product instanceof NativeGlossaryProduct)) {
-          return glossaryTeamMustBeNativeResponse(c);
-        }
+      if (product instanceof NativeGlossaryProduct) {
         const result = await product.detachProjectWithTeamGuard(project.id);
         if (result === "team_project_required") {
           return glossaryTeamProjectRequiredResponse(c);
@@ -441,29 +438,6 @@ export function createGlossaryRoutes() {
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
 
-      const attachedProjects =
-        payload.controlLevel === "team" ||
-        (payload.sourceLocale !== undefined && payload.sourceLocale !== glossary.sourceLocale)
-          ? await product.listProjects()
-          : [];
-
-      if (payload.controlLevel === "team") {
-        if (attachedProjects.length === 0) {
-          return glossaryTeamProjectRequiredResponse(c);
-        }
-        if (attachedProjects.some((project) => project.source !== "native")) {
-          return glossaryTeamNativeProjectRequiredResponse(c);
-        }
-      }
-
-      if (
-        payload.sourceLocale !== undefined &&
-        payload.sourceLocale !== glossary.sourceLocale &&
-        attachedProjects.some((project) => project.sourceLocale !== payload.sourceLocale)
-      ) {
-        return glossarySourceLocaleAttachedProjectsResponse(c);
-      }
-
       if (
         payload.sourceLocale !== undefined &&
         payload.sourceLocale !== glossary.sourceLocale &&
@@ -471,6 +445,33 @@ export function createGlossaryRoutes() {
         (await queryNativeGlossaryHasTermsAtLocale(glossary.id, glossary.sourceLocale))
       ) {
         return glossarySourceLocaleExistingTermsResponse(c);
+      }
+
+      const needsAttachmentGuard =
+        product instanceof NativeGlossaryProduct &&
+        (payload.controlLevel === "team" ||
+          (payload.sourceLocale !== undefined && payload.sourceLocale !== glossary.sourceLocale));
+
+      if (needsAttachmentGuard) {
+        const result = await product.updateWithAttachmentGuard(payload);
+        switch (result.status) {
+          case "team_project_required":
+            return glossaryTeamProjectRequiredResponse(c);
+          case "team_native_project_required":
+            return glossaryTeamNativeProjectRequiredResponse(c);
+          case "source_locale_attached_projects":
+            return glossarySourceLocaleAttachedProjectsResponse(c);
+          case "not_found":
+            return glossaryNotFoundResponse(c);
+          case "updated": {
+            const termCount = await queryNativeGlossaryTermCountForGlossary(result.glossary);
+            const projectCount = await product.queryProjectCount();
+            return c.json(
+              { glossary: toGlossaryRecord(result.glossary, undefined, termCount, projectCount) },
+              200,
+            );
+          }
+        }
       }
 
       const updated = await product.update(payload);
