@@ -69,7 +69,6 @@ export function TranslationMemoryDetailPageContent({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState("");
 
   const memoryQuery = useQuery({
@@ -135,28 +134,20 @@ export function TranslationMemoryDetailPageContent({
         targetText: values.targetText.trim(),
         matchScore: 100,
       };
-      const response = editingEntryId
-        ? await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-            ":memoryId"
-          ].entries[":entryId"].$patch({
-            param: { organizationSlug, memoryId, entryId: editingEntryId },
-            json: payload,
-          })
-        : await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-            ":memoryId"
-          ].entries.$post({
-            param: { organizationSlug, memoryId },
-            json: payload,
-          });
+      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+        ":memoryId"
+      ].entries.$post({
+        param: { organizationSlug, memoryId },
+        json: payload,
+      });
       if (!response.ok)
         throw new Error(await readApiError(response, intl.formatMessage(messages.saveEntryFailed)));
-      return { body: await response.json(), wasEditing: Boolean(editingEntryId) };
+      return response.json();
     },
-    onSuccess: async ({ wasEditing }) => {
+    onSuccess: async () => {
       await invalidateEntries();
       setEntryForm(emptyEntryForm);
-      setEditingEntryId(null);
-      toast.success(intl.formatMessage(wasEditing ? messages.entryUpdated : messages.entryAdded));
+      toast.success(intl.formatMessage(messages.entryAdded));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -239,7 +230,7 @@ export function TranslationMemoryDetailPageContent({
 
   const memory = memoryQuery.data;
   const isNative = memory?.source === "native";
-  const canEdit = canManageMemories && isNative;
+  const canEdit = canManageMemories && isNative && memory?.capabilityMode !== "reference_only";
   const attachedProjectIds = useMemo(
     () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
     [attachedProjectsQuery.data],
@@ -382,24 +373,8 @@ export function TranslationMemoryDetailPageContent({
                 }
                 onClick={() => saveEntry.mutate(entryForm)}
               >
-                {editingEntryId ? (
-                  <FormattedMessage {...messages.updateEntry} />
-                ) : (
-                  <FormattedMessage {...messages.addEntry} />
-                )}
+                <FormattedMessage {...messages.addEntry} />
               </Button>
-              {editingEntryId ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingEntryId(null);
-                    setEntryForm(emptyEntryForm);
-                  }}
-                >
-                  <FormattedMessage {...messages.cancelEdit} />
-                </Button>
-              ) : null}
             </div>
           </div>
         ) : null}
@@ -409,16 +384,8 @@ export function TranslationMemoryDetailPageContent({
           memoryId={memoryId}
           localeCoverage={memory.localeCoverage}
           canEdit={canEdit}
+          canManageMemories={canManageMemories}
           isDeleting={deleteEntry.isPending}
-          onEditEntry={(entry) => {
-            setEditingEntryId(entry.id);
-            setEntryForm({
-              sourceLocale: entry.sourceLocale,
-              targetLocale: entry.targetLocale,
-              sourceText: entry.sourceText,
-              targetText: entry.targetText,
-            });
-          }}
           onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
         />
       </section>

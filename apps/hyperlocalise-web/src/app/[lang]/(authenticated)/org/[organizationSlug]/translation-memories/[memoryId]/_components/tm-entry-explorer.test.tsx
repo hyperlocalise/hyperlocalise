@@ -12,18 +12,6 @@
  */
 // @vitest-environment happy-dom
 
-/*
- * Copyright (c) 2026 Hyperlocalise Pty Ltd
- *
- * Use of this software is governed by the Business Source License 1.1
- * included in this application's LICENSE file.
- *
- * Change Date: Four years after publication of the applicable version.
- *
- * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
- * Version 2.0 or later.
- */
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -31,7 +19,11 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { MemoryEntriesResponse, MemoryEntryRecord } from "@/api/routes/memory/memory.schema";
+import type {
+  MemoryEntriesResponse,
+  MemoryEntryDetailResponse,
+  MemoryEntryRecord,
+} from "@/api/routes/memory/memory.schema";
 import { ApiResponseError } from "@/lib/api-error";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
@@ -44,6 +36,7 @@ const navigation = vi.hoisted(() => ({
 
 const apiMocks = vi.hoisted(() => ({
   getEntries: vi.fn(),
+  getEntry: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -64,6 +57,9 @@ vi.mock("@/lib/api-client-instance", () => ({
             ":memoryId": {
               entries: {
                 $get: (...args: unknown[]) => apiMocks.getEntries(...args),
+                ":entryId": {
+                  $get: (...args: unknown[]) => apiMocks.getEntry(...args),
+                },
               },
             },
           },
@@ -85,10 +81,15 @@ function createEntry(overrides?: Partial<MemoryEntryRecord>): MemoryEntryRecord 
     provenance: "manual",
     reviewStatus: "approved",
     externalKey: null,
+    version: 1,
     createdByUserId: "11111111-1111-4111-8111-111111111111",
+    modifiedByUserId: null,
+    reviewedByUserId: null,
     importBatchId: null,
+    metadata: {},
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    reviewedAt: null,
     ...overrides,
   };
 }
@@ -114,6 +115,49 @@ function jsonResponse(body: MemoryEntriesResponse) {
   return {
     ok: true,
     json: async () => body,
+  };
+}
+
+function createDetail(entry: MemoryEntryRecord): MemoryEntryDetailResponse {
+  const emptyActor = {
+    userId: null,
+    displayName: null,
+    at: null,
+    source: "created" as const,
+  };
+  return {
+    memoryEntry: entry,
+    provenance: {
+      origin: entry.provenance,
+      provider: null,
+      importBatchId: entry.importBatchId,
+      context: typeof entry.metadata.context === "string" ? entry.metadata.context : null,
+      created: {
+        ...emptyActor,
+        userId: entry.createdByUserId,
+        at: entry.createdAt,
+        source: "created",
+      },
+      modified: { ...emptyActor, at: entry.updatedAt, source: "modified" },
+      reviewed: { ...emptyActor, source: "reviewed" },
+      imported: { ...emptyActor, source: "imported" },
+      providerSupplied: { ...emptyActor, source: "provider" },
+    },
+    variants: [],
+    auditEvents: [
+      {
+        id: `${entry.id}:created`,
+        eventType: "created",
+        actorKind: "user",
+        actorUserId: entry.createdByUserId,
+        actorDisplayName: null,
+        version: 1,
+        changedFields: [],
+        attributes: {},
+        occurredAt: entry.createdAt,
+      },
+    ],
+    capabilities: { canEdit: true, readOnlyReason: null },
   };
 }
 
@@ -143,6 +187,11 @@ describe("TmEntryExplorer", () => {
     navigation.search = "";
     navigation.replace.mockReset();
     apiMocks.getEntries.mockReset();
+    apiMocks.getEntry.mockReset();
+    apiMocks.getEntry.mockImplementation(async () => ({
+      ok: true,
+      json: async () => createDetail(createEntry()),
+    }));
     sessionStorage.clear();
   });
 
@@ -375,9 +424,14 @@ describe("TmEntryExplorer", () => {
       );
     });
 
+    await waitFor(() => {
+      expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
+    });
+
     await user.click(screen.getByRole("button", { name: "Back to results" }));
 
     await waitFor(() => {
+      expect(screen.queryByText("Translation memory entry")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Back to results" })).not.toBeInTheDocument();
     });
     expect(screen.getByDisplayValue("checkout")).toBeInTheDocument();

@@ -370,7 +370,11 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
 
       // Verify ownership via the parent memory.
       const [entryWithMemory] = await ctx.db
-        .select({ memoryOrgId: schema.memories.organizationId })
+        .select({
+          memoryOrgId: schema.memories.organizationId,
+          memorySource: schema.memories.source,
+          capabilityMode: schema.memories.capabilityMode,
+        })
         .from(schema.memoryEntries)
         .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(eq(schema.memoryEntries.id, entryId))
@@ -378,6 +382,13 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
 
       if (!entryWithMemory || entryWithMemory.memoryOrgId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
+      }
+
+      if (
+        entryWithMemory.memorySource === "external_tms" ||
+        entryWithMemory.capabilityMode === "reference_only"
+      ) {
+        return { success: false, error: "This translation memory is read-only." };
       }
 
       const [entry] = await ctx.db
@@ -408,7 +419,11 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
 
       // Verify ownership via the parent memory.
       const [entryWithMemory] = await ctx.db
-        .select({ memoryOrgId: schema.memories.organizationId })
+        .select({
+          memoryOrgId: schema.memories.organizationId,
+          memorySource: schema.memories.source,
+          capabilityMode: schema.memories.capabilityMode,
+        })
         .from(schema.memoryEntries)
         .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(eq(schema.memoryEntries.id, entryId))
@@ -416,6 +431,13 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
 
       if (!entryWithMemory || entryWithMemory.memoryOrgId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
+      }
+
+      if (
+        entryWithMemory.memorySource === "external_tms" ||
+        entryWithMemory.capabilityMode === "reference_only"
+      ) {
+        return { success: false, error: "This translation memory is read-only." };
       }
 
       const deleted = await ctx.db

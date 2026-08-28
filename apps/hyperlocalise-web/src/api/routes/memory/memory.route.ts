@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, count, desc, eq, ne } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 
 import {
   buildAccessibleProjectsWhere,
@@ -22,7 +22,12 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { conflictResponse, badRequestResponse, validationErrorResponse } from "@/api/errors";
+import {
+  conflictResponse,
+  badRequestResponse,
+  validationErrorResponse,
+} from "@/api/errors";
+import { apiErrorResponse } from "@/api/response.schema";
 import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -51,6 +56,7 @@ import {
   type CreateMemoryEntryBody,
   type CreateMemoryBody,
   type ImportMemoryEntriesBody,
+  type MemoryEntryRecord,
   type PromoteMemoryFromProjectBody,
   type ListMemoryQuery,
   type UpdateMemoryEntryBody,
@@ -63,9 +69,17 @@ import {
   isMemoryMutationAllowed,
   getOwnedMemory,
   ownedMemoryWhere,
+  memoryEntryReadOnlyResponse,
   memoryNotFoundResponse,
 } from "./memory.shared";
 import { listMemoryEntriesPage } from "./memory-entry-list";
+import { getMemoryEntryDetail, toMemoryEntryDetailRecord } from "@/lib/memory/memory-entry-detail";
+import {
+  isMemoryEntryWritable,
+  recordMemoryEntryCreatedEvent,
+  recordMemoryEntryCreatedEvents,
+  updateMemoryEntrySafely,
+} from "@/lib/memory/memory-entry-lifecycle";
 
 type MemoryListResult = {
   memories: Memory[];
@@ -81,23 +95,6 @@ type MemoryStore = {
 };
 
 type MemoryEntry = typeof schema.memoryEntries.$inferSelect;
-
-type MemoryEntryRecord = {
-  id: string;
-  memoryId: string;
-  sourceLocale: string;
-  targetLocale: string;
-  sourceText: string;
-  targetText: string;
-  matchScore: number;
-  provenance: string;
-  reviewStatus: string;
-  externalKey: string | null;
-  createdByUserId: string | null;
-  importBatchId: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type MemoryProjectRecord = {
   projectId: string;
@@ -166,22 +163,7 @@ const memoryStore: MemoryStore = {
 };
 
 function toMemoryEntryRecord(entry: MemoryEntry): MemoryEntryRecord {
-  return {
-    id: entry.id,
-    memoryId: entry.memoryId,
-    sourceLocale: entry.sourceLocale,
-    targetLocale: entry.targetLocale,
-    sourceText: entry.sourceText,
-    targetText: entry.targetText,
-    matchScore: entry.matchScore,
-    provenance: entry.provenance,
-    reviewStatus: entry.reviewStatus,
-    externalKey: entry.externalKey,
-    createdByUserId: entry.createdByUserId,
-    importBatchId: entry.importBatchId,
-    createdAt: entry.createdAt.toISOString(),
-    updatedAt: entry.updatedAt.toISOString(),
-  };
+  return toMemoryEntryDetailRecord(entry);
 }
 
 function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryBody[] {
@@ -281,7 +263,12 @@ async function createMemoryEntry(
     .onConflictDoNothing()
     .returning();
 
-  return entry ?? null;
+  if (!entry) {
+    return null;
+  }
+
+  await recordMemoryEntryCreatedEvent({ entry, actorUserId: createdByUserId });
+  return entry;
 }
 
 async function createMemoryEntries(
@@ -293,7 +280,7 @@ async function createMemoryEntries(
     return [];
   }
 
-  return db
+  const created = await db
     .insert(schema.memoryEntries)
     .values(
       payloads.map((payload) => ({
@@ -311,6 +298,12 @@ async function createMemoryEntries(
     )
     .onConflictDoNothing()
     .returning();
+
+  await recordMemoryEntryCreatedEvents({
+    entries: created,
+    actorUserId: options?.createdByUserId,
+  });
+  return created;
 }
 
 async function listMemoryProjects(
@@ -522,8 +515,11 @@ export function createMemoryRoutes() {
       if (!memory) {
         return memoryNotFoundResponse(c);
       }
-      if (memory.source === "external_tms") {
-        return externalTmsMemoryImmutableResponse(c);
+      if (!isMemoryEntryWritable(memory)) {
+        return memoryEntryReadOnlyResponse(
+          c,
+          memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
+        );
       }
 
       const entry = await createMemoryEntry(memory, payload, c.var.auth.user.localUserId);
@@ -553,8 +549,11 @@ export function createMemoryRoutes() {
         if (!memory) {
           return memoryNotFoundResponse(c);
         }
-        if (memory.source === "external_tms") {
-          return externalTmsMemoryImmutableResponse(c);
+        if (!isMemoryEntryWritable(memory)) {
+          return memoryEntryReadOnlyResponse(
+            c,
+            memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
+          );
         }
 
         const entries = parseMemoryImport(payload);
@@ -593,8 +592,11 @@ export function createMemoryRoutes() {
         if (!memory) {
           return memoryNotFoundResponse(c);
         }
-        if (memory.source === "external_tms") {
-          return externalTmsMemoryImmutableResponse(c);
+        if (!isMemoryEntryWritable(memory)) {
+          return memoryEntryReadOnlyResponse(
+            c,
+            memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
+          );
         }
 
         const project = await getOwnedProject(c.var.auth, payload.projectId);
@@ -637,6 +639,21 @@ export function createMemoryRoutes() {
         );
       },
     )
+    .get("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {
+      const params = c.req.valid("param");
+      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
+
+      if (!memory) {
+        return memoryNotFoundResponse(c);
+      }
+
+      const detail = await getMemoryEntryDetail({ memory, entryId: params.entryId });
+      if (!detail) {
+        return memoryNotFoundResponse(c);
+      }
+
+      return c.json(detail, 200);
+    })
     .patch(
       "/:memoryId/entries/:entryId",
       validateMemoryEntryParams,
@@ -653,82 +670,53 @@ export function createMemoryRoutes() {
         if (!memory) {
           return memoryNotFoundResponse(c);
         }
-        if (memory.source === "external_tms") {
-          return externalTmsMemoryImmutableResponse(c);
-        }
 
-        const [existingEntry] = await db
-          .select()
-          .from(schema.memoryEntries)
-          .where(
-            and(
-              eq(schema.memoryEntries.id, params.entryId),
-              eq(schema.memoryEntries.memoryId, memory.id),
-            ),
-          )
-          .limit(1);
+        const result = await updateMemoryEntrySafely({
+          memory,
+          entryId: params.entryId,
+          expectedVersion: payload.expectedVersion,
+          actorUserId: c.var.auth.user.localUserId,
+          updates: {
+            sourceLocale: payload.sourceLocale,
+            targetLocale: payload.targetLocale,
+            sourceText: payload.sourceText,
+            targetText: payload.targetText,
+            matchScore: payload.matchScore,
+            reviewStatus: payload.reviewStatus,
+            metadata: payload.metadata,
+          },
+        });
 
-        if (!existingEntry) {
-          return memoryNotFoundResponse(c);
-        }
-
-        const updates: Partial<typeof schema.memoryEntries.$inferInsert> = { ...payload };
-        if (payload.sourceText !== undefined) {
-          updates.normalizedSourceText = normalizeTranslationMemorySourceText(payload.sourceText);
-        }
-
-        if (
-          payload.sourceText !== undefined ||
-          payload.sourceLocale !== undefined ||
-          payload.targetLocale !== undefined
-        ) {
-          const normalizedSourceText =
-            updates.normalizedSourceText ?? existingEntry.normalizedSourceText;
-          const duplicate = await db
-            .select({ id: schema.memoryEntries.id })
-            .from(schema.memoryEntries)
-            .where(
-              and(
-                eq(schema.memoryEntries.memoryId, memory.id),
-                eq(
-                  schema.memoryEntries.sourceLocale,
-                  payload.sourceLocale ?? existingEntry.sourceLocale,
-                ),
-                eq(
-                  schema.memoryEntries.targetLocale,
-                  payload.targetLocale ?? existingEntry.targetLocale,
-                ),
-                eq(schema.memoryEntries.normalizedSourceText, normalizedSourceText),
-                ne(schema.memoryEntries.id, params.entryId),
-              ),
-            )
-            .limit(1);
-
-          if (duplicate.length > 0) {
+        if (isErr(result)) {
+          if (result.error.code === "memory_entry_not_found") {
+            return memoryNotFoundResponse(c);
+          }
+          if (result.error.code === "memory_entry_read_only") {
+            return memoryEntryReadOnlyResponse(c, result.error.reason);
+          }
+          if (result.error.code === "duplicate_memory_entry") {
             return conflictResponse(
               c,
               "duplicate_memory_entry",
               "An entry with this source text and locale pair already exists",
             );
           }
+
+          return apiErrorResponse(
+            c,
+            409,
+            "stale_memory_entry",
+            "This entry changed after it was loaded",
+            { memoryEntry: toMemoryEntryDetailRecord(result.error.current) },
+          );
         }
 
-        const [entry] = await db
-          .update(schema.memoryEntries)
-          .set(updates)
-          .where(
-            and(
-              eq(schema.memoryEntries.id, params.entryId),
-              eq(schema.memoryEntries.memoryId, memory.id),
-            ),
-          )
-          .returning();
-
-        if (!entry) {
-          return memoryNotFoundResponse(c);
+        const detail = await getMemoryEntryDetail({ memory, entryId: result.value.id });
+        if (!detail) {
+          return c.json({ memoryEntry: toMemoryEntryRecord(result.value) }, 200);
         }
 
-        return c.json({ memoryEntry: toMemoryEntryRecord(entry) }, 200);
+        return c.json(detail, 200);
       },
     )
     .delete("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {
@@ -742,8 +730,11 @@ export function createMemoryRoutes() {
       if (!memory) {
         return memoryNotFoundResponse(c);
       }
-      if (memory.source === "external_tms") {
-        return externalTmsMemoryImmutableResponse(c);
+      if (!isMemoryEntryWritable(memory)) {
+        return memoryEntryReadOnlyResponse(
+          c,
+          memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
+        );
       }
 
       const deleted = await db

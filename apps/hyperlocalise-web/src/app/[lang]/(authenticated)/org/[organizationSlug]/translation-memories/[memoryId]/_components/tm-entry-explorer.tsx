@@ -25,6 +25,7 @@ import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.message
 import { cn } from "@/lib/primitives/cn";
 
 import { tmEntryExplorerMessages as messages } from "./tm-entry-explorer.messages";
+import { TmEntryDetailSheet } from "./tm-entry-detail-sheet";
 import { TmEntryListToolbar } from "./tm-entry-list-toolbar";
 import {
   buildTmEntryLocaleOptions,
@@ -52,7 +53,7 @@ export function TmEntryExplorer({
   memoryId,
   localeCoverage,
   canEdit,
-  onEditEntry,
+  canManageMemories = false,
   onDeleteEntry,
   isDeleting = false,
 }: {
@@ -60,7 +61,7 @@ export function TmEntryExplorer({
   memoryId: string;
   localeCoverage: string[];
   canEdit: boolean;
-  onEditEntry?: (entry: MemoryEntryRecord) => void;
+  canManageMemories?: boolean;
   onDeleteEntry?: (entryId: string) => void;
   isDeleting?: boolean;
 }) {
@@ -70,6 +71,7 @@ export function TmEntryExplorer({
   const listRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const [cursorNotice, setCursorNotice] = useState<string | null>(null);
+  const [startInEditMode, setStartInEditMode] = useState(false);
   const apiQuery = tmEntryListStateToApiQuery(state);
   const cursorStackKey = tmEntryCursorStackStorageKey(memoryId, state);
   const [cursorStack, setCursorStack] = useState(() => readTmEntryCursorStack(cursorStackKey));
@@ -163,13 +165,15 @@ export function TmEntryExplorer({
     }
   };
 
-  const openEntry = (entry: MemoryEntryRecord) => {
+  const openEntry = (entry: MemoryEntryRecord, options?: { edit?: boolean }) => {
     persistScroll();
+    setStartInEditMode(Boolean(options?.edit));
     updateState({ entry: entry.id });
     listRef.current?.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`)?.focus();
   };
 
   const closeEntry = () => {
+    setStartInEditMode(false);
     updateState({ entry: undefined });
     const stored = readTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId));
     if (stored !== null && listRef.current) {
@@ -341,8 +345,7 @@ export function TmEntryExplorer({
                       variant="outline"
                       onClick={(event) => {
                         event.stopPropagation();
-                        openEntry(entry);
-                        onEditEntry?.(entry);
+                        openEntry(entry, { edit: true });
                       }}
                     >
                       <FormattedMessage {...messages.editEntry} />
@@ -366,6 +369,26 @@ export function TmEntryExplorer({
           })}
         </div>
       ) : null}
+
+      <TmEntryDetailSheet
+        organizationSlug={organizationSlug}
+        memoryId={memoryId}
+        entryId={state.entry ?? null}
+        localeCoverage={localeCoverage}
+        canManageMemories={canManageMemories}
+        open={Boolean(state.entry)}
+        startInEditMode={startInEditMode}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeEntry();
+          }
+        }}
+        onOpenVariant={(variantId) => {
+          setStartInEditMode(false);
+          persistScroll();
+          updateState({ entry: variantId });
+        }}
+      />
 
       {selectedEntry && (selectedEntry.createdByUserId || selectedEntry.importBatchId) ? (
         <div className="flex flex-wrap gap-2">
