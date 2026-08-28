@@ -202,6 +202,7 @@ describe("fetchProjectJobs", () => {
   });
 
   it("applies the triage cap after review-priority selection", () => {
+    const nowMs = Date.parse("2026-07-02T00:00:10.000Z");
     const jobs = [
       { id: "running-new", status: "running", updatedAt: "2026-07-02T00:00:10.000Z" },
       { id: "queued-new", status: "queued", updatedAt: "2026-07-02T00:00:09.000Z" },
@@ -216,12 +217,35 @@ describe("fetchProjectJobs", () => {
       { id: "failed-old", status: "failed", updatedAt: "2026-07-01T00:00:01.000Z" },
     ];
 
-    expect(selectOverviewTriageProjectJobs(jobs, 5).map((job) => job.id)).toEqual([
+    expect(selectOverviewTriageProjectJobs(jobs, 5, nowMs).map((job) => job.id)).toEqual([
       "review-old",
       "failed-old",
       "running-new",
       "queued-new",
       "running-2",
+    ]);
+  });
+
+  it("excludes triage jobs not updated in the last 7 days", () => {
+    const nowMs = Date.parse("2026-08-28T12:00:00.000Z");
+    const jobs = [
+      {
+        id: "recent-review",
+        status: "waiting_for_review",
+        updatedAt: "2026-08-27T12:00:00.000Z",
+      },
+      {
+        id: "stale-review",
+        status: "waiting_for_review",
+        updatedAt: "2026-08-20T12:00:00.000Z",
+      },
+      { id: "stale-failed", status: "failed", updatedAt: "2026-08-01T00:00:00.000Z" },
+      { id: "recent-queued", status: "queued", updatedAt: "2026-08-25T12:00:00.000Z" },
+    ];
+
+    expect(selectOverviewTriageProjectJobs(jobs, 5, nowMs).map((job) => job.id)).toEqual([
+      "recent-review",
+      "recent-queued",
     ]);
   });
 });

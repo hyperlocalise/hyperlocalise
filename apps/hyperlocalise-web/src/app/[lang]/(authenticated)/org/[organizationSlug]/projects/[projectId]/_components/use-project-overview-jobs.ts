@@ -49,8 +49,9 @@ export function useProjectOverviewJobsQuery(
         return selectOverviewTriageProjectJobs(jobs, PROJECT_OVERVIEW_TRIAGE_LIMIT) as ApiJob[];
       }
 
-      // Server orders by triage priority before applying the cap so older
-      // waiting_for_review / failed jobs are not displaced by newer queued work.
+      // Server keeps jobs updated in the last 7 days, then orders by triage
+      // priority before applying the cap so older waiting_for_review / failed
+      // jobs are not displaced by newer queued work.
       return (await fetchNativeProjectJobs(organizationSlug, projectId, {
         triage: true,
         limit: PROJECT_OVERVIEW_TRIAGE_LIMIT,

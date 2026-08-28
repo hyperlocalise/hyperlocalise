@@ -100,12 +100,29 @@ export const overviewTriageJobStatusValues = [
   "running",
 ] as const;
 
+/** Overview "Needs you now" only includes jobs updated in this window. */
+export const overviewTriageLookbackDays = 7;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function overviewTriageLookbackCutoff(now: Date = new Date()): Date {
+  return new Date(now.getTime() - overviewTriageLookbackDays * MS_PER_DAY);
+}
+
+export function isWithinOverviewTriageLookback(
+  updatedAt: string,
+  nowMs: number = Date.now(),
+): boolean {
+  const updatedMs = Date.parse(updatedAt);
+  return !Number.isNaN(updatedMs) && nowMs - updatedMs <= overviewTriageLookbackDays * MS_PER_DAY;
+}
+
 export const jobListQuerySchema = z.object({
   kind: z.enum(schema.jobKindEnum.enumValues).optional(),
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   open: z.coerce.boolean().optional(),
-  /** Prefer review/failed before other open jobs, then apply `limit`. */
+  /** Prefer review/failed before other open jobs, keep last 7 days, then apply `limit`. */
   triage: z.coerce.boolean().optional(),
   relationship: z.enum(["assigned", "created"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

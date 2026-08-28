@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import {
+  isWithinOverviewTriageLookback,
   jobsResponseSchema,
   openJobStatusValues,
   overviewTriageJobStatusValues,
@@ -95,14 +96,17 @@ export function filterOverviewTriageProjectJobs<T extends ProjectJobRecord>(
 }
 
 /**
- * Filters to triage statuses, ranks review → failed → in-progress, then caps.
- * Use before displaying the Overview Today queue (especially for TMS lists).
+ * Filters to triage statuses updated in the last 7 days, ranks review → failed
+ * → in-progress, then caps. Use before displaying the Overview Today queue
+ * (especially for TMS lists).
  */
 export function selectOverviewTriageProjectJobs<T extends ProjectJobRecord>(
   jobs: readonly T[],
   limit: number,
+  nowMs: number = Date.now(),
 ): T[] {
   return filterOverviewTriageProjectJobs(jobs)
+    .filter((job) => isWithinOverviewTriageLookback(job.updatedAt, nowMs))
     .toSorted((left, right) => {
       const rankDiff =
         overviewTriageStatusRank(left.status) - overviewTriageStatusRank(right.status);

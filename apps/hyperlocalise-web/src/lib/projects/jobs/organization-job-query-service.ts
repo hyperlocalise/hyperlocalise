@@ -10,12 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   openJobStatusValues,
   overviewTriageJobStatusValues,
+  overviewTriageLookbackCutoff,
 } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
@@ -106,6 +107,7 @@ function jobListFilters(input: {
 
   if (input.triage) {
     filters.push(inArray(schema.jobs.status, [...overviewTriageJobStatusValues]));
+    filters.push(gte(schema.jobs.updatedAt, overviewTriageLookbackCutoff()));
   } else if (input.open) {
     filters.push(inArray(schema.jobs.status, [...openJobStatusValues]));
   } else if (input.status) {
