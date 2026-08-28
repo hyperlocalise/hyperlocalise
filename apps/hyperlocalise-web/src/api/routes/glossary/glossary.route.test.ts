@@ -1154,4 +1154,126 @@ describe("glossaryRoutes", () => {
       error: "glossary_source_locale_attached_projects",
     });
   });
+
+  it("rejects detaching the last native project from a team glossary", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Detach Guard Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Detach Guard Project",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Detach guard glossary",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          projectIds: [project.id],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects[":projectId"].$delete(
+      { param: { organizationSlug, glossaryId, projectId: project.id } },
+      { headers: adminHeaders },
+    );
+    expect(detachResponse.status).toBe(403);
+    await expect(detachResponse.json()).resolves.toMatchObject({
+      error: "glossary_team_project_required",
+    });
+  });
+
+  it("allows detaching one native project when another remains on a team glossary", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Multi Attach Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    const firstProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Multi Attach Project A",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(firstProjectResponse.status).toBe(201);
+    const firstProject = ((await firstProjectResponse.json()) as ProjectResponse).project;
+
+    const secondProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Multi Attach Project B",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(secondProjectResponse.status).toBe(201);
+    const secondProject = ((await secondProjectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Multi attach glossary",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          projectIds: [firstProject.id, secondProject.id],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects[":projectId"].$delete(
+      { param: { organizationSlug, glossaryId, projectId: firstProject.id } },
+      { headers: adminHeaders },
+    );
+    expect(detachResponse.status).toBe(204);
+
+    const projectsResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$get({ param: { organizationSlug, glossaryId } }, { headers: adminHeaders });
+    expect(projectsResponse.status).toBe(200);
+    await expect(projectsResponse.json()).resolves.toMatchObject({
+      projects: [{ projectId: secondProject.id }],
+    });
+  });
 });

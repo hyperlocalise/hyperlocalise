@@ -404,6 +404,18 @@ export function createGlossaryRoutes() {
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
+
+      if (glossary.controlLevel === "team") {
+        const attachedProjects = await product.listProjects();
+        const remainingNativeProjects = attachedProjects.filter(
+          (attachedProject) =>
+            attachedProject.projectId !== project.id && attachedProject.source === "native",
+        );
+        if (remainingNativeProjects.length === 0) {
+          return glossaryTeamProjectRequiredResponse(c);
+        }
+      }
+
       await product.detachProject(project.id);
 
       return c.body(null, 204);
