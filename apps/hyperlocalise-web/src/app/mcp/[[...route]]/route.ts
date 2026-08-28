@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { handle } from "hono/vercel";
+import { handle } from "@/api/hono-vercel";
 
 import { createMcpRoutes } from "@/api/routes/mcp/mcp.route";
 
