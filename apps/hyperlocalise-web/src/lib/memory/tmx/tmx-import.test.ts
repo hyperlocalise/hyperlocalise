@@ -15,11 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { isOk } from "@/lib/primitives/result/results";
 
 import { parseTmxDocument } from "./parse-tmx";
-import {
-  documentToImportCandidates,
-  languagesMatch,
-  samePrimaryLanguage,
-} from "./tmx-import";
+import { documentToImportCandidates, languagesMatch, samePrimaryLanguage } from "./tmx-import";
 
 describe("samePrimaryLanguage", () => {
   it("treats regional and script siblings as the same language", () => {

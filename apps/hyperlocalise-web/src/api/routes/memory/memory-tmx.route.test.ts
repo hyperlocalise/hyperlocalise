@@ -248,7 +248,12 @@ describe("memory TMX import and export", () => {
       { headers },
     );
     const createdEntries = (await listedAfterCreate.json()) as {
-      memoryEntries: Array<{ id: string; reviewStatus: string; version: number; targetText: string }>;
+      memoryEntries: Array<{
+        id: string;
+        reviewStatus: string;
+        version: number;
+        targetText: string;
+      }>;
     };
     expect(createdEntries.memoryEntries[0]?.reviewStatus).toBe("rejected");
     expect(createdEntries.memoryEntries[0]?.version).toBe(1);
@@ -284,11 +289,12 @@ describe("memory TMX import and export", () => {
     // silently overwriting the imported text with an outdated form.
     expect(updatedEntries.memoryEntries[0]?.version).toBe(2);
 
-    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$get(
-        { param: { organizationSlug, memoryId: memory.id, entryId: entryId! } },
-        { headers },
-      );
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$get(
+      { param: { organizationSlug, memoryId: memory.id, entryId: entryId! } },
+      { headers },
+    );
     expect(detail.status).toBe(200);
     const detailBody = (await detail.json()) as {
       auditEvents: Array<{ eventType: string; actorKind: string; version: number }>;
