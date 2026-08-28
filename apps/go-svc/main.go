@@ -68,7 +68,7 @@ func main() {
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, mux)
+	server := newHTTPServer(addr, withOptionalPrefix(publicPathPrefix, mux))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
