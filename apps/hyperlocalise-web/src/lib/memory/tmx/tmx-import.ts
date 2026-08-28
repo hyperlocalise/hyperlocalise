@@ -28,6 +28,10 @@ export function normalizeTmxLanguage(tag: string) {
   return canonicalizeLocale(trimmed) ?? trimmed;
 }
 
+/**
+ * Loose source-language match for header/unit `srclang`.
+ * `en` matches `en-US`, but `en-US` does not match `en-GB`.
+ */
 export function languagesMatch(left: string, right: string) {
   const a = normalizeTmxLanguage(left).toLowerCase();
   const b = normalizeTmxLanguage(right).toLowerCase();
@@ -40,6 +44,17 @@ export function languagesMatch(left: string, right: string) {
   const aPrimary = a.split("-")[0];
   const bPrimary = b.split("-")[0];
   return aPrimary === bPrimary && (a === aPrimary || b === bPrimary);
+}
+
+/**
+ * Same-language target detection for skipping dialect/script siblings in one TU.
+ * `en-US` and `en-GB`, or `zh-Hans` and `zh-Hant`, share a primary subtag and must
+ * not become source→target translation-memory pairs.
+ */
+export function samePrimaryLanguage(left: string, right: string) {
+  const a = normalizeTmxLanguage(left).toLowerCase().split("-")[0] ?? "";
+  const b = normalizeTmxLanguage(right).toLowerCase().split("-")[0] ?? "";
+  return Boolean(a && b && a === b);
 }
 
 export function buildTmxExternalKey(
@@ -254,7 +269,7 @@ export function documentToImportCandidates(document: TmxDocument): {
         });
         continue;
       }
-      if (languagesMatch(source.language, target.language)) {
+      if (samePrimaryLanguage(source.language, target.language)) {
         issues.push({
           severity: "warning",
           code: "same_language_variant_skipped",

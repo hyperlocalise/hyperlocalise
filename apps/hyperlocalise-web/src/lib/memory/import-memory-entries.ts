@@ -15,7 +15,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
-import { recordMemoryEntryCreatedEvents } from "@/lib/memory/memory-entry-lifecycle";
+import {
+  recordMemoryEntryCreatedEvents,
+  recordMemoryEntryEvent,
+} from "@/lib/memory/memory-entry-lifecycle";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -163,7 +166,12 @@ function planImportActions(
     );
     if (candidate.externalKey && reservedExternal.has(candidate.externalKey)) {
       const existing = existingByExternalKey.get(candidate.externalKey);
-      planned.push({ candidate, action: "update", existingId: existing?.id });
+      if (!existing?.id) {
+        // Duplicate tuid inside this file before the first create is persisted.
+        planned.push({ candidate, action: "skip" });
+        continue;
+      }
+      planned.push({ candidate, action: "update", existingId: existing.id });
       reservedSource.add(nextSourceKey);
       continue;
     }
@@ -401,6 +409,29 @@ export async function applyMemoryImport(input: {
         continue;
       }
       try {
+        const nextReviewStatus = importedReviewStatus(item.candidate) ?? "approved";
+        const [existing] = await db
+          .select({
+            id: schema.memoryEntries.id,
+            version: schema.memoryEntries.version,
+            reviewStatus: schema.memoryEntries.reviewStatus,
+          })
+          .from(schema.memoryEntries)
+          .where(
+            and(
+              eq(schema.memoryEntries.id, item.existingId),
+              eq(schema.memoryEntries.memoryId, input.memory.id),
+            ),
+          )
+          .limit(1);
+        if (!existing) {
+          skipped += 1;
+          continue;
+        }
+
+        const nextVersion = existing.version + 1;
+        const now = new Date();
+        const reviewStatusChanged = nextReviewStatus !== existing.reviewStatus;
         const [row] = await db
           .update(schema.memoryEntries)
           .set({
@@ -411,20 +442,70 @@ export async function applyMemoryImport(input: {
             targetText: item.candidate.targetText,
             matchScore: item.candidate.matchScore,
             provenance: "import",
-            reviewStatus: importedReviewStatus(item.candidate) ?? "approved",
+            reviewStatus: nextReviewStatus,
             externalKey: item.candidate.externalKey,
             importBatchId: input.importBatchId,
             metadata: item.candidate.metadata,
+            version: nextVersion,
+            modifiedByUserId: input.createdByUserId ?? null,
+            ...(reviewStatusChanged
+              ? {
+                  reviewedByUserId: input.createdByUserId ?? null,
+                  reviewedAt: now,
+                }
+              : {}),
+            updatedAt: now,
           })
           .where(
             and(
               eq(schema.memoryEntries.id, item.existingId),
               eq(schema.memoryEntries.memoryId, input.memory.id),
+              eq(schema.memoryEntries.version, existing.version),
             ),
           )
           .returning();
         if (row) {
           updated += 1;
+          await recordMemoryEntryEvent({
+            memoryEntryId: row.id,
+            memoryId: row.memoryId,
+            eventType: "updated",
+            actorKind: "import",
+            actorUserId: input.createdByUserId,
+            version: nextVersion,
+            changedFields: [
+              "sourceLocale",
+              "targetLocale",
+              "sourceText",
+              "targetText",
+              "matchScore",
+              "provenance",
+              "externalKey",
+              "metadata",
+            ],
+            attributes: {
+              provenance: "import",
+              ...(input.importBatchId ? { importBatchId: input.importBatchId } : {}),
+              ...(row.externalKey ? { externalKey: row.externalKey } : {}),
+            },
+            occurredAt: now,
+          });
+          if (reviewStatusChanged) {
+            await recordMemoryEntryEvent({
+              memoryEntryId: row.id,
+              memoryId: row.memoryId,
+              eventType: "reviewed",
+              actorKind: "import",
+              actorUserId: input.createdByUserId,
+              version: nextVersion,
+              changedFields: ["reviewStatus"],
+              attributes: {
+                reviewStatus: nextReviewStatus,
+                ...(input.importBatchId ? { importBatchId: input.importBatchId } : {}),
+              },
+              occurredAt: new Date(now.getTime() + 1),
+            });
+          }
         } else {
           skipped += 1;
         }

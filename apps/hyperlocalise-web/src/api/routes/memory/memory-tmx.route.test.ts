@@ -227,8 +227,8 @@ describe("memory TMX import and export", () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const tmx = (status: string) =>
-      `<?xml version="1.0" encoding="UTF-8"?><tmx version="1.4"><header srclang="en" creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="t" adminlang="en" datatype="plaintext"/><body><tu tuid="review-1"><prop type="x-review-status">${status}</prop><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>Bonjour</seg></tuv></tu></body></tmx>`;
+    const tmx = (status: string, target = "Bonjour") =>
+      `<?xml version="1.0" encoding="UTF-8"?><tmx version="1.4"><header srclang="en" creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="t" adminlang="en" datatype="plaintext"/><body><tu tuid="review-1"><prop type="x-review-status">${status}</prop><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>${target}</seg></tuv></tu></body></tmx>`;
 
     const created = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
@@ -248,16 +248,19 @@ describe("memory TMX import and export", () => {
       { headers },
     );
     const createdEntries = (await listedAfterCreate.json()) as {
-      memoryEntries: Array<{ reviewStatus: string }>;
+      memoryEntries: Array<{ id: string; reviewStatus: string; version: number; targetText: string }>;
     };
     expect(createdEntries.memoryEntries[0]?.reviewStatus).toBe("rejected");
+    expect(createdEntries.memoryEntries[0]?.version).toBe(1);
+    const entryId = createdEntries.memoryEntries[0]?.id;
+    expect(entryId).toBeTruthy();
 
     const updated = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
     ].entries.import.$post(
       {
         param: { organizationSlug, memoryId: memory.id },
-        json: { format: "tmx", content: tmx("pending") },
+        json: { format: "tmx", content: tmx("pending", "Salut") },
       },
       { headers },
     );
@@ -271,11 +274,106 @@ describe("memory TMX import and export", () => {
       { headers },
     );
     const updatedEntries = (await listedAfterUpdate.json()) as {
-      memoryEntries: Array<{ reviewStatus: string }>;
+      memoryEntries: Array<{ reviewStatus: string; version: number; targetText: string }>;
       total: number;
     };
     expect(updatedEntries.total).toBe(1);
     expect(updatedEntries.memoryEntries[0]?.reviewStatus).toBe("pending");
+    expect(updatedEntries.memoryEntries[0]?.targetText).toBe("Salut");
+    // Import upserts must bump version so open editors get stale_memory_entry instead of
+    // silently overwriting the imported text with an outdated form.
+    expect(updatedEntries.memoryEntries[0]?.version).toBe(2);
+
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
+      .entries[":entryId"].$get(
+        { param: { organizationSlug, memoryId: memory.id, entryId: entryId! } },
+        { headers },
+      );
+    expect(detail.status).toBe(200);
+    const detailBody = (await detail.json()) as {
+      auditEvents: Array<{ eventType: string; actorKind: string; version: number }>;
+    };
+    expect(detailBody.auditEvents.map((event) => event.eventType)).toEqual([
+      "imported",
+      "updated",
+      "reviewed",
+    ]);
+    expect(detailBody.auditEvents[1]).toMatchObject({
+      eventType: "updated",
+      actorKind: "import",
+      version: 2,
+    });
+  });
+
+  it("rejects stale entry edits after a tuid import upsert", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const tmx = (target: string) =>
+      `<?xml version="1.0" encoding="UTF-8"?><tmx version="1.4"><header srclang="en" creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="t" adminlang="en" datatype="plaintext"/><body><tu tuid="stale-1"><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>${target}</seg></tuv></tu></body></tmx>`;
+
+    const created = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: { format: "tmx", content: tmx("Bonjour") },
+      },
+      { headers },
+    );
+    expect(created.status).toBe(201);
+
+    const listed = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { limit: "10" } },
+      { headers },
+    );
+    const listedBody = (await listed.json()) as {
+      memoryEntries: Array<{ id: string; version: number; targetText: string }>;
+    };
+    const entry = listedBody.memoryEntries[0];
+    expect(entry?.version).toBe(1);
+
+    const reimported = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: { format: "tmx", content: tmx("Réimporté") },
+      },
+      { headers },
+    );
+    expect(reimported.status).toBe(201);
+
+    const staleSave = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: { organizationSlug, memoryId: memory.id, entryId: entry!.id },
+        json: {
+          expectedVersion: 1,
+          targetText: "Stale editor overwrite",
+        },
+      },
+      { headers },
+    );
+    expect(staleSave.status).toBe(409);
+    await expect(staleSave.json()).resolves.toMatchObject({ error: "stale_memory_entry" });
+
+    const afterStale = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { limit: "10" } },
+      { headers },
+    );
+    const afterBody = (await afterStale.json()) as {
+      memoryEntries: Array<{ targetText: string; version: number }>;
+    };
+    expect(afterBody.memoryEntries[0]).toMatchObject({
+      targetText: "Réimporté",
+      version: 2,
+    });
   });
 
   it("fails safely on malformed TMX and never silently truncates oversized files", async () => {
