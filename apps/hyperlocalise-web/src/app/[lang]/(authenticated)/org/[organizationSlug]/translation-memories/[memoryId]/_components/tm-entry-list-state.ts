@@ -412,6 +412,13 @@ export function writeTmEntryCursorStack(key: string, stack: string[]): void {
   writeSessionJson(key, stack);
 }
 
+export function canGoToPreviousTmEntryPage(input: {
+  cursor?: string;
+  cursorStack: readonly string[];
+}): boolean {
+  return Boolean(input.cursor) && input.cursorStack.length > 0;
+}
+
 export function readTmEntryScrollOffset(key: string): number | null {
   const parsed = readSessionJson(key);
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;

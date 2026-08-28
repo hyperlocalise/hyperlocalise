@@ -33,6 +33,7 @@ import {
   buildTmEntryListHref,
   buildTmEntryListSearchParams,
   buildTmEntryLocaleOptions,
+  canGoToPreviousTmEntryPage,
   clearTmEntryListFilters,
   getActiveTmEntryFilterChips,
   modifiedDateToApiDateTime,
@@ -197,6 +198,12 @@ describe("tm-entry-list-state", () => {
     writeTmEntryCursorStack(key, ["", "cursor-2"]);
     expect(readTmEntryCursorStack(key)).toEqual(["", "cursor-2"]);
     expect(readTmEntryCursorStack("missing")).toEqual([]);
+  });
+
+  it("allows Previous only when a recovered previous cursor exists", () => {
+    expect(canGoToPreviousTmEntryPage({ cursor: "cursor-3", cursorStack: [] })).toBe(false);
+    expect(canGoToPreviousTmEntryPage({ cursor: undefined, cursorStack: [""] })).toBe(false);
+    expect(canGoToPreviousTmEntryPage({ cursor: "cursor-2", cursorStack: [""] })).toBe(true);
   });
 
   it("converts date-only bounds to inclusive ISO datetimes", () => {

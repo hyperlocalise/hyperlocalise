@@ -37,8 +37,8 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { IssueLocalePicker } from "../../../_components/issue-detail/issue-locale-picker";
 import { TmEntryExplorer } from "./tm-entry-explorer";
+import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
 import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
@@ -320,44 +320,34 @@ export function TranslationMemoryDetailPageContent({
 
         {canEdit ? (
           <div className="grid gap-3 md:grid-cols-2">
-            <Field className="gap-1.5">
-              <FieldLabel>
-                <FormattedMessage {...messages.sourceLocaleLabel} />
-              </FieldLabel>
-              <IssueLocalePicker
-                value={entryForm.sourceLocale}
-                locales={buildTmEntryLocaleOptions({
-                  localeCoverage: memory.localeCoverage,
-                  selected: entryForm.sourceLocale,
-                })}
-                onValueChange={(locale) =>
-                  setEntryForm((current) => ({
-                    ...current,
-                    sourceLocale: locale ?? current.sourceLocale,
-                  }))
-                }
-                aria-label={intl.formatMessage(messages.sourceLocaleLabel)}
-              />
-            </Field>
-            <Field className="gap-1.5">
-              <FieldLabel>
-                <FormattedMessage {...messages.targetLocaleLabel} />
-              </FieldLabel>
-              <IssueLocalePicker
-                value={entryForm.targetLocale}
-                locales={buildTmEntryLocaleOptions({
-                  localeCoverage: memory.localeCoverage,
-                  selected: entryForm.targetLocale,
-                })}
-                onValueChange={(locale) =>
-                  setEntryForm((current) => ({
-                    ...current,
-                    targetLocale: locale ?? current.targetLocale,
-                  }))
-                }
-                aria-label={intl.formatMessage(messages.targetLocaleLabel)}
-              />
-            </Field>
+            <TmEntryLocaleField
+              label={intl.formatMessage(messages.sourceLocaleLabel)}
+              value={entryForm.sourceLocale}
+              locales={buildTmEntryLocaleOptions({
+                localeCoverage: memory.localeCoverage,
+                selected: entryForm.sourceLocale,
+              })}
+              onValueChange={(locale) =>
+                setEntryForm((current) => ({
+                  ...current,
+                  sourceLocale: locale,
+                }))
+              }
+            />
+            <TmEntryLocaleField
+              label={intl.formatMessage(messages.targetLocaleLabel)}
+              value={entryForm.targetLocale}
+              locales={buildTmEntryLocaleOptions({
+                localeCoverage: memory.localeCoverage,
+                selected: entryForm.targetLocale,
+              })}
+              onValueChange={(locale) =>
+                setEntryForm((current) => ({
+                  ...current,
+                  targetLocale: locale,
+                }))
+              }
+            />
             <Field className="gap-1.5">
               <FieldLabel>
                 <FormattedMessage {...messages.sourceTextLabel} />

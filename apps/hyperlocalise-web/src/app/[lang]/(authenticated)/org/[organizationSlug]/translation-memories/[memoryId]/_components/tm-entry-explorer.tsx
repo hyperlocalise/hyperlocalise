@@ -28,6 +28,7 @@ import { tmEntryExplorerMessages as messages } from "./tm-entry-explorer.message
 import { TmEntryListToolbar } from "./tm-entry-list-toolbar";
 import {
   buildTmEntryLocaleOptions,
+  canGoToPreviousTmEntryPage,
   getActiveTmEntryFilterChips,
   readTmEntryCursorStack,
   readTmEntryScrollOffset,
@@ -188,7 +189,15 @@ export function TmEntryExplorer({
     updateState({ cursor: nextCursor });
   };
 
+  const canGoPrevious = canGoToPreviousTmEntryPage({
+    cursor: state.cursor,
+    cursorStack,
+  });
+
   const goPrevious = () => {
+    if (!canGoPrevious) {
+      return;
+    }
     persistScroll();
     const nextStack = [...cursorStack];
     const previous = nextStack.pop();
@@ -395,7 +404,7 @@ export function TmEntryExplorer({
               type="button"
               size="sm"
               variant="outline"
-              disabled={!state.cursor || entriesQuery.isFetching}
+              disabled={!canGoPrevious || entriesQuery.isFetching}
               onClick={goPrevious}
             >
               <FormattedMessage {...messages.previousPage} />

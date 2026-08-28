@@ -260,6 +260,27 @@ describe("TmEntryExplorer", () => {
     });
   });
 
+  it("disables Previous on a deep-linked page when the cursor stack is missing", async () => {
+    navigation.search = "cursor=cursor-3";
+    apiMocks.getEntries.mockResolvedValue(
+      jsonResponse(
+        createPage([createEntry({ sourceText: "Deep page" })], {
+          total: 150,
+          nextCursor: "cursor-4",
+          pagination: { limit: 50, returned: 1, hasMore: true },
+        }),
+      ),
+    );
+
+    renderExplorer();
+
+    await waitFor(() => {
+      expect(screen.getByText("Deep page")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+
   it("restores search, filters, and sort from the URL", async () => {
     navigation.search =
       "search=checkout&sourceLocale=en-US&targetLocale=fr-FR&reviewStatus=pending&origin=import&provider=crowdin&sort=updated_at&sortDir=asc";
