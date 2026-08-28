@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  collectVisibleCatGlossaryConcepts,
   filterCatTeamGlossariesForTeam,
   groupCatGlossaryConceptsByTeam,
   resolveCatContributorTeams,
@@ -77,6 +78,31 @@ describe("groupCatGlossaryConceptsByTeam", () => {
     expect(orgConceptIds).toEqual(new Set(["org-concept"]));
     expect(conceptsByTeamId.get("team-a")).toEqual([concepts[1]]);
     expect(conceptsByTeamId.has("team-b")).toBe(false);
+  });
+});
+
+describe("collectVisibleCatGlossaryConcepts", () => {
+  const concepts = [
+    { id: "org-concept", glossaryId: "glossary-org" },
+    { id: "team-concept", glossaryId: "glossary-team" },
+    { id: "other-team-concept", glossaryId: "glossary-other" },
+  ];
+
+  it("counts only org concepts and team concepts retained for the viewer", () => {
+    const { orgConceptIds, conceptsByTeamId } = groupCatGlossaryConceptsByTeam({
+      concepts,
+      teamGlossaryIds: new Set(["glossary-team", "glossary-other"]),
+      glossaryTeamById: new Map([
+        ["glossary-team", "team-a"],
+        ["glossary-other", "team-b"],
+      ]),
+      contributorTeamIds: new Set(["team-a"]),
+    });
+
+    const orgConcepts = concepts.filter((concept) => orgConceptIds.has(concept.id));
+    const visibleConcepts = collectVisibleCatGlossaryConcepts(orgConcepts, conceptsByTeamId);
+
+    expect(visibleConcepts.map((concept) => concept.id)).toEqual(["org-concept", "team-concept"]);
   });
 });
 

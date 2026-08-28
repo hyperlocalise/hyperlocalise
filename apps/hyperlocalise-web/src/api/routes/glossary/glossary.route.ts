@@ -231,14 +231,16 @@ async function createNativeGlossary(
         return { error: "team_not_found" as const };
       }
 
-      const isMember = await isUserMemberOfTeam(
-        auth.user.localUserId,
-        resolvedTeamId,
-        organizationId,
-        tx,
-      );
-      if (!isMember) {
-        return { error: "team_membership_required" as const };
+      if (!isGlossaryManageAllowed(auth.membership.role)) {
+        const isMember = await isUserMemberOfTeam(
+          auth.user.localUserId,
+          resolvedTeamId,
+          organizationId,
+          tx,
+        );
+        if (!isMember) {
+          return { error: "team_membership_required" as const };
+        }
       }
     }
 

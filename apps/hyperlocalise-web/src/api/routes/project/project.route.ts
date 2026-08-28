@@ -206,7 +206,10 @@ import {
   listAttachedTeamGlossaries,
   listContributorTeams,
 } from "@/lib/glossary/attached-team-glossaries";
-import { isGlossaryContributorRole } from "@/api/routes/glossary/glossary.shared";
+import {
+  isGlossaryContributorRole,
+  isGlossaryManageAllowed,
+} from "@/api/routes/glossary/glossary.shared";
 import {
   isAiActionAllowed,
   isProjectCatBehaviorMutationAllowed,
@@ -901,7 +904,9 @@ async function withCatTeamGlossaryContext(
   const [teamGlossaries, projectTeam, contributorTeams] = await Promise.all([
     listAttachedTeamGlossaries(projectId),
     getProjectTeamContext(projectId),
-    listContributorTeams(auth.user.localUserId, auth.organization.localOrganizationId),
+    listContributorTeams(auth.user.localUserId, auth.organization.localOrganizationId, {
+      organizationWideAccess: isGlossaryManageAllowed(auth.membership.role),
+    }),
   ]);
   return {
     ...catQueue,

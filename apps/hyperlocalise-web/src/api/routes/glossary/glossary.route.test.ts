@@ -838,6 +838,124 @@ describe("glossaryRoutes", () => {
     expect(conceptResponse.status).toBe(201);
   });
 
+  it("lets admins create a team glossary without team membership", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    const adminUserId = await fixture.getLocalUserId(admin.user.workosUserId);
+
+    const alphaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "Operator Alpha" });
+    expect(alphaTeamResponse.status).toBe(201);
+    const alphaTeam = ((await alphaTeamResponse.json()) as TeamResponse).team;
+
+    const betaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "Operator Beta" });
+    expect(betaTeamResponse.status).toBe(201);
+    const betaTeam = ((await betaTeamResponse.json()) as TeamResponse).team;
+
+    await db
+      .delete(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, betaTeam.id),
+          eq(schema.teamMemberships.userId, adminUserId),
+        ),
+      );
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Beta Operator Project",
+          teamId: betaTeam.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Shared with Operator Beta.",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          teamId: betaTeam.id,
+          projectIds: [project.id],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      glossary: { controlLevel: "team", teamName: "Operator Beta" },
+    });
+
+    expect(alphaTeam.id).not.toBe(betaTeam.id);
+  });
+
+  it("rejects translator team glossary creation without team membership", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const translator = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    const translatorHeaders = await fixture.authHeadersFor(translator);
+    const translatorUserId = await fixture.getLocalUserId(translator.user.workosUserId);
+
+    const alphaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "Member Team" });
+    expect(alphaTeamResponse.status).toBe(201);
+    const alphaTeam = ((await alphaTeamResponse.json()) as TeamResponse).team;
+
+    const betaTeamResponse = await teamFixture.createTeamViaApi(admin, { name: "Foreign Team" });
+    expect(betaTeamResponse.status).toBe(201);
+    const betaTeam = ((await betaTeamResponse.json()) as TeamResponse).team;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: alphaTeam.id,
+      userId: translatorUserId,
+      role: "member",
+    });
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Member Team Project",
+          teamId: alphaTeam.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Shared with Foreign Team.",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          teamId: betaTeam.id,
+          projectIds: [project.id],
+        },
+      },
+      { headers: translatorHeaders },
+    );
+    expect(createResponse.status).toBe(403);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "forbidden",
+    });
+  });
+
   it("rejects translator team glossary creation on an external TMS project", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const translator = fixture.createWorkosIdentityForOrganization(

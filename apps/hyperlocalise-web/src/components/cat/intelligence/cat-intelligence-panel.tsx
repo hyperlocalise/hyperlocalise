@@ -56,6 +56,7 @@ import { normalizedCatGlossaryTermStatus } from "./cat-glossary-term-status";
 import { CatAddToGlossary } from "./cat-add-to-glossary";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
 import {
+  collectVisibleCatGlossaryConcepts,
   groupCatGlossaryConceptsByTeam,
   resolveCatContributorTeams,
   type CatContributorTeam,
@@ -297,6 +298,10 @@ export function CatIntelligencePanel({
     () => glossaryConcepts.filter((concept) => orgConceptIds.has(concept.id)),
     [glossaryConcepts, orgConceptIds],
   );
+  const visibleGlossaryConcepts = useMemo(
+    () => collectVisibleCatGlossaryConcepts(orgGlossaryConcepts, conceptsByTeamId),
+    [conceptsByTeamId, orgGlossaryConcepts],
+  );
   const orderedContributorTeams = useMemo(() => {
     if (!projectTeamId) {
       return resolvedContributorTeams;
@@ -314,29 +319,31 @@ export function CatIntelligencePanel({
     return [projectTeam, ...teams];
   }, [projectTeamId, resolvedContributorTeams]);
   const addingConceptTeam = orderedContributorTeams.find((team) => team.id === addingConceptTeamId);
-  const glossaryConceptKey = glossaryConcepts.map((concept) => concept.id).join("\u0000");
+  const glossaryConceptKey = visibleGlossaryConcepts.map((concept) => concept.id).join("\u0000");
   const glossaryGuidanceStatus = useMemo(() => {
-    const terms = glossaryConcepts.flatMap((concept) => [
+    const terms = visibleGlossaryConcepts.flatMap((concept) => [
       ...concept.sourceTerms,
       ...(concept.translatable === false ? [] : concept.targetTerms),
     ]);
 
     return {
-      matchCount: glossaryConcepts.length,
+      matchCount: visibleGlossaryConcepts.length,
       preferredCount: terms.filter((term) => normalizedCatGlossaryTermStatus(term) === "preferred")
         .length,
       notRecommendedCount: terms.filter(
         (term) => normalizedCatGlossaryTermStatus(term) === "not_recommended",
       ).length,
     };
-  }, [glossaryConcepts]);
+  }, [visibleGlossaryConcepts]);
   const [expandedGlossaryConceptIds, setExpandedGlossaryConceptIds] = useState<Set<string>>(
-    () => new Set(glossaryConcepts[0] ? [glossaryConcepts[0].id] : []),
+    () => new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
   );
 
   useEffect(() => {
-    setExpandedGlossaryConceptIds(new Set(glossaryConcepts[0] ? [glossaryConcepts[0].id] : []));
-  }, [glossaryConceptKey, glossaryConcepts]);
+    setExpandedGlossaryConceptIds(
+      new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
+    );
+  }, [glossaryConceptKey, visibleGlossaryConcepts]);
 
   useEffect(() => {
     setCatGlossaryGuidanceStatus(
@@ -410,7 +417,7 @@ export function CatIntelligencePanel({
     canEditTranslations && Boolean(sourceLocale && targetLocale) && canContributeTeamGlossary;
   const hasTeamSections = orderedContributorTeams.length > 0;
   const showGlobalEmpty =
-    !isConcordanceLoading && glossaryConcepts.length === 0 && !hasTeamSections;
+    !isConcordanceLoading && visibleGlossaryConcepts.length === 0 && !hasTeamSections;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border">

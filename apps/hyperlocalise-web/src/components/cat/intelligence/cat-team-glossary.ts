@@ -86,6 +86,14 @@ export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryI
   return { orgConceptIds, conceptsByTeamId };
 }
 
+export function collectVisibleCatGlossaryConcepts<T extends { id: string }>(
+  orgConcepts: T[],
+  conceptsByTeamId: Map<string, T[]>,
+): T[] {
+  const teamConcepts = [...conceptsByTeamId.values()].flat();
+  return [...orgConcepts, ...teamConcepts];
+}
+
 export function filterCatTeamGlossariesForTeam(
   teamGlossaries: CatTeamGlossaryOption[],
   teamId: string,

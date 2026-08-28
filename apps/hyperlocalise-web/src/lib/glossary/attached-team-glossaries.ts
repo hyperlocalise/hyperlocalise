@@ -49,11 +49,27 @@ export async function getProjectTeamName(projectId: string): Promise<string | nu
   return context?.teamName ?? null;
 }
 
+export type ListContributorTeamsOptions = {
+  organizationWideAccess?: boolean;
+};
+
 export async function listContributorTeams(
   userId: string,
   organizationId: string,
+  options: ListContributorTeamsOptions = {},
   client: DatabaseClient = db,
 ): Promise<ContributorTeam[]> {
+  if (options.organizationWideAccess) {
+    return client
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+      })
+      .from(schema.teams)
+      .where(eq(schema.teams.organizationId, organizationId))
+      .orderBy(schema.teams.name);
+  }
+
   return client
     .select({
       id: schema.teams.id,
