@@ -3008,8 +3008,8 @@ describe("project file CAT routes", () => {
       {
         param: { organizationSlug },
         json: {
-          name: "CAT Beta Project",
-          teamId: betaTeam.id,
+          name: "CAT Alpha Project",
+          teamId: alphaTeam.id,
           sourceLocale: "en-US",
           targetLocales: ["fr-FR"],
         },
