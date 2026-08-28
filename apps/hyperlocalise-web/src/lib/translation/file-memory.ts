@@ -14,6 +14,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { db, schema } from "@/lib/database";
+import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -214,6 +215,7 @@ export class FileTranslationMemoryStore {
           provenance: sql`excluded.provenance`,
           externalKey: sql`excluded.external_key`,
           metadata: sql`excluded.metadata`,
+          version: incrementMemoryEntryVersionSql(),
           updatedAt: sql`now()`,
         },
       });

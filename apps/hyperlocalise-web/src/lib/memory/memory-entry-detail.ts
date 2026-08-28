@@ -17,6 +17,7 @@ import type { Memory } from "@/lib/database/types";
 import type { MemoryEntryEventActorKind, MemoryEntryEventType } from "@/lib/database/schema";
 
 import {
+  isMemoryEntryCreationEventType,
   memoryEntryCapabilities,
   type MemoryEntryCapabilities,
   type MemoryEntryRow,
@@ -173,14 +174,13 @@ async function loadActorNames(userIds: Array<string | null | undefined>) {
   return new Map(rows.map((row) => [row.id, displayName(row.firstName, row.lastName)]));
 }
 
-function synthesizeAuditEvents(entry: MemoryEntryRow): MemoryEntryAuditEventRecord[] {
-  const events: MemoryEntryAuditEventRecord[] = [];
+function synthesizeCreationEvent(entry: MemoryEntryRow): MemoryEntryAuditEventRecord {
   const createdType: MemoryEntryEventType =
     entry.provenance === "import" ? "imported" : entry.provenance === "sync" ? "synced" : "created";
   const createdKind: MemoryEntryEventActorKind =
     entry.provenance === "import" ? "import" : entry.provenance === "sync" ? "provider" : "user";
 
-  events.push({
+  return {
     id: `${entry.id}:created`,
     eventType: createdType,
     actorKind: createdKind,
@@ -193,7 +193,25 @@ function synthesizeAuditEvents(entry: MemoryEntryRow): MemoryEntryAuditEventReco
       ...(entry.importBatchId ? { importBatchId: entry.importBatchId } : {}),
     },
     occurredAt: entry.createdAt.toISOString(),
+  };
+}
+
+export function withBaselineAuditEvents(
+  entry: MemoryEntryRow,
+  events: MemoryEntryAuditEventRecord[],
+): MemoryEntryAuditEventRecord[] {
+  if (events.some((event) => isMemoryEntryCreationEventType(event.eventType))) {
+    return events;
+  }
+
+  return [synthesizeCreationEvent(entry), ...events].toSorted((left, right) => {
+    const byTime = left.occurredAt.localeCompare(right.occurredAt);
+    return byTime !== 0 ? byTime : left.id.localeCompare(right.id);
   });
+}
+
+function synthesizeAuditEvents(entry: MemoryEntryRow): MemoryEntryAuditEventRecord[] {
+  const events: MemoryEntryAuditEventRecord[] = [synthesizeCreationEvent(entry)];
 
   if (entry.updatedAt.getTime() > entry.createdAt.getTime()) {
     events.push({
@@ -257,7 +275,7 @@ async function loadAuditEvents(entry: MemoryEntryRow): Promise<MemoryEntryAuditE
     }));
   }
 
-  return rows.map((row) => ({
+  const stored = rows.map((row) => ({
     id: row.id,
     eventType: row.eventType,
     actorKind: row.actorKind,
@@ -267,6 +285,17 @@ async function loadAuditEvents(entry: MemoryEntryRow): Promise<MemoryEntryAuditE
     changedFields: row.changedFields,
     attributes: row.attributes,
     occurredAt: row.occurredAt.toISOString(),
+  }));
+  const merged = withBaselineAuditEvents(entry, stored);
+  if (merged.length === stored.length) {
+    return stored;
+  }
+
+  const names = await loadActorNames(merged.map((event) => event.actorUserId));
+  return merged.map((event) => ({
+    ...event,
+    actorDisplayName:
+      event.actorDisplayName ?? (event.actorUserId ? (names.get(event.actorUserId) ?? null) : null),
   }));
 }
 

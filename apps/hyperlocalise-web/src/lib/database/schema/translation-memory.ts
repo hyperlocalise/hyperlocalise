@@ -406,7 +406,7 @@ export const memoryEntries = pgTable(
     externalKey: text("external_key"),
     // Review status for agent suggestions vs human-approved entries.
     reviewStatus: text("review_status").notNull().default("approved"),
-    // Optimistic-concurrency version. Incremented on every successful write.
+    // Optimistic-concurrency version. Incremented on every successful write, including upserts.
     version: integer("version").notNull().default(1),
     // User who created the entry, if known.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {

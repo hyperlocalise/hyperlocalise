@@ -20,6 +20,12 @@ import { normalizeTranslationMemorySourceText } from "@/lib/translation/normaliz
 
 import { localePattern } from "./locale";
 import {
+  isMemoryEntryWritable,
+  recordMemoryEntryCreatedEvent,
+  updateMemoryEntrySafely,
+} from "@/lib/memory/memory-entry-lifecycle";
+import { isErr } from "@/lib/primitives/result/results";
+import {
   toolGetAccessibleMemory,
   toolMemoryOrgMutationWhere,
   toolProjectLinkedMemoryWhere,
@@ -262,6 +268,9 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
       if (!memory) {
         return { success: false, error: `Memory ${memoryId} not found.` };
       }
+      if (!isMemoryEntryWritable(memory)) {
+        return { success: false, error: "This translation memory is read-only." };
+      }
 
       const normalizedSourceText = normalizeTranslationMemorySourceText(entryData.sourceText);
 
@@ -286,21 +295,35 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
         };
       }
 
-      const [entry] = await ctx.db
-        .insert(schema.memoryEntries)
-        .values({
-          memoryId,
-          sourceLocale: entryData.sourceLocale,
-          targetLocale: entryData.targetLocale,
-          sourceText: entryData.sourceText,
-          normalizedSourceText,
-          targetText: entryData.targetText,
-          matchScore: entryData.matchScore,
-          provenance: entryData.provenance,
-          externalKey: entryData.externalKey ?? null,
-        })
-        .onConflictDoNothing()
-        .returning();
+      const entry = await ctx.db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(schema.memoryEntries)
+          .values({
+            memoryId,
+            sourceLocale: entryData.sourceLocale,
+            targetLocale: entryData.targetLocale,
+            sourceText: entryData.sourceText,
+            normalizedSourceText,
+            targetText: entryData.targetText,
+            matchScore: entryData.matchScore,
+            provenance: entryData.provenance,
+            externalKey: entryData.externalKey ?? null,
+            createdByUserId: ctx.localUserId,
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        if (!created) {
+          return null;
+        }
+
+        await recordMemoryEntryCreatedEvent({
+          entry: created,
+          actorUserId: ctx.localUserId,
+          client: tx,
+        });
+        return created;
+      });
 
       if (!entry) {
         return {
@@ -355,49 +378,67 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
       }
 
       const { entryId, sourceText, ...rest } = input;
-      const updates: Record<string, unknown> = Object.fromEntries(
-        Object.entries(rest).filter(([, v]) => v !== undefined),
-      );
-
-      if (sourceText !== undefined) {
-        updates.sourceText = sourceText;
-        updates.normalizedSourceText = normalizeTranslationMemorySourceText(sourceText);
-      }
-
-      if (Object.keys(updates).length === 0) {
+      if (
+        sourceText === undefined &&
+        rest.targetText === undefined &&
+        rest.sourceLocale === undefined &&
+        rest.targetLocale === undefined &&
+        rest.matchScore === undefined &&
+        rest.provenance === undefined &&
+        rest.externalKey === undefined &&
+        rest.reviewStatus === undefined
+      ) {
         return { success: false, error: "No fields provided to update." };
       }
 
-      // Verify ownership via the parent memory.
       const [entryWithMemory] = await ctx.db
         .select({
-          memoryOrgId: schema.memories.organizationId,
-          memorySource: schema.memories.source,
-          capabilityMode: schema.memories.capabilityMode,
+          version: schema.memoryEntries.version,
+          memory: schema.memories,
         })
         .from(schema.memoryEntries)
         .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(eq(schema.memoryEntries.id, entryId))
         .limit(1);
 
-      if (!entryWithMemory || entryWithMemory.memoryOrgId !== ctx.organizationId) {
+      if (!entryWithMemory || entryWithMemory.memory.organizationId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
       }
 
-      if (
-        entryWithMemory.memorySource === "external_tms" ||
-        entryWithMemory.capabilityMode === "reference_only"
-      ) {
-        return { success: false, error: "This translation memory is read-only." };
+      const result = await updateMemoryEntrySafely({
+        memory: entryWithMemory.memory,
+        entryId,
+        expectedVersion: entryWithMemory.version,
+        actorUserId: ctx.localUserId,
+        updates: {
+          sourceText,
+          targetText: rest.targetText,
+          sourceLocale: rest.sourceLocale,
+          targetLocale: rest.targetLocale,
+          matchScore: rest.matchScore,
+          reviewStatus: rest.reviewStatus,
+          provenance: rest.provenance,
+          externalKey: rest.externalKey,
+        },
+      });
+
+      if (isErr(result)) {
+        if (result.error.code === "memory_entry_read_only") {
+          return { success: false, error: "This translation memory is read-only." };
+        }
+        if (result.error.code === "stale_memory_entry") {
+          return { success: false, error: "This entry changed after it was loaded." };
+        }
+        if (result.error.code === "duplicate_memory_entry") {
+          return {
+            success: false,
+            error: "An entry with the same source text, locales, and memory already exists.",
+          };
+        }
+        return { success: false, error: `Entry ${entryId} not found.` };
       }
 
-      const [entry] = await ctx.db
-        .update(schema.memoryEntries)
-        .set(updates)
-        .where(eq(schema.memoryEntries.id, entryId))
-        .returning();
-
-      return { success: true, entry };
+      return { success: true, entry: result.value };
     },
   });
 }

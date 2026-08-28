@@ -19,6 +19,7 @@ import type {
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
@@ -922,6 +923,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           reviewStatus: sql`excluded.review_status`,
           externalKey: sql`excluded.external_key`,
           metadata: sql`excluded.metadata`,
+          version: incrementMemoryEntryVersionSql(),
           updatedAt: sql`now()`,
         },
       });

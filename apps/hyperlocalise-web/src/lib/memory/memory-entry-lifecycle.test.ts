@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isMemoryEntryCreationEventType,
   isMemoryEntryWritable,
   memoryEntryCapabilities,
   safeMemoryEntryEventAttributes,
@@ -50,6 +51,15 @@ describe("memoryEntryCapabilities", () => {
         capabilityMode: "reference_only",
       }),
     ).toEqual({ canEdit: false, readOnlyReason: "reference_only" });
+  });
+});
+
+describe("isMemoryEntryCreationEventType", () => {
+  it("recognizes created, imported, and synced events", () => {
+    expect(isMemoryEntryCreationEventType("created")).toBe(true);
+    expect(isMemoryEntryCreationEventType("imported")).toBe(true);
+    expect(isMemoryEntryCreationEventType("synced")).toBe(true);
+    expect(isMemoryEntryCreationEventType("updated")).toBe(false);
   });
 });
 

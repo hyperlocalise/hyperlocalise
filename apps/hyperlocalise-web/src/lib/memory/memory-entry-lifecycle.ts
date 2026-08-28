@@ -10,9 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -57,6 +57,8 @@ export type MemoryEntryMutableFields = {
   matchScore?: number;
   reviewStatus?: "approved" | "pending" | "rejected";
   metadata?: Record<string, unknown>;
+  provenance?: string;
+  externalKey?: string | null;
 };
 
 const MUTABLE_FIELD_NAMES = [
@@ -67,7 +69,19 @@ const MUTABLE_FIELD_NAMES = [
   "matchScore",
   "reviewStatus",
   "metadata",
+  "provenance",
+  "externalKey",
 ] as const;
+
+const CREATION_EVENT_TYPES = new Set<MemoryEntryEventType>(["created", "imported", "synced"]);
+
+export function incrementMemoryEntryVersionSql() {
+  return sql`${schema.memoryEntries.version} + 1`;
+}
+
+export function isMemoryEntryCreationEventType(eventType: string) {
+  return CREATION_EVENT_TYPES.has(eventType as MemoryEntryEventType);
+}
 
 export function memoryEntryCapabilities(
   memory: Pick<Memory, "source" | "capabilityMode">,
@@ -131,9 +145,12 @@ export function safeMemoryEntryEventAttributes(attributes: Record<string, unknow
   return safe;
 }
 
-export async function recordMemoryEntryEvent(input: RecordMemoryEntryEventInput) {
+export async function recordMemoryEntryEvent(
+  input: RecordMemoryEntryEventInput & { client?: DatabaseClient },
+) {
+  const client = input.client ?? db;
   const attributes = safeMemoryEntryEventAttributes(input.attributes);
-  const [event] = await db
+  const [event] = await client
     .insert(schema.memoryEntryEvents)
     .values({
       memoryEntryId: input.memoryEntryId,
@@ -180,8 +197,10 @@ function createdEventValues(input: { entry: MemoryEntryRow; actorUserId?: string
 export async function recordMemoryEntryCreatedEvent(input: {
   entry: MemoryEntryRow;
   actorUserId?: string | null;
+  client?: DatabaseClient;
 }) {
-  const [event] = await db
+  const client = input.client ?? db;
+  const [event] = await client
     .insert(schema.memoryEntryEvents)
     .values(createdEventValues(input))
     .returning();
@@ -200,12 +219,14 @@ export async function recordMemoryEntryCreatedEvent(input: {
 export async function recordMemoryEntryCreatedEvents(input: {
   entries: MemoryEntryRow[];
   actorUserId?: string | null;
+  client?: DatabaseClient;
 }) {
   if (input.entries.length === 0) {
     return [];
   }
 
-  return db
+  const client = input.client ?? db;
+  return client
     .insert(schema.memoryEntryEvents)
     .values(
       input.entries.map((entry) => createdEventValues({ entry, actorUserId: input.actorUserId })),
@@ -321,6 +342,10 @@ export async function updateMemoryEntrySafely(input: {
           ? { reviewStatus: input.updates.reviewStatus }
           : {}),
         ...(input.updates.metadata !== undefined ? { metadata: input.updates.metadata } : {}),
+        ...(input.updates.provenance !== undefined ? { provenance: input.updates.provenance } : {}),
+        ...(input.updates.externalKey !== undefined
+          ? { externalKey: input.updates.externalKey }
+          : {}),
         version: nextVersion,
         modifiedByUserId: input.actorUserId ?? null,
         ...(reviewStatusChanged
@@ -342,6 +367,19 @@ export async function updateMemoryEntrySafely(input: {
 
     if (!updated) {
       return err({ code: "stale_memory_entry", current: existing });
+    }
+
+    const existingEvents = await tx
+      .select({ eventType: schema.memoryEntryEvents.eventType })
+      .from(schema.memoryEntryEvents)
+      .where(eq(schema.memoryEntryEvents.memoryEntryId, existing.id));
+    if (!existingEvents.some((event) => isMemoryEntryCreationEventType(event.eventType))) {
+      await tx.insert(schema.memoryEntryEvents).values(
+        createdEventValues({
+          entry: existing,
+          actorUserId: existing.createdByUserId,
+        }),
+      );
     }
 
     const contentFields = fields.filter((field) => field !== "reviewStatus");

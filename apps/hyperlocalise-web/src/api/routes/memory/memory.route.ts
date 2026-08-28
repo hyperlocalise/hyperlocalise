@@ -243,28 +243,34 @@ async function createMemoryEntry(
     return null;
   }
 
-  const [entry] = await db
-    .insert(schema.memoryEntries)
-    .values({
-      memoryId: memory.id,
-      sourceLocale: payload.sourceLocale,
-      targetLocale: payload.targetLocale,
-      sourceText: payload.sourceText,
-      normalizedSourceText,
-      targetText: payload.targetText,
-      matchScore: payload.matchScore,
-      provenance: "manual",
-      createdByUserId,
-    })
-    .onConflictDoNothing()
-    .returning();
+  return db.transaction(async (tx) => {
+    const [entry] = await tx
+      .insert(schema.memoryEntries)
+      .values({
+        memoryId: memory.id,
+        sourceLocale: payload.sourceLocale,
+        targetLocale: payload.targetLocale,
+        sourceText: payload.sourceText,
+        normalizedSourceText,
+        targetText: payload.targetText,
+        matchScore: payload.matchScore,
+        provenance: "manual",
+        createdByUserId,
+      })
+      .onConflictDoNothing()
+      .returning();
 
-  if (!entry) {
-    return null;
-  }
+    if (!entry) {
+      return null;
+    }
 
-  await recordMemoryEntryCreatedEvent({ entry, actorUserId: createdByUserId });
-  return entry;
+    await recordMemoryEntryCreatedEvent({
+      entry,
+      actorUserId: createdByUserId,
+      client: tx,
+    });
+    return entry;
+  });
 }
 
 async function createMemoryEntries(
@@ -276,30 +282,33 @@ async function createMemoryEntries(
     return [];
   }
 
-  const created = await db
-    .insert(schema.memoryEntries)
-    .values(
-      payloads.map((payload) => ({
-        memoryId: memory.id,
-        sourceLocale: payload.sourceLocale,
-        targetLocale: payload.targetLocale,
-        sourceText: payload.sourceText,
-        normalizedSourceText: normalizeTranslationMemorySourceText(payload.sourceText),
-        targetText: payload.targetText,
-        matchScore: payload.matchScore,
-        provenance: "import",
-        createdByUserId: options?.createdByUserId,
-        importBatchId: options?.importBatchId,
-      })),
-    )
-    .onConflictDoNothing()
-    .returning();
+  return db.transaction(async (tx) => {
+    const created = await tx
+      .insert(schema.memoryEntries)
+      .values(
+        payloads.map((payload) => ({
+          memoryId: memory.id,
+          sourceLocale: payload.sourceLocale,
+          targetLocale: payload.targetLocale,
+          sourceText: payload.sourceText,
+          normalizedSourceText: normalizeTranslationMemorySourceText(payload.sourceText),
+          targetText: payload.targetText,
+          matchScore: payload.matchScore,
+          provenance: "import",
+          createdByUserId: options?.createdByUserId,
+          importBatchId: options?.importBatchId,
+        })),
+      )
+      .onConflictDoNothing()
+      .returning();
 
-  await recordMemoryEntryCreatedEvents({
-    entries: created,
-    actorUserId: options?.createdByUserId,
+    await recordMemoryEntryCreatedEvents({
+      entries: created,
+      actorUserId: options?.createdByUserId,
+      client: tx,
+    });
+    return created;
   });
-  return created;
 }
 
 async function listMemoryProjects(

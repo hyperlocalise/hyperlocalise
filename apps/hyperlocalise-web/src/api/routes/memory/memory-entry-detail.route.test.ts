@@ -258,6 +258,36 @@ describe("memory entry detail", () => {
     }
   });
 
+  it("preserves a creation event after the first edit of a pre-migration entry", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const entry = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Legacy source",
+      targetText: "Legacy target",
+      provenance: "import",
+    });
+
+    const updated = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: entry.id,
+        },
+        json: {
+          expectedVersion: 1,
+          targetText: "Updated target",
+        },
+      },
+      { headers },
+    );
+    expect(updated.status).toBe(200);
+    const detail = await readDetail(updated);
+    expect(detail.auditEvents.map((event) => event.eventType)).toEqual(["imported", "updated"]);
+  });
+
   it("rejects a stale edit without overwriting the newer change", async () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);

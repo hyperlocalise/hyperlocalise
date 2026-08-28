@@ -158,6 +158,9 @@ describe("Agent Tools RBAC", () => {
           insert: vi.fn(() => ({
             values: vi.fn(() => ({
               returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              })),
             })),
           })),
           update: vi.fn(() => ({

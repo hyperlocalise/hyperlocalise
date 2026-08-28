@@ -176,7 +176,10 @@ describe("persistFileTranslationMemoryEntries", () => {
 
     expect(onConflictDoUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        set: expect.objectContaining({ updatedAt: { sql: "now()" } }),
+        set: expect.objectContaining({
+          updatedAt: { sql: "now()" },
+          version: expect.anything(),
+        }),
       }),
     );
   });
