@@ -13,12 +13,31 @@
 import { delay, http, HttpResponse } from "msw";
 
 import {
+  issueSheetCreateIssueBodySchema,
+  issueSheetUpdateIssueBodySchema,
+} from "@/api/routes/project/issue-sheet.schema";
+
+import {
   catLinkableIssuesFixture,
   catLinkedIssuesAssignableMembersFixture,
   catLinkedIssuesListFixture,
   catLinkedIssuesTranslationKeyId,
   type CatLinkedIssueListItemFixture,
 } from "./cat-linked-issues-dialog.fixture";
+
+async function readIssueSheetPatchBody(request: Request) {
+  const parsed = issueSheetUpdateIssueBodySchema.safeParse(
+    await request.json().catch(() => undefined),
+  );
+  return parsed.success ? parsed.data : undefined;
+}
+
+async function readIssueSheetCreateBody(request: Request) {
+  const parsed = issueSheetCreateIssueBodySchema.safeParse(
+    await request.json().catch(() => undefined),
+  );
+  return parsed.success ? parsed.data : undefined;
+}
 
 const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
 
@@ -70,7 +89,7 @@ export const catLinkedIssuesMswHandlers = [
   ),
   http.get(issueSheetBasePath, ({ request }) => listResponse(linkedIssuesForRequest(request))),
   http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await readIssueSheetPatchBody(request);
     const existing =
       catLinkableIssuesFixture.find((issue) => issue.id === params.issueId) ??
       catLinkedIssuesListFixture[0];
@@ -79,9 +98,9 @@ export const catLinkedIssuesMswHandlers = [
         ...existing,
         id: params.issueId,
         translationKeyId:
-          body.translationKeyId === null
+          body?.translationKeyId === null
             ? null
-            : typeof body.translationKeyId === "string"
+            : typeof body?.translationKeyId === "string"
               ? body.translationKeyId
               : (existing?.translationKeyId ?? catLinkedIssuesTranslationKeyId),
         title: existing?.title ?? "Linked issue",
@@ -90,17 +109,14 @@ export const catLinkedIssuesMswHandlers = [
     });
   }),
   http.post(issueSheetBasePath, async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await readIssueSheetCreateBody(request);
     return HttpResponse.json(
       {
         issue: {
           id: "issue_created_from_string",
-          title: typeof body.title === "string" ? body.title : "New linked issue",
+          title: body?.title ?? "New linked issue",
           status: "open",
-          translationKeyId:
-            typeof body.translationKeyId === "string"
-              ? body.translationKeyId
-              : catLinkedIssuesTranslationKeyId,
+          translationKeyId: body?.translationKeyId ?? catLinkedIssuesTranslationKeyId,
         },
       },
       { status: 201 },
@@ -121,26 +137,26 @@ export const catLinkedIssuesEmptyMswHandlers = [
     return listResponse(catLinkableIssuesFixture.filter((issue) => issue.translationKeyId == null));
   }),
   http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await readIssueSheetPatchBody(request);
     return HttpResponse.json({
       issue: {
         id: params.issueId,
         title: "Checkout pay button too long",
         status: "open",
-        translationKeyId: typeof body.translationKeyId === "string" ? body.translationKeyId : null,
+        translationKeyId: typeof body?.translationKeyId === "string" ? body.translationKeyId : null,
       },
     });
   }),
   http.post(issueSheetBasePath, async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await readIssueSheetCreateBody(request);
     return HttpResponse.json(
       {
         issue: {
           id: "issue_created_empty",
-          title: typeof body.title === "string" ? body.title : "New issue",
+          title: body?.title ?? "New issue",
           status: "open",
           translationKeyId:
-            typeof body.translationKeyId === "string" ? body.translationKeyId : null,
+            typeof body?.translationKeyId === "string" ? body.translationKeyId : null,
         },
       },
       { status: 201 },

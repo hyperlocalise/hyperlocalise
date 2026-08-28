@@ -15,7 +15,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
 import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -69,7 +68,7 @@ export async function fetchProjectFileCatSegmentComments(input: {
     },
   });
 
-  if (!response.ok) {
+  if (response.status !== 200) {
     throw new Error(
       await readApiError(
         response,
@@ -78,7 +77,7 @@ export async function fetchProjectFileCatSegmentComments(input: {
     );
   }
 
-  const body = (await response.json()) as { comments: ProjectFileCatComment[] };
+  const body = await response.json();
   return body.comments;
 }
 

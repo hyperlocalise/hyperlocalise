@@ -17,11 +17,6 @@ import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type {
-  ProjectFileCatConcordanceResponse,
-  ProjectFileCatRecommendationResponse,
-  ProjectFileCatVisualContextResponse,
-} from "@/api/routes/project/project.schema";
 import {
   Select,
   SelectContent,
@@ -389,7 +384,7 @@ export function ProjectFileCatWorkspace({
             status: "approved",
           },
         });
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error(
             await readApiError(
               response,
@@ -594,7 +589,7 @@ export function ProjectFileCatWorkspace({
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -603,7 +598,7 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as { stringContext: { summary: string | null } };
+      const body = await response.json();
       return body.stringContext.summary;
     },
     [intl, organizationSlug, projectId, repositoryFullName, sourcePath],
@@ -622,7 +617,7 @@ export function ProjectFileCatWorkspace({
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -631,7 +626,7 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as ProjectFileCatConcordanceResponse;
+      const body = await response.json();
       return body.concordance;
     },
     [intl, organizationSlug, projectId],
@@ -649,7 +644,7 @@ export function ProjectFileCatWorkspace({
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -658,7 +653,7 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as ProjectFileCatVisualContextResponse;
+      const body = await response.json();
       return body.visualContext;
     },
     [intl, organizationSlug, projectId, sourcePath],
@@ -699,7 +694,7 @@ export function ProjectFileCatWorkspace({
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -708,7 +703,7 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const body = (await response.json()) as ProjectFileCatRecommendationResponse;
+      const body = await response.json();
       return body.recommendation;
     },
     [intl, organizationSlug, projectId, sourcePath, targetLocale],

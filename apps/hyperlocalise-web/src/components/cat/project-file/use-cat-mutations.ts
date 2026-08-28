@@ -18,9 +18,7 @@ import { useIntl, type IntlShape } from "react-intl";
 import {
   maxCatLockedStringBatch,
   maxNativeCatHiddenStringBatch,
-  type ProjectFileCatComment,
   type ProjectFileCatQueueFile,
-  type ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -126,7 +124,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -135,7 +133,7 @@ export function useCatMutations(input: {
         );
       }
 
-      const body = (await response.json()) as { translation: ProjectFileCatTranslation };
+      const body = await response.json();
       return body.translation;
     },
     onSuccess: async (translation, variables) => {
@@ -198,7 +196,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -207,7 +205,7 @@ export function useCatMutations(input: {
         );
       }
 
-      const body = (await response.json()) as { comment: ProjectFileCatComment };
+      const body = await response.json();
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
@@ -263,7 +261,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -272,7 +270,7 @@ export function useCatMutations(input: {
         );
       }
 
-      const body = (await response.json()) as { comment: ProjectFileCatComment };
+      const body = await response.json();
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
@@ -354,7 +352,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -376,32 +374,29 @@ export function useCatMutations(input: {
       file: File;
       force?: boolean;
     }) => {
-      const { sourcePath } = resolveCatMutationFileIdentity(
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
         intl,
       );
-      const formData = new FormData();
-      formData.set("sourcePath", sourcePath);
-      formData.set("targetLocale", input.targetLocale);
-      formData.set("externalStringId", mutationInput.externalStringId);
-      if (mutationInput.force) {
-        formData.set("force", "true");
-      }
-      if (input.catFile?.provider) {
-        formData.set("externalResourceId", requireProviderExternalResourceId(input.catFile, intl));
-      }
-      formData.set("file", mutationInput.file);
-
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/files/detail/cat/images/upload`,
-        {
-          method: "POST",
-          body: formData,
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.upload.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
         },
-      );
+        form: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          file: mutationInput.file,
+          ...(mutationInput.force ? { force: "true" } : {}),
+          ...(externalResourceId ? { externalResourceId } : {}),
+        },
+      } as never);
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -442,7 +437,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -482,7 +477,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,
@@ -519,7 +514,7 @@ export function useCatMutations(input: {
           },
         });
 
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error(
             await readApiError(
               response,
@@ -528,7 +523,7 @@ export function useCatMutations(input: {
           );
         }
 
-        const body = (await response.json()) as { updatedCount: number; isHidden: boolean };
+        const body = await response.json();
         updatedCount += body.updatedCount;
       }
 
@@ -561,7 +556,7 @@ export function useCatMutations(input: {
           },
         });
 
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error(
             await readApiError(
               response,
@@ -570,9 +565,7 @@ export function useCatMutations(input: {
           );
         }
 
-        const body = (await response.json()) as {
-          catSegmentLock: { updatedCount: number; isLocked: boolean };
-        };
+        const body = await response.json();
         updatedCount += body.catSegmentLock.updatedCount;
       }
 
@@ -606,7 +599,7 @@ export function useCatMutations(input: {
         },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(
           await readApiError(
             response,

@@ -14,6 +14,7 @@
  */
 import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { InferResponseType } from "hono/client";
 import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Cancel01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
@@ -40,17 +41,10 @@ import {
 } from "./cat-issue-guidance-event";
 import { catEditorIssuesSectionMessages as messages } from "./cat-editor-issues-section.messages";
 
-type IssueSheetListIssue = {
-  id: string;
-  identifier: string;
-  title: string;
-  status: string;
-  targetLocale: string | null;
-  assignee: string | null;
-  assigneeUserId: string | null;
-  updatedAt: string;
-  values?: Record<string, unknown>;
-};
+type CatIssueSheetListResponse = InferResponseType<
+  (typeof apiClient.api.orgs)[":organizationSlug"]["projects"][":projectId"]["issue-sheet"]["$get"],
+  200
+>;
 
 /** Maximum accepted by the issue sheet list endpoint. */
 const SEGMENT_ISSUE_PAGE_SIZE = 100;
@@ -155,7 +149,7 @@ export function CatEditorIssuesSection({
     // the segment's filtered `total` is covered rather than showing a truncated
     // first page as if it were everything.
     queryFn: async () => {
-      const issues: IssueSheetListIssue[] = [];
+      const issues: CatIssueSheetListResponse["issues"] = [];
 
       for (let page = 0; page < SEGMENT_ISSUE_MAX_PAGES; page += 1) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
