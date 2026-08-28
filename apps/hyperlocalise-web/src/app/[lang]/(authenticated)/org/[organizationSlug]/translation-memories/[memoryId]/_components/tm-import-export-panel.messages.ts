@@ -140,7 +140,7 @@ export const tmImportExportPanelMessages = defineMessages({
   importFileTooLarge: {
     defaultMessage:
       "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
-    id: "tmImportFileTooLarge",
+    id: "S1WdU+6z/U",
     description: "Error when a translation memory import file exceeds the documented size limit",
   },
   importFailed: {
