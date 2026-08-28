@@ -27,7 +27,10 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 import { Glossary } from "./glossary";
 import { NativeGlossary } from "./native-glossary";
 import { queryNativeGlossaryTermCounts } from "./query-glossary-term-counts";
-import { listGlossaryTermsForProject } from "./query-glossary-terms";
+import {
+  listGlossaryTermsForProject,
+  resolveProjectGlossarySourceLocale,
+} from "./query-glossary-terms";
 
 const createdOrganizationIds = new Set<string>();
 
@@ -76,7 +79,7 @@ async function createAttachedGlossaryTerm(input: {
       name: input.glossaryName,
       description: "",
       sourceLocale: "en",
-      targetLocale: "fr",
+      targetLocale: null,
       status: "active",
     })
     .returning();
@@ -87,19 +90,42 @@ async function createAttachedGlossaryTerm(input: {
     glossaryId: glossary.id,
   });
 
-  const [term] = await db
+  const [concept] = await db
+    .insert(schema.glossaryConcepts)
+    .values({
+      glossaryId: glossary.id,
+      primaryTerm: input.sourceTerm,
+    })
+    .returning();
+
+  const [sourceTermRow] = await db
     .insert(schema.glossaryTerms)
     .values({
       glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: input.sourceTerm,
       sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
+      targetTerm: input.sourceTerm,
       description: "",
       provenance: "manual",
       reviewStatus: "approved",
     })
     .returning();
 
-  return { glossary, term };
+  await db.insert(schema.glossaryTerms).values({
+    glossaryId: glossary.id,
+    conceptId: concept.id,
+    locale: "fr",
+    term: input.targetTerm,
+    sourceTerm: input.targetTerm,
+    targetTerm: input.targetTerm,
+    description: "",
+    provenance: "manual",
+    reviewStatus: "approved",
+  });
+
+  return { glossary, term: sourceTermRow, concept };
 }
 
 afterEach(async () => {
@@ -161,6 +187,47 @@ describe("listGlossaryTermsForProject", () => {
       sourceTerm: "checkout",
       targetTerm: "paiement",
       targetLocale: "fr",
+    });
+  });
+
+  it("ignores leftover term-based rows without a concept_id", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Concept Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const [glossary] = await db
+      .select({ id: schema.glossaries.id })
+      .from(schema.glossaries)
+      .where(inArray(schema.glossaries.organizationId, [organization.id]))
+      .limit(1);
+
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      sourceTerm: "legacy",
+      targetTerm: "héritage",
+      description: "",
+      provenance: "manual",
+      reviewStatus: "approved",
+    });
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms).toHaveLength(1);
+    expect(terms[0]).toMatchObject({
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
     });
   });
 
@@ -238,10 +305,312 @@ describe("listGlossaryTermsForProject", () => {
       targetLocale: "fr",
     });
   });
+
+  it("returns preferred targets and forbidden not_recommended alternatives", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: organization.id,
+        name: "Status Glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+      })
+      .returning();
+
+    await db.insert(schema.projectGlossaries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryId: glossary.id,
+    });
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "checkout",
+      })
+      .returning();
+
+    await db.insert(schema.glossaryTerms).values([
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "en",
+        term: "checkout",
+        sourceTerm: "checkout",
+        targetTerm: "checkout",
+        status: "preferred",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "fr",
+        term: "paiement",
+        sourceTerm: "paiement",
+        targetTerm: "paiement",
+        status: "preferred",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "fr",
+        term: "caisse",
+        sourceTerm: "caisse",
+        targetTerm: "caisse",
+        status: "not_recommended",
+        reviewStatus: "approved",
+      },
+    ]);
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceTerm: "checkout",
+          targetTerm: "paiement",
+          forbidden: false,
+        }),
+        expect.objectContaining({
+          sourceTerm: "checkout",
+          targetTerm: "caisse",
+          forbidden: true,
+        }),
+      ]),
+    );
+    expect(terms).toHaveLength(2);
+  });
+
+  it("includes non-translatable concepts as source-to-source pairs", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: organization.id,
+        name: "Brand Glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+      })
+      .returning();
+
+    await db.insert(schema.projectGlossaries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryId: glossary.id,
+    });
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Hyperlocalise",
+        translatable: false,
+      })
+      .returning();
+
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Hyperlocalise",
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+      status: "preferred",
+      reviewStatus: "approved",
+    });
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "Hyperlocalise",
+        targetTerm: "Hyperlocalise",
+        targetLocale: "fr",
+        forbidden: false,
+      }),
+    ]);
+  });
+
+  it("orders terms from higher-priority attached glossaries first", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    const [highPriorityGlossary, lowPriorityGlossary] = await db
+      .insert(schema.glossaries)
+      .values([
+        {
+          organizationId: organization.id,
+          name: "High Priority Glossary",
+          description: "",
+          sourceLocale: "en",
+          targetLocale: null,
+          status: "active",
+        },
+        {
+          organizationId: organization.id,
+          name: "Low Priority Glossary",
+          description: "",
+          sourceLocale: "en",
+          targetLocale: null,
+          status: "active",
+        },
+      ])
+      .returning();
+
+    await db.insert(schema.projectGlossaries).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        glossaryId: highPriorityGlossary.id,
+        priority: 1,
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        glossaryId: lowPriorityGlossary.id,
+        priority: 2,
+      },
+    ]);
+
+    for (const [glossary, sourceTerm, targetTerm] of [
+      [highPriorityGlossary, "alpha", "alpha-fr"],
+      [lowPriorityGlossary, "zebra", "zebre"],
+    ] as const) {
+      const [concept] = await db
+        .insert(schema.glossaryConcepts)
+        .values({
+          glossaryId: glossary.id,
+          primaryTerm: sourceTerm,
+        })
+        .returning();
+
+      await db.insert(schema.glossaryTerms).values([
+        {
+          glossaryId: glossary.id,
+          conceptId: concept.id,
+          locale: "en",
+          term: sourceTerm,
+          sourceTerm,
+          targetTerm: sourceTerm,
+          status: "preferred",
+          reviewStatus: "approved",
+        },
+        {
+          glossaryId: glossary.id,
+          conceptId: concept.id,
+          locale: "fr",
+          term: targetTerm,
+          sourceTerm: targetTerm,
+          targetTerm,
+          status: "preferred",
+          reviewStatus: "approved",
+        },
+      ]);
+    }
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms.map((term) => term.glossaryId)).toEqual([
+      highPriorityGlossary.id,
+      lowPriorityGlossary.id,
+    ]);
+  });
+
+  it("caps flattened pairs when maxPairs is provided", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Alpha",
+      sourceTerm: "alpha",
+      targetTerm: "alpha-fr",
+    });
+    await createAttachedGlossaryTerm({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryName: "Beta",
+      sourceTerm: "beta",
+      targetTerm: "beta-fr",
+    });
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      maxPairs: 1,
+    });
+
+    expect(terms).toHaveLength(1);
+  });
+});
+
+describe("resolveProjectGlossarySourceLocale", () => {
+  it("falls back to the project source locale when provider content omits it", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "de" })
+      .where(inArray(schema.projects.id, [project.id]));
+
+    await expect(
+      resolveProjectGlossarySourceLocale({
+        organizationId: organization.id,
+        projectId: project.id,
+        contentSourceLocale: null,
+      }),
+    ).resolves.toBe("de");
+  });
+
+  it("prefers the provider content source locale when present", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "de" })
+      .where(inArray(schema.projects.id, [project.id]));
+
+    await expect(
+      resolveProjectGlossarySourceLocale({
+        organizationId: organization.id,
+        projectId: project.id,
+        contentSourceLocale: "en",
+      }),
+    ).resolves.toBe("en");
+  });
 });
 
 describe("queryNativeGlossaryTermCounts", () => {
-  it("counts native glossary terms and returns zero for empty glossaries", async () => {
+  it("counts only concept-linked glossary terms and returns zero for empty glossaries", async () => {
     const organization = await createOrganization();
     const [emptyGlossary, populatedGlossary] = await db
       .insert(schema.glossaries)
@@ -261,10 +630,32 @@ describe("queryNativeGlossaryTermCounts", () => {
       ])
       .returning();
 
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: populatedGlossary.id,
+        primaryTerm: "checkout",
+      })
+      .returning();
+
     await db.insert(schema.glossaryTerms).values([
       {
         glossaryId: populatedGlossary.id,
+        conceptId: concept.id,
+        locale: "en",
+        term: "checkout",
         sourceTerm: "checkout",
+        targetTerm: "checkout",
+        description: "",
+        provenance: "manual",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: populatedGlossary.id,
+        conceptId: concept.id,
+        locale: "fr",
+        term: "caisse",
+        sourceTerm: "caisse",
         targetTerm: "caisse",
         description: "",
         provenance: "manual",
@@ -272,8 +663,8 @@ describe("queryNativeGlossaryTermCounts", () => {
       },
       {
         glossaryId: populatedGlossary.id,
-        sourceTerm: "payment",
-        targetTerm: "paiement",
+        sourceTerm: "legacy",
+        targetTerm: "héritage",
         description: "",
         provenance: "manual",
         reviewStatus: "approved",
@@ -298,7 +689,7 @@ describe("Glossary project counts", () => {
         name: "Attached glossary",
         description: "",
         sourceLocale: "en",
-        targetLocale: "fr",
+        targetLocale: null,
         status: "active",
       })
       .returning();

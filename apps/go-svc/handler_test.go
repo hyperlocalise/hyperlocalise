@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -232,6 +233,22 @@ func TestValidateSegmentSpellingSkippedWhenProviderUnavailable(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.Len(t, resp.Checks, 1)
 	require.Equal(t, "format-parity", resp.Checks[0].ID)
+	require.Equal(t, []string{"spelling"}, resp.SkippedModes)
+}
+
+func TestValidateSegmentSpellingSkippedWhenLocaleUnsupported(t *testing.T) {
+	fake := &fakeSpellChecker{err: fmt.Errorf("%w: %q", spellcheck.ErrUnsupportedLocale, "en-CA")}
+	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
+	mux := newAuthedValidateSegmentMux(h)
+
+	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"en-CA"}`
+	rec := postValidateSegment(mux, payload)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Checks, 1)
 	require.Equal(t, []string{"spelling"}, resp.SkippedModes)
 }
 

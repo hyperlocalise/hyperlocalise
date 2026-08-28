@@ -32,6 +32,10 @@ import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import {
+  listGlossaryTermsForProject,
+  FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+} from "@/lib/glossary/query-glossary-terms";
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
@@ -47,38 +51,19 @@ type ProviderSourceFileRef = {
 };
 
 async function loadFileGlossaryTerms(input: {
+  organizationId: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
   sourceText: string;
 }) {
-  const { and, asc, eq, inArray, sql } = await import("drizzle-orm");
-  const { db, schema } = await import("@/lib/database");
-
-  const attachedTerms = await db
-    .select({
-      sourceTerm: schema.glossaryTerms.sourceTerm,
-      targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-      description: schema.glossaryTerms.description,
-      forbidden: schema.glossaryTerms.forbidden,
-      caseSensitive: schema.glossaryTerms.caseSensitive,
-      priority: schema.projectGlossaries.priority,
-    })
-    .from(schema.projectGlossaries)
-    .innerJoin(schema.glossaries, eq(schema.glossaries.id, schema.projectGlossaries.glossaryId))
-    .innerJoin(schema.glossaryTerms, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-    .where(
-      and(
-        eq(schema.projectGlossaries.projectId, input.projectId),
-        eq(schema.glossaries.sourceLocale, input.sourceLocale),
-        inArray(schema.glossaries.targetLocale, input.targetLocales),
-        eq(schema.glossaries.status, "active"),
-        eq(schema.glossaryTerms.reviewStatus, "approved"),
-      ),
-    )
-    .orderBy(asc(schema.projectGlossaries.priority), asc(schema.glossaryTerms.sourceTerm))
-    .limit(500);
+  const attachedTerms = await listGlossaryTermsForProject({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+  });
 
   return attachedTerms
     .filter((term) => sourceContainsTerm(input.sourceText, term))
@@ -689,6 +674,7 @@ export async function translateProviderJobFiles(input: {
 
         const combinedSourceText = preparedFiles.map((file) => file.sourceText).join("\n");
         const glossaryTerms = await loadFileGlossaryTerms({
+          organizationId: input.organizationId,
           projectId: input.projectId,
           sourceLocale,
           targetLocales: localesToRun,

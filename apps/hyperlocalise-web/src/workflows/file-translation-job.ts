@@ -12,10 +12,7 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
-import {
-  sourceContainsTerm,
-  validateGlossaryTermsInTranslation,
-} from "@/lib/glossary/validate-glossary-terms-in-translation";
+import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { hlEntriesPayloadToStringMap } from "@/lib/projects/files/hl-entries";
 import {
@@ -480,13 +477,18 @@ async function assembleFileTranslationContextStep(input: {
 }) {
   "use step";
 
-  const { and, asc, eq, inArray, sql } = await import("drizzle-orm");
+  const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
+  const { listGlossaryTermsForProject, FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT } =
+    await import("@/lib/glossary/query-glossary-terms");
+  const { sourceContainsTerm } =
+    await import("@/lib/glossary/validate-glossary-terms-in-translation");
 
   const [project] = await db
     .select({
       id: schema.projects.id,
       name: schema.projects.name,
+      organizationId: schema.projects.organizationId,
       translationContext: schema.projects.translationContext,
     })
     .from(schema.projects)
@@ -498,30 +500,13 @@ async function assembleFileTranslationContextStep(input: {
   }
 
   const sourceText = input.sourceContent.toString("utf8").slice(0, 500_000);
-  const attachedTerms = await db
-    .select({
-      sourceTerm: schema.glossaryTerms.sourceTerm,
-      targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-      description: schema.glossaryTerms.description,
-      forbidden: schema.glossaryTerms.forbidden,
-      caseSensitive: schema.glossaryTerms.caseSensitive,
-      priority: schema.projectGlossaries.priority,
-    })
-    .from(schema.projectGlossaries)
-    .innerJoin(schema.glossaries, eq(schema.glossaries.id, schema.projectGlossaries.glossaryId))
-    .innerJoin(schema.glossaryTerms, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-    .where(
-      and(
-        eq(schema.projectGlossaries.projectId, input.projectId),
-        eq(schema.glossaries.sourceLocale, input.sourceLocale),
-        inArray(schema.glossaries.targetLocale, input.targetLocales),
-        eq(schema.glossaries.status, "active"),
-        eq(schema.glossaryTerms.reviewStatus, "approved"),
-      ),
-    )
-    .orderBy(asc(schema.projectGlossaries.priority), asc(schema.glossaryTerms.sourceTerm))
-    .limit(500);
+  const attachedTerms = await listGlossaryTermsForProject({
+    organizationId: project.organizationId,
+    projectId: input.projectId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+  });
 
   const glossaryTerms = attachedTerms
     .filter((term) => sourceContainsTerm(sourceText, term))

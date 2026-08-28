@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
@@ -22,6 +22,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
+import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   buildAccessibleProjectsWhere,
@@ -431,19 +432,38 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         };
       }
 
-      const entries = await db
+      const rows = await db
         .select({
           id: schema.glossaryTerms.id,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
+          conceptId: schema.glossaryTerms.conceptId,
+          locale: schema.glossaryTerms.locale,
+          term: schema.glossaryTerms.term,
           description: schema.glossaryTerms.description,
           partOfSpeech: schema.glossaryTerms.partOfSpeech,
+          status: schema.glossaryTerms.status,
           forbidden: schema.glossaryTerms.forbidden,
         })
         .from(schema.glossaryTerms)
-        .where(eq(schema.glossaryTerms.glossaryId, glossaryId))
-        .orderBy(schema.glossaryTerms.sourceTerm)
+        .where(
+          and(
+            eq(schema.glossaryTerms.glossaryId, glossaryId),
+            isNotNull(schema.glossaryTerms.conceptId),
+            isNotNull(schema.glossaryTerms.term),
+          ),
+        )
+        .orderBy(schema.glossaryTerms.term)
         .limit(limit);
+
+      const entries = rows.map((row) => ({
+        id: row.id,
+        conceptId: row.conceptId,
+        locale: row.locale,
+        term: row.term,
+        description: row.description,
+        partOfSpeech: row.partOfSpeech,
+        status: row.status,
+        forbidden: row.forbidden || normalizedGlossaryTermStatusFromStatus(row.status).forbidden,
+      }));
 
       return {
         content: [{ type: "text", text: JSON.stringify({ entries }, null, 2) }],
@@ -479,17 +499,27 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 }
 
 async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpAuth"]) {
+  if (request.method !== "POST") {
+    return new Response(null, {
+      status: 405,
+      headers: {
+        Allow: "POST",
+      },
+    });
+  }
+
   const server = await createMcpServerForRequest(auth);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
 
-  await server.connect(transport);
-  const response = await transport.handleRequest(request);
-  await server.close();
-
-  return response;
+  try {
+    await server.connect(transport);
+    return await transport.handleRequest(request);
+  } finally {
+    await server.close();
+  }
 }
 
 const validateAuthorizationQuery = validator("query", (value, c) => {
@@ -515,6 +545,8 @@ const validateRegisterBody = validator("json", (value, c) => {
 export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
   const apiBasePath = options.apiBasePath ?? "/api";
 
+  // `/mcp/sse` is the canonical Streamable HTTP endpoint advertised by
+  // protected-resource metadata. `/mcp/message` remains a compatibility alias.
   return new Hono<{ Variables: McpAuthVariables }>()
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),

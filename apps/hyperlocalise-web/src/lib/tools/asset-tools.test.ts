@@ -84,22 +84,45 @@ async function createGlossaryWithTerm(input: {
       name: input.name,
       description: "",
       sourceLocale: "en",
-      targetLocale: "fr",
+      targetLocale: null,
       status: "active",
     })
     .returning();
 
-  const [term] = await db
-    .insert(schema.glossaryTerms)
+  const [concept] = await db
+    .insert(schema.glossaryConcepts)
     .values({
       glossaryId: glossary.id,
-      sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
-      description: "",
+      primaryTerm: input.sourceTerm,
     })
     .returning();
 
-  return { glossary, term };
+  const [sourceTermRow] = await db
+    .insert(schema.glossaryTerms)
+    .values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: input.sourceTerm,
+      sourceTerm: input.sourceTerm,
+      targetTerm: input.sourceTerm,
+      description: "",
+      reviewStatus: "approved",
+    })
+    .returning();
+
+  await db.insert(schema.glossaryTerms).values({
+    glossaryId: glossary.id,
+    conceptId: concept.id,
+    locale: "fr",
+    term: input.targetTerm,
+    sourceTerm: input.targetTerm,
+    targetTerm: input.targetTerm,
+    description: "",
+    reviewStatus: "approved",
+  });
+
+  return { glossary, term: sourceTermRow, concept };
 }
 
 async function createMemoryWithEntry(input: {
@@ -296,6 +319,55 @@ describe("createQueryGlossaryTool", () => {
     });
 
     expect(result.terms).toEqual([]);
+  });
+
+  it("returns non-translatable concepts as source-to-source matches", async () => {
+    const organization = await createOrganization();
+
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: organization.id,
+        name: "Brand Glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+      })
+      .returning();
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "Hyperlocalise",
+        translatable: false,
+      })
+      .returning();
+
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: concept.id,
+      locale: "en",
+      term: "Hyperlocalise",
+      sourceTerm: "Hyperlocalise",
+      targetTerm: "Hyperlocalise",
+      status: "preferred",
+      reviewStatus: "approved",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "Hyperlocalise",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "Hyperlocalise",
+        targetTerm: "Hyperlocalise",
+        glossaryName: "Brand Glossary",
+      }),
+    ]);
   });
 });
 

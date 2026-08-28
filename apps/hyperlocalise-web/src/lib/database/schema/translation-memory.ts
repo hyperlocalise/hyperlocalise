@@ -68,8 +68,9 @@ export const glossaries = pgTable(
     name: text("name").notNull(),
     // Optional operator-facing summary for the glossary.
     description: text("description").notNull().default(""),
-    // Locale pair that the glossary terms apply to.
+    // Default source locale for native glossaries and provider-backed locale scoping.
     sourceLocale: text("source_locale").notNull(),
+    // Native glossaries leave this null; matching uses concept-term locale. Retained for provider-backed rows and the unique index.
     targetLocale: text("target_locale"),
     // Lifecycle state for draft, active, and archived libraries.
     status: assetStatusEnum("status").notNull().default("active"),
@@ -208,9 +209,8 @@ export const glossaryConcepts = pgTable(
 );
 
 /**
- * Stores individual terminology entries inside a glossary, including native concept fields,
- * provider-compatible source/target fields, provenance, review status, metadata, and a lexical
- * search vector.
+ * Stores individual terminology entries inside a glossary, including native concept locale terms,
+ * provenance, review status, metadata, and a lexical search vector.
  */
 export const glossaryTerms = pgTable(
   "glossary_terms",
@@ -221,15 +221,15 @@ export const glossaryTerms = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
-    // Native concept parent. Null identifies retained provider-compatible rows.
+    // Native concept parent. Null marks leftover term-based rows; native reads ignore those rows.
     conceptId: uuid("concept_id").references(() => glossaryConcepts.id, { onDelete: "cascade" }),
     // Canonical locale for native concept terms.
     locale: text("locale"),
     // Canonical native term used for matching and display.
     term: text("term"),
-    // Source-side term to match against translation input.
+    // Deprecated term-based pair column. Still written because the column is NOT NULL. Do not query for native matching; use locale + term.
     sourceTerm: text("source_term").notNull(),
-    // Preferred target-side rendering for the source term.
+    // Deprecated term-based pair column. Still written because the column is NOT NULL. Do not query for native matching; use locale + term.
     targetTerm: text("target_term").notNull(),
     // Optional human-readable explanation for reviewers and prompts.
     description: text("description").notNull().default(""),
@@ -260,7 +260,7 @@ export const glossaryTerms = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
-    // Generated Postgres full-text document used for fast lexical glossary retrieval.
+    // Generated Postgres full-text document from deprecated pair columns until a later schema pass. Native concordance searches term.
     // `to_tsvector` lowercases tokens, so callers must still post-filter case-sensitive terms.
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
       setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||
@@ -413,6 +413,12 @@ export const memoryEntries = pgTable(
     externalKey: text("external_key"),
     // Review status for agent suggestions vs human-approved entries.
     reviewStatus: text("review_status").notNull().default("approved"),
+    // User who created the entry, if known.
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Shared identifier for entries written by one import request.
+    importBatchId: uuid("import_batch_id"),
     // Extensible metadata for import payloads or audit tags.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -422,6 +428,13 @@ export const memoryEntries = pgTable(
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
       setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(target_text, '')), 'B')
+    `),
+    // Explorer/management search document: source, target, identifiers, and string metadata.
+    managementSearchVector: tsvector("management_search_vector").generatedAlwaysAs(sql`
+      setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(target_text, '')), 'B') ||
+      setweight(to_tsvector('simple', coalesce(external_key, '')), 'A') ||
+      setweight(jsonb_to_tsvector('simple', coalesce(metadata, '{}'::jsonb), '["string"]'), 'C')
     `),
     // When the TM entry was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -450,6 +463,13 @@ export const memoryEntries = pgTable(
     ),
     index("idx_memory_entries_external_key").on(table.externalKey),
     index("idx_memory_entries_search_vector").using("gin", table.searchVector),
+    index("idx_memory_entries_management_search_vector").using("gin", table.managementSearchVector),
+    index("idx_memory_entries_memory_created_at_id").on(table.memoryId, table.createdAt, table.id),
+    index("idx_memory_entries_memory_updated_at_id").on(table.memoryId, table.updatedAt, table.id),
+    index("idx_memory_entries_memory_review_status").on(table.memoryId, table.reviewStatus),
+    index("idx_memory_entries_memory_provenance").on(table.memoryId, table.provenance),
+    index("idx_memory_entries_memory_created_by").on(table.memoryId, table.createdByUserId),
+    index("idx_memory_entries_memory_import_batch").on(table.memoryId, table.importBatchId),
   ],
 );
 

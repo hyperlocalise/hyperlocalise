@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { defineMessages, type MessageDescriptor } from "react-intl";
-import { AiBrain01Icon, Globe02Icon, Task01Icon } from "@hugeicons/core-free-icons";
+import { Bookmark01Icon, FlashIcon, Globe02Icon } from "@hugeicons/core-free-icons";
 
 import type { NavigationIcon } from "@/components/app-shell/navigation-config";
 
@@ -228,7 +228,7 @@ export const featureTeaserMessages = defineMessages({
 
 export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig> = {
   automations: {
-    icon: Task01Icon,
+    icon: FlashIcon,
     pageLabel: featureTeaserMessages.automationsPageLabel,
     pageLabelProject: featureTeaserMessages.automationsPageLabelProject,
     pageTitle: featureTeaserMessages.automationsTitle,
@@ -243,7 +243,7 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
     ],
   },
   guideline: {
-    icon: AiBrain01Icon,
+    icon: Bookmark01Icon,
     pageLabel: featureTeaserMessages.guidelinePageLabel,
     pageLabelProject: featureTeaserMessages.guidelinePageLabelProject,
     pageTitle: featureTeaserMessages.guidelineTitle,

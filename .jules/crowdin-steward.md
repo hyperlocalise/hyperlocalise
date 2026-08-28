@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add GlossaryIDs parity to GlossaryConcordanceSearchRequest
+
+**Learning:** In Crowdin API v2, Glossary Concordance Search (`POST /api/v2/projects/{projectId}/glossaries/concordance`) accepts an optional `glossaryIds` array in the request body to filter concordance search across specific glossaries. The SDK's `GlossaryConcordanceSearchRequest` previously lacked `GlossaryIDs`, preventing callers from restricting glossary concordance search to selected glossaries.
+
+**Action:** Added `GlossaryIDs []int json:"glossaryIds,omitempty"` to `GlossaryConcordanceSearchRequest` in `third_party/crowdin-api-client-go/crowdin/model/glossaries.go`. Added unit test assertions in `third_party/crowdin-api-client-go/crowdin/model/glossaries_test.go` and `third_party/crowdin-api-client-go/crowdin/glossaries_test.go`.
+
 ## 2026-12-31 - Add IsHidden query filter parity to SourceStringsListOptions
 
 **Learning:** In Crowdin API v2, the List Source Strings endpoint (`GET /api/v2/projects/{projectId}/strings`) accepts an optional `isHidden` query parameter (0 - not hidden, 1 - hidden) to filter source strings by their hidden status. The SDK's `SourceStringsListOptions` previously lacked `IsHidden`, preventing callers from filtering source strings by hidden status in list requests.

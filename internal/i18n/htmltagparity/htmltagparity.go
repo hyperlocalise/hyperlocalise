@@ -23,8 +23,15 @@ func Mismatch(sourceValue, targetValue string) bool {
 		return false
 	}
 
-	sourceTags := collectMarkupTags(sourceValue)
-	targetTags := collectMarkupTags(targetValue)
+	// BOLT OPTIMIZATION: Fast-path when neither string contains '<'.
+	if strings.IndexByte(sourceValue, '<') < 0 && strings.IndexByte(targetValue, '<') < 0 {
+		return false
+	}
+
+	// BOLT OPTIMIZATION: Use stack-allocated buffers for tag slices to eliminate heap allocations.
+	var buf1, buf2 [16]string
+	sourceTags := collectMarkupTagsBuf(sourceValue, buf1[:0])
+	targetTags := collectMarkupTagsBuf(targetValue, buf2[:0])
 	return !slices.Equal(sourceTags, targetTags)
 }
 
@@ -43,12 +50,21 @@ func tagSliceCap(numTags int) int {
 // collectMarkupTags scans the string and collects normalized markup tag names
 // in a single pass with minimal heap allocations by fusing tag discovery, name extraction, and filtering.
 func collectMarkupTags(s string) []string {
-	// BOLT OPTIMIZATION: Precompute and pre-allocate the output slice to avoid slice growth and re-allocations.
+	return collectMarkupTagsBuf(s, nil)
+}
+
+func collectMarkupTagsBuf(s string, buf []string) []string {
+	// BOLT OPTIMIZATION: Precompute tag count and use stack buffer if available.
 	numTags := strings.Count(s, "<")
 	if numTags == 0 {
 		return nil
 	}
-	out := make([]string, 0, tagSliceCap(numTags))
+	var out []string
+	if cap(buf) >= numTags {
+		out = buf[:0]
+	} else {
+		out = make([]string, 0, tagSliceCap(numTags))
+	}
 	// BOLT OPTIMIZATION: Use strings.IndexByte for faster tag discovery.
 	for i := 0; i < len(s); {
 		idx := strings.IndexByte(s[i:], '<')

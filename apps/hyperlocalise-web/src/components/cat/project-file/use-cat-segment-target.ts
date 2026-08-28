@@ -70,7 +70,7 @@ export async function fetchProjectFileCatSegmentTarget(input: {
     },
   });
 
-  if (!response.ok) {
+  if (response.status !== 200) {
     throw new Error(
       await readApiError(
         response,
@@ -79,7 +79,7 @@ export async function fetchProjectFileCatSegmentTarget(input: {
     );
   }
 
-  const body = (await response.json()) as { target: ProjectFileCatTranslation | null };
+  const body = await response.json();
   return body.target;
 }
 

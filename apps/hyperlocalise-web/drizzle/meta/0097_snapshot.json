@@ -1,5 +1,5 @@
 {
-  "id": "3a6fb224-5b5b-4e00-b320-d5acf2d61c5b",
+  "id": "28357ac8-77bf-4ceb-a379-1d01b0d2cb3b",
   "prevId": "6888dc0f-8f81-4aca-8b24-f4d1b522f9c4",
   "version": "7",
   "dialect": "postgresql",
@@ -4241,14 +4241,6 @@
           "notNull": true,
           "default": "'native'"
         },
-        "control_level": {
-          "name": "control_level",
-          "type": "glossary_control_level",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'org'"
-        },
         "external_provider_kind": {
           "name": "external_provider_kind",
           "type": "external_tms_provider_kind",
@@ -4577,12 +4569,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "glossaries_team_control_is_native": {
-          "name": "glossaries_team_control_is_native",
-          "value": "\"glossaries\".\"control_level\" <> 'team' OR \"glossaries\".\"source\" = 'native'"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.glossary_concepts": {
@@ -5509,6 +5496,18 @@
           "notNull": true,
           "default": "'approved'"
         },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_batch_id": {
+          "name": "import_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "metadata": {
           "name": "metadata",
           "type": "jsonb",
@@ -5523,6 +5522,16 @@
           "notNull": false,
           "generated": {
             "as": "\n      setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||\n      setweight(to_tsvector('simple', coalesce(target_text, '')), 'B')\n    ",
+            "type": "stored"
+          }
+        },
+        "management_search_vector": {
+          "name": "management_search_vector",
+          "type": "tsvector",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "\n      setweight(to_tsvector('simple', coalesce(source_text, '')), 'A') ||\n      setweight(to_tsvector('simple', coalesce(target_text, '')), 'B') ||\n      setweight(to_tsvector('simple', coalesce(external_key, '')), 'A') ||\n      setweight(jsonb_to_tsvector('simple', coalesce(metadata, '{}'::jsonb), '[\"string\"]'), 'C')\n    ",
             "type": "stored"
           }
         },
@@ -5652,6 +5661,159 @@
           "concurrently": false,
           "method": "gin",
           "with": {}
+        },
+        "idx_memory_entries_management_search_vector": {
+          "name": "idx_memory_entries_management_search_vector",
+          "columns": [
+            {
+              "expression": "management_search_vector",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "idx_memory_entries_memory_created_at_id": {
+          "name": "idx_memory_entries_memory_created_at_id",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entries_memory_updated_at_id": {
+          "name": "idx_memory_entries_memory_updated_at_id",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entries_memory_review_status": {
+          "name": "idx_memory_entries_memory_review_status",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "review_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entries_memory_provenance": {
+          "name": "idx_memory_entries_memory_provenance",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provenance",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entries_memory_created_by": {
+          "name": "idx_memory_entries_memory_created_by",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_memory_entries_memory_import_batch": {
+          "name": "idx_memory_entries_memory_import_batch",
+          "columns": [
+            {
+              "expression": "memory_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "import_batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -5666,6 +5828,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "memory_entries_created_by_user_id_users_id_fk": {
+          "name": "memory_entries_created_by_user_id_users_id_fk",
+          "tableFrom": "memory_entries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -19955,14 +20130,6 @@
       "values": [
         "glossary",
         "term_base"
-      ]
-    },
-    "public.glossary_control_level": {
-      "name": "glossary_control_level",
-      "schema": "public",
-      "values": [
-        "org",
-        "team"
       ]
     },
     "public.glossary_sync_state": {

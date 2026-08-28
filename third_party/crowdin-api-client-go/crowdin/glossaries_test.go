@@ -852,7 +852,7 @@ func TestGlossariesService_ConcordanceSearch(t *testing.T) {
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, path)
-		testBody(t, r, `{"sourceLanguageId":"en","targetLanguageId":"de","expressions":["Welcome!","Save as...","View","About..."]}`+"\n")
+		testBody(t, r, `{"sourceLanguageId":"en","targetLanguageId":"de","expressions":["Welcome!","Save as...","View","About..."],"glossaryIds":[2,6]}`+"\n")
 
 		fmt.Fprint(w, `{
 			"data": [
@@ -930,6 +930,7 @@ func TestGlossariesService_ConcordanceSearch(t *testing.T) {
 			"View",
 			"About...",
 		},
+		GlossaryIDs: []int{2, 6},
 	}
 	searches, resp, err := client.Glossaries.ConcordanceSearch(context.Background(), 1, req)
 	require.NoError(t, err)

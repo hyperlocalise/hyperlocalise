@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-import { createApplyPatchTool } from "./apply-patch";
+import { createApplyPatchTool, disallowedGitFileModeError } from "./apply-patch";
 import { createWriteTool } from "./write";
 import type { RepoToolContext } from "./types";
 
@@ -37,7 +37,13 @@ function createWriteContext(overrides: Partial<ToolContext> = {}): ToolContext {
 }
 
 function createRepoContext(overrides: Partial<RepoToolContext["bash"]> = {}) {
-  const exec = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "", env: {} }));
+  const exec = vi.fn(async (command: string, options?: { args?: string[] }) => {
+    const args = options?.args ?? [];
+    if (command === "test" && args[0] === "-L") {
+      return { exitCode: 1, stdout: "", stderr: "", env: {} };
+    }
+    return { exitCode: 0, stdout: "", stderr: "", env: {} };
+  });
   const readFile = vi.fn(async () => "");
   const writeWorkspaceFile = vi.fn(async () => undefined);
   const repo: RepoToolContext = {
@@ -114,17 +120,25 @@ describe("createApplyPatchTool", () => {
       expect.stringMatching(/^\.hyperlocalise-agent\/patches\/.+\.diff$/),
       patch,
     );
-    expect(exec).toHaveBeenNthCalledWith(1, "git", {
+    expect(exec).toHaveBeenCalledWith("git", {
+      args: ["ls-files", "--stage", "--", "src/mock.tsx"],
+    });
+    expect(exec).toHaveBeenCalledWith("git", {
+      args: ["ls-tree", "HEAD", "--", "src/mock.tsx"],
+    });
+    expect(exec).toHaveBeenCalledWith("test", { args: ["-L", "src"] });
+    expect(exec).toHaveBeenCalledWith("test", { args: ["-L", "src/mock.tsx"] });
+    expect(exec).toHaveBeenCalledWith("git", {
       args: [
         "apply",
         "--check",
         expect.stringMatching(/^\.hyperlocalise-agent\/patches\/.+\.diff$/),
       ],
     });
-    expect(exec).toHaveBeenNthCalledWith(2, "git", {
+    expect(exec).toHaveBeenCalledWith("git", {
       args: ["apply", expect.stringMatching(/^\.hyperlocalise-agent\/patches\/.+\.diff$/)],
     });
-    expect(exec).toHaveBeenNthCalledWith(3, "rm", {
+    expect(exec).toHaveBeenCalledWith("rm", {
       args: ["-f", expect.stringMatching(/^\.hyperlocalise-agent\/patches\/.+\.diff$/)],
     });
   });
@@ -153,5 +167,160 @@ describe("createApplyPatchTool", () => {
       error: "Patch contains a path outside the workspace.",
     });
     expect(writeWorkspaceFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects git symlink and submodule file modes before writing the patch", async () => {
+    const { exec, repo, writeWorkspaceFile } = createRepoContext();
+    const applyPatch = createApplyPatchTool(createWriteContext(), repo);
+    const symlinkPatch = [
+      "diff --git a/playwright b/playwright",
+      "new file mode 120000",
+      "index 0000000..2aae6c3",
+      "--- /dev/null",
+      "+++ b/playwright",
+      "@@ -0,0 +1 @@",
+      "+/tmp/hyperlocalise-browser-runtime/node_modules/playwright",
+      "",
+    ].join("\n");
+
+    const result = await applyPatch.execute!({ patch: symlinkPatch }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Patch must not create or modify symbolic links or git submodules.",
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("rejects index-line symlink modes and submodule gitlinks", () => {
+    expect(
+      disallowedGitFileModeError(
+        [
+          "diff --git a/link b/link",
+          "index 1111111..2222222 120000",
+          "--- a/link",
+          "+++ b/link",
+          "@@ -1 +1 @@",
+          "-/old",
+          "+/tmp/hyperlocalise-browser-runtime",
+          "",
+        ].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+
+    expect(
+      disallowedGitFileModeError(
+        [
+          "diff --git a/vendor/lib b/vendor/lib",
+          "new file mode 160000",
+          "index 0000000..abcdef1",
+          "--- /dev/null",
+          "+++ b/vendor/lib",
+          "@@ -0,0 +1 @@",
+          "+Subproject commit abcdef1",
+          "",
+        ].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+
+    expect(
+      disallowedGitFileModeError(
+        ["old mode 100644", "new mode 120000", "--- a/src/app.tsx", "+++ b/src/app.tsx"].join("\n"),
+      ),
+    ).toBe("Patch must not create or modify symbolic links or git submodules.");
+  });
+
+  it("does not treat file content that mentions git modes as a symlink patch", () => {
+    const patch = [
+      "diff --git a/README.md b/README.md",
+      "index 1111111..2222222 100644",
+      "--- a/README.md",
+      "+++ b/README.md",
+      "@@ -1 +1,2 @@",
+      " docs",
+      "+new file mode 120000",
+      "",
+    ].join("\n");
+
+    expect(disallowedGitFileModeError(patch)).toBeUndefined();
+  });
+
+  it("rejects a headerless hunk that retargets an existing index symlink", async () => {
+    const { exec, repo, writeWorkspaceFile } = createRepoContext();
+    exec.mockImplementation(async (command: string, options?: { args?: string[] }) => {
+      const args = options?.args ?? [];
+      if (command === "git" && args[0] === "ls-files") {
+        return {
+          exitCode: 0,
+          stdout: "120000 2aae6c35c94fcfb415dbe95f408b9ce442564d5a 0\tplaywright\n",
+          stderr: "",
+          env: {},
+        };
+      }
+      if (command === "test" && args[0] === "-L") {
+        return { exitCode: 1, stdout: "", stderr: "", env: {} };
+      }
+      return { exitCode: 0, stdout: "", stderr: "", env: {} };
+    });
+    const applyPatch = createApplyPatchTool(createWriteContext(), repo);
+    const patch = [
+      "diff --git a/playwright b/playwright",
+      "--- a/playwright",
+      "+++ b/playwright",
+      "@@ -1 +1 @@",
+      "-old",
+      "+/tmp/hyperlocalise-browser-runtime",
+      "",
+    ].join("\n");
+
+    const result = await applyPatch.execute!({ patch }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Patch must not create or modify symbolic links or git submodules.",
+      changedPaths: ["playwright"],
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalledWith(
+      "git",
+      expect.objectContaining({ args: expect.arrayContaining(["apply"]) }),
+    );
+  });
+
+  it("rejects a headerless hunk that retargets a worktree symlink missing from the index", async () => {
+    const { exec, repo, writeWorkspaceFile } = createRepoContext();
+    exec.mockImplementation(async (command: string, options?: { args?: string[] }) => {
+      const args = options?.args ?? [];
+      if (command === "test" && args[0] === "-L" && args[1] === "playwright") {
+        return { exitCode: 0, stdout: "", stderr: "", env: {} };
+      }
+      if (command === "test" && args[0] === "-L") {
+        return { exitCode: 1, stdout: "", stderr: "", env: {} };
+      }
+      return { exitCode: 0, stdout: "", stderr: "", env: {} };
+    });
+    const applyPatch = createApplyPatchTool(createWriteContext(), repo);
+    const patch = [
+      "diff --git a/playwright b/playwright",
+      "--- a/playwright",
+      "+++ b/playwright",
+      "@@ -1 +1 @@",
+      "-old",
+      "+../../outside",
+      "",
+    ].join("\n");
+
+    const result = await applyPatch.execute!({ patch }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Patch must not create or modify symbolic links or git submodules.",
+    });
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalledWith(
+      "git",
+      expect.objectContaining({ args: expect.arrayContaining(["apply"]) }),
+    );
   });
 });

@@ -10,29 +10,37 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactFlowProps } from "@xyflow/react";
+import type { Edge, Node, ReactFlowProps } from "@xyflow/react";
 import { Background, ReactFlow } from "@xyflow/react";
 import type { ReactNode } from "react";
 
 import "@xyflow/react/dist/style.css";
 
-type CanvasProps = ReactFlowProps & {
+type CanvasProps<NodeType extends Node = Node, EdgeType extends Edge = Edge> = ReactFlowProps<
+  NodeType,
+  EdgeType
+> & {
   children?: ReactNode;
 };
 
 const deleteKeyCode = ["Backspace", "Delete"];
 
-export const Canvas = ({ children, ...props }: CanvasProps) => (
-  <ReactFlow
-    deleteKeyCode={deleteKeyCode}
-    fitView
-    panOnDrag={false}
-    panOnScroll
-    selectionOnDrag={true}
-    zoomOnDoubleClick={false}
-    {...props}
-  >
-    <Background bgColor="var(--sidebar)" />
-    {children}
-  </ReactFlow>
-);
+export function Canvas<NodeType extends Node = Node, EdgeType extends Edge = Edge>({
+  children,
+  ...props
+}: CanvasProps<NodeType, EdgeType>) {
+  return (
+    <ReactFlow<NodeType, EdgeType>
+      deleteKeyCode={deleteKeyCode}
+      fitView
+      panOnDrag={false}
+      panOnScroll
+      selectionOnDrag={true}
+      zoomOnDoubleClick={false}
+      {...props}
+    >
+      <Background bgColor="var(--sidebar)" />
+      {children}
+    </ReactFlow>
+  );
+}

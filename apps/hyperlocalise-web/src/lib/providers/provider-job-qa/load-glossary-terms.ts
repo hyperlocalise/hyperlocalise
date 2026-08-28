@@ -10,36 +10,36 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { eq } from "drizzle-orm";
-
-import { db, schema } from "@/lib/database";
+import {
+  listGlossaryTermsForProject,
+  resolveProjectGlossarySourceLocale,
+} from "@/lib/glossary/query-glossary-terms";
 
 import type { ProviderQaGlossaryTerm } from "./types";
 
-export async function loadProjectGlossaryTerms(
-  projectId: string,
-): Promise<ProviderQaGlossaryTerm[]> {
-  const rows = await db
-    .select({
-      sourceTerm: schema.glossaryTerms.sourceTerm,
-      targetTerm: schema.glossaryTerms.targetTerm,
-      forbidden: schema.glossaryTerms.forbidden,
-      caseSensitive: schema.glossaryTerms.caseSensitive,
-      reviewStatus: schema.glossaryTerms.reviewStatus,
-    })
-    .from(schema.projectGlossaries)
-    .innerJoin(
-      schema.glossaryTerms,
-      eq(schema.glossaryTerms.glossaryId, schema.projectGlossaries.glossaryId),
-    )
-    .where(eq(schema.projectGlossaries.projectId, projectId));
+export async function loadProjectGlossaryTerms(input: {
+  organizationId: string;
+  projectId: string;
+  sourceLocale?: string | null;
+  targetLocales: string[];
+}): Promise<ProviderQaGlossaryTerm[]> {
+  const sourceLocale = await resolveProjectGlossarySourceLocale({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    contentSourceLocale: input.sourceLocale,
+  });
+  const rows = await listGlossaryTermsForProject({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale,
+    targetLocales: input.targetLocales,
+  });
 
-  return rows
-    .filter((row) => row.reviewStatus === "approved")
-    .map((row) => ({
-      sourceTerm: row.sourceTerm,
-      targetTerm: row.targetTerm,
-      forbidden: row.forbidden,
-      caseSensitive: row.caseSensitive,
-    }));
+  return rows.map((row) => ({
+    sourceTerm: row.sourceTerm,
+    targetTerm: row.targetTerm,
+    targetLocale: row.targetLocale,
+    forbidden: row.forbidden,
+    caseSensitive: row.caseSensitive,
+  }));
 }

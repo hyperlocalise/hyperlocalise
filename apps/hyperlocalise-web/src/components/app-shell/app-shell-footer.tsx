@@ -16,9 +16,9 @@ import { useSyncExternalStore } from "react";
 import {
   BookOpenTextIcon,
   CheckmarkCircle02Icon,
+  Copy01Icon,
   CustomerSupportIcon,
   MinusSignCircleIcon,
-  ClipboardListIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -146,7 +146,7 @@ export function AppShellFooter({
                     : undefined,
                 )}
               >
-                <HugeiconsIcon icon={ClipboardListIcon} strokeWidth={2} className="size-3.5" />
+                <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
                 <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
                 {issueGuidanceStatus.openIssueCount > 0 ? (
                   <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">

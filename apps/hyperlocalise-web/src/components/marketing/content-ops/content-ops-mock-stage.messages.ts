@@ -123,13 +123,13 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Content ops mock tab label for campaign localisation",
   },
   tabSeoBlog: {
-    defaultMessage: "Publish localised SEO blogs",
-    id: "Zga+q71c0X",
+    defaultMessage: "Publish Multilingual Blog",
+    id: "OU5qhClfKo",
     description: "Content ops mock tab label for SEO blog publishing",
   },
   tabBrand: {
-    defaultMessage: "Keep brand consistent",
-    id: "ccqv17M0Ia",
+    defaultMessage: "Brand Usage Check",
+    id: "Cef/Y5xN6Q",
     description: "Content ops mock tab label for brand governance",
   },
   tabBriefToPublish: {

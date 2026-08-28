@@ -10,11 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { flattenNativeConceptTermsToPairs } from "@/lib/glossary/flatten-native-glossary-pairs";
+import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
@@ -93,51 +96,138 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
         }
       }
 
-      const conditions = [
-        sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+      const glossarySourceTerms = alias(schema.glossaryTerms, "glossary_source_terms");
+
+      const sharedConditions = [
+        sql`${glossarySourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
         await toolProjectLinkedGlossaryWhere(ctx),
         eq(schema.glossaries.sourceLocale, sourceLocale),
-        eq(schema.glossaries.targetLocale, targetLocale),
         eq(schema.glossaries.status, "active"),
+        eq(schema.glossaries.source, "native"),
+        eq(glossarySourceTerms.locale, sourceLocale),
+        isNotNull(glossarySourceTerms.conceptId),
+        isNotNull(glossarySourceTerms.term),
+        eq(glossarySourceTerms.reviewStatus, "approved"),
       ];
 
       if (glossaryIds) {
-        conditions.push(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
+        sharedConditions.push(inArray(glossarySourceTerms.glossaryId, glossaryIds));
       }
 
-      const terms = await db
+      const rank =
+        sql<number>`ts_rank(${glossarySourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+          "rank",
+        );
+
+      const matchingSources = await db
+        .select({
+          conceptId: glossarySourceTerms.conceptId,
+          glossaryId: glossarySourceTerms.glossaryId,
+          sourceTerm: glossarySourceTerms.term,
+          rank,
+        })
+        .from(glossarySourceTerms)
+        .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
+        .where(and(...sharedConditions))
+        .orderBy(desc(rank))
+        .limit(limit * 5);
+
+      const conceptIds = [
+        ...new Set(
+          matchingSources
+            .map((row) => row.conceptId)
+            .filter((conceptId): conceptId is string => conceptId !== null),
+        ),
+      ];
+
+      if (conceptIds.length === 0) {
+        return { terms: [] };
+      }
+
+      const rankByGlossarySource = new Map<string, number>();
+      for (const row of matchingSources) {
+        if (!row.sourceTerm) {
+          continue;
+        }
+        const key = `${row.glossaryId}:${row.sourceTerm}`;
+        rankByGlossarySource.set(key, Math.max(rankByGlossarySource.get(key) ?? 0, row.rank));
+      }
+
+      const conceptRows = await db
         .select({
           id: schema.glossaryTerms.id,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
+          conceptId: schema.glossaryTerms.conceptId,
+          glossaryId: schema.glossaryTerms.glossaryId,
+          glossaryName: schema.glossaries.name,
+          translatable: schema.glossaryConcepts.translatable,
+          locale: schema.glossaryTerms.locale,
+          term: schema.glossaryTerms.term,
+          status: schema.glossaryTerms.status,
           description: schema.glossaryTerms.description,
           partOfSpeech: schema.glossaryTerms.partOfSpeech,
           caseSensitive: schema.glossaryTerms.caseSensitive,
-          forbidden: schema.glossaryTerms.forbidden,
-          glossaryId: schema.glossaryTerms.glossaryId,
-          glossaryName: schema.glossaries.name,
-          rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
-          ),
+          provenance: schema.glossaryTerms.provenance,
+          reviewStatus: schema.glossaryTerms.reviewStatus,
         })
         .from(schema.glossaryTerms)
+        .innerJoin(
+          schema.glossaryConcepts,
+          eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
+        )
         .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-        .where(and(...conditions))
-        .orderBy(desc(sql`rank`))
-        .limit(limit);
+        .where(
+          and(
+            inArray(schema.glossaryTerms.conceptId, conceptIds),
+            eq(schema.glossaries.organizationId, ctx.organizationId),
+            eq(schema.glossaries.source, "native"),
+            eq(schema.glossaries.sourceLocale, sourceLocale),
+            eq(schema.glossaries.status, "active"),
+            isNotNull(schema.glossaryTerms.term),
+            isNotNull(schema.glossaryTerms.locale),
+            eq(schema.glossaryTerms.reviewStatus, "approved"),
+          ),
+        );
+
+      const pairs = flattenNativeConceptTermsToPairs({
+        concepts: groupConceptTerms(
+          conceptRows.map((row) => ({
+            ...row,
+            conceptId: row.conceptId!,
+          })),
+        ),
+        sourceLocale,
+        targetLocales: [targetLocale],
+      });
+
+      const terms = pairs
+        .filter((pair) => rankByGlossarySource.has(`${pair.glossaryId}:${pair.sourceTerm}`))
+        .map((pair) => ({
+          id: pair.id,
+          sourceTerm: pair.sourceTerm,
+          targetTerm: pair.targetTerm,
+          description: pair.description,
+          partOfSpeech: pair.partOfSpeech,
+          caseSensitive: pair.caseSensitive,
+          forbidden: pair.forbidden,
+          glossaryId: pair.glossaryId,
+          glossaryName: pair.glossaryName,
+          rank: rankByGlossarySource.get(`${pair.glossaryId}:${pair.sourceTerm}`) ?? 0,
+        }))
+        .toSorted((left, right) => right.rank - left.rank)
+        .slice(0, limit);
 
       return {
-        terms: terms.map((t) => ({
-          id: t.id,
-          sourceTerm: t.sourceTerm,
-          targetTerm: t.targetTerm,
-          description: t.description,
-          partOfSpeech: t.partOfSpeech,
-          caseSensitive: t.caseSensitive,
-          forbidden: t.forbidden,
-          glossaryId: t.glossaryId,
-          glossaryName: t.glossaryName,
-          rank: t.rank,
+        terms: terms.map((term) => ({
+          id: term.id,
+          sourceTerm: term.sourceTerm,
+          targetTerm: term.targetTerm,
+          description: term.description,
+          partOfSpeech: term.partOfSpeech,
+          caseSensitive: term.caseSensitive,
+          forbidden: term.forbidden,
+          glossaryId: term.glossaryId,
+          glossaryName: term.glossaryName,
+          rank: term.rank,
         })),
       };
     },

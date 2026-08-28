@@ -31,6 +31,7 @@ import { collectGlossaryUsageForUnits } from "@/lib/translation/concordance";
 import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/concordance";
 import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
+import { resolveProjectGlossarySourceLocale } from "@/lib/glossary/query-glossary-terms";
 import {
   buildProviderJobQaReport,
   runProviderJobQa,
@@ -179,10 +180,20 @@ export async function executeProviderJobQaForContent(input: {
   content: ExternalTmsTaskContent;
   pullRunId: string;
 }) {
-  const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const sourceLocale = await resolveProjectGlossarySourceLocale({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    contentSourceLocale: input.content.sourceLocale,
+  });
+  const glossaryTerms = await loadProjectGlossaryTerms({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale,
+    targetLocales: input.content.targetLocales,
+  });
   const report = await runProviderJobQa(input.content, {
     targetLocales: input.content.targetLocales,
-    sourceLocale: input.content.sourceLocale,
+    sourceLocale,
     glossaryTerms,
   });
 
@@ -366,13 +377,23 @@ export async function completeProviderAgentQaRun(input: {
   hyperlocaliseJobId?: string | null;
   actorUserId?: string | null;
 }): Promise<ProviderAgentQaResult> {
-  const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const sourceLocale = await resolveProjectGlossarySourceLocale({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    contentSourceLocale: input.content.sourceLocale,
+  });
+  const glossaryTerms = await loadProjectGlossaryTerms({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale,
+    targetLocales: input.content.targetLocales,
+  });
   const [translationMemoryUsage, glossaryUsage] = await Promise.all([
     collectTranslationMemoryUsageForUnits({
       projectId: input.projectId,
       organizationId: input.organizationId,
       providerKind: input.providerKind,
-      sourceLocale: input.content.sourceLocale ?? "en",
+      sourceLocale,
       targetLocales: input.content.targetLocales,
       units: input.content.units.map((unit) => ({
         externalStringId: unit.externalStringId,
@@ -385,7 +406,7 @@ export async function completeProviderAgentQaRun(input: {
       projectId: input.projectId,
       organizationId: input.organizationId,
       providerKind: input.providerKind,
-      sourceLocale: input.content.sourceLocale ?? "en",
+      sourceLocale,
       targetLocales: input.content.targetLocales,
       units: input.content.units.map((unit) => ({
         externalStringId: unit.externalStringId,
@@ -400,7 +421,7 @@ export async function completeProviderAgentQaRun(input: {
     input.content,
     {
       targetLocales: input.content.targetLocales,
-      sourceLocale: input.content.sourceLocale,
+      sourceLocale,
       glossaryTerms,
     },
     input.hlResult,

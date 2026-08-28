@@ -76,7 +76,7 @@ export async function downloadProjectFileCatExport(input: {
     },
   });
 
-  if (!response.ok) {
+  if (response.status !== 200) {
     throw new Error(
       await readApiError(
         response,

@@ -17,9 +17,8 @@ import {
   KanbanIcon,
   ListViewIcon,
   SearchIcon,
-  Task01Icon,
+  CenterFocusIcon,
   TranslateIcon,
-  WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -978,7 +977,7 @@ export function JobsPageView({
     return (
       <ProjectPageShell>
         <ProjectSectionHeader
-          icon={Task01Icon}
+          icon={CenterFocusIcon}
           section={intl.formatMessage(jobsPageViewMessages.projectSectionLabel)}
           description={intl.formatMessage(jobsPageViewMessages.projectSectionDescription)}
           actions={headerActions}
@@ -991,7 +990,7 @@ export function JobsPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={isPersonalWork ? WorkHistoryIcon : Task01Icon}
+        icon={CenterFocusIcon}
         label={intl.formatMessage(jobsPageViewMessages.workspaceLabel)}
         title={
           isPersonalWork

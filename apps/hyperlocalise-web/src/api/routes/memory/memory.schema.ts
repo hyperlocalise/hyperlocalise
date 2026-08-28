@@ -48,12 +48,49 @@ export const updateMemoryBodySchema = z
     message: "at least one field must be provided",
   });
 
+const isoDateTimeQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: "must be an ISO-8601 datetime",
+  });
+
+export const memoryEntryReviewStatusSchema = z.enum(["approved", "pending", "rejected"]);
+export const memoryEntryListSortSchema = z.enum(["created_at", "updated_at"]);
+export const memoryEntryListSortDirSchema = z.enum(["asc", "desc"]);
+
 export const listMemoryEntriesQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(50),
-    offset: z.coerce.number().int().min(0).default(0),
+    offset: z.coerce.number().int().min(0).optional(),
+    cursor: z.string().trim().min(1).max(2048).optional(),
+    search: z.string().trim().max(200).optional(),
     sourceLocale: z.string().trim().max(50).optional(),
     targetLocale: z.string().trim().max(50).optional(),
+    reviewStatus: memoryEntryReviewStatusSchema.optional(),
+    origin: z.string().trim().min(1).max(100).optional(),
+    provider: z.string().trim().min(1).max(100).optional(),
+    createdByUserId: z.string().uuid().optional(),
+    modifiedFrom: isoDateTimeQuerySchema.optional(),
+    modifiedTo: isoDateTimeQuerySchema.optional(),
+    importBatchId: z.string().uuid().optional(),
+    sort: memoryEntryListSortSchema.optional(),
+    sortDir: memoryEntryListSortDirSchema.optional(),
+  })
+  .superRefine((query, ctx) => {
+    if (
+      query.modifiedFrom &&
+      query.modifiedTo &&
+      Date.parse(query.modifiedFrom) > Date.parse(query.modifiedTo)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["modifiedFrom"],
+        message: "modifiedFrom must be before or equal to modifiedTo",
+      });
+    }
   })
   .optional();
 
@@ -139,6 +176,8 @@ export const memoryEntryRecordSchema = z.object({
   provenance: z.string(),
   reviewStatus: z.string(),
   externalKey: z.string().nullable(),
+  createdByUserId: z.string().nullable(),
+  importBatchId: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -160,9 +199,17 @@ export const memoriesResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+export const memoryEntryPaginationSchema = z.object({
+  limit: z.number().int().positive(),
+  returned: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+});
+
 export const memoryEntriesResponseSchema = z.object({
   memoryEntries: z.array(memoryEntryRecordSchema),
+  nextCursor: z.string().nullable(),
   total: z.number().int().nonnegative(),
+  pagination: memoryEntryPaginationSchema,
 });
 
 export const memoryProjectsResponseSchema = z.object({

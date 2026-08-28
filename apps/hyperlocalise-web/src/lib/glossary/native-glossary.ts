@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -27,6 +27,7 @@ import {
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
 import { buildGlossaryTsQuery } from "./glossary";
+import type { GlossaryProviderContext } from "./glossary-provider";
 import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
   Glossary,
@@ -39,21 +40,12 @@ import {
   type GlossaryConcordanceQuery,
 } from "./glossary";
 import type {
-  GlossaryTermCreateInput,
-  GlossaryTermRecord,
-  GlossaryTermUpdateInput,
   GlossaryConceptImportEntry,
   GlossaryConcept,
   GlossaryConceptInput,
   NativeGlossaryTermInput,
   GlossaryProjectRecord,
 } from "./glossary";
-import type { GlossaryProviderContext } from "./glossary-provider";
-import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
-import {
-  assertNativeGlossaryTargetLocale,
-  resolveNativeGlossaryTargetLocale,
-} from "./resolve-native-glossary-target-locale";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
 
@@ -583,26 +575,6 @@ export class NativeGlossary extends Glossary {
     return deleted.length > 0;
   }
 
-  private toGlossaryTermRecord(term: typeof schema.glossaryTerms.$inferSelect): GlossaryTermRecord {
-    return {
-      id: term.id,
-      glossaryId: term.glossaryId,
-      glossaryName: this.input.glossary.name,
-      sourceTerm: term.sourceTerm,
-      targetTerm: term.targetTerm,
-      targetLocale: this.input.glossary.targetLocale,
-      description: term.description,
-      partOfSpeech: term.partOfSpeech,
-      url: term.url,
-      lemma: term.lemma,
-      forbidden: term.forbidden,
-      caseSensitive: term.caseSensitive,
-      provenance: term.provenance,
-      externalKey: null,
-      reviewStatus: term.reviewStatus,
-    };
-  }
-
   async importConcepts(entries: GlossaryConceptImportEntry[]) {
     const result = await db.transaction(async (tx) => {
       const importedIds: string[] = [];
@@ -690,348 +662,6 @@ export class NativeGlossary extends Glossary {
       if (concept) concepts.push(concept);
     }
     return { concepts, skipped: result.skipped };
-  }
-
-  async listTerms() {
-    const terms = await db
-      .select()
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          isNull(schema.glossaryTerms.conceptId),
-        ),
-      );
-    return terms.map((term) => this.toGlossaryTermRecord(term));
-  }
-
-  async createGlossaryTerm(input: GlossaryTermCreateInput) {
-    const normalizedPartOfSpeech = normalizeGlossaryPartOfSpeech(input.partOfSpeech, {
-      required: false,
-    });
-    const sourceLocale = this.input.glossary.sourceLocale;
-    const targetLocale = assertNativeGlossaryTargetLocale(
-      await resolveNativeGlossaryTargetLocale({
-        glossary: this.input.glossary,
-        explicitTargetLocale: input.targetLocale,
-      }),
-    );
-    const sourceTermMatch = input.caseSensitive
-      ? eq(schema.glossaryTerms.term, input.sourceTerm)
-      : sql`lower(${schema.glossaryTerms.term}) = lower(${input.sourceTerm})`;
-    const legacySourceTermMatch = input.caseSensitive
-      ? eq(schema.glossaryTerms.sourceTerm, input.sourceTerm)
-      : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${input.sourceTerm})`;
-
-    const duplicate = await db
-      .select({ id: schema.glossaryTerms.id })
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          or(
-            and(
-              isNotNull(schema.glossaryTerms.conceptId),
-              eq(schema.glossaryTerms.locale, sourceLocale),
-              sourceTermMatch,
-            ),
-            and(isNull(schema.glossaryTerms.conceptId), legacySourceTermMatch),
-          ),
-        ),
-      )
-      .limit(1);
-    if (duplicate.length > 0) return null;
-
-    const created = await db.transaction(async (tx) => {
-      const [concept] = await tx
-        .insert(schema.glossaryConcepts)
-        .values({
-          glossaryId: this.input.glossary.id,
-          primaryTerm: input.sourceTerm,
-          definition: input.description ?? "",
-          translatable: true,
-        })
-        .returning();
-      if (!concept) {
-        return null;
-      }
-
-      const sharedFields = {
-        glossaryId: this.input.glossary.id,
-        conceptId: concept.id,
-        description: input.description ?? "",
-        partOfSpeech: normalizedPartOfSpeech ?? "",
-        url: input.url || null,
-        lemma: input.lemma ?? null,
-        caseSensitive: input.caseSensitive,
-        forbidden: input.forbidden,
-        status: "draft" as const,
-        provenance: "manual" as const,
-      };
-
-      return tx
-        .insert(schema.glossaryTerms)
-        .values([
-          {
-            ...sharedFields,
-            locale: sourceLocale,
-            term: input.sourceTerm,
-            sourceTerm: input.sourceTerm,
-            targetTerm: input.targetTerm,
-          },
-          ...(targetLocale
-            ? [
-                {
-                  ...sharedFields,
-                  locale: targetLocale,
-                  term: input.targetTerm,
-                  sourceTerm: input.sourceTerm,
-                  targetTerm: input.targetTerm,
-                },
-              ]
-            : []),
-        ])
-        .returning();
-    });
-
-    if (!created || created.length === 0) {
-      return null;
-    }
-
-    const preferredRow =
-      (targetLocale ? created.find((row) => row.locale === targetLocale) : undefined) ??
-      created.find((row) => row.locale === sourceLocale);
-    if (!preferredRow) {
-      return null;
-    }
-
-    return this.toGlossaryTermRecord({
-      ...preferredRow,
-      sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
-    });
-  }
-
-  async createGlossaryTerms(inputs: GlossaryTermCreateInput[]) {
-    if (inputs.length === 0) return { created: [], skipped: 0 };
-    const existing = await db
-      .select({ sourceTerm: schema.glossaryTerms.sourceTerm })
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          isNull(schema.glossaryTerms.conceptId),
-        ),
-      );
-    const tracker = createGlossaryTermDuplicateTracker(existing);
-    const values = inputs
-      .filter((input) => !tracker.hasDuplicateAndTrack(input))
-      .map((input) => ({
-        glossaryId: this.input.glossary.id,
-        sourceTerm: input.sourceTerm,
-        targetTerm: input.targetTerm,
-        description: input.description ?? "",
-        partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }) ?? "",
-        url: input.url || null,
-        lemma: input.lemma ?? null,
-        caseSensitive: input.caseSensitive,
-        forbidden: input.forbidden,
-      }));
-    const created =
-      values.length === 0 ? [] : await db.insert(schema.glossaryTerms).values(values).returning();
-    return {
-      created: created.map((term) => this.toGlossaryTermRecord(term)),
-      skipped: inputs.length - created.length,
-    };
-  }
-
-  async updateGlossaryTerm(termId: string, input: GlossaryTermUpdateInput) {
-    const normalizedInput =
-      input.partOfSpeech === undefined
-        ? input
-        : {
-            ...input,
-            partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }),
-          };
-
-    const [existing] = await db
-      .select()
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .limit(1);
-    if (!existing) {
-      return null;
-    }
-
-    if (existing.conceptId) {
-      const conceptId = existing.conceptId;
-      const loaded = await this.loadConcept(conceptId);
-      if (!loaded) {
-        return null;
-      }
-
-      const sourceLocale = this.input.glossary.sourceLocale;
-      const sourceRow = loaded.terms.find((term) => term.locale === sourceLocale);
-      const targetRows = loaded.terms.filter((term) => term.locale !== sourceLocale);
-
-      if (normalizedInput.sourceTerm !== undefined) {
-        const sourceTermMatch = normalizedInput.caseSensitive
-          ? eq(schema.glossaryTerms.term, normalizedInput.sourceTerm)
-          : sql`lower(${schema.glossaryTerms.term}) = lower(${normalizedInput.sourceTerm})`;
-        const duplicate = await db
-          .select({ id: schema.glossaryTerms.id })
-          .from(schema.glossaryTerms)
-          .where(
-            and(
-              eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-              ne(schema.glossaryTerms.conceptId, conceptId),
-              isNotNull(schema.glossaryTerms.conceptId),
-              eq(schema.glossaryTerms.locale, sourceLocale),
-              sourceTermMatch,
-            ),
-          )
-          .limit(1);
-        if (duplicate.length > 0) {
-          return { error: "duplicate" as const };
-        }
-      }
-
-      const sharedFieldUpdates = Object.fromEntries(
-        Object.entries({
-          description: normalizedInput.description,
-          partOfSpeech: normalizedInput.partOfSpeech,
-          url: normalizedInput.url,
-          lemma: normalizedInput.lemma,
-          caseSensitive: normalizedInput.caseSensitive,
-          forbidden: normalizedInput.forbidden,
-        }).filter(([, value]) => value !== undefined),
-      );
-
-      await db.transaction(async (tx) => {
-        if (Object.keys(sharedFieldUpdates).length > 0) {
-          await tx
-            .update(schema.glossaryTerms)
-            .set(sharedFieldUpdates)
-            .where(
-              and(
-                eq(schema.glossaryTerms.conceptId, conceptId),
-                eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-              ),
-            );
-        }
-
-        if (normalizedInput.sourceTerm !== undefined && sourceRow) {
-          await tx
-            .update(schema.glossaryTerms)
-            .set({
-              term: normalizedInput.sourceTerm,
-              sourceTerm: normalizedInput.sourceTerm,
-              targetTerm: normalizedInput.targetTerm ?? sourceRow.targetTerm,
-            })
-            .where(eq(schema.glossaryTerms.id, sourceRow.id));
-
-          await tx
-            .update(schema.glossaryConcepts)
-            .set({ primaryTerm: normalizedInput.sourceTerm })
-            .where(eq(schema.glossaryConcepts.id, conceptId));
-        }
-
-        if (normalizedInput.targetTerm !== undefined) {
-          for (const targetRow of targetRows) {
-            await tx
-              .update(schema.glossaryTerms)
-              .set({
-                term: normalizedInput.targetTerm,
-                targetTerm: normalizedInput.targetTerm,
-                sourceTerm:
-                  normalizedInput.sourceTerm ?? sourceRow?.sourceTerm ?? targetRow.sourceTerm,
-              })
-              .where(eq(schema.glossaryTerms.id, targetRow.id));
-          }
-        }
-      });
-
-      const reloaded = await this.loadConcept(conceptId);
-      if (!reloaded) {
-        return null;
-      }
-
-      const sourceTermRow = reloaded.terms.find((term) => term.locale === sourceLocale);
-      const targetTermRow = reloaded.terms.find((term) => term.locale !== sourceLocale);
-      const preferredRow = targetTermRow ?? sourceTermRow ?? existing;
-
-      return this.toGlossaryTermRecord({
-        ...preferredRow,
-        sourceTerm: sourceTermRow?.term ?? sourceTermRow?.sourceTerm ?? "",
-        targetTerm: targetTermRow?.term ?? targetTermRow?.targetTerm ?? "",
-      });
-    }
-
-    if (normalizedInput.sourceTerm !== undefined) {
-      const duplicate = await db
-        .select({ id: schema.glossaryTerms.id })
-        .from(schema.glossaryTerms)
-        .where(
-          and(
-            eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-            ne(schema.glossaryTerms.id, termId),
-            isNull(schema.glossaryTerms.conceptId),
-            normalizedInput.caseSensitive
-              ? eq(schema.glossaryTerms.sourceTerm, normalizedInput.sourceTerm)
-              : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${normalizedInput.sourceTerm})`,
-          ),
-        )
-        .limit(1);
-      if (duplicate.length > 0) return { error: "duplicate" as const };
-    }
-    const [term] = await db
-      .update(schema.glossaryTerms)
-      .set(normalizedInput)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          isNull(schema.glossaryTerms.conceptId),
-        ),
-      )
-      .returning();
-    return term ? this.toGlossaryTermRecord(term) : null;
-  }
-
-  async deleteGlossaryTerm(termId: string) {
-    const [existing] = await db
-      .select({ conceptId: schema.glossaryTerms.conceptId })
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-        ),
-      )
-      .limit(1);
-    if (!existing) {
-      return false;
-    }
-    if (existing.conceptId) {
-      return this.deleteConcept(existing.conceptId);
-    }
-
-    const deleted = await db
-      .delete(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.id, termId),
-          eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
-          isNull(schema.glossaryTerms.conceptId),
-        ),
-      )
-      .returning({ id: schema.glossaryTerms.id });
-    return deleted.length > 0;
   }
 
   async attachProject(projectId: string, priority: number) {
@@ -1174,8 +804,8 @@ export class NativeGlossary extends Glossary {
           eq(schema.glossaries.sourceLocale, sourceLocale),
           eq(schema.glossaries.status, "active"),
           eq(concordanceSourceTerms.locale, sourceLocale),
-          // Concordance is concept-backed only. Legacy flat rows (conceptId = null) from
-          // createGlossaryTerms are intentionally excluded; migrate terms to concepts for search.
+          // Concordance is concept-backed only. Leftover term-based rows (conceptId = null)
+          // are intentionally excluded.
           isNotNull(concordanceSourceTerms.conceptId),
           isNotNull(concordanceSourceTerms.term),
           eq(concordanceSourceTerms.reviewStatus, "approved"),

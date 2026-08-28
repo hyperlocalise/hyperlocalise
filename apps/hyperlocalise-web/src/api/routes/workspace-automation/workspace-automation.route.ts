@@ -825,7 +825,8 @@ export function createWorkspaceAutomationRoutes(
               automationId: automation.id,
               organizationId,
               projectId: project.id,
-              sourceFileId: version.repositorySourceFileId,
+              // create_native_tms_job / createFileTranslationJob look up stored_files by id.
+              sourceFileId: version.storedFileId,
               sourceFileVersionId: version.id,
               sourcePath: payload.sourcePaths[index] ?? version.sourcePath,
               sourceHash: version.sourceHash,

@@ -7,6 +7,7 @@ go_binary(
         "handler.go",
         "main.go",
         "spellcheck.go",
+        "spellcheck_provider_default.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc",
     visibility = ["//visibility:public"],
@@ -23,6 +24,7 @@ go_test(
     srcs = [
         "auth_test.go",
         "handler_test.go",
+        "server_test.go",
         "spellcheck_test.go",
     ],
     embed = [":go_svc"],

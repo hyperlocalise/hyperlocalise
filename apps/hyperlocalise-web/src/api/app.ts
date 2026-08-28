@@ -28,6 +28,7 @@ import type {
 import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
+import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -114,6 +115,7 @@ export function createApp(options: CreateAppOptions = {}) {
       createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
     .route("/crowdin-app", createCrowdinAppRoutes())
     .route("/webhooks", createWebhookRoutes(options));
 }

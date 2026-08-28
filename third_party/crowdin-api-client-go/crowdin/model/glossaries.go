@@ -367,6 +367,8 @@ type GlossaryConcordanceSearchRequest struct {
 	TargetLanguageID string `json:"targetLanguageId"`
 	// Expressions to search.
 	Expressions []string `json:"expressions"`
+	// Glossary Identifiers.
+	GlossaryIDs []int `json:"glossaryIds,omitempty"`
 }
 
 // Validate checks if the request is valid.
