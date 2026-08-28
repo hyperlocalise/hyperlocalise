@@ -113,6 +113,23 @@ while IFS=$'\t' read -r bcp47 aff dic evidence_csv repo; do
     cp "$aff_src" "$STAGE_DICT/$aff"
     cp "$dic_src" "$STAGE_DICT/$dic"
 
+    # Hunspell reads the first .dic line as the word count and loads an empty
+    # word list when it cannot parse one, which silently flags every word in
+    # that locale. ms_MY ships "#30975"; drop a leading '#' when the rest is a
+    # bare integer, then require a numeric header so a future dictionary with a
+    # different malformed count fails the build instead of shipping empty.
+    header="$(head -n1 "$STAGE_DICT/$dic" | sed -e '1s/^\xEF\xBB\xBF//' | tr -d '\r')"
+    if [[ "$header" =~ ^#([0-9]+)$ ]]; then
+        echo "fetch-dictionaries: normalizing '$dic' word-count header '$header' -> '${BASH_REMATCH[1]}'"
+        sed -i '1s/^\(\xEF\xBB\xBF\)\{0,1\}#/\1/' "$STAGE_DICT/$dic"
+        header="${BASH_REMATCH[1]}"
+    fi
+    if ! [[ "$header" =~ ^[0-9]+$ ]]; then
+        echo "fetch-dictionaries: '$dic' has a non-numeric word-count header '$header'; Hunspell would load zero words for $bcp47" >&2
+        missing=$((missing + 1))
+        continue
+    fi
+
     license_dir="$STAGE_LICENSE/$bcp47"
     mkdir -p "$license_dir"
     IFS=',' read -ra evidence_files <<<"$evidence_csv"

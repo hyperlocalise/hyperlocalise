@@ -21,6 +21,12 @@ that mapping is trusted (source, pinned version, licence, evidence).
   that declare a known 8-bit encoding are transcoded to UTF-8 at load
   time. A leading UTF-8 BOM is stripped so `SET` is still recognized.
   Undeclared or unknown encodings are skipped.
+- Hunspell reads the first line of a `.dic` as the word count and loads an
+  **empty** word list when it cannot parse one, which silently reports every
+  word in that locale as misspelled. `fetch-dictionaries.sh` therefore drops a
+  leading `#` from that line when the remainder is a bare integer (`ms_MY`
+  ships `#30975`), and fails the build if any staged dictionary is left with a
+  non-numeric count. The word list itself is never modified.
 
 ## Supported locales (20)
 
