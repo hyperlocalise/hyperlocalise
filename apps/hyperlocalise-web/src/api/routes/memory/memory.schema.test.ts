@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { listMemoryEntriesQuerySchema } from "./memory.schema";
+import { importMemoryEntriesBodySchema, listMemoryEntriesQuerySchema } from "./memory.schema";
 
 describe("listMemoryEntriesQuerySchema", () => {
   it("defaults to a bounded created_at desc page", () => {
@@ -31,5 +31,25 @@ describe("listMemoryEntriesQuerySchema", () => {
 
   it("rejects an oversized page", () => {
     expect(listMemoryEntriesQuerySchema.safeParse({ limit: "101" }).success).toBe(false);
+  });
+});
+
+describe("importMemoryEntriesBodySchema", () => {
+  it("defaults dryRun to false and caps maxUnits at the documented limit", () => {
+    expect(
+      importMemoryEntriesBodySchema.parse({
+        format: "tmx",
+        content: "<tmx />",
+      }),
+    ).toMatchObject({
+      dryRun: false,
+    });
+    expect(
+      importMemoryEntriesBodySchema.safeParse({
+        format: "tmx",
+        content: "<tmx />",
+        maxUnits: 50_001,
+      }).success,
+    ).toBe(false);
   });
 });

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="Hyperlocalise" creationtoolversion="1" segtype="sentence" o-tmf="Hyperlocalise" adminlang="en" srclang="en-US" datatype="plaintext"/>
+  <body>
+    <tu tuid="inline-1" creationdate="20240101T010101Z" creationid="alice">
+      <prop type="x-context">homepage hero</prop>
+      <note>Keep the placeholder.</note>
+      <tuv xml:lang="en-US"><seg>Hello <ph x="1"/> world &amp; friends</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bonjour <ph x="1"/> le monde &amp; les amis</seg></tuv>
+    </tu>
+  </body>
+</tmx>

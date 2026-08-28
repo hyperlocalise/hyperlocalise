@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="Phrase" creationtoolversion="1" segtype="sentence" o-tmf="Phrase" adminlang="en-US" srclang="en-US" datatype="plaintext"/>
+  <body>
+    <tu tuid="seg-2" creationdate="20240101T010101Z" changedate="20240102T010101Z" creationid="alice" changeid="bob">
+      <tuv lang="fr-FR"><seg>Paiement</seg></tuv>
+      <tuv lang="en-US"><seg>Checkout</seg></tuv>
+      <tuv lang="de-DE"><seg>Kasse</seg></tuv>
+    </tu>
+    <tu tuid="seg-1">
+      <tuv xml:lang="en-US"><seg>Cart</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Panier</seg></tuv>
+    </tu>
+  </body>
+</tmx>

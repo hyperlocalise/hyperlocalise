@@ -24,7 +24,6 @@ import type { MemoryProjectRecord, MemoryRecord } from "@/api/routes/memory/memo
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -39,6 +38,7 @@ import { apiClient } from "@/lib/api-client-instance";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
+import { TmImportExportPanel } from "./tm-import-export-panel";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
 import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
@@ -178,29 +178,6 @@ export function TranslationMemoryDetailPageContent({
     onError: (error) => toast.error(error.message),
   });
 
-  const importEntries = useMutation({
-    mutationFn: async (file: File) => {
-      const content = await file.text();
-      const format = file.name.toLowerCase().endsWith(".tmx") ? "tmx" : "csv";
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries["import"].$post({
-        param: { organizationSlug, memoryId },
-        json: { format, content },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.importEntriesFailed)),
-        );
-      return response.json();
-    },
-    onSuccess: async (body) => {
-      await invalidateEntries();
-      toast.success(intl.formatMessage(messages.entriesImported, { count: body.imported ?? 0 }));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
   const attachProject = useMutation({
     mutationFn: async (projectId: string) => {
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
@@ -304,18 +281,13 @@ export function TranslationMemoryDetailPageContent({
               <FormattedMessage {...messages.entriesDescription} />
             </TypographyP>
           </div>
-          {canEdit ? (
-            <Input
-              type="file"
-              accept=".csv,.tmx,text/csv"
-              className="max-w-xs"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) importEntries.mutate(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          ) : null}
+          <TmImportExportPanel
+            organizationSlug={organizationSlug}
+            memoryId={memoryId}
+            localeCoverage={memory.localeCoverage}
+            canEdit={canEdit}
+            onImported={invalidateEntries}
+          />
         </div>
 
         {canEdit ? (

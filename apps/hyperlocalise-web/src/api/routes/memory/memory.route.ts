@@ -26,9 +26,10 @@ import { conflictResponse, badRequestResponse, validationErrorResponse } from "@
 import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
+import { applyMemoryImport, parseMemoryImportContent } from "@/lib/memory/import-memory-entries";
+import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
@@ -38,6 +39,7 @@ import {
   attachMemoryProjectBodySchema,
   createMemoryEntryBodySchema,
   createMemoryBodySchema,
+  exportMemoryEntriesQuerySchema,
   importMemoryEntriesBodySchema,
   promoteMemoryFromProjectBodySchema,
   listMemoryEntriesQuerySchema,
@@ -50,7 +52,7 @@ import {
   type AttachMemoryProjectBody,
   type CreateMemoryEntryBody,
   type CreateMemoryBody,
-  type ImportMemoryEntriesBody,
+  type ExportMemoryEntriesQuery,
   type PromoteMemoryFromProjectBody,
   type ListMemoryQuery,
   type UpdateMemoryEntryBody,
@@ -184,61 +186,13 @@ function toMemoryEntryRecord(entry: MemoryEntry): MemoryEntryRecord {
   };
 }
 
-function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryBody[] {
-  if (payload.format === "csv") {
-    const rows = parseCsvRows(payload.content);
-    const [first, ...rest] = rows;
-    const hasHeader = first?.some((cell) => /source|target|locale|text/i.test(cell)) ?? false;
-    const dataRows = hasHeader ? rest : rows;
-
-    return dataRows.flatMap((row) => {
-      const [sourceLocale, targetLocale, sourceText, targetText, score] = row;
-      const rawScore = score ? Number.parseInt(score, 10) : 100;
-      const matchScore = Number.isFinite(rawScore) ? Math.min(100, Math.max(0, rawScore)) : 100;
-      return sourceLocale && targetLocale && sourceText && targetText
-        ? [
-            {
-              sourceLocale,
-              targetLocale,
-              sourceText,
-              targetText,
-              matchScore,
-            },
-          ]
-        : [];
-    });
-  }
-
-  const units = [...payload.content.matchAll(/<tu\b[\s\S]*?<\/tu>/gi)];
-  return units.flatMap((unit) => {
-    const variants = [
-      ...unit[0].matchAll(/<tuv\b[^>]*?xml:lang=["']([^"']+)["'][^>]*>([\s\S]*?)<\/tuv>/gi),
-    ];
-    if (variants.length < 2) {
-      return [];
-    }
-
-    const [source, target] = variants;
-    const sourceText = source[2]
-      ?.match(/<seg\b[^>]*>([\s\S]*?)<\/seg>/i)?.[1]
-      ?.replace(/[<>]/g, "")
-      .trim();
-    const targetText = target[2]
-      ?.match(/<seg\b[^>]*>([\s\S]*?)<\/seg>/i)?.[1]
-      ?.replace(/[<>]/g, "")
-      .trim();
-
-    return source[1] && target[1] && sourceText && targetText
-      ? [
-          {
-            sourceLocale: source[1],
-            targetLocale: target[1],
-            sourceText,
-            targetText,
-            matchScore: 100,
-          },
-        ]
-      : [];
+function tmxFatalResponse(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: { code: string; message: string; unitCount?: number; maxUnits?: number },
+) {
+  return badRequestResponse(c, error.code, error.message, {
+    ...(error.unitCount !== undefined ? { unitCount: error.unitCount } : {}),
+    ...(error.maxUnits !== undefined ? { maxUnits: error.maxUnits } : {}),
   });
 }
 
@@ -284,34 +238,6 @@ async function createMemoryEntry(
   return entry ?? null;
 }
 
-async function createMemoryEntries(
-  memory: Memory,
-  payloads: CreateMemoryEntryBody[],
-  options?: { createdByUserId?: string; importBatchId?: string },
-): Promise<MemoryEntry[]> {
-  if (payloads.length === 0) {
-    return [];
-  }
-
-  return db
-    .insert(schema.memoryEntries)
-    .values(
-      payloads.map((payload) => ({
-        memoryId: memory.id,
-        sourceLocale: payload.sourceLocale,
-        targetLocale: payload.targetLocale,
-        sourceText: payload.sourceText,
-        normalizedSourceText: normalizeTranslationMemorySourceText(payload.sourceText),
-        targetText: payload.targetText,
-        matchScore: payload.matchScore,
-        provenance: "import",
-        createdByUserId: options?.createdByUserId,
-        importBatchId: options?.importBatchId,
-      })),
-    )
-    .onConflictDoNothing()
-    .returning();
-}
 
 async function listMemoryProjects(
   auth: ApiAuthContext,
@@ -429,6 +355,16 @@ const validateImportMemoryEntriesBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateExportMemoryEntriesQuery = validator("query", (value, c) => {
+  const parsed = exportMemoryEntriesQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidMemoryPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validatePromoteMemoryFromProjectBody = validator("json", (value, c) => {
   const parsed = promoteMemoryFromProjectBodySchema.safeParse(value);
 
@@ -510,6 +446,29 @@ export function createMemoryRoutes() {
         200,
       );
     })
+    .get("/:memoryId/entries/export", validateMemoryParams, validateExportMemoryEntriesQuery, async (c) => {
+      const params = c.req.valid("param");
+      const query: ExportMemoryEntriesQuery = c.req.valid("query");
+      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
+
+      if (!memory) {
+        return memoryNotFoundResponse(c);
+      }
+
+      const exported = await exportMemoryEntriesTmx({
+        memoryId: memory.id,
+        memoryName: memory.name,
+        filters: {
+          sourceLocale: query.sourceLocale,
+          targetLocale: query.targetLocale,
+        },
+      });
+
+      return c.body(exported.body, 200, {
+        "Content-Type": "application/x-tmx+xml; charset=utf-8",
+        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(exported.filename)}`,
+      });
+    })
     .post("/:memoryId/entries", validateMemoryParams, validateCreateMemoryEntryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
@@ -557,23 +516,35 @@ export function createMemoryRoutes() {
           return externalTmsMemoryImmutableResponse(c);
         }
 
-        const entries = parseMemoryImport(payload);
-        const limitedEntries = entries.slice(0, 5_000);
-        const importBatchId = randomUUID();
-        const created = await createMemoryEntries(memory, limitedEntries, {
+        const parsed = parseMemoryImportContent({
+          format: payload.format,
+          content: payload.content,
+          maxUnits: payload.maxUnits,
+        });
+        if (isErr(parsed)) {
+          return tmxFatalResponse(c, parsed.error);
+        }
+
+        const importBatchId = payload.dryRun ? undefined : randomUUID();
+        const applied = await applyMemoryImport({
+          memory,
+          parsed: parsed.value,
+          dryRun: payload.dryRun,
           createdByUserId: c.var.auth.user.localUserId,
           importBatchId,
         });
-        const skipped = limitedEntries.length - created.length;
 
         return c.json(
           {
-            memoryEntries: created.map(toMemoryEntryRecord),
-            imported: created.length,
-            skipped,
-            importBatchId,
+            memoryEntries: applied.createdEntries.map(toMemoryEntryRecord),
+            imported: applied.report.created + applied.report.variantCreated,
+            skipped: applied.report.skipped,
+            importBatchId: applied.importBatchId,
+            dryRun: Boolean(payload.dryRun),
+            preview: applied.preview,
+            report: applied.report,
           },
-          201,
+          payload.dryRun ? 200 : 201,
         );
       },
     )

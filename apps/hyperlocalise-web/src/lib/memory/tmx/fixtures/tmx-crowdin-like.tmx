@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="crowdin" creationtoolversion="1" segtype="sentence" o-tmf="crowdin" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="9">
+      <tuv xml:lang="en"><seg>Checkout &lt;now&gt;</seg></tuv>
+      <tuv xml:lang="fr"><seg>Commander &amp; payer</seg></tuv>
+    </tu>
+  </body>
+</tmx>
