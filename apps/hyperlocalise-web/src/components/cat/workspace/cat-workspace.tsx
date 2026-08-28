@@ -623,6 +623,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
           }
           teamName={shell.fileContext.teamName}
+          projectTeamSlug={shell.fileContext.projectTeamSlug}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
@@ -630,9 +631,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           showVisualContext={showVisualContext}
           showMaxLengthEditor={isNativeProject}
           isMaxLengthSaving={isMaxLengthSaving}
-          canEditTranslations={
-            shell.fileContext.canEditTranslations !== false && !editorSegment.isLocked
-          }
+          canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          isTranslationLocked={Boolean(editorSegment.isLocked)}
           canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}

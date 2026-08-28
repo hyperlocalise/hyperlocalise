@@ -916,6 +916,7 @@ async function withCatTeamGlossaryContext(
       catQueue.provider == null && isGlossaryContributorRole(auth.membership.role),
     ...(projectTeam?.teamId ? { projectTeamId: projectTeam.teamId } : {}),
     ...(projectTeam?.teamName ? { teamName: projectTeam.teamName } : {}),
+    ...(projectTeam?.teamSlug ? { projectTeamSlug: projectTeam.teamSlug } : {}),
   };
 }
 

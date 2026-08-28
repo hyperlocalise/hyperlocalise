@@ -13,6 +13,7 @@
 import { and, eq, ne } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team";
 
 export type AttachedTeamGlossary = {
   id: string;
@@ -23,11 +24,13 @@ export type AttachedTeamGlossary = {
 export type ContributorTeam = {
   id: string;
   name: string;
+  slug: string;
 };
 
 export type ProjectTeamContext = {
   teamId: string | null;
   teamName: string | null;
+  teamSlug: string | null;
 };
 
 export async function getProjectTeamContext(projectId: string): Promise<ProjectTeamContext | null> {
@@ -35,6 +38,7 @@ export async function getProjectTeamContext(projectId: string): Promise<ProjectT
     .select({
       teamId: schema.projects.teamId,
       teamName: schema.teams.name,
+      teamSlug: schema.teams.slug,
     })
     .from(schema.projects)
     .leftJoin(schema.teams, eq(schema.projects.teamId, schema.teams.id))
@@ -64,9 +68,15 @@ export async function listContributorTeams(
       .select({
         id: schema.teams.id,
         name: schema.teams.name,
+        slug: schema.teams.slug,
       })
       .from(schema.teams)
-      .where(eq(schema.teams.organizationId, organizationId))
+      .where(
+        and(
+          eq(schema.teams.organizationId, organizationId),
+          ne(schema.teams.slug, DEFAULT_WORKSPACE_TEAM_SLUG),
+        ),
+      )
       .orderBy(schema.teams.name);
   }
 
@@ -74,6 +84,7 @@ export async function listContributorTeams(
     .select({
       id: schema.teams.id,
       name: schema.teams.name,
+      slug: schema.teams.slug,
     })
     .from(schema.teamMemberships)
     .innerJoin(schema.teams, eq(schema.teamMemberships.teamId, schema.teams.id))
@@ -81,6 +92,7 @@ export async function listContributorTeams(
       and(
         eq(schema.teamMemberships.userId, userId),
         eq(schema.teams.organizationId, organizationId),
+        ne(schema.teams.slug, DEFAULT_WORKSPACE_TEAM_SLUG),
       ),
     )
     .orderBy(schema.teams.name);

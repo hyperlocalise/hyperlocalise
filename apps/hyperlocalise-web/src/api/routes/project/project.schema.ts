@@ -786,12 +786,14 @@ export const projectFileCatResponseSchema = z.object({
         z.object({
           id: z.string(),
           name: z.string(),
+          slug: z.string(),
         }),
       )
       .optional(),
     projectTeamId: z.string().optional(),
     canContributeTeamGlossary: z.boolean().optional(),
     teamName: z.string().optional(),
+    projectTeamSlug: z.string().optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

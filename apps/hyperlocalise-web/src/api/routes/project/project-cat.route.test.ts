@@ -27,6 +27,7 @@ import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { ensureImageVariantsForSourceFile } from "@/lib/projects/files/image-variant-service";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
+import { DEFAULT_WORKSPACE_TEAM_NAME } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { createTeamTestFixture } from "../team/team.fixture";
@@ -3047,6 +3048,9 @@ describe("project file CAT routes", () => {
     expect(adminBody.catQueue.contributorTeams?.map((team) => team.name)).toEqual(
       expect.arrayContaining(["CAT Alpha", "CAT Beta"]),
     );
+    expect(adminBody.catQueue.contributorTeams?.map((team) => team.name)).not.toContain(
+      DEFAULT_WORKSPACE_TEAM_NAME,
+    );
 
     const translatorQueueResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -3060,7 +3064,7 @@ describe("project file CAT routes", () => {
     expect(translatorQueueResponse.status).toBe(200);
     const translatorBody = (await translatorQueueResponse.json()) as ProjectFileCatQueueResponse;
     expect(translatorBody.catQueue.contributorTeams).toEqual([
-      { id: alphaTeam.id, name: "CAT Alpha" },
+      expect.objectContaining({ id: alphaTeam.id, name: "CAT Alpha" }),
     ]);
   });
 });

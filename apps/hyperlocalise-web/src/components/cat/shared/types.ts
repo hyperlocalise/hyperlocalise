@@ -93,10 +93,11 @@ export interface CatFileContext {
   canAddComments: boolean;
   truncated?: boolean;
   teamGlossaries?: { id: string; name: string; teamId: string }[];
-  contributorTeams?: { id: string; name: string }[];
+  contributorTeams?: { id: string; name: string; slug: string }[];
   projectTeamId?: string;
   canContributeTeamGlossary?: boolean;
   teamName?: string;
+  projectTeamSlug?: string;
 }
 
 export interface CatSegment {

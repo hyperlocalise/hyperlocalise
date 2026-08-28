@@ -65,6 +65,9 @@ export const Picker: Story = {
       "Product team terms",
     );
     await expect(canvas.getAllByRole("combobox").length).toBeGreaterThan(1);
+    await expect(canvas.getAllByRole("combobox", { name: "Status" })[0]).toHaveTextContent(
+      "Preferred",
+    );
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
@@ -116,13 +119,16 @@ export const CreateNew: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
     await userEvent.click(await body.findByRole("option", { name: "Create new" }));
-    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
+    const dialog = body.getByRole("dialog");
+    await expect(dialog).toBeInTheDocument();
+    await expect(within(dialog).getByRole("textbox", { name: "Glossary name" })).toHaveValue(
       "Shared with Product.",
     );
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-    await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
+    await expect(within(dialog).getByRole("button", { name: "Create" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
   },
 };
 
@@ -130,15 +136,17 @@ export const Empty: Story = {
   args: {
     teamGlossaries: [],
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement, userEvent }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
     await expect(canvas.getByText("Shared with Product.")).toBeInTheDocument();
-    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
-      "Shared with Product.",
+    await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
+      "Select team glossary",
     );
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-    await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeDisabled();
+    await expect(canvas.queryByRole("textbox", { name: "Glossary name" })).not.toBeInTheDocument();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
+    await expect(await body.findByRole("option", { name: "Create new" })).toBeInTheDocument();
   },
 };
 

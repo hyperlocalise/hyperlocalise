@@ -199,6 +199,7 @@ export function CatVisualEditorDetailPanel({
             showAgentContext={false}
             showVisualContext={false}
             canEditTranslations={canEditTranslations}
+            isTranslationLocked={Boolean(segment.isLocked)}
             canLookupFreshContext={false}
             onUseTmMatch={onUseTmMatch}
           />

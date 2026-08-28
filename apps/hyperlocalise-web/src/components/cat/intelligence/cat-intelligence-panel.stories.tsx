@@ -310,6 +310,9 @@ export const AddToTeamGlossary: Story = {
       "Product team terms",
     );
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeEnabled();
+    await expect(canvas.getAllByRole("combobox", { name: "Status" })[0]).toHaveTextContent(
+      "Preferred",
+    );
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("combobox", { name: "Team glossary" }));
     await expect(
@@ -374,6 +377,9 @@ export const TeamSectionsWithOrgAndTeamMatches: Story = {
     await expect(canvas.getByRole("heading", { name: "Marketing", level: 3 })).toBeInTheDocument();
     await expect(canvas.getByText("Review")).toBeInTheDocument();
     await expect(canvas.getAllByRole("button", { name: "Add concept" })).toHaveLength(2);
+    await expect(
+      canvas.queryByText("Attach a team glossary to this project."),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -402,10 +408,46 @@ export const AddToTeamGlossaryEmpty: Story = {
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
     await expect(canvas.getByText("No matching terms for Product.")).toBeInTheDocument();
+    await expect(canvas.getByText("Attach a team glossary to this project.")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Add concept" }));
-    await expect(canvas.getByRole("textbox", { name: "Glossary name" })).toHaveValue(
-      "Shared with Product.",
+    await expect(canvas.getByRole("combobox", { name: "Team glossary" })).toHaveTextContent(
+      "Select team glossary",
     );
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Add concept" })).toBeDisabled();
+    await expect(canvas.getAllByRole("combobox", { name: "Status" })[0]).toHaveTextContent(
+      "Preferred",
+    );
+  },
+};
+
+export const LockedStringAddConcept: Story = {
+  args: {
+    sourceText: "Dashboard",
+    targetText: "Bảng điều khiển",
+    sourceLocale: "en",
+    targetLocale: "vi",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    canContributeTeamGlossary: true,
+    isTranslationLocked: true,
+    onUseTmMatch: fn(),
+    teamName: "Product",
+    projectTeamId: teamProductId,
+    contributorTeams: [{ id: teamProductId, name: "Product" }],
+    teamGlossaries: [{ id: "glossary-team-1", name: "Product team terms", teamId: teamProductId }],
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    const addButton = canvas.getByRole("button", { name: "Add concept" });
+    await expect(addButton).toBeDisabled();
+    await expect(canvas.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
+    await userEvent.hover(addButton.parentElement ?? addButton);
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(
+      await body.findByText("This string is locked. Unlock it to add a concept."),
+    ).toBeInTheDocument();
   },
 };

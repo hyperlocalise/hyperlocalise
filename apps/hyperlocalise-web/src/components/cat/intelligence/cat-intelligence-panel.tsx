@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -57,6 +58,7 @@ import { CatAddToGlossary } from "./cat-add-to-glossary";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
 import {
   collectVisibleCatGlossaryConcepts,
+  filterCatTeamGlossariesForTeam,
   groupCatGlossaryConceptsByTeam,
   resolveCatContributorTeams,
   type CatContributorTeam,
@@ -115,6 +117,33 @@ function AgentContextSkeleton() {
         <Skeleton className="h-5 w-36 rounded-lg bg-skeleton" />
       </div>
     </div>
+  );
+}
+
+function AddConceptButton({
+  disabled,
+  disabledReason,
+  onClick,
+}: {
+  disabled: boolean;
+  disabledReason?: string;
+  onClick: () => void;
+}) {
+  const button = (
+    <Button type="button" size="sm" className="shrink-0" disabled={disabled} onClick={onClick}>
+      <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryAction} />
+    </Button>
+  );
+
+  if (!disabled || !disabledReason) {
+    return button;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
+      <TooltipContent>{disabledReason}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -204,6 +233,7 @@ export function CatIntelligencePanel({
   teamGlossaries = [],
   canContributeTeamGlossary = false,
   teamName,
+  projectTeamSlug,
   isLookingUpContext = false,
   isConcordanceLoading = false,
   isVisualContextLoading = false,
@@ -212,6 +242,7 @@ export function CatIntelligencePanel({
   showMaxLengthEditor = false,
   isMaxLengthSaving = false,
   canEditTranslations = true,
+  isTranslationLocked = false,
   canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
@@ -231,6 +262,7 @@ export function CatIntelligencePanel({
   teamGlossaries?: CatTeamGlossaryOption[];
   canContributeTeamGlossary?: boolean;
   teamName?: string;
+  projectTeamSlug?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
   isVisualContextLoading?: boolean;
@@ -239,6 +271,7 @@ export function CatIntelligencePanel({
   showMaxLengthEditor?: boolean;
   isMaxLengthSaving?: boolean;
   canEditTranslations?: boolean;
+  isTranslationLocked?: boolean;
   canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
@@ -263,8 +296,9 @@ export function CatIntelligencePanel({
         contributorTeams,
         projectTeamId,
         projectTeamName: teamName,
+        projectTeamSlug,
       }),
-    [contributorTeams, projectTeamId, teamName],
+    [contributorTeams, projectTeamId, projectTeamSlug, teamName],
   );
   const teamGlossaryIds = useMemo(
     () => new Set(resolvedTeamGlossaries.map((glossary) => glossary.id)),
@@ -358,6 +392,12 @@ export function CatIntelligencePanel({
   }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
 
   useEffect(() => {
+    if (isTranslationLocked) {
+      setAddingConceptTeamId(null);
+    }
+  }, [isTranslationLocked]);
+
+  useEffect(() => {
     function handleOpenGlossaryGuidance() {
       setIsGlossaryPanelOpen(true);
     }
@@ -413,8 +453,9 @@ export function CatIntelligencePanel({
     setIsGlossaryPanelOpen(false);
   }
 
-  const canAddConcept =
+  const canContributeConcept =
     canEditTranslations && Boolean(sourceLocale && targetLocale) && canContributeTeamGlossary;
+  const canOpenAddConcept = canContributeConcept && !isTranslationLocked;
   const hasTeamSections = orderedContributorTeams.length > 0;
   const showGlobalEmpty =
     !isConcordanceLoading && visibleGlossaryConcepts.length === 0 && !hasTeamSections;
@@ -446,7 +487,7 @@ export function CatIntelligencePanel({
               <div className={intelligenceMutedPanelClassName}>
                 <CatSegmentMaxLengthEditor
                   maxLength={intelligence.maxLength}
-                  canEdit={canEditTranslations && Boolean(onSetMaxLength)}
+                  canEdit={canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength)}
                   isSaving={isMaxLengthSaving}
                   onSave={onSetMaxLength ?? (async () => undefined)}
                 />
@@ -565,7 +606,11 @@ export function CatIntelligencePanel({
                     <TranslationMemoryRow
                       key={match.id}
                       match={match}
-                      onUse={canEditTranslations && onUseTmMatch ? handleUseTmMatch : undefined}
+                      onUse={
+                        canEditTranslations && !isTranslationLocked && onUseTmMatch
+                          ? handleUseTmMatch
+                          : undefined
+                      }
                     />
                   ))}
                 </ul>
@@ -615,7 +660,7 @@ export function CatIntelligencePanel({
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-3 p-4">
               {addingConceptTeamId &&
-              canAddConcept &&
+              canOpenAddConcept &&
               addingConceptTeam &&
               sourceLocale &&
               targetLocale ? (
@@ -691,24 +736,39 @@ export function CatIntelligencePanel({
                         <div className="space-y-4">
                           {orderedContributorTeams.map((team) => {
                             const teamConcepts = conceptsByTeamId.get(team.id) ?? [];
+                            const hasAttachedGlossary =
+                              filterCatTeamGlossariesForTeam(resolvedTeamGlossaries, team.id)
+                                .length > 0;
 
                             return (
                               <section key={team.id} className="space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                  <h3 className="text-sm font-medium text-foreground">
-                                    {team.name}
-                                  </h3>
-                                  {canAddConcept ? (
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      className="shrink-0"
+                                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                  <div className="min-w-0 flex-1">
+                                    {team.name ? (
+                                      <h3 className="text-sm font-medium text-foreground">
+                                        {team.name}
+                                      </h3>
+                                    ) : null}
+                                    {hasAttachedGlossary ? null : (
+                                      <p className="text-xs text-muted-foreground">
+                                        <FormattedMessage
+                                          {...catIntelligencePanelMessages.addToGlossaryEmpty}
+                                        />
+                                      </p>
+                                    )}
+                                  </div>
+                                  {canContributeConcept ? (
+                                    <AddConceptButton
+                                      disabled={isTranslationLocked}
+                                      disabledReason={
+                                        isTranslationLocked
+                                          ? intl.formatMessage(
+                                              catIntelligencePanelMessages.addToGlossaryLocked,
+                                            )
+                                          : undefined
+                                      }
                                       onClick={() => setAddingConceptTeamId(team.id)}
-                                    >
-                                      <FormattedMessage
-                                        {...catIntelligencePanelMessages.addToGlossaryAction}
-                                      />
-                                    </Button>
+                                    />
                                   ) : null}
                                 </div>
                                 {teamConcepts.length > 0 ? (
@@ -717,7 +777,7 @@ export function CatIntelligencePanel({
                                       <CatGlossaryConceptCard
                                         key={concept.id}
                                         concept={concept}
-                                        teamName={team.name}
+                                        teamName={team.name || undefined}
                                         expanded={expandedGlossaryConceptIds.has(concept.id)}
                                         onToggle={() => toggleGlossaryConcept(concept.id)}
                                       />
@@ -725,10 +785,16 @@ export function CatIntelligencePanel({
                                   </div>
                                 ) : (
                                   <p className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground">
-                                    <FormattedMessage
-                                      {...catIntelligencePanelMessages.addToGlossaryTeamEmpty}
-                                      values={{ teamName: team.name }}
-                                    />
+                                    {team.name ? (
+                                      <FormattedMessage
+                                        {...catIntelligencePanelMessages.addToGlossaryTeamEmpty}
+                                        values={{ teamName: team.name }}
+                                      />
+                                    ) : (
+                                      <FormattedMessage
+                                        {...catIntelligencePanelMessages.addToGlossaryTeamEmptyUnnamed}
+                                      />
+                                    )}
                                   </p>
                                 )}
                               </section>

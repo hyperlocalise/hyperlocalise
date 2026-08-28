@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useId, useMemo, useState } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -32,16 +32,25 @@ import { cn } from "@/lib/primitives/cn";
 import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
@@ -52,6 +61,11 @@ import {
 } from "./cat-team-glossary";
 
 const CREATE_TEAM_GLOSSARY_VALUE = "__create__";
+
+const preferredGlossaryTermMetadataDraft: GlossaryTermMetadataDraft = {
+  ...emptyGlossaryTermMetadataDraft,
+  status: "preferred",
+};
 
 export type { CatTeamGlossaryOption };
 
@@ -111,23 +125,24 @@ export function CatAddToGlossary({
     ];
   }, [createdGlossaries, scopedTeamGlossaries, teamId]);
   const [selectedGlossaryId, setSelectedGlossaryId] = useState(glossaries[0]?.id ?? "");
-  const [isCreating, setIsCreating] = useState(glossaries.length === 0 && canCreate);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newGlossaryName, setNewGlossaryName] = useState(defaultGlossaryName);
   const [primaryTerm, setPrimaryTerm] = useState(sourceTerm);
   const [definition, setDefinition] = useState("");
   const [translatable, setTranslatable] = useState(true);
   const [targetDraft, setTargetDraft] = useState(targetTerm);
   const [sourceMetadata, setSourceMetadata] = useState<GlossaryTermMetadataDraft>(
-    () => emptyGlossaryTermMetadataDraft,
+    () => preferredGlossaryTermMetadataDraft,
   );
   const [targetMetadata, setTargetMetadata] = useState<GlossaryTermMetadataDraft>(
-    () => emptyGlossaryTermMetadataDraft,
+    () => preferredGlossaryTermMetadataDraft,
   );
 
   const selectedGlossary =
     glossaries.find((glossary) => glossary.id === selectedGlossaryId) ?? glossaries[0];
   const canSubmit = Boolean(
-    canContribute && organizationSlug && selectedGlossary && primaryTerm.trim() && !isCreating,
+    canContribute && organizationSlug && selectedGlossary && primaryTerm.trim(),
   );
 
   const createGlossary = useMutation({
@@ -169,7 +184,7 @@ export function CatAddToGlossary({
         current.some((glossary) => glossary.id === created.id) ? current : [...current, created],
       );
       setSelectedGlossaryId(created.id);
-      setIsCreating(false);
+      setIsCreateDialogOpen(false);
       onTeamGlossaryCreated?.(created);
       toast.success(intl.formatMessage(catIntelligencePanelMessages.addToGlossaryCreateSuccess));
     },
@@ -245,12 +260,13 @@ export function CatAddToGlossary({
   const isBusy = addConcept.isPending || createGlossary.isPending;
   const glossaryName =
     selectedGlossary?.name ??
-    intl.formatMessage(catIntelligencePanelMessages.addToGlossaryCreateOption);
+    intl.formatMessage(catIntelligencePanelMessages.addToGlossaryPickerPlaceholder);
   const sharedWithTeamNote = formatCatSharedWithTeamGlossaryName(intl, teamName);
 
-  const startCreating = () => {
+  const openCreateDialog = () => {
+    setPickerOpen(false);
     setNewGlossaryName(defaultGlossaryName);
-    setIsCreating(true);
+    setIsCreateDialogOpen(true);
   };
 
   return (
@@ -321,111 +337,135 @@ export function CatAddToGlossary({
           <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryTranslatableLabel} />
         </label>
         <div className="flex items-center justify-between gap-3">
-          {isCreating ? (
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <Field className="min-w-0 flex-1 gap-1.5">
-                <FieldLabel htmlFor={newGlossaryNameId} className="sr-only">
-                  <FormattedMessage
-                    {...catIntelligencePanelMessages.addToGlossaryCreateNameLabel}
-                  />
-                </FieldLabel>
-                <Input
-                  id={newGlossaryNameId}
-                  value={newGlossaryName}
-                  onChange={(event) => setNewGlossaryName(event.target.value)}
-                  disabled={isBusy}
-                  className="h-8"
-                  placeholder={defaultGlossaryName}
-                />
-              </Field>
-              <Button
-                type="button"
-                size="sm"
-                disabled={isBusy || !newGlossaryName.trim() || !canCreate}
-                onClick={() => createGlossary.mutate()}
-              >
-                <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateAction} />
-              </Button>
-              {glossaries.length > 0 ? (
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger
+              render={
                 <Button
                   type="button"
-                  size="sm"
-                  variant="ghost"
+                  variant="outline"
                   disabled={isBusy}
-                  onClick={() => setIsCreating(false)}
-                >
-                  <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateCancel} />
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <>
-              <Select
-                value={selectedGlossary?.id ?? ""}
-                onValueChange={(value) => {
-                  if (value === CREATE_TEAM_GLOSSARY_VALUE) {
-                    startCreating();
-                    return;
-                  }
-                  if (value) {
-                    setSelectedGlossaryId(value);
-                  }
-                }}
-                disabled={isBusy}
-              >
-                <SelectTrigger
-                  showIcon={false}
+                  role="combobox"
+                  aria-expanded={pickerOpen}
+                  aria-haspopup="listbox"
+                  aria-label={intl.formatMessage(
+                    catIntelligencePanelMessages.addToGlossaryPickerLabel,
+                  )}
                   className={cn(
                     badgeVariants({ variant: "outline" }),
                     "h-5 max-w-[min(100%,12rem)] cursor-pointer gap-1 px-2 py-0.5 text-xs font-medium",
                   )}
-                  aria-label={intl.formatMessage(
-                    catIntelligencePanelMessages.addToGlossaryPickerLabel,
+                />
+              }
+            >
+              <span className="min-w-0 truncate">{glossaryName}</span>
+              <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3" />
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              side="top"
+              className="w-max min-w-[12rem] max-w-[min(22rem,calc(100vw-2rem))] gap-0 p-0"
+            >
+              <Command>
+                <CommandInput
+                  placeholder={intl.formatMessage(
+                    catIntelligencePanelMessages.addToGlossaryPickerSearchPlaceholder,
                   )}
+                />
+                <CommandList
+                  label={intl.formatMessage(catIntelligencePanelMessages.addToGlossaryPickerLabel)}
                 >
-                  <SelectValue className="min-w-0 flex-none truncate">{glossaryName}</SelectValue>
-                  <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3" />
-                </SelectTrigger>
-                <SelectContent
-                  align="start"
-                  side="top"
-                  alignItemWithTrigger={false}
-                  className="w-max min-w-[12rem] max-w-[min(22rem,calc(100vw-2rem))]"
-                >
-                  {glossaries.map((glossary) => (
-                    <SelectItem key={glossary.id} value={glossary.id} label={glossary.name}>
-                      {glossary.name}
-                    </SelectItem>
-                  ))}
+                  <CommandEmpty>
+                    {intl.formatMessage(catIntelligencePanelMessages.addToGlossaryPickerEmpty)}
+                  </CommandEmpty>
+                  {glossaries.length > 0 ? (
+                    <CommandGroup>
+                      {glossaries.map((glossary) => (
+                        <CommandItem
+                          key={glossary.id}
+                          value={`${glossary.id} ${glossary.name}`}
+                          data-checked={selectedGlossary?.id === glossary.id || undefined}
+                          onSelect={() => {
+                            setSelectedGlossaryId(glossary.id);
+                            setPickerOpen(false);
+                          }}
+                        >
+                          {glossary.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
                   {canCreate ? (
                     <>
-                      {glossaries.length > 0 ? <SelectSeparator /> : null}
-                      <SelectItem
-                        value={CREATE_TEAM_GLOSSARY_VALUE}
-                        label={intl.formatMessage(
-                          catIntelligencePanelMessages.addToGlossaryCreateOption,
-                        )}
-                      >
-                        <FormattedMessage
-                          {...catIntelligencePanelMessages.addToGlossaryCreateOption}
-                        />
-                      </SelectItem>
+                      {glossaries.length > 0 ? <CommandSeparator /> : null}
+                      <CommandGroup>
+                        <CommandItem
+                          value={`${CREATE_TEAM_GLOSSARY_VALUE} ${intl.formatMessage(
+                            catIntelligencePanelMessages.addToGlossaryCreateOption,
+                          )}`}
+                          onSelect={openCreateDialog}
+                        >
+                          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+                          <FormattedMessage
+                            {...catIntelligencePanelMessages.addToGlossaryCreateOption}
+                          />
+                        </CommandItem>
+                      </CommandGroup>
                     </>
                   ) : null}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!canSubmit || isBusy}
-                onClick={() => addConcept.mutate()}
-              >
-                <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryAction} />
-              </Button>
-            </>
-          )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canSubmit || isBusy}
+            onClick={() => addConcept.mutate()}
+          >
+            <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryAction} />
+          </Button>
         </div>
       </div>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateDialogTitle} />
+            </DialogTitle>
+          </DialogHeader>
+          <FieldGroup>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor={newGlossaryNameId}>
+                <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateNameLabel} />
+              </FieldLabel>
+              <Input
+                id={newGlossaryNameId}
+                value={newGlossaryName}
+                onChange={(event) => setNewGlossaryName(event.target.value)}
+                disabled={createGlossary.isPending}
+                placeholder={defaultGlossaryName}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={createGlossary.isPending}
+              onClick={() => setIsCreateDialogOpen(false)}
+            >
+              <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateCancel} />
+            </Button>
+            <Button
+              type="button"
+              disabled={createGlossary.isPending || !newGlossaryName.trim() || !canCreate}
+              onClick={() => createGlossary.mutate()}
+            >
+              <FormattedMessage {...catIntelligencePanelMessages.addToGlossaryCreateAction} />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

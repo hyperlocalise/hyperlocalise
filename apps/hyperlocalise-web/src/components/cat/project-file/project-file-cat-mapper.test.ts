@@ -94,6 +94,8 @@ describe("projectFileCatToWorkspaceState", () => {
       catFile({
         provider: null,
         teamName: "Product",
+        projectTeamSlug: "product",
+        contributorTeams: [{ id: "team-product", name: "Product", slug: "product" }],
         canContributeTeamGlossary: true,
       }),
       "en-US",
@@ -101,6 +103,10 @@ describe("projectFileCatToWorkspaceState", () => {
     );
 
     expect(state.fileContext.teamName).toBe("Product");
+    expect(state.fileContext.projectTeamSlug).toBe("product");
+    expect(state.fileContext.contributorTeams).toEqual([
+      { id: "team-product", name: "Product", slug: "product" },
+    ]);
     expect(state.fileContext.canContributeTeamGlossary).toBe(true);
   });
 

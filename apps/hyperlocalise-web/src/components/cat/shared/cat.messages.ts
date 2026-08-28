@@ -641,9 +641,9 @@ export const catIntelligencePanelMessages = defineMessages({
     description: "Button that creates a draft glossary concept from CAT",
   },
   addToGlossaryEmpty: {
-    defaultMessage: "Attach a team glossary to this project to add concepts from CAT.",
-    id: "sADsr3MvMv",
-    description: "Empty state when CAT has no attached team glossary to write to",
+    defaultMessage: "Attach a team glossary to this project.",
+    id: "InXVW1Cy4C",
+    description: "Hint next to Add concept when this team has no glossary attached to the project",
   },
   addToGlossarySuccess: {
     defaultMessage: "Concept added to the team glossary",
@@ -664,6 +664,36 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "No matching terms for {teamName}.",
     id: "sjTUZFh0+J",
     description: "Empty state when a team section has no matching glossary concepts",
+  },
+  addToGlossaryTeamEmptyUnnamed: {
+    defaultMessage: "No matching terms.",
+    id: "xozianrnAl",
+    description: "Empty state when an unlabeled team section has no matching glossary concepts",
+  },
+  addToGlossaryLocked: {
+    defaultMessage: "This string is locked. Unlock it to add a concept.",
+    id: "lYqWI3Hv5b",
+    description: "Tooltip on a disabled CAT Add concept button when the current string is locked",
+  },
+  addToGlossaryPickerPlaceholder: {
+    defaultMessage: "Select team glossary",
+    id: "gjz2sY/l+i",
+    description: "Placeholder on the CAT team glossary picker when none is selected",
+  },
+  addToGlossaryPickerSearchPlaceholder: {
+    defaultMessage: "Search team glossaries...",
+    id: "dZjmTiak7a",
+    description: "Search placeholder in the CAT team glossary picker",
+  },
+  addToGlossaryPickerEmpty: {
+    defaultMessage: "No team glossaries found.",
+    id: "bEDQLfblvP",
+    description: "Empty search result in the CAT team glossary picker",
+  },
+  addToGlossaryCreateDialogTitle: {
+    defaultMessage: "Create team glossary",
+    id: "TmRQa9i4X5",
+    description: "Title of the CAT dialog that creates a team glossary",
   },
   addToGlossaryCreateOption: {
     defaultMessage: "Create new",

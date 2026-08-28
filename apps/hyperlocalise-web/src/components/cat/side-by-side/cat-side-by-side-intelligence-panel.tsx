@@ -168,6 +168,7 @@ export function CatSideBySideIntelligencePanel({
         Boolean(fileContext.canContributeTeamGlossary) && fileContext.providerKind == null
       }
       teamName={fileContext.teamName}
+      projectTeamSlug={fileContext.projectTeamSlug}
       isLookingUpContext={isLookingUpContext}
       isConcordanceLoading={isConcordanceLoading}
       isVisualContextLoading={isVisualContextLoading}
@@ -175,7 +176,8 @@ export function CatSideBySideIntelligencePanel({
       showVisualContext={showVisualContext}
       showMaxLengthEditor={showMaxLengthEditor}
       isMaxLengthSaving={isMaxLengthSaving}
-      canEditTranslations={canEditTranslations && !segment.isLocked}
+      canEditTranslations={canEditTranslations}
+      isTranslationLocked={Boolean(segment.isLocked)}
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}

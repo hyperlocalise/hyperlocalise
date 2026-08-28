@@ -227,6 +227,7 @@ function fileContextFor(catFile: CatFile, sourceLocale: string): CatFileContext 
     ...(catFile.projectTeamId ? { projectTeamId: catFile.projectTeamId } : {}),
     canContributeTeamGlossary: Boolean(catFile.canContributeTeamGlossary) && providerKind == null,
     ...(catFile.teamName ? { teamName: catFile.teamName } : {}),
+    ...(catFile.projectTeamSlug ? { projectTeamSlug: catFile.projectTeamSlug } : {}),
   };
 }
 
