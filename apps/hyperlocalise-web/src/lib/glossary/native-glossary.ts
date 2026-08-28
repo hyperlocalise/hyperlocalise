@@ -16,6 +16,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
+import { queryNativeGlossaryHasTermsAtLocale } from "@/lib/glossary/query-glossary-term-counts";
 import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
@@ -311,6 +312,7 @@ export class NativeGlossary extends Glossary {
     | { status: "team_project_required" }
     | { status: "team_native_project_required" }
     | { status: "source_locale_attached_projects" }
+    | { status: "source_locale_existing_terms" }
   > {
     const updates = Object.fromEntries(
       Object.entries(payload).filter(([, value]) => value !== undefined),
@@ -332,9 +334,36 @@ export class NativeGlossary extends Glossary {
     const accessibleProjectsWhere = await buildAccessibleProjectsWhere(this.input.auth);
 
     return db.transaction(async (tx) => {
-      await tx.execute(
-        sql`SELECT id FROM glossaries WHERE id = ${this.input.glossary.id} AND organization_id = ${this.input.auth.organization.localOrganizationId} FOR UPDATE`,
-      );
+      const [glossaryRow] = await tx
+        .select({
+          controlLevel: schema.glossaries.controlLevel,
+          sourceLocale: schema.glossaries.sourceLocale,
+        })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return { status: "not_found" };
+      }
+
+      if (
+        payload.sourceLocale !== undefined &&
+        payload.sourceLocale !== glossaryRow.sourceLocale &&
+        (await queryNativeGlossaryHasTermsAtLocale(
+          this.input.glossary.id,
+          glossaryRow.sourceLocale,
+          tx,
+        ))
+      ) {
+        return { status: "source_locale_existing_terms" };
+      }
 
       const attachments = await tx
         .select({
@@ -365,7 +394,7 @@ export class NativeGlossary extends Glossary {
 
       if (
         payload.sourceLocale !== undefined &&
-        payload.sourceLocale !== this.input.glossary.sourceLocale &&
+        payload.sourceLocale !== glossaryRow.sourceLocale &&
         attachments.some((attachment) => attachment.sourceLocale !== payload.sourceLocale)
       ) {
         return { status: "source_locale_attached_projects" };
@@ -764,6 +793,61 @@ export class NativeGlossary extends Glossary {
         target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
         set: { priority },
       });
+  }
+
+  async attachProjectWithGuard(
+    projectId: string,
+    priority: number,
+    project: { source: string; sourceLocale: string },
+  ): Promise<
+    | { status: "attached" }
+    | { status: "not_found" }
+    | { status: "team_native_project_required" }
+    | { status: "source_locale_mismatch" }
+  > {
+    return db.transaction(async (tx) => {
+      const [glossaryRow] = await tx
+        .select({
+          controlLevel: schema.glossaries.controlLevel,
+          sourceLocale: schema.glossaries.sourceLocale,
+        })
+        .from(schema.glossaries)
+        .where(
+          and(
+            eq(schema.glossaries.id, this.input.glossary.id),
+            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!glossaryRow) {
+        return { status: "not_found" };
+      }
+
+      if (project.sourceLocale !== glossaryRow.sourceLocale) {
+        return { status: "source_locale_mismatch" };
+      }
+
+      if (glossaryRow.controlLevel === "team" && project.source !== "native") {
+        return { status: "team_native_project_required" };
+      }
+
+      await tx
+        .insert(schema.projectGlossaries)
+        .values({
+          organizationId: this.input.auth.organization.localOrganizationId,
+          projectId,
+          glossaryId: this.input.glossary.id,
+          priority,
+        })
+        .onConflictDoUpdate({
+          target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
+          set: { priority },
+        });
+
+      return { status: "attached" };
+    });
   }
 
   async detachProject(projectId: string) {

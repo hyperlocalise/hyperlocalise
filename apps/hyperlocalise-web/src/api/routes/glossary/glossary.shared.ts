@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 
 import {
   badRequestResponse,
@@ -101,6 +101,48 @@ export function glossarySourceLocaleExistingTermsResponse(c: { json: JsonContext
     "glossary_source_locale_existing_terms",
     "Cannot change the glossary source locale while terms exist in the current source language",
   );
+}
+
+export async function wouldDeleteOrphanTeamGlossary(
+  organizationId: string,
+  projectId: string,
+): Promise<boolean> {
+  const teamGlossaries = await db
+    .select({ glossaryId: schema.glossaries.id })
+    .from(schema.glossaries)
+    .innerJoin(
+      schema.projectGlossaries,
+      eq(schema.projectGlossaries.glossaryId, schema.glossaries.id),
+    )
+    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+    .where(
+      and(
+        eq(schema.projectGlossaries.projectId, projectId),
+        eq(schema.projectGlossaries.organizationId, organizationId),
+        eq(schema.glossaries.organizationId, organizationId),
+        eq(schema.glossaries.controlLevel, "team"),
+        eq(schema.projects.source, "native"),
+      ),
+    );
+
+  for (const { glossaryId } of teamGlossaries) {
+    const [row] = await db
+      .select({ nativeCount: count() })
+      .from(schema.projectGlossaries)
+      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+      .where(
+        and(
+          eq(schema.projectGlossaries.glossaryId, glossaryId),
+          eq(schema.projects.source, "native"),
+        ),
+      );
+
+    if (Number(row?.nativeCount ?? 0) === 1) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export type GlossaryControlLevel = "org" | "team";

@@ -23,7 +23,6 @@ import { Glossary, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import {
-  queryNativeGlossaryHasTermsAtLocale,
   queryNativeGlossaryTermCountForGlossary,
   queryNativeGlossaryTermCounts,
 } from "@/lib/glossary/query-glossary-term-counts";
@@ -369,20 +368,49 @@ export function createGlossaryRoutes() {
           return projectNotFoundResponse(c);
         }
         const projectRecord = await getOwnedProjectRecord(c.var.auth, payload.projectId);
-        if (projectRecord && projectRecord.sourceLocale !== glossary.sourceLocale) {
+        if (!projectRecord) {
+          return projectNotFoundResponse(c);
+        }
+        if (!projectRecord.sourceLocale) {
           return badRequestResponse(
             c,
             "glossary_source_locale_mismatch",
             "The selected project uses a different source locale",
           );
         }
-        if (glossary.controlLevel === "team" && projectRecord?.source !== "native") {
-          return glossaryTeamNativeProjectRequiredResponse(c);
-        }
 
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
-        await product.attachProject(project.id, payload.priority);
+
+        if (product instanceof NativeGlossaryProduct) {
+          const result = await product.attachProjectWithGuard(project.id, payload.priority, {
+            source: projectRecord.source,
+            sourceLocale: projectRecord.sourceLocale,
+          });
+          switch (result.status) {
+            case "source_locale_mismatch":
+              return badRequestResponse(
+                c,
+                "glossary_source_locale_mismatch",
+                "The selected project uses a different source locale",
+              );
+            case "team_native_project_required":
+              return glossaryTeamNativeProjectRequiredResponse(c);
+            case "not_found":
+              return glossaryNotFoundResponse(c);
+            case "attached":
+              break;
+          }
+        } else {
+          if (projectRecord.sourceLocale !== glossary.sourceLocale) {
+            return badRequestResponse(
+              c,
+              "glossary_source_locale_mismatch",
+              "The selected project uses a different source locale",
+            );
+          }
+          await product.attachProject(project.id, payload.priority);
+        }
 
         return c.json({ projects: await product.listProjects() }, 200);
       },
@@ -438,15 +466,6 @@ export function createGlossaryRoutes() {
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
 
-      if (
-        payload.sourceLocale !== undefined &&
-        payload.sourceLocale !== glossary.sourceLocale &&
-        glossary.source === "native" &&
-        (await queryNativeGlossaryHasTermsAtLocale(glossary.id, glossary.sourceLocale))
-      ) {
-        return glossarySourceLocaleExistingTermsResponse(c);
-      }
-
       const needsAttachmentGuard =
         product instanceof NativeGlossaryProduct &&
         (payload.controlLevel === "team" ||
@@ -461,6 +480,8 @@ export function createGlossaryRoutes() {
             return glossaryTeamNativeProjectRequiredResponse(c);
           case "source_locale_attached_projects":
             return glossarySourceLocaleAttachedProjectsResponse(c);
+          case "source_locale_existing_terms":
+            return glossarySourceLocaleExistingTermsResponse(c);
           case "not_found":
             return glossaryNotFoundResponse(c);
           case "updated": {

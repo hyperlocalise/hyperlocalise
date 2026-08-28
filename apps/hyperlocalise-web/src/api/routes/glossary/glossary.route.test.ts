@@ -1392,4 +1392,60 @@ describe("glossaryRoutes", () => {
       glossary: { sourceLocale: "fr-FR" },
     });
   });
+
+  it("rejects deleting a project that is the sole native attachment of a team glossary", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Delete Guard Team" });
+    expect(teamResponse.status).toBe(201);
+    const team = ((await teamResponse.json()) as TeamResponse).team;
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Delete Guard Project",
+          teamId: team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Delete guard glossary",
+          sourceLocale: "en-US",
+          controlLevel: "team",
+          projectIds: [project.id],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(createResponse.status).toBe(201);
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+
+    const deleteProjectResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$delete({ param: { organizationSlug, projectId: project.id } }, { headers: adminHeaders });
+    expect(deleteProjectResponse.status).toBe(403);
+    await expect(deleteProjectResponse.json()).resolves.toMatchObject({
+      error: "glossary_team_project_required",
+    });
+
+    const projectsResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$get({ param: { organizationSlug, glossaryId } }, { headers: adminHeaders });
+    expect(projectsResponse.status).toBe(200);
+    await expect(projectsResponse.json()).resolves.toMatchObject({
+      projects: [{ projectId: project.id }],
+    });
+  });
 });

@@ -27,6 +27,10 @@ import {
   serviceUnavailableResponse,
 } from "@/api/errors";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
+import {
+  glossaryTeamProjectRequiredResponse,
+  wouldDeleteOrphanTeamGlossary,
+} from "@/api/routes/glossary/glossary.shared";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -3698,6 +3702,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const params = c.req.valid("param");
+      if (
+        await wouldDeleteOrphanTeamGlossary(
+          c.var.auth.organization.localOrganizationId,
+          params.projectId,
+        )
+      ) {
+        return glossaryTeamProjectRequiredResponse(c);
+      }
+
       const deleted = await projectStore.delete(c.var.auth, params.projectId);
 
       if (!deleted) {

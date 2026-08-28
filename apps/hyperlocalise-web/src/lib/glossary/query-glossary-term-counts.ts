@@ -12,7 +12,7 @@
  */
 import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
 
 export async function queryNativeGlossaryTermCounts(glossaries: Glossary[]) {
@@ -59,8 +59,9 @@ export async function queryNativeGlossaryTermCountForGlossary(glossary: Glossary
 export async function queryNativeGlossaryHasTermsAtLocale(
   glossaryId: string,
   locale: string,
+  database: DatabaseClient = db,
 ): Promise<boolean> {
-  const [row] = await db
+  const [row] = await database
     .select({ termCount: count() })
     .from(schema.glossaryTerms)
     .where(
