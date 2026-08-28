@@ -12,8 +12,7 @@
  */
 export type { RepoToolContext } from "./types";
 export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES, DEFAULT_MAX_FILE_BYTES } from "./redact";
-export { isGitMetadataPath, normalizeWorkspacePath } from "./path";
-export { hardenGitArgs } from "./git-harden";
+export { normalizeWorkspacePath } from "./path";
 export { parseGrepLine, type GrepMatch } from "./parse-grep-line";
 export { createReadTool } from "./read";
 export { createGrepTool } from "./grep";
