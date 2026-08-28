@@ -14,7 +14,7 @@ go_binary(
     deps = [
         "//internal/i18n/segmentvalidate",
         "//internal/i18n/spellcheck",
-        "@com_github_workos_workos_go_v9//:workos-go",
+        "@com_github_workos_workos_go_v10//:workos-go",
         "@org_golang_x_text//language",
     ],
 )
