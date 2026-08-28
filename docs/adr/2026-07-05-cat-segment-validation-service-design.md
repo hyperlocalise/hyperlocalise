@@ -6,12 +6,12 @@ Use the Go segment-validation service as the CAT editor's source of truth for fo
 
 ## Architecture
 
-The CAT client posts directly to `/api/go-svc/v1/validate/segment`. A
-Vercel Services rewrite sends that same-origin path to `go-svc`. Vercel
-forwards the public path unchanged, so the service accepts both
-`/api/go-svc/...` and the unprefixed `/v1/...` paths used by local runs
-and the injected `GO_SVC_URL` binding. The browser's WorkOS session
-cookie authenticates public calls.
+The CAT client posts to `/api/go-svc/v1/validate/segment`. Next.js
+proxies that path to go-svc over the Vercel service binding
+(`GO_SVC_URL`). go-svc is not on the public rewrite table; only `web`
+is. The proxy forwards the WorkOS session cookie, and go-svc still
+authenticates the call. Local development uses `http://127.0.0.1:8080`
+when `GO_SVC_URL` is unset.
 
 Each request includes the source text, current target text, source path, and all supported QA modes. It includes `maxLength` only when the segment defines a positive limit.
 

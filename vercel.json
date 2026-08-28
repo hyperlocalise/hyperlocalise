@@ -34,28 +34,10 @@
     "go_svc": {
       "runtime": "container",
       "root": ".",
-      "entrypoint": "Dockerfile.vercel",
-      "routes": [
-        {
-          "src": "/api/go-svc/(.*)",
-          "transforms": [
-            {
-              "type": "request.path",
-              "op": "set",
-              "args": "/$1"
-            }
-          ]
-        }
-      ]
+      "entrypoint": "Dockerfile.vercel"
     }
   },
   "rewrites": [
-    {
-      "source": "/api/go-svc/(.*)",
-      "destination": {
-        "service": "go_svc"
-      }
-    },
     {
       "source": "/(.*)",
       "destination": {

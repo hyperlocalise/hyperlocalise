@@ -32,6 +32,7 @@ import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-i
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
+import { createGoSvcRoutes } from "./routes/go-svc/go-svc.route";
 import { healthRoutes } from "./routes/health";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
@@ -128,6 +129,7 @@ export type AppType = typeof app;
 function createInternalRoutes() {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/go-svc", createGoSvcRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
