@@ -41,6 +41,10 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
+import { IssueLocalePicker } from "../../../_components/issue-detail/issue-locale-picker";
+import { TmEntryExplorer } from "./tm-entry-explorer";
+import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
+import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
 import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
 
 type EntryForm = {
@@ -87,24 +91,6 @@ export function TranslationMemoryDetailPageContent({
     },
   });
 
-  const entriesQuery = useQuery({
-    queryKey: ["translation-memory-entries", organizationSlug, memoryId],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries.$get({
-        param: { organizationSlug, memoryId },
-        query: { limit: "50" },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadEntriesFailed)),
-        );
-      const body = (await response.json()) as { memoryEntries: MemoryEntryRecord[] };
-      return body.memoryEntries;
-    },
-  });
-
   const attachedProjectsQuery = useQuery({
     queryKey: ["translation-memory-projects", organizationSlug, memoryId],
     queryFn: async () => {
@@ -137,7 +123,7 @@ export function TranslationMemoryDetailPageContent({
 
   const invalidateEntries = () =>
     queryClient.invalidateQueries({
-      queryKey: ["translation-memory-entries", organizationSlug, memoryId],
+      queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
     });
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
@@ -342,22 +328,38 @@ export function TranslationMemoryDetailPageContent({
               <FieldLabel>
                 <FormattedMessage {...messages.sourceLocaleLabel} />
               </FieldLabel>
-              <Input
+              <IssueLocalePicker
                 value={entryForm.sourceLocale}
-                onChange={(event) =>
-                  setEntryForm((current) => ({ ...current, sourceLocale: event.target.value }))
+                locales={buildTmEntryLocaleOptions({
+                  localeCoverage: memory.localeCoverage,
+                  selected: entryForm.sourceLocale,
+                })}
+                onValueChange={(locale) =>
+                  setEntryForm((current) => ({
+                    ...current,
+                    sourceLocale: locale ?? current.sourceLocale,
+                  }))
                 }
+                aria-label={intl.formatMessage(messages.sourceLocaleLabel)}
               />
             </Field>
             <Field className="gap-1.5">
               <FieldLabel>
                 <FormattedMessage {...messages.targetLocaleLabel} />
               </FieldLabel>
-              <Input
+              <IssueLocalePicker
                 value={entryForm.targetLocale}
-                onChange={(event) =>
-                  setEntryForm((current) => ({ ...current, targetLocale: event.target.value }))
+                locales={buildTmEntryLocaleOptions({
+                  localeCoverage: memory.localeCoverage,
+                  selected: entryForm.targetLocale,
+                })}
+                onValueChange={(locale) =>
+                  setEntryForm((current) => ({
+                    ...current,
+                    targetLocale: locale ?? current.targetLocale,
+                  }))
                 }
+                aria-label={intl.formatMessage(messages.targetLocaleLabel)}
               />
             </Field>
             <Field className="gap-1.5">
@@ -416,63 +418,23 @@ export function TranslationMemoryDetailPageContent({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-border">
-          {(entriesQuery.data ?? []).map((entry) => (
-            <div
-              key={entry.id}
-              className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[1fr_1fr_auto] md:items-center"
-            >
-              <div>
-                <TypographyP className="text-sm font-medium">{entry.sourceText}</TypographyP>
-                <TypographyP className="text-xs text-muted-foreground">
-                  <FormattedMessage
-                    {...messages.localePair}
-                    values={{
-                      sourceLocale: entry.sourceLocale,
-                      targetLocale: entry.targetLocale,
-                    }}
-                  />
-                </TypographyP>
-              </div>
-              <TypographyP className="text-sm text-subtle-foreground">
-                {entry.targetText}
-              </TypographyP>
-              {canEdit ? (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setEditingEntryId(entry.id);
-                      setEntryForm({
-                        sourceLocale: entry.sourceLocale,
-                        targetLocale: entry.targetLocale,
-                        sourceText: entry.sourceText,
-                        targetText: entry.targetText,
-                      });
-                    }}
-                  >
-                    <FormattedMessage {...messages.editEntry} />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteEntry.mutate(entry.id)}
-                  >
-                    <FormattedMessage {...messages.deleteEntry} />
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-          {entriesQuery.isSuccess && (entriesQuery.data ?? []).length === 0 ? (
-            <TypographyP className="px-4 py-6 text-sm text-muted-foreground">
-              <FormattedMessage {...messages.noEntries} />
-            </TypographyP>
-          ) : null}
-        </div>
+        <TmEntryExplorer
+          organizationSlug={organizationSlug}
+          memoryId={memoryId}
+          localeCoverage={memory.localeCoverage}
+          canEdit={canEdit}
+          isDeleting={deleteEntry.isPending}
+          onEditEntry={(entry) => {
+            setEditingEntryId(entry.id);
+            setEntryForm({
+              sourceLocale: entry.sourceLocale,
+              targetLocale: entry.targetLocale,
+              sourceText: entry.sourceText,
+              targetText: entry.targetText,
+            });
+          }}
+          onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
+        />
       </section>
 
       <section className="grid gap-4 rounded-lg border border-border p-4">
