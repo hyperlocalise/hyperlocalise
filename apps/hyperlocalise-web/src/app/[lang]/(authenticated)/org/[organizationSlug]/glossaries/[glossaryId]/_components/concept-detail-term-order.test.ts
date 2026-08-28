@@ -37,19 +37,19 @@ describe("sortConceptDetailTermGroups", () => {
       [
         {
           locale: "vi-VN",
-          terms: [{ id: "3", isPrimary: false, status: "draft", term: "Đại lý" }],
+          terms: [{ id: "3", locale: "vi-VN", status: "draft", term: "Đại lý" }],
         },
         {
           locale: "en-US",
-          terms: [{ id: "1", isPrimary: true, status: "preferred", term: "Agency" }],
+          terms: [{ id: "1", locale: "en-US", status: "preferred", term: "Agency" }],
         },
         {
           locale: "de-DE",
-          terms: [{ id: "2", isPrimary: false, status: "draft", term: "Agentur" }],
+          terms: [{ id: "2", locale: "de-DE", status: "draft", term: "Agentur" }],
         },
       ],
       "en-US",
-      sortConceptDetailPersistedTerms,
+      (terms) => sortConceptDetailPersistedTerms(terms, "en-US"),
     );
 
     expect(groups.map((group) => group.locale)).toEqual(["en-US", "de-DE", "vi-VN"]);
@@ -60,15 +60,17 @@ describe("sortConceptDetailTermGroups", () => {
     const input = [
       {
         locale: "vi-VN",
-        terms: [{ id: "2", isPrimary: false, status: "draft", term: "Đại lý" }],
+        terms: [{ id: "2", locale: "vi-VN", status: "draft", term: "Đại lý" }],
       },
       {
         locale: "en-US",
-        terms: [{ id: "1", isPrimary: true, status: "preferred", term: "Agency" }],
+        terms: [{ id: "1", locale: "en-US", status: "preferred", term: "Agency" }],
       },
     ];
 
-    sortConceptDetailTermGroups(input, "en-US", sortConceptDetailPersistedTerms);
+    sortConceptDetailTermGroups(input, "en-US", (terms) =>
+      sortConceptDetailPersistedTerms(terms, "en-US"),
+    );
 
     expect(input.map((group) => group.locale)).toEqual(["vi-VN", "en-US"]);
     expect(input[0]?.terms.map((term) => term.id)).toEqual(["2"]);
@@ -76,15 +78,26 @@ describe("sortConceptDetailTermGroups", () => {
 });
 
 describe("sortConceptDetailPersistedTerms", () => {
-  it("ranks primary and preferred source terms first", () => {
+  it("ranks the glossary primary term before other source terms", () => {
     const input = [
-      { id: "3", isPrimary: false, status: "admitted", term: "Checkout" },
-      { id: "1", isPrimary: true, status: "draft", term: "Agency" },
-      { id: "2", isPrimary: false, status: "preferred", term: "Payment" },
+      { id: "2", locale: "en-US", status: "draft", term: "Alpha" },
+      { id: "1", locale: "en-US", status: "draft", term: "Zulu" },
     ];
-    const terms = sortConceptDetailPersistedTerms(input);
+    const terms = sortConceptDetailPersistedTerms(input, "en-US");
 
-    expect(terms.map((term) => term.id)).toEqual(["1", "2", "3"]);
+    expect(terms.map((term) => term.id)).toEqual(["1", "2"]);
+    expect(input.map((term) => term.id)).toEqual(["2", "1"]);
+  });
+
+  it("ranks preferred source terms first", () => {
+    const input = [
+      { id: "3", locale: "en-US", status: "admitted", term: "Checkout" },
+      { id: "1", locale: "en-US", status: "draft", term: "Agency" },
+      { id: "2", locale: "en-US", status: "preferred", term: "Payment" },
+    ];
+    const terms = sortConceptDetailPersistedTerms(input, "en-US");
+
+    expect(terms.map((term) => term.id)).toEqual(["2", "1", "3"]);
     expect(input.map((term) => term.id)).toEqual(["3", "1", "2"]);
   });
 });

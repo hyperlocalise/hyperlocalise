@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { selectConceptDetailPrimaryTermId } from "./concept-detail-source-term";
+
 export type ConceptDetailTermGroup<T> = {
   locale: string;
   terms: T[];
@@ -41,10 +43,15 @@ export function sortConceptDetailTermGroups<T>(
 }
 
 export function compareConceptDetailPersistedTerms(
-  left: { isPrimary: boolean; status: string; term: string },
-  right: { isPrimary: boolean; status: string; term: string },
+  left: { id: string | number; status: string; term: string },
+  right: { id: string | number; status: string; term: string },
+  primaryTermId?: string | number,
 ): number {
-  if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1;
+  if (primaryTermId !== undefined) {
+    const leftIsPrimary = left.id === primaryTermId;
+    const rightIsPrimary = right.id === primaryTermId;
+    if (leftIsPrimary !== rightIsPrimary) return leftIsPrimary ? -1 : 1;
+  }
 
   const leftPreferred = left.status === "preferred";
   const rightPreferred = right.status === "preferred";
@@ -54,9 +61,13 @@ export function compareConceptDetailPersistedTerms(
 }
 
 export function sortConceptDetailPersistedTerms<
-  T extends { isPrimary: boolean; status: string; term: string },
->(terms: T[]): T[] {
-  return terms.toSorted(compareConceptDetailPersistedTerms);
+  T extends { id: string | number; locale: string; status: string; term: string },
+>(terms: T[], sourceLocale: string): T[] {
+  const primaryTermId = selectConceptDetailPrimaryTermId(terms, sourceLocale);
+
+  return terms.toSorted((left, right) =>
+    compareConceptDetailPersistedTerms(left, right, primaryTermId),
+  );
 }
 
 export function compareConceptDetailCreatingTerms(

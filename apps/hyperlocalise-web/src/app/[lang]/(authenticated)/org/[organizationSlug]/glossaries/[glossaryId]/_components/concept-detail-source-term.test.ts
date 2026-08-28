@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
+import {
+  selectConceptDetailPrimaryTermId,
+  selectConceptDetailSourceTermText,
+} from "./concept-detail-source-term";
 
 describe("selectConceptDetailSourceTermText", () => {
   it("selects the preferred source-locale term", () => {
@@ -60,5 +63,31 @@ describe("selectConceptDetailSourceTermText", () => {
         "en-US",
       ),
     ).toBe("Payment");
+  });
+});
+
+describe("selectConceptDetailPrimaryTermId", () => {
+  it("returns the preferred source term id when one exists", () => {
+    expect(
+      selectConceptDetailPrimaryTermId(
+        [
+          { id: "2", locale: "en-US", term: "Checkout", status: "admitted" },
+          { id: "1", locale: "en-US", term: "Payment", status: "preferred" },
+        ],
+        "en-US",
+      ),
+    ).toBe("1");
+  });
+
+  it("falls back to the lowest source term id when no preferred term exists", () => {
+    expect(
+      selectConceptDetailPrimaryTermId(
+        [
+          { id: "2", locale: "en-US", term: "Alpha", status: "draft" },
+          { id: "1", locale: "en-US", term: "Zulu", status: "draft" },
+        ],
+        "en-US",
+      ),
+    ).toBe("1");
   });
 });

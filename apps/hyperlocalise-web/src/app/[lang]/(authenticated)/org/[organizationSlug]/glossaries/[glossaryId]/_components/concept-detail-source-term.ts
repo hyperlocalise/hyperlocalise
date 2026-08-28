@@ -47,3 +47,22 @@ export function selectConceptDetailSourceTermText(
     ""
   );
 }
+
+export function selectConceptDetailPrimaryTermId(
+  terms: readonly ConceptDetailSourceTermCandidate[],
+  sourceLocale: string,
+): string | number | undefined {
+  const persistedSourceTerms = terms.filter(
+    (term) => term.id !== undefined && term.locale === sourceLocale,
+  );
+
+  return selectGlossaryPrimaryTerm(
+    persistedSourceTerms.map((term) => ({
+      id: term.id,
+      locale: term.locale,
+      text: term.term,
+      status: term.status,
+    })),
+    sourceLocale,
+  )?.id;
+}

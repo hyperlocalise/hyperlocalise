@@ -1371,7 +1371,7 @@ export function GlossaryDetailPageContent({
   const termGroups = sortConceptDetailTermGroups(
     termGroupsWithPendingLocale,
     sourceLanguage.locale,
-    sortConceptDetailPersistedTerms,
+    (terms) => sortConceptDetailPersistedTerms(terms, sourceLanguage.locale),
   );
   const creatingTermGroups = sortConceptDetailTermGroups(
     creatingTermDrafts
