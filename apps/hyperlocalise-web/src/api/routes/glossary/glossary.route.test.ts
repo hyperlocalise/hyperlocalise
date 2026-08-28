@@ -531,7 +531,7 @@ describe("glossaryRoutes", () => {
 
     const createGlossaryResponse = await fixture.createGlossaryViaApi(
       admin,
-      undefined,
+      { sourceLocale: "en-US" },
       adminHeaders,
     );
     expect(createGlossaryResponse.status).toBe(201);
@@ -1125,7 +1125,11 @@ describe("glossaryRoutes", () => {
       isActive: true,
     });
 
-    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
+    const createResponse = await fixture.createGlossaryViaApi(
+      admin,
+      { sourceLocale: "en-US" },
+      adminHeaders,
+    );
     expect(createResponse.status).toBe(201);
     const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
 
@@ -1390,6 +1394,43 @@ describe("glossaryRoutes", () => {
     expect(patchResponse.status).toBe(200);
     await expect(patchResponse.json()).resolves.toMatchObject({
       glossary: { sourceLocale: "fr-FR" },
+    });
+  });
+
+  it("rejects duplicate project IDs when creating a glossary", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Duplicate Attach Project",
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Duplicate project glossary",
+          sourceLocale: "en-US",
+          projectIds: [project.id, project.id],
+        },
+      },
+      { headers },
+    );
+
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "invalid_glossary_payload",
     });
   });
 

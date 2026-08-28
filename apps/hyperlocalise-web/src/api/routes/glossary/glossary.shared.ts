@@ -10,7 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
+
+import { ownedProjectWhere } from "@/api/auth/team-access";
 
 import {
   badRequestResponse,
@@ -103,46 +105,74 @@ export function glossarySourceLocaleExistingTermsResponse(c: { json: JsonContext
   );
 }
 
-export async function wouldDeleteOrphanTeamGlossary(
-  organizationId: string,
+export async function deleteProjectWithTeamGlossaryGuard(
+  auth: ApiAuthContext,
   projectId: string,
-): Promise<boolean> {
-  const teamGlossaries = await db
-    .select({ glossaryId: schema.glossaries.id })
-    .from(schema.glossaries)
-    .innerJoin(
-      schema.projectGlossaries,
-      eq(schema.projectGlossaries.glossaryId, schema.glossaries.id),
-    )
-    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
-    .where(
-      and(
-        eq(schema.projectGlossaries.projectId, projectId),
-        eq(schema.projectGlossaries.organizationId, organizationId),
-        eq(schema.glossaries.organizationId, organizationId),
-        eq(schema.glossaries.controlLevel, "team"),
-        eq(schema.projects.source, "native"),
-      ),
-    );
+): Promise<"deleted" | "not_found" | "team_project_required"> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: schema.projects.id, source: schema.projects.source })
+      .from(schema.projects)
+      .where(await ownedProjectWhere(auth, projectId))
+      .limit(1);
 
-  for (const { glossaryId } of teamGlossaries) {
-    const [row] = await db
-      .select({ nativeCount: count() })
-      .from(schema.projectGlossaries)
-      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
-      .where(
-        and(
-          eq(schema.projectGlossaries.glossaryId, glossaryId),
-          eq(schema.projects.source, "native"),
-        ),
-      );
-
-    if (Number(row?.nativeCount ?? 0) === 1) {
-      return true;
+    if (!project) {
+      return "not_found";
     }
-  }
 
-  return false;
+    if (project.source === "native") {
+      const teamGlossaries = await tx
+        .select({ glossaryId: schema.glossaries.id })
+        .from(schema.glossaries)
+        .innerJoin(
+          schema.projectGlossaries,
+          eq(schema.projectGlossaries.glossaryId, schema.glossaries.id),
+        )
+        .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+        .where(
+          and(
+            eq(schema.projectGlossaries.projectId, projectId),
+            eq(schema.projectGlossaries.organizationId, auth.organization.localOrganizationId),
+            eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
+            eq(schema.glossaries.controlLevel, "team"),
+            eq(schema.projects.source, "native"),
+          ),
+        );
+
+      const glossaryIds = teamGlossaries.map(({ glossaryId }) => glossaryId);
+      if (glossaryIds.length > 0) {
+        await tx
+          .select({ id: schema.glossaries.id })
+          .from(schema.glossaries)
+          .where(inArray(schema.glossaries.id, glossaryIds))
+          .for("update");
+
+        for (const { glossaryId } of teamGlossaries) {
+          const [row] = await tx
+            .select({ nativeCount: count() })
+            .from(schema.projectGlossaries)
+            .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+            .where(
+              and(
+                eq(schema.projectGlossaries.glossaryId, glossaryId),
+                eq(schema.projects.source, "native"),
+              ),
+            );
+
+          if (Number(row?.nativeCount ?? 0) <= 1) {
+            return "team_project_required";
+          }
+        }
+      }
+    }
+
+    const deletedProjects = await tx
+      .delete(schema.projects)
+      .where(await ownedProjectWhere(auth, projectId))
+      .returning({ id: schema.projects.id });
+
+    return deletedProjects.length > 0 ? "deleted" : "not_found";
+  });
 }
 
 export type GlossaryControlLevel = "org" | "team";

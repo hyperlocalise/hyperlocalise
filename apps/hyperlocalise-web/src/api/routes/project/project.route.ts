@@ -28,8 +28,8 @@ import {
 } from "@/api/errors";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import {
+  deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
-  wouldDeleteOrphanTeamGlossary,
 } from "@/api/routes/glossary/glossary.shared";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
@@ -202,6 +202,7 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 
 import {
   getProjectTeamName,
+  hasAttachedGlossarySourceLocaleConflict,
   listAttachedTeamGlossaries,
 } from "@/lib/glossary/attached-team-glossaries";
 import { isGlossaryContributorRole } from "@/api/routes/glossary/glossary.shared";
@@ -253,6 +254,7 @@ import {
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
   | "external_project_locales_readonly"
+  | "project_source_locale_attached_glossaries"
   | "identifier_taken"
   | "invalid_identifier"
   | ProjectLocalePatchError;
@@ -272,6 +274,8 @@ const projectLocalePatchErrorMessages: Record<
   string
 > = {
   external_project_locales_readonly: "External TMS project locales are read-only",
+  project_source_locale_attached_glossaries:
+    "Cannot change the project source locale while attached glossaries use a different source locale",
   invalid_source_locale: "Invalid source locale",
   invalid_target_locales: "Invalid target locales",
   source_in_targets: "Source locale cannot also be a target locale",
@@ -479,6 +483,12 @@ const projectStore: ProjectStore = {
       }
 
       if (normalized.sourceLocale !== undefined) {
+        if (await hasAttachedGlossarySourceLocaleConflict(projectId, normalized.sourceLocale)) {
+          return err({
+            code: "project_source_locale_attached_glossaries",
+            message: projectLocalePatchErrorMessages.project_source_locale_attached_glossaries,
+          });
+        }
         updateValues.sourceLocale = normalized.sourceLocale;
       }
       if (normalized.targetLocales !== undefined) {
@@ -3702,18 +3712,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const params = c.req.valid("param");
-      if (
-        await wouldDeleteOrphanTeamGlossary(
-          c.var.auth.organization.localOrganizationId,
-          params.projectId,
-        )
-      ) {
+      const deleteResult = await deleteProjectWithTeamGlossaryGuard(c.var.auth, params.projectId);
+
+      if (deleteResult === "team_project_required") {
         return glossaryTeamProjectRequiredResponse(c);
       }
 
-      const deleted = await projectStore.delete(c.var.auth, params.projectId);
-
-      if (!deleted) {
+      if (deleteResult === "not_found") {
         return projectNotFoundResponse(c);
       }
 

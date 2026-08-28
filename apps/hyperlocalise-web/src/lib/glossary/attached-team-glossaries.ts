@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -42,6 +42,25 @@ export async function listAttachedTeamGlossaries(
     .orderBy(schema.projectGlossaries.priority, schema.glossaries.name);
 
   return rows;
+}
+
+export async function hasAttachedGlossarySourceLocaleConflict(
+  projectId: string,
+  sourceLocale: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.glossaries.id })
+    .from(schema.projectGlossaries)
+    .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
+    .where(
+      and(
+        eq(schema.projectGlossaries.projectId, projectId),
+        ne(schema.glossaries.sourceLocale, sourceLocale),
+      ),
+    )
+    .limit(1);
+
+  return row !== undefined;
 }
 
 export async function getProjectTeamName(projectId: string): Promise<string | null> {
