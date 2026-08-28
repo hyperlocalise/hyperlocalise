@@ -13,10 +13,7 @@
 import type { IntlShape } from "react-intl";
 
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
-import {
-  DEFAULT_WORKSPACE_TEAM_NAME,
-  DEFAULT_WORKSPACE_TEAM_SLUG,
-} from "@/lib/teams/default-workspace-team-constants";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 export type CatContributorTeam = {
   id: string;
@@ -30,8 +27,12 @@ export type CatTeamGlossaryOption = {
   teamId: string;
 };
 
-export function isHiddenDefaultContributorTeam(team: { slug?: string; name: string }) {
-  return team.slug === DEFAULT_WORKSPACE_TEAM_SLUG || team.name === DEFAULT_WORKSPACE_TEAM_NAME;
+export function isHiddenDefaultContributorTeam(team: { slug?: string }) {
+  return team.slug === DEFAULT_WORKSPACE_TEAM_SLUG;
+}
+
+function unlabeledDefaultProjectTeam(projectTeamId: string): CatContributorTeam {
+  return { id: projectTeamId, name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG };
 }
 
 export function formatCatSharedWithTeamGlossaryName(intl: IntlShape, teamName: string) {
@@ -56,23 +57,34 @@ export function resolveCatContributorTeams({
   projectTeamSlug?: string;
 }): CatContributorTeam[] {
   const visibleTeams = contributorTeams.filter((team) => !isHiddenDefaultContributorTeam(team));
-  if (visibleTeams.length > 0) {
-    return visibleTeams;
+
+  if (visibleTeams.length === 0) {
+    if (
+      projectTeamId &&
+      projectTeamName &&
+      !isHiddenDefaultContributorTeam({ slug: projectTeamSlug })
+    ) {
+      return [{ id: projectTeamId, name: projectTeamName, slug: projectTeamSlug }];
+    }
+
+    if (projectTeamId) {
+      return [unlabeledDefaultProjectTeam(projectTeamId)];
+    }
+
+    return [];
   }
+
+  const teams = [...visibleTeams];
 
   if (
     projectTeamId &&
-    projectTeamName &&
-    !isHiddenDefaultContributorTeam({ name: projectTeamName, slug: projectTeamSlug })
+    projectTeamSlug === DEFAULT_WORKSPACE_TEAM_SLUG &&
+    !teams.some((team) => team.id === projectTeamId)
   ) {
-    return [{ id: projectTeamId, name: projectTeamName, slug: projectTeamSlug }];
+    teams.push(unlabeledDefaultProjectTeam(projectTeamId));
   }
 
-  if (projectTeamId) {
-    return [{ id: projectTeamId, name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG }];
-  }
-
-  return [];
+  return teams;
 }
 
 export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryId: string }>({
