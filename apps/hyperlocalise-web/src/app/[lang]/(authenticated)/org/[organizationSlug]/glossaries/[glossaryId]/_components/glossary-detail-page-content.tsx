@@ -96,11 +96,7 @@ import {
 
 import { availableConceptTermLocales } from "./available-concept-term-locales";
 import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
-import {
-  sortConceptDetailCreatingTerms,
-  sortConceptDetailPersistedTerms,
-  sortConceptDetailTermGroups,
-} from "./concept-detail-term-order";
+import { sortConceptDetailTermGroups } from "./concept-detail-term-order";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 type ConceptDraft = {
@@ -1371,7 +1367,6 @@ export function GlossaryDetailPageContent({
   const termGroups = sortConceptDetailTermGroups(
     termGroupsWithPendingLocale,
     sourceLanguage.locale,
-    (terms) => sortConceptDetailPersistedTerms(terms, sourceLanguage.locale),
   );
   const creatingTermGroups = sortConceptDetailTermGroups(
     creatingTermDrafts
@@ -1388,7 +1383,6 @@ export function GlossaryDetailPageContent({
         return groups;
       }, []),
     sourceLanguage.locale,
-    sortConceptDetailCreatingTerms,
   );
   const conceptIsDirty = isCreatingConcept
     ? Boolean(sourceTermText.trim())

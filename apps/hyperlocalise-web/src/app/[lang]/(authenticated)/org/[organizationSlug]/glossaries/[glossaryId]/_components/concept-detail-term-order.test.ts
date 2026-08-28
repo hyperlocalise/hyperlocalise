@@ -13,10 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  compareConceptDetailCreatingTerms,
   compareConceptDetailTermGroupLocale,
-  sortConceptDetailCreatingTerms,
-  sortConceptDetailPersistedTerms,
   sortConceptDetailTermGroups,
 } from "./concept-detail-term-order";
 
@@ -49,7 +46,6 @@ describe("sortConceptDetailTermGroups", () => {
         },
       ],
       "en-US",
-      (terms) => sortConceptDetailPersistedTerms(terms, "en-US"),
     );
 
     expect(groups.map((group) => group.locale)).toEqual(["en-US", "de-DE", "vi-VN"]);
@@ -68,63 +64,27 @@ describe("sortConceptDetailTermGroups", () => {
       },
     ];
 
-    sortConceptDetailTermGroups(input, "en-US", (terms) =>
-      sortConceptDetailPersistedTerms(terms, "en-US"),
-    );
+    sortConceptDetailTermGroups(input, "en-US");
 
     expect(input.map((group) => group.locale)).toEqual(["vi-VN", "en-US"]);
     expect(input[0]?.terms.map((term) => term.id)).toEqual(["2"]);
   });
-});
 
-describe("sortConceptDetailPersistedTerms", () => {
-  it("ranks the glossary primary term before other source terms", () => {
-    const input = [
-      { id: "2", locale: "en-US", status: "draft", term: "Alpha" },
-      { id: "1", locale: "en-US", status: "draft", term: "Zulu" },
-    ];
-    const terms = sortConceptDetailPersistedTerms(input, "en-US");
+  it("preserves term order within each locale group", () => {
+    const groups = sortConceptDetailTermGroups(
+      [
+        {
+          locale: "en-US",
+          terms: [
+            { id: "3", locale: "en-US", status: "admitted", term: "Checkout" },
+            { id: "1", locale: "en-US", status: "draft", term: "Agency" },
+            { id: "2", locale: "en-US", status: "preferred", term: "Payment" },
+          ],
+        },
+      ],
+      "en-US",
+    );
 
-    expect(terms.map((term) => term.id)).toEqual(["1", "2"]);
-    expect(input.map((term) => term.id)).toEqual(["2", "1"]);
-  });
-
-  it("ranks preferred source terms first", () => {
-    const input = [
-      { id: "3", locale: "en-US", status: "admitted", term: "Checkout" },
-      { id: "1", locale: "en-US", status: "draft", term: "Agency" },
-      { id: "2", locale: "en-US", status: "preferred", term: "Payment" },
-    ];
-    const terms = sortConceptDetailPersistedTerms(input, "en-US");
-
-    expect(terms.map((term) => term.id)).toEqual(["2", "1", "3"]);
-    expect(input.map((term) => term.id)).toEqual(["3", "1", "2"]);
-  });
-});
-
-describe("sortConceptDetailCreatingTerms", () => {
-  it("keeps the seeded source term before additional drafts in the same locale", () => {
-    expect(
-      compareConceptDetailCreatingTerms(
-        { id: "new-source-en-US", status: "draft", term: "" },
-        { id: "new-abc", status: "draft", term: "Variant" },
-      ),
-    ).toBeLessThan(0);
-
-    const terms = sortConceptDetailCreatingTerms([
-      { id: "new-abc", status: "draft", term: "Variant" },
-      { id: "new-source-en-US", status: "draft", term: "Agency" },
-    ]);
-
-    expect(terms.map((term) => term.id)).toEqual(["new-source-en-US", "new-abc"]);
-  });
-
-  it("ranks preferred drafts ahead of the seeded source term", () => {
-    const terms = sortConceptDetailCreatingTerms([
-      { id: "new-source-en-US", status: "draft", term: "Agency" },
-      { id: "new-abc", status: "preferred", term: "Payment" },
-    ]);
-
-    expect(terms.map((term) => term.id)).toEqual(["new-abc", "new-source-en-US"]);
+    expect(groups[0]?.terms.map((term) => term.id)).toEqual(["3", "1", "2"]);
   });
 });

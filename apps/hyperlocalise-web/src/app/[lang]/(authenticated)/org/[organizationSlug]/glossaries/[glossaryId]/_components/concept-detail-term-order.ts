@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { selectConceptDetailPrimaryTermId } from "./concept-detail-source-term";
-
 export type ConceptDetailTermGroup<T> = {
   locale: string;
   terms: T[];
@@ -30,7 +28,6 @@ export function compareConceptDetailTermGroupLocale(
 export function sortConceptDetailTermGroups<T>(
   groups: ConceptDetailTermGroup<T>[],
   sourceLocale: string,
-  sortTerms?: (terms: T[]) => T[],
 ): ConceptDetailTermGroup<T>[] {
   return groups
     .toSorted((left, right) =>
@@ -38,55 +35,6 @@ export function sortConceptDetailTermGroups<T>(
     )
     .map((group) => ({
       ...group,
-      terms: sortTerms ? sortTerms(group.terms) : [...group.terms],
+      terms: [...group.terms],
     }));
-}
-
-export function compareConceptDetailPersistedTerms(
-  left: { id: string | number; status: string; term: string },
-  right: { id: string | number; status: string; term: string },
-  primaryTermId?: string | number,
-): number {
-  if (primaryTermId !== undefined) {
-    const leftIsPrimary = left.id === primaryTermId;
-    const rightIsPrimary = right.id === primaryTermId;
-    if (leftIsPrimary !== rightIsPrimary) return leftIsPrimary ? -1 : 1;
-  }
-
-  const leftPreferred = left.status === "preferred";
-  const rightPreferred = right.status === "preferred";
-  if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1;
-
-  return left.term.localeCompare(right.term);
-}
-
-export function sortConceptDetailPersistedTerms<
-  T extends { id: string | number; locale: string; status: string; term: string },
->(terms: T[], sourceLocale: string): T[] {
-  const primaryTermId = selectConceptDetailPrimaryTermId(terms, sourceLocale);
-
-  return terms.toSorted((left, right) =>
-    compareConceptDetailPersistedTerms(left, right, primaryTermId),
-  );
-}
-
-export function compareConceptDetailCreatingTerms(
-  left: { id: string; status: string; term: string },
-  right: { id: string; status: string; term: string },
-): number {
-  const leftPreferred = left.status === "preferred";
-  const rightPreferred = right.status === "preferred";
-  if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1;
-
-  const leftIsSeed = left.id.startsWith("new-source-");
-  const rightIsSeed = right.id.startsWith("new-source-");
-  if (leftIsSeed !== rightIsSeed) return leftIsSeed ? -1 : 1;
-
-  return left.term.localeCompare(right.term);
-}
-
-export function sortConceptDetailCreatingTerms<
-  T extends { id: string; status: string; term: string },
->(terms: T[]): T[] {
-  return terms.toSorted(compareConceptDetailCreatingTerms);
 }
