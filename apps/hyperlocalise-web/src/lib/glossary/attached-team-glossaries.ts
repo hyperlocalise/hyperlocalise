@@ -99,8 +99,7 @@ export async function listAttachedTeamGlossaries(
     .select({
       id: schema.glossaries.id,
       name: schema.glossaries.name,
-      storedTeamId: schema.glossaries.teamId,
-      projectTeamId: schema.projects.teamId,
+      teamId: schema.glossaries.teamId,
     })
     .from(schema.projectGlossaries)
     .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
@@ -117,12 +116,11 @@ export async function listAttachedTeamGlossaries(
     .orderBy(schema.projectGlossaries.priority, schema.glossaries.name);
 
   return rows.flatMap((row) => {
-    const teamId = row.storedTeamId ?? row.projectTeamId;
-    if (!teamId) {
+    if (!row.teamId) {
       return [];
     }
 
-    return [{ id: row.id, name: row.name, teamId }];
+    return [{ id: row.id, name: row.name, teamId: row.teamId }];
   });
 }
 
