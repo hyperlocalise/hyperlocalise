@@ -76,7 +76,7 @@ export const createGlossaryBodySchema = z
         path: ["projectIds"],
       });
     }
-    if (value.controlLevel === "org" && value.teamId) {
+    if (value.teamId && value.controlLevel !== "team") {
       ctx.addIssue({
         code: "custom",
         message: "teamId is only allowed for team glossaries",

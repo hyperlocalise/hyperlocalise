@@ -62,6 +62,22 @@ describe("groupCatGlossaryConceptsByTeam", () => {
     expect(conceptsByTeamId.get("team-a")).toEqual([concepts[1]]);
     expect(conceptsByTeamId.get("team-b")).toEqual([concepts[2]]);
   });
+
+  it("omits team glossary concepts when the viewer is not a member of the owning team", () => {
+    const { orgConceptIds, conceptsByTeamId } = groupCatGlossaryConceptsByTeam({
+      concepts,
+      teamGlossaryIds: new Set(["glossary-team", "glossary-other"]),
+      glossaryTeamById: new Map([
+        ["glossary-team", "team-a"],
+        ["glossary-other", "team-b"],
+      ]),
+      contributorTeamIds: new Set(["team-a"]),
+    });
+
+    expect(orgConceptIds).toEqual(new Set(["org-concept"]));
+    expect(conceptsByTeamId.get("team-a")).toEqual([concepts[1]]);
+    expect(conceptsByTeamId.has("team-b")).toBe(false);
+  });
 });
 
 describe("filterCatTeamGlossariesForTeam", () => {

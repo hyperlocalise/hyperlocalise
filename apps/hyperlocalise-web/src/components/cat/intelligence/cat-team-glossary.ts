@@ -77,7 +77,6 @@ export function groupCatGlossaryConceptsByTeam<T extends { id: string; glossaryI
 
     const teamId = glossaryTeamById.get(concept.glossaryId);
     if (!teamId || !conceptsByTeamId.has(teamId)) {
-      orgConceptIds.add(concept.id);
       continue;
     }
 
