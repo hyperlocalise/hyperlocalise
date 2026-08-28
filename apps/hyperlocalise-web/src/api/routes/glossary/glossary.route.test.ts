@@ -522,6 +522,38 @@ describe("glossaryRoutes", () => {
     });
   });
 
+  it("rejects source locale changes for external glossaries", async () => {
+    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+
+    await db
+      .update(schema.glossaries)
+      .set({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "external-project-1",
+        externalResourceType: "glossary",
+        externalGlossaryId: "external-glossary-1",
+      })
+      .where(eq(schema.glossaries.id, glossary.id));
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: glossary.id,
+        },
+        json: { sourceLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "external_glossary_locale_readonly",
+    });
+  });
+
   it("hides other teams' projects from glossary project listings for team-scoped members", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const member = fixture.createWorkosIdentityForOrganization(admin.organization, "member");

@@ -197,3 +197,25 @@ describe("CrowdinGlossary.delete", () => {
     expect(mocks.deleteLiveGlossary).toHaveBeenCalledWith(expect.anything(), 55);
   });
 });
+
+describe("CrowdinGlossary.update", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.resolveCrowdinContext.mockResolvedValue({
+      organizationId: "org-1",
+      externalProjectId: "902807",
+      sourceLocale: "en",
+      credential: { id: "cred-1" },
+      secretMaterial: "secret",
+    });
+  });
+
+  it("rejects unsupported source locale updates", async () => {
+    const glossary = new CrowdinGlossary({
+      auth: authContext(),
+      glossary: liveGlossary(),
+    });
+
+    await expect(glossary.update({ sourceLocale: "fr-FR" })).resolves.toBeNull();
+  });
+});

@@ -12,7 +12,7 @@
  */
 import { and, eq, ne } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 
 export type AttachedTeamGlossary = {
   id: string;
@@ -47,8 +47,9 @@ export async function listAttachedTeamGlossaries(
 export async function hasAttachedGlossarySourceLocaleConflict(
   projectId: string,
   sourceLocale: string,
+  client: DatabaseClient = db,
 ): Promise<boolean> {
-  const [row] = await db
+  const [row] = await client
     .select({ id: schema.glossaries.id })
     .from(schema.projectGlossaries)
     .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))

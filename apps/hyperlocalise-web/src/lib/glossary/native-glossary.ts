@@ -798,14 +798,35 @@ export class NativeGlossary extends Glossary {
   async attachProjectWithGuard(
     projectId: string,
     priority: number,
-    project: { source: string; sourceLocale: string },
+    _project: { source: string; sourceLocale: string },
   ): Promise<
     | { status: "attached" }
     | { status: "not_found" }
     | { status: "team_native_project_required" }
     | { status: "source_locale_mismatch" }
   > {
+    const organizationId = this.input.auth.organization.localOrganizationId;
+
     return db.transaction(async (tx) => {
+      const [projectRow] = await tx
+        .select({
+          source: schema.projects.source,
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, projectId),
+            eq(schema.projects.organizationId, organizationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!projectRow?.sourceLocale) {
+        return { status: "source_locale_mismatch" };
+      }
+
       const [glossaryRow] = await tx
         .select({
           controlLevel: schema.glossaries.controlLevel,
@@ -815,7 +836,7 @@ export class NativeGlossary extends Glossary {
         .where(
           and(
             eq(schema.glossaries.id, this.input.glossary.id),
-            eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+            eq(schema.glossaries.organizationId, organizationId),
           ),
         )
         .limit(1)
@@ -825,18 +846,18 @@ export class NativeGlossary extends Glossary {
         return { status: "not_found" };
       }
 
-      if (project.sourceLocale !== glossaryRow.sourceLocale) {
+      if (projectRow.sourceLocale !== glossaryRow.sourceLocale) {
         return { status: "source_locale_mismatch" };
       }
 
-      if (glossaryRow.controlLevel === "team" && project.source !== "native") {
+      if (glossaryRow.controlLevel === "team" && projectRow.source !== "native") {
         return { status: "team_native_project_required" };
       }
 
       await tx
         .insert(schema.projectGlossaries)
         .values({
-          organizationId: this.input.auth.organization.localOrganizationId,
+          organizationId,
           projectId,
           glossaryId: this.input.glossary.id,
           priority,

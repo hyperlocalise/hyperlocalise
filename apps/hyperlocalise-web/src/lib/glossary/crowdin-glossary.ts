@@ -352,6 +352,10 @@ export class CrowdinGlossary extends Glossary {
     sourceLocale?: string;
     controlLevel?: "org" | "team";
   }) {
+    if (payload.sourceLocale !== undefined || payload.controlLevel !== undefined) {
+      return null;
+    }
+
     const context = await this.context();
     const patches = Object.entries({
       name: payload.name,

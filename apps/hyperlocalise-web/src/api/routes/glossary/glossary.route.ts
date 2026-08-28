@@ -52,6 +52,7 @@ import {
   type ListGlossaryQuery,
 } from "./glossary.schema";
 import {
+  externalGlossaryLocaleReadonlyResponse,
   externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
   glossaryTeamMustBeNativeResponse,
@@ -461,6 +462,9 @@ export function createGlossaryRoutes() {
       }
       if (payload.controlLevel === "team" && glossary.source !== "native") {
         return glossaryTeamMustBeNativeResponse(c);
+      }
+      if (glossary.source !== "native" && payload.sourceLocale !== undefined) {
+        return externalGlossaryLocaleReadonlyResponse(c);
       }
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });

@@ -483,12 +483,6 @@ const projectStore: ProjectStore = {
       }
 
       if (normalized.sourceLocale !== undefined) {
-        if (await hasAttachedGlossarySourceLocaleConflict(projectId, normalized.sourceLocale)) {
-          return err({
-            code: "project_source_locale_attached_glossaries",
-            message: projectLocalePatchErrorMessages.project_source_locale_attached_glossaries,
-          });
-        }
         updateValues.sourceLocale = normalized.sourceLocale;
       }
       if (normalized.targetLocales !== undefined) {
@@ -498,6 +492,39 @@ const projectStore: ProjectStore = {
 
     if (Object.keys(updateValues).length === 0) {
       return ok(existing);
+    }
+
+    if (updateValues.sourceLocale !== undefined) {
+      const projectWhere = await ownedProjectWhere(auth, projectId);
+      return db.transaction(async (tx) => {
+        const [lockedProject] = await tx
+          .select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(projectWhere)
+          .limit(1)
+          .for("update");
+
+        if (!lockedProject) {
+          return ok(null);
+        }
+
+        if (
+          await hasAttachedGlossarySourceLocaleConflict(projectId, updateValues.sourceLocale!, tx)
+        ) {
+          return err({
+            code: "project_source_locale_attached_glossaries",
+            message: projectLocalePatchErrorMessages.project_source_locale_attached_glossaries,
+          });
+        }
+
+        const [project] = await tx
+          .update(schema.projects)
+          .set(updateValues)
+          .where(projectWhere)
+          .returning();
+
+        return ok(project ?? null);
+      });
     }
 
     const [project] = await db

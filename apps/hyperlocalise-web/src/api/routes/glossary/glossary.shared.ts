@@ -105,6 +105,14 @@ export function glossarySourceLocaleExistingTermsResponse(c: { json: JsonContext
   );
 }
 
+export function externalGlossaryLocaleReadonlyResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "external_glossary_locale_readonly",
+    "External glossary source locales are read-only",
+  );
+}
+
 export async function deleteProjectWithTeamGlossaryGuard(
   auth: ApiAuthContext,
   projectId: string,
