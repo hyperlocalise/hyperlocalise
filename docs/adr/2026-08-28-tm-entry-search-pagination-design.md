@@ -60,6 +60,8 @@ Pages use keyset pagination on `(sort column, id)` in the requested direction. `
 
 A cursor is `base64url(json).hmac`. The payload stores sort, direction, sort value, entry id, issue time, and a hash of the filter set.
 
+The sort value is the Postgres `timestamptz` rendered in UTC with microsecond precision (`YYYY-MM-DDTHH:MM:SS.ffffffZ`). Keyset comparison casts that string back to `timestamptz` in SQL. JavaScript `Date` is not used for cursor encode or compare: node-postgres truncates timestamps to milliseconds, which drops or repeats rows when many entries share a `defaultNow()` value that is not millisecond-aligned.
+
 The server rejects the cursor with `{ error: "invalid_cursor" }` when:
 
 - the string is malformed

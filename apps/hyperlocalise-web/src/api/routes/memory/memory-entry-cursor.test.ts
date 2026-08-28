@@ -56,6 +56,22 @@ describe("memory entry cursor", () => {
     });
   });
 
+  it("round-trips a microsecond sort value", () => {
+    const cursor = encodeMemoryEntryCursor({
+      filters,
+      id: ENTRY_ID,
+      sortValue: "2026-08-01T12:00:00.123456Z",
+    });
+
+    const decoded = decodeMemoryEntryCursor(cursor, filters);
+    expect(isOk(decoded)).toBe(true);
+    if (!isOk(decoded)) {
+      return;
+    }
+
+    expect(decoded.value.sortValue).toBe("2026-08-01T12:00:00.123456Z");
+  });
+
   it("rejects a tampered payload", () => {
     const cursor = encodeMemoryEntryCursor({
       filters,

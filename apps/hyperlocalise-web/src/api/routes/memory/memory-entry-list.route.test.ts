@@ -37,7 +37,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { db } from "@/lib/database";
 
-import { encodeMemoryEntryCursor } from "./memory-entry-cursor";
+import { isOk } from "@/lib/primitives/result/results";
+
+import { decodeMemoryEntryCursor, encodeMemoryEntryCursor } from "./memory-entry-cursor";
 import { createMemoryTestFixture } from "./memory.fixture";
 
 const client = testClient(createApp());
@@ -90,6 +92,15 @@ type EntryListQuery = {
 type ListEntriesCall =
   (typeof client.api.orgs)[":organizationSlug"]["translation-memories"][":memoryId"]["entries"]["$get"];
 type ListEntriesQuery = NonNullable<Parameters<ListEntriesCall>[0]>["query"];
+
+async function stampEntryTimestamps(entryId: string, timestamp: string) {
+  await db.$client.query(
+    `update memory_entries
+     set created_at = $1::timestamptz, updated_at = $1::timestamptz
+     where id = $2`,
+    [timestamp, entryId],
+  );
+}
 
 async function listEntries(input: {
   organizationSlug: string;
@@ -168,6 +179,154 @@ describe("GET /translation-memories/:memoryId/entries", () => {
     );
     expect(pagedIds).toEqual(expectedOrder.map((entry) => entry.id));
     expect(new Set(pagedIds).size).toBe(3);
+  });
+
+  it("pages through rows that share a sub-millisecond timestamp", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const sharedTimestamp = "2026-08-01T12:00:00.123456Z";
+
+    const first = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Alpha",
+      targetText: "Alfa",
+    });
+    const second = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Bravo",
+      targetText: "Bravo",
+    });
+    const third = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Charlie",
+      targetText: "Charlie",
+    });
+    await stampEntryTimestamps(first.id, sharedTimestamp);
+    await stampEntryTimestamps(second.id, sharedTimestamp);
+    await stampEntryTimestamps(third.id, sharedTimestamp);
+
+    const expectedDesc = [first, second, third].toSorted((left, right) =>
+      right.id.localeCompare(left.id),
+    );
+    const expectedAsc = [first, second, third].toSorted((left, right) =>
+      left.id.localeCompare(right.id),
+    );
+
+    const firstDesc = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "2" },
+    });
+    expect(firstDesc.status).toBe(200);
+    const firstDescBody = (await firstDesc.json()) as EntryListBody;
+    expect(firstDescBody.memoryEntries.map((entry) => entry.id)).toEqual([
+      expectedDesc[0]?.id,
+      expectedDesc[1]?.id,
+    ]);
+    expect(firstDescBody.nextCursor).toBeTruthy();
+
+    const decodedDesc = decodeMemoryEntryCursor(firstDescBody.nextCursor!, {
+      sort: "created_at",
+      sortDir: "desc",
+    });
+    expect(isOk(decodedDesc)).toBe(true);
+    if (isOk(decodedDesc)) {
+      expect(decodedDesc.value.sortValue).toBe(sharedTimestamp);
+    }
+
+    const secondDesc = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "2", cursor: firstDescBody.nextCursor! },
+    });
+    expect(secondDesc.status).toBe(200);
+    const secondDescBody = (await secondDesc.json()) as EntryListBody;
+    expect(secondDescBody.memoryEntries.map((entry) => entry.id)).toEqual([expectedDesc[2]?.id]);
+    expect(secondDescBody.nextCursor).toBeNull();
+
+    const firstAsc = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "2", sortDir: "asc" },
+    });
+    expect(firstAsc.status).toBe(200);
+    const firstAscBody = (await firstAsc.json()) as EntryListBody;
+    expect(firstAscBody.memoryEntries.map((entry) => entry.id)).toEqual([
+      expectedAsc[0]?.id,
+      expectedAsc[1]?.id,
+    ]);
+
+    const secondAsc = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "2", sortDir: "asc", cursor: firstAscBody.nextCursor! },
+    });
+    expect(secondAsc.status).toBe(200);
+    const secondAscBody = (await secondAsc.json()) as EntryListBody;
+    expect(secondAscBody.memoryEntries.map((entry) => entry.id)).toEqual([expectedAsc[2]?.id]);
+
+    const descIds = [...firstDescBody.memoryEntries, ...secondDescBody.memoryEntries].map(
+      (entry) => entry.id,
+    );
+    const ascIds = [...firstAscBody.memoryEntries, ...secondAscBody.memoryEntries].map(
+      (entry) => entry.id,
+    );
+    expect(descIds).toEqual(expectedDesc.map((entry) => entry.id));
+    expect(ascIds).toEqual(expectedAsc.map((entry) => entry.id));
+    expect(new Set(descIds).size).toBe(3);
+    expect(new Set(ascIds).size).toBe(3);
+  });
+
+  it("orders and pages rows that differ only by microseconds", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const earliest = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Earliest",
+      targetText: "Primero",
+    });
+    const middle = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Middle",
+      targetText: "Medio",
+    });
+    const latest = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Latest",
+      targetText: "Ultimo",
+    });
+    await stampEntryTimestamps(earliest.id, "2026-08-01T12:00:00.123000Z");
+    await stampEntryTimestamps(middle.id, "2026-08-01T12:00:00.123456Z");
+    await stampEntryTimestamps(latest.id, "2026-08-01T12:00:00.123999Z");
+
+    const firstPage = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "1" },
+    });
+    const firstBody = (await firstPage.json()) as EntryListBody;
+    expect(firstBody.memoryEntries.map((entry) => entry.sourceText)).toEqual(["Latest"]);
+
+    const secondPage = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "1", cursor: firstBody.nextCursor! },
+    });
+    const secondBody = (await secondPage.json()) as EntryListBody;
+    expect(secondBody.memoryEntries.map((entry) => entry.sourceText)).toEqual(["Middle"]);
+
+    const thirdPage = await listEntries({
+      organizationSlug,
+      memoryId: memory.id,
+      headers,
+      query: { limit: "1", cursor: secondBody.nextCursor! },
+    });
+    const thirdBody = (await thirdPage.json()) as EntryListBody;
+    expect(thirdBody.memoryEntries.map((entry) => entry.sourceText)).toEqual(["Earliest"]);
+    expect(thirdBody.nextCursor).toBeNull();
   });
 
   it("returns an empty page contract when no entries match", async () => {

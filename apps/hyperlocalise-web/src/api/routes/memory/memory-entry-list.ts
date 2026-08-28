@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, desc, eq, gte, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lte, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -135,24 +135,24 @@ function sortColumn(sort: MemoryEntryListFilterFields["sort"]) {
   return sort === "updated_at" ? schema.memoryEntries.updatedAt : schema.memoryEntries.createdAt;
 }
 
+function timestampCursorSql(column: ReturnType<typeof sortColumn>) {
+  // node-postgres Date objects drop Postgres microseconds. Render UTC text so the
+  // cursor can compare the original timestamptz value.
+  return sql<string>`to_char(${column} at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+}
+
 function buildKeysetWhere(
   filters: MemoryEntryListFilterFields,
   cursor: { sortValue: string; id: string },
 ): SQL {
   const column = sortColumn(filters.sort);
-  const sortValue = new Date(cursor.sortValue);
+  const cursorTs = sql`${cursor.sortValue}::timestamptz`;
 
   if (filters.sortDir === "asc") {
-    return or(
-      sql`${column} > ${sortValue}`,
-      and(eq(column, sortValue), sql`${schema.memoryEntries.id} > ${cursor.id}`),
-    )!;
+    return sql`(${column} > ${cursorTs} or (${column} = ${cursorTs} and ${schema.memoryEntries.id} > ${cursor.id}))`;
   }
 
-  return or(
-    lt(column, sortValue),
-    and(eq(column, sortValue), sql`${schema.memoryEntries.id} < ${cursor.id}`),
-  )!;
+  return sql`(${column} < ${cursorTs} or (${column} = ${cursorTs} and ${schema.memoryEntries.id} < ${cursor.id}))`;
 }
 
 export async function listMemoryEntriesPage(
@@ -181,7 +181,10 @@ export async function listMemoryEntriesPage(
 
   const [rows, totalRow] = await Promise.all([
     db
-      .select()
+      .select({
+        entry: schema.memoryEntries,
+        sortValueCursor: timestampCursorSql(column),
+      })
       .from(schema.memoryEntries)
       .where(where)
       .orderBy(...orderBy)
@@ -190,17 +193,15 @@ export async function listMemoryEntriesPage(
   ]);
 
   const hasMore = rows.length > limit;
-  const entries = hasMore ? rows.slice(0, limit) : rows;
-  const lastEntry = entries.at(-1);
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const entries = pageRows.map((row) => row.entry);
+  const lastRow = pageRows.at(-1);
   const nextCursor =
-    hasMore && lastEntry
+    hasMore && lastRow
       ? encodeMemoryEntryCursor({
           filters,
-          id: lastEntry.id,
-          sortValue: (filters.sort === "updated_at"
-            ? lastEntry.updatedAt
-            : lastEntry.createdAt
-          ).toISOString(),
+          id: lastRow.entry.id,
+          sortValue: lastRow.sortValueCursor,
         })
       : null;
 
