@@ -12,8 +12,9 @@
  */
 import { z } from "zod";
 
-import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { schema } from "@/lib/database";
+import { TMX_DEFAULT_MAX_UNITS, TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const memoryIdParamsSchema = z.object({
   memoryId: z.string().trim().min(1).max(128),
@@ -129,9 +130,9 @@ export const promoteMemoryFromProjectBodySchema = z.object({
 
 export const importMemoryEntriesBodySchema = z.object({
   format: z.enum(["csv", "tmx"]),
-  content: z.string().min(1).max(10_000_000),
+  content: z.string().min(1).max(TMX_MAX_IMPORT_CONTENT_CHARS),
   dryRun: z.boolean().optional(),
-  maxUnits: z.number().int().min(1).max(50_000).optional(),
+  maxUnits: z.number().int().min(1).max(TMX_DEFAULT_MAX_UNITS).optional(),
 });
 
 export const exportMemoryEntriesQuerySchema = z.object({

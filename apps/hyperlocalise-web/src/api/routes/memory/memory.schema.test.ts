@@ -12,6 +12,8 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { TMX_DEFAULT_MAX_UNITS } from "@/lib/memory/tmx/tmx-constants";
+
 import { importMemoryEntriesBodySchema, listMemoryEntriesQuerySchema } from "./memory.schema";
 
 describe("listMemoryEntriesQuerySchema", () => {
@@ -46,8 +48,15 @@ describe("importMemoryEntriesBodySchema", () => {
       importMemoryEntriesBodySchema.safeParse({
         format: "tmx",
         content: "<tmx />",
-        maxUnits: 50_001,
+        maxUnits: TMX_DEFAULT_MAX_UNITS + 1,
       }).success,
     ).toBe(false);
+    expect(
+      importMemoryEntriesBodySchema.safeParse({
+        format: "tmx",
+        content: "<tmx />",
+        maxUnits: TMX_DEFAULT_MAX_UNITS,
+      }).success,
+    ).toBe(true);
   });
 });

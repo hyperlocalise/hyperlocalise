@@ -11,11 +11,18 @@
  * Version 2.0 or later.
  */
 
-/** Hard cap for translation units in one import. Larger files are rejected, never truncated. */
-export const TMX_DEFAULT_MAX_UNITS = 50_000;
+/**
+ * Hard cap for translation units in one import. Larger files are rejected, never truncated.
+ * Project and organisation TMs commonly reach hundreds of thousands of units; this leaves
+ * headroom without letting a single request allocate unbounded memory.
+ */
+export const TMX_DEFAULT_MAX_UNITS = 1_000_000;
+
+/** Maximum UTF-16 code units in the import request body (CSV or TMX). */
+export const TMX_MAX_IMPORT_CONTENT_CHARS = 100_000_000;
 
 /** Default number of entries written per database batch. */
-export const TMX_DEFAULT_BATCH_SIZE = 250;
+export const TMX_DEFAULT_BATCH_SIZE = 500;
 
 /** Matches the create-entry body limit so imported segments stay writable. */
 export const TMX_MAX_SEGMENT_CHARS = 100_000;

@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
@@ -76,6 +77,13 @@ export function TmImportExportPanel({
 
   const previewImport = useMutation({
     mutationFn: async (file: File) => {
+      if (file.size > TMX_MAX_IMPORT_CONTENT_CHARS) {
+        throw new Error(
+          intl.formatMessage(messages.importFileTooLarge, {
+            maxMegabytes: Math.floor(TMX_MAX_IMPORT_CONTENT_CHARS / 1_000_000),
+          }),
+        );
+      }
       const content = await file.text();
       const format = file.name.toLowerCase().endsWith(".tmx") ? ("tmx" as const) : ("csv" as const);
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][

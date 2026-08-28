@@ -137,6 +137,12 @@ export const tmImportExportPanelMessages = defineMessages({
     id: "K5K8zG3viH",
     description: "Heading for import preview sample rows",
   },
+  importFileTooLarge: {
+    defaultMessage:
+      "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
+    id: "tmImportFileTooLarge",
+    description: "Error when a translation memory import file exceeds the documented size limit",
+  },
   importFailed: {
     defaultMessage: "Unable to import entries",
     id: "VxRWiDyH8o",
