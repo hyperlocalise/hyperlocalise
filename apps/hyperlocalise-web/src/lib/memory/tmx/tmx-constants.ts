@@ -37,7 +37,13 @@ export const TMX_MAX_PREVIEW_ENTRIES = 25;
 export const TMX_MAX_RESPONSE_ENTRIES = 100;
 
 /** Lookup batch size for existing external keys and source tuples. */
-export const TMX_LOOKUP_BATCH_SIZE = 100;
+export const TMX_LOOKUP_BATCH_SIZE = 2_000;
+
+/** Parallel lookup batches when resolving existing entries. */
+export const TMX_LOOKUP_CONCURRENCY = 4;
+
+/** Database page size while streaming a TMX export. */
+export const TMX_EXPORT_PAGE_SIZE = 500;
 
 export const TMX_INLINE_ELEMENTS = new Set(["bpt", "ept", "ph", "it", "hi", "sub", "ut"]);
 

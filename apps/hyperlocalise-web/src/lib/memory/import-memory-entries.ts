@@ -15,6 +15,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -22,6 +23,7 @@ import {
   TMX_DEFAULT_BATCH_SIZE,
   TMX_DEFAULT_MAX_UNITS,
   TMX_LOOKUP_BATCH_SIZE,
+  TMX_LOOKUP_CONCURRENCY,
   TMX_MAX_PREVIEW_ENTRIES,
   TMX_MAX_RESPONSE_ENTRIES,
 } from "./tmx/tmx-constants";
@@ -41,6 +43,12 @@ import type {
 
 type MemoryEntryRow = typeof schema.memoryEntries.$inferSelect;
 type MemoryEntryInsert = typeof schema.memoryEntries.$inferInsert;
+
+function importedReviewStatus(candidate: MemoryImportCandidate) {
+  return typeof candidate.metadata.reviewStatus === "string"
+    ? candidate.metadata.reviewStatus
+    : undefined;
+}
 
 export type ParsedMemoryImport = {
   format: "csv" | "tmx";
@@ -192,59 +200,71 @@ async function loadExistingEntries(memoryId: string, candidates: MemoryImportCan
     ),
   ];
 
-  for (const keys of chunk(externalKeys, TMX_LOOKUP_BATCH_SIZE)) {
-    const rows = await db
-      .select()
-      .from(schema.memoryEntries)
-      .where(
-        and(
-          eq(schema.memoryEntries.memoryId, memoryId),
-          inArray(schema.memoryEntries.externalKey, keys),
-        ),
-      );
-    for (const row of rows) {
-      if (row.externalKey) {
-        existingByExternalKey.set(row.externalKey, row);
+  await mapWithConcurrency(
+    chunk(externalKeys, TMX_LOOKUP_BATCH_SIZE),
+    TMX_LOOKUP_CONCURRENCY,
+    async (keys) => {
+      const rows = await db
+        .select()
+        .from(schema.memoryEntries)
+        .where(
+          and(
+            eq(schema.memoryEntries.memoryId, memoryId),
+            inArray(schema.memoryEntries.externalKey, keys),
+          ),
+        );
+      for (const row of rows) {
+        if (row.externalKey) {
+          existingByExternalKey.set(row.externalKey, row);
+        }
       }
-    }
-  }
+    },
+  );
 
-  for (const batch of chunk(candidates, TMX_LOOKUP_BATCH_SIZE)) {
-    const localePairs = batch.map((candidate) => ({
-      sourceLocale: candidate.sourceLocale,
-      targetLocale: candidate.targetLocale,
-      normalizedSourceText: normalizeTranslationMemorySourceText(candidate.sourceText),
-    }));
-    const sourceLocales = [...new Set(localePairs.map((pair) => pair.sourceLocale))];
-    const targetLocales = [...new Set(localePairs.map((pair) => pair.targetLocale))];
-    const normalized = [...new Set(localePairs.map((pair) => pair.normalizedSourceText))];
-    if (sourceLocales.length === 0) {
-      continue;
-    }
-    const rows = await db
-      .select()
-      .from(schema.memoryEntries)
-      .where(
-        and(
-          eq(schema.memoryEntries.memoryId, memoryId),
-          inArray(schema.memoryEntries.sourceLocale, sourceLocales),
-          inArray(schema.memoryEntries.targetLocale, targetLocales),
-          inArray(schema.memoryEntries.normalizedSourceText, normalized),
+  const unresolvedCandidates = candidates.filter(
+    (candidate) => !candidate.externalKey || !existingByExternalKey.has(candidate.externalKey),
+  );
+
+  await mapWithConcurrency(
+    chunk(unresolvedCandidates, TMX_LOOKUP_BATCH_SIZE),
+    TMX_LOOKUP_CONCURRENCY,
+    async (batch) => {
+      const localePairs = batch.map((candidate) => ({
+        sourceLocale: candidate.sourceLocale,
+        targetLocale: candidate.targetLocale,
+        normalizedSourceText: normalizeTranslationMemorySourceText(candidate.sourceText),
+      }));
+      const sourceLocales = [...new Set(localePairs.map((pair) => pair.sourceLocale))];
+      const targetLocales = [...new Set(localePairs.map((pair) => pair.targetLocale))];
+      const normalized = [...new Set(localePairs.map((pair) => pair.normalizedSourceText))];
+      if (sourceLocales.length === 0) {
+        return;
+      }
+      const rows = await db
+        .select()
+        .from(schema.memoryEntries)
+        .where(
+          and(
+            eq(schema.memoryEntries.memoryId, memoryId),
+            inArray(schema.memoryEntries.sourceLocale, sourceLocales),
+            inArray(schema.memoryEntries.targetLocale, targetLocales),
+            inArray(schema.memoryEntries.normalizedSourceText, normalized),
+          ),
+        );
+      const wanted = new Set(
+        localePairs.map(
+          (pair) =>
+            `${pair.sourceLocale}\u0000${pair.targetLocale}\u0000${pair.normalizedSourceText}`,
         ),
       );
-    const wanted = new Set(
-      localePairs.map(
-        (pair) =>
-          `${pair.sourceLocale}\u0000${pair.targetLocale}\u0000${pair.normalizedSourceText}`,
-      ),
-    );
-    for (const row of rows) {
-      const key = `${row.sourceLocale}\u0000${row.targetLocale}\u0000${row.normalizedSourceText}`;
-      if (wanted.has(key)) {
-        existingBySourceKey.set(key, row);
+      for (const row of rows) {
+        const key = `${row.sourceLocale}\u0000${row.targetLocale}\u0000${row.normalizedSourceText}`;
+        if (wanted.has(key)) {
+          existingBySourceKey.set(key, row);
+        }
       }
-    }
-  }
+    },
+  );
 
   return { existingByExternalKey, existingBySourceKey };
 }
@@ -254,10 +274,7 @@ function toInsertValues(
   candidate: MemoryImportCandidate,
   options: { createdByUserId?: string; importBatchId?: string },
 ): MemoryEntryInsert {
-  const reviewStatus =
-    typeof candidate.metadata.reviewStatus === "string"
-      ? candidate.metadata.reviewStatus
-      : "approved";
+  const reviewStatus = importedReviewStatus(candidate) ?? "approved";
   return {
     memoryId: memory.id,
     sourceLocale: candidate.sourceLocale,
@@ -389,6 +406,7 @@ export async function applyMemoryImport(input: {
             targetText: item.candidate.targetText,
             matchScore: item.candidate.matchScore,
             provenance: "import",
+            reviewStatus: importedReviewStatus(item.candidate) ?? "approved",
             externalKey: item.candidate.externalKey,
             importBatchId: input.importBatchId,
             metadata: item.candidate.metadata,

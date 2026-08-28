@@ -19,6 +19,9 @@ import {
   serializeMemoryEntriesTmx,
   serializeSegContent,
   serializeTmxDocument,
+  serializeTmxFooterXml,
+  serializeTmxHeaderXml,
+  serializeTmxUnitsXml,
 } from "./serialize-tmx";
 import { documentToImportCandidates } from "./tmx-import";
 
@@ -44,6 +47,12 @@ describe("serializeTmxDocument", () => {
       'Hello <ph x="1"/> &amp; friends',
     );
     expect(serializeSegContent("Checkout <now>")).toBe("Checkout &lt;now&gt;");
+  });
+
+  it("escapes incomplete or malformed inline tags instead of emitting them", () => {
+    expect(serializeSegContent("See <ph>")).toBe("See &lt;ph&gt;");
+    expect(serializeSegContent('<ph x="A&B"/>')).toBe('&lt;ph x="A&amp;B"/&gt;');
+    expect(serializeSegContent("<hi>A & B</hi>")).toBe("<hi>A &amp; B</hi>");
   });
 
   it("emits Phrase-compatible TMX 1.4 for multilingual units", () => {
@@ -86,6 +95,30 @@ describe("serializeTmxDocument", () => {
       sourceText: "Checkout <now>",
       targetText: "Commander & payer",
     });
+  });
+
+  it("joins streamed header, units, and footer into a complete document", () => {
+    const input = {
+      header: { srclang: "en", creationtool: "Hyperlocalise" },
+      units: [
+        {
+          tuid: "one",
+          variants: [
+            { language: "en", segment: "Hello" },
+            { language: "fr", segment: "Bonjour" },
+          ],
+        },
+      ],
+    };
+    expect(
+      [
+        serializeTmxHeaderXml(input.header),
+        serializeTmxUnitsXml(input.units),
+        serializeTmxFooterXml(),
+      ]
+        .filter((part) => part.length > 0)
+        .join("\n"),
+    ).toBe(serializeTmxDocument(input));
   });
 
   it("groups locale pairs that share a tuid into one unit", () => {

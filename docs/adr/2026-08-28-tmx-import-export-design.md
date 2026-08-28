@@ -31,7 +31,7 @@ Parse and write TMX 1.4 with a bounded XML reader. The import API accepts a dry 
 
 ### Limits
 
-The documented unit cap is 1,000,000 translation units per request. The import body may be up to 100,000,000 characters. Callers may pass a lower `maxUnits`. Files over either cap are rejected with an explicit error. They are never silently truncated. Writes use batches of 500 entries.
+The documented unit cap is 1,000,000 translation units per request. The import body may be up to 100,000,000 characters. Callers may pass a lower `maxUnits`. Files over either cap are rejected with an explicit error. They are never silently truncated. Writes use batches of 500 entries. Existing-entry lookups use batches of 2,000 keys with concurrency 4. Export streams TMX pages instead of buffering the full memory.
 
 Multi-gigabyte or multi-million-unit memories still need to be split. The current import path parses the request body in memory and writes in one API call. Async blob ingest is out of scope.
 

@@ -30,9 +30,9 @@ export function serializeSegContent(content: string) {
   let index = 0;
   while (index < content.length) {
     if (content[index] === "<") {
-      const inline = readInlineTag(content, index);
+      const inline = readInlineMarkup(content, index);
       if (inline) {
-        output += inline.tag;
+        output += inline.xml;
         index = inline.end;
         continue;
       }
@@ -45,17 +45,156 @@ export function serializeSegContent(content: string) {
   return output;
 }
 
-function readInlineTag(content: string, start: number): { tag: string; end: number } | null {
-  const remaining = content.slice(start);
-  const match = /^<\/?([A-Za-z:_][A-Za-z0-9:_.-]*)\b[^>]*>/.exec(remaining);
-  if (!match) {
+const XML_NAME = /^[A-Za-z:_][A-Za-z0-9:_.-]*/;
+const XML_ENTITY = /^(?:amp|lt|gt|quot|apos|#\d+|#x[0-9A-Fa-f]+);/;
+
+type ParsedTag = {
+  name: string;
+  localName: string;
+  closing: boolean;
+  selfClosing: boolean;
+  raw: string;
+  end: number;
+};
+
+function localTagName(name: string) {
+  return name.includes(":") ? name.slice(name.lastIndexOf(":") + 1) : name;
+}
+
+function parseXmlTag(content: string, start: number): ParsedTag | null {
+  if (content[start] !== "<") {
     return null;
   }
-  const name = match[1]?.includes(":") ? match[1].slice(match[1].lastIndexOf(":") + 1) : match[1];
-  if (!name || !TMX_INLINE_ELEMENTS.has(name.toLowerCase())) {
+  let index = start + 1;
+  const closing = content[index] === "/";
+  if (closing) {
+    index += 1;
+  }
+  const nameMatch = XML_NAME.exec(content.slice(index));
+  if (!nameMatch?.[0]) {
     return null;
   }
-  return { tag: match[0], end: start + match[0].length };
+  const name = nameMatch[0];
+  index += name.length;
+  while (index < content.length) {
+    const char = content[index];
+    if (char === " " || char === "\t" || char === "\n" || char === "\r") {
+      index += 1;
+      continue;
+    }
+    if (char === ">") {
+      return {
+        name,
+        localName: localTagName(name).toLowerCase(),
+        closing,
+        selfClosing: false,
+        raw: content.slice(start, index + 1),
+        end: index + 1,
+      };
+    }
+    if (char === "/" && content[index + 1] === ">") {
+      if (closing) {
+        return null;
+      }
+      return {
+        name,
+        localName: localTagName(name).toLowerCase(),
+        closing: false,
+        selfClosing: true,
+        raw: content.slice(start, index + 2),
+        end: index + 2,
+      };
+    }
+    const attrName = XML_NAME.exec(content.slice(index));
+    if (!attrName?.[0]) {
+      return null;
+    }
+    index += attrName[0].length;
+    while (
+      content[index] === " " ||
+      content[index] === "\t" ||
+      content[index] === "\n" ||
+      content[index] === "\r"
+    ) {
+      index += 1;
+    }
+    if (content[index] !== "=") {
+      return null;
+    }
+    index += 1;
+    while (
+      content[index] === " " ||
+      content[index] === "\t" ||
+      content[index] === "\n" ||
+      content[index] === "\r"
+    ) {
+      index += 1;
+    }
+    const quote = content[index];
+    if (quote !== '"' && quote !== "'") {
+      return null;
+    }
+    index += 1;
+    while (index < content.length && content[index] !== quote) {
+      if (content[index] === "<") {
+        return null;
+      }
+      if (content[index] === "&") {
+        const entity = XML_ENTITY.exec(content.slice(index + 1));
+        if (!entity?.[0]) {
+          return null;
+        }
+        index += 1 + entity[0].length;
+        continue;
+      }
+      index += 1;
+    }
+    if (content[index] !== quote) {
+      return null;
+    }
+    index += 1;
+  }
+  return null;
+}
+
+function readInlineMarkup(content: string, start: number): { xml: string; end: number } | null {
+  const tag = parseXmlTag(content, start);
+  if (!tag || !TMX_INLINE_ELEMENTS.has(tag.localName)) {
+    return null;
+  }
+  if (tag.selfClosing || tag.closing) {
+    return { xml: tag.raw, end: tag.end };
+  }
+  let index = tag.end;
+  let depth = 1;
+  while (index < content.length) {
+    const nextOpen = content.indexOf("<", index);
+    if (nextOpen === -1) {
+      return null;
+    }
+    const next = parseXmlTag(content, nextOpen);
+    if (!next || next.localName !== tag.localName) {
+      index = nextOpen + 1;
+      continue;
+    }
+    if (!next.closing && !next.selfClosing) {
+      depth += 1;
+      index = next.end;
+      continue;
+    }
+    if (next.closing) {
+      depth -= 1;
+      if (depth === 0) {
+        const inner = content.slice(tag.end, nextOpen);
+        return {
+          xml: `${tag.raw}${serializeSegContent(inner)}${next.raw}`,
+          end: next.end,
+        };
+      }
+    }
+    index = next.end;
+  }
+  return null;
 }
 
 function writeProps(properties: TmxProperty[] | undefined, indent: string) {
@@ -94,19 +233,27 @@ export type TmxSerializeInput = {
   units: ExportUnit[];
 };
 
-export function serializeTmxDocument(input: TmxSerializeInput) {
-  const srclang = input.header?.srclang?.trim() || input.units[0]?.variants[0]?.language || "en";
+export function serializeTmxHeaderXml(header?: Partial<TmxHeader>, fallbackSrclang?: string) {
+  const srclang = header?.srclang?.trim() || fallbackSrclang || "en";
   const headerAttrs = [
-    `creationtool="${escapeXmlAttr(input.header?.creationtool ?? "Hyperlocalise")}"`,
-    `creationtoolversion="${escapeXmlAttr(input.header?.creationtoolversion ?? "1")}"`,
-    `segtype="${escapeXmlAttr(input.header?.segtype ?? "sentence")}"`,
-    `o-tmf="${escapeXmlAttr(input.header?.oTmf ?? "Hyperlocalise")}"`,
-    `adminlang="${escapeXmlAttr(input.header?.adminlang ?? "en")}"`,
+    `creationtool="${escapeXmlAttr(header?.creationtool ?? "Hyperlocalise")}"`,
+    `creationtoolversion="${escapeXmlAttr(header?.creationtoolversion ?? "1")}"`,
+    `segtype="${escapeXmlAttr(header?.segtype ?? "sentence")}"`,
+    `o-tmf="${escapeXmlAttr(header?.oTmf ?? "Hyperlocalise")}"`,
+    `adminlang="${escapeXmlAttr(header?.adminlang ?? "en")}"`,
     `srclang="${escapeXmlAttr(srclang)}"`,
-    `datatype="${escapeXmlAttr(input.header?.datatype ?? "plaintext")}"`,
+    `datatype="${escapeXmlAttr(header?.datatype ?? "plaintext")}"`,
   ];
+  return [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<tmx version="1.4">`,
+    `  <header ${headerAttrs.join(" ")}/>`,
+    `  <body>`,
+  ].join("\n");
+}
 
-  const body = input.units
+export function serializeTmxUnitsXml(units: readonly ExportUnit[]) {
+  return units
     .map((unit) => {
       const tuAttrs = [`tuid="${escapeXmlAttr(unit.tuid ?? "")}"`];
       if (unit.creationdate) tuAttrs.push(`creationdate="${escapeXmlAttr(unit.creationdate)}"`);
@@ -125,17 +272,21 @@ export function serializeTmxDocument(input: TmxSerializeInput) {
       return lines.join("\n");
     })
     .join("\n");
+}
 
+export function serializeTmxFooterXml() {
+  return `  </body>\n</tmx>\n`;
+}
+
+export function serializeTmxDocument(input: TmxSerializeInput) {
+  const body = serializeTmxUnitsXml(input.units);
   return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<tmx version="1.4">`,
-    `  <header ${headerAttrs.join(" ")}/>`,
-    `  <body>`,
+    serializeTmxHeaderXml(input.header, input.units[0]?.variants[0]?.language),
     body,
-    `  </body>`,
-    `</tmx>`,
-    ``,
-  ].join("\n");
+    serializeTmxFooterXml(),
+  ]
+    .filter((part) => part.length > 0)
+    .join("\n");
 }
 
 function asString(value: unknown) {

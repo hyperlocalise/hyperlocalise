@@ -15,6 +15,8 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   TMX_DEFAULT_BATCH_SIZE,
   TMX_DEFAULT_MAX_UNITS,
+  TMX_LOOKUP_BATCH_SIZE,
+  TMX_LOOKUP_CONCURRENCY,
   TMX_MAX_IMPORT_CONTENT_CHARS,
 } from "./tmx-constants";
 
@@ -23,5 +25,7 @@ describe("TMX import limits", () => {
     expect(TMX_DEFAULT_MAX_UNITS).toBe(1_000_000);
     expect(TMX_MAX_IMPORT_CONTENT_CHARS).toBe(100_000_000);
     expect(TMX_DEFAULT_BATCH_SIZE).toBe(500);
+    expect(TMX_LOOKUP_BATCH_SIZE).toBe(2_000);
+    expect(TMX_LOOKUP_CONCURRENCY).toBe(4);
   });
 });

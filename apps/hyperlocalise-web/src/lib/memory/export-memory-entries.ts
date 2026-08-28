@@ -10,14 +10,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
-import { serializeMemoryEntriesTmx } from "./tmx/serialize-tmx";
+import { TMX_EXPORT_PAGE_SIZE } from "./tmx/tmx-constants";
+import {
+  groupEntriesForTmxExport,
+  serializeTmxFooterXml,
+  serializeTmxHeaderXml,
+  serializeTmxUnitsXml,
+} from "./tmx/serialize-tmx";
 import type { TmxExportEntry } from "./tmx/tmx-types";
-
-const EXPORT_PAGE_SIZE = 500;
 
 export type MemoryExportFilters = {
   sourceLocale?: string;
@@ -35,55 +39,76 @@ function asTuid(metadata: Record<string, unknown>, externalKey: string | null) {
   return undefined;
 }
 
-export async function loadMemoryEntriesForExport(
+function toExportEntry(row: {
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+  targetText: string;
+  externalKey: string | null;
+  metadata: Record<string, unknown> | null;
+}): TmxExportEntry {
+  return {
+    sourceLocale: row.sourceLocale,
+    targetLocale: row.targetLocale,
+    sourceText: row.sourceText,
+    targetText: row.targetText,
+    tuid: asTuid(row.metadata ?? {}, row.externalKey),
+    metadata: row.metadata ?? {},
+  };
+}
+
+function trailingTuidGroup(entries: TmxExportEntry[]) {
+  const lastTuid = entries.at(-1)?.tuid;
+  if (!lastTuid) {
+    return { flush: entries, pending: [] as TmxExportEntry[] };
+  }
+  let start = entries.length - 1;
+  while (start > 0 && entries[start - 1]?.tuid === lastTuid) {
+    start -= 1;
+  }
+  return { flush: entries.slice(0, start), pending: entries.slice(start) };
+}
+
+async function loadExportPage(
   memoryId: string,
-  filters: MemoryExportFilters = {},
-): Promise<TmxExportEntry[]> {
-  const entries: TmxExportEntry[] = [];
-  let offset = 0;
-
-  for (;;) {
-    const conditions = [eq(schema.memoryEntries.memoryId, memoryId)];
-    if (filters.sourceLocale) {
-      conditions.push(eq(schema.memoryEntries.sourceLocale, filters.sourceLocale));
+  filters: MemoryExportFilters,
+  cursor?: { createdAt: Date; id: string },
+) {
+  const conditions = [eq(schema.memoryEntries.memoryId, memoryId)];
+  if (filters.sourceLocale) {
+    conditions.push(eq(schema.memoryEntries.sourceLocale, filters.sourceLocale));
+  }
+  if (filters.targetLocale) {
+    conditions.push(eq(schema.memoryEntries.targetLocale, filters.targetLocale));
+  }
+  if (cursor) {
+    const afterCursor = or(
+      gt(schema.memoryEntries.createdAt, cursor.createdAt),
+      and(
+        eq(schema.memoryEntries.createdAt, cursor.createdAt),
+        gt(schema.memoryEntries.id, cursor.id),
+      ),
+    );
+    if (afterCursor) {
+      conditions.push(afterCursor);
     }
-    if (filters.targetLocale) {
-      conditions.push(eq(schema.memoryEntries.targetLocale, filters.targetLocale));
-    }
-
-    const rows = await db
-      .select({
-        sourceLocale: schema.memoryEntries.sourceLocale,
-        targetLocale: schema.memoryEntries.targetLocale,
-        sourceText: schema.memoryEntries.sourceText,
-        targetText: schema.memoryEntries.targetText,
-        externalKey: schema.memoryEntries.externalKey,
-        metadata: schema.memoryEntries.metadata,
-      })
-      .from(schema.memoryEntries)
-      .where(and(...conditions))
-      .orderBy(asc(schema.memoryEntries.createdAt), asc(schema.memoryEntries.id))
-      .limit(EXPORT_PAGE_SIZE)
-      .offset(offset);
-
-    for (const row of rows) {
-      entries.push({
-        sourceLocale: row.sourceLocale,
-        targetLocale: row.targetLocale,
-        sourceText: row.sourceText,
-        targetText: row.targetText,
-        tuid: asTuid(row.metadata ?? {}, row.externalKey),
-        metadata: row.metadata ?? {},
-      });
-    }
-
-    if (rows.length < EXPORT_PAGE_SIZE) {
-      break;
-    }
-    offset += rows.length;
   }
 
-  return entries;
+  return db
+    .select({
+      id: schema.memoryEntries.id,
+      createdAt: schema.memoryEntries.createdAt,
+      sourceLocale: schema.memoryEntries.sourceLocale,
+      targetLocale: schema.memoryEntries.targetLocale,
+      sourceText: schema.memoryEntries.sourceText,
+      targetText: schema.memoryEntries.targetText,
+      externalKey: schema.memoryEntries.externalKey,
+      metadata: schema.memoryEntries.metadata,
+    })
+    .from(schema.memoryEntries)
+    .where(and(...conditions))
+    .orderBy(asc(schema.memoryEntries.createdAt), asc(schema.memoryEntries.id))
+    .limit(TMX_EXPORT_PAGE_SIZE);
 }
 
 export function buildMemoryTmxFilename(memoryName: string, filters: MemoryExportFilters) {
@@ -98,19 +123,81 @@ export function buildMemoryTmxFilename(memoryName: string, filters: MemoryExport
   return `${slug}.tmx`;
 }
 
+export function createMemoryTmxExportStream(input: {
+  memoryId: string;
+  filters?: MemoryExportFilters;
+}) {
+  const filters = input.filters ?? {};
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let cursor: { createdAt: Date; id: string } | undefined;
+      let pending: TmxExportEntry[] = [];
+      let wroteHeader = false;
+
+      try {
+        for (;;) {
+          const rows = await loadExportPage(input.memoryId, filters, cursor);
+          const page = rows.map(toExportEntry);
+          if (!wroteHeader) {
+            controller.enqueue(
+              encoder.encode(
+                `${serializeTmxHeaderXml(
+                  { creationtool: "Hyperlocalise" },
+                  filters.sourceLocale ?? page[0]?.sourceLocale,
+                )}\n`,
+              ),
+            );
+            wroteHeader = true;
+          }
+          if (page.length === 0) {
+            break;
+          }
+          const combined = [...pending, ...page];
+          const split =
+            rows.length === TMX_EXPORT_PAGE_SIZE
+              ? trailingTuidGroup(combined)
+              : { flush: combined, pending: [] as TmxExportEntry[] };
+          pending = split.pending;
+          if (split.flush.length > 0) {
+            const unitsXml = serializeTmxUnitsXml(groupEntriesForTmxExport(split.flush));
+            if (unitsXml) {
+              controller.enqueue(encoder.encode(`${unitsXml}\n`));
+            }
+          }
+          const last = rows.at(-1);
+          if (!last || rows.length < TMX_EXPORT_PAGE_SIZE) {
+            break;
+          }
+          cursor = { createdAt: last.createdAt, id: last.id };
+        }
+        if (pending.length > 0) {
+          const unitsXml = serializeTmxUnitsXml(groupEntriesForTmxExport(pending));
+          if (unitsXml) {
+            controller.enqueue(encoder.encode(`${unitsXml}\n`));
+          }
+        }
+        controller.enqueue(encoder.encode(serializeTmxFooterXml()));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
 export async function exportMemoryEntriesTmx(input: {
   memoryId: string;
   memoryName: string;
   filters?: MemoryExportFilters;
 }) {
   const filters = input.filters ?? {};
-  const entries = await loadMemoryEntriesForExport(input.memoryId, filters);
   return {
-    body: serializeMemoryEntriesTmx(entries, {
-      srclang: filters.sourceLocale ?? entries[0]?.sourceLocale,
-      creationtool: "Hyperlocalise",
+    body: createMemoryTmxExportStream({
+      memoryId: input.memoryId,
+      filters,
     }),
     filename: buildMemoryTmxFilename(input.memoryName, filters),
-    entryCount: entries.length,
   };
 }

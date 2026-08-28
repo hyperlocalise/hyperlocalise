@@ -223,6 +223,61 @@ describe("memory TMX import and export", () => {
     });
   });
 
+  it("applies review status from TMX on create and tuid upsert", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const tmx = (status: string) =>
+      `<?xml version="1.0" encoding="UTF-8"?><tmx version="1.4"><header srclang="en" creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="t" adminlang="en" datatype="plaintext"/><body><tu tuid="review-1"><prop type="x-review-status">${status}</prop><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>Bonjour</seg></tuv></tu></body></tmx>`;
+
+    const created = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: { format: "tmx", content: tmx("rejected") },
+      },
+      { headers },
+    );
+    expect(created.status).toBe(201);
+
+    const listedAfterCreate = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { limit: "50" } },
+      { headers },
+    );
+    const createdEntries = (await listedAfterCreate.json()) as {
+      memoryEntries: Array<{ reviewStatus: string }>;
+    };
+    expect(createdEntries.memoryEntries[0]?.reviewStatus).toBe("rejected");
+
+    const updated = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: { format: "tmx", content: tmx("pending") },
+      },
+      { headers },
+    );
+    expect(updated.status).toBe(201);
+    expect(((await updated.json()) as { report: { updated: number } }).report.updated).toBe(1);
+
+    const listedAfterUpdate = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { limit: "50" } },
+      { headers },
+    );
+    const updatedEntries = (await listedAfterUpdate.json()) as {
+      memoryEntries: Array<{ reviewStatus: string }>;
+      total: number;
+    };
+    expect(updatedEntries.total).toBe(1);
+    expect(updatedEntries.memoryEntries[0]?.reviewStatus).toBe("pending");
+  });
+
   it("fails safely on malformed TMX and never silently truncates oversized files", async () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);
