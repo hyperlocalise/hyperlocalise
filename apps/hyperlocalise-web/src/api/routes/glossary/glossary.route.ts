@@ -15,6 +15,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
+import { ownedProjectWhere } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/errors";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -34,8 +35,8 @@ import {
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {
-  getOwnedProjectRecord,
   getOwnedProject,
+  getOwnedProjectRecord,
   projectNotFoundResponse,
 } from "../project/project.shared";
 import { createGlossaryConceptRoutes } from "./glossary-concept.route";
@@ -120,29 +121,80 @@ async function listGlossaries(
   };
 }
 
+type CreateNativeGlossaryResult =
+  | { status: "created"; glossary: NativeGlossary; projectCount: number }
+  | { status: "project_not_found" }
+  | { status: "team_native_project_required" }
+  | { status: "source_locale_mismatch" };
+
+type CreateNativeGlossaryTxResult =
+  | { error: "project_not_found" }
+  | { error: "team_native_project_required" }
+  | { error: "source_locale_mismatch" }
+  | { glossary: NativeGlossary; projectCount: number };
+
 async function createNativeGlossary(
   auth: ApiAuthContext,
-  payload: CreateGlossaryBody,
+  payload: CreateGlossaryBody & { controlLevel: "org" | "team" },
   projectIds: string[] = [],
-): Promise<NativeGlossary> {
-  const glossary = await db.transaction(async (tx) => {
+): Promise<CreateNativeGlossaryResult> {
+  const organizationId = auth.organization.localOrganizationId;
+  const uniqueProjectIds = [...new Set(projectIds)];
+
+  const result = await db.transaction(async (tx): Promise<CreateNativeGlossaryTxResult> => {
+    const lockedProjects: Array<{ id: string; source: string; sourceLocale: string | null }> = [];
+
+    for (const projectId of uniqueProjectIds.toSorted()) {
+      const [project] = await tx
+        .select({
+          id: schema.projects.id,
+          source: schema.projects.source,
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(auth, projectId))
+        .limit(1)
+        .for("update");
+
+      if (!project) {
+        return { error: "project_not_found" as const };
+      }
+
+      lockedProjects.push(project);
+    }
+
+    if (
+      payload.controlLevel === "team" &&
+      lockedProjects.some((project) => project.source !== "native")
+    ) {
+      return { error: "team_native_project_required" as const };
+    }
+
+    if (
+      lockedProjects.some(
+        (project) => !project.sourceLocale || project.sourceLocale !== payload.sourceLocale,
+      )
+    ) {
+      return { error: "source_locale_mismatch" as const };
+    }
+
     const [created] = await tx
       .insert(schema.glossaries)
       .values({
-        organizationId: auth.organization.localOrganizationId,
+        organizationId,
         createdByUserId: auth.user.localUserId,
         name: payload.name,
         description: payload.description ?? "",
         sourceLocale: payload.sourceLocale,
         targetLocale: null,
-        controlLevel: payload.controlLevel ?? "org",
+        controlLevel: payload.controlLevel,
       })
       .returning();
 
-    if (projectIds.length > 0) {
+    if (uniqueProjectIds.length > 0) {
       await tx.insert(schema.projectGlossaries).values(
-        projectIds.map((projectId) => ({
-          organizationId: auth.organization.localOrganizationId,
+        uniqueProjectIds.map((projectId) => ({
+          organizationId,
           projectId,
           glossaryId: created.id,
           priority: 0,
@@ -150,14 +202,22 @@ async function createNativeGlossary(
       );
     }
 
-    return created;
+    return { glossary: created, projectCount: uniqueProjectIds.length };
   });
+
+  if ("error" in result) {
+    return { status: result.error };
+  }
 
   serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
     status: "created",
     source: "glossary",
   });
-  return glossary;
+  return {
+    status: "created",
+    glossary: result.glossary,
+    projectCount: result.projectCount,
+  };
 }
 
 const validateGlossaryParams = validator("param", (value, c) => {
@@ -276,29 +336,36 @@ export function createGlossaryRoutes() {
       if (controlLevel === "team" && requestedProjectIds.length === 0) {
         return glossaryTeamProjectRequiredResponse(c);
       }
-      const projects = await mapWithConcurrency(requestedProjectIds, 5, (projectId) =>
-        getOwnedProjectRecord(c.var.auth, projectId),
-      );
-      if (projects.some((project) => !project)) {
-        return projectNotFoundResponse(c);
-      }
-      if (controlLevel === "team" && projects.some((project) => project?.source !== "native")) {
-        return glossaryTeamNativeProjectRequiredResponse(c);
-      }
-      if (projects.some((project) => project?.sourceLocale !== payload.sourceLocale)) {
-        return badRequestResponse(
-          c,
-          "glossary_source_locale_mismatch",
-          "The selected project uses a different source locale",
-        );
-      }
-      const projectIds = projects.flatMap((project) => (project ? [project.id] : []));
-      const glossary = await createNativeGlossary(
+
+      const createResult = await createNativeGlossary(
         c.var.auth,
         { ...payload, controlLevel },
-        projectIds,
+        requestedProjectIds,
       );
-      return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, projectIds.length) }, 201);
+      switch (createResult.status) {
+        case "project_not_found":
+          return projectNotFoundResponse(c);
+        case "team_native_project_required":
+          return glossaryTeamNativeProjectRequiredResponse(c);
+        case "source_locale_mismatch":
+          return badRequestResponse(
+            c,
+            "glossary_source_locale_mismatch",
+            "The selected project uses a different source locale",
+          );
+        case "created":
+          return c.json(
+            {
+              glossary: toGlossaryRecord(
+                createResult.glossary,
+                undefined,
+                0,
+                createResult.projectCount,
+              ),
+            },
+            201,
+          );
+      }
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
