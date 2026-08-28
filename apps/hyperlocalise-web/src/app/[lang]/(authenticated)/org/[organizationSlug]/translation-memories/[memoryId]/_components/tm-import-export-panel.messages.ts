@@ -17,140 +17,139 @@ import { defineMessages } from "react-intl";
 export const tmImportExportPanelMessages = defineMessages({
   importLabel: {
     defaultMessage: "Import CSV or TMX",
-    id: "k2Qm8nVw1A",
+    id: "4JzoGkf5qD",
     description: "Accessible label for the translation memory import file input",
   },
   previewTitle: {
     defaultMessage: "Import preview",
-    id: "p9L4xC2eR7",
+    id: "xdbeUj+7xL",
     description: "Title for the translation memory import preview dialog",
   },
   resultTitle: {
     defaultMessage: "Import report",
-    id: "s1H6bN8tK3",
+    id: "bD0gNEH+3/",
     description: "Title for the translation memory import result dialog",
   },
   previewDescription: {
     defaultMessage:
       "Review totals and warnings before writing entries. Nothing has been saved yet.",
-    id: "w4J0mD5uY9",
+    id: "EzYVHD/5u/",
     description: "Description for the translation memory import preview dialog",
   },
   resultDescription: {
     defaultMessage: "The import finished. Use these totals to confirm what changed.",
-    id: "a7F3qP1cL6",
+    id: "B9P8UkNbTI",
     description: "Description for the translation memory import result dialog",
   },
   confirmImport: {
     defaultMessage: "Import entries",
-    id: "e8R2vS0hZ5",
+    id: "ITgty4cmkV",
     description: "Button to confirm a translation memory import after preview",
   },
   cancelPreview: {
     defaultMessage: "Cancel",
-    id: "c3T9gB6nM2",
+    id: "07zZke+A8Q",
     description: "Button to close the translation memory import preview without writing",
   },
   closeReport: {
     defaultMessage: "Close",
-    id: "d5U1kW7oQ4",
+    id: "kDbyaphKwz",
     description: "Button to close the translation memory import report",
   },
   exportTmx: {
     defaultMessage: "Export TMX",
-    id: "f6V8iX2pR0",
+    id: "6/dB+QQNUG",
     description: "Button to open translation memory TMX export options",
   },
   exportTitle: {
     defaultMessage: "Export translation memory",
-    id: "g7W4jY9qS1",
+    id: "NiKahdIm+v",
     description: "Title for the translation memory TMX export dialog",
   },
   exportDescription: {
     defaultMessage:
       "Download the full memory, or limit the file to one source and target locale pair.",
-    id: "h8X5kZ0rT2",
+    id: "68oR+M/HhK",
     description: "Description for the translation memory TMX export dialog",
   },
   exportAll: {
     defaultMessage: "Download all locales",
-    id: "i9Y6lA1sU3",
+    id: "jUCQWPQBsD",
     description: "Button to export the full translation memory as TMX",
   },
   exportPair: {
     defaultMessage: "Download locale pair",
-    id: "j0Z7mB2tV4",
+    id: "USK9hbsD4S",
     description: "Button to export a filtered locale pair as TMX",
   },
   sourceLocaleLabel: {
     defaultMessage: "Source locale",
-    id: "k1A8nC3uW5",
+    id: "E5FKq7Jvuw",
     description: "Label for the optional TMX export source locale",
   },
   targetLocaleLabel: {
     defaultMessage: "Target locale",
-    id: "l2B9oD4vX6",
+    id: "0d2hyvxzDu",
     description: "Label for the optional TMX export target locale",
   },
   reportTotalRead: {
     defaultMessage: "Read {count, number}",
-    id: "m3C0pE5wY7",
+    id: "iBXkIW24Rq",
     description: "Import report count for translation units read from the file",
   },
   reportCreated: {
     defaultMessage: "Created {count, number}",
-    id: "n4D1qF6xZ8",
+    id: "vHk0Yz7eWC",
     description: "Import report count for created translation memory entries",
   },
   reportUpdated: {
     defaultMessage: "Updated {count, number}",
-    id: "o5E2rG7yA9",
+    id: "xdxiFYu6GL",
     description: "Import report count for updated translation memory entries",
   },
   reportVariants: {
     defaultMessage: "Variants {count, number}",
-    id: "p6F3sH8zB0",
+    id: "/bULn4h8+q",
     description: "Import report count for additional target-language variants created",
   },
   reportSkipped: {
     defaultMessage: "Skipped {count, number}",
-    id: "q7G4tI9aC1",
+    id: "NuqrR6P28s",
     description: "Import report count for skipped translation memory entries",
   },
   reportWarned: {
     defaultMessage: "Warnings {count, number}",
-    id: "r8H5uJ0bD2",
+    id: "9HTuUWVfNj",
     description: "Import report count for validation warnings",
   },
   reportFailed: {
     defaultMessage: "Failed {count, number}",
-    id: "s9I6vK1cE3",
+    id: "5e/b9i22H4",
     description: "Import report count for failed translation units",
   },
   issuesTitle: {
     defaultMessage: "Unit issues",
-    id: "t0J7wL2dF4",
+    id: "fA0++N9x3W",
     description: "Heading for import validation issues",
   },
   previewEntriesTitle: {
     defaultMessage: "Sample entries",
-    id: "u1K8xM3eG5",
+    id: "K5K8zG3viH",
     description: "Heading for import preview sample rows",
   },
   importFailed: {
     defaultMessage: "Unable to import entries",
-    id: "v2L9yN4fH6",
+    id: "VxRWiDyH8o",
     description: "Fallback error when translation memory import fails",
   },
   exportFailed: {
     defaultMessage: "Unable to export TMX",
-    id: "w3M0zO5gI7",
+    id: "AzlAJgQRne",
     description: "Fallback error when translation memory TMX export fails",
   },
   entriesImported: {
-    defaultMessage:
-      "Imported {created, number} new and {updated, number} updated entries",
-    id: "x4N1aP6hJ8",
+    defaultMessage: "Imported {created, number} new and {updated, number} updated entries",
+    id: "kZql9qccYD",
     description: "Toast after a translation memory import completes",
   },
 });

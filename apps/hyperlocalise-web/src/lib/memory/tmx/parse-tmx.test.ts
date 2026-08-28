@@ -49,7 +49,9 @@ describe("parseTmxDocument", () => {
     if (!isOk(parsed)) return;
 
     const mapped = documentToImportCandidates(parsed.value);
-    const pairs = mapped.candidates.map((candidate) => `${candidate.sourceLocale}->${candidate.targetLocale}`);
+    const pairs = mapped.candidates.map(
+      (candidate) => `${candidate.sourceLocale}->${candidate.targetLocale}`,
+    );
     expect(pairs).toEqual(["en-US->fr-FR", "en-US->de-DE", "en-US->fr-FR"]);
     expect(mapped.candidates.filter((candidate) => candidate.isVariant)).toHaveLength(1);
     expect(mapped.candidates[0]?.sourceText).toBe("Checkout");

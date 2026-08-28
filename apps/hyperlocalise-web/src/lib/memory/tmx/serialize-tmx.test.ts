@@ -31,7 +31,7 @@ function assertPhraseCompatible(tmx: string) {
 }
 
 function assertCrowdinCompatible(tmx: string) {
-  expect(tmx).toContain('<header ');
+  expect(tmx).toContain("<header ");
   expect(tmx).toContain('srclang="');
   expect(tmx).not.toContain("<!DOCTYPE");
   expect(tmx).toContain("&amp;");

@@ -196,7 +196,8 @@ export function groupEntriesForTmxExport(entries: readonly TmxExportEntry[]) {
       continue;
     }
     const hasSource = existing.variants.some(
-      (variant) => variant.language === sourceVariant.language && variant.segment === sourceVariant.segment,
+      (variant) =>
+        variant.language === sourceVariant.language && variant.segment === sourceVariant.segment,
     );
     if (!hasSource) {
       existing.variants.unshift(sourceVariant);

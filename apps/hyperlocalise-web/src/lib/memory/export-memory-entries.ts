@@ -87,7 +87,11 @@ export async function loadMemoryEntriesForExport(
 }
 
 export function buildMemoryTmxFilename(memoryName: string, filters: MemoryExportFilters) {
-  const slug = memoryName.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "translation-memory";
+  const slug =
+    memoryName
+      .trim()
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "translation-memory";
   if (filters.sourceLocale && filters.targetLocale) {
     return `${slug}-${filters.sourceLocale}-${filters.targetLocale}.tmx`;
   }

@@ -15,7 +15,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
-import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
@@ -105,9 +105,11 @@ function parseCsvImport(content: string): ParsedMemoryImport {
   };
 }
 
-export function parseMemoryImportContent(
-  payload: { format: "csv" | "tmx"; content: string; maxUnits?: number },
-): Result<ParsedMemoryImport, TmxFatalError> {
+export function parseMemoryImportContent(payload: {
+  format: "csv" | "tmx";
+  content: string;
+  maxUnits?: number;
+}): Result<ParsedMemoryImport, TmxFatalError> {
   if (payload.format === "csv") {
     return ok(parseCsvImport(payload.content));
   }
@@ -145,7 +147,11 @@ function planImportActions(
   const reservedSource = new Set(existingBySourceKey.keys());
 
   for (const candidate of candidates) {
-    const nextSourceKey = sourceKey(candidate.sourceLocale, candidate.targetLocale, candidate.sourceText);
+    const nextSourceKey = sourceKey(
+      candidate.sourceLocale,
+      candidate.targetLocale,
+      candidate.sourceText,
+    );
     if (candidate.externalKey && reservedExternal.has(candidate.externalKey)) {
       const existing = existingByExternalKey.get(candidate.externalKey);
       planned.push({ candidate, action: "update", existingId: existing?.id });
@@ -179,14 +185,23 @@ async function loadExistingEntries(memoryId: string, candidates: MemoryImportCan
   const existingByExternalKey = new Map<string, MemoryEntryRow>();
   const existingBySourceKey = new Map<string, MemoryEntryRow>();
   const externalKeys = [
-    ...new Set(candidates.map((candidate) => candidate.externalKey).filter((key): key is string => Boolean(key))),
+    ...new Set(
+      candidates
+        .map((candidate) => candidate.externalKey)
+        .filter((key): key is string => Boolean(key)),
+    ),
   ];
 
   for (const keys of chunk(externalKeys, TMX_LOOKUP_BATCH_SIZE)) {
     const rows = await db
       .select()
       .from(schema.memoryEntries)
-      .where(and(eq(schema.memoryEntries.memoryId, memoryId), inArray(schema.memoryEntries.externalKey, keys)));
+      .where(
+        and(
+          eq(schema.memoryEntries.memoryId, memoryId),
+          inArray(schema.memoryEntries.externalKey, keys),
+        ),
+      );
     for (const row of rows) {
       if (row.externalKey) {
         existingByExternalKey.set(row.externalKey, row);
@@ -218,7 +233,10 @@ async function loadExistingEntries(memoryId: string, candidates: MemoryImportCan
         ),
       );
     const wanted = new Set(
-      localePairs.map((pair) => `${pair.sourceLocale}\u0000${pair.targetLocale}\u0000${pair.normalizedSourceText}`),
+      localePairs.map(
+        (pair) =>
+          `${pair.sourceLocale}\u0000${pair.targetLocale}\u0000${pair.normalizedSourceText}`,
+      ),
     );
     for (const row of rows) {
       const key = `${row.sourceLocale}\u0000${row.targetLocale}\u0000${row.normalizedSourceText}`;
@@ -237,7 +255,9 @@ function toInsertValues(
   options: { createdByUserId?: string; importBatchId?: string },
 ): MemoryEntryInsert {
   const reviewStatus =
-    typeof candidate.metadata.reviewStatus === "string" ? candidate.metadata.reviewStatus : "approved";
+    typeof candidate.metadata.reviewStatus === "string"
+      ? candidate.metadata.reviewStatus
+      : "approved";
   return {
     memoryId: memory.id,
     sourceLocale: candidate.sourceLocale,
@@ -273,7 +293,11 @@ export async function applyMemoryImport(input: {
     input.memory.id,
     input.parsed.candidates,
   );
-  const planned = planImportActions(input.parsed.candidates, existingByExternalKey, existingBySourceKey);
+  const planned = planImportActions(
+    input.parsed.candidates,
+    existingByExternalKey,
+    existingBySourceKey,
+  );
   const preview = planned.slice(0, TMX_MAX_PREVIEW_ENTRIES).map((item) => ({
     sourceLocale: item.candidate.sourceLocale,
     targetLocale: item.candidate.targetLocale,
@@ -321,13 +345,21 @@ export async function applyMemoryImport(input: {
         importBatchId: input.importBatchId,
       }),
     );
-    const inserted = await db.insert(schema.memoryEntries).values(values).onConflictDoNothing().returning();
+    const inserted = await db
+      .insert(schema.memoryEntries)
+      .values(values)
+      .onConflictDoNothing()
+      .returning();
     createdEntries.push(...inserted);
     const insertedKeys = new Set(
       inserted.map((row) => sourceKey(row.sourceLocale, row.targetLocale, row.sourceText)),
     );
     for (const item of batch) {
-      const key = sourceKey(item.candidate.sourceLocale, item.candidate.targetLocale, item.candidate.sourceText);
+      const key = sourceKey(
+        item.candidate.sourceLocale,
+        item.candidate.targetLocale,
+        item.candidate.sourceText,
+      );
       if (!insertedKeys.has(key)) {
         skipped += 1;
         continue;
@@ -362,7 +394,10 @@ export async function applyMemoryImport(input: {
             metadata: item.candidate.metadata,
           })
           .where(
-            and(eq(schema.memoryEntries.id, item.existingId), eq(schema.memoryEntries.memoryId, input.memory.id)),
+            and(
+              eq(schema.memoryEntries.id, item.existingId),
+              eq(schema.memoryEntries.memoryId, input.memory.id),
+            ),
           )
           .returning();
         if (row) {

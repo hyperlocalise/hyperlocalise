@@ -77,7 +77,7 @@ export function TmImportExportPanel({
   const previewImport = useMutation({
     mutationFn: async (file: File) => {
       const content = await file.text();
-      const format = file.name.toLowerCase().endsWith(".tmx") ? "tmx" : "csv";
+      const format = file.name.toLowerCase().endsWith(".tmx") ? ("tmx" as const) : ("csv" as const);
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
         ":memoryId"
       ].entries["import"].$post({
@@ -292,7 +292,6 @@ export function TmImportExportPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
@@ -314,12 +313,17 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
           </TypographyP>
           <div className="max-h-48 overflow-auto rounded-md border border-border">
             {report.preview.map((entry, index) => (
-              <div key={`${entry.externalKey ?? entry.sourceText}-${index}`} className="border-b border-border px-3 py-2 last:border-b-0">
+              <div
+                key={`${entry.externalKey ?? entry.sourceText}-${index}`}
+                className="border-b border-border px-3 py-2 last:border-b-0"
+              >
                 <TypographyP className="text-xs text-muted-foreground">
                   {entry.sourceLocale} → {entry.targetLocale} · {entry.action}
                 </TypographyP>
                 <TypographyP className="text-sm">{entry.sourceText}</TypographyP>
-                <TypographyP className="text-sm text-muted-foreground">{entry.targetText}</TypographyP>
+                <TypographyP className="text-sm text-muted-foreground">
+                  {entry.targetText}
+                </TypographyP>
               </div>
             ))}
           </div>

@@ -35,15 +35,13 @@ describe("listMemoryEntriesQuerySchema", () => {
 });
 
 describe("importMemoryEntriesBodySchema", () => {
-  it("defaults dryRun to false and caps maxUnits at the documented limit", () => {
+  it("treats dryRun as optional and caps maxUnits at the documented limit", () => {
     expect(
       importMemoryEntriesBodySchema.parse({
         format: "tmx",
         content: "<tmx />",
-      }),
-    ).toMatchObject({
-      dryRun: false,
-    });
+      }).dryRun,
+    ).toBeUndefined();
     expect(
       importMemoryEntriesBodySchema.safeParse({
         format: "tmx",

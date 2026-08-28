@@ -56,9 +56,4 @@ export const TMX_CONTEXT_PROP_TYPES = new Set([
  * TMX 1.4 elements that Hyperlocalise does not import.
  * They are skipped with a warning when present.
  */
-export const TMX_UNSUPPORTED_ELEMENTS = [
-  "ude",
-  "map",
-  "r",
-  "alttrans",
-] as const;
+export const TMX_UNSUPPORTED_ELEMENTS = ["ude", "map", "r", "alttrans"] as const;

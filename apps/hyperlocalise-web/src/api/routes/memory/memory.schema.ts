@@ -130,7 +130,7 @@ export const promoteMemoryFromProjectBodySchema = z.object({
 export const importMemoryEntriesBodySchema = z.object({
   format: z.enum(["csv", "tmx"]),
   content: z.string().min(1).max(10_000_000),
-  dryRun: z.boolean().optional().default(false),
+  dryRun: z.boolean().optional(),
   maxUnits: z.number().int().min(1).max(50_000).optional(),
 });
 

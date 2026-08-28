@@ -118,10 +118,13 @@ function pickSourceVariant(
   headerSrclang: string | undefined,
   issues: TmxIssue[],
 ): TmxVariant | null {
-  const wanted = unit.srclang ?? (headerSrclang && headerSrclang !== "*all*" ? headerSrclang : undefined);
+  const wanted =
+    unit.srclang ?? (headerSrclang && headerSrclang !== "*all*" ? headerSrclang : undefined);
   if (wanted) {
     const exact = unit.variants.find(
-      (variant) => normalizeTmxLanguage(variant.language).toLowerCase() === normalizeTmxLanguage(wanted).toLowerCase(),
+      (variant) =>
+        normalizeTmxLanguage(variant.language).toLowerCase() ===
+        normalizeTmxLanguage(wanted).toLowerCase(),
     );
     if (exact) {
       return exact;
@@ -195,7 +198,8 @@ export function documentToImportCandidates(document: TmxDocument): {
     issues.push({
       severity: "warning",
       code: "missing_header_srclang",
-      message: "TMX header has no srclang; units without their own srclang use the first TUV as source",
+      message:
+        "TMX header has no srclang; units without their own srclang use the first TUV as source",
     });
   }
 
@@ -293,7 +297,10 @@ export function documentToImportCandidates(document: TmxDocument): {
   return { candidates, issues };
 }
 
-export function emptyImportReport(issues: TmxIssue[] = [], headerSrclang?: string): MemoryImportReport {
+export function emptyImportReport(
+  issues: TmxIssue[] = [],
+  headerSrclang?: string,
+): MemoryImportReport {
   return {
     totalRead: 0,
     created: 0,

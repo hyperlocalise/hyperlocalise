@@ -46,10 +46,7 @@ const fixture = createMemoryTestFixture(client);
 const fixtureDir = dirname(fileURLToPath(import.meta.url));
 
 function readTmxFixture(name: string) {
-  return readFileSync(
-    join(fixtureDir, "../../../lib/memory/tmx/fixtures", name),
-    "utf8",
-  );
+  return readFileSync(join(fixtureDir, "../../../lib/memory/tmx/fixtures", name), "utf8");
 }
 
 beforeAll(async () => {
@@ -107,6 +104,7 @@ describe("memory TMX import and export", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           memoryId: memory.id,
         },
+        query: { limit: "50" },
       },
       { headers },
     );
@@ -160,7 +158,10 @@ describe("memory TMX import and export", () => {
 
     const listed = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
-    ].entries.$get({ param: { organizationSlug, memoryId: memory.id } }, { headers });
+    ].entries.$get(
+      { param: { organizationSlug, memoryId: memory.id }, query: { limit: "50" } },
+      { headers },
+    );
     expect(((await listed.json()) as { total: number }).total).toBe(3);
   });
 

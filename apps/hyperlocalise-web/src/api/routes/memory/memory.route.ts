@@ -238,7 +238,6 @@ async function createMemoryEntry(
   return entry ?? null;
 }
 
-
 async function listMemoryProjects(
   auth: ApiAuthContext,
   memoryId: string,
@@ -446,29 +445,34 @@ export function createMemoryRoutes() {
         200,
       );
     })
-    .get("/:memoryId/entries/export", validateMemoryParams, validateExportMemoryEntriesQuery, async (c) => {
-      const params = c.req.valid("param");
-      const query: ExportMemoryEntriesQuery = c.req.valid("query");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
+    .get(
+      "/:memoryId/entries/export",
+      validateMemoryParams,
+      validateExportMemoryEntriesQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query: ExportMemoryEntriesQuery = c.req.valid("query");
+        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
 
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
+        if (!memory) {
+          return memoryNotFoundResponse(c);
+        }
 
-      const exported = await exportMemoryEntriesTmx({
-        memoryId: memory.id,
-        memoryName: memory.name,
-        filters: {
-          sourceLocale: query.sourceLocale,
-          targetLocale: query.targetLocale,
-        },
-      });
+        const exported = await exportMemoryEntriesTmx({
+          memoryId: memory.id,
+          memoryName: memory.name,
+          filters: {
+            sourceLocale: query.sourceLocale,
+            targetLocale: query.targetLocale,
+          },
+        });
 
-      return c.body(exported.body, 200, {
-        "Content-Type": "application/x-tmx+xml; charset=utf-8",
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(exported.filename)}`,
-      });
-    })
+        return c.body(exported.body, 200, {
+          "Content-Type": "application/x-tmx+xml; charset=utf-8",
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(exported.filename)}`,
+        });
+      },
+    )
     .post("/:memoryId/entries", validateMemoryParams, validateCreateMemoryEntryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
@@ -525,11 +529,12 @@ export function createMemoryRoutes() {
           return tmxFatalResponse(c, parsed.error);
         }
 
-        const importBatchId = payload.dryRun ? undefined : randomUUID();
+        const dryRun = payload.dryRun === true;
+        const importBatchId = dryRun ? undefined : randomUUID();
         const applied = await applyMemoryImport({
           memory,
           parsed: parsed.value,
-          dryRun: payload.dryRun,
+          dryRun,
           createdByUserId: c.var.auth.user.localUserId,
           importBatchId,
         });
@@ -540,11 +545,11 @@ export function createMemoryRoutes() {
             imported: applied.report.created + applied.report.variantCreated,
             skipped: applied.report.skipped,
             importBatchId: applied.importBatchId,
-            dryRun: Boolean(payload.dryRun),
+            dryRun,
             preview: applied.preview,
             report: applied.report,
           },
-          payload.dryRun ? 200 : 201,
+          dryRun ? 200 : 201,
         );
       },
     )

@@ -70,7 +70,9 @@ class XmlReader {
   }
 
   startsWithInsensitive(value: string) {
-    return this.xml.slice(this.index, this.index + value.length).toLowerCase() === value.toLowerCase();
+    return (
+      this.xml.slice(this.index, this.index + value.length).toLowerCase() === value.toLowerCase()
+    );
   }
 
   skipWhitespace() {
@@ -237,22 +239,25 @@ function localName(name: string) {
 }
 
 function decodeXmlEntities(value: string) {
-  return value.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9._-]*);/g, (match, entity: string) => {
-    if (entity === "amp") return "&";
-    if (entity === "lt") return "<";
-    if (entity === "gt") return ">";
-    if (entity === "quot") return '"';
-    if (entity === "apos") return "'";
-    if (entity.startsWith("#x") || entity.startsWith("#X")) {
-      const codePoint = Number.parseInt(entity.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
-    }
-    if (entity.startsWith("#")) {
-      const codePoint = Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
-    }
-    return match;
-  });
+  return value.replace(
+    /&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9._-]*);/g,
+    (match, entity: string) => {
+      if (entity === "amp") return "&";
+      if (entity === "lt") return "<";
+      if (entity === "gt") return ">";
+      if (entity === "quot") return '"';
+      if (entity === "apos") return "'";
+      if (entity.startsWith("#x") || entity.startsWith("#X")) {
+        const codePoint = Number.parseInt(entity.slice(2), 16);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+      if (entity.startsWith("#")) {
+        const codePoint = Number.parseInt(entity.slice(1), 10);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+      return match;
+    },
+  );
 }
 
 function attr(attrs: Record<string, string>, name: string) {
@@ -280,10 +285,7 @@ function serializeStartTag(tag: StartTag) {
 }
 
 function escapeXmlAttr(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;");
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 function readElementText(reader: XmlReader, start: StartTag) {
@@ -588,7 +590,11 @@ export function parseTmxDocument(
             }
             const unitStart = reader.readStartTag();
             if (unitStart.localName !== "tu") {
-              if (TMX_UNSUPPORTED_ELEMENTS.includes(unitStart.localName as (typeof TMX_UNSUPPORTED_ELEMENTS)[number])) {
+              if (
+                TMX_UNSUPPORTED_ELEMENTS.includes(
+                  unitStart.localName as (typeof TMX_UNSUPPORTED_ELEMENTS)[number],
+                )
+              ) {
                 issues.push({
                   severity: "warning",
                   code: "unsupported_element",
@@ -608,7 +614,9 @@ export function parseTmxDocument(
               });
             }
             const unit = parseUnit(reader, unitStart, totalUnits);
-            const oversized = unit.variants.some((variant) => variant.segment.length > maxSegmentChars);
+            const oversized = unit.variants.some(
+              (variant) => variant.segment.length > maxSegmentChars,
+            );
             if (oversized) {
               issues.push({
                 severity: "error",
