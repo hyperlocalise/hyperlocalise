@@ -19,6 +19,14 @@ import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import {
+  organizationIssuesQuerySchema,
+  type OrganizationIssuesQuery,
+} from "@/api/routes/issues/issues.schema";
+import {
+  organizationIssueService,
+  type OrganizationIssueListItem,
+} from "@/lib/projects/issue-sheet/organization-issue-service";
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
@@ -320,6 +328,45 @@ const mcpAuthEnabledMiddleware = createMiddleware(async (c, next) => {
   await next();
 });
 
+const mcpListIssuesInputSchema = organizationIssuesQuerySchema.check((context) => {
+  if (context.issues.length > 0) {
+    context.issues.push({
+      code: "custom",
+      input: context.value,
+      message: "invalid_issue_query",
+      path: [],
+    });
+  }
+});
+
+function compactMcpIssue(issue: OrganizationIssueListItem) {
+  return {
+    id: issue.id,
+    identifier: issue.identifier,
+    projectId: issue.projectId,
+    projectName: issue.projectName,
+    title: issue.title,
+    description: issue.description.slice(0, 500),
+    issueType: issue.issueType,
+    status: issue.status,
+    priority: issue.priority,
+    targetLocale: issue.targetLocale,
+    assignee: issue.assignee,
+    assigneeUserId: issue.assigneeUserId,
+    sourcePath: issue.sourcePath,
+    segmentId: issue.segmentId,
+    linkKind: issue.linkKind,
+    linkLabel: issue.linkLabel,
+    linkUrl: issue.linkUrl,
+    templateKey: issue.templateKey,
+    key: issue.key,
+    sourceText: issue.sourceText,
+    createdAt: issue.createdAt,
+    updatedAt: issue.updatedAt,
+    resolvedAt: issue.resolvedAt,
+  };
+}
+
 async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   const apiAuth = apiAuthContextFromMcpAuth(auth);
   const server = new McpServer({
@@ -380,6 +427,41 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ project: project ?? null }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "list_issues",
+    {
+      description:
+        "List issues visible to the authenticated organization with filtering, sorting, and pagination.",
+      inputSchema: mcpListIssuesInputSchema,
+    },
+    async (query: OrganizationIssuesQuery) => {
+      const result = await organizationIssueService.list(apiAuth, query);
+      const nextOffset = query.offset + result.issues.length;
+      const hasMore = nextOffset < result.total;
+
+      const output = {
+        total: result.total,
+        summary: result.summary,
+        pagination: {
+          limit: query.limit,
+          offset: query.offset,
+          hasMore,
+          nextOffset: hasMore ? nextOffset : null,
+        },
+        issues: result.issues.map(compactMcpIssue),
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(output),
+          },
+        ],
       };
     },
   );
