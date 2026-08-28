@@ -665,11 +665,6 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "sjTUZFh0+J",
     description: "Empty state when a team section has no matching glossary concepts",
   },
-  addToGlossaryTeamEmptyUnnamed: {
-    defaultMessage: "No matching terms.",
-    id: "xozianrnAl",
-    description: "Empty state when an unlabeled team section has no matching glossary concepts",
-  },
   addToGlossaryLocked: {
     defaultMessage: "This string is locked. Unlock it to add a concept.",
     id: "lYqWI3Hv5b",

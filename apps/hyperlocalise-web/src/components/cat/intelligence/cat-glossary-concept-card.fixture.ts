@@ -24,7 +24,7 @@ export const matchedGlossaryConceptFixture: CatGlossaryConcept = {
   sourceTerms: [
     {
       id: "reseller-en",
-      locale: "en",
+      locale: "en-US",
       text: "Reseller",
       status: "preferred",
       preferred: true,
@@ -33,14 +33,14 @@ export const matchedGlossaryConceptFixture: CatGlossaryConcept = {
   targetTerms: [
     {
       id: "reseller-vi-preferred",
-      locale: "vi",
+      locale: "vi-VN",
       text: "Đại lý",
       status: "preferred",
       preferred: true,
     },
     {
       id: "reseller-vi-alternate",
-      locale: "vi",
+      locale: "vi-VN",
       text: "Nhà bán lại",
       status: "not_recommended",
       forbidden: true,
@@ -103,5 +103,53 @@ export const primaryTermFallbackGlossaryConceptFixture: CatGlossaryConcept = {
   primaryTerm: "API",
   translatable: true,
   sourceTerms: [],
+  targetTerms: [],
+};
+
+export const amountWithViTargetFixture: CatGlossaryConcept = {
+  id: "concept-amount-vi",
+  glossaryId: "glossary-linguists",
+  glossaryName: "Internal Linguists",
+  glossaryUrl: "/org/acme/glossaries/glossary-linguists",
+  conceptUrl: "/org/acme/glossaries/glossary-linguists/concepts/concept-amount-vi",
+  primaryTerm: "Amount",
+  translatable: true,
+  sourceTerms: [
+    {
+      id: "amount-en",
+      locale: "en-US",
+      text: "Amount",
+      status: "preferred",
+      preferred: true,
+    },
+  ],
+  targetTerms: [
+    {
+      id: "amount-vi",
+      locale: "vi-VN",
+      text: "Số tiền",
+      status: "preferred",
+      preferred: true,
+    },
+  ],
+};
+
+export const amountSourceOnlyFixture: CatGlossaryConcept = {
+  id: "concept-amount-source-only",
+  glossaryId: "glossary-linguists",
+  glossaryName: "Internal Linguists",
+  glossaryUrl: "/org/acme/glossaries/glossary-linguists",
+  conceptUrl: "/org/acme/glossaries/glossary-linguists/concepts/concept-amount-source-only",
+  primaryTerm: "Amount",
+  translatable: true,
+  sourceTerms: [
+    {
+      id: "amount-en-only",
+      locale: "en-US",
+      text: "Amount",
+      status: "preferred",
+      preferred: true,
+    },
+  ],
   targetTerms: [],
 };

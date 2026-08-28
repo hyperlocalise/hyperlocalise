@@ -61,13 +61,10 @@ describe("resolveCatContributorTeams", () => {
         projectTeamName: DEFAULT_WORKSPACE_TEAM_NAME,
         projectTeamSlug: DEFAULT_WORKSPACE_TEAM_SLUG,
       }),
-    ).toEqual([
-      { id: "team-a", name: "Alpha", slug: "alpha" },
-      { id: "team-default", name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG },
-    ]);
+    ).toEqual([{ id: "team-a", name: "Alpha", slug: "alpha" }]);
   });
 
-  it("appends an unlabeled default project team when the viewer belongs to other teams", () => {
+  it("does not append a default project team when the viewer belongs to other teams", () => {
     expect(
       resolveCatContributorTeams({
         contributorTeams: [{ id: "team-a", name: "Alpha", slug: "alpha" }],
@@ -75,10 +72,7 @@ describe("resolveCatContributorTeams", () => {
         projectTeamName: DEFAULT_WORKSPACE_TEAM_NAME,
         projectTeamSlug: DEFAULT_WORKSPACE_TEAM_SLUG,
       }),
-    ).toEqual([
-      { id: "team-a", name: "Alpha", slug: "alpha" },
-      { id: "team-default", name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG },
-    ]);
+    ).toEqual([{ id: "team-a", name: "Alpha", slug: "alpha" }]);
   });
 
   it("does not hide a team that only shares the default team name", () => {
@@ -94,7 +88,7 @@ describe("resolveCatContributorTeams", () => {
     ).toEqual([{ id: "team-marketing", name: DEFAULT_WORKSPACE_TEAM_NAME, slug: "marketing" }]);
   });
 
-  it("keeps an unlabeled write target when only the default team remains", () => {
+  it("returns no contributor sections when only the default team remains", () => {
     expect(
       resolveCatContributorTeams({
         contributorTeams: [],
@@ -102,7 +96,7 @@ describe("resolveCatContributorTeams", () => {
         projectTeamName: DEFAULT_WORKSPACE_TEAM_NAME,
         projectTeamSlug: DEFAULT_WORKSPACE_TEAM_SLUG,
       }),
-    ).toEqual([{ id: "team-default", name: "", slug: DEFAULT_WORKSPACE_TEAM_SLUG }]);
+    ).toEqual([]);
   });
 });
 
@@ -145,7 +139,7 @@ describe("groupCatGlossaryConceptsByTeam", () => {
     expect(conceptsByTeamId.has("team-b")).toBe(false);
   });
 
-  it("retains default-project glossary concepts when the unlabeled target is included", () => {
+  it("surfaces default-team glossary concepts as org concepts when ungrouped", () => {
     const { orgConceptIds, conceptsByTeamId } = groupCatGlossaryConceptsByTeam({
       concepts: [
         { id: "default-team-concept", glossaryId: "glossary-default" },
@@ -156,16 +150,15 @@ describe("groupCatGlossaryConceptsByTeam", () => {
         ["glossary-default", "team-default"],
         ["glossary-alpha", "team-a"],
       ]),
-      contributorTeamIds: new Set(["team-a", "team-default"]),
+      contributorTeamIds: new Set(["team-a"]),
+      ungroupedTeamIds: new Set(["team-default"]),
     });
 
-    expect(orgConceptIds).toEqual(new Set());
-    expect(conceptsByTeamId.get("team-default")).toEqual([
-      { id: "default-team-concept", glossaryId: "glossary-default" },
-    ]);
+    expect(orgConceptIds).toEqual(new Set(["default-team-concept"]));
     expect(conceptsByTeamId.get("team-a")).toEqual([
       { id: "alpha-team-concept", glossaryId: "glossary-alpha" },
     ]);
+    expect(conceptsByTeamId.has("team-default")).toBe(false);
   });
 });
 

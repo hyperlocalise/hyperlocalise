@@ -80,6 +80,9 @@ export const MatchedConcept: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
     await expect(canvas.getByText("Nhà bán lại")).toBeInTheDocument();
     await expect(canvas.getByText("Not recommended")).toBeInTheDocument();
+    await expect(canvas.getByText("en-US")).toBeInTheDocument();
+    await expect(canvas.getByText("vi-VN")).toBeInTheDocument();
+    await expect(canvas.queryByText("VI-VN")).not.toBeInTheDocument();
   },
 };
 

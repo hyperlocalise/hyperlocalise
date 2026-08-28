@@ -23,10 +23,15 @@ import {
   primaryTermFallbackGlossaryConceptFixture,
   sourceOnlyGlossaryConceptFixture,
   untranslatableGlossaryConceptFixture,
+  amountSourceOnlyFixture,
+  amountWithViTargetFixture,
 } from "./cat-glossary-concept-card.fixture";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 const teamProductId = "team-product";
 const teamMarketingId = "team-marketing";
+const teamLinguistsId = "team-linguists";
+const teamDefaultId = "team-default";
 
 const defaultTargetText = catSegmentsFixture[1]?.targetText ?? "";
 
@@ -195,17 +200,16 @@ const sourceOnlyConceptIntelligence: CatSegmentIntelligence = {
 export const SourceOnlyConcept: Story = {
   args: {
     intelligence: sourceOnlyConceptIntelligence,
+    targetLocale: "vi-VN",
+    sourceLocale: "en-US",
   },
   play: async ({ canvas }) => {
     await waitFor(() => {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("Dashboard")).toBeInTheDocument();
-    await expect(canvas.getByText("Draft")).toBeInTheDocument();
-
-    await userEvent.click(canvas.getByRole("button", { name: "Show glossary concept details" }));
-    await expect(canvas.getAllByText("Dashboard")).toHaveLength(2);
+    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
   },
 };
 
@@ -215,14 +219,16 @@ export const PrimaryTermFallback: Story = {
       ...catIntelligenceFixture,
       glossaryConcepts: [primaryTermFallbackGlossaryConceptFixture],
     },
+    targetLocale: "vi-VN",
+    sourceLocale: "en-US",
   },
   play: async ({ canvas }) => {
     await waitFor(() => {
       requestCatGlossaryGuidance();
       void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     });
-    await expect(canvas.getByText("API")).toBeInTheDocument();
-    await expect(canvas.getByText("Draft")).toBeInTheDocument();
+    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.queryByText("API", { exact: true })).not.toBeInTheDocument();
   },
 };
 
@@ -417,6 +423,67 @@ export const AddToTeamGlossaryEmpty: Story = {
     await expect(canvas.getAllByRole("combobox", { name: "Status" })[0]).toHaveTextContent(
       "Preferred",
     );
+  },
+};
+
+export const NamedTeamWithoutDefaultSection: Story = {
+  args: {
+    sourceText: "Amount",
+    targetText: "Số tiền",
+    sourceLocale: "en-US",
+    targetLocale: "vi-VN",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    projectTeamId: teamDefaultId,
+    projectTeamSlug: DEFAULT_WORKSPACE_TEAM_SLUG,
+    contributorTeams: [{ id: teamLinguistsId, name: "Linguists" }],
+    teamGlossaries: [
+      { id: "glossary-linguists", name: "Internal Linguists", teamId: teamLinguistsId },
+    ],
+    intelligence: {
+      ...catIntelligenceFixture,
+      glossaryConcepts: [],
+      translationMemoryMatches: [],
+    },
+  },
+  play: async ({ canvas }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("heading", { name: "Linguists", level: 3 })).toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Attach a team glossary to this project."),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByText("No matching terms.", { exact: true })).not.toBeInTheDocument();
+  },
+};
+
+export const FiltersSourceOnlyDuplicateConcepts: Story = {
+  args: {
+    sourceText: "Amount",
+    targetText: "Số tiền",
+    sourceLocale: "en-US",
+    targetLocale: "vi-VN",
+    organizationSlug: "acme",
+    projectId: "project_1",
+    contributorTeams: [{ id: teamLinguistsId, name: "Linguists" }],
+    teamGlossaries: [
+      { id: "glossary-linguists", name: "Internal Linguists", teamId: teamLinguistsId },
+    ],
+    intelligence: {
+      ...catIntelligenceFixture,
+      glossaryConcepts: [amountWithViTargetFixture, amountSourceOnlyFixture],
+      translationMemoryMatches: [],
+    },
+  },
+  play: async ({ canvas }) => {
+    await waitFor(() => {
+      requestCatGlossaryGuidance();
+      void expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    });
+    await expect(canvas.getByText("Số tiền")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Amount", { exact: true })).toHaveLength(1);
   },
 };
 
