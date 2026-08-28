@@ -37,24 +37,12 @@ import {
   type NormalizedTranslationMemoryMatch,
 } from "@/lib/providers/contracts/translation-memory-match";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+import { buildTranslationMemoryTsQuery } from "@/lib/translation/translation-memory-ts-query";
 
 const memoryLogger = createLogger("translation-memory-matches");
 
 export { shouldIncludeAttachedGlossary };
 export { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
-
-function buildTranslationMemoryTsQuery(input: string): string {
-  const maxContextSearchTerms = 50;
-  return input
-    .replace(/[&|!():*<>'"-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, maxContextSearchTerms)
-    .map((word) => `${word}:*`)
-    .join(" & ");
-}
-
 export { buildTranslationMemoryTsQuery };
 
 type ConcordanceQuery = {

@@ -94,14 +94,14 @@ export function TranslationMemoryDetailPageContent({
         ":memoryId"
       ].entries.$get({
         param: { organizationSlug, memoryId },
-        query: { limit: "50", offset: "0" },
+        query: { limit: "50" },
       });
       if (!response.ok)
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.loadEntriesFailed)),
         );
-      const body = await response.json();
-      return body.memoryEntries as MemoryEntryRecord[];
+      const body = (await response.json()) as { memoryEntries: MemoryEntryRecord[] };
+      return body.memoryEntries;
     },
   });
 

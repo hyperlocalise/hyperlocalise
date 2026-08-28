@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { randomUUID } from "node:crypto";
+
 import { and, count, desc, eq, ne } from "drizzle-orm";
 
 import {
@@ -20,7 +22,8 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { conflictResponse, badRequestResponse } from "@/api/errors";
+import { conflictResponse, badRequestResponse, validationErrorResponse } from "@/api/errors";
+import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
@@ -49,7 +52,6 @@ import {
   type CreateMemoryBody,
   type ImportMemoryEntriesBody,
   type PromoteMemoryFromProjectBody,
-  type ListMemoryEntriesQuery,
   type ListMemoryQuery,
   type UpdateMemoryEntryBody,
   type UpdateMemoryBody,
@@ -63,6 +65,7 @@ import {
   ownedMemoryWhere,
   memoryNotFoundResponse,
 } from "./memory.shared";
+import { listMemoryEntriesPage } from "./memory-entry-list";
 
 type MemoryListResult = {
   memories: Memory[];
@@ -90,6 +93,8 @@ type MemoryEntryRecord = {
   provenance: string;
   reviewStatus: string;
   externalKey: string | null;
+  createdByUserId: string | null;
+  importBatchId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -172,6 +177,8 @@ function toMemoryEntryRecord(entry: MemoryEntry): MemoryEntryRecord {
     provenance: entry.provenance,
     reviewStatus: entry.reviewStatus,
     externalKey: entry.externalKey,
+    createdByUserId: entry.createdByUserId,
+    importBatchId: entry.importBatchId,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
   };
@@ -235,33 +242,10 @@ function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryB
   });
 }
 
-async function listMemoryEntries(memoryId: string, query?: ListMemoryEntriesQuery) {
-  const limit = query?.limit ?? 50;
-  const offset = query?.offset ?? 0;
-  const conditions = [eq(schema.memoryEntries.memoryId, memoryId)];
-  if (query?.sourceLocale)
-    conditions.push(eq(schema.memoryEntries.sourceLocale, query.sourceLocale));
-  if (query?.targetLocale)
-    conditions.push(eq(schema.memoryEntries.targetLocale, query.targetLocale));
-  const where = and(...conditions);
-
-  const [entries, totalRow] = await Promise.all([
-    db
-      .select()
-      .from(schema.memoryEntries)
-      .where(where)
-      .orderBy(desc(schema.memoryEntries.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db.select({ value: count() }).from(schema.memoryEntries).where(where),
-  ]);
-
-  return { entries, total: totalRow[0]?.value ?? 0 };
-}
-
 async function createMemoryEntry(
   memory: Memory,
   payload: CreateMemoryEntryBody,
+  createdByUserId?: string,
 ): Promise<MemoryEntry | null> {
   const normalizedSourceText = normalizeTranslationMemorySourceText(payload.sourceText);
   const existing = await db
@@ -292,6 +276,7 @@ async function createMemoryEntry(
       targetText: payload.targetText,
       matchScore: payload.matchScore,
       provenance: "manual",
+      createdByUserId,
     })
     .onConflictDoNothing()
     .returning();
@@ -302,6 +287,7 @@ async function createMemoryEntry(
 async function createMemoryEntries(
   memory: Memory,
   payloads: CreateMemoryEntryBody[],
+  options?: { createdByUserId?: string; importBatchId?: string },
 ): Promise<MemoryEntry[]> {
   if (payloads.length === 0) {
     return [];
@@ -318,7 +304,9 @@ async function createMemoryEntries(
         normalizedSourceText: normalizeTranslationMemorySourceText(payload.sourceText),
         targetText: payload.targetText,
         matchScore: payload.matchScore,
-        provenance: "manual",
+        provenance: "import",
+        createdByUserId: options?.createdByUserId,
+        importBatchId: options?.importBatchId,
       })),
     )
     .onConflictDoNothing()
@@ -507,8 +495,20 @@ export function createMemoryRoutes() {
         return memoryNotFoundResponse(c);
       }
 
-      const { entries, total } = await listMemoryEntries(params.memoryId, query);
-      return c.json({ memoryEntries: entries.map(toMemoryEntryRecord), total }, 200);
+      const page = await listMemoryEntriesPage(params.memoryId, query);
+      if (isErr(page)) {
+        return validationErrorResponse(c, page.error.code, page.error.message);
+      }
+
+      return c.json(
+        {
+          memoryEntries: page.value.entries.map(toMemoryEntryRecord),
+          nextCursor: page.value.nextCursor,
+          total: page.value.total,
+          pagination: page.value.pagination,
+        },
+        200,
+      );
     })
     .post("/:memoryId/entries", validateMemoryParams, validateCreateMemoryEntryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
@@ -526,7 +526,7 @@ export function createMemoryRoutes() {
         return externalTmsMemoryImmutableResponse(c);
       }
 
-      const entry = await createMemoryEntry(memory, payload);
+      const entry = await createMemoryEntry(memory, payload, c.var.auth.user.localUserId);
       if (!entry) {
         return conflictResponse(
           c,
@@ -559,11 +559,20 @@ export function createMemoryRoutes() {
 
         const entries = parseMemoryImport(payload);
         const limitedEntries = entries.slice(0, 5_000);
-        const created = await createMemoryEntries(memory, limitedEntries);
+        const importBatchId = randomUUID();
+        const created = await createMemoryEntries(memory, limitedEntries, {
+          createdByUserId: c.var.auth.user.localUserId,
+          importBatchId,
+        });
         const skipped = limitedEntries.length - created.length;
 
         return c.json(
-          { memoryEntries: created.map(toMemoryEntryRecord), imported: created.length, skipped },
+          {
+            memoryEntries: created.map(toMemoryEntryRecord),
+            imported: created.length,
+            skipped,
+            importBatchId,
+          },
           201,
         );
       },
