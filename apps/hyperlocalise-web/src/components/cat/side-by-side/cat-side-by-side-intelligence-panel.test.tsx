@@ -21,6 +21,7 @@ import {
   createCatWorkspaceState,
 } from "@/components/cat/shared/cat.fixture";
 import { renderWithCatProviders } from "@/components/cat/shared/cat-test-utils";
+import { CatWorkspaceProvider } from "@/components/cat/workspace/cat-workspace-context";
 
 import { CatSideBySideIntelligencePanel } from "./cat-side-by-side-intelligence-panel";
 
@@ -53,7 +54,11 @@ function renderIntelligencePanel(
 
   return {
     props,
-    ...renderWithCatProviders(<CatSideBySideIntelligencePanel {...props} />),
+    ...renderWithCatProviders(
+      <CatWorkspaceProvider initialState={state}>
+        <CatSideBySideIntelligencePanel {...props} />
+      </CatWorkspaceProvider>,
+    ),
   };
 }
 

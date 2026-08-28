@@ -122,7 +122,8 @@ export async function deleteProjectWithTeamGlossaryGuard(
       .select({ id: schema.projects.id, source: schema.projects.source })
       .from(schema.projects)
       .where(await ownedProjectWhere(auth, projectId))
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!project) {
       return "not_found";

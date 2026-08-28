@@ -428,6 +428,25 @@ export class NativeGlossary extends Glossary {
     return deleted.length > 0;
   }
 
+  private async lockGlossaryRow(database: DatabaseClient = db) {
+    const [glossaryRow] = await database
+      .select({
+        id: schema.glossaries.id,
+        sourceLocale: schema.glossaries.sourceLocale,
+      })
+      .from(schema.glossaries)
+      .where(
+        and(
+          eq(schema.glossaries.id, this.input.glossary.id),
+          eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    return glossaryRow ?? null;
+  }
+
   private async loadConcept(conceptId: string, database: DatabaseClient = db) {
     const [concept] = await database
       .select()
@@ -558,6 +577,10 @@ export class NativeGlossary extends Glossary {
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
     const created = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return null;
+      }
+
       const [concept] = await tx
         .insert(schema.glossaryConcepts)
         .values({
@@ -595,6 +618,9 @@ export class NativeGlossary extends Glossary {
       }
       return concept;
     });
+    if (!created) {
+      return null;
+    }
     return this.getConcept(created.id);
   }
 
@@ -603,6 +629,10 @@ export class NativeGlossary extends Glossary {
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
     const updated = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return false;
+      }
+
       const loaded = await this.loadConcept(conceptId, tx);
       if (!loaded) return false;
 
@@ -693,6 +723,10 @@ export class NativeGlossary extends Glossary {
 
   async importConcepts(entries: GlossaryConceptImportEntry[]) {
     const result = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return { importedIds: [] as string[], skipped: entries.length };
+      }
+
       const importedIds: string[] = [];
       let skipped = 0;
       const grouped = new Map<string, GlossaryConceptImportEntry[]>();
@@ -957,6 +991,10 @@ export class NativeGlossary extends Glossary {
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
     const normalizedInput = normalizeNativeTerm(input);
     const term = await db.transaction(async (tx) => {
+      if (!(await this.lockGlossaryRow(tx))) {
+        return null;
+      }
+
       const concept = await this.loadConcept(conceptId, tx);
       if (!concept) return null;
 
