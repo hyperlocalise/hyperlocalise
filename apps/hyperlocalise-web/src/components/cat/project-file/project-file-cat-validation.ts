@@ -53,6 +53,19 @@ export const CAT_SEGMENT_QA_MODES = [
   CAT_SEGMENT_SPELLING_MODE,
 ] as const;
 
+export function isBcp47LanguageTag(value: string): boolean {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    Intl.getCanonicalLocales(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const CAT_SEGMENT_VALIDATION_ENABLED = true;
 
 export type CatSegmentValidationError =
@@ -80,7 +93,8 @@ export async function fetchCatSegmentValidation(
     projectFileCatValidationMessages.requestFailed,
   );
   const targetLocale = input.targetLocale.trim();
-  const modes = targetLocale
+  const canRequestSpelling = isBcp47LanguageTag(targetLocale);
+  const modes = canRequestSpelling
     ? CAT_SEGMENT_QA_MODES
     : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 

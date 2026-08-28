@@ -299,6 +299,35 @@ describe("fetchCatSegmentValidation", () => {
     });
   });
 
+  it("omits spelling for a non-BCP-47 locale so other checks still run", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ checks: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await fetchCatSegmentValidation(
+      {
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        sourcePath: "/messages/en.json",
+        targetLocale: "invalid_locale_format",
+        intl: testIntl,
+      },
+      fetcher,
+    );
+
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(request.body as string)).toEqual({
+      sourceText: "Hello",
+      targetText: "Bonjour",
+      sourcePath: "/messages/en.json",
+      targetLocale: "invalid_locale_format",
+      modes: ["not_localized", "whitespace_only", "same_as_source"],
+    });
+  });
+
   it("omits spelling and targetLocale when the segment has no locale", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ checks: [] }), {
