@@ -31,9 +31,13 @@ func requestID(r *http.Request) string {
 	return strings.TrimSpace(r.Header.Get("X-Request-Id"))
 }
 
+func isHealthPath(path string) bool {
+	return path == "/health" || path == publicPathPrefix+"/health"
+}
+
 func requestLogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" {
+		if isHealthPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -242,13 +242,6 @@ export const env = createEnv({
      */
     CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
 
-    /**
-     * Internal go-svc URL. Vercel injects this at runtime from the web → go_svc
-     * service binding. Do not set it in the dashboard. Unset locally unless
-     * go-svc is running; the proxy then falls back to http://127.0.0.1:8080.
-     */
-    GO_SVC_URL: z.url().optional(),
-
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
   },
@@ -357,7 +350,6 @@ export const env = createEnv({
       process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
       (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
     CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
-    GO_SVC_URL: process.env.GO_SVC_URL,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??

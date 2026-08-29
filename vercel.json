@@ -34,9 +34,35 @@
     "go_svc": {
       "runtime": "container",
       "root": ".",
-      "entrypoint": "Dockerfile.vercel"
+      "entrypoint": "Dockerfile.vercel",
+      "routes": [
+        {
+          "src": "/api/go-svc/(.*)",
+          "transforms": [
+            {
+              "type": "request.path",
+              "op": "set",
+              "args": "/$1"
+            }
+          ]
+        }
+      ]
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/go-svc/(.*)",
+      "destination": {
+        "service": "go_svc"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/github-repository-automation-dispatch",
