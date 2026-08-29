@@ -29,11 +29,7 @@ describe("settings hub rows", () => {
 
   it("keeps the organization API keys row behind api_keys:read", () => {
     const rows = buildSettingsHubRows(intl, "acme");
-    const visible = filterVisibleSettingsHubRows(
-      rows,
-      ["api_keys:read", "billing:read"],
-      false,
-    );
+    const visible = filterVisibleSettingsHubRows(rows, ["api_keys:read", "billing:read"], false);
 
     expect(visible.map((row) => row.href)).toEqual([
       "account",
