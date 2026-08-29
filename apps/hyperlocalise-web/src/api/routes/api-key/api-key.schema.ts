@@ -27,7 +27,15 @@ export const createApiKeyBodySchema = z.object({
 });
 
 export const apiKeyIdParamsSchema = z.object({
-  apiKeyId: z.string().trim().min(1).max(128),
+  apiKeyId: z.string().trim().uuid(),
+});
+
+/** The user a token acts as. Never a display-only field: it is the token's authority. */
+export const apiKeyOwnerSchema = z.object({
+  userId: z.string(),
+  email: z.string(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
 });
 
 export const apiKeySummarySchema = z.object({
@@ -38,7 +46,9 @@ export const apiKeySummarySchema = z.object({
   lastUsedAt: z.string().nullable().optional(),
   revokedAt: z.string().nullable().optional(),
   createdAt: z.string(),
-  createdByUserId: z.string().nullable().optional(),
+  // Null only for legacy rows with no resolvable owner. Such a token is
+  // unusable and is always presented as revoked.
+  owner: apiKeyOwnerSchema.nullable(),
 });
 
 export const createdApiKeySchema = apiKeySummarySchema
@@ -48,6 +58,7 @@ export const createdApiKeySchema = apiKeySummarySchema
     keyPrefix: true,
     permissions: true,
     createdAt: true,
+    owner: true,
   })
   .extend({
     key: z.string(),
@@ -64,6 +75,7 @@ export const apiKeyResponseSchema = z.object({
 export type CreateApiKeyBody = z.infer<typeof createApiKeyBodySchema>;
 export type ApiKeyIdParams = z.infer<typeof apiKeyIdParamsSchema>;
 export type ApiKeyPermission = z.infer<typeof apiKeyPermissionSchema>;
+export type ApiKeyOwner = z.infer<typeof apiKeyOwnerSchema>;
 export type ApiKeySummary = z.infer<typeof apiKeySummarySchema>;
 export type CreatedApiKey = z.infer<typeof createdApiKeySchema>;
 export type ApiKeysResponse = z.infer<typeof apiKeysResponseSchema>;

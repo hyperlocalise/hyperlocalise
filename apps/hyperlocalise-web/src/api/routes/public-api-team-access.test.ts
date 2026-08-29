@@ -149,10 +149,12 @@ describe("public API team-scoped access", () => {
 
   it("denies cross-team job creation for API keys bound to a team member", async () => {
     const admin = createWorkosIdentityWithRole("admin");
-    const member = createWorkosIdentityForOrganization(admin.organization, "member");
+    // Org `member` cannot exercise `jobs:write`, so the request would 403 at the
+    // permission gate. A translator can write jobs and is still team-scoped.
+    const translator = createWorkosIdentityForOrganization(admin.organization, "translator");
 
     await authHeadersFor(admin);
-    await authHeadersFor(member);
+    await authHeadersFor(translator);
 
     const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Jobs Team" });
     expect(teamBetaResponse.status).toBe(201);
@@ -179,16 +181,16 @@ describe("public API team-scoped access", () => {
     expect(teamAlphaResponse.status).toBe(201);
     const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
 
-    const memberUserId = await getLocalUserId(member.user.workosUserId);
+    const translatorUserId = await getLocalUserId(translator.user.workosUserId);
     await db.insert(schema.teamMemberships).values({
       teamId: teamAlphaBody.team.id,
-      userId: memberUserId,
+      userId: translatorUserId,
       role: "member",
     });
 
     const apiKey = await insertTeamScopedApiKey({
       organizationId: betaProjectBody.project.organizationId,
-      createdByUserId: memberUserId,
+      createdByUserId: translatorUserId,
       permissions: ["jobs:read", "jobs:write"],
     });
 

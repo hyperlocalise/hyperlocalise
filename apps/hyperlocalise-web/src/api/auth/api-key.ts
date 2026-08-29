@@ -18,6 +18,7 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { ownerCanExerciseApiKeyPermission } from "@/api/routes/api-key/api-key.permissions";
 import { forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
 
@@ -122,7 +123,10 @@ export function requireApiKeyPermission(permission: string) {
       return unauthorizedResponse(c, "unauthorized", "Authentication required");
     }
 
-    if (!auth.apiKey.permissions.includes(permission)) {
+    if (
+      !auth.apiKey.permissions.includes(permission) ||
+      !ownerCanExerciseApiKeyPermission(auth.teamAccess.membership.role, permission)
+    ) {
       return forbiddenResponse(c, "forbidden", `Missing required permission: ${permission}`);
     }
 

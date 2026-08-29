@@ -708,6 +708,13 @@
       "when": 1787911580620,
       "tag": "0100_fast_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1788005789914,
+      "tag": "0101_famous_silverclaw",
+      "breakpoints": true
     }
   ]
 }
