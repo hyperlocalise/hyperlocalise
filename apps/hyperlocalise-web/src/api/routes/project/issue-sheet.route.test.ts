@@ -113,7 +113,7 @@ describe("Issue Sheet routes", () => {
           sourcePath: "messages/home.json",
           segmentId: "cta.save",
           linkKind: "cat_segment",
-          linkLabel: "Open in CAT",
+          linkLabel: "Open in Content Editor",
           externalRef: "cat:home:de-DE:cta.save",
           priority: "P1",
         },

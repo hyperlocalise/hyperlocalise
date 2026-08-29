@@ -31,6 +31,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/automations", "Automations"],
     ["/org/acme/projects/proj_1/knowledge", "Guideline"],
     ["/org/acme/projects/proj_1/issue-sheet", "Issues"],
+    ["/org/acme/projects/proj_1/strings", "Content Editor"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
     ["/org/acme/projects/proj_1/activity", "Activity"],
     ["/org/acme/projects/proj_1/context", "Context"],

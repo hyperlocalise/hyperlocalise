@@ -197,7 +197,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     renderWithIntl(<ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />);
 
     expect(
-      screen.getByText(/Double-click a file or use View strings to open the CAT workspace for vi/i),
+      screen.getByText(/Double-click a file or use Open Editor to edit vi/i),
     ).toBeInTheDocument();
   });
 
@@ -246,7 +246,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
 
     expect(
       screen.getByText(
-        "ja-JP is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for vi.",
+        "ja-JP is not a target locale for this file. Double-click a file or use Open Editor to edit vi.",
       ),
     ).toBeInTheDocument();
   });

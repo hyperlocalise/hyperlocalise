@@ -149,7 +149,7 @@ export function ProjectFileTreeContextMenu({
         }}
       >
         <HugeiconsIcon icon={LeftToRightListBulletIcon} />
-        <FormattedMessage {...messages.viewStrings} />
+        <FormattedMessage {...messages.openEditor} />
       </Button>
       {capabilities.isNativeFile ? (
         <>

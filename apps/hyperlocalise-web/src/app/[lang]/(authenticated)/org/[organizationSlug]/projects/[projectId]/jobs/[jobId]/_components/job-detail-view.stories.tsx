@@ -175,7 +175,7 @@ function liveCrowdinHeaderActions() {
       {liveJobCatHref ? (
         <Button size="sm" render={<Link href={liveJobCatHref} />}>
           <HugeiconsIcon icon={LeftToRightListBulletIcon} />
-          View strings
+          Open Editor
         </Button>
       ) : null}
     </>
@@ -337,7 +337,7 @@ export const LiveCrowdinTask: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "View strings" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open Editor" })).toBeInTheDocument();
     await expect(canvas.getByText("68%")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();

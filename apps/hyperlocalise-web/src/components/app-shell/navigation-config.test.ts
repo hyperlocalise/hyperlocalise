@@ -220,7 +220,7 @@ describe("path builders", () => {
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
       ["Files", "/org/acme/projects/proj_1/files"],
-      ["Strings", "/org/acme/projects/proj_1/strings"],
+      ["Content Editor", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Issues", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
@@ -288,31 +288,31 @@ describe("parseProjectRoute", () => {
 });
 
 describe("buildProjectNavigationItems", () => {
-  it("includes a Strings item for native projects", () => {
+  it("includes a Content Editor item for native projects", () => {
     const items = buildProjectNavigationItems("acme", "proj_1", intl);
-    const stringsItem = items.find((item) => item.label === "Strings");
-    expect(stringsItem?.href).toBe("/org/acme/projects/proj_1/strings");
-    expect(stringsItem?.featureFlagKey).toBe(RELEASE_CAT_ALL_FILES_FLAG);
+    const contentEditorItem = items.find((item) => item.label === "Content Editor");
+    expect(contentEditorItem?.href).toBe("/org/acme/projects/proj_1/strings");
+    expect(contentEditorItem?.featureFlagKey).toBe(RELEASE_CAT_ALL_FILES_FLAG);
   });
 
-  it("shows Strings for Crowdin projects", () => {
+  it("shows the Content Editor for Crowdin projects", () => {
     const projectId = encodeProviderProjectId({
       providerKind: "crowdin",
       externalProjectId: "902807",
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
-    expect(items.find((item) => item.label === "Strings")?.href).toBe(
+    expect(items.find((item) => item.label === "Content Editor")?.href).toBe(
       `/org/acme/projects/${encodeURIComponent(projectId)}/strings`,
     );
   });
 
-  it("hides Strings for unsupported TMS providers", () => {
+  it("hides the Content Editor for unsupported TMS providers", () => {
     const projectId = encodeProviderProjectId({
       providerKind: "phrase",
       externalProjectId: "42",
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
-    expect(items.find((item) => item.label === "Strings")).toBeUndefined();
+    expect(items.find((item) => item.label === "Content Editor")).toBeUndefined();
   });
 
   it("includes an Automations item gated by the workspace automations flag", () => {

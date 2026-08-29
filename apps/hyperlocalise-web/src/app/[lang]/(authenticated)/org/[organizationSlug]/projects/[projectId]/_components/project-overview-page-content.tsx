@@ -234,7 +234,7 @@ export function ProjectOverviewPageContentView({
                 variant="outline"
               >
                 <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
-                <FormattedMessage {...messages.viewStrings} />
+                <FormattedMessage {...messages.openEditor} />
               </Button>
             ) : null}
             <Button

@@ -75,10 +75,10 @@ export const Default: Story = {
     await expect(canvas.getByText("Context")).toBeInTheDocument();
     await expect(canvas.getByText("Sprint")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting on product copy review.")).toBeInTheDocument();
-    const openInCat = canvas.getByRole("link", { name: "Open in CAT" });
+    const openInCat = canvas.getByRole("link", { name: "Open in Content Editor" });
     await expect(openInCat).toBeInTheDocument();
     await expect(openInCat).toHaveAttribute("target", "_blank");
-    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
+    await expect(canvas.getAllByRole("link", { name: "Open in Content Editor" })).toHaveLength(1);
     const unsubscribe = await canvas.findByRole("button", { name: "Unsubscribe" });
     await expect(unsubscribe).toBeInTheDocument();
     await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
@@ -104,7 +104,9 @@ export const WithExternalLink: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Copy review tracked in Jira")).toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Open in CAT" })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("link", { name: "Open in Content Editor" }),
+    ).not.toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "View in Jira" })).toBeInTheDocument();
   },
 };

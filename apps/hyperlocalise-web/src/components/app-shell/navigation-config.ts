@@ -309,7 +309,7 @@ export function buildProjectNavigationItems(
 ): readonly NavigationItem[] {
   const project = (section: string) => buildProjectPath(organizationSlug, projectId, section);
   const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
-  const showStrings = supportsCatAllFilesProvider(providerKind);
+  const showContentEditor = supportsCatAllFilesProvider(providerKind);
 
   const items: NavigationItem[] = [
     {
@@ -332,12 +332,12 @@ export function buildProjectNavigationItems(
     },
   ];
 
-  if (showStrings) {
+  if (showContentEditor) {
     items.push({
       label: intl.formatMessage({
-        defaultMessage: "Strings",
-        id: "CWdGpW4jOj",
-        description: "Project sidebar navigation item for the CAT strings workspace",
+        defaultMessage: "Content Editor",
+        id: "1XfD1U3TWk",
+        description: "Project sidebar navigation item for the Content Editor",
       }),
       href: project("strings"),
       icon: LanguageCircleIcon,

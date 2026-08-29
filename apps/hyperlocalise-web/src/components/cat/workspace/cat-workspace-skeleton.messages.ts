@@ -31,8 +31,8 @@ export const catWorkspaceSkeletonMessages = defineMessages({
     description: "Accessible label while the CAT queue panel skeleton is shown",
   },
   loadingWorkspace: {
-    defaultMessage: "Loading CAT workspace",
-    id: "eXEsN78hyb",
-    description: "Accessible label while the full CAT workspace skeleton is shown",
+    defaultMessage: "Loading Content Editor",
+    id: "6/jXIwGpnv",
+    description: "Accessible label while the full Content Editor skeleton is shown",
   },
 });

@@ -233,7 +233,7 @@ describe("buildProjectFileCatAllFilesHref", () => {
     );
   });
 
-  it("builds the project Strings sidebar href", () => {
+  it("builds the project Content Editor sidebar href", () => {
     expect(buildProjectStringsHref("acme", "proj_1", "de-DE")).toBe(
       "/org/acme/projects/proj_1/strings?sourcePath=*&locale=de-DE",
     );

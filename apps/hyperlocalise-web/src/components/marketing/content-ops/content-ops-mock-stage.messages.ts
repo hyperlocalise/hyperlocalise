@@ -427,8 +427,8 @@ export const contentOpsMockStageMessages = defineMessages({
   },
   inboxAssistantWeb2Answer: {
     defaultMessage:
-      'Shorten to "Payer maintenant" (16 chars). Open checkout.json in the CAT editor to apply and re-run QA.',
-    id: "vy7kjRq93r",
+      'Shorten to "Payer maintenant" (16 chars). Open checkout.json in the Content Editor to apply and re-run QA.',
+    id: "7A4K42htKk",
     description: "Inbox assistant answer for issue in content ops mock",
   },
   inboxAssistantGlossaryQuestion: {
@@ -493,9 +493,9 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Issue status resolved",
   },
   openInCat: {
-    defaultMessage: "Open in CAT",
-    id: "dpL071W81r",
-    description: "Link label to open issue in CAT editor",
+    defaultMessage: "Open in Content Editor",
+    id: "y9MQtQc7gb",
+    description: "Link label to open issue in the Content Editor",
   },
 
   brandStyleTitle: {

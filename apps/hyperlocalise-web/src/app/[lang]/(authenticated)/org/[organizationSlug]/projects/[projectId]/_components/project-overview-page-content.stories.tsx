@@ -94,7 +94,7 @@ export const TmsProject: Story = {
     projectId: "ext:crowdin:42",
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("link", { name: "View strings" })).toHaveAttribute(
+    await expect(canvas.getByRole("link", { name: "Open Editor" })).toHaveAttribute(
       "href",
       "/org/acme/projects/ext%3Acrowdin%3A42/strings",
     );
@@ -113,6 +113,6 @@ export const Loading: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.queryByRole("button", { name: "Create job" })).toBeNull();
-    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+    await expect(canvas.queryByRole("link", { name: "Open Editor" })).toBeNull();
   },
 };

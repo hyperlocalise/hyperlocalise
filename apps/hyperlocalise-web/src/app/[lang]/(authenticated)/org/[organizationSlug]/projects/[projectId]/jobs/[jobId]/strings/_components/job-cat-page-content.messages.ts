@@ -74,10 +74,10 @@ export const jobCatPageContentMessages = defineMessages({
   },
   listTruncated: {
     defaultMessage:
-      "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list.",
-    id: "LWxfVFhHEJ",
+      "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open the Content Editor from the project Files page instead, or ask support to narrow the project file list.",
+    id: "hAgLhRJv6O",
     description:
-      "Error when the project file list was truncated before the CAT source file could be found",
+      "Error when the project file list was truncated before the Content Editor source file could be found",
   },
   sourceFileNoLongerLinked: {
     defaultMessage: "This source file is not linked to the task anymore.",

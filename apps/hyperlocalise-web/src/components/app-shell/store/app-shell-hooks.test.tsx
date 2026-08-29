@@ -61,7 +61,7 @@ const customGroups = [
     label: "Project",
     items: [
       {
-        label: "Strings",
+        label: "Content Editor",
         href: "/org/acme/projects/proj_1/jobs/job_1/strings",
         icon: Chat01Icon,
       },

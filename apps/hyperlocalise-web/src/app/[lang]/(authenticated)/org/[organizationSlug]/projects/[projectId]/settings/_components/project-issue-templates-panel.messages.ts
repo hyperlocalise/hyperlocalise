@@ -22,8 +22,8 @@ export const projectIssueTemplatesPanelMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. CAT always preselects Context request, regardless of this setting.",
-    id: "uY0scW79py",
+      "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. The Content Editor always preselects Context request, regardless of this setting.",
+    id: "TdxzXMOinv",
     description: "Description of the project issue templates settings section",
   },
   defaultTemplateLabel: {

@@ -254,7 +254,7 @@ export function JobSourceFilesPanel({
                 render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
               >
                 <HugeiconsIcon icon={LeftToRightListBulletIcon} />
-                <FormattedMessage {...messages.viewStrings} />
+                <FormattedMessage {...messages.openEditor} />
               </Button>
             </div>
           ) : null}

@@ -212,9 +212,9 @@ export const heroFrameMessages = defineMessages({
     description: "Intent for the QA banner segment in the hero CAT mock",
   },
   qaBreadcrumb: {
-    defaultMessage: "CAT workspace / Review queue",
-    id: "5P6X7lQjQL",
-    description: "Location breadcrumb for the QA banner segment in the hero CAT mock",
+    defaultMessage: "Content Editor / Review queue",
+    id: "pNA+bX2Ulk",
+    description: "Location breadcrumb for the QA banner segment in the hero Content Editor mock",
   },
   qaConstraints: {
     defaultMessage: "Short label · Avoid ambiguity around reviews",
@@ -222,9 +222,9 @@ export const heroFrameMessages = defineMessages({
     description: "Constraints for the QA banner segment in the hero CAT mock",
   },
   qaTmContext: {
-    defaultMessage: "CAT action",
-    id: "IJ3WXU/p3C",
-    description: "TM match context for the QA banner segment in the hero CAT mock",
+    defaultMessage: "Content Editor action",
+    id: "2bsWQjcWxE",
+    description: "TM match context for the QA banner segment in the hero Content Editor mock",
   },
   qaAiReasoning: {
     defaultMessage: "Clarifies this is an internal translation review queue.",

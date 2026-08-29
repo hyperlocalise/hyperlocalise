@@ -161,14 +161,14 @@ export const issueDetailPanelMessages = defineMessages({
     description: "Placeholder for the owner note textarea",
   },
   openInCat: {
-    defaultMessage: "Open in CAT",
-    id: "HDO9bAX2qb",
-    description: "Button to open the linked CAT segment",
+    defaultMessage: "Open in Content Editor",
+    id: "r2yxIB3t+w",
+    description: "Button to open the linked Content Editor segment",
   },
   openInCatUnavailable: {
-    defaultMessage: "Add a source path and locale to open this issue in CAT.",
-    id: "cd7UpbIU0k",
-    description: "Helper when Open in CAT is unavailable",
+    defaultMessage: "Add a source path and locale to open this issue in the Content Editor.",
+    id: "fyihAjDSvB",
+    description: "Helper when Open in Content Editor is unavailable",
   },
   openLink: {
     defaultMessage: "Open link",

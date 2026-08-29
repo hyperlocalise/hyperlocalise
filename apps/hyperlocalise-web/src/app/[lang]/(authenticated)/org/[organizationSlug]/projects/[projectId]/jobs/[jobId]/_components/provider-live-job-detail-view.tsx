@@ -240,7 +240,7 @@ export function ProviderLiveJobDetailView({
       {showViewStrings && catHref ? (
         <Button size="sm" render={<Link href={catHref} />}>
           <HugeiconsIcon icon={LeftToRightListBulletIcon} />
-          <FormattedMessage {...messages.viewStrings} />
+          <FormattedMessage {...messages.openEditor} />
         </Button>
       ) : null}
     </>

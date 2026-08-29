@@ -1216,9 +1216,9 @@ export const catPanelErrorBoundaryMessages = defineMessages({
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
   workspaceTitle: {
-    defaultMessage: "CAT workspace failed to load",
-    id: "Kdwno+5sGa",
-    description: "Error boundary title when the full CAT workspace crashes",
+    defaultMessage: "Content Editor failed to load",
+    id: "X8XWn3q89C",
+    description: "Error boundary title when the full Content Editor crashes",
   },
   description: {
     defaultMessage:
@@ -1235,9 +1235,9 @@ export const catPanelErrorBoundaryMessages = defineMessages({
 
 export const catWorkspaceViewModeMessages = defineMessages({
   viewModeAria: {
-    defaultMessage: "CAT view mode",
-    id: "djDzIFmWT8",
-    description: "Accessible label for the CAT workspace view mode switcher",
+    defaultMessage: "Content Editor view mode",
+    id: "TEw3QR5zHs",
+    description: "Accessible label for the Content Editor view mode switcher",
   },
   comfortableView: {
     defaultMessage: "Comfortable",

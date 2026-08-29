@@ -21,9 +21,9 @@ export const jobSourceFilesPanelMessages = defineMessages({
     description: "Error when opening CAT without a target locale for a task file",
   },
   fileCantOpenInCat: {
-    defaultMessage: "This file can’t be opened in the CAT workspace.",
-    id: "1Ax42ak5yi",
-    description: "Error when a selected source file cannot be opened in CAT",
+    defaultMessage: "This file can’t be opened in the Content Editor.",
+    id: "ODdrcnPdPR",
+    description: "Error when a selected source file cannot be opened in the Content Editor",
   },
   defaultEmptyMessage: {
     defaultMessage: "No source files linked to this job.",
@@ -41,15 +41,14 @@ export const jobSourceFilesPanelMessages = defineMessages({
     description: "Fallback error when source files fail to load",
   },
   catWorkspaceHintWithLocale: {
-    defaultMessage:
-      "Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    id: "JaX2Kyy6KI",
-    description: "Hint explaining how to open CAT for the selected file and locale",
+    defaultMessage: "Double-click a file or use Open Editor to edit {targetLocale}.",
+    id: "U1nd6V4lHp",
+    description: "Hint explaining how to open the Content Editor for the selected file and locale",
   },
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "VKDvjxl+TJ",
-    description: "Button to open the selected source file in the CAT workspace",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "x5IFswpz2S",
+    description: "Button to open the selected source file in the Content Editor",
   },
   jobSourceFilesAriaLabel: {
     defaultMessage: "Job source files",

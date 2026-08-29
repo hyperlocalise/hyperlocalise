@@ -85,10 +85,10 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "dveuxEzy1E",
     description: "Button label to open the mark-as-failed confirmation dialog",
   },
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "VwBtOss3uh",
-    description: "Button label to open the job CAT workspace",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "znlespRIYt",
+    description: "Button label to open the job Content Editor",
   },
   markFailedTitle: {
     defaultMessage: "Mark job as failed?",

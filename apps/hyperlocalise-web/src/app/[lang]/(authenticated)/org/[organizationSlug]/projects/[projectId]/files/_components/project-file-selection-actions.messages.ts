@@ -15,10 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileSelectionActionsMessages = defineMessages({
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "7WrG5oy0+1",
-    description: "Button to open the selected project file in the CAT workspace",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "Wbm7kwzdGk",
+    description: "Button to open the selected project file in the Content Editor",
   },
   translateWithAgent: {
     defaultMessage: "Translate with agent",
@@ -36,13 +36,13 @@ export const projectFileSelectionActionsMessages = defineMessages({
     description: "Button to open the download translations dialog for a project file",
   },
   catAvailableHint: {
-    defaultMessage: "Open this file in the CAT workspace to review and edit translations.",
-    id: "pzOrHk3KQa",
-    description: "Helper text when the selected file can open in the CAT workspace",
+    defaultMessage: "Open this file in the Content Editor to review and edit translations.",
+    id: "EH1mWPBRDl",
+    description: "Helper text when the selected file can open in the Content Editor",
   },
   catUnavailableHint: {
-    defaultMessage: "The CAT workspace is not available for this file yet.",
-    id: "yPsLdM5F3Q",
-    description: "Helper text when the selected file cannot open in the CAT workspace",
+    defaultMessage: "The Content Editor is not available for this file yet.",
+    id: "nBYmE0FBb3",
+    description: "Helper text when the selected file cannot open in the Content Editor",
   },
 });

@@ -195,7 +195,7 @@ describe("ProjectFileCatPageContent guard ordering", () => {
 
     expect(
       screen.getByText(
-        "Choose a source file from the project files list to open it in the CAT workspace.",
+        "Choose a source file from the project files list to open it in the Content Editor.",
       ),
     ).toBeInTheDocument();
     expect(

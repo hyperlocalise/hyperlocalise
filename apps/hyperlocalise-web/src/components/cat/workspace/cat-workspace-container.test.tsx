@@ -89,7 +89,7 @@ describe("CatWorkspaceContainer UI", () => {
       );
 
       const viewModeButton = await waitFor(() =>
-        screen.getByRole("button", { name: "CAT view mode" }),
+        screen.getByRole("button", { name: "Content Editor view mode" }),
       );
       expect(viewModeButton).toHaveTextContent("Comfortable");
       expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();

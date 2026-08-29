@@ -16,9 +16,9 @@ import { defineMessages } from "react-intl";
 
 export const projectFileCatApiMessages = defineMessages({
   failedToLoadQueue: {
-    defaultMessage: "Failed to load CAT queue",
-    id: "lE4XkWZPD6",
-    description: "Fallback error when the project file CAT queue request fails",
+    defaultMessage: "Failed to load Content Editor queue",
+    id: "RO0Hv9SR8x",
+    description: "Fallback error when the project file Content Editor queue request fails",
   },
   failedToLoadSegmentComments: {
     defaultMessage: "Failed to load segment comments",

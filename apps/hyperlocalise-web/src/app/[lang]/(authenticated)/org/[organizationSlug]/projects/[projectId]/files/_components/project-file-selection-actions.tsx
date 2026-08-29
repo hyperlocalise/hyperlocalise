@@ -97,7 +97,7 @@ export const ProjectFileSelectionActions = forwardRef<
         render={actions.canOpenCat && actions.catHref ? <Link href={actions.catHref} /> : undefined}
       >
         <HugeiconsIcon icon={LeftToRightListBulletIcon} />
-        <FormattedMessage {...messages.viewStrings} />
+        <FormattedMessage {...messages.openEditor} />
       </Button>
       {actions.isNativeFile ? (
         <>

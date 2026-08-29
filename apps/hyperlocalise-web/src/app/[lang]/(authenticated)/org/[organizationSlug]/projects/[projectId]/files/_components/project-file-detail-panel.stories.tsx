@@ -48,7 +48,7 @@ export const MetadataOnly: Story = {
     await expect(canvas.getByText("marketing/home.json")).toBeInTheDocument();
     await expect(canvas.getByText("fr-FR")).toBeInTheDocument();
     await expect(canvas.queryByText("Source preview")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("CAT workspace")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Content Editor")).not.toBeInTheDocument();
   },
 };
 

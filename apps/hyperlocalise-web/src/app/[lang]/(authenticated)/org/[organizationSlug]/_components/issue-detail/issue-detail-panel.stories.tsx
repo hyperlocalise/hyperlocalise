@@ -86,9 +86,9 @@ export const Default: Story = {
     await expect(
       unsubscribe.compareDocumentPosition(commentsEmptyState) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    const openInCat = await canvas.findByRole("link", { name: "Open in CAT" });
+    const openInCat = await canvas.findByRole("link", { name: "Open in Content Editor" });
     await expect(openInCat).toHaveAttribute("target", "_blank");
-    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
+    await expect(canvas.getAllByRole("link", { name: "Open in Content Editor" })).toHaveLength(1);
     await expect(
       await canvas.findByRole("button", { name: "Collapse properties" }),
     ).toBeInTheDocument();
@@ -115,7 +115,9 @@ export const WithExternalLink: Story = {
     await expect(
       await canvas.findByDisplayValue("Copy review tracked in Jira"),
     ).toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "Open in CAT" })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("link", { name: "Open in Content Editor" }),
+    ).not.toBeInTheDocument();
     const jiraLink = await canvas.findByRole("link", { name: "View in Jira" });
     await expect(jiraLink).toHaveAttribute("href", "https://jira.example.com/browse/LOC-42");
     await expect(jiraLink).toHaveAttribute("target", "_blank");
@@ -139,7 +141,7 @@ export const MinimizedSidebar: Story = {
     await expect(
       await canvas.findByRole("button", { name: "Expand properties" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Open in CAT" })).toHaveAttribute(
+    await expect(canvas.getByRole("link", { name: "Open in Content Editor" })).toHaveAttribute(
       "target",
       "_blank",
     );

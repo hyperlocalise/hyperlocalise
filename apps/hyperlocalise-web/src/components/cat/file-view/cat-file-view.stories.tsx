@@ -81,7 +81,7 @@ function fileViewArgs(initialState: CatWorkspaceState): Story["args"] {
 }
 
 function viewModeButtons(canvas: ReturnType<typeof within>) {
-  return canvas.getAllByRole("button", { name: "CAT view mode" });
+  return canvas.getAllByRole("button", { name: "Content Editor view mode" });
 }
 
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {

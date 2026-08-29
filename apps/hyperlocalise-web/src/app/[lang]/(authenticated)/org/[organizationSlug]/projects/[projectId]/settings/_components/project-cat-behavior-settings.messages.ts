@@ -16,14 +16,14 @@ import { defineMessages } from "react-intl";
 
 export const projectCatBehaviorMessages = defineMessages({
   title: {
-    defaultMessage: "Translation & CAT behavior",
-    id: "pAXX9L54+r",
-    description: "CAT settings section title",
+    defaultMessage: "Translation & Content Editor behavior",
+    id: "/nKOFEgkYN",
+    description: "Content Editor settings section title",
   },
   description: {
-    defaultMessage: "Control how source strings are organized in the CAT workspace.",
-    id: "mABAdUPLF4",
-    description: "CAT settings section description",
+    defaultMessage: "Control how source strings are organized in the Content Editor.",
+    id: "NCBmUnLeBR",
+    description: "Content Editor settings section description",
   },
   settingLabel: {
     defaultMessage: "Automatically group identical strings",
@@ -32,8 +32,8 @@ export const projectCatBehaviorMessages = defineMessages({
   },
   settingDescription: {
     defaultMessage:
-      "Show exact source-text duplicates as a shared group when the CAT workspace refreshes.",
-    id: "XAJ64thIXq",
+      "Show exact source-text duplicates as a shared group when the Content Editor refreshes.",
+    id: "2F2dNLV6FZ",
     description: "Identical string grouping setting description",
   },
   managerOnly: {
@@ -59,8 +59,8 @@ export const projectCatBehaviorMessages = defineMessages({
   },
   disableDescription: {
     defaultMessage:
-      "Grouped rows will expand after CAT drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
-    id: "/xJskut0lc",
+      "Grouped rows will expand after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
+    id: "7oTwMQ/lzH",
     description: "Disable grouping confirmation description",
   },
   cancel: { defaultMessage: "Cancel", id: "E/lJPiTTAo", description: "Cancel CAT behavior change" },
@@ -75,18 +75,18 @@ export const projectCatBehaviorMessages = defineMessages({
     description: "Confirm disabling CAT grouping",
   },
   saved: {
-    defaultMessage: "CAT behavior updated",
-    id: "vjPfgNgxUm",
-    description: "CAT behavior save success",
+    defaultMessage: "Content Editor behavior updated",
+    id: "jX3Wpfqfza",
+    description: "Content Editor behavior save success",
   },
   loadError: {
-    defaultMessage: "Unable to load CAT behavior",
-    id: "lODK5YiNr1",
-    description: "CAT behavior load failure",
+    defaultMessage: "Unable to load Content Editor behavior",
+    id: "DOYogzInHA",
+    description: "Content Editor behavior load failure",
   },
   updateError: {
-    defaultMessage: "Unable to update CAT behavior",
-    id: "llWEpZcDRe",
-    description: "CAT behavior update failure",
+    defaultMessage: "Unable to update Content Editor behavior",
+    id: "NzYmU9Xvq7",
+    description: "Content Editor behavior update failure",
   },
 });

@@ -128,7 +128,7 @@ export const RepositoryFiles: Story = {
     await expect(canvas.getByRole("heading", { name: "Project files" })).toBeInTheDocument();
     await expect(canvas.getByText("3 files")).toBeInTheDocument();
     await expect(canvas.getAllByText("marketing/home.json").length).toBeGreaterThan(0);
-    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+    await expect(canvas.queryByRole("link", { name: "Open Editor" })).toBeNull();
     await expect(canvas.queryByRole("button", { name: "Translate with agent" })).toBeNull();
     await expect(canvas.queryByRole("button", { name: "Import translations" })).toBeNull();
     await expect(canvas.queryByRole("button", { name: "Download" })).toBeNull();
@@ -176,7 +176,7 @@ export const ProviderFiles: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Branch")).toBeInTheDocument();
     await expect(canvas.getByRole("combobox")).toBeInTheDocument();
-    await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
+    await expect(canvas.queryByRole("link", { name: "Open Editor" })).toBeNull();
   },
 };
 

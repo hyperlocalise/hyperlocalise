@@ -32,7 +32,7 @@ describe("HeroFrame", () => {
     renderWithCatProviders(<HeroFrame />);
 
     const viewModeButton = await waitFor(() =>
-      screen.getByRole("button", { name: "CAT view mode" }),
+      screen.getByRole("button", { name: "Content Editor view mode" }),
     );
 
     expect(viewModeButton).toHaveTextContent("Comfortable");

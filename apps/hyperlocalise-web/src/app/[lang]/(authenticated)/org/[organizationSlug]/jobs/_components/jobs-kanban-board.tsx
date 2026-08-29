@@ -66,7 +66,7 @@ export function JobRowActions({
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
   const catHref = buildJobCatHref(organizationSlug, resolvedProjectId, job);
   const detailsLabel = intl.formatMessage(jobsKanbanBoardMessages.details);
-  const viewStringsLabel = intl.formatMessage(jobsKanbanBoardMessages.viewStrings);
+  const openEditorLabel = intl.formatMessage(jobsKanbanBoardMessages.openEditor);
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -77,7 +77,7 @@ export function JobRowActions({
           {detailsLabel}
         </Button>
       )}
-      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: viewStringsLabel }) : null}
+      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: openEditorLabel }) : null}
     </div>
   );
 }

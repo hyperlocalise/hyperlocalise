@@ -103,7 +103,7 @@ export const WithStringLink: Story = {
       defaultTitle: "Needs context for CTA",
       defaultDescription: "Ambiguous source string",
       linkUrl: "https://app.test/cat",
-      linkLabel: "Open in CAT",
+      linkLabel: "Open in Content Editor",
     },
     // Every real caller that passes a segment-linked stringLink (CAT) also passes this, so it
     // belongs in the story too — otherwise this demos a state production never reaches.
@@ -119,7 +119,7 @@ export const WithStringLink: Story = {
     await userEvent.hover(body.getByRole("menuitem", { name: "Set source path" }));
     await expect(await body.findByLabelText("Source path")).toHaveValue("marketing/home.json");
     await userEvent.hover(body.getByRole("menuitem", { name: "Add link…" }));
-    await expect(await body.findByLabelText("Link label")).toHaveValue("Open in CAT");
+    await expect(await body.findByLabelText("Link label")).toHaveValue("Open in Content Editor");
   },
 };
 

@@ -17,9 +17,9 @@ import { defineMessages } from "react-intl";
 export const projectFileCatPageContentMessages = defineMessages({
   chooseSourceFile: {
     defaultMessage:
-      "Choose a source file from the project files list to open it in the CAT workspace.",
-    id: "4jWhf0M3TR",
-    description: "Empty state when the CAT page is opened without a source file",
+      "Choose a source file from the project files list to open it in the Content Editor.",
+    id: "yq/V+p8X/b",
+    description: "Empty state when the Content Editor page is opened without a source file",
   },
   files: {
     defaultMessage: "Files",
@@ -42,14 +42,14 @@ export const projectFileCatPageContentMessages = defineMessages({
     description: "Empty state when the requested CAT source file is missing from the project",
   },
   providerTypeUnsupported: {
-    defaultMessage: "The CAT workspace is not available for this provider file type yet.",
-    id: "3EJ5L34UDR",
-    description: "Empty state when a provider file type cannot open in CAT",
+    defaultMessage: "The Content Editor is not available for this provider file type yet.",
+    id: "uQY+c5lAJq",
+    description: "Empty state when a provider file type cannot open in the Content Editor",
   },
   chooseTargetLocale: {
-    defaultMessage: "Choose a target locale to open this file in the CAT workspace.",
-    id: "VzzqUlIKvt",
-    description: "Empty state when no target locale is available for the CAT file",
+    defaultMessage: "Choose a target locale to open this file in the Content Editor.",
+    id: "AytrEpkx2G",
+    description: "Empty state when no target locale is available for the Content Editor file",
   },
   missingSourceLocale: {
     defaultMessage: "This project does not have a source locale.",

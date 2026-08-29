@@ -20,10 +20,10 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "7WTIzTDLbF",
     description: "Button on project overview to open the create job dialog",
   },
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "EBgNz2ZSu6",
-    description: "Button on project overview linking to the project Strings page",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "LPgS5mUnwV",
+    description: "Button on project overview linking to the project Content Editor page",
   },
   projectOverviewFallbackTitle: {
     defaultMessage: "Project overview",

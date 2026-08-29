@@ -111,14 +111,15 @@ export const issueSheetPageContentMessages = defineMessages({
     description: "Empty-state title when the filtered Issue Sheet has no rows",
   },
   emptyDescription: {
-    defaultMessage: "Add an issue manually or from CAT to start tracking team context.",
-    id: "dXiW8gUOg9",
+    defaultMessage:
+      "Add an issue manually or from the Content Editor to start tracking team context.",
+    id: "nUgKkvDPwN",
     description: "Empty-state description when the filtered Issue Sheet has no rows",
   },
   openInCat: {
-    defaultMessage: "Open in CAT",
-    id: "dxMF5D4P3C",
-    description: "Link label to open the related CAT segment for an issue",
+    defaultMessage: "Open in Content Editor",
+    id: "s9vKrtKT/S",
+    description: "Link label to open the related Content Editor segment for an issue",
   },
   openLink: {
     defaultMessage: "Open link",

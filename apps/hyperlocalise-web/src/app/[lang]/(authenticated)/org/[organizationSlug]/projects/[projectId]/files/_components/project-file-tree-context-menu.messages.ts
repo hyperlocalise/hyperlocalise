@@ -15,10 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileTreeContextMenuMessages = defineMessages({
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "cVbj5KLUfe",
-    description: "Context menu action to open a project file in the CAT workspace",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "q+l1A/4r0n",
+    description: "Context menu action to open a project file in the Content Editor",
   },
   translateWithAgent: {
     defaultMessage: "Translate with agent",

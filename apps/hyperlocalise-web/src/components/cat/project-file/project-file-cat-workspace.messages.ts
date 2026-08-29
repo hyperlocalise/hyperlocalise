@@ -56,9 +56,9 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     description: "Issue sheet title when requesting context for a CAT segment key",
   },
   openInCatLinkLabel: {
-    defaultMessage: "Open in CAT",
-    id: "pof2HIGAaZ",
-    description: "Link label on an issue sheet row pointing back to the CAT editor",
+    defaultMessage: "Open in Content Editor",
+    id: "Zg7mAl/85b",
+    description: "Link label on an issue sheet row pointing back to the Content Editor",
   },
   failedToAddToIssueSheet: {
     defaultMessage: "Failed to add to Issue Sheet",
@@ -101,9 +101,9 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     description: "Empty state when a project file has no target locales for CAT",
   },
   failedToLoadWorkspace: {
-    defaultMessage: "Failed to load CAT workspace.",
-    id: "Il904Owiy9",
-    description: "Fallback error when the CAT workspace query fails without an Error instance",
+    defaultMessage: "Failed to load the Content Editor.",
+    id: "DIFU6fRpPu",
+    description: "Fallback error when the Content Editor query fails without an Error instance",
   },
   targetLocaleLabel: {
     defaultMessage: "Target locale",

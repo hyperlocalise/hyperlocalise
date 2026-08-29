@@ -31,9 +31,9 @@ export const catHeaderPickersMessages = defineMessages({
     description: "Title of the CAT header dialog for picking a source file",
   },
   chooseSourceFileDescription: {
-    defaultMessage: "Browse the file tree, or choose All Files to view strings across every file.",
-    id: "vem1yM2hIl",
-    description: "Description of the CAT header source file picker dialog",
+    defaultMessage: "Browse the file tree, or choose All Files to edit content across every file.",
+    id: "mDjF2xCptL",
+    description: "Description of the Content Editor header source file picker dialog",
   },
   sourceFilesAriaLabel: {
     defaultMessage: "Source files",

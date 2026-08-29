@@ -62,14 +62,15 @@ export const useCatMutationsMessages = defineMessages({
   },
   cannotEditHiddenStringTranslation: {
     defaultMessage:
-      "Hidden strings can't be edited from the CAT. Unhide the string in Crowdin first.",
-    id: "sfQrLcactN",
+      "Hidden strings can't be edited from the Content Editor. Unhide the string in Crowdin first.",
+    id: "QZMo6wMmMc",
     description: "Error when saving a translation for a hidden string",
   },
   cannotEditLockedStringTranslation: {
-    defaultMessage: "Locked strings can't be edited from the CAT. Unlock the string first.",
-    id: "kWfjLcxlRC",
-    description: "Error when saving a translation for a locked CAT segment",
+    defaultMessage:
+      "Locked strings can't be edited from the Content Editor. Unlock the string first.",
+    id: "77t4Y4uY0a",
+    description: "Error when saving a translation for a locked Content Editor segment",
   },
   failedToUpdateLockedStrings: {
     defaultMessage: "Failed to update locked strings",

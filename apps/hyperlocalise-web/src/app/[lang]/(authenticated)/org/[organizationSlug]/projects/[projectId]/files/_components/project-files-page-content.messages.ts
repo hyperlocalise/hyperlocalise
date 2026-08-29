@@ -22,14 +22,14 @@ export const projectFilesPageContentMessages = defineMessages({
   },
   descriptionProvider: {
     defaultMessage:
-      "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported.",
-    id: "EuTWCTh8wL",
+      "Browse source files from the connected TMS provider, then open one in the Content Editor when it is supported.",
+    id: "ElqTdiMapl",
     description: "Project files page description for provider-backed projects",
   },
   descriptionNative: {
     defaultMessage:
-      "Upload source files, then open one in the CAT workspace to review and edit translations.",
-    id: "uzkJ9jkLaR",
+      "Upload source files, then open one in the Content Editor to review and edit translations.",
+    id: "uhtYKc3fnS",
     description: "Project files page description for native Hyperlocalise projects",
   },
   addFiles: {
@@ -130,9 +130,9 @@ export const projectFilesPageContentMessages = defineMessages({
     description: "Fallback toast when source file upload fails",
   },
   cannotOpenCat: {
-    defaultMessage: "This file can’t be opened in the CAT workspace.",
-    id: "mwlaVsXCWL",
-    description: "Toast when a selected file cannot open in the CAT workspace",
+    defaultMessage: "This file can’t be opened in the Content Editor.",
+    id: "+f0xDGLORc",
+    description: "Toast when a selected file cannot open in the Content Editor",
   },
   noTargetLocale: {
     defaultMessage: "No target locale is available for this file.",
@@ -147,14 +147,13 @@ export const projectFilesPageContentMessages = defineMessages({
   },
   localeFallbackHint: {
     defaultMessage:
-      "{requestedLocale} is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    id: "2Wf+R5t111",
+      "{requestedLocale} is not a target locale for this file. Double-click a file or use Open Editor to edit {targetLocale}.",
+    id: "pWLMdEuyPH",
     description: "Hint when the requested locale is unavailable and a fallback will be used",
   },
   openCatHint: {
-    defaultMessage:
-      "Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    id: "eHWGrpWi9b",
-    description: "Hint explaining how to open the selected file in the CAT workspace",
+    defaultMessage: "Double-click a file or use Open Editor to edit {targetLocale}.",
+    id: "Ik3lLiqJti",
+    description: "Hint explaining how to open the selected file in the Content Editor",
   },
 });

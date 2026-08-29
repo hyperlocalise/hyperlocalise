@@ -86,9 +86,9 @@ export const issueSheetSharedMessages = defineMessages({
     description: "Issue Sheet status option when an issue will not be fixed",
   },
   linkKindCatSegment: {
-    defaultMessage: "CAT segment",
-    id: "v+JpRsdgw2",
-    description: "Issue Sheet link kind for a CAT segment",
+    defaultMessage: "Content Editor segment",
+    id: "NE7U3TnX7s",
+    description: "Issue Sheet link kind for a Content Editor segment",
   },
   linkKindNativeIssue: {
     defaultMessage: "Native issue",

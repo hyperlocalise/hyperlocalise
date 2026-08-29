@@ -25,7 +25,7 @@ export type ReleaseCatAllFilesEntities = {
 };
 
 /**
- * Release gate for CAT All Files and the project Strings sidebar.
+ * Release gate for CAT All Files and the project Content Editor sidebar.
  *
  * `decide` enables All Files only for native projects and Crowdin. Pass
  * `providerKind` via `.run({ identify })` / `isReleaseCatAllFilesEnabled`.
@@ -33,7 +33,7 @@ export type ReleaseCatAllFilesEntities = {
  */
 export const releaseCatAllFilesFlag = flag<boolean, ReleaseCatAllFilesEntities>({
   key: RELEASE_CAT_ALL_FILES_FLAG,
-  description: "CAT All Files and Strings sidebar for native and Crowdin projects.",
+  description: "CAT All Files and the Content Editor sidebar for native and Crowdin projects.",
   defaultValue: false,
   decide({ entities }) {
     return supportsCatAllFilesProvider(entities?.providerKind);

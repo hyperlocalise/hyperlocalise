@@ -43,7 +43,7 @@ export function createOrganizationIssue(
     targetLocale: "de-DE",
     sourcePath: "messages/home.json",
     linkKind: "cat_segment",
-    linkLabel: "Open in CAT",
+    linkLabel: "Open in Content Editor",
     linkUrl: null,
     reporter: "Mina Chen",
     assignee: "Otto Klein",

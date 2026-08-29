@@ -101,8 +101,8 @@ export const catLinkedIssuesDialogMessages = defineMessages({
     description: "Default title when creating an issue from a CAT string",
   },
   openInCatLinkLabel: {
-    defaultMessage: "Open in CAT",
-    id: "fO8mdMfpdf",
-    description: "Link label stored on issues created from CAT",
+    defaultMessage: "Open in Content Editor",
+    id: "MRKdPjdzv/",
+    description: "Link label stored on issues created from the Content Editor",
   },
 });

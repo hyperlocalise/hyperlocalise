@@ -40,9 +40,9 @@ export const providerLiveJobDetailViewMessages = defineMessages({
     id: "b6FmkNJjkD",
     description: "Button label to delete a live Crowdin task",
   },
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "6oebBi3G9m",
-    description: "Button label to open the CAT workspace for a live provider job",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "UWhFvnWW9k",
+    description: "Button label to open the Content Editor for a live provider job",
   },
 });

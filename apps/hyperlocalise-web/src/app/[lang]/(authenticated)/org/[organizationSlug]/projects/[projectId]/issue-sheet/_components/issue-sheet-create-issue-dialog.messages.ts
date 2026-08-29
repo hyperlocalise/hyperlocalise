@@ -22,8 +22,8 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Capture a localization issue and optionally link it to CAT or an external tracker.",
-    id: "a9TiPhW1/A",
+      "Capture a localization issue and optionally link it to the Content Editor or an external tracker.",
+    id: "rg7WUSTOmR",
     description: "Description of the create Issue Sheet issue dialog",
   },
   projectLabel: {

@@ -162,7 +162,7 @@ export const ProjectJobs: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Row" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("link", { name: "View strings" }).length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("link", { name: "Open Editor" }).length).toBeGreaterThan(0);
     await expect(canvas.getAllByRole("link", { name: "Details" }).length).toBeGreaterThan(0);
   },
 };

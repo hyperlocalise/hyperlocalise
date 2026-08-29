@@ -24,10 +24,10 @@ export const jobsKanbanBoardMessages = defineMessages({
     id: "TotmChYda4",
     description: "Button or link to open the job detail page",
   },
-  viewStrings: {
-    defaultMessage: "View strings",
-    id: "21nIG8nStI",
-    description: "Button or link to open the job CAT workspace",
+  openEditor: {
+    defaultMessage: "Open Editor",
+    id: "r1LA5pAcBV",
+    description: "Button or link to open the job Content Editor",
   },
   workspaceFallback: {
     defaultMessage: "Workspace",

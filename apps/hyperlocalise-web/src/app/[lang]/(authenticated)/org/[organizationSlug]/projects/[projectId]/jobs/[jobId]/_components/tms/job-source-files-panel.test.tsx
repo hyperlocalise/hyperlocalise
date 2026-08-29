@@ -73,7 +73,7 @@ const nativeFile = createProjectFileRecord({
 });
 
 describe("JobSourceFilesPanel CAT entry UX", () => {
-  it("shows View strings when files are selected from the task detail panel", () => {
+  it("shows Open Editor when files are selected from the task detail panel", () => {
     renderWithIntl(
       <JobSourceFilesPanel
         organizationSlug="acme"
@@ -84,14 +84,12 @@ describe("JobSourceFilesPanel CAT entry UX", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: "View strings" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View strings" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open Editor" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Editor" })).toHaveAttribute(
       "href",
       "/org/acme/projects/proj_1/jobs/job_1/strings?targetLocale=vi&storedFileId=en-US.json",
     );
-    expect(
-      screen.getByText(/Double-click a file or use View strings to open the CAT workspace/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Double-click a file or use Open Editor to edit/i)).toBeInTheDocument();
   });
 
   it("opens CAT when a file is double-clicked from the task detail panel", async () => {
