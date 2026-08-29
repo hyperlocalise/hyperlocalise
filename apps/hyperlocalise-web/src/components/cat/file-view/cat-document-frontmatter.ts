@@ -130,13 +130,31 @@ function patchRawFrontmatter(raw: string, fields: CatDocumentFrontmatterField[])
     .join("\n");
 }
 
+function unescapeDoubleQuotedYaml(inner: string) {
+  return inner
+    .replaceAll("\\\\", "\u0000")
+    .replaceAll("\\n", "\n")
+    .replaceAll("\\t", "\t")
+    .replaceAll("\\r", "\r")
+    .replaceAll('\\"', '"')
+    .replaceAll("\u0000", "\\");
+}
+
 function unquoteYamlScalar(value: string) {
   const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "string") {
+        return parsed;
+      }
+    } catch {
+      // YAML double-quoted scalars are JSON-like; fall back to common escapes.
+    }
+    return unescapeDoubleQuotedYaml(trimmed.slice(1, -1));
+  }
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replaceAll("''", "'");
   }
   return trimmed;
 }
@@ -145,7 +163,7 @@ function quoteYamlScalar(value: string) {
   if (
     value === "" ||
     value !== value.trim() ||
-    /[:#{}[\],&*?|<>=!%@`]/.test(value) ||
+    /[\n\r\t:#{}[\],&*?|<>=!%@`]/.test(value) ||
     isYamlAmbiguousScalar(value)
   ) {
     return JSON.stringify(value);

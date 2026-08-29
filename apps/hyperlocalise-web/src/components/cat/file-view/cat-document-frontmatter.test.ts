@@ -149,4 +149,59 @@ draft: "true"
 # Hello
 `);
   });
+
+  it("decodes escaped newlines in double-quoted YAML scalars", () => {
+    const rawFrontmatter = `title: "Line\\nOne"`;
+    const split = splitCatDocument(`---\n${rawFrontmatter}\n---\n\n# Hello\n`);
+    expect(split.fields).toEqual([
+      { key: "title", value: "Line\nOne", rawValue: '"Line\\nOne"' },
+    ]);
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: split.fields,
+        body: "# Hello\n",
+        rawFrontmatter: split.rawFrontmatter,
+      }),
+    ).toBe(`---
+title: "Line\\nOne"
+---
+# Hello
+`);
+  });
+
+  it("rewrites an edited multiline YAML scalar with JSON-style escapes", () => {
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: [{ key: "title", value: "Line\nTwo", rawValue: '"Line\\nOne"' }],
+        body: "# Hello\n",
+        rawFrontmatter: `title: "Line\\nOne"`,
+      }),
+    ).toBe(`---
+title: "Line\\nTwo"
+---
+# Hello
+`);
+  });
+
+  it("unescapes doubled single quotes in YAML scalars", () => {
+    const rawFrontmatter = `title: 'It''s fine'`;
+    const split = splitCatDocument(`---\n${rawFrontmatter}\n---\n\n# Hello\n`);
+    expect(split.fields).toEqual([
+      { key: "title", value: "It's fine", rawValue: "'It''s fine'" },
+    ]);
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: split.fields,
+        body: "# Hello\n",
+        rawFrontmatter: split.rawFrontmatter,
+      }),
+    ).toBe(`---
+title: 'It''s fine'
+---
+# Hello
+`);
+  });
 });
