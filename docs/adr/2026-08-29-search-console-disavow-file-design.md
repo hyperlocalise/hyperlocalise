@@ -2,9 +2,10 @@
 
 ## Context
 
-Ahrefs flagged 19 referring domains as spam: paid backlink shops and PBN-style
-link sellers. Google Search Console ignores those links only after we upload a
-disavow file. Hosting the file on the site does not apply it.
+Ahrefs flagged referring domains as spam: paid backlink shops, PBN-style
+link sellers, and related spam hosts. Google Search Console ignores those
+links only after we upload a disavow file. Hosting the file on the site
+does not apply it.
 
 ## Decision
 

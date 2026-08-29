@@ -22,15 +22,16 @@ describe("buildDisavowFile", () => {
       true,
     );
     expect(body).toContain("Upload at Search Console > Removals > Disavow links.");
-    expect(DISAVOW_DOMAINS).toHaveLength(19);
+    expect(DISAVOW_DOMAINS).toHaveLength(38);
 
     for (const domain of DISAVOW_DOMAINS) {
       expect(body).toContain(`domain:${domain}`);
     }
 
     expect(body).toContain("domain:backlinker.shop");
-    expect(body).toContain("domain:buybacklinks.agency");
-    expect(body).toContain("domain:quero.party");
+    expect(body).toContain("domain:analyticshaven.top");
+    expect(body).toContain("domain:seoexpress.website");
+    expect(body).toContain("domain:ekenkoshop.shop");
   });
 
   it("deduplicates, lowercases, and sorts domain entries", () => {
