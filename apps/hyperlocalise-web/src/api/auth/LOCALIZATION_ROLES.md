@@ -71,10 +71,11 @@ integrations or members. Localization managers share operational administration
 with admins except billing write.
 
 `api_keys:read` and `api_keys:write` govern **other members'** personal access
-tokens, not the caller's own. Every member lists and revokes the tokens they own
-with nothing beyond an active membership. `api_keys:read` adds visibility of
-every token in the workspace, and `api_keys:write` adds revoking somebody
-else's. See
+tokens, not the caller's own. Every member creates, lists, and revokes the
+tokens they own with nothing beyond an active membership. Granted scopes are
+capped by the owner's role, so a `member` token is read-only. `api_keys:read`
+adds visibility of every token in the workspace, and `api_keys:write` adds
+revoking somebody else's. See
 [`docs/adr/2026-08-29-personal-access-token-contract-design.md`](../../../../docs/adr/2026-08-29-personal-access-token-contract-design.md).
 
 Translators do **not** receive `glossaries:write`. They may still create team
