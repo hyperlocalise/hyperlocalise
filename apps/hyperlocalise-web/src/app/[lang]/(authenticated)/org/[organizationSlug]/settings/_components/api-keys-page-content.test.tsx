@@ -108,7 +108,7 @@ describe("ApiKeySettingsPageContent", () => {
     await waitFor(() => {
       expect(screen.getByText("Production CI")).toBeInTheDocument();
     });
-    expect(screen.getByText(/Created Aug 1, 2026/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Created Aug 1, 2026/)).toHaveLength(2);
     expect(screen.getByText(/Last used Never/)).toBeInTheDocument();
     expect(screen.getByText(/Last used Aug 2, 2026/)).toBeInTheDocument();
   });

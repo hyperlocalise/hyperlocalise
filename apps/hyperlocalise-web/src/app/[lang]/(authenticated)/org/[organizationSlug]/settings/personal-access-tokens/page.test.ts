@@ -13,9 +13,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { requireAppCapabilityMock, personalAccessTokensPageContentMock } = vi.hoisted(() => ({
+const { requireAppCapabilityMock } = vi.hoisted(() => ({
   requireAppCapabilityMock: vi.fn(),
-  personalAccessTokensPageContentMock: vi.fn(),
 }));
 
 vi.mock("@/lib/workos/app-auth", () => ({
@@ -23,10 +22,7 @@ vi.mock("@/lib/workos/app-auth", () => ({
 }));
 
 vi.mock("../_components/personal-access-tokens-page-content", () => ({
-  PersonalAccessTokensPageContent: (props: unknown) => {
-    personalAccessTokensPageContentMock(props);
-    return null;
-  },
+  PersonalAccessTokensPageContent: () => null,
 }));
 
 import PersonalAccessTokensSettingsPage from "./page";
@@ -39,14 +35,14 @@ describe("PersonalAccessTokensSettingsPage", () => {
   });
 
   it("gates the route on api_keys:write and renders the signed-in user's tokens", async () => {
-    await PersonalAccessTokensSettingsPage({
+    const element = await PersonalAccessTokensSettingsPage({
       params: Promise.resolve({ organizationSlug: "acme" }),
     });
 
     expect(requireAppCapabilityMock).toHaveBeenCalledWith("api_keys:write", {
       organizationSlug: "acme",
     });
-    expect(personalAccessTokensPageContentMock).toHaveBeenCalledWith({
+    expect(element.props).toEqual({
       canManageTokens: true,
       currentUserId: "user_1",
       organizationSlug: "acme",

@@ -352,6 +352,7 @@ export function PersonalAccessTokensPageContent({
                   size="sm"
                   variant="outline"
                   className="absolute top-1/2 right-2 -translate-y-1/2"
+                  aria-label={intl.formatMessage(messages.copy)}
                   onClick={() => handleCopyToken(createdToken)}
                 >
                   {copied ? (

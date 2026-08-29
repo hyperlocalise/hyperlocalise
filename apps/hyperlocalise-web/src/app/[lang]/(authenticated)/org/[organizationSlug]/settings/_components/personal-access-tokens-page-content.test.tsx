@@ -109,8 +109,9 @@ function renderPage(options?: { canManageTokens?: boolean }) {
 
 beforeEach(() => {
   writeTextMock.mockResolvedValue(undefined);
-  Object.defineProperty(navigator, "clipboard", {
+  Object.defineProperty(window.navigator, "clipboard", {
     configurable: true,
+    writable: true,
     value: { writeText: writeTextMock },
   });
 });
@@ -157,13 +158,19 @@ describe("PersonalAccessTokensPageContent", () => {
     expect(screen.getByText("CI bot")).toBeInTheDocument();
     expect(screen.queryByText("Someone else")).not.toBeInTheDocument();
     expect(screen.getByText(/Last used Never/)).toBeInTheDocument();
-    expect(screen.getByText(/Created Aug 1, 2026/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Created Aug 1, 2026/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Last used Aug 2, 2026/)).toBeInTheDocument();
     expect(screen.getByText("Revoked")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Revoke" })).toBeInTheDocument();
   });
 
   it("shows the full secret once after creation and hides it after dismissal", async () => {
     const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
     postMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -192,7 +199,7 @@ describe("PersonalAccessTokensPageContent", () => {
     await user.click(await screen.findByRole("button", { name: "Create token" }));
     const createDialog = screen.getByRole("dialog");
     await user.type(within(createDialog).getByLabelText("Token name"), "Local CLI");
-    await user.click(within(createDialog).getByLabelText("Write jobs"));
+    await user.click(within(createDialog).getByRole("checkbox", { name: "Write jobs" }));
     await user.click(within(createDialog).getByRole("button", { name: "Create token" }));
 
     await waitFor(() => {
@@ -207,9 +214,7 @@ describe("PersonalAccessTokensPageContent", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
-    await waitFor(() => {
-      expect(writeTextMock).toHaveBeenCalledWith(CREATED_SECRET);
-    });
+    expect(writeText).toHaveBeenCalledWith(CREATED_SECRET);
 
     await user.click(screen.getByRole("button", { name: "Done" }));
 
