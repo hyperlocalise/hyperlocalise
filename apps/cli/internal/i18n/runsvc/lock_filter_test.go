@@ -124,6 +124,50 @@ func TestApplyLockFilterMigratesLegacyMarkdownWhenInsertedParagraphShiftsStructu
 	}
 }
 
+func TestApplyLockFilterMigratesLegacyMarkdownStructuralEntryKeyAfterInsertion(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.Paragraph[2]/line[0]"
+	task.SourceText = "Existing outro."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: Paragraph[2]/line[0]",
+	}, "\n")
+
+	old := task
+	old.EntryKey = "md.Paragraph[1]/line[0]"
+	old.SourceContext = strings.ReplaceAll(task.SourceContext, "Paragraph[2]", "Paragraph[1]")
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, old.EntryKey): {
+			SourceHash: hashSourceText(old.SourceText),
+			TaskHash:   legacyContextSensitiveLockTaskHash(old),
+		},
+	}
+
+	report, executable, _, migrated, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 1 {
+		t.Fatalf("expected unchanged markdown segment to be skipped, got report %+v", report)
+	}
+	if len(executable) != 0 {
+		t.Fatalf("expected no executable tasks, got %d", len(executable))
+	}
+	if !migrated {
+		t.Fatalf("expected legacy markdown entry key to migrate")
+	}
+	if _, ok := completed[taskIdentity(task.TargetPath, old.EntryKey)]; ok {
+		t.Fatalf("expected legacy entry key to be removed after migration")
+	}
+	if got, want := completed[taskIdentity(task.TargetPath, task.EntryKey)].TaskHash, lockTaskHash(task); got != want {
+		t.Fatalf("expected migrated task hash %q, got %q", want, got)
+	}
+}
+
 func TestLockTaskHashIgnoresMarkdownPromptContext(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.md"

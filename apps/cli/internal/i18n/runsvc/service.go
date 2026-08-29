@@ -1002,6 +1002,16 @@ func taskIdentity(targetPath, entryKey string) string {
 	return targetPath + "::" + entryKey
 }
 
+func taskIdentityCandidates(task Task) []string {
+	identities := []string{taskIdentity(task.TargetPath, task.EntryKey)}
+	if isMarkdownEntryKey(task.EntryKey) {
+		for _, entryKey := range legacyMarkdownEntryKeyCandidates(task.EntryKey) {
+			identities = append(identities, taskIdentity(task.TargetPath, entryKey))
+		}
+	}
+	return dedupeStrings(identities)
+}
+
 func hashSourceText(source string) string {
 	// BOLT OPTIMIZATION: Use unsafe string slice to avoid []byte(source) heap allocations.
 	sum := sha512.Sum512(unsafe.Slice(unsafe.StringData(source), len(source)))

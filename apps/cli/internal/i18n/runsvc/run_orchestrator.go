@@ -372,12 +372,16 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 		sourceHash := taskLockSourceHash(task)
 		taskHashes := lockTaskHashCandidates(task)
 		taskHash := taskHashes[0]
-		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHashes) {
+		if cp, matchedIdentity, ok := findCheckpointForTask(checkpoints, task, activeRunID, sourceHash, taskHashes); ok {
 			if !lockFingerprintEqual(cp.TaskHash, taskHash) {
 				cp.TaskHash = taskHash
-				checkpoints[identity] = cp
 				lockMigrated = true
 			}
+			if matchedIdentity != identity {
+				delete(checkpoints, matchedIdentity)
+				lockMigrated = true
+			}
+			checkpoints[identity] = cp
 			var stageErr error
 			if isImageTask(task) {
 				content, err := readImageCheckpointContent(cp.Value, task.TargetPath, readFile)
@@ -397,12 +401,16 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, stageErr)
 			}
 		}
-		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHashes) {
-			if !lockFingerprintEqual(c.TaskHash, taskHash) {
-				c.TaskHash = taskHash
-				completed[identity] = c
+		if completion, matchedIdentity, ok := findCompletionForTask(completed, task, sourceHash, taskHashes); ok {
+			if !lockFingerprintEqual(completion.TaskHash, taskHash) {
+				completion.TaskHash = taskHash
 				lockMigrated = true
 			}
+			if matchedIdentity != identity {
+				delete(completed, matchedIdentity)
+				lockMigrated = true
+			}
+			completed[identity] = completion
 			report.SkippedByLock++
 			report.Skipped = append(report.Skipped, task)
 			continue
@@ -419,6 +427,37 @@ func taskLockSourceHash(task Task) string {
 		return strings.TrimSpace(task.sourceFingerprint)
 	}
 	return lockStoredFingerprint(task.SourceText)
+}
+
+func findCompletionForTask(
+	completed map[string]lockfile.RunCompletion,
+	task Task,
+	sourceHash string,
+	taskHashes []string,
+) (lockfile.RunCompletion, string, bool) {
+	for _, identity := range taskIdentityCandidates(task) {
+		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes) {
+			return completion, identity, true
+		}
+	}
+	return lockfile.RunCompletion{}, "", false
+}
+
+func findCheckpointForTask(
+	checkpoints map[string]lockfile.RunCheckpoint,
+	task Task,
+	activeRunID string,
+	sourceHash string,
+	taskHashes []string,
+) (lockfile.RunCheckpoint, string, bool) {
+	for _, identity := range taskIdentityCandidates(task) {
+		if checkpoint, ok := checkpoints[identity]; ok &&
+			checkpointMatchesActiveRun(checkpoint, activeRunID) &&
+			checkpointMatchesTask(checkpoint, sourceHash, taskHashes) {
+			return checkpoint, identity, true
+		}
+	}
+	return lockfile.RunCheckpoint{}, "", false
 }
 
 func lockTaskHashCandidates(task Task) []string {

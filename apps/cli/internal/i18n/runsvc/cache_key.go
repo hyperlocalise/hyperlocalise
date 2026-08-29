@@ -89,6 +89,45 @@ func legacyMarkdownSourceContextVariants(context string) []string {
 	return dedupeStrings(contexts)
 }
 
+func legacyMarkdownEntryKeyCandidates(entryKey string) []string {
+	if !isMarkdownEntryKey(entryKey) {
+		return nil
+	}
+
+	path := strings.TrimPrefix(entryKey, "md.")
+	if path == entryKey {
+		return nil
+	}
+
+	slotSuffix := ""
+	if dot := strings.LastIndex(path, "."); dot > 0 {
+		suffix := path[dot+1:]
+		if _, err := strconv.Atoi(suffix); err == nil && !strings.Contains(suffix, "[") {
+			slotSuffix = path[dot:]
+			path = path[:dot]
+		}
+	}
+
+	const maxShift = 8
+	matches := markdownStructuralOrdinalPattern.FindAllStringSubmatchIndex(path, -1)
+	var candidates []string
+	for _, match := range matches {
+		if len(match) < 4 || match[2] < 0 || match[3] < 0 {
+			continue
+		}
+		ordinal, err := strconv.Atoi(path[match[2]:match[3]])
+		if err != nil || ordinal <= 0 {
+			continue
+		}
+		for shift := 1; shift <= maxShift && shift <= ordinal; shift++ {
+			replacement := strconv.Itoa(ordinal - shift)
+			variantPath := path[:match[2]] + replacement + path[match[3]:]
+			candidates = append(candidates, "md."+variantPath+slotSuffix)
+		}
+	}
+	return dedupeStrings(candidates)
+}
+
 func markdownStructuralPathLegacyLineVariants(line string) []string {
 	// Try nearby previous ordinals for one structural path component at a time.
 	// Combined shifts across multiple components may still fall through to
