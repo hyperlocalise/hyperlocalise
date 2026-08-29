@@ -139,6 +139,10 @@
     "defaultMessage": "Save changes",
     "description": "Submit button to save team edits"
   },
+  "+HuJAuB0t9": {
+    "defaultMessage": "{prefix}••••••••",
+    "description": "Masked personal access token prefix shown in the tokens list"
+  },
   "+IioXi9AED": {
     "defaultMessage": "{source} · {memoryName}",
     "description": "Badge label for a TM match without a match score"
@@ -159,6 +163,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a provider detail value is empty"
   },
+  "+PMnKh88zf": {
+    "defaultMessage": "Create token",
+    "description": "Button to open the create personal access token dialog"
+  },
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush",
     "description": "Menu item and tool title for Semrush SEO data"
@@ -178,6 +186,10 @@
   "+RWDHuTqY1": {
     "defaultMessage": "You",
     "description": "Badge marking the current user in the members list"
+  },
+  "+ReDnUGTh8": {
+    "defaultMessage": "Read files",
+    "description": "Label for the files:read personal access token scope"
   },
   "+ShkkHu7T/": {
     "defaultMessage": "Detect terminology drift and glossary violations",
@@ -1487,6 +1499,10 @@
     "defaultMessage": "Pull product context from where work happens",
     "description": "Capability 1 title for the product-localisation use case"
   },
+  "2KvGnHEdon": {
+    "defaultMessage": "Create personal access token",
+    "description": "Title of the create personal access token dialog before the token is generated"
+  },
   "2L6MEhuN0z": {
     "defaultMessage": "Available plans",
     "description": "Available plans card title on billing settings"
@@ -2087,6 +2103,10 @@
     "defaultMessage": "Contextual Audit",
     "description": "Label for the contextual dimension on a localisation audit result"
   },
+  "46mxXNVZOE": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Accessible label for the personal access tokens list section"
+  },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
@@ -2362,6 +2382,10 @@
   "4zerueK9Yh": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale field on a translation memory entry"
+  },
+  "4zktnpEEph": {
+    "defaultMessage": "Copied",
+    "description": "Copy button label after the personal access token was copied"
   },
   "5+B0FprGyT": {
     "defaultMessage": "Set up an automation in minutes. Choose a trigger, write instructions, and connect your tools.",
@@ -3367,6 +3391,10 @@
     "defaultMessage": "No proposals match the current filters.",
     "description": "Empty state when proposal filters hide all items"
   },
+  "8/d+YUPBnH": {
+    "defaultMessage": "Failed to load personal access tokens",
+    "description": "Error when the personal access token list request fails"
+  },
   "80QeJXvhPz": {
     "defaultMessage": "{count, plural, one {# file selected} other {# files selected}}",
     "description": "Count of files selected in the knowledge upload dropzone"
@@ -3474,6 +3502,10 @@
   "8HNfmSDv7C": {
     "defaultMessage": "Jobs",
     "description": "Project sidebar navigation item for project jobs"
+  },
+  "8Hjm43yYnV": {
+    "defaultMessage": "Done",
+    "description": "Button to close the create personal access token dialog after copying the token"
   },
   "8HnJuAO7Ry": {
     "defaultMessage": "Select all files in {folder}",
@@ -3766,6 +3798,10 @@
   "91uWukrQcJ": {
     "defaultMessage": "Source upload",
     "description": "Label for the source upload trigger"
+  },
+  "92LVblg9pm": {
+    "defaultMessage": "Revoke",
+    "description": "Button to open the revoke personal access token confirmation dialog"
   },
   "92YYrAXEnO": {
     "defaultMessage": "Check",
@@ -4571,6 +4607,10 @@
     "defaultMessage": "Previous",
     "description": "Button to go to the previous page of glossaries"
   },
+  "BVFhAbsoXi": {
+    "defaultMessage": "Last used {date}",
+    "description": "Personal access token row showing last-used timestamp"
+  },
   "BVsezPmDFQ": {
     "defaultMessage": "Enter provider API token",
     "description": "Placeholder for the API token or secret field"
@@ -5351,6 +5391,10 @@
     "defaultMessage": "Live API",
     "description": "Badge for a glossary backed by a live provider API"
   },
+  "DbRS/Sgecx": {
+    "defaultMessage": "Failed to create personal access token",
+    "description": "Error when creating a personal access token fails"
+  },
   "DbdjwrPI01": {
     "defaultMessage": "Clear",
     "description": "Button label to clear a native segment max length"
@@ -5983,6 +6027,10 @@
     "defaultMessage": "Your role cannot resolve issues in the provider.",
     "description": "Error when the user tries to resolve an issue without write permission"
   },
+  "FNMpDCUVel": {
+    "defaultMessage": "e.g. Local CLI",
+    "description": "Placeholder for the personal access token name field"
+  },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · in progress",
     "description": "Automation run metadata while the run is still in progress"
@@ -6070,6 +6118,10 @@
   "FkLEYWNws0": {
     "defaultMessage": "Context",
     "description": "App shell breadcrumb title for a project context section"
+  },
+  "FkaxnjKpJo": {
+    "defaultMessage": "Personal access tokens failed to load.",
+    "description": "Error title when the personal access token list fails to load"
   },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation",
@@ -6511,6 +6563,10 @@
     "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly.",
     "description": "Success body after the agent commits the PR fix, wrapping code examples"
   },
+  "HBa8DUN9di": {
+    "defaultMessage": "Never",
+    "description": "Shown when a personal access token has never been used"
+  },
   "HCHtNgw+mH": {
     "defaultMessage": "—",
     "description": "Placeholder shown when a job detail field has no value"
@@ -6542,6 +6598,10 @@
   "HHzUD/7JQL": {
     "defaultMessage": "Select page",
     "description": "Checkbox label to select all proposals on the current page"
+  },
+  "HI79wvAm15": {
+    "defaultMessage": "Token name",
+    "description": "Label for the personal access token name field"
   },
   "HIVm1saP2n": {
     "defaultMessage": "Any",
@@ -6647,6 +6707,10 @@
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error when a team fails to load without a message"
   },
+  "HiMjguB4KA": {
+    "defaultMessage": "Create tokens for the CLI, CI, and integrations. A token acts with your current workspace access and stops working if you leave the organization.",
+    "description": "Personal access tokens settings page description"
+  },
   "Hl4y/YDhod": {
     "defaultMessage": "Knowledge files must be 25 MB or smaller.",
     "description": "Toast when a knowledge file exceeds the size limit"
@@ -6658,6 +6722,10 @@
   "HmDnokfJEK": {
     "defaultMessage": "Resolved",
     "description": "Label for issue resolved timestamp"
+  },
+  "Hmhv+bwMHl": {
+    "defaultMessage": "Revoke personal access token",
+    "description": "Title of the revoke personal access token confirmation dialog"
   },
   "Hmzt+zT6qT": {
     "defaultMessage": "Persian (Iran)",
@@ -6722,6 +6790,10 @@
   "I/IBBrTtGZ": {
     "defaultMessage": "Off-brand — too formal and jargon-heavy for DE checkout.",
     "description": "Verdict body in brand chat answer"
+  },
+  "I/X2yKFPvq": {
+    "defaultMessage": "No personal access tokens yet",
+    "description": "Empty state title when the signed-in user has no personal access tokens"
   },
   "I1+Lm6XV/X": {
     "defaultMessage": "The latest QA run completed without findings. Re-run checks after content changes to refresh this view.",
@@ -7023,6 +7095,10 @@
     "defaultMessage": "Queued",
     "description": "Progress step label when a localisation audit is queued"
   },
+  "IwY8/sp/Us": {
+    "defaultMessage": "Loading personal access tokens...",
+    "description": "Loading state while fetching personal access tokens"
+  },
   "Ix3K4U4BqM": {
     "defaultMessage": "Find answers.",
     "description": "Secondary heading under the FAQ section title"
@@ -7062,6 +7138,10 @@
   "J6dfku2qcD": {
     "defaultMessage": "ICU structure",
     "description": "Heading for ICU plural/select structure summary below the CAT target editor"
+  },
+  "J6oQSQkAMH": {
+    "defaultMessage": "Copy a new token immediately. You cannot view the secret again after you close this page.",
+    "description": "Personal access tokens settings page note about one-time secret disclosure"
   },
   "J7Yta0PrqK": {
     "defaultMessage": "Select channel",
@@ -7467,6 +7547,10 @@
     "defaultMessage": "Built by people who believe localisation connects the world",
     "description": "Primary headline on the marketing company page"
   },
+  "KcTDcaeXZ6": {
+    "defaultMessage": "Revoke token",
+    "description": "Confirm button to revoke a personal access token"
+  },
   "Kdyh8ZKnlc": {
     "defaultMessage": "Untranslated",
     "description": "CAT queue filter option for segments without a target translation"
@@ -7738,6 +7822,10 @@
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})",
     "description": "Heading for the source file pane in CAT File view"
+  },
+  "Lao1OE+Yco": {
+    "defaultMessage": "Revoking...",
+    "description": "Revoke personal access token button label while the request is pending"
   },
   "LcZxj/pk5J": {
     "defaultMessage": "Hour",
@@ -8839,6 +8927,10 @@
     "defaultMessage": "The organization for this install request could not be found.",
     "description": "GitHub connect error when organization cannot be resolved"
   },
+  "P4ziQ35k5c": {
+    "defaultMessage": "Create token",
+    "description": "Submit button to create a personal access token"
+  },
   "P5KI62Z4os": {
     "defaultMessage": "Exa",
     "description": "Web Search provider option for Exa Search"
@@ -9138,6 +9230,10 @@
   "PzDClqsKFJ": {
     "defaultMessage": "Support localisation that stays connected to the product",
     "description": "Differentiator section title for the help-center-localisation use case"
+  },
+  "PzzfOXPhiI": {
+    "defaultMessage": "Token copied to clipboard",
+    "description": "Success toast after copying a newly created personal access token"
   },
   "Q+H5CN9hp3": {
     "defaultMessage": "Jobs",
@@ -10286,6 +10382,10 @@
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
     "description": "Workflow section description for the help-center-localisation use case"
+  },
+  "TfZLiRg/Of": {
+    "defaultMessage": "Account settings",
+    "description": "Breadcrumb-style label above the personal access tokens page title"
   },
   "TfjiaDPI2s": {
     "defaultMessage": "French launch",
@@ -11679,6 +11779,10 @@
     "defaultMessage": "AI Engine",
     "description": "AI Engine page heading"
   },
+  "YET/zfsmQK": {
+    "defaultMessage": "Create a token to authenticate scripts and integrations as yourself in this workspace.",
+    "description": "Empty state description for the personal access tokens list"
+  },
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise logo in the app shell sidebar"
@@ -12355,6 +12459,10 @@
     "defaultMessage": "Checked missing translations and placeholders",
     "description": "Automations mock UI localisation review step 3"
   },
+  "aAVsaNQKhJ": {
+    "defaultMessage": "Copy this token now. You will not be able to see it again.",
+    "description": "Warning shown after a personal access token is created"
+  },
   "aB+i4xfdMu": {
     "defaultMessage": "Locale",
     "description": "Placeholder for the proposal locale filter"
@@ -12399,6 +12507,10 @@
     "defaultMessage": "File view",
     "description": "CAT workspace view mode that previews source and translated files side by side"
   },
+  "aHuYKA3Myv": {
+    "defaultMessage": "Created {date}",
+    "description": "Personal access token row showing creation timestamp"
+  },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete",
     "description": "Confirm button to delete a project"
@@ -12430,6 +12542,10 @@
   "aMf9NbDyem": {
     "defaultMessage": "No image yet",
     "description": "Fallback empty state when a CAT image preview has no source URL"
+  },
+  "aMnfNfkmk0": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in personal access token dialogs"
   },
   "aQKVpqRw8t": {
     "defaultMessage": "Remove Crowdin tool",
@@ -12847,6 +12963,10 @@
     "defaultMessage": "Refresh repo list",
     "description": "Refresh repository list button label"
   },
+  "bwuFPmHIKZ": {
+    "defaultMessage": "Read jobs",
+    "description": "Label for the jobs:read personal access token scope"
+  },
   "bxdlmS/zEn": {
     "defaultMessage": "at",
     "description": "Prefix before a stack frame location in the stack trace display"
@@ -12890,6 +13010,10 @@
   "c7/0cqs4Ou": {
     "defaultMessage": "Highlight translatable",
     "description": "Label for toggle that highlights translatable nodes in the preview"
+  },
+  "c7WOdqmQLb": {
+    "defaultMessage": "Name the token and choose the scopes it may use. The token can only do what your current role allows.",
+    "description": "Description in the create personal access token dialog before generation"
   },
   "c7ggsCcxGl": {
     "defaultMessage": "AI translation draft",
@@ -13114,6 +13238,10 @@
   "ctE3s3xZAZ": {
     "defaultMessage": "Upload guideline",
     "description": "Heading for the guideline upload empty state"
+  },
+  "cthbIcABnk": {
+    "defaultMessage": "Refresh the page to try again.",
+    "description": "Fallback error guidance when loading personal access tokens fails"
   },
   "cv2g6Sf3ye": {
     "defaultMessage": "Projects unavailable",
@@ -13663,6 +13791,10 @@
     "defaultMessage": "Open billing",
     "description": "Link to the billing page from the plan usage dialog"
   },
+  "eTaaI/udxD": {
+    "defaultMessage": "Permissions: {permissions}",
+    "description": "Personal access token row showing granted permissions"
+  },
   "eTfP1zMvKR": {
     "defaultMessage": "No project locales configured",
     "description": "Shown when a project has no target locales for the picker"
@@ -13839,6 +13971,10 @@
     "defaultMessage": "Select source files",
     "description": "Title for the existing source-file selection dialog"
   },
+  "f0rGMa1YlF": {
+    "defaultMessage": "Personal access token created",
+    "description": "Title of the create personal access token dialog after the token is generated"
+  },
   "f22yrNzzSr": {
     "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
     "description": "Banner prompting the user to pick a repository for CAT context lookup"
@@ -13902,6 +14038,10 @@
   "fFie7livIj": {
     "defaultMessage": "Checking git history",
     "description": "Live explore status when the agent inspects git history"
+  },
+  "fHCU/ReHP1": {
+    "defaultMessage": "Personal access token revoked",
+    "description": "Success toast after revoking a personal access token"
   },
   "fHo3lZ3Ncd": {
     "defaultMessage": "What you need in order to translate it (audience, tone, who is speaking)",
@@ -14034,6 +14174,10 @@
   "fhtliL5Eg6": {
     "defaultMessage": "Could not save changes.",
     "description": "Toast when issue detail update fails"
+  },
+  "fiHxHRsgLP": {
+    "defaultMessage": "Copy",
+    "description": "Button to copy the newly created personal access token"
   },
   "fiJRizjueJ": {
     "defaultMessage": "Could not load this linked domain.",
@@ -15871,6 +16015,10 @@
     "defaultMessage": "Target locales",
     "description": "Detail row label for target locales"
   },
+  "kpE4nKZSfj": {
+    "defaultMessage": "Create and revoke tokens that act with your current workspace access.",
+    "description": "Settings hub row description for personal access tokens"
+  },
   "kpb8SkGVO8": {
     "defaultMessage": "What's the context of \"Save\"?",
     "description": "Prefilled prompt shown in the marketing chat dock mock composer and transcript"
@@ -16519,6 +16667,10 @@
     "defaultMessage": "Contentful",
     "description": "Contentful CMS integration name on the integrations page"
   },
+  "muDf9vplZF": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Personal access tokens settings page heading"
+  },
   "muwnlAh1Hy": {
     "defaultMessage": "Enter a valid IANA timezone such as UTC or America/New_York.",
     "description": "API error when scheduled automation timezone is invalid"
@@ -16594,6 +16746,10 @@
   "n8LjMOVBA2": {
     "defaultMessage": "In progress",
     "description": "Issue status filter option when an issue is in progress"
+  },
+  "n8n3wB0NdJ": {
+    "defaultMessage": "Personal access tokens",
+    "description": "App shell breadcrumb title for the personal access tokens settings page"
   },
   "n9PAvhdA7/": {
     "defaultMessage": "Open in workspace",
@@ -18023,6 +18179,10 @@
     "defaultMessage": "Keep it short and action-oriented.",
     "description": "Intent for the CTA segment in the hero CAT mock"
   },
+  "rfxarBP3bw": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Settings hub row label for personal access tokens"
+  },
   "rg7WUSTOmR": {
     "defaultMessage": "Capture a localization issue and optionally link it to the Content Editor or an external tracker.",
     "description": "Description of the create Issue Sheet issue dialog"
@@ -18342,6 +18502,10 @@
   "seugisaDUz": {
     "defaultMessage": "Issue ID copied",
     "description": "Toast after copying the human-readable issue ID"
+  },
+  "sgX5Rsm3o2": {
+    "defaultMessage": "Failed to copy to clipboard",
+    "description": "Error toast when clipboard copy of a personal access token fails"
   },
   "shk3PWB9yz": {
     "defaultMessage": "Targets {locales}",
@@ -18859,6 +19023,10 @@
     "defaultMessage": "Try again",
     "description": "Button to retry loading translation memory entries"
   },
+  "uOVxCxrze+": {
+    "defaultMessage": "Write files",
+    "description": "Label for the files:write personal access token scope"
+  },
   "uP6J0sc7cw": {
     "defaultMessage": "Show not applicable",
     "description": "Control to expand not-applicable localisation audit criteria"
@@ -18922,6 +19090,10 @@
   "uWYTH2Am0l": {
     "defaultMessage": "Tone: friendly, direct, no jargon",
     "description": "Guideline mock UI style rule"
+  },
+  "uWZaRhX/fw": {
+    "defaultMessage": "Creating...",
+    "description": "Create personal access token button label while the request is pending"
   },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
@@ -19199,6 +19371,10 @@
     "defaultMessage": "main",
     "description": "Placeholder for branch pattern input"
   },
+  "vKbdY7WUiz": {
+    "defaultMessage": "Revoke {name} ({prefix}…)? Integrations using this token will lose access immediately.",
+    "description": "Description in the revoke personal access token confirmation dialog identifying the token"
+  },
   "vKq2ly7dxU": {
     "defaultMessage": "New request",
     "description": "Button to start a new localization request from the dashboard"
@@ -19431,6 +19607,10 @@
     "defaultMessage": "Provider managed",
     "description": "Capability badge for provider-managed translation memories"
   },
+  "w0GmwP02os": {
+    "defaultMessage": "Permissions",
+    "description": "Legend for the personal access token permission scope checkboxes"
+  },
   "w1P9m9KNH8": {
     "defaultMessage": "{sourceLabel} · {localeRoute}",
     "description": "Secondary metadata line for a project row without a last-updated time"
@@ -19511,6 +19691,10 @@
     "defaultMessage": "Markdown/Text",
     "description": "Button to start a blank markdown knowledge memory document"
   },
+  "wEosoevZBb": {
+    "defaultMessage": "Write jobs",
+    "description": "Label for the jobs:write personal access token scope"
+  },
   "wGu07dv5qW": {
     "defaultMessage": "Project: {projectName}",
     "description": "Crowdin App inbox header showing the linked Hyperlocalise project"
@@ -19538,6 +19722,10 @@
   "wLz+lanHT9": {
     "defaultMessage": "Synced Canva board \"Spring campaign / EN\" — 48 text layers ready for intake.",
     "description": "Earlier agent message in the Slack channel (shown muted)"
+  },
+  "wMnFRUeiEV": {
+    "defaultMessage": "Failed to revoke personal access token",
+    "description": "Error when revoking a personal access token fails"
   },
   "wMxGDB1lvE": {
     "defaultMessage": "Status",
@@ -19938,6 +20126,10 @@
   "xTNiGIIXkt": {
     "defaultMessage": "Email me a summary when ready",
     "description": "Heading for the notify-me form on a running localisation audit"
+  },
+  "xTTGUv5tVB": {
+    "defaultMessage": "Revoked",
+    "description": "Badge shown on a revoked personal access token"
   },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace",
@@ -20782,197 +20974,5 @@
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
     "description": "Screen reader label for the repository enabled checkbox column"
-  },
-  "pAtNvUsed01": {
-    "defaultMessage": "Never",
-    "description": "Shown when a personal access token has never been used"
-  },
-  "pAtLdFail01": {
-    "defaultMessage": "Failed to load personal access tokens",
-    "description": "Error when the personal access token list request fails"
-  },
-  "pAtCrFail01": {
-    "defaultMessage": "Failed to create personal access token",
-    "description": "Error when creating a personal access token fails"
-  },
-  "pAtRvFail01": {
-    "defaultMessage": "Failed to revoke personal access token",
-    "description": "Error when revoking a personal access token fails"
-  },
-  "pAtRvToas01": {
-    "defaultMessage": "Personal access token revoked",
-    "description": "Success toast after revoking a personal access token"
-  },
-  "pAtCpToas01": {
-    "defaultMessage": "Token copied to clipboard",
-    "description": "Success toast after copying a newly created personal access token"
-  },
-  "pAtCpFail01": {
-    "defaultMessage": "Failed to copy to clipboard",
-    "description": "Error toast when clipboard copy of a personal access token fails"
-  },
-  "pAtPgLbl01": {
-    "defaultMessage": "Account settings",
-    "description": "Breadcrumb-style label above the personal access tokens page title"
-  },
-  "pAtPgTtl01": {
-    "defaultMessage": "Personal access tokens",
-    "description": "Personal access tokens settings page heading"
-  },
-  "pAtPgDsc01": {
-    "defaultMessage": "Create tokens for the CLI, CI, and integrations. A token acts with your current workspace access and stops working if you leave the organization.",
-    "description": "Personal access tokens settings page description"
-  },
-  "pAtPgDtl01": {
-    "defaultMessage": "Copy a new token immediately. You cannot view the secret again after you close this page.",
-    "description": "Personal access tokens settings page note about one-time secret disclosure"
-  },
-  "pAtCrBtn01": {
-    "defaultMessage": "Create token",
-    "description": "Button to open the create personal access token dialog"
-  },
-  "pAtSecLbl01": {
-    "defaultMessage": "Personal access tokens",
-    "description": "Accessible label for the personal access tokens list section"
-  },
-  "pAtLoading1": {
-    "defaultMessage": "Loading personal access tokens...",
-    "description": "Loading state while fetching personal access tokens"
-  },
-  "pAtLdErrT1": {
-    "defaultMessage": "Personal access tokens failed to load.",
-    "description": "Error title when the personal access token list fails to load"
-  },
-  "pAtLdErrF1": {
-    "defaultMessage": "Refresh the page to try again.",
-    "description": "Fallback error guidance when loading personal access tokens fails"
-  },
-  "pAtEmptyT1": {
-    "defaultMessage": "No personal access tokens yet",
-    "description": "Empty state title when the signed-in user has no personal access tokens"
-  },
-  "pAtEmptyD1": {
-    "defaultMessage": "Create a token to authenticate scripts and integrations as yourself in this workspace.",
-    "description": "Empty state description for the personal access tokens list"
-  },
-  "pAtMaskPf1": {
-    "defaultMessage": "{prefix}••••••••",
-    "description": "Masked personal access token prefix shown in the tokens list"
-  },
-  "pAtPerms01": {
-    "defaultMessage": "Permissions: {permissions}",
-    "description": "Personal access token row showing granted permissions"
-  },
-  "pAtCreated1": {
-    "defaultMessage": "Created {date}",
-    "description": "Personal access token row showing creation timestamp"
-  },
-  "pAtLstUsd1": {
-    "defaultMessage": "Last used {date}",
-    "description": "Personal access token row showing last-used timestamp"
-  },
-  "pAtRevSts1": {
-    "defaultMessage": "Revoked",
-    "description": "Badge shown on a revoked personal access token"
-  },
-  "pAtRevoke1": {
-    "defaultMessage": "Revoke",
-    "description": "Button to open the revoke personal access token confirmation dialog"
-  },
-  "pAtCrDlgT1": {
-    "defaultMessage": "Create personal access token",
-    "description": "Title of the create personal access token dialog before the token is generated"
-  },
-  "pAtCdDlgT1": {
-    "defaultMessage": "Personal access token created",
-    "description": "Title of the create personal access token dialog after the token is generated"
-  },
-  "pAtCrDlgD1": {
-    "defaultMessage": "Name the token and choose the scopes it may use. The token can only do what your current role allows.",
-    "description": "Description in the create personal access token dialog before generation"
-  },
-  "pAtCdDlgD1": {
-    "defaultMessage": "Copy this token now. You will not be able to see it again.",
-    "description": "Warning shown after a personal access token is created"
-  },
-  "pAtCopied1": {
-    "defaultMessage": "Copied",
-    "description": "Copy button label after the personal access token was copied"
-  },
-  "pAtCopy001": {
-    "defaultMessage": "Copy",
-    "description": "Button to copy the newly created personal access token"
-  },
-  "pAtNameLb1": {
-    "defaultMessage": "Token name",
-    "description": "Label for the personal access token name field"
-  },
-  "pAtNamePh1": {
-    "defaultMessage": "e.g. Local CLI",
-    "description": "Placeholder for the personal access token name field"
-  },
-  "pAtPermLg1": {
-    "defaultMessage": "Permissions",
-    "description": "Legend for the personal access token permission scope checkboxes"
-  },
-  "pAtScpJr01": {
-    "defaultMessage": "Read jobs",
-    "description": "Label for the jobs:read personal access token scope"
-  },
-  "pAtScpJw01": {
-    "defaultMessage": "Write jobs",
-    "description": "Label for the jobs:write personal access token scope"
-  },
-  "pAtScpFr01": {
-    "defaultMessage": "Read files",
-    "description": "Label for the files:read personal access token scope"
-  },
-  "pAtScpFw01": {
-    "defaultMessage": "Write files",
-    "description": "Label for the files:write personal access token scope"
-  },
-  "pAtDone001": {
-    "defaultMessage": "Done",
-    "description": "Button to close the create personal access token dialog after copying the token"
-  },
-  "pAtCancel1": {
-    "defaultMessage": "Cancel",
-    "description": "Cancel button in personal access token dialogs"
-  },
-  "pAtCreating": {
-    "defaultMessage": "Creating...",
-    "description": "Create personal access token button label while the request is pending"
-  },
-  "pAtCrSub01": {
-    "defaultMessage": "Create token",
-    "description": "Submit button to create a personal access token"
-  },
-  "pAtRvDlgT1": {
-    "defaultMessage": "Revoke personal access token",
-    "description": "Title of the revoke personal access token confirmation dialog"
-  },
-  "pAtRvDlgD1": {
-    "defaultMessage": "Revoke {name} ({prefix}…)? Integrations using this token will lose access immediately.",
-    "description": "Description in the revoke personal access token confirmation dialog identifying the token"
-  },
-  "pAtRevoking": {
-    "defaultMessage": "Revoking...",
-    "description": "Revoke personal access token button label while the request is pending"
-  },
-  "pAtRvCnf01": {
-    "defaultMessage": "Revoke token",
-    "description": "Confirm button to revoke a personal access token"
-  },
-  "pAtHubLbl01": {
-    "defaultMessage": "Personal access tokens",
-    "description": "Settings hub row label for personal access tokens"
-  },
-  "pAtHubDsc01": {
-    "defaultMessage": "Create and revoke tokens that act with your current workspace access.",
-    "description": "Settings hub row description for personal access tokens"
-  },
-  "pAtCrumb01": {
-    "defaultMessage": "Personal access tokens",
-    "description": "App shell breadcrumb title for the personal access tokens settings page"
   }
 }
