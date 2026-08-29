@@ -116,7 +116,7 @@ export const jobsStatusOptions = [
 
 export type JobsStatusFilter = (typeof jobsStatusOptions)[number];
 
-type JobLinkKind = "title" | "details" | "cat";
+type JobLinkKind = "title" | "details" | "content-editor";
 
 export type JobsLinkRenderer = (props: {
   href: string;
@@ -386,7 +386,7 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
     );
   }
 
-  if (kind === "cat") {
+  if (kind === "content-editor") {
     return (
       <Button nativeButton={false} render={<a href={href} />} size="sm" className="w-fit">
         <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />

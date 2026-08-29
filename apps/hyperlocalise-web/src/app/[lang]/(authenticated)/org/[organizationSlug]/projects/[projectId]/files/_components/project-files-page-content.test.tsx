@@ -76,13 +76,13 @@ vi.mock("./project-files-tree-panel", () => ({
   ProjectFilesTreePanel: ({
     onActivateFile,
     onLoadedFilesChange,
-    catOpenHint,
+    contentEditorOpenHint,
     headerActions,
     fileActions,
   }: {
     onActivateFile?: (sourcePath: string) => void;
     onLoadedFilesChange?: (files: (typeof enUsFile)[]) => void;
-    catOpenHint?: string | null;
+    contentEditorOpenHint?: string | null;
     headerActions?: ReactNode;
     fileActions?: {
       onDownloadFile?: (file: typeof pricingFile) => void;
@@ -97,7 +97,7 @@ vi.mock("./project-files-tree-panel", () => ({
     return (
       <div>
         {headerActions}
-        {catOpenHint ? <p>{catOpenHint}</p> : null}
+        {contentEditorOpenHint ? <p>{contentEditorOpenHint}</p> : null}
         <button type="button" onDoubleClick={() => onActivateFile?.("en-US.json")}>
           en-US.json
         </button>
@@ -176,7 +176,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/files/cat?sourcePath=en-US.json&locale=vi",
+      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi",
     );
   });
 
@@ -189,7 +189,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/files/cat?sourcePath=en-US.json&locale=vi",
+      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi",
     );
   });
 

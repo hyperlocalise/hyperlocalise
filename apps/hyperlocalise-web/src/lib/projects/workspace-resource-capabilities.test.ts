@@ -13,8 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  canOpenNativeJobCat,
-  canOpenProviderJobCat,
+  canOpenNativeJobContentEditor,
+  canOpenProviderJobContentEditor,
   getProjectWorkspaceCapabilities,
 } from "./workspace-resource-capabilities";
 
@@ -58,31 +58,31 @@ describe("getProjectWorkspaceCapabilities", () => {
   });
 });
 
-describe("canOpenProviderJobCat", () => {
+describe("canOpenProviderJobContentEditor", () => {
   it("allows provider translation and review jobs only", () => {
     expect(
-      canOpenProviderJobCat({
+      canOpenProviderJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
         kind: "translation",
         externalProviderKind: "crowdin",
       }),
     ).toBe(true);
     expect(
-      canOpenProviderJobCat({
+      canOpenProviderJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
         kind: "review",
         externalProviderKind: "crowdin",
       }),
     ).toBe(true);
     expect(
-      canOpenProviderJobCat({
+      canOpenProviderJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
         kind: "sync",
         externalProviderKind: "crowdin",
       }),
     ).toBe(false);
     expect(
-      canOpenProviderJobCat({
+      canOpenProviderJobContentEditor({
         id: "job_native",
         kind: "translation",
         externalProviderKind: null,
@@ -91,10 +91,10 @@ describe("canOpenProviderJobCat", () => {
   });
 });
 
-describe("canOpenNativeJobCat", () => {
+describe("canOpenNativeJobContentEditor", () => {
   it("allows native file translation jobs with a source file id", () => {
     expect(
-      canOpenNativeJobCat({
+      canOpenNativeJobContentEditor({
         id: "job_native",
         kind: "translation",
         type: "file",
@@ -109,7 +109,7 @@ describe("canOpenNativeJobCat", () => {
 
   it("rejects provider jobs and non-file translation jobs", () => {
     expect(
-      canOpenNativeJobCat({
+      canOpenNativeJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
         kind: "translation",
         type: "file",
@@ -118,7 +118,7 @@ describe("canOpenNativeJobCat", () => {
       }),
     ).toBe(false);
     expect(
-      canOpenNativeJobCat({
+      canOpenNativeJobContentEditor({
         id: "job_native",
         kind: "translation",
         type: "string",

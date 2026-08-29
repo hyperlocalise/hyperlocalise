@@ -11,18 +11,18 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
+import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import {
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
-} from "@/lib/projects/cat/cat-workspace-query-params";
-import { resolveJobCatInitialQueueFilter } from "@/lib/projects/resolve-job-cat-initial-queue-filter";
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import { resolveJobContentEditorInitialQueueFilter } from "@/lib/projects/resolve-job-content-editor-initial-queue-filter";
 import {
-  catAllFilesProviderKindFromTarget,
+  contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
 
-import { JobCatPageContent } from "./_components/job-cat-page-content";
+import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
 
 export default async function ProjectJobStringsPage({
   params,
@@ -53,18 +53,18 @@ export default async function ProjectJobStringsPage({
   } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(
-    catAllFilesProviderKindFromTarget(target),
+  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
+    contentEditorAllFilesProviderKindFromTarget(target),
   );
 
-  const initialQueueFilter = await resolveJobCatInitialQueueFilter({
+  const initialQueueFilter = await resolveJobContentEditorInitialQueueFilter({
     auth,
     jobId,
     queueFilterParam: queueFilter,
   });
 
   return (
-    <JobCatPageContent
+    <JobContentEditorPageContent
       organizationSlug={organizationSlug}
       projectId={projectId}
       jobId={jobId}
@@ -76,7 +76,7 @@ export default async function ProjectJobStringsPage({
       initialQueueFilter={initialQueueFilter}
       initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(search)}
-      catAllFilesEnabled={catAllFilesEnabled}
+      contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
     />
   );
 }

@@ -43,7 +43,9 @@ export function isProjectMutationAllowed(role: OrganizationMembershipRole): bool
 }
 
 /** Project CAT policy is restricted to admins and localization managers. */
-export function isProjectCatBehaviorMutationAllowed(role: OrganizationMembershipRole): boolean {
+export function isProjectContentEditorBehaviorMutationAllowed(
+  role: OrganizationMembershipRole,
+): boolean {
   return isWorkspaceOperatorRole(role);
 }
 

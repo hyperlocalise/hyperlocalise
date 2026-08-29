@@ -20,7 +20,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live
 
 import { tmsLiveFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { tmsLiveJobFilesSectionMessages as messages } from "./tms-live-job-files-section.messages";
 
 function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
@@ -38,7 +38,7 @@ export function TmsLiveJobFilesSection({
   projectId: string;
   encodedJobId: string;
   highlightLocale?: string | null;
-  queueFilter?: CatQueueFilter;
+  queueFilter?: ContentEditorQueueFilter;
 }) {
   const intl = useIntl();
   const filesQuery = useQuery({

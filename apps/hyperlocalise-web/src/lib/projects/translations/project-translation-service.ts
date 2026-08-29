@@ -14,8 +14,8 @@ import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import type {
-  ProjectFileCatQueueFilter,
-  ProjectFileCatQueueSort,
+  ProjectFileContentEditorQueueFilter,
+  ProjectFileContentEditorQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
@@ -111,7 +111,7 @@ function translationKeysQueueFilterCondition(input: {
   organizationId: string;
   projectId: string;
   targetLocale: string;
-  queueFilter?: ProjectFileCatQueueFilter;
+  queueFilter?: ProjectFileContentEditorQueueFilter;
 }) {
   const filter = input.queueFilter;
   if (!filter || filter === "all") {
@@ -451,7 +451,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     repositorySourceFileId: string;
     targetLocale?: string;
     search?: string;
-    queueFilter?: ProjectFileCatQueueFilter;
+    queueFilter?: ProjectFileContentEditorQueueFilter;
   }) {
     const [row] = await this.database
       .select({ total: count() })
@@ -482,8 +482,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     limit?: number;
     offset?: number;
     search?: string;
-    queueFilter?: ProjectFileCatQueueFilter;
-    queueSort?: ProjectFileCatQueueSort;
+    queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueSort?: ProjectFileContentEditorQueueSort;
   }) {
     const limit = input.limit ?? 2_000;
     const offset = input.offset ?? 0;
@@ -531,7 +531,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     projectId: string;
     targetLocale?: string;
     search?: string;
-    queueFilter?: ProjectFileCatQueueFilter;
+    queueFilter?: ProjectFileContentEditorQueueFilter;
     sourcePaths?: readonly string[] | null;
   }) {
     const [row] = await this.database
@@ -567,8 +567,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     limit?: number;
     offset?: number;
     search?: string;
-    queueFilter?: ProjectFileCatQueueFilter;
-    queueSort?: ProjectFileCatQueueSort;
+    queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueSort?: ProjectFileContentEditorQueueSort;
     sourcePaths?: readonly string[] | null;
   }) {
     const limit = input.limit ?? 2_000;

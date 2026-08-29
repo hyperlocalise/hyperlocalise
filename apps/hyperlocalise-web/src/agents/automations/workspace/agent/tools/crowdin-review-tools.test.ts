@@ -19,7 +19,7 @@ import { createCrowdinReviewTools } from "./crowdin-review-tools";
 const mocks = vi.hoisted(() => ({
   searchConcordanceForAgent: vi.fn(),
   loadStyleGuideForAgent: vi.fn(),
-  generateCatAiRecommendation: vi.fn(),
+  generateContentEditorAiRecommendation: vi.fn(),
   ensureOrganizationProjectRecord: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
@@ -34,8 +34,9 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
   },
 }));
 
-vi.mock("@/lib/translation/cat", () => ({
-  generateCatAiRecommendation: (...args: unknown[]) => mocks.generateCatAiRecommendation(...args),
+vi.mock("@/lib/translation/content-editor-core", () => ({
+  generateContentEditorAiRecommendation: (...args: unknown[]) =>
+    mocks.generateContentEditorAiRecommendation(...args),
 }));
 
 vi.mock("@/lib/projects/organization/organization-project-service", () => ({
@@ -140,7 +141,7 @@ describe("createCrowdinReviewTools", () => {
   });
 
   it("recommends a translation through the CAT engine", async () => {
-    mocks.generateCatAiRecommendation.mockResolvedValue(
+    mocks.generateContentEditorAiRecommendation.mockResolvedValue(
       ok({ aiSuggestion: "Speichern", aiReasoning: "Glossary prefers Speichern." }),
     );
     const tools = createCrowdinReviewTools({
@@ -164,7 +165,7 @@ describe("createCrowdinReviewTools", () => {
       projectId: "ext:crowdin:42",
       userId: "user-1",
     });
-    expect(mocks.generateCatAiRecommendation).toHaveBeenCalledWith(
+    expect(mocks.generateContentEditorAiRecommendation).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "proj_materialized",
         organizationId: "org-1",
@@ -205,7 +206,7 @@ describe("createCrowdinReviewTools", () => {
       { toolCallId: "call-4", messages: [], context: {} },
     );
 
-    expect(mocks.generateCatAiRecommendation).not.toHaveBeenCalled();
+    expect(mocks.generateContentEditorAiRecommendation).not.toHaveBeenCalled();
     expect(result).toEqual({
       success: false,
       error: "The selected Crowdin project is not available for translation recommendations.",

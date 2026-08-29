@@ -22,7 +22,7 @@ import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { OverviewSectionHeader } from "../../../_components/overview/overview-section-header";
@@ -170,7 +170,7 @@ export function ProjectOverviewPageContentView({
   const intl = useIntl();
   const isNative = project?.source === "native";
   const hasTranslationGuidance = Boolean(project?.translationContextValue?.trim());
-  const showViewStrings = supportsCatAllFilesProvider(
+  const showViewStrings = supportsContentEditorAllFilesProvider(
     parseProviderProjectId(projectId)?.providerKind,
   );
 

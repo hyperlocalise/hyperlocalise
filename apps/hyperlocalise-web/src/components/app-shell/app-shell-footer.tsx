@@ -36,13 +36,13 @@ import {
   getCatGlossaryGuidanceStatus,
   requestCatGlossaryGuidance,
   subscribeCatGlossaryGuidance,
-} from "@/components/cat/intelligence/cat-glossary-guidance-event";
+} from "@/components/content-editor/intelligence/content-editor-glossary-guidance-event";
 import {
   getCatIssueGuidanceServerSnapshot,
   getCatIssueGuidanceStatus,
   requestCatIssueGuidance,
   subscribeCatIssueGuidance,
-} from "@/components/cat/issues/cat-issue-guidance-event";
+} from "@/components/content-editor/issues/content-editor-issue-guidance-event";
 import { Button } from "@/components/ui/button";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 

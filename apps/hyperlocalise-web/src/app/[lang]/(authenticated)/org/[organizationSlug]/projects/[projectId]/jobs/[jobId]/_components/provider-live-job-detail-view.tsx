@@ -26,7 +26,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
-import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
+import {
+  buildJobContentEditorHref,
+  canOpenJobContentEditor,
+} from "@/lib/projects/job-content-editor-routing";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -125,8 +128,10 @@ export function ProviderLiveJobDetailView({
   const canEditAssignees = Boolean(
     canEditProviderFields && job?.externalProviderKind === "crowdin" && parsedJobId,
   );
-  const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
-  const showViewStrings = job ? canOpenJobCat(job) && Boolean(catHref) : false;
+  const contentEditorHref = job
+    ? buildJobContentEditorHref(organizationSlug, projectId, job)
+    : null;
+  const showViewStrings = job ? canOpenJobContentEditor(job) && Boolean(contentEditorHref) : false;
   const layout = job
     ? jobDetailTaskLayoutFromLiveJob(job, intl, {
         localeReadinessLoading,
@@ -237,8 +242,8 @@ export function ProviderLiveJobDetailView({
           )}
         </Button>
       ) : null}
-      {showViewStrings && catHref ? (
-        <Button size="sm" render={<Link href={catHref} />}>
+      {showViewStrings && contentEditorHref ? (
+        <Button size="sm" render={<Link href={contentEditorHref} />}>
           <HugeiconsIcon icon={LeftToRightListBulletIcon} />
           <FormattedMessage {...messages.openEditor} />
         </Button>

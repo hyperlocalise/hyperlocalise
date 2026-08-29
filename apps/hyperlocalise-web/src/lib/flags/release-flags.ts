@@ -13,13 +13,13 @@
 import { flag } from "flags/next";
 
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 
 import { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
 
 export { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
 
-export type ReleaseCatAllFilesEntities = {
+export type ReleaseContentEditorAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
   providerKind?: ExternalTmsProviderKind | null;
 };
@@ -28,24 +28,26 @@ export type ReleaseCatAllFilesEntities = {
  * Release gate for CAT All Files and the project Content Editor sidebar.
  *
  * `decide` enables All Files only for native projects and Crowdin. Pass
- * `providerKind` via `.run({ identify })` / `isReleaseCatAllFilesEnabled`.
+ * `providerKind` via `.run({ identify })` / `isReleaseContentEditorAllFilesEnabled`.
  * Flags Explorer overrides still win over `decide`.
  */
-export const releaseCatAllFilesFlag = flag<boolean, ReleaseCatAllFilesEntities>({
-  key: RELEASE_CAT_ALL_FILES_FLAG,
-  description: "CAT All Files and the Content Editor sidebar for native and Crowdin projects.",
-  defaultValue: false,
-  decide({ entities }) {
-    return supportsCatAllFilesProvider(entities?.providerKind);
+export const releaseContentEditorAllFilesFlag = flag<boolean, ReleaseContentEditorAllFilesEntities>(
+  {
+    key: RELEASE_CAT_ALL_FILES_FLAG,
+    description: "CAT All Files and the Content Editor sidebar for native and Crowdin projects.",
+    defaultValue: false,
+    decide({ entities }) {
+      return supportsContentEditorAllFilesProvider(entities?.providerKind);
+    },
   },
-});
+);
 
-export async function isReleaseCatAllFilesEnabled(
+export async function isReleaseContentEditorAllFilesEnabled(
   providerKind?: ExternalTmsProviderKind | null,
 ): Promise<boolean> {
   try {
     return (
-      (await releaseCatAllFilesFlag.run({
+      (await releaseContentEditorAllFilesFlag.run({
         identify: { providerKind: providerKind ?? null },
       })) === true
     );

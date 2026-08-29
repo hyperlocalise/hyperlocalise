@@ -11,20 +11,20 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
-import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
-import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
+import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
+import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
+import { parseProjectFileContentEditorSearchParams } from "@/lib/projects/project-file-content-editor-routing";
 import {
   parseCatWorkspaceQueueFilterParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
-} from "@/lib/projects/cat/cat-workspace-query-params";
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
 import {
-  catAllFilesProviderKindFromTarget,
+  contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
 
-import { ProjectFileCatPageContent } from "../files/_components/project-file-cat-page-content";
+import { ProjectFileContentEditorPageContent } from "../files/_components/project-file-content-editor-page-content";
 
 export default async function ProjectStringsPage({
   params,
@@ -48,15 +48,15 @@ export default async function ProjectStringsPage({
   const rawSearchParams = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(
-    catAllFilesProviderKindFromTarget(target),
+  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
+    contentEditorAllFilesProviderKindFromTarget(target),
   );
-  const defaultSourcePath = catAllFilesEnabled
-    ? CAT_ALL_FILES_SOURCE_PATH
+  const defaultSourcePath = contentEditorAllFilesEnabled
+    ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH
     : rawSearchParams.sourcePath?.trim()
       ? rawSearchParams.sourcePath
       : null;
-  const parsedSearchParams = parseProjectFileCatSearchParams({
+  const parsedSearchParams = parseProjectFileContentEditorSearchParams({
     ...rawSearchParams,
     sourcePath: rawSearchParams.sourcePath?.trim()
       ? rawSearchParams.sourcePath
@@ -64,14 +64,16 @@ export default async function ProjectStringsPage({
   });
 
   return (
-    <ProjectFileCatPageContent
+    <ProjectFileContentEditorPageContent
       organizationSlug={organizationSlug}
       projectId={projectId}
       sourcePath={parsedSearchParams.sourcePath}
       allFiles={
-        catAllFilesEnabled ? parsedSearchParams.allFiles || !parsedSearchParams.sourcePath : false
+        contentEditorAllFilesEnabled
+          ? parsedSearchParams.allFiles || !parsedSearchParams.sourcePath
+          : false
       }
-      catAllFilesEnabled={catAllFilesEnabled}
+      contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}

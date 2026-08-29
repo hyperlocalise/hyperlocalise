@@ -24,9 +24,9 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
-import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
-import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
+import { jobContentEditorQueueFilterParam } from "@/lib/projects/job-content-editor-routing";
+import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
 import { jobSourceFilesPanelMessages as messages } from "./job-source-files-panel.messages";
@@ -44,7 +44,7 @@ function stringsHref(input: {
   targetLocale: string;
   sourcePath?: string;
   storedFileId?: string;
-  queueFilter?: CatQueueFilter;
+  queueFilter?: ContentEditorQueueFilter;
 }) {
   const params = new URLSearchParams({
     targetLocale: input.targetLocale,
@@ -59,7 +59,7 @@ function stringsHref(input: {
   }
 
   if (input.queueFilter && input.queueFilter !== "all") {
-    params.set(jobCatQueueFilterParam, input.queueFilter);
+    params.set(jobContentEditorQueueFilterParam, input.queueFilter);
   }
 
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.encodedJobId)}/strings?${params.toString()}`;
@@ -87,22 +87,22 @@ function canOpenFileInCat(
     return false;
   }
 
-  const isProviderCatFile = supportsProviderCatFile(file);
-  const isNativeCatFile = !file.provider && Boolean(file.storedFileId);
+  const isProviderContentEditorFile = supportsProviderContentEditorFile(file);
+  const isNativeContentEditorFile = !file.provider && Boolean(file.storedFileId);
 
-  if (isProviderCatFile) {
+  if (isProviderContentEditorFile) {
     return Boolean(sourcePath);
   }
 
-  return isNativeCatFile;
+  return isNativeContentEditorFile;
 }
 
-function catOpenUnavailableMessage(targetLocale: string | null, intl: IntlShape) {
+function contentEditorOpenUnavailableMessage(targetLocale: string | null, intl: IntlShape) {
   if (!targetLocale) {
     return intl.formatMessage(messages.noTargetLocaleForTaskFile);
   }
 
-  return intl.formatMessage(messages.fileCantOpenInCat);
+  return intl.formatMessage(messages.fileCantOpenInContentEditor);
 }
 
 export function JobSourceFilesPanel({
@@ -126,7 +126,7 @@ export function JobSourceFilesPanel({
   errorMessage?: string;
   emptyMessage?: string;
   highlightLocale?: string | null;
-  queueFilter?: CatQueueFilter;
+  queueFilter?: ContentEditorQueueFilter;
 }) {
   const intl = useIntl();
   const resolvedEmptyMessage = emptyMessage ?? intl.formatMessage(messages.defaultEmptyMessage);
@@ -150,7 +150,7 @@ export function JobSourceFilesPanel({
 
       const targetLocale = resolveTargetLocale(file, highlightLocale);
       if (!canOpenFileInCat(file, sourcePath, encodedJobId, targetLocale)) {
-        toast.error(catOpenUnavailableMessage(targetLocale, intl));
+        toast.error(contentEditorOpenUnavailableMessage(targetLocale, intl));
         return;
       }
 
@@ -161,7 +161,7 @@ export function JobSourceFilesPanel({
           encodedJobId,
           targetLocale: targetLocale as string,
           queueFilter,
-          ...(supportsProviderCatFile(file)
+          ...(supportsProviderContentEditorFile(file)
             ? { sourcePath }
             : { storedFileId: file.storedFileId as string }),
         }),
@@ -199,7 +199,7 @@ export function JobSourceFilesPanel({
           encodedJobId,
           targetLocale: selectedTargetLocale,
           queueFilter,
-          ...(supportsProviderCatFile(selectedFile)
+          ...(supportsProviderContentEditorFile(selectedFile)
             ? { sourcePath: activeSourcePath }
             : { storedFileId: selectedFile.storedFileId as string }),
         })
@@ -238,7 +238,7 @@ export function JobSourceFilesPanel({
                 <TypographyP className="text-xs text-muted-foreground">
                   {selectedTargetLocale ? (
                     <FormattedMessage
-                      {...messages.catWorkspaceHintWithLocale}
+                      {...messages.contentEditorWorkspaceHintWithLocale}
                       values={{ targetLocale: selectedTargetLocale }}
                     />
                   ) : (

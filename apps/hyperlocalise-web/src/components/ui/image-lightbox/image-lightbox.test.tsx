@@ -16,11 +16,11 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderWithCatProviders } from "@/components/cat/shared/cat-test-utils";
+import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 
 function renderLightbox() {
-  renderWithCatProviders(
+  renderWithContentEditorProviders(
     <ImageLightbox
       alt="Screenshot context"
       imageUrl="https://example.com/screenshot.png"

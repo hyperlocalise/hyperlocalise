@@ -94,9 +94,9 @@ import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import {
   pixelRectToPercentMarkers,
-  type CatVisualContext,
-  type CatVisualContextScreenshot,
-} from "@/lib/translation/cat-visual-context";
+  type ContentEditorVisualContext,
+  type ContentEditorVisualContextScreenshot,
+} from "@/lib/translation/content-editor-visual-context";
 
 export {
   CROWDIN_OAUTH_SCOPE_GUIDE,
@@ -2830,7 +2830,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     client: CrowdinApiClient;
     externalProjectId: string;
     externalStringId: string;
-  }): Promise<CatVisualContext> {
+  }): Promise<ContentEditorVisualContext> {
     const projectId = Number(input.externalProjectId);
     const stringId = Number(input.externalStringId);
     if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
@@ -2879,7 +2879,7 @@ export class CrowdinTmsProvider extends TmsProvider {
   private mapCatVisualContextScreenshot(
     screenshot: Awaited<ReturnType<CrowdinApiClient["listScreenshots"]>>[number],
     stringId: number,
-  ): CatVisualContextScreenshot[] {
+  ): ContentEditorVisualContextScreenshot[] {
     const imageUrl = screenshot.webUrl?.trim();
     if (!imageUrl) {
       return [];

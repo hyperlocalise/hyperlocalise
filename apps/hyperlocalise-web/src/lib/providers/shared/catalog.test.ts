@@ -12,11 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { llmProviderCatalog } from "@/lib/providers/shared/catalog";
+import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
 
-describe("llmProviderCatalog", () => {
+describe("llmProviderContentEditoralog", () => {
   it("uses Anthropic native model IDs for BYOK validation", () => {
-    expect(llmProviderCatalog.anthropic.models).toEqual([
+    expect(llmProviderContentEditoralog.anthropic.models).toEqual([
       "claude-sonnet-4-6",
       "claude-opus-4-8",
       "claude-opus-4-7",
@@ -26,6 +26,6 @@ describe("llmProviderCatalog", () => {
       "claude-opus-4-5",
     ]);
 
-    expect(llmProviderCatalog.anthropic.models).not.toContain("claude-sonnet-4.6");
+    expect(llmProviderContentEditoralog.anthropic.models).not.toContain("claude-sonnet-4.6");
   });
 });

@@ -114,14 +114,14 @@ describe("project CAT behavior routes", () => {
     ]);
 
     const current = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].$get(
       { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
       { headers },
     );
     expect(current.status).toBe(200);
     await expect(current.json()).resolves.toMatchObject({
-      catBehavior: {
+      contentEditorBehavior: {
         automaticallyGroupIdenticalStrings: false,
         groupingRevision: 0,
         canManage: true,
@@ -129,7 +129,7 @@ describe("project CAT behavior routes", () => {
     });
 
     const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].preview.$get(
       { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
       { headers },
@@ -144,7 +144,7 @@ describe("project CAT behavior routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].$patch(
       {
         param: { organizationSlug: identity.organization.slug!, projectId: project.id },
@@ -155,7 +155,7 @@ describe("project CAT behavior routes", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      catBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
+      contentEditorBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
     });
     const [stored] = await db
       .select()
@@ -164,7 +164,7 @@ describe("project CAT behavior routes", () => {
     expect(stored).toMatchObject({
       name: project.name,
       automaticallyGroupIdenticalStrings: true,
-      catGroupingRevision: 1,
+      contentEditorGroupingRevision: 1,
     });
   });
 
@@ -189,7 +189,7 @@ describe("project CAT behavior routes", () => {
     ]);
 
     const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].preview.$get(
       { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
       { headers },
@@ -206,7 +206,7 @@ describe("project CAT behavior routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
 
     const enable = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].$patch(
       {
         param: { organizationSlug: identity.organization.slug!, projectId: project.id },
@@ -217,7 +217,7 @@ describe("project CAT behavior routes", () => {
     expect(enable.status).toBe(200);
 
     const noop = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].$patch(
       {
         param: { organizationSlug: identity.organization.slug!, projectId: project.id },
@@ -228,13 +228,13 @@ describe("project CAT behavior routes", () => {
 
     expect(noop.status).toBe(200);
     await expect(noop.json()).resolves.toMatchObject({
-      catBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
+      contentEditorBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
     });
     const [stored] = await db
       .select()
       .from(schema.projects)
       .where(eq(schema.projects.id, project.id));
-    expect(stored?.catGroupingRevision).toBe(1);
+    expect(stored?.contentEditorGroupingRevision).toBe(1);
   });
 
   it("forbids translators from previewing or changing CAT policy", async () => {
@@ -261,13 +261,13 @@ describe("project CAT behavior routes", () => {
     const translatorHeaders = await projectFixture.authHeadersFor(translator);
 
     const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].preview.$get(
       { param: { organizationSlug: translator.organization.slug!, projectId: project.id } },
       { headers: translatorHeaders },
     );
     const update = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "cat-behavior"
+      "content-editor-behavior"
     ].$patch(
       {
         param: { organizationSlug: translator.organization.slug!, projectId: project.id },

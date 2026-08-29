@@ -19,13 +19,13 @@ import {
   CAT_ISSUE_GUIDANCE_OPEN_EVENT,
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
-} from "@/components/cat/issues/cat-issue-guidance-event";
+} from "@/components/content-editor/issues/content-editor-issue-guidance-event";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
   EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
   setCatGlossaryGuidanceStatus,
-  type CatGlossaryGuidanceStatus,
-} from "@/components/cat/intelligence/cat-glossary-guidance-event";
+  type ContentEditorGlossaryGuidanceStatus,
+} from "@/components/content-editor/intelligence/content-editor-glossary-guidance-event";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { AppShellFooter } from "./app-shell-footer";
@@ -69,7 +69,7 @@ function GlossaryStatusFrame({
   status,
   children,
 }: {
-  status: CatGlossaryGuidanceStatus;
+  status: ContentEditorGlossaryGuidanceStatus;
   children: ReactNode;
 }) {
   setCatGlossaryGuidanceStatus(status);

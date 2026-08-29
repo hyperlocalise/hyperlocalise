@@ -28,7 +28,10 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
-import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/shared/catalog";
+import {
+  defaultModelByProvider,
+  llmProviderContentEditoralog,
+} from "@/lib/providers/shared/catalog";
 import { createApiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,7 +147,7 @@ function useSaveProviderCredential(organizationSlug: string, intl: IntlShape) {
       await queryClient.invalidateQueries({ queryKey: ["provider-credential", organizationSlug] });
       toast.success(
         intl.formatMessage(aiEnginePageContentMessages.providerSavedToast, {
-          providerLabel: llmProviderCatalog[payload.provider].label,
+          providerLabel: llmProviderContentEditoralog[payload.provider].label,
         }),
       );
     },
@@ -252,7 +255,9 @@ export function AiEnginePageContent({
     }
 
     if (
-      !(llmProviderCatalog[selectedProvider].models as readonly string[]).includes(selectedModel)
+      !(llmProviderContentEditoralog[selectedProvider].models as readonly string[]).includes(
+        selectedModel,
+      )
     ) {
       setSelectedModel(defaultModelByProvider[selectedProvider]);
     }
@@ -261,7 +266,7 @@ export function AiEnginePageContent({
   const selectedByokProvider =
     selectedProvider && selectedProvider !== hyperlocaliseGoProviderId ? selectedProvider : null;
   const selectedProviderConfig = selectedByokProvider
-    ? llmProviderCatalog[selectedByokProvider]
+    ? llmProviderContentEditoralog[selectedByokProvider]
     : null;
   const selectedProviderLabel =
     byokProviders.find((provider) => provider.id === selectedByokProvider)?.label ??

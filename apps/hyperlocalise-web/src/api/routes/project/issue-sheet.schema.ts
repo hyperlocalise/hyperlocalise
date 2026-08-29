@@ -47,7 +47,7 @@ export const issueSheetTemplateKeySchema = z.enum([
 ]);
 export type IssueSheetTemplateKey = z.infer<typeof issueSheetTemplateKeySchema>;
 export const issueSheetLinkKindSchema = z.enum([
-  "cat_segment",
+  "content_editor_segment",
   "native_issue",
   "provider_issue",
   "agent_run",

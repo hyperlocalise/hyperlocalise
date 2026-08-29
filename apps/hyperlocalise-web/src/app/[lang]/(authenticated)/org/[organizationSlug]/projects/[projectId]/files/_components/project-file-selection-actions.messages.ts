@@ -35,12 +35,12 @@ export const projectFileSelectionActionsMessages = defineMessages({
     id: "3R2FH9E6p2",
     description: "Button to open the download translations dialog for a project file",
   },
-  catAvailableHint: {
+  contentEditorAvailableHint: {
     defaultMessage: "Open this file in the Content Editor to review and edit translations.",
     id: "EH1mWPBRDl",
     description: "Helper text when the selected file can open in the Content Editor",
   },
-  catUnavailableHint: {
+  contentEditorUnavailableHint: {
     defaultMessage: "The Content Editor is not available for this file yet.",
     id: "nBYmE0FBb3",
     description: "Helper text when the selected file cannot open in the Content Editor",

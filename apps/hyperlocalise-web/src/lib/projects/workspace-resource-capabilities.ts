@@ -54,7 +54,7 @@ export function isNativeWorkspaceJob(job: { id: string; externalProviderKind: st
   return !isProviderBackedWorkspaceJob(job);
 }
 
-export function canOpenProviderJobCat(job: {
+export function canOpenProviderJobContentEditor(job: {
   id: string;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   externalProviderKind: string | null;
@@ -66,7 +66,7 @@ export function canOpenProviderJobCat(job: {
   return isProviderBackedWorkspaceJob(job);
 }
 
-export function canOpenNativeJobCat(job: {
+export function canOpenNativeJobContentEditor(job: {
   id: string;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;

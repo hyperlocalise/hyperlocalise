@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 const releaseFlagRunMocks = vi.hoisted(() => ({
-  catAllFiles: vi.fn(),
+  contentEditorAllFiles: vi.fn(),
   sandboxVcrImage: vi.fn(),
 }));
 
@@ -22,7 +22,7 @@ vi.mock("flags/next", () => ({
     const run =
       definition.key === "release-sandbox-vcr-image"
         ? releaseFlagRunMocks.sandboxVcrImage
-        : releaseFlagRunMocks.catAllFiles;
+        : releaseFlagRunMocks.contentEditorAllFiles;
     return Object.assign(vi.fn(), {
       run,
       key: definition.key,
@@ -30,33 +30,36 @@ vi.mock("flags/next", () => ({
   },
 }));
 
-import { isReleaseCatAllFilesEnabled, isReleaseSandboxVcrImageEnabled } from "./release-flags";
+import {
+  isReleaseContentEditorAllFilesEnabled,
+  isReleaseSandboxVcrImageEnabled,
+} from "./release-flags";
 
-describe("isReleaseCatAllFilesEnabled", () => {
+describe("isReleaseContentEditorAllFilesEnabled", () => {
   it("passes providerKind into flag.run identify entities", async () => {
-    releaseFlagRunMocks.catAllFiles.mockResolvedValue(true);
+    releaseFlagRunMocks.contentEditorAllFiles.mockResolvedValue(true);
 
-    await expect(isReleaseCatAllFilesEnabled("crowdin")).resolves.toBe(true);
+    await expect(isReleaseContentEditorAllFilesEnabled("crowdin")).resolves.toBe(true);
 
-    expect(releaseFlagRunMocks.catAllFiles).toHaveBeenCalledWith({
+    expect(releaseFlagRunMocks.contentEditorAllFiles).toHaveBeenCalledWith({
       identify: { providerKind: "crowdin" },
     });
   });
 
   it("normalizes omitted providerKind to null for native projects", async () => {
-    releaseFlagRunMocks.catAllFiles.mockResolvedValue(true);
+    releaseFlagRunMocks.contentEditorAllFiles.mockResolvedValue(true);
 
-    await expect(isReleaseCatAllFilesEnabled()).resolves.toBe(true);
+    await expect(isReleaseContentEditorAllFilesEnabled()).resolves.toBe(true);
 
-    expect(releaseFlagRunMocks.catAllFiles).toHaveBeenCalledWith({
+    expect(releaseFlagRunMocks.contentEditorAllFiles).toHaveBeenCalledWith({
       identify: { providerKind: null },
     });
   });
 
   it("returns false when flag evaluation throws", async () => {
-    releaseFlagRunMocks.catAllFiles.mockRejectedValue(new Error("flags unavailable"));
+    releaseFlagRunMocks.contentEditorAllFiles.mockRejectedValue(new Error("flags unavailable"));
 
-    await expect(isReleaseCatAllFilesEnabled("crowdin")).resolves.toBe(false);
+    await expect(isReleaseContentEditorAllFilesEnabled("crowdin")).resolves.toBe(false);
   });
 });
 

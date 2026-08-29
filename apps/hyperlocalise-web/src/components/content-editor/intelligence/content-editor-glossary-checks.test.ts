@@ -1,0 +1,193 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
+import {
+  containsGlossaryTerm,
+  glossaryFormatChecksForSegment,
+} from "./content-editor-glossary-checks";
+import type { ContentEditorGlossaryTerm } from "@/components/content-editor/shared/types";
+
+const testIntl = getIntlShape("en");
+
+const glossaryTerms: ContentEditorGlossaryTerm[] = [
+  {
+    id: "term-dashboard",
+    source: "Dashboard",
+    target: "Bảng điều khiển",
+    approved: true,
+    forbidden: false,
+  },
+  {
+    id: "term-review-forbidden",
+    source: "Review",
+    target: "Đánh giá",
+    approved: false,
+    forbidden: true,
+  },
+];
+
+describe("containsGlossaryTerm", () => {
+  it("matches whole words case-insensitively", () => {
+    expect(containsGlossaryTerm("Open the Dashboard settings", "Dashboard")).toBe(true);
+    expect(containsGlossaryTerm("Open the dashboard settings", "Dashboard")).toBe(true);
+    expect(containsGlossaryTerm("Open the Dashboards settings", "Dashboard")).toBe(false);
+  });
+
+  it("uses unicode word boundaries for multi-word target terms", () => {
+    expect(containsGlossaryTerm("Mở Bảng điều khiển", "Bảng điều khiển")).toBe(true);
+    expect(containsGlossaryTerm("xềBảng điều khiển", "Bảng điều khiển")).toBe(false);
+  });
+});
+
+describe("glossaryFormatChecksForSegment", () => {
+  it("returns a pass check when approved glossary terms are used correctly", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Dashboard card showing pending reviews",
+      "Thẻ Bảng điều khiển hiển thị các mục đang chờ",
+      glossaryTerms,
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-compliance",
+        status: "pass",
+        category: "glossary",
+      }),
+    ]);
+  });
+
+  it("flags forbidden terms that appear in the target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Review awaiting approval",
+      "Review đang chờ phê duyệt",
+      glossaryTerms,
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-forbidden-term-review-forbidden",
+        status: "fail",
+        category: "glossary",
+        relatedTokens: ["Review"],
+      }),
+    ]);
+  });
+
+  it("warns when a required glossary rendering is missing from the target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Open Dashboard settings",
+      "Mở cài đặt",
+      glossaryTerms,
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-missing-term-dashboard",
+        status: "warn",
+        category: "glossary",
+      }),
+    ]);
+  });
+
+  it("warns when an untranslatable source term is missing from the target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Welcome to Hyperlocalise",
+      "Bienvenue",
+      [
+        {
+          id: "brand-term",
+          source: "Hyperlocalise",
+          target: "Hyperlocalise",
+          approved: true,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-missing-brand-term",
+        status: "warn",
+        category: "glossary",
+      }),
+    ]);
+  });
+
+  it("does not warn for source-only translatable terms with an empty target", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Open Dashboard settings",
+      "Mở cài đặt",
+      [
+        {
+          id: "draft-term",
+          source: "Dashboard",
+          target: "",
+          approved: false,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
+  });
+
+  it("returns no checks when the target is empty", () => {
+    expect(glossaryFormatChecksForSegment("Dashboard", "", glossaryTerms, testIntl)).toEqual([]);
+  });
+
+  it("does not warn for unapproved non-forbidden terms", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Open Dashboard settings",
+      "Mở cài đặt",
+      [
+        {
+          id: "draft-term",
+          source: "Dashboard",
+          target: "Bảng điều khiển",
+          approved: false,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
+  });
+
+  it("returns no checks when glossary terms are not relevant to the segment", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Save your work before closing",
+      "Lưu công việc trước khi đóng",
+      [
+        {
+          id: "term-dashboard",
+          source: "Dashboard",
+          target: "Bảng điều khiển",
+          approved: true,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
+  });
+});

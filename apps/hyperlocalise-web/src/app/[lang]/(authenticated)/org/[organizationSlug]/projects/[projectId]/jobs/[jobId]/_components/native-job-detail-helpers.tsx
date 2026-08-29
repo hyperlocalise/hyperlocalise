@@ -22,7 +22,7 @@ import { nativeJobDetailHelpersMessages as messages } from "./native-job-detail-
 import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
 import { nativeJobToProjectFileRecord } from "./tms/job-source-file-mappers";
-import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing";
+import { resolveDefaultJobContentEditorQueueFilter } from "@/lib/projects/job-content-editor-routing";
 
 function getInputPayloadString(job: JobDetailRecord, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -93,7 +93,7 @@ export function NativeJobSourceFilesSection({
   const file = useMemo(() => buildNativeJobFileRecord(job), [job]);
   const targetLocales = getInputPayloadStringArray(job, "targetLocales");
   const highlightLocale = targetLocales[0] ?? null;
-  const queueFilter = resolveDefaultJobCatQueueFilter(job);
+  const queueFilter = resolveDefaultJobContentEditorQueueFilter(job);
 
   if (!file) {
     return null;

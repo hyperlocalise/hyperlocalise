@@ -585,9 +585,9 @@ export const IssueDetailPanel = forwardRef<
     );
   }
 
-  const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
+  const contentEditorHref = buildIssueCatHref(organizationSlug, projectId, issue);
   const showExternalLink = Boolean(
-    issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl),
+    issue.linkUrl && issue.linkUrl !== contentEditorHref && isHttpOrHttpsUrl(issue.linkUrl),
   );
   const sidebarToggleLabel = intl.formatMessage(
     sidebarOpen ? messages.collapseSidebar : messages.expandSidebar,
@@ -816,24 +816,26 @@ export const IssueDetailPanel = forwardRef<
           {sidebarOpen ? (
             <div className="mb-4 flex flex-col gap-2">
               <div className="flex items-stretch gap-2">
-                {catHref ? (
+                {contentEditorHref ? (
                   <Button
                     variant="outline"
                     size="sm"
                     className="min-w-0 flex-1 justify-start"
-                    render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
+                    render={
+                      <a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />
+                    }
                   >
                     <HugeiconsIcon
                       icon={TranslateIcon}
                       strokeWidth={1.8}
                       data-icon="inline-start"
                     />
-                    <FormattedMessage {...messages.openInCat} />
+                    <FormattedMessage {...messages.openInContentEditor} />
                   </Button>
                 ) : (
                   <div className="flex min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 py-2">
                     <TypographyP className="text-xs text-muted-foreground">
-                      <FormattedMessage {...messages.openInCatUnavailable} />
+                      <FormattedMessage {...messages.openInContentEditorUnavailable} />
                     </TypographyP>
                   </div>
                 )}
@@ -1131,13 +1133,13 @@ export const IssueDetailPanel = forwardRef<
                   className="size-4 rtl:rotate-180"
                 />
               </CollapsibleTrigger>
-              {catHref ? (
+              {contentEditorHref ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={intl.formatMessage(messages.openInCat)}
-                  title={intl.formatMessage(messages.openInCat)}
-                  render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
+                  aria-label={intl.formatMessage(messages.openInContentEditor)}
+                  title={intl.formatMessage(messages.openInContentEditor)}
+                  render={<a href={contentEditorHref} target="_blank" rel="noopener noreferrer" />}
                 >
                   <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
                 </Button>

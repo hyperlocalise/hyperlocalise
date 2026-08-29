@@ -11,16 +11,16 @@
  * Version 2.0 or later.
  */
 import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueFile,
-  ProjectFileCatQueueSegment,
-  ProjectFileCatTranslation,
+  ProjectFileContentEditorComment,
+  ProjectFileContentEditorQueueFile,
+  ProjectFileContentEditorQueueSegment,
+  ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
-import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCatFilePagination,
-  type ProjectFileCatPaginationInput,
-} from "@/lib/projects/cat/project-file-cat-pagination";
+  type ProjectFileContentEditorPaginationInput,
+} from "@/lib/projects/content-editor/project-file-content-editor-pagination";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -58,9 +58,9 @@ import type {
 } from "@/lib/providers/provider-job-review/types";
 import {
   pixelRectToPercentMarkers,
-  type CatVisualContext,
-  type CatVisualContextScreenshot,
-} from "@/lib/translation/cat-visual-context";
+  type ContentEditorVisualContext,
+  type ContentEditorVisualContextScreenshot,
+} from "@/lib/translation/content-editor-visual-context";
 
 import {
   parseSmartlingCredentials,
@@ -1525,8 +1525,8 @@ export class SmartlingTmsProvider extends TmsProvider {
     file: TmsProviderLiveFile;
     targetLocale: string;
     canEditTranslations: boolean;
-    pagination?: ProjectFileCatPaginationInput;
-  }): Promise<ProjectFileCatQueueFile> {
+    pagination?: ProjectFileContentEditorPaginationInput;
+  }): Promise<ProjectFileContentEditorQueueFile> {
     const scope = resolveSmartlingLiveCatContext({
       secretMaterial: input.secretMaterial,
       externalProjectId: input.externalProjectId,
@@ -1536,7 +1536,7 @@ export class SmartlingTmsProvider extends TmsProvider {
 
     const paginationInput = input.pagination ?? {
       offset: 0,
-      limit: legacyProviderCatSegmentLimit,
+      limit: legacyProviderContentEditorSegmentLimit,
       search: undefined,
       queueFilter: "all",
       paginated: false,
@@ -1783,7 +1783,7 @@ export class SmartlingTmsProvider extends TmsProvider {
     client: SmartlingApiClient;
     externalProjectId: string;
     externalStringId: string;
-  }): Promise<CatVisualContext> {
+  }): Promise<ContentEditorVisualContext> {
     const hashcode = input.externalStringId.trim();
     if (!hashcode) {
       return { screenshots: [] };
@@ -1798,7 +1798,7 @@ export class SmartlingTmsProvider extends TmsProvider {
     }
 
     const bindingsByContext = groupBindingsByContext(matchingBindings);
-    const screenshots: CatVisualContextScreenshot[] = [];
+    const screenshots: ContentEditorVisualContextScreenshot[] = [];
 
     for (const [contextUid, contextBindings] of bindingsByContext) {
       if (screenshots.length >= MAX_SMARTLING_SCREENSHOTS_PER_SEGMENT) {
@@ -2417,7 +2417,9 @@ function buildQueueSegmentFromSourceString(
   };
 }
 
-function draftToQueueSegment(draft: SmartlingQueueSegmentDraft): ProjectFileCatQueueSegment {
+function draftToQueueSegment(
+  draft: SmartlingQueueSegmentDraft,
+): ProjectFileContentEditorQueueSegment {
   return {
     externalStringId: draft.externalStringId,
     key: draft.key,
@@ -2453,7 +2455,7 @@ function translationIsApproved(translation: SmartlingLocaleTranslation) {
 
 function mapSmartlingTargetTranslation(
   translation: SmartlingLocaleTranslation | null | undefined,
-): ProjectFileCatTranslation | null {
+): ProjectFileContentEditorTranslation | null {
   if (!translation?.translation?.trim()) {
     return null;
   }
@@ -2465,7 +2467,7 @@ function mapSmartlingTargetTranslation(
   };
 }
 
-function mapSmartlingIssueToComment(issue: SmartlingIssue): ProjectFileCatComment {
+function mapSmartlingIssueToComment(issue: SmartlingIssue): ProjectFileContentEditorComment {
   const state = issue.issueStateCode?.trim().toUpperCase() ?? "";
   return {
     externalCommentId: issue.issueUid,
@@ -2503,9 +2505,9 @@ async function loadSmartlingQueueSegments(input: {
   scope: SmartlingLiveCatContext;
   file: TmsProviderLiveFile;
   resourceScope: SmartlingResourceScope;
-  paginationInput: ProjectFileCatPaginationInput;
+  paginationInput: ProjectFileContentEditorPaginationInput;
 }): Promise<{
-  segments: ProjectFileCatQueueSegment[];
+  segments: ProjectFileContentEditorQueueSegment[];
   hasMore: boolean;
 }> {
   const { queueFilter, search, offset, limit } = input.paginationInput;
@@ -2544,7 +2546,7 @@ async function loadSmartlingQueueSegments(input: {
     const page = await input.scope.client.listSourceStringsPage(input.scope.projectId, {
       fileUri: input.resourceScope.fileUri ?? undefined,
       offset: 0,
-      limit: legacyProviderCatSegmentLimit + 1,
+      limit: legacyProviderContentEditorSegmentLimit + 1,
     });
 
     let drafts = page.strings
@@ -2560,8 +2562,8 @@ async function loadSmartlingQueueSegments(input: {
       drafts = drafts.filter((draft) => openIssues.has(draft.externalStringId));
     }
 
-    const truncated = drafts.length > legacyProviderCatSegmentLimit || page.hasMore;
-    const visible = truncated ? drafts.slice(0, legacyProviderCatSegmentLimit) : drafts;
+    const truncated = drafts.length > legacyProviderContentEditorSegmentLimit || page.hasMore;
+    const visible = truncated ? drafts.slice(0, legacyProviderContentEditorSegmentLimit) : drafts;
     return { segments: visible.map(draftToQueueSegment), hasMore: truncated };
   }
 

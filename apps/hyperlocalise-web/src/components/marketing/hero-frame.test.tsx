@@ -15,11 +15,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
-import { renderWithCatProviders } from "@/components/cat/shared/cat-test-utils";
+import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { HeroFrame } from "./hero-frame";
 
-const CAT_VIEW_MODE_STORAGE_KEY = "cat-workspace-view-mode:v1";
+const CAT_VIEW_MODE_STORAGE_KEY = "content-editor-workspace-view-mode:v1";
 
 describe("HeroFrame", () => {
   afterEach(() => {
@@ -29,7 +29,7 @@ describe("HeroFrame", () => {
   it("starts the homepage CAT demo in comfortable view without changing the persisted workspace preference", async () => {
     window.localStorage.setItem(CAT_VIEW_MODE_STORAGE_KEY, "side-by-side");
 
-    renderWithCatProviders(<HeroFrame />);
+    renderWithContentEditorProviders(<HeroFrame />);
 
     const viewModeButton = await waitFor(() =>
       screen.getByRole("button", { name: "Content Editor view mode" }),

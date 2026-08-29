@@ -14,7 +14,11 @@ import {
   readBrowserLocalStorageItem,
   writeBrowserLocalStorageItem,
 } from "@/lib/primitives/browser-local-storage/browser-local-storage";
-import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
+import {
+  buildJobContentEditorHref,
+  canOpenJobContentEditor,
+  type JobContentEditorTarget,
+} from "@/lib/projects/job-content-editor-routing";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type JobsViewMode = "row" | "kanban";
@@ -36,7 +40,7 @@ export function isKanbanStatus(status: string): status is KanbanStatus {
   return (kanbanStatusColumns as readonly string[]).includes(status);
 }
 
-export { buildJobCatHref, canOpenJobCat, type JobCatTarget };
+export { buildJobContentEditorHref, canOpenJobContentEditor, type JobContentEditorTarget };
 
 export function readJobsViewMode(): JobsViewMode {
   const stored = readBrowserLocalStorageItem(JOBS_VIEW_MODE_STORAGE_KEY);

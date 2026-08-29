@@ -74,8 +74,8 @@ vi.mock("./project-native-connect-cli-panel", () => ({
   ProjectNativeConnectCliPanel: () => null,
 }));
 
-vi.mock("./project-cat-behavior-settings", () => ({
-  ProjectCatBehaviorSettings: () => null,
+vi.mock("./project-content-editor-behavior-settings", () => ({
+  ProjectContentEditorBehaviorSettings: () => null,
 }));
 
 vi.mock("./project-issue-columns-settings", () => ({

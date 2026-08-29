@@ -85,7 +85,7 @@ export type ProjectResourceTarget =
     };
 
 /** Provider kind for the All Files release flag — matches the API CAT queue gate. */
-export function catAllFilesProviderKindFromTarget(target: ProjectResourceTarget) {
+export function contentEditorAllFilesProviderKindFromTarget(target: ProjectResourceTarget) {
   return target.kind === "provider" ? target.providerKind : null;
 }
 

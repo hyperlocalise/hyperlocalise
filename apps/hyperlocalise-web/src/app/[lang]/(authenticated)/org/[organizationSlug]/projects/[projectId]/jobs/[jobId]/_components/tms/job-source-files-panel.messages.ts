@@ -20,7 +20,7 @@ export const jobSourceFilesPanelMessages = defineMessages({
     id: "6euABf86mn",
     description: "Error when opening CAT without a target locale for a task file",
   },
-  fileCantOpenInCat: {
+  fileCantOpenInContentEditor: {
     defaultMessage: "This file can’t be opened in the Content Editor.",
     id: "ODdrcnPdPR",
     description: "Error when a selected source file cannot be opened in the Content Editor",
@@ -40,7 +40,7 @@ export const jobSourceFilesPanelMessages = defineMessages({
     id: "1+8q1G++3Q",
     description: "Fallback error when source files fail to load",
   },
-  catWorkspaceHintWithLocale: {
+  contentEditorWorkspaceHintWithLocale: {
     defaultMessage: "Double-click a file or use Open Editor to edit {targetLocale}.",
     id: "U1nd6V4lHp",
     description: "Hint explaining how to open the Content Editor for the selected file and locale",

@@ -23,8 +23,8 @@ import {
 } from "@/lib/providers/language-model";
 import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
 import type {
-  CatAiRecommendationInput,
-  CatAiRecommendationResult,
+  ContentEditorAiRecommendationInput,
+  ContentEditorAiRecommendationResult,
   SandboxTranslationContext,
   StringTranslationGenerator,
   StringTranslationGeneratorInput,
@@ -57,7 +57,7 @@ const tokenUsageSchema = z.object({
   totalTokens: z.number().int().nonnegative(),
 });
 
-const catAiRecommendationOutputSchema = z.object({
+const contentEditorAiRecommendationOutputSchema = z.object({
   suggestion: z.string().refine((text) => text.trim().length > 0, {
     message: "Suggestion text cannot be empty",
   }),
@@ -251,7 +251,7 @@ function estimateMaxOutputTokens(sourceText: string, targetLocaleCount: number) 
   return Math.min(16_000, Math.max(1_000, sourceBudget + localeBudget));
 }
 
-function estimateCatRecommendationMaxOutputTokens(input: CatAiRecommendationInput) {
+function estimateCatRecommendationMaxOutputTokens(input: ContentEditorAiRecommendationInput) {
   const sourceBudget = Math.ceil(input.sourceText.length / 2);
   const contextBudget = Math.ceil(
     ((input.context?.length ?? 0) + (input.agentContext?.length ?? 0)) / 4,
@@ -434,14 +434,14 @@ export class StringTranslationEngine {
   }
 }
 
-export class CatRecommendationEngine {
+export class ContentEditorRecommendationEngine {
   constructor(
     private readonly model: LanguageModel,
     private readonly promptPolicy = new TranslationPromptPolicy(),
   ) {}
 
   async recommend(
-    input: CatAiRecommendationInput,
+    input: ContentEditorAiRecommendationInput,
     context: {
       projectName: string;
       projectTranslationContext: string;
@@ -450,11 +450,11 @@ export class CatRecommendationEngine {
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
     options?: { signal?: AbortSignal },
-  ): Promise<CatAiRecommendationResult> {
+  ): Promise<ContentEditorAiRecommendationResult> {
     const { output } = await generateText({
       model: this.model,
       abortSignal: options?.signal,
-      output: Output.object({ schema: catAiRecommendationOutputSchema }),
+      output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
       instructions: this.promptPolicy.buildSystemInstructions({
         mode: "cat-suggest",
         projectName: context.projectName,

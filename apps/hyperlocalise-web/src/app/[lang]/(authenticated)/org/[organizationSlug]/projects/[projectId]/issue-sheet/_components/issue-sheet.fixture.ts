@@ -209,7 +209,7 @@ export function createIssueSheetIssue(
     targetLocale: "de-DE",
     sourcePath: "messages/home.json",
     segmentId: "cta.save",
-    linkKind: "cat_segment",
+    linkKind: "content_editor_segment",
     linkLabel: null,
     linkUrl: null,
     templateKey: "tpl_context_request",

@@ -20,7 +20,7 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 import type { ProviderSourceFile } from "../job-provider-detail-section";
 import { providerSourceFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { syncedJobSourceFilesSectionMessages as messages } from "./synced-job-source-files-section.messages";
 
 export function SyncedJobSourceFilesSection({
@@ -38,7 +38,7 @@ export function SyncedJobSourceFilesSection({
   providerKind: string;
   sourceFiles: ProviderSourceFile[];
   highlightLocale?: string | null;
-  queueFilter?: CatQueueFilter;
+  queueFilter?: ContentEditorQueueFilter;
 }) {
   const intl = useIntl();
   const encodedProjectId = parseProviderProjectId(projectId);

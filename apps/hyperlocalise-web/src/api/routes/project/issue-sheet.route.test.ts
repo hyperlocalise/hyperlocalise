@@ -112,7 +112,7 @@ describe("Issue Sheet routes", () => {
           targetLocale: "de-DE",
           sourcePath: "messages/home.json",
           segmentId: "cta.save",
-          linkKind: "cat_segment",
+          linkKind: "content_editor_segment",
           linkLabel: "Open in Content Editor",
           externalRef: "cat:home:de-DE:cta.save",
           priority: "P1",
@@ -1646,7 +1646,7 @@ Second import issue,Done,EXT-2,P2`;
       sourcePath: "messages/home.json",
       segmentId: translationKey.id,
       translationKeyId: translationKey.id,
-      linkKind: "cat_segment",
+      linkKind: "content_editor_segment",
     };
 
     const first = await issueSheet().$post(
@@ -1731,7 +1731,7 @@ Second import issue,Done,EXT-2,P2`;
           segmentId: translationKey.id,
           sourcePath: "messages/nav.json",
           targetLocale: "de-DE",
-          linkKind: "cat_segment",
+          linkKind: "content_editor_segment",
         },
       } as never,
       { headers: headers },
@@ -1878,7 +1878,7 @@ Second import issue,Done,EXT-2,P2`;
         json: {
           translationKeyId: foreignKey.id,
           segmentId: foreignKey.id,
-          linkKind: "cat_segment",
+          linkKind: "content_editor_segment",
         },
       } as never,
       { headers: headers },
@@ -1904,7 +1904,7 @@ Second import issue,Done,EXT-2,P2`;
           targetLocale: "fr-FR",
           sourcePath: "assets/banner.png",
           segmentId: crypto.randomUUID(),
-          linkKind: "cat_segment",
+          linkKind: "content_editor_segment",
         },
       } as never,
       { headers: headers },
@@ -1913,7 +1913,7 @@ Second import issue,Done,EXT-2,P2`;
     expect(response.status).toBe(201);
     const body = (await response.json()) as IssueResponse;
     expect(body.issue.translationKeyId).toBeNull();
-    expect(body.issue.linkKind).toBe("cat_segment");
+    expect(body.issue.linkKind).toBe("content_editor_segment");
   });
 
   it("keeps the issue when the linked translation key is deleted", async () => {
@@ -1939,7 +1939,7 @@ Second import issue,Done,EXT-2,P2`;
           title: "Legal copy issue",
           translationKeyId: translationKey.id,
           segmentId: translationKey.id,
-          linkKind: "cat_segment",
+          linkKind: "content_editor_segment",
           targetLocale: "fr-FR",
           sourcePath: "messages/footer.json",
         },

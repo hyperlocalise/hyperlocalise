@@ -11,15 +11,15 @@
  * Version 2.0 or later.
  */
 import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueSegment,
-  ProjectFileCatTranslation,
+  ProjectFileContentEditorComment,
+  ProjectFileContentEditorQueueSegment,
+  ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
-import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCatFilePagination,
-  type ProjectFileCatPaginationInput,
-} from "@/lib/projects/cat/project-file-cat-pagination";
+  type ProjectFileContentEditorPaginationInput,
+} from "@/lib/projects/content-editor/project-file-content-editor-pagination";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -66,8 +66,8 @@ import type {
 } from "@/lib/providers/provider-job-review/types";
 import {
   pixelRectToPercentMarkers,
-  type CatVisualContextScreenshot,
-} from "@/lib/translation/cat-visual-context";
+  type ContentEditorVisualContextScreenshot,
+} from "@/lib/translation/content-editor-visual-context";
 
 import {
   buildLokaliseKeyCommentProviderUrl,
@@ -1608,7 +1608,7 @@ export class LokaliseTmsProvider extends TmsProvider {
     file: TmsProviderLiveFile;
     targetLocale: string;
     canEditTranslations: boolean;
-    pagination?: ProjectFileCatPaginationInput;
+    pagination?: ProjectFileContentEditorPaginationInput;
   }) {
     const scope = resolveLokaliseLiveCatContext({
       file: input.file,
@@ -1632,7 +1632,7 @@ export class LokaliseTmsProvider extends TmsProvider {
 
     const paginationInput = input.pagination ?? {
       offset: 0,
-      limit: legacyProviderCatSegmentLimit,
+      limit: legacyProviderContentEditorSegmentLimit,
       search: undefined,
       queueFilter: "all",
       paginated: true,
@@ -2650,7 +2650,9 @@ function buildQueueSegmentFromKey(
   };
 }
 
-function draftToQueueSegment(draft: LokaliseQueueSegmentDraft): ProjectFileCatQueueSegment {
+function draftToQueueSegment(
+  draft: LokaliseQueueSegmentDraft,
+): ProjectFileContentEditorQueueSegment {
   return {
     externalStringId: draft.externalStringId,
     key: draft.key,
@@ -2697,7 +2699,7 @@ function lokaliseTranslationIsApproved(translation: LokaliseTranslation | null |
 
 function mapLokaliseTargetTranslation(
   translation: LokaliseTranslation | null | undefined,
-): ProjectFileCatTranslation | null {
+): ProjectFileContentEditorTranslation | null {
   if (!translation?.translation?.trim()) {
     return null;
   }
@@ -2731,7 +2733,7 @@ function mapLokaliseKeyComment(comment: {
   comment: string;
   addedAt: string | null;
   addedByEmail: string | null;
-}): ProjectFileCatComment {
+}): ProjectFileContentEditorComment {
   return {
     externalCommentId: String(comment.commentId),
     type: "comment",
@@ -2800,9 +2802,9 @@ async function loadLokaliseQueuePage(input: {
   client: LokaliseApiClient;
   scope: LokaliseLiveCatContext;
   file: TmsProviderLiveFile;
-  paginationInput: ProjectFileCatPaginationInput;
+  paginationInput: ProjectFileContentEditorPaginationInput;
 }): Promise<{
-  segments: ProjectFileCatQueueSegment[];
+  segments: ProjectFileContentEditorQueueSegment[];
   hasMore: boolean;
   nextPhraseScanPage?: number;
   nextPhraseScanSkip?: number;
@@ -2926,7 +2928,7 @@ async function loadLokaliseQueuePage(input: {
     };
   }
 
-  const collected: ProjectFileCatQueueSegment[] = [];
+  const collected: ProjectFileContentEditorQueueSegment[] = [];
   const resumingScan = input.paginationInput.phraseScanPage != null;
   let scanPage = resumingScan ? input.paginationInput.phraseScanPage! : 1;
   let skipMatches = resumingScan ? (input.paginationInput.phraseScanSkip ?? 0) : offset;
@@ -3119,7 +3121,7 @@ function rethrowLokaliseConcordanceApiError(error: unknown): never {
 function mapLokaliseScreenshot(
   screenshot: Awaited<ReturnType<LokaliseApiClient["listScreenshotsForKey"]>>[number],
   keyId: number,
-): CatVisualContextScreenshot {
+): ContentEditorVisualContextScreenshot {
   const markers = screenshot.keyAreas
     .filter((area) => area.keyId === keyId)
     .map((area) =>

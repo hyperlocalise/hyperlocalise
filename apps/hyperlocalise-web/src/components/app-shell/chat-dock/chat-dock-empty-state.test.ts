@@ -45,7 +45,7 @@ describe("buildChatDockSuggestions", () => {
 
   it("shows only the selected segment chip using the source string", () => {
     const pageContext: ChatDockPageContext = {
-      kind: "cat-segment",
+      kind: "content-editor-segment",
       segmentId: "seg-02",
       key: "checkout.submit",
       sourceText: "Submit order",
@@ -61,7 +61,7 @@ describe("buildChatDockSuggestions", () => {
   it("truncates long source strings in the pill label only", () => {
     const longSource = "a".repeat(50);
     const pageContext: ChatDockPageContext = {
-      kind: "cat-segment",
+      kind: "content-editor-segment",
       segmentId: "seg-02",
       key: "checkout.submit",
       sourceText: longSource,

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export const RELEASE_CAT_ALL_FILES_FLAG = "release-cat-all-files";
+export const RELEASE_CAT_ALL_FILES_FLAG = "release-content-editor-all-files";
 
 /** Create Vercel Sandboxes from the hyperlocalise-sandbox VCR image. */
 export const RELEASE_SANDBOX_VCR_IMAGE_FLAG = "release-sandbox-vcr-image";

@@ -19,9 +19,9 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client-instance";
 import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 import {
-  resolveDefaultJobCatQueueFilter,
-  type JobCatQueueFilterContext,
-} from "@/lib/projects/job-cat-routing";
+  resolveDefaultJobContentEditorQueueFilter,
+  type JobContentEditorQueueFilterContext,
+} from "@/lib/projects/job-content-editor-routing";
 import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
@@ -60,7 +60,7 @@ export function JobProviderDetailSection({
   showAgentActions = true,
   showProviderMetadata = true,
 }: {
-  job: ProviderBackedJobFields & JobCatQueueFilterContext;
+  job: ProviderBackedJobFields & JobContentEditorQueueFilterContext;
   jobId: string;
   organizationSlug: string;
   projectId: string | null;
@@ -160,7 +160,7 @@ export function JobProviderDetailSection({
           externalJobId: providerJob.externalJobId,
           externalTaskId: providerJob.externalTaskId,
         });
-        const queueFilter = resolveDefaultJobCatQueueFilter(job);
+        const queueFilter = resolveDefaultJobContentEditorQueueFilter(job);
 
         if (encodedJobId) {
           return (

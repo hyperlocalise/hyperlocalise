@@ -1,0 +1,77 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { FormattedMessage } from "react-intl";
+
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+
+import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
+import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
+
+import { ContentEditorFormatChecks } from "./content-editor-format-checks";
+
+function FormatChecksSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-muted">
+      <div className="divide-y divide-border">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="flex items-start gap-3 px-3 py-3">
+            <Skeleton className="size-4 shrink-0 rounded-full bg-skeleton" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-36 rounded-full bg-skeleton" />
+                <Skeleton className="h-3 w-12 rounded-full bg-skeleton" />
+              </div>
+              <Skeleton className="h-3 w-10/12 rounded-full bg-skeleton" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ContentEditorEditorFormatChecksSection({
+  formatChecks,
+  isLoading,
+  showHeading = true,
+}: {
+  formatChecks: ContentEditorFormatCheck[];
+  isLoading: boolean;
+  showHeading?: boolean;
+}) {
+  const showInitialSkeleton = isLoading && formatChecks.length === 0;
+  const showLoadingSpinner = isLoading && formatChecks.length > 0;
+
+  return (
+    <section className={showHeading ? "space-y-3" : undefined} aria-busy={isLoading}>
+      {showHeading ? (
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-medium text-muted-foreground">
+            <FormattedMessage {...contentEditorEditorPanelMessages.formatQaChecks} />
+          </h3>
+          {showLoadingSpinner ? <Spinner className="size-3 text-muted-foreground" /> : null}
+        </div>
+      ) : null}
+      {showInitialSkeleton ? (
+        <FormatChecksSkeleton />
+      ) : (
+        <div className={showLoadingSpinner ? "opacity-80 transition-opacity" : undefined}>
+          <ContentEditorFormatChecks checks={formatChecks} />
+        </div>
+      )}
+    </section>
+  );
+}

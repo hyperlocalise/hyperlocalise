@@ -31,7 +31,7 @@ import {
   type JobsLinkRenderer,
 } from "./jobs-page-view";
 import {
-  buildJobCatHref,
+  buildJobContentEditorHref,
   buildJobDetailHref,
   isKanbanStatus,
   kanbanStatusColumns,
@@ -64,7 +64,7 @@ export function JobRowActions({
   const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
-  const catHref = buildJobCatHref(organizationSlug, resolvedProjectId, job);
+  const contentEditorHref = buildJobContentEditorHref(organizationSlug, resolvedProjectId, job);
   const detailsLabel = intl.formatMessage(jobsKanbanBoardMessages.details);
   const openEditorLabel = intl.formatMessage(jobsKanbanBoardMessages.openEditor);
 
@@ -77,7 +77,13 @@ export function JobRowActions({
           {detailsLabel}
         </Button>
       )}
-      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: openEditorLabel }) : null}
+      {contentEditorHref
+        ? renderJobLink({
+            href: contentEditorHref,
+            kind: "content-editor",
+            children: openEditorLabel,
+          })
+        : null}
     </div>
   );
 }

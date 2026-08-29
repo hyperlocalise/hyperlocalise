@@ -1,0 +1,616 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { reaction, type IReactionDisposer } from "mobx";
+import type { IntlShape } from "react-intl";
+
+import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
+import {
+  contentEditorEditorPanelMessages,
+  contentEditorWorkspaceContainerMessages,
+} from "@/components/content-editor/shared/content-editor.messages";
+import type {
+  ContentEditorAiRecommendationResult,
+  ContentEditorSegmentConcordanceResult,
+  ContentEditorWorkspaceReview,
+  ContentEditorWorkspaceServices,
+} from "@/components/content-editor/shared/dependencies";
+import type {
+  ContentEditorFormatCheck,
+  ContentEditorGlossaryTerm,
+  ContentEditorSegment,
+  ContentEditorSegmentCommentInput,
+  ContentEditorSegmentStatus,
+} from "@/components/content-editor/shared/types";
+
+import type { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
+import { glossaryTermsForSegment } from "../store/content-editor-workspace-store-utils";
+
+const SEGMENT_VALIDATION_DEBOUNCE_MS = 300;
+
+export interface ContentEditorReviewControllerPorts {
+  intl: IntlShape;
+  services?: ContentEditorWorkspaceServices;
+  review?: Partial<ContentEditorWorkspaceReview>;
+  loadConcordance?: (
+    segmentId: string,
+  ) => Promise<ContentEditorSegmentConcordanceResult | undefined>;
+  queueFilter: ContentEditorQueueFilter;
+  usesServerQueueFilter: boolean;
+}
+
+export class ContentEditorReviewController {
+  private ports: ContentEditorReviewControllerPorts;
+  private selectedSegmentDisposer?: IReactionDisposer;
+  private visibleSegmentsDisposer?: IReactionDisposer;
+  private disposed = false;
+  private validationTimeout: ReturnType<typeof setTimeout> | null = null;
+  private validationAbortController: AbortController | null = null;
+  private segmentValidationControllers = new Map<string, AbortController>();
+  private lastVisibleCheckFingerprint = new Map<string, string>();
+
+  constructor(
+    private readonly workspace: ContentEditorWorkspaceOrchestrator,
+    ports: ContentEditorReviewControllerPorts,
+  ) {
+    this.ports = ports;
+  }
+
+  configure(ports: ContentEditorReviewControllerPorts) {
+    this.ports = ports;
+  }
+
+  start() {
+    this.disposed = false;
+    this.selectedSegmentDisposer?.();
+    this.selectedSegmentDisposer = reaction(
+      () => this.workspace.selectedSegmentId,
+      (segmentId) => {
+        if (segmentId && this.canRunChecks) {
+          const segment = this.workspace.getSegmentView(segmentId);
+          if (segment) {
+            void this.runChecks(segment, segment.targetText);
+          }
+        }
+      },
+      { fireImmediately: true },
+    );
+
+    this.visibleSegmentsDisposer?.();
+    this.visibleSegmentsDisposer = reaction(
+      () => {
+        if (!this.workspace.ui.isSideBySideView || !this.canRunChecks) {
+          return [] as Array<{ id: string; fingerprint: string }>;
+        }
+
+        return this.workspace.ui.visibleSideBySideSegmentIds.flatMap((segmentId) => {
+          if (segmentId === this.workspace.selectedSegmentId) {
+            return [];
+          }
+          if (this.workspace.loadingSegmentIds.has(segmentId)) {
+            return [];
+          }
+          const segment = this.workspace.getSegmentView(segmentId);
+          if (
+            !segment ||
+            segment.contentKind === "image_file" ||
+            segment.contentKind === "video_file" ||
+            segment.contentKind === "office_file" ||
+            segment.contentKind === "image_url" ||
+            segment.contentKind === "video_url"
+          ) {
+            return [];
+          }
+          return [{ id: segmentId, fingerprint: `${segmentId}:${segment.targetText}` }];
+        });
+      },
+      (segments) => {
+        for (const entry of segments) {
+          if (this.lastVisibleCheckFingerprint.get(entry.id) === entry.fingerprint) {
+            continue;
+          }
+          this.lastVisibleCheckFingerprint.set(entry.id, entry.fingerprint);
+          const segment = this.workspace.getSegmentView(entry.id);
+          if (segment) {
+            void this.runChecks(segment, segment.targetText, undefined, { quiet: true });
+          }
+        }
+      },
+      { fireImmediately: true },
+    );
+  }
+
+  dispose() {
+    this.disposed = true;
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+    this.validationAbortController?.abort();
+    this.validationAbortController = null;
+    for (const controller of this.segmentValidationControllers.values()) {
+      controller.abort();
+    }
+    this.segmentValidationControllers.clear();
+    this.lastVisibleCheckFingerprint.clear();
+    this.workspace.clearFormatCheckLoading();
+    this.selectedSegmentDisposer?.();
+    this.selectedSegmentDisposer = undefined;
+    this.visibleSegmentsDisposer?.();
+    this.visibleSegmentsDisposer = undefined;
+  }
+
+  get canRunChecks() {
+    return Boolean(this.ports.services?.validateFormat || this.ports.services?.runQaChecks);
+  }
+
+  async runChecks(
+    segment: ContentEditorSegment,
+    value: string,
+    glossaryTermsOverride?: ContentEditorGlossaryTerm[],
+    options?: { quiet?: boolean },
+  ) {
+    if (!options?.quiet && this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+
+    const { validateFormat, runQaChecks } = this.ports.services ?? {};
+    if (!validateFormat && !runQaChecks) {
+      return;
+    }
+
+    const quiet = options?.quiet === true;
+    if (!quiet) {
+      this.validationAbortController?.abort();
+    }
+    this.segmentValidationControllers.get(segment.id)?.abort();
+    const abortController = new AbortController();
+    this.segmentValidationControllers.set(segment.id, abortController);
+    if (!quiet) {
+      this.validationAbortController = abortController;
+    }
+
+    const isSelected = this.workspace.selectedSegmentId === segment.id;
+    const sequence = quiet || !isSelected ? null : this.workspace.beginValidation();
+    this.workspace.setFormatCheckLoading(segment.id, true);
+    try {
+      const glossaryTerms =
+        glossaryTermsOverride ?? glossaryTermsForSegment(this.workspace.shellState, segment.id);
+      const [formatChecks, qaChecks] = await Promise.all([
+        validateFormat
+          ? validateFormat(segment, value, glossaryTerms, { signal: abortController.signal })
+          : Promise.resolve([]),
+        runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
+      ]);
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        (sequence !== null && !this.workspace.isValidationCurrent(sequence))
+      ) {
+        return;
+      }
+      this.workspace.setFormatChecks(
+        segment.id,
+        [...formatChecks, ...qaChecks],
+        this.workspace.selectedSegmentId === segment.id,
+      );
+    } catch (error) {
+      if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+        throw error;
+      }
+    } finally {
+      if (this.segmentValidationControllers.get(segment.id) === abortController) {
+        this.segmentValidationControllers.delete(segment.id);
+      }
+      if (!quiet && this.validationAbortController === abortController) {
+        this.validationAbortController = null;
+      }
+      if (sequence !== null) {
+        this.workspace.completeValidation(sequence);
+      }
+      if (this.segmentValidationControllers.get(segment.id) === undefined) {
+        this.workspace.setFormatCheckLoading(segment.id, false);
+      }
+    }
+  }
+
+  scheduleChecks(segment: ContentEditorSegment, value: string) {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+    this.validationAbortController?.abort();
+    this.validationTimeout = setTimeout(() => {
+      this.validationTimeout = null;
+      void this.runChecks(segment, value);
+    }, SEGMENT_VALIDATION_DEBOUNCE_MS);
+  }
+
+  async runReview(segmentId: string, options?: { includeAi?: boolean }) {
+    const segment = this.workspace.getSegmentView(segmentId);
+    if (!segment) {
+      return;
+    }
+
+    const { generateAiRecommendation, lookupSegmentConcordance, validateFormat, runQaChecks } =
+      this.ports.services ?? {};
+    const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
+    const includeFormatChecks = Boolean(validateFormat || runQaChecks);
+    if (!includeAi && !includeFormatChecks) {
+      return;
+    }
+
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+      this.validationTimeout = null;
+    }
+    this.validationAbortController?.abort();
+    const abortController = new AbortController();
+    this.validationAbortController = abortController;
+
+    await this.ports.review?.onReviewWithAi?.(segmentId);
+    const sequence = this.workspace.beginReview({
+      includeAi,
+      showFormatChecksLoading: includeFormatChecks && !includeAi,
+    });
+
+    try {
+      if (includeAi && lookupSegmentConcordance) {
+        await this.ports.loadConcordance?.(segmentId);
+        if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
+          return;
+        }
+      }
+
+      const intelligence =
+        this.workspace.segmentIntelligence[segmentId] ?? this.workspace.intelligence;
+      const segmentForReview = this.workspace.getSegmentView(segmentId) ?? segment;
+      let recommendation: ContentEditorAiRecommendationResult | undefined;
+      let aiFailureCheck: ContentEditorFormatCheck | undefined;
+
+      if (includeAi && generateAiRecommendation) {
+        try {
+          recommendation = await generateAiRecommendation(
+            segmentForReview,
+            segmentForReview.targetText,
+            intelligence,
+          );
+        } catch (error) {
+          if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
+            return;
+          }
+          aiFailureCheck = {
+            id: `ai-recommendation-failed-${segmentId}`,
+            label: this.ports.intl.formatMessage(
+              contentEditorWorkspaceContainerMessages.aiRecommendationLabel,
+            ),
+            status: "fail",
+            message:
+              error instanceof Error
+                ? error.message
+                : this.ports.intl.formatMessage(
+                    contentEditorWorkspaceContainerMessages.aiRecommendationFailed,
+                  ),
+            category: "qa",
+          };
+        }
+      }
+
+      const [formatChecks, qaChecks] = await Promise.all([
+        includeFormatChecks && validateFormat
+          ? validateFormat(
+              segmentForReview,
+              segmentForReview.targetText,
+              intelligence.glossaryTerms,
+              { signal: abortController.signal },
+            )
+          : Promise.resolve([]),
+        includeFormatChecks && runQaChecks
+          ? runQaChecks(segmentForReview, segmentForReview.targetText)
+          : Promise.resolve([]),
+      ]);
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        !this.workspace.isReviewCurrent(sequence)
+      ) {
+        return;
+      }
+
+      const withoutAiFailure = (checks: ContentEditorFormatCheck[]) =>
+        checks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
+      const baseChecks = withoutAiFailure(
+        recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+      );
+      const checks = aiFailureCheck
+        ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
+        : baseChecks;
+      this.workspace.setFormatChecks(
+        segmentId,
+        checks,
+        this.workspace.selectedSegmentId === segmentId,
+      );
+      if (recommendation) {
+        this.workspace.mergeSegmentIntelligence(segmentId, {
+          aiSuggestion: recommendation.aiSuggestion,
+          aiReasoning: recommendation.aiReasoning,
+        });
+      }
+    } catch (error) {
+      if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
+        throw error;
+      }
+    } finally {
+      if (this.validationAbortController === abortController) {
+        this.validationAbortController = null;
+      }
+      this.workspace.setReviewPhaseLoading(sequence, "ai", false);
+      this.workspace.setReviewPhaseLoading(sequence, "formatChecks", false);
+    }
+  }
+
+  async approve(segmentId: string, targetText: string) {
+    this.workspace.isApproving = true;
+    try {
+      // Resolve the next row before the status change so Needs Review (and other
+      // filters) can drop the approved segment without losing navigation.
+      const visibleBeforeApprove = this.workspace.getFilteredQueueSegments(
+        this.ports.queueFilter,
+        this.ports.usesServerQueueFilter,
+      );
+      const currentIndex = visibleBeforeApprove.findIndex((segment) => segment.id === segmentId);
+      const nextSegmentId =
+        currentIndex >= 0 ? visibleBeforeApprove[currentIndex + 1]?.id : undefined;
+
+      const nextStatus =
+        (await this.ports.review?.onApprove?.(segmentId, targetText)) ?? "reviewed";
+      this.workspace.markSegmentSaved(
+        segmentId,
+        targetText,
+        nextStatus as ContentEditorSegmentStatus,
+      );
+
+      if (
+        this.ports.queueFilter !== "all" &&
+        !this.workspace.matchesQueueFilter(segmentId, this.ports.queueFilter)
+      ) {
+        this.workspace.removeQueueSegmentIfClean(segmentId);
+      }
+
+      if (this.workspace.selectedSegmentId === segmentId) {
+        this.workspace.setSelectedSegmentId(
+          nextSegmentId ??
+            (this.workspace.segmentMeta.has(segmentId)
+              ? segmentId
+              : (this.workspace.queueSegments[0]?.id ?? "")),
+        );
+      }
+    } catch (error) {
+      this.workspace.addSaveFailureCheck(
+        segmentId,
+        error instanceof Error
+          ? error.message
+          : this.ports.intl.formatMessage(
+              contentEditorWorkspaceContainerMessages.saveTranslationFailed,
+            ),
+        this.ports.intl.formatMessage(contentEditorWorkspaceContainerMessages.saveFailedLabel),
+      );
+    } finally {
+      this.workspace.isApproving = false;
+    }
+  }
+
+  async saveDraft(segmentId: string, targetText: string) {
+    const saveDraft = this.ports.review?.onSaveDraft;
+    if (!saveDraft) {
+      return;
+    }
+    this.workspace.isSavingDraft = true;
+    try {
+      const nextStatus = (await saveDraft(segmentId, targetText)) ?? "needs_review";
+      this.workspace.markSegmentSaved(
+        segmentId,
+        targetText,
+        nextStatus as ContentEditorSegmentStatus,
+      );
+    } catch (error) {
+      this.workspace.addSaveFailureCheck(
+        segmentId,
+        error instanceof Error
+          ? error.message
+          : this.ports.intl.formatMessage(
+              contentEditorWorkspaceContainerMessages.saveTranslationFailed,
+            ),
+        this.ports.intl.formatMessage(contentEditorWorkspaceContainerMessages.saveFailedLabel),
+      );
+    } finally {
+      this.workspace.isSavingDraft = false;
+    }
+  }
+
+  async addComment(segmentId: string, input: ContentEditorSegmentCommentInput) {
+    const addComment = this.ports.review?.onAddComment;
+    if (!addComment) {
+      return;
+    }
+    this.workspace.commentPostError = undefined;
+    this.workspace.isPostingComment = true;
+    try {
+      await addComment(segmentId, input);
+    } catch (error) {
+      this.workspace.commentPostError =
+        error instanceof Error
+          ? error.message
+          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentPostFailed);
+      throw error;
+    } finally {
+      this.workspace.isPostingComment = false;
+    }
+  }
+
+  async resolveComment(segmentId: string, commentId: string) {
+    const resolveComment = this.ports.review?.onResolveComment;
+    if (!resolveComment) {
+      return;
+    }
+    this.workspace.commentPostError = undefined;
+    this.workspace.resolvingCommentId = commentId;
+    this.workspace.isResolvingComment = true;
+    try {
+      await resolveComment(segmentId, commentId);
+    } catch (error) {
+      this.workspace.commentPostError =
+        error instanceof Error
+          ? error.message
+          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentResolveFailed);
+      throw error;
+    } finally {
+      this.workspace.isResolvingComment = false;
+      this.workspace.resolvingCommentId = null;
+    }
+  }
+
+  skip(segmentId: string) {
+    const visibleBeforeSkip = this.workspace.getFilteredQueueSegments(
+      this.ports.queueFilter,
+      this.ports.usesServerQueueFilter,
+    );
+    const currentIndex = visibleBeforeSkip.findIndex((segment) => segment.id === segmentId);
+    const nextSegmentId = currentIndex >= 0 ? visibleBeforeSkip[currentIndex + 1]?.id : undefined;
+
+    // Skip is session-local (no provider persistence). Keep a status override so
+    // hydration cannot resurrect the row under Needs Review / other filters.
+    this.workspace.setSegmentStatus(segmentId, "skipped");
+    this.workspace.rememberLocalStatusOverride(segmentId, "skipped");
+    this.ports.review?.onSkip?.(segmentId);
+
+    if (this.workspace.selectedSegmentId === segmentId) {
+      const remaining = this.workspace.getFilteredQueueSegments(
+        this.ports.queueFilter,
+        this.ports.usesServerQueueFilter,
+      );
+      this.workspace.setSelectedSegmentId(
+        nextSegmentId ?? remaining[0]?.id ?? this.workspace.selectedSegmentId,
+      );
+    }
+  }
+
+  async bulkApprove() {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+    this.workspace.isBulkActionPending = true;
+    try {
+      if (this.ports.review?.onBulkApprove) {
+        await this.ports.review.onBulkApprove(segmentIds);
+      } else {
+        for (const segmentId of segmentIds) {
+          const segment = this.workspace.getSegmentView(segmentId);
+          if (segment) {
+            await this.approve(segmentId, segment.targetText);
+          }
+        }
+      }
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+
+  async bulkSkip() {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+    this.workspace.isBulkActionPending = true;
+    try {
+      if (this.ports.review?.onBulkSkip) {
+        await this.ports.review.onBulkSkip(segmentIds);
+      } else {
+        for (const segmentId of segmentIds) {
+          this.skip(segmentId);
+        }
+      }
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+
+  async bulkHide() {
+    await this.bulkSetHidden(true);
+  }
+
+  async bulkUnhide() {
+    await this.bulkSetHidden(false);
+  }
+
+  async setLocked(segmentIds: string[], isLocked: boolean) {
+    if (segmentIds.length === 0 || !this.ports.review?.onSetLocked) {
+      return;
+    }
+
+    await this.ports.review.onSetLocked(segmentIds, isLocked);
+    this.workspace.setSegmentsLocked(segmentIds, isLocked);
+  }
+
+  async bulkLock() {
+    await this.bulkSetLocked(true);
+  }
+
+  async bulkUnlock() {
+    await this.bulkSetLocked(false);
+  }
+
+  private async bulkSetHidden(isHidden: boolean) {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    const handler = isHidden ? this.ports.review?.onBulkHide : this.ports.review?.onBulkUnhide;
+    if (!handler) {
+      return;
+    }
+
+    this.workspace.isBulkActionPending = true;
+    try {
+      await handler(segmentIds);
+      this.workspace.setSegmentsHidden(segmentIds, isHidden);
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+
+  private async bulkSetLocked(isLocked: boolean) {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    const handler = isLocked ? this.ports.review?.onBulkLock : this.ports.review?.onBulkUnlock;
+    if (!handler) {
+      return;
+    }
+
+    this.workspace.isBulkActionPending = true;
+    try {
+      await handler(segmentIds);
+      this.workspace.setSegmentsLocked(segmentIds, isLocked);
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+}

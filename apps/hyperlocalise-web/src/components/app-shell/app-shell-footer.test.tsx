@@ -24,7 +24,7 @@ import {
   CAT_ISSUE_GUIDANCE_OPEN_EVENT,
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
-} from "@/components/cat/issues/cat-issue-guidance-event";
+} from "@/components/content-editor/issues/content-editor-issue-guidance-event";
 import { planUsagePrimaryFeatureId } from "@/lib/billing/plan-usage";
 
 const autumnMocks = vi.hoisted(() => ({

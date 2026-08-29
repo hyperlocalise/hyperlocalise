@@ -160,12 +160,12 @@ export const issueDetailPanelMessages = defineMessages({
     id: "ImR4b9kD2P",
     description: "Placeholder for the owner note textarea",
   },
-  openInCat: {
+  openInContentEditor: {
     defaultMessage: "Open in Content Editor",
     id: "r2yxIB3t+w",
     description: "Button to open the linked Content Editor segment",
   },
-  openInCatUnavailable: {
+  openInContentEditorUnavailable: {
     defaultMessage: "Add a source path and locale to open this issue in the Content Editor.",
     id: "fyihAjDSvB",
     description: "Helper when Open in Content Editor is unavailable",

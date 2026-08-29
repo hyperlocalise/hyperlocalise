@@ -16,7 +16,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
+import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { createProjectFileRecord } from "./project-files.fixture";
 import { ProjectFileSelectionActions } from "./project-file-selection-actions";
@@ -99,7 +99,7 @@ describe("ProjectFileSelectionActions translation dialog", () => {
   it("preserves selected target locales across parent re-renders before creating the job", async () => {
     const user = userEvent.setup();
     const targetLocales = ["vi", "fr-FR"] as const;
-    const view = render(renderActions({ targetLocales }), { wrapper: CatTestProviders });
+    const view = render(renderActions({ targetLocales }), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
     await user.click(screen.getByLabelText("fr-FR"));
@@ -132,7 +132,7 @@ describe("ProjectFileSelectionActions translation dialog", () => {
 
   it("resets selections to updated project target locales when reopened", async () => {
     const user = userEvent.setup();
-    const view = render(renderActions(), { wrapper: CatTestProviders });
+    const view = render(renderActions(), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
     await user.click(screen.getByLabelText("vi"));
@@ -159,7 +159,7 @@ describe("ProjectFileSelectionActions translation dialog", () => {
 
   it("disables job creation when every target locale is unchecked", async () => {
     const user = userEvent.setup();
-    render(renderActions(), { wrapper: CatTestProviders });
+    render(renderActions(), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
     await user.click(screen.getByLabelText("vi"));

@@ -38,22 +38,22 @@ import type {
 import { buildProviderReviewReport } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import {
-  type CatVisualContext,
-  type CatVisualContextMarker,
-  type CatVisualContextScreenshot,
-} from "@/lib/translation/cat-visual-context";
+  type ContentEditorVisualContext,
+  type ContentEditorVisualContextMarker,
+  type ContentEditorVisualContextScreenshot,
+} from "@/lib/translation/content-editor-visual-context";
 
 import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueFile,
-  ProjectFileCatQueueSegment,
-  ProjectFileCatTranslation,
+  ProjectFileContentEditorComment,
+  ProjectFileContentEditorQueueFile,
+  ProjectFileContentEditorQueueSegment,
+  ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
-import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCatFilePagination,
-  type ProjectFileCatPaginationInput,
-} from "@/lib/projects/cat/project-file-cat-pagination";
+  type ProjectFileContentEditorPaginationInput,
+} from "@/lib/projects/content-editor/project-file-content-editor-pagination";
 import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 import type { ExternalTmsApprovedTranslationUpload } from "@/lib/providers/jobs/tms-provider-types";
 import { buildProviderReviewThreadId } from "@/lib/providers/provider-job-review/build-thread-id";
@@ -1139,7 +1139,7 @@ export class PhraseTmsProvider extends TmsProvider {
     client: PhraseApiClient;
     externalProjectId: string;
     externalStringId: string;
-  }): Promise<CatVisualContext> {
+  }): Promise<ContentEditorVisualContext> {
     const keyScreenshots = await this.loadPhraseKeyScreenshots(input);
     if (keyScreenshots) {
       const mapped = await mapWithConcurrency(
@@ -1172,7 +1172,9 @@ export class PhraseTmsProvider extends TmsProvider {
 
       return {
         screenshots: mapped
-          .filter((screenshot): screenshot is CatVisualContextScreenshot => screenshot != null)
+          .filter(
+            (screenshot): screenshot is ContentEditorVisualContextScreenshot => screenshot != null,
+          )
           .slice(0, MAX_PHRASE_SCREENSHOTS_PER_SEGMENT),
       };
     }
@@ -1203,7 +1205,9 @@ export class PhraseTmsProvider extends TmsProvider {
 
     return {
       screenshots: matched
-        .filter((screenshot): screenshot is CatVisualContextScreenshot => screenshot != null)
+        .filter(
+          (screenshot): screenshot is ContentEditorVisualContextScreenshot => screenshot != null,
+        )
         .slice(0, MAX_PHRASE_SCREENSHOTS_PER_SEGMENT),
     };
   }
@@ -1711,8 +1715,8 @@ export class PhraseTmsProvider extends TmsProvider {
     file: TmsProviderLiveFile;
     targetLocale: string;
     canEditTranslations: boolean;
-    pagination?: ProjectFileCatPaginationInput;
-  }): Promise<ProjectFileCatQueueFile> {
+    pagination?: ProjectFileContentEditorPaginationInput;
+  }): Promise<ProjectFileContentEditorQueueFile> {
     return buildPhraseLiveCatFile(input);
   }
 
@@ -1725,7 +1729,7 @@ export class PhraseTmsProvider extends TmsProvider {
     file: TmsProviderLiveFile;
     targetLocale: string;
     externalStringId: string;
-  }): Promise<ProjectFileCatTranslation | null | "not_found"> {
+  }): Promise<ProjectFileContentEditorTranslation | null | "not_found"> {
     return getPhraseLiveCatSegmentTarget(input);
   }
 
@@ -1738,7 +1742,7 @@ export class PhraseTmsProvider extends TmsProvider {
     file: TmsProviderLiveFile;
     targetLocale: string;
     externalStringId: string;
-  }): Promise<ProjectFileCatComment[]> {
+  }): Promise<ProjectFileContentEditorComment[]> {
     return getPhraseLiveCatSegmentComments(input);
   }
 
@@ -1752,7 +1756,7 @@ export class PhraseTmsProvider extends TmsProvider {
     targetLocale: string;
     externalStringId: string;
     text: string;
-  }): Promise<ProjectFileCatTranslation> {
+  }): Promise<ProjectFileContentEditorTranslation> {
     return savePhraseLiveCatTranslation(input);
   }
 
@@ -1766,7 +1770,7 @@ export class PhraseTmsProvider extends TmsProvider {
     targetLocale: string;
     externalStringId: string;
     text: string;
-  }): Promise<ProjectFileCatComment> {
+  }): Promise<ProjectFileContentEditorComment> {
     return savePhraseLiveCatComment(input);
   }
 
@@ -1775,14 +1779,14 @@ export class PhraseTmsProvider extends TmsProvider {
       | Awaited<ReturnType<PhraseApiClient["listScreenshots"]>>[number]
       | Awaited<ReturnType<PhraseApiClient["listKeyScreenshots"]>>[number],
     markers: Awaited<ReturnType<PhraseApiClient["listScreenshotMarkers"]>>,
-  ): CatVisualContextScreenshot | null {
+  ): ContentEditorVisualContextScreenshot | null {
     const imageUrl = screenshot.screenshotUrl?.trim();
     if (!imageUrl) {
       return null;
     }
 
     const mappedMarkers = markers
-      .map((marker): CatVisualContextMarker | null => {
+      .map((marker): ContentEditorVisualContextMarker | null => {
         if (
           !Number.isFinite(marker.left) ||
           !Number.isFinite(marker.top) ||
@@ -1801,7 +1805,7 @@ export class PhraseTmsProvider extends TmsProvider {
           height: marker.height,
         };
       })
-      .filter((marker): marker is CatVisualContextMarker => marker != null);
+      .filter((marker): marker is ContentEditorVisualContextMarker => marker != null);
 
     return {
       id: screenshot.id,
@@ -2556,7 +2560,7 @@ function buildQueueSegmentFromKey(key: PhraseKey): PhraseQueueSegmentDraft {
   };
 }
 
-function draftToQueueSegment(draft: PhraseQueueSegmentDraft): ProjectFileCatQueueSegment {
+function draftToQueueSegment(draft: PhraseQueueSegmentDraft): ProjectFileContentEditorQueueSegment {
   return {
     externalStringId: draft.externalStringId,
     key: draft.key,
@@ -2634,7 +2638,7 @@ function phraseTranslationIsApproved(translation: PhraseTranslation | null | und
 
 function mapPhraseTargetTranslation(
   translation: PhraseTranslation | null | undefined,
-): ProjectFileCatTranslation | null {
+): ProjectFileContentEditorTranslation | null {
   if (!translation?.content?.trim()) {
     return null;
   }
@@ -2668,7 +2672,7 @@ function mapPhraseKeyComment(
     locales: Array<{ name: string; code: string | null }>;
   },
   targetLocale: string,
-): ProjectFileCatComment {
+): ProjectFileContentEditorComment {
   const locale =
     comment.locales[0]?.code?.trim() || comment.locales[0]?.name?.trim() || targetLocale || null;
 
@@ -2748,9 +2752,9 @@ async function loadPhraseQueuePage(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   scope: PhraseLiveCatContext;
   file: TmsProviderLiveFile;
-  paginationInput: ProjectFileCatPaginationInput;
+  paginationInput: ProjectFileContentEditorPaginationInput;
 }): Promise<{
-  segments: ProjectFileCatQueueSegment[];
+  segments: ProjectFileContentEditorQueueSegment[];
   hasMore: boolean;
   nextPhraseScanPage?: number;
   nextPhraseScanSkip?: number;
@@ -2805,7 +2809,7 @@ async function loadPhraseQueuePage(input: {
     };
   }
 
-  const collected: ProjectFileCatQueueSegment[] = [];
+  const collected: ProjectFileContentEditorQueueSegment[] = [];
   const resumingScan = input.paginationInput.phraseScanPage != null;
   let phrasePage = resumingScan ? input.paginationInput.phraseScanPage! : 1;
   let skipMatches = resumingScan ? (input.paginationInput.phraseScanSkip ?? 0) : offset;
@@ -2884,8 +2888,8 @@ export async function buildPhraseLiveCatFile(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   canEditTranslations: boolean;
-  pagination?: ProjectFileCatPaginationInput;
-}): Promise<ProjectFileCatQueueFile> {
+  pagination?: ProjectFileContentEditorPaginationInput;
+}): Promise<ProjectFileContentEditorQueueFile> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,
@@ -2911,7 +2915,7 @@ export async function buildPhraseLiveCatFile(input: {
 
   const paginationInput = input.pagination ?? {
     offset: 0,
-    limit: legacyProviderCatSegmentLimit,
+    limit: legacyProviderContentEditorSegmentLimit,
     search: undefined,
     queueFilter: "all",
     paginated: true,
@@ -2957,7 +2961,7 @@ export async function getPhraseLiveCatSegmentTarget(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatTranslation | null | "not_found"> {
+}): Promise<ProjectFileContentEditorTranslation | null | "not_found"> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,
@@ -3015,7 +3019,7 @@ export async function getPhraseLiveCatSegmentComments(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatComment[]> {
+}): Promise<ProjectFileContentEditorComment[]> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,
@@ -3069,7 +3073,7 @@ export async function savePhraseLiveCatTranslation(input: {
   targetLocale: string;
   externalStringId: string;
   text: string;
-}): Promise<ProjectFileCatTranslation> {
+}): Promise<ProjectFileContentEditorTranslation> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,
@@ -3123,7 +3127,7 @@ export async function savePhraseLiveCatComment(input: {
   targetLocale: string;
   externalStringId: string;
   text: string;
-}): Promise<ProjectFileCatComment> {
+}): Promise<ProjectFileContentEditorComment> {
   const scope = resolvePhraseLiveCatContext({
     file: input.file,
     externalProjectId: input.externalProjectId,

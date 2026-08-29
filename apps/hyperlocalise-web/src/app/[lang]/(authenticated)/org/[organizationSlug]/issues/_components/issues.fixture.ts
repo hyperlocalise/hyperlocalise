@@ -42,7 +42,7 @@ export function createOrganizationIssue(
     status: "open",
     targetLocale: "de-DE",
     sourcePath: "messages/home.json",
-    linkKind: "cat_segment",
+    linkKind: "content_editor_segment",
     linkLabel: "Open in Content Editor",
     linkUrl: null,
     reporter: "Mina Chen",

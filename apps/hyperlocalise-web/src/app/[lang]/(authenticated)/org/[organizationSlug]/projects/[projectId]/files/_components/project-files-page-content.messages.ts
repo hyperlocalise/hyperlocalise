@@ -129,7 +129,7 @@ export const projectFilesPageContentMessages = defineMessages({
     id: "VXMF06lvLo",
     description: "Fallback toast when source file upload fails",
   },
-  cannotOpenCat: {
+  cannotOpenContentEditor: {
     defaultMessage: "This file can’t be opened in the Content Editor.",
     id: "+f0xDGLORc",
     description: "Toast when a selected file cannot open in the Content Editor",
@@ -151,7 +151,7 @@ export const projectFilesPageContentMessages = defineMessages({
     id: "pWLMdEuyPH",
     description: "Hint when the requested locale is unavailable and a fallback will be used",
   },
-  openCatHint: {
+  openContentEditorHint: {
     defaultMessage: "Double-click a file or use Open Editor to edit {targetLocale}.",
     id: "Ik3lLiqJti",
     description: "Hint explaining how to open the selected file in the Content Editor",

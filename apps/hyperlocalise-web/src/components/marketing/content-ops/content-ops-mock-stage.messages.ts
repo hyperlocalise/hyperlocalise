@@ -492,7 +492,7 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "e+WPqvuP5X",
     description: "Issue status resolved",
   },
-  openInCat: {
+  openInContentEditor: {
     defaultMessage: "Open in Content Editor",
     id: "y9MQtQc7gb",
     description: "Link label to open issue in the Content Editor",

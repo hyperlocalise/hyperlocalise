@@ -93,8 +93,12 @@ export const ProjectFileSelectionActions = forwardRef<
         type="button"
         size="sm"
         className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-        disabled={!actions.canOpenCat || !actions.catHref}
-        render={actions.canOpenCat && actions.catHref ? <Link href={actions.catHref} /> : undefined}
+        disabled={!actions.canOpenCat || !actions.contentEditorHref}
+        render={
+          actions.canOpenCat && actions.contentEditorHref ? (
+            <Link href={actions.contentEditorHref} />
+          ) : undefined
+        }
       >
         <HugeiconsIcon icon={LeftToRightListBulletIcon} />
         <FormattedMessage {...messages.openEditor} />
@@ -156,9 +160,9 @@ export const ProjectFileSelectionActions = forwardRef<
           </TypographyP>
           <TypographyP className="text-xs text-muted-foreground">
             {actions.canOpenCat ? (
-              <FormattedMessage {...messages.catAvailableHint} />
+              <FormattedMessage {...messages.contentEditorAvailableHint} />
             ) : (
-              <FormattedMessage {...messages.catUnavailableHint} />
+              <FormattedMessage {...messages.contentEditorUnavailableHint} />
             )}
           </TypographyP>
         </div>

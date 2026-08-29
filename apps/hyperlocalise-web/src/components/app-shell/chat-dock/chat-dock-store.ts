@@ -44,7 +44,7 @@ export type ChatDockTab = {
 
 /** Ephemeral page-scoped context for suggestion pills. Not persisted. */
 export type ChatDockPageContext = {
-  kind: "cat-segment";
+  kind: "content-editor-segment";
   segmentId: string;
   key: string;
   sourceText: string;

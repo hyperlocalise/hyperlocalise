@@ -21,7 +21,7 @@ import {
   isJobMutationAllowed,
   isJobProviderActionAllowed,
   isProjectCreateAllowed,
-  isProjectCatBehaviorMutationAllowed,
+  isProjectContentEditorBehaviorMutationAllowed,
   isProjectWriteAllowed,
   isProviderCredentialReadAllowed,
   isReviewApproveAllowed,
@@ -57,7 +57,7 @@ describe("capability guards", () => {
   });
 
   it("scopes CAT behavior changes to project managers", () => {
-    expectRoles(isProjectCatBehaviorMutationAllowed, ["admin", "localization_manager"]);
+    expectRoles(isProjectContentEditorBehaviorMutationAllowed, ["admin", "localization_manager"]);
   });
 
   it("scopes job create to contributor roles", () => {

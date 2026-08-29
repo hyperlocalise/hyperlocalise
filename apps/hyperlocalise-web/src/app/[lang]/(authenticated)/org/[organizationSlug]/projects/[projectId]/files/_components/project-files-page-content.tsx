@@ -30,10 +30,10 @@ import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
-  buildProjectFileCatHref,
-  canOpenProjectFileCat,
-  resolveProjectFileCatTargetLocaleResolution,
-} from "@/lib/projects/project-file-cat-routing";
+  buildProjectFileContentEditorHref,
+  canOpenProjectFileContentEditor,
+  resolveProjectFileContentEditorTargetLocaleResolution,
+} from "@/lib/projects/project-file-content-editor-routing";
 import { getSupportedSourceUploadAccept } from "@/lib/translation/file-formats";
 
 import {
@@ -315,16 +315,16 @@ export function ProjectFilesPageContent({
         return;
       }
 
-      const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
+      const targetLocaleResolution = resolveProjectFileContentEditorTargetLocaleResolution(
         file,
         highlightLocale,
         projectTargetLocales,
       );
       const targetLocale = targetLocaleResolution.targetLocale;
-      if (!canOpenProjectFileCat(file) || !targetLocale) {
+      if (!canOpenProjectFileContentEditor(file) || !targetLocale) {
         toast.error(
           targetLocale
-            ? intl.formatMessage(messages.cannotOpenCat)
+            ? intl.formatMessage(messages.cannotOpenContentEditor)
             : intl.formatMessage(messages.noTargetLocale),
         );
         return;
@@ -343,7 +343,7 @@ export function ProjectFilesPageContent({
         );
       }
 
-      const href = buildProjectFileCatHref(
+      const href = buildProjectFileContentEditorHref(
         organizationSlug,
         projectId,
         file,
@@ -375,9 +375,9 @@ export function ProjectFilesPageContent({
     () => resolvedFiles.filter((entry) => !entry.provider).map((entry) => entry.sourcePath),
     [resolvedFiles],
   );
-  const catOpenHint = selectedFileForTree
+  const contentEditorOpenHint = selectedFileForTree
     ? (() => {
-        const targetLocaleResolution = resolveProjectFileCatTargetLocaleResolution(
+        const targetLocaleResolution = resolveProjectFileContentEditorTargetLocaleResolution(
           selectedFileForTree,
           highlightLocale,
           projectTargetLocales,
@@ -395,7 +395,7 @@ export function ProjectFilesPageContent({
             });
           }
 
-          return intl.formatMessage(messages.openCatHint, { targetLocale });
+          return intl.formatMessage(messages.openContentEditorHint, { targetLocale });
         }
 
         return intl.formatMessage(messages.noTargetLocale);
@@ -487,7 +487,7 @@ export function ProjectFilesPageContent({
             onSelectSourcePath={setSelectedSourcePath}
             onLoadedFilesChange={setLoadedFiles}
             onActivateFile={openFileInCat}
-            catOpenHint={catOpenHint}
+            contentEditorOpenHint={contentEditorOpenHint}
             fileActions={treeFileActions}
             branch={selectedBranch}
             headerActions={

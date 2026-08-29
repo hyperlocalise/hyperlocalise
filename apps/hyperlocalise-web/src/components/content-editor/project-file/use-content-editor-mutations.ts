@@ -1,0 +1,646 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useMutation } from "@tanstack/react-query";
+import { useIntl, type IntlShape } from "react-intl";
+
+import {
+  maxCatLockedStringBatch,
+  maxNativeContentEditorHiddenStringBatch,
+  type ProjectFileContentEditorQueueFile,
+} from "@/api/routes/project/project.schema";
+import { readApiError } from "@/lib/api-error";
+import { apiClient } from "@/lib/api-client-instance";
+
+import type { ContentEditorIssueType } from "@/components/content-editor/shared/types";
+
+import { requireProviderExternalResourceId } from "./project-file-content-editor-mapper";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
+import { useInvalidateCatSegmentComments } from "./use-content-editor-segment-comments";
+import {
+  useInvalidateCatSegmentTarget,
+  useSyncCatSegmentTargetAfterSave,
+} from "./use-content-editor-segment-target";
+import { useContentEditorMutationsMessages } from "./use-content-editor-mutations.messages";
+
+function resolveCatMutationFileIdentity(
+  input: {
+    sourcePath: string;
+    contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+  },
+  externalStringId: string,
+  intl: IntlShape,
+) {
+  const segment = input.contentEditorFile?.segments.find(
+    (entry) => entry.externalStringId === externalStringId,
+  );
+  const sourcePath =
+    segment?.sourcePath?.trim() ||
+    (isContentEditorAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
+
+  if (!sourcePath) {
+    throw new Error(intl.formatMessage(useContentEditorMutationsMessages.missingSegmentSourceFile));
+  }
+
+  const externalResourceId = segment?.externalResourceId
+    ? segment.externalResourceId
+    : input.contentEditorFile?.provider
+      ? requireProviderExternalResourceId(input.contentEditorFile, intl)
+      : undefined;
+  const resourceType = segment?.resourceType ?? input.contentEditorFile?.provider?.resourceType;
+
+  return { sourcePath, externalResourceId, resourceType };
+}
+
+function chunkItems<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+export function useContentEditorMutations(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+  invalidateQueue: () => Promise<void>;
+  onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
+}) {
+  const intl = useIntl();
+  const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
+  const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
+  const invalidateSegmentComments = useInvalidateCatSegmentComments();
+
+  const saveMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      text: string;
+      approve?: boolean;
+    }) => {
+      const segment = input.contentEditorFile?.segments.find(
+        (entry) => entry.externalStringId === mutationInput.externalStringId,
+      );
+      // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
+      if (segment?.isLocked) {
+        throw new Error(
+          intl.formatMessage(useContentEditorMutationsMessages.cannotEditLockedStringTranslation),
+        );
+      }
+
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.translations.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          externalResourceId,
+          text: mutationInput.text,
+          approve: mutationInput.approve,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToSaveTranslation),
+          ),
+        );
+      }
+
+      const body = await response.json();
+      return body.translation;
+    },
+    onSuccess: async (translation, variables) => {
+      input.onTranslationSaved?.(
+        variables.externalStringId,
+        variables.text,
+        translation.isApproved,
+      );
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
+
+      const segmentTargetInput = {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      };
+
+      await Promise.all([
+        input.invalidateQueue(),
+        syncSegmentTargetAfterSave(segmentTargetInput, translation),
+      ]);
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      text: string;
+      type?: "comment" | "issue";
+      issueType?: ContentEditorIssueType;
+    }) => {
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.comments.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          externalResourceId,
+          text: mutationInput.text,
+          type: mutationInput.type,
+          issueType: mutationInput.issueType,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToPostComment),
+          ),
+        );
+      }
+
+      const body = await response.json();
+      return body.comment;
+    },
+    onSuccess: async (_data, variables) => {
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
+
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateSegmentTarget({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+        }),
+        invalidateSegmentComments({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+        }),
+      ]);
+    },
+  });
+
+  const resolveCommentMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; externalCommentId: string }) => {
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.comments[":commentId"].resolve.$patch({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          commentId: mutationInput.externalCommentId,
+        },
+        json: {
+          sourcePath,
+          externalResourceId,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToResolveIssue),
+          ),
+        );
+      }
+
+      const body = await response.json();
+      return body.comment;
+    },
+    onSuccess: async (_data, variables) => {
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
+
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateSegmentTarget({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+        }),
+        invalidateSegmentComments({
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          sourcePath,
+          externalResourceId,
+          resourceType,
+          targetLocale: input.targetLocale,
+          externalStringId: variables.externalStringId,
+        }),
+      ]);
+    },
+  });
+
+  async function invalidateAfterImageChange(externalStringId: string) {
+    const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+      input,
+      externalStringId,
+      intl,
+    );
+
+    await Promise.all([
+      input.invalidateQueue(),
+      invalidateSegmentTarget({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId,
+      }),
+    ]);
+  }
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      instructions?: string;
+      force?: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.regenerate.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          instructions: mutationInput.instructions,
+          force: mutationInput.force,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      file: File;
+      force?: boolean;
+    }) => {
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.upload.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        form: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          file: mutationInput.file,
+          ...(mutationInput.force ? { force: "true" } : {}),
+          ...(externalResourceId ? { externalResourceId } : {}),
+        },
+      } as never);
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToUploadImage),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const treatAsImageMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsImage: boolean }) => {
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          externalResourceId,
+          treatAsImage: mutationInput.treatAsImage,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateImageMode),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const treatAsVideoMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsVideo: boolean }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          treatAsVideo: mutationInput.treatAsVideo,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateVideoMode),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const hiddenStringsMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringIds: string[]; isHidden: boolean }) => {
+      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const chunks = chunkItems(uniqueIds, maxNativeContentEditorHiddenStringBatch);
+      let updatedCount = 0;
+
+      for (const externalStringIds of chunks) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.strings.hidden.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: input.sourcePath,
+            externalStringIds,
+            isHidden: mutationInput.isHidden,
+          },
+        });
+
+        if (response.status !== 200) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateHiddenStrings),
+            ),
+          );
+        }
+
+        const body = await response.json();
+        updatedCount += body.updatedCount;
+      }
+
+      return { updatedCount, isHidden: mutationInput.isHidden };
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
+  const lockedStringsMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringIds: string[]; isLocked: boolean }) => {
+      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const chunks = chunkItems(uniqueIds, maxCatLockedStringBatch);
+      let updatedCount = 0;
+
+      for (const externalStringIds of chunks) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.strings.locked.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: input.sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringIds,
+            isLocked: mutationInput.isLocked,
+          },
+        });
+
+        if (response.status !== 200) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateLockedStrings),
+            ),
+          );
+        }
+
+        const body = await response.json();
+        updatedCount += body.contentEditorSegmentLock.updatedCount;
+      }
+
+      return { updatedCount, isLocked: mutationInput.isLocked };
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
+  const maxLengthMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; maxLength: number | null }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["max-length"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          externalStringId: mutationInput.externalStringId,
+          maxLength: mutationInput.maxLength,
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateMaxLength),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
+  return {
+    saveMutation,
+    saveTranslation: saveMutation.mutateAsync,
+    commentMutation,
+    postComment: commentMutation.mutateAsync,
+    resolveCommentMutation,
+    resolveComment: resolveCommentMutation.mutateAsync,
+    regenerateImageMutation,
+    regenerateImage: regenerateImageMutation.mutateAsync,
+    uploadImageMutation,
+    uploadImage: uploadImageMutation.mutateAsync,
+    treatAsImageMutation,
+    treatAsImage: treatAsImageMutation.mutateAsync,
+    treatAsVideoMutation,
+    treatAsVideo: treatAsVideoMutation.mutateAsync,
+    setStringsHidden: hiddenStringsMutation.mutateAsync,
+    setStringsLocked: lockedStringsMutation.mutateAsync,
+    setMaxLength: maxLengthMutation.mutateAsync,
+    isSavingMaxLength: maxLengthMutation.isPending,
+    isSaving: saveMutation.isPending,
+    isPostingComment: commentMutation.isPending,
+    isResolvingComment: resolveCommentMutation.isPending,
+    isImageBusy:
+      regenerateImageMutation.isPending ||
+      uploadImageMutation.isPending ||
+      treatAsImageMutation.isPending ||
+      treatAsVideoMutation.isPending,
+  };
+}

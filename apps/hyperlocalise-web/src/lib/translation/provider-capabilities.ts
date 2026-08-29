@@ -19,7 +19,7 @@ import { isTmsProviderFeatureSupported } from "@/lib/providers/contracts/tms-pro
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { memorySupportsLiveSearch } from "@/lib/providers/contracts/memory-live-search";
 
-export type CatResourceType = "file" | "key";
+export type ContentEditorResourceType = "file" | "key";
 
 export type TranslationProviderFeature =
   | "live_glossary_search"
@@ -45,7 +45,7 @@ export class TranslationProviderCapabilityCatalog {
 
   supportsCatResource(
     providerKind: ExternalTmsProviderKind,
-    resourceType: CatResourceType,
+    resourceType: ContentEditorResourceType,
   ): boolean {
     const provider = getTmsProvider(providerKind);
     return provider?.resourceSupport?.providerCat?.[resourceType] ?? false;

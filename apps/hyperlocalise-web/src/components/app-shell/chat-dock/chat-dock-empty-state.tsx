@@ -48,7 +48,7 @@ export function buildChatDockSuggestions(
   pageContext: ChatDockPageContext | null,
   formatMessage: FormatMessage,
 ): Suggestion[] {
-  if (pageContext?.kind === "cat-segment") {
+  if (pageContext?.kind === "content-editor-segment") {
     const sourceLabel = truncateLabel(pageContext.sourceText, SOURCE_LABEL_MAX_LENGTH);
     return [
       {

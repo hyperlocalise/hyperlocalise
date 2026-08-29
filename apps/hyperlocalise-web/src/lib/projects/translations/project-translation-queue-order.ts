@@ -12,14 +12,14 @@
  */
 import { asc, sql } from "drizzle-orm";
 
-import type { ProjectFileCatQueueSort } from "@/api/routes/project/project.schema";
+import type { ProjectFileContentEditorQueueSort } from "@/api/routes/project/project.schema";
 import * as schema from "@/lib/database/schema";
 
 export function translationKeysQueueOrderBy(input: {
   organizationId: string;
   projectId: string;
   targetLocale?: string;
-  queueSort?: ProjectFileCatQueueSort;
+  queueSort?: ProjectFileContentEditorQueueSort;
   includeSourcePath?: boolean;
 }) {
   const fileOrder = input.includeSourcePath

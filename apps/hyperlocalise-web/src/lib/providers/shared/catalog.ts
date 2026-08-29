@@ -24,7 +24,7 @@ export const curatedLlmProviders = [
 
 export const llmProviderSchema = z.enum(curatedLlmProviders);
 
-export const llmProviderCatalog = {
+export const llmProviderContentEditoralog = {
   openai: {
     label: "OpenAI",
     models: [
@@ -75,9 +75,12 @@ export const llmProviderCatalog = {
 } as const satisfies Record<LlmProvider, { label: string; models: readonly string[] }>;
 
 export const defaultModelByProvider = Object.fromEntries(
-  Object.entries(llmProviderCatalog).map(([provider, config]) => [provider, config.models[0]]),
+  Object.entries(llmProviderContentEditoralog).map(([provider, config]) => [
+    provider,
+    config.models[0],
+  ]),
 ) as Record<LlmProvider, string>;
 
 export function isSupportedModelForProvider(provider: LlmProvider, model: string) {
-  return (llmProviderCatalog[provider].models as readonly string[]).includes(model);
+  return (llmProviderContentEditoralog[provider].models as readonly string[]).includes(model);
 }

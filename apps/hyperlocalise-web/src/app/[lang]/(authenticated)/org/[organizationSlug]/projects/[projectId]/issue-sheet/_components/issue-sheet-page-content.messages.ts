@@ -116,7 +116,7 @@ export const issueSheetPageContentMessages = defineMessages({
     id: "nUgKkvDPwN",
     description: "Empty-state description when the filtered Issue Sheet has no rows",
   },
-  openInCat: {
+  openInContentEditor: {
     defaultMessage: "Open in Content Editor",
     id: "s9vKrtKT/S",
     description: "Link label to open the related Content Editor segment for an issue",

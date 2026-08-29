@@ -63,8 +63,8 @@ describe("useProjectFileActions", () => {
     expect(result.current.canOpenCat).toBe(true);
     expect(result.current.canTranslateWithAgent).toBe(true);
     expect(result.current.translateDisabledTitle).toBeUndefined();
-    expect(result.current.catHref).toBe(
-      "/org/acme/projects/project_website/files/cat?sourcePath=marketing%2Fhome.json&locale=fr-FR&branch=main",
+    expect(result.current.contentEditorHref).toBe(
+      "/org/acme/projects/project_website/files/content-editor?sourcePath=marketing%2Fhome.json&locale=fr-FR&branch=main",
     );
     expect(result.current.stableTargetLocales).toEqual(["vi", "fr-FR"]);
 
@@ -83,8 +83,8 @@ describe("useProjectFileActions", () => {
     expect(result.current.isNativeFile).toBe(false);
     expect(result.current.canOpenCat).toBe(true);
     expect(result.current.canTranslateWithAgent).toBe(false);
-    expect(result.current.catHref).toBe(
-      "/org/acme/projects/project_website/files/cat?sourcePath=crowdin%2Fhome.json&locale=fr-FR&branch=main&externalResourceId=file_home_json",
+    expect(result.current.contentEditorHref).toBe(
+      "/org/acme/projects/project_website/files/content-editor?sourcePath=crowdin%2Fhome.json&locale=fr-FR&branch=main&externalResourceId=file_home_json",
     );
   });
 

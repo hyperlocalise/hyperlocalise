@@ -20,7 +20,7 @@ import {
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
-import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   BookOpenTextIcon,
@@ -309,7 +309,7 @@ export function buildProjectNavigationItems(
 ): readonly NavigationItem[] {
   const project = (section: string) => buildProjectPath(organizationSlug, projectId, section);
   const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
-  const showContentEditor = supportsCatAllFilesProvider(providerKind);
+  const showContentEditor = supportsContentEditorAllFilesProvider(providerKind);
 
   const items: NavigationItem[] = [
     {

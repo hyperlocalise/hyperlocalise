@@ -15,7 +15,7 @@
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectSourceStringsPreview } from "@/api/routes/project/project.schema";
-import { CatMessagePreview } from "@/components/cat/editor/cat-target-editor";
+import { ContentEditorMessagePreview } from "@/components/content-editor/editor/content-editor-target-editor";
 import { TypographyP } from "@/components/ui/typography";
 
 import { projectFileSourceStringsPreviewMessages as messages } from "./project-file-source-strings-preview.messages";
@@ -69,7 +69,7 @@ function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview 
                 <tr key={entry.id ?? entry.key} className="align-top">
                   <td className="px-3 py-2 font-mono text-foreground">{entry.key}</td>
                   <td className="max-w-[14rem] px-3 py-2 whitespace-pre-wrap text-subtle-foreground">
-                    <CatMessagePreview message={entry.text} />
+                    <ContentEditorMessagePreview message={entry.text} />
                   </td>
                   <td className="max-w-[12rem] px-3 py-2 whitespace-pre-wrap text-muted-foreground">
                     {entry.context?.trim()

@@ -75,9 +75,9 @@ export const Default: Story = {
     await expect(canvas.getByText("Context")).toBeInTheDocument();
     await expect(canvas.getByText("Sprint")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting on product copy review.")).toBeInTheDocument();
-    const openInCat = canvas.getByRole("link", { name: "Open in Content Editor" });
-    await expect(openInCat).toBeInTheDocument();
-    await expect(openInCat).toHaveAttribute("target", "_blank");
+    const openInContentEditor = canvas.getByRole("link", { name: "Open in Content Editor" });
+    await expect(openInContentEditor).toBeInTheDocument();
+    await expect(openInContentEditor).toHaveAttribute("target", "_blank");
     await expect(canvas.getAllByRole("link", { name: "Open in Content Editor" })).toHaveLength(1);
     const unsubscribe = await canvas.findByRole("button", { name: "Unsubscribe" });
     await expect(unsubscribe).toBeInTheDocument();

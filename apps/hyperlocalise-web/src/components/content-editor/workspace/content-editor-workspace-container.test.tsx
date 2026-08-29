@@ -1,0 +1,258 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+// @vitest-environment happy-dom
+
+import type { ReactElement } from "react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vite-plus/test";
+
+import {
+  createCatImageFileWorkspaceState,
+  createCatVideoFileWorkspaceState,
+} from "@/components/content-editor/file-view/content-editor-file-view.fixture";
+import {
+  contentEditorSegmentsFixture,
+  createContentEditorWorkspaceState,
+  mockValidateFormat,
+} from "@/components/content-editor/shared/content-editor.fixture";
+import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+
+import { ContentEditorWorkspaceContainer } from "./content-editor-workspace-container";
+
+async function waitForTargetEditor() {
+  return waitFor(() =>
+    document.querySelector('[aria-label="Target translation"][contenteditable="true"]'),
+  );
+}
+
+function createUiCatWorkspaceState() {
+  return createContentEditorWorkspaceState({
+    selectedSegmentId: "seg-02",
+    segments: contentEditorSegmentsFixture.filter((segment) =>
+      ["seg-01", "seg-02", "seg-03"].includes(segment.id),
+    ),
+  });
+}
+
+function renderCatWorkspace(ui: ReactElement) {
+  return renderWithContentEditorProviders(
+    <div style={{ height: "900px", width: "1280px" }} className="bg-background text-foreground">
+      {ui}
+    </div>,
+  );
+}
+
+describe("ContentEditorWorkspaceContainer UI", () => {
+  it("renders queue, editor, and intelligence panels on desktop", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    expect(screen.getByText("Queue")).toBeInTheDocument();
+    expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize queue panel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("separator", { name: "Resize translation intelligence panel" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText("Dashboard card showing how many reviews still need approval."),
+    ).toBeInTheDocument();
+  });
+
+  it("starts in comfortable view when initialViewMode is comfortable", async () => {
+    window.localStorage.setItem("content-editor-workspace-view-mode:v1", "side-by-side");
+
+    try {
+      renderCatWorkspace(
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="comfortable"
+          services={{ validateFormat: mockValidateFormat }}
+        />,
+      );
+
+      const viewModeButton = await waitFor(() =>
+        screen.getByRole("button", { name: "Content Editor view mode" }),
+      );
+      expect(viewModeButton).toHaveTextContent("Comfortable");
+      expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+      expect(screen.queryByText("Source")).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("content-editor-workspace-view-mode:v1");
+    }
+  });
+
+  it("shows an empty queue state when there are no segments", () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorWorkspaceState({ segments: [], selectedSegmentId: "" })}
+      />,
+    );
+
+    expect(screen.getByText("No segments in queue.")).toBeInTheDocument();
+  });
+
+  it("calls approve after editing the target translation", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue("reviewed");
+
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        review={{ onApprove }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard("{Control>}a{/Control}Updated translation");
+    await user.click(screen.getByRole("button", { name: /Approve/i }));
+
+    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Updated translation"));
+  });
+
+  it("approves with Ctrl+Enter while typing in the comfortable target editor", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue("reviewed");
+
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        review={{ onApprove }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard("{Control>}a{/Control}Saved via shortcut");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled(),
+    );
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Saved via shortcut"));
+  });
+
+  it("applies AI suggestions from the editor recommendation panel", async () => {
+    const user = userEvent.setup();
+    const onUseAiSuggestion = vi.fn();
+
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        editing={{ onUseAiSuggestion }}
+        services={{
+          validateFormat: mockValidateFormat,
+          generateAiRecommendation: async () => ({
+            aiSuggestion: "Thẻ trên bảng điều khiển hiển thị số lượng đánh giá cần phê duyệt.",
+          }),
+        }}
+      />,
+    );
+
+    const aiPanel = screen.getByText("AI recommendation").closest("aside");
+    expect(aiPanel).toBeTruthy();
+
+    await user.click(within(aiPanel as HTMLElement).getByRole("button", { name: "Use" }));
+
+    expect(onUseAiSuggestion).toHaveBeenCalledWith("seg-02");
+  });
+
+  it("uses compact tabs on narrow viewports", async () => {
+    const user = userEvent.setup();
+    const originalMatchMedia = window.matchMedia;
+    const matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    window.matchMedia = matchMedia;
+
+    try {
+      renderCatWorkspace(
+        <ContentEditorWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          services={{ validateFormat: mockValidateFormat }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByRole("tab", { name: "Edit" })).toBeInTheDocument());
+      expect(screen.getByRole("tab", { name: "Queue" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: "Queue" }));
+      expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute("data-active");
+      expect(
+        screen.queryByRole("separator", { name: "Resize queue panel" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("renders File view for an image file segment", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createCatImageFileWorkspaceState()}
+        initialViewMode="file"
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+    expect(screen.getByText("marketing/hero.png")).toBeInTheDocument();
+    expect(screen.getByAltText("Translated image")).toBeInTheDocument();
+    expect(screen.getByAltText("Source image")).toBeInTheDocument();
+    expect(screen.getByText("Upload translated file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
+  });
+
+  it("renders File view for a video file segment", async () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createCatVideoFileWorkspaceState()}
+        initialViewMode="file"
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+    expect(screen.getByText("onboarding/walkthrough.mp4")).toBeInTheDocument();
+    expect(document.querySelectorAll("video")).toHaveLength(2);
+    expect(screen.getByText("Upload translated file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
+  });
+});

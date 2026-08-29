@@ -33,7 +33,7 @@ function createMemoryStorage() {
 describe("ChatDockStore", () => {
   it("only applies CAT project context to new or unscoped conversations", () => {
     const pageContext = {
-      kind: "cat-segment" as const,
+      kind: "content-editor-segment" as const,
       segmentId: "segment-1",
       key: "checkout.submit",
       sourceText: "Submit",
@@ -213,14 +213,14 @@ describe("ChatDockStore", () => {
     store.setOrganizationSlug("acme");
     store.openNewTab();
     store.setPageContext({
-      kind: "cat-segment",
+      kind: "content-editor-segment",
       segmentId: "seg-02",
       key: "checkout.submit",
       sourceText: "Submit order",
     });
 
     expect(store.pageContext).toMatchObject({
-      kind: "cat-segment",
+      kind: "content-editor-segment",
       key: "checkout.submit",
     });
 

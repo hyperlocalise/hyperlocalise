@@ -15,7 +15,7 @@ import { z } from "zod";
 import {
   defaultModelByProvider,
   llmProviderSchema,
-  llmProviderCatalog,
+  llmProviderContentEditoralog,
 } from "@/lib/providers/shared/catalog";
 
 export const updateProviderCredentialBodySchema = z
@@ -26,7 +26,9 @@ export const updateProviderCredentialBodySchema = z
   })
   .superRefine((value, context) => {
     if (
-      !(llmProviderCatalog[value.provider].models as readonly string[]).includes(value.defaultModel)
+      !(llmProviderContentEditoralog[value.provider].models as readonly string[]).includes(
+        value.defaultModel,
+      )
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

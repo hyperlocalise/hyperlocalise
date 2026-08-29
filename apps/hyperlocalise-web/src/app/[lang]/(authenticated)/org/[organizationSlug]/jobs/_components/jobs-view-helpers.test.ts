@@ -14,9 +14,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { ApiJob } from "./jobs-page-view";
 import {
-  buildJobCatHref,
+  buildJobContentEditorHref,
   buildJobDetailHref,
-  canOpenJobCat,
+  canOpenJobContentEditor,
   isKanbanStatus,
   readJobsViewMode,
   writeJobsViewMode,
@@ -68,14 +68,14 @@ describe("jobs-view-helpers", () => {
   });
 
   it("allows CAT for provider-backed translation and review jobs", () => {
-    expect(canOpenJobCat(createJob())).toBe(true);
-    expect(canOpenJobCat(createJob({ kind: "review" }))).toBe(true);
-    expect(canOpenJobCat(createJob({ kind: "sync" }))).toBe(false);
+    expect(canOpenJobContentEditor(createJob())).toBe(true);
+    expect(canOpenJobContentEditor(createJob({ kind: "review" }))).toBe(true);
+    expect(canOpenJobContentEditor(createJob({ kind: "sync" }))).toBe(false);
   });
 
   it("allows CAT for native file translation jobs", () => {
     expect(
-      canOpenJobCat(
+      canOpenJobContentEditor(
         createJob({
           externalProviderKind: null,
           id: "job_native",
@@ -90,28 +90,28 @@ describe("jobs-view-helpers", () => {
   });
 
   it("builds provider CAT hrefs with locale and source path when available", () => {
-    expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
+    expect(buildJobContentEditorHref("acme", "project-1", createJob())).toBe(
       "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
     );
-    expect(buildJobCatHref("acme", null, createJob())).toBe(
+    expect(buildJobContentEditorHref("acme", null, createJob())).toBe(
       "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
     );
-    expect(buildJobCatHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
-    expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
+    expect(buildJobContentEditorHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
+    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
   });
 
   it("includes needs_review queue filter for review jobs", () => {
-    expect(buildJobCatHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
+    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
       "queueFilter=needs_review",
     );
     expect(
-      buildJobCatHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
+      buildJobContentEditorHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
     ).toContain("queueFilter=needs_review");
   });
 
   it("builds native CAT hrefs with stored file id and target locale", () => {
     expect(
-      buildJobCatHref(
+      buildJobContentEditorHref(
         "acme",
         "project-1",
         createJob({

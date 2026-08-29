@@ -14,9 +14,9 @@ import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
 import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueFile,
-  ProjectFileCatTranslation,
+  ProjectFileContentEditorComment,
+  ProjectFileContentEditorQueueFile,
+  ProjectFileContentEditorTranslation,
   ProjectFileContent,
   ProjectFileDetailResponse,
 } from "@/api/routes/project/project.schema";
@@ -24,16 +24,19 @@ import {
   buildSourceStringsPreviewContent,
   normalizeProjectFileContent,
 } from "@/lib/projects/files/project-file-content";
-import { CAT_ALL_FILES_FILENAME, CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
+import {
+  CAT_ALL_FILES_FILENAME,
+  CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+} from "@/lib/projects/content-editor-all-files";
 import {
   buildCatFilePagination,
-  type ProjectFileCatPaginationInput,
-} from "@/lib/projects/cat/project-file-cat-pagination";
+  type ProjectFileContentEditorPaginationInput,
+} from "@/lib/projects/content-editor/project-file-content-editor-pagination";
 import {
   paginateCatQueueSortBuckets,
   shouldPaginateCrowdinUntranslatedFirst,
-} from "@/lib/projects/cat/cat-queue-sort-buckets";
-import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+} from "@/lib/projects/content-editor/content-editor-queue-sort-buckets";
+import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
   CROWDIN_GLOSSARY_LIST_LIMIT,
@@ -291,7 +294,7 @@ export type TmsProviderLiveFile = {
 };
 
 export type TmsProviderLiveFileDetail = ProjectFileDetailResponse["file"];
-export type TmsProviderLiveCatFile = ProjectFileCatQueueFile;
+export type TmsProviderLiveCatFile = ProjectFileContentEditorQueueFile;
 
 export type TmsProviderLiveGlossary = {
   id: string;
@@ -663,7 +666,7 @@ function buildLiveProviderProject(input: {
     // template config to read — same empty default as an unconfigured native project.
     issueTemplateConfig: {},
     automaticallyGroupIdenticalStrings: false,
-    catGroupingRevision: 0,
+    contentEditorGroupingRevision: 0,
     createdAt: now,
     updatedAt: now,
   };
@@ -859,7 +862,7 @@ function mapSmartlingLiveCatError(error: unknown): never {
   throw error;
 }
 
-function supportsLiveProviderCat(
+function supportsLiveProviderContentEditor(
   providerKind: ExternalTmsProviderKind,
   file: TmsProviderLiveFile,
 ): boolean {
@@ -1102,7 +1105,7 @@ async function buildCrowdinLiveCatFile(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   canEditTranslations: boolean;
-  pagination?: ProjectFileCatPaginationInput;
+  pagination?: ProjectFileContentEditorPaginationInput;
 }): Promise<TmsProviderLiveCatFile> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const fileId = Number(input.file.provider?.externalResourceId);
@@ -1121,7 +1124,7 @@ async function buildCrowdinLiveCatFile(input: {
   try {
     const paginationInput = input.pagination ?? {
       offset: 0,
-      limit: legacyProviderCatSegmentLimit,
+      limit: legacyProviderContentEditorSegmentLimit,
       search: undefined,
       queueFilter: "all",
       queueSort: "file_order",
@@ -1135,10 +1138,12 @@ async function buildCrowdinLiveCatFile(input: {
     if (!paginationInput.paginated) {
       const strings = await client.listSourceStrings(projectId, {
         fileId,
-        maxItems: legacyProviderCatSegmentLimit + 1,
+        maxItems: legacyProviderContentEditorSegmentLimit + 1,
       });
-      truncated = strings.length > legacyProviderCatSegmentLimit;
-      visibleStrings = truncated ? strings.slice(0, legacyProviderCatSegmentLimit) : strings;
+      truncated = strings.length > legacyProviderContentEditorSegmentLimit;
+      visibleStrings = truncated
+        ? strings.slice(0, legacyProviderContentEditorSegmentLimit)
+        : strings;
     } else if (shouldPaginateCrowdinUntranslatedFirst(paginationInput)) {
       const bucketPage = await paginateCatQueueSortBuckets({
         startBucketIndex: paginationInput.sortBucket,
@@ -1236,7 +1241,7 @@ async function buildCrowdinLiveCatSegmentTarget(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatTranslation | null> {
+}): Promise<ProjectFileContentEditorTranslation | null> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const stringId = Number(input.externalStringId);
   if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
@@ -1290,7 +1295,7 @@ async function saveCrowdinLiveCatTranslation(input: {
   targetLocale: string;
   externalStringId: string;
   text: string;
-}): Promise<ProjectFileCatTranslation> {
+}): Promise<ProjectFileContentEditorTranslation> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const stringId = Number(input.externalStringId);
   if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
@@ -1443,7 +1448,7 @@ async function buildCrowdinLiveCatSegmentComments(input: {
   file: TmsProviderLiveFile;
   targetLocale: string;
   externalStringId: string;
-}): Promise<ProjectFileCatComment[]> {
+}): Promise<ProjectFileContentEditorComment[]> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const stringId = Number(input.externalStringId);
   if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
@@ -1485,7 +1490,7 @@ async function buildCrowdinLiveCatSegmentComments(input: {
   }
 }
 
-function mapCrowdinStringComment(comment: CrowdinStringComment): ProjectFileCatComment {
+function mapCrowdinStringComment(comment: CrowdinStringComment): ProjectFileContentEditorComment {
   return {
     externalCommentId: String(comment.id),
     type: comment.type === "issue" ? "issue" : "comment",
@@ -1519,7 +1524,7 @@ async function saveCrowdinLiveCatComment(input: {
   text: string;
   type?: "comment" | "issue";
   issueType?: string;
-}): Promise<ProjectFileCatComment> {
+}): Promise<ProjectFileContentEditorComment> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const stringId = Number(input.externalStringId);
   if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
@@ -1559,7 +1564,7 @@ async function resolveCrowdinLiveCatComment(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
   externalCommentId: string;
-}): Promise<ProjectFileCatComment> {
+}): Promise<ProjectFileContentEditorComment> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const commentId = Number(input.externalCommentId);
   if (Number.isNaN(projectId) || Number.isNaN(commentId)) {
@@ -2284,7 +2289,7 @@ export async function getTmsProviderLiveCatFile(
     canEditTranslations?: boolean;
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
-    pagination?: ProjectFileCatPaginationInput;
+    pagination?: ProjectFileContentEditorPaginationInput;
   },
 ): Promise<TmsProviderLiveCatFile | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
@@ -2302,7 +2307,7 @@ export async function getTmsProviderLiveCatFile(
     return null;
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
@@ -2370,14 +2375,14 @@ export async function getTmsProviderLiveCatFile(
 export const CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE =
   "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.";
 
-export async function getTmsProviderLiveCatAllFiles(
+export async function getTmsProviderLiveContentEditorAllFiles(
   organizationId: string,
   externalProjectId: string,
   targetLocale: string,
   options?: {
     actorUserId?: string | null;
     canEditTranslations?: boolean;
-    pagination?: ProjectFileCatPaginationInput;
+    pagination?: ProjectFileContentEditorPaginationInput;
     sourcePaths?: readonly string[] | null;
   },
 ): Promise<TmsProviderLiveCatFile> {
@@ -2392,7 +2397,7 @@ export async function getTmsProviderLiveCatAllFiles(
     );
   }
 
-  return buildCrowdinLiveCatAllFiles({
+  return buildCrowdinLiveContentEditorAllFiles({
     context,
     externalProjectId,
     targetLocale,
@@ -2403,13 +2408,13 @@ export async function getTmsProviderLiveCatAllFiles(
   });
 }
 
-async function buildCrowdinLiveCatAllFiles(input: {
+async function buildCrowdinLiveContentEditorAllFiles(input: {
   context: ActiveTmsProviderContext;
   externalProjectId: string;
   targetLocale: string;
   actorUserId?: string | null;
   canEditTranslations: boolean;
-  pagination?: ProjectFileCatPaginationInput;
+  pagination?: ProjectFileContentEditorPaginationInput;
   sourcePaths?: readonly string[] | null;
 }): Promise<TmsProviderLiveCatFile> {
   const projectId = Number(input.externalProjectId);
@@ -2434,12 +2439,12 @@ async function buildCrowdinLiveCatAllFiles(input: {
     input.sourcePaths && input.sourcePaths.length > 0 ? new Set(input.sourcePaths) : null;
 
   const allCatFiles = files
-    .filter((file) => supportsLiveProviderCat(input.context.providerKind, file))
+    .filter((file) => supportsLiveProviderContentEditor(input.context.providerKind, file))
     .toSorted((left, right) =>
       left.sourcePath.localeCompare(right.sourcePath, undefined, { sensitivity: "base" }),
     );
 
-  const catFiles = sourcePathFilter
+  const contentEditorFiles = sourcePathFilter
     ? allCatFiles.filter((file) => sourcePathFilter.has(file.sourcePath))
     : allCatFiles;
 
@@ -2447,11 +2452,11 @@ async function buildCrowdinLiveCatAllFiles(input: {
   // filtering drops/skips in-scope strings (empty/sparse pages). Only fall back to project-wide
   // listing when the file OR list would 414 *and* the request is not narrowed to a subset.
   const isNarrowedSourcePathFilter =
-    sourcePathFilter != null && catFiles.length < allCatFiles.length;
+    sourcePathFilter != null && contentEditorFiles.length < allCatFiles.length;
 
   const fileById = new Map<number, TmsProviderLiveFile>();
   const fileIds: number[] = [];
-  for (const file of catFiles) {
+  for (const file of contentEditorFiles) {
     const fileId = Number(file.provider?.externalResourceId);
     if (Number.isNaN(fileId)) {
       continue;
@@ -2462,7 +2467,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
 
   const paginationInput = input.pagination ?? {
     offset: 0,
-    limit: legacyProviderCatSegmentLimit,
+    limit: legacyProviderContentEditorSegmentLimit,
     search: undefined,
     queueFilter: "all",
     queueSort: "file_order",
@@ -2470,7 +2475,9 @@ async function buildCrowdinLiveCatAllFiles(input: {
   };
 
   const offset = paginationInput.paginated ? paginationInput.offset : 0;
-  const limit = paginationInput.paginated ? paginationInput.limit : legacyProviderCatSegmentLimit;
+  const limit = paginationInput.paginated
+    ? paginationInput.limit
+    : legacyProviderContentEditorSegmentLimit;
 
   if (fileIds.length === 0) {
     const pagination = paginationInput.paginated
@@ -2483,7 +2490,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
       : undefined;
 
     return {
-      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
       filename: CAT_ALL_FILES_FILENAME,
       provider: null,
       targetLocale: input.targetLocale,
@@ -2596,9 +2603,9 @@ async function buildCrowdinLiveCatAllFiles(input: {
         : undefined;
 
       return {
-        sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
         filename: CAT_ALL_FILES_FILENAME,
-        provider: catFiles[0]?.provider ?? null,
+        provider: contentEditorFiles[0]?.provider ?? null,
         targetLocale: input.targetLocale,
         canEditTranslations: input.canEditTranslations,
         truncated: pagination?.hasMore ?? false,
@@ -2630,9 +2637,9 @@ async function buildCrowdinLiveCatAllFiles(input: {
       : undefined;
 
     return {
-      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
       filename: CAT_ALL_FILES_FILENAME,
-      provider: catFiles[0]?.provider ?? null,
+      provider: contentEditorFiles[0]?.provider ?? null,
       targetLocale: input.targetLocale,
       canEditTranslations: input.canEditTranslations,
       truncated: pagination?.hasMore ?? false,
@@ -2666,7 +2673,7 @@ export async function getTmsProviderLiveCatSegmentTarget(
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
   },
-): Promise<ProjectFileCatTranslation | null | "not_found"> {
+): Promise<ProjectFileContentEditorTranslation | null | "not_found"> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -2682,7 +2689,7 @@ export async function getTmsProviderLiveCatSegmentTarget(
     return "not_found";
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
@@ -2754,7 +2761,7 @@ export async function getTmsProviderLiveCatSegmentComments(
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
   },
-): Promise<ProjectFileCatComment[]> {
+): Promise<ProjectFileContentEditorComment[]> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -2770,7 +2777,7 @@ export async function getTmsProviderLiveCatSegmentComments(
     return [];
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT comments are not available for this provider file yet.",
@@ -2842,7 +2849,7 @@ export async function saveTmsProviderLiveCatTranslation(
     externalResourceId?: string | null;
   },
   options?: { actorUserId?: string | null },
-): Promise<ProjectFileCatTranslation | null> {
+): Promise<ProjectFileContentEditorTranslation | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -2857,7 +2864,7 @@ export async function saveTmsProviderLiveCatTranslation(
     return null;
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
@@ -2963,7 +2970,7 @@ export async function saveTmsProviderLiveCatComment(
     issueType?: string;
   },
   options?: { actorUserId?: string | null },
-): Promise<ProjectFileCatComment | null> {
+): Promise<ProjectFileContentEditorComment | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -2978,7 +2985,7 @@ export async function saveTmsProviderLiveCatComment(
     return null;
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT comments are not available for this provider file yet.",
@@ -3065,7 +3072,7 @@ export async function resolveTmsProviderLiveCatComment(
     externalResourceId?: string | null;
   },
   options?: { actorUserId?: string | null },
-): Promise<ProjectFileCatComment | null> {
+): Promise<ProjectFileContentEditorComment | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -3080,7 +3087,7 @@ export async function resolveTmsProviderLiveCatComment(
     return null;
   }
 
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
+  if (!supportsLiveProviderContentEditor(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT comments are not available for this provider file yet.",

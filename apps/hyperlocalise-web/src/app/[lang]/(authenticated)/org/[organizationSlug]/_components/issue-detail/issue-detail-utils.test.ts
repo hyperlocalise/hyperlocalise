@@ -77,7 +77,7 @@ describe("issue-detail-utils", () => {
         segmentId: null,
       }),
     ).toBe(
-      "/org/acme/projects/project_website/files/cat?sourcePath=src%2Fmessages.json&locale=fr-FR",
+      "/org/acme/projects/project_website/files/content-editor?sourcePath=src%2Fmessages.json&locale=fr-FR",
     );
 
     expect(
@@ -87,7 +87,7 @@ describe("issue-detail-utils", () => {
         segmentId: "seg_1",
       }),
     ).toBe(
-      "/org/acme/projects/project%2Fwith%20spaces/files/cat?sourcePath=src%2Fmessages.json&locale=fr-FR&segment=seg_1",
+      "/org/acme/projects/project%2Fwith%20spaces/files/content-editor?sourcePath=src%2Fmessages.json&locale=fr-FR&segment=seg_1",
     );
   });
 

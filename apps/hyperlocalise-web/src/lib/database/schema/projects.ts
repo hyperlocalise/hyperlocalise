@@ -118,7 +118,7 @@ export const projects = pgTable(
       .notNull()
       .default(false),
     // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
-    catGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
+    contentEditorGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When project metadata was last changed.

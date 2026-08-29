@@ -133,7 +133,7 @@ export const WithProjects: Story = {
   },
 };
 
-export const CatPreselectedProject: Story = {
+export const ContentEditorPreselectedProject: Story = {
   args: {
     initialProjectId: "proj_website",
     projects: [

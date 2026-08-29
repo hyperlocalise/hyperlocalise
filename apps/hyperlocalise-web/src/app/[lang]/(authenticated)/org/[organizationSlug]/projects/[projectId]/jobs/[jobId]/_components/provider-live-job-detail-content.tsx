@@ -32,7 +32,7 @@ import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-ap
 import { apiClient } from "@/lib/api-client-instance";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
 import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing";
+import { resolveDefaultJobContentEditorQueueFilter } from "@/lib/projects/job-content-editor-routing";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
 import { useProviderJobLocaleReadiness } from "../../../../../_hooks/use-provider-job-locale-readiness";
@@ -165,7 +165,7 @@ export function ProviderLiveJobDetailContent({
                 ? job.externalProviderPayload.languageId
                 : (job.externalTargetLocales?.[0] ?? null)
             }
-            queueFilter={resolveDefaultJobCatQueueFilter(job)}
+            queueFilter={resolveDefaultJobContentEditorQueueFilter(job)}
           />
         )}
       />

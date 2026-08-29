@@ -25,17 +25,17 @@ export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
 });
 
-export const updateProjectCatBehaviorBodySchema = z.object({
+export const updateProjectContentEditorBehaviorBodySchema = z.object({
   automaticallyGroupIdenticalStrings: z.boolean(),
 });
 
-export const projectCatBehaviorSchema = z.object({
+export const projectContentEditorBehaviorSchema = z.object({
   automaticallyGroupIdenticalStrings: z.boolean(),
   groupingRevision: z.number().int().nonnegative(),
   canManage: z.boolean(),
 });
 
-export const projectCatBehaviorPreviewSchema = z.object({
+export const projectContentEditorBehaviorPreviewSchema = z.object({
   affectedOccurrences: z.number().int().nonnegative(),
   groups: z.number().int().nonnegative(),
 });
@@ -332,11 +332,11 @@ export const projectFileCatPaginationSchema = z.object({
   nextSortBucketOffset: z.number().int().min(0).optional(),
 });
 
-export const defaultProjectFileCatPageLimit = 50;
-export const maxProjectFileCatPageLimit = 100;
+export const defaultProjectFileContentEditorPageLimit = 50;
+export const maxProjectFileContentEditorPageLimit = 100;
 export const maxCrowdinSourceStringCountCeiling = 5_000;
-export const legacyNativeCatSegmentLimit = 500;
-export const legacyProviderCatSegmentLimit = 1_000;
+export const legacyNativeContentEditorSegmentLimit = 500;
+export const legacyProviderContentEditorSegmentLimit = 1_000;
 
 export const projectFileCatTranslationBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
@@ -354,16 +354,16 @@ export const projectFileCatStatusBodySchema = z.object({
   status: z.enum(["needs_review", "approved", "rejected"]),
 });
 
-export const maxNativeCatHiddenStringBatch = 200;
-export const maxCatHiddenStringBatch = maxNativeCatHiddenStringBatch;
-export const maxCatLockedStringBatch = maxNativeCatHiddenStringBatch;
+export const maxNativeContentEditorHiddenStringBatch = 200;
+export const maxCatHiddenStringBatch = maxNativeContentEditorHiddenStringBatch;
+export const maxCatLockedStringBatch = maxNativeContentEditorHiddenStringBatch;
 
 export const projectFileCatHiddenStringsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   externalStringIds: z
     .array(z.string().trim().min(1).max(128))
     .min(1)
-    .max(maxNativeCatHiddenStringBatch),
+    .max(maxNativeContentEditorHiddenStringBatch),
   isHidden: z.boolean(),
 });
 
@@ -385,7 +385,7 @@ export const projectFileCatLockedStringsResultSchema = z.object({
 });
 
 export const projectFileCatLockedStringsResponseSchema = successEnvelopeSchema(
-  "catSegmentLock",
+  "contentEditorSegmentLock",
   projectFileCatLockedStringsResultSchema,
 );
 
@@ -673,7 +673,11 @@ export const crowdinIssueTypes = [
   "source_mistake",
 ] as const;
 
-export const catIssueTypes = [...crowdinIssueTypes, "glossary_violation", "qa_failure"] as const;
+export const contentEditorIssueTypes = [
+  ...crowdinIssueTypes,
+  "glossary_violation",
+  "qa_failure",
+] as const;
 
 export const projectFileCatCommentBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
@@ -682,7 +686,7 @@ export const projectFileCatCommentBodySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().trim().min(1).max(16_384),
   type: z.enum(["comment", "issue"]).optional(),
-  issueType: z.enum(catIssueTypes).optional(),
+  issueType: z.enum(contentEditorIssueTypes).optional(),
 });
 
 export const projectFileCatCommentResponseSchema = z.object({
@@ -765,7 +769,7 @@ export const projectFileCatSegmentTargetResponseSchema = z.object({
 });
 
 export const projectFileCatResponseSchema = z.object({
-  catFile: z.object({
+  contentEditorFile: z.object({
     sourcePath: z.string(),
     filename: z.string(),
     provider: projectFileRecordSchema.shape.provider,
@@ -799,12 +803,13 @@ export const projectFileCatResponseSchema = z.object({
   }),
 });
 
-export const projectFileCatQueueFileSchema = projectFileCatResponseSchema.shape.catFile.extend({
-  segments: z.array(projectFileCatSegmentSchema),
-});
+export const projectFileCatQueueFileSchema =
+  projectFileCatResponseSchema.shape.contentEditorFile.extend({
+    segments: z.array(projectFileCatSegmentSchema),
+  });
 
 export const projectFileCatQueueResponseSchema = z.object({
-  catQueue: projectFileCatQueueFileSchema,
+  contentEditorQueue: projectFileCatQueueFileSchema,
 });
 
 export const projectFileCatTranslationResponseSchema = z.object({
@@ -822,36 +827,56 @@ export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
-export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
-export type ProjectFileCatExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
-export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
-export type ProjectFileCatQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
-export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
-export type ProjectFileCatHiddenStringsBody = z.infer<typeof projectFileCatHiddenStringsBodySchema>;
-export type ProjectFileCatHiddenStringsResponse = z.infer<
+export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileContentEditorExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
+export type ProjectFileContentEditorQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
+export type ProjectFileContentEditorQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
+export type ProjectFileContentEditorTranslationBody = z.infer<
+  typeof projectFileCatTranslationBodySchema
+>;
+export type ProjectFileContentEditorHiddenStringsBody = z.infer<
+  typeof projectFileCatHiddenStringsBodySchema
+>;
+export type ProjectFileContentEditorHiddenStringsResponse = z.infer<
   typeof projectFileCatHiddenStringsResponseSchema
 >;
-export type ProjectFileCatLockedStringsBody = z.infer<typeof projectFileCatLockedStringsBodySchema>;
-export type ProjectFileCatLockedStringsResponse = z.infer<
+export type ProjectFileContentEditorLockedStringsBody = z.infer<
+  typeof projectFileCatLockedStringsBodySchema
+>;
+export type ProjectFileContentEditorLockedStringsResponse = z.infer<
   typeof projectFileCatLockedStringsResponseSchema
 >;
-export type ProjectFileCatMaxLengthBody = z.infer<typeof projectFileCatMaxLengthBodySchema>;
-export type ProjectFileCatMaxLengthResponse = z.infer<typeof projectFileCatMaxLengthResponseSchema>;
-export type ProjectFileCatImageRegenerateBody = z.infer<
+export type ProjectFileContentEditorMaxLengthBody = z.infer<
+  typeof projectFileCatMaxLengthBodySchema
+>;
+export type ProjectFileContentEditorMaxLengthResponse = z.infer<
+  typeof projectFileCatMaxLengthResponseSchema
+>;
+export type ProjectFileContentEditorImageRegenerateBody = z.infer<
   typeof projectFileCatImageRegenerateBodySchema
 >;
-export type ProjectFileCatImageStatusBody = z.infer<typeof projectFileCatImageStatusBodySchema>;
-export type ProjectFileCatTreatAsImageBody = z.infer<typeof projectFileCatTreatAsImageBodySchema>;
-export type ProjectFileCatTreatAsVideoBody = z.infer<typeof projectFileCatTreatAsVideoBodySchema>;
-export type ProjectFileCatRecommendationBody = z.infer<
+export type ProjectFileContentEditorImageStatusBody = z.infer<
+  typeof projectFileCatImageStatusBodySchema
+>;
+export type ProjectFileContentEditorTreatAsImageBody = z.infer<
+  typeof projectFileCatTreatAsImageBodySchema
+>;
+export type ProjectFileContentEditorTreatAsVideoBody = z.infer<
+  typeof projectFileCatTreatAsVideoBodySchema
+>;
+export type ProjectFileContentEditorRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema
 >;
-export type ProjectFileCatConcordanceBody = z.infer<typeof projectFileCatConcordanceBodySchema>;
-export type ProjectFileCatConcordanceResponse = z.infer<
+export type ProjectFileContentEditorConcordanceBody = z.infer<
+  typeof projectFileCatConcordanceBodySchema
+>;
+export type ProjectFileContentEditorConcordanceResponse = z.infer<
   typeof projectFileCatConcordanceResponseSchema
 >;
-export type ProjectFileCatVisualContextBody = z.infer<typeof projectFileCatVisualContextBodySchema>;
-export type ProjectFileCatVisualContextResponse = z.infer<
+export type ProjectFileContentEditorVisualContextBody = z.infer<
+  typeof projectFileCatVisualContextBodySchema
+>;
+export type ProjectFileContentEditorVisualContextResponse = z.infer<
   typeof projectFileCatVisualContextResponseSchema
 >;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
@@ -866,33 +891,39 @@ export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSche
 export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
 export type ProjectFileProviderJobRecord = z.infer<typeof projectFileProviderJobRecordSchema>;
 export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;
-export type ProjectFileCatComment = z.infer<typeof projectFileCatCommentSchema>;
-export type ProjectFileCatCommentBody = z.infer<typeof projectFileCatCommentBodySchema>;
-export type ProjectFileCatCommentResponse = z.infer<typeof projectFileCatCommentResponseSchema>;
-export type ProjectFileCatCommentResolveBody = z.infer<
+export type ProjectFileContentEditorComment = z.infer<typeof projectFileCatCommentSchema>;
+export type ProjectFileContentEditorCommentBody = z.infer<typeof projectFileCatCommentBodySchema>;
+export type ProjectFileContentEditorCommentResponse = z.infer<
+  typeof projectFileCatCommentResponseSchema
+>;
+export type ProjectFileContentEditorCommentResolveBody = z.infer<
   typeof projectFileCatCommentResolveBodySchema
 >;
-export type ProjectFileCatCommentResolveResponse = z.infer<
+export type ProjectFileContentEditorCommentResolveResponse = z.infer<
   typeof projectFileCatCommentResolveResponseSchema
 >;
-export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
-export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
-export type ProjectFileCatQueueSegment = ProjectFileCatSegment;
-export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
-export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
-export type ProjectFileCatSegmentCommentsResponse = z.infer<
+export type ProjectFileContentEditorTranslation = z.infer<typeof projectFileCatTranslationSchema>;
+export type ProjectFileContentEditorSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileContentEditorQueueSegment = ProjectFileContentEditorSegment;
+export type ProjectFileContentEditorSegmentParams = z.infer<
+  typeof projectFileCatSegmentParamsSchema
+>;
+export type ProjectFileContentEditorSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
+export type ProjectFileContentEditorSegmentCommentsResponse = z.infer<
   typeof projectFileCatSegmentCommentsResponseSchema
 >;
-export type ProjectFileCatSegmentTargetResponse = z.infer<
+export type ProjectFileContentEditorSegmentTargetResponse = z.infer<
   typeof projectFileCatSegmentTargetResponseSchema
 >;
-export type ProjectFileCatQueueResponse = z.infer<typeof projectFileCatQueueResponseSchema>;
-export type ProjectFileCatQueueFile = z.infer<typeof projectFileCatQueueFileSchema>;
-export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
-export type ProjectFileCatTranslationResponse = z.infer<
+export type ProjectFileContentEditorQueueResponse = z.infer<
+  typeof projectFileCatQueueResponseSchema
+>;
+export type ProjectFileContentEditorQueueFile = z.infer<typeof projectFileCatQueueFileSchema>;
+export type ProjectFileContentEditorResponse = z.infer<typeof projectFileCatResponseSchema>;
+export type ProjectFileContentEditorTranslationResponse = z.infer<
   typeof projectFileCatTranslationResponseSchema
 >;
-export type ProjectFileCatRecommendationResponse = z.infer<
+export type ProjectFileContentEditorRecommendationResponse = z.infer<
   typeof projectFileCatRecommendationResponseSchema
 >;
 export type WorkspaceFileRecord = z.infer<typeof workspaceFileRecordSchema>;

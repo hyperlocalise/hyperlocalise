@@ -54,7 +54,7 @@ import {
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
-import { ProjectCatBehaviorSettings } from "./project-cat-behavior-settings";
+import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
@@ -552,7 +552,7 @@ export function ProjectSettingsPageContent({
       {/* Live provider projects have no persisted project row for CAT policy. */}
       {!isEncodedProviderProjectId(project.id) ? (
         <div className="mt-5">
-          <ProjectCatBehaviorSettings
+          <ProjectContentEditorBehaviorSettings
             organizationSlug={organizationSlug}
             projectId={projectId}
             canManage={canManageCatBehavior}

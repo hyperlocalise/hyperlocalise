@@ -86,8 +86,8 @@ export const Default: Story = {
     await expect(
       unsubscribe.compareDocumentPosition(commentsEmptyState) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    const openInCat = await canvas.findByRole("link", { name: "Open in Content Editor" });
-    await expect(openInCat).toHaveAttribute("target", "_blank");
+    const openInContentEditor = await canvas.findByRole("link", { name: "Open in Content Editor" });
+    await expect(openInContentEditor).toHaveAttribute("target", "_blank");
     await expect(canvas.getAllByRole("link", { name: "Open in Content Editor" })).toHaveLength(1);
     await expect(
       await canvas.findByRole("button", { name: "Collapse properties" }),

@@ -634,7 +634,7 @@ export function IssueSheetCreateIssueDialog({
             sourcePath: stringLink.sourcePath,
             segmentId: stringLink.segmentId,
             translationKeyId: stringLink.translationKeyId,
-            linkKind: "cat_segment" as const,
+            linkKind: "content_editor_segment" as const,
             linkLabel: linkLabel.trim() || stringLink.linkLabel || undefined,
             linkUrl: linkUrl.trim() || stringLink.linkUrl || undefined,
             priority,

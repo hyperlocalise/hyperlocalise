@@ -215,7 +215,7 @@ describe("AppShellStore", () => {
     store.sidebar.setForceCollapsed(true);
     store.sidebar.setPreferredOpen(false);
     store.chatDock.setPageContext({
-      kind: "cat-segment",
+      kind: "content-editor-segment",
       segmentId: "seg-02",
       key: "checkout.submit",
       sourceText: "Submit",

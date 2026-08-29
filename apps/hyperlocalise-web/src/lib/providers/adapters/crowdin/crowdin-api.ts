@@ -18,7 +18,7 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
-import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import type { ProjectFileContentEditorQueueFilter } from "@/api/routes/project/project.schema";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -82,7 +82,7 @@ function crowdinLanguageSummaryPredicate(locale: string) {
 }
 
 function crowdinQueueFilterPredicates(
-  queueFilter: ProjectFileCatQueueFilter | undefined,
+  queueFilter: ProjectFileContentEditorQueueFilter | undefined,
   languageSummary: string,
   locale: string,
 ) {
@@ -135,7 +135,7 @@ export function buildCrowdinFileQueueCroql(input: {
   fileId?: number;
   fileIds?: readonly number[];
   targetLocale: string;
-  queueFilter?: ProjectFileCatQueueFilter;
+  queueFilter?: ProjectFileContentEditorQueueFilter;
   search?: string;
   statusBand?: CrowdinQueueStatusBand;
 }) {

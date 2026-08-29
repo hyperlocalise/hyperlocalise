@@ -2026,7 +2026,7 @@ export class IssueSheetService {
     // Keep segment+locale dedupe for other link kinds without an explicit translation key.
     if (
       !input.body.translationKeyId &&
-      input.body.linkKind !== "cat_segment" &&
+      input.body.linkKind !== "content_editor_segment" &&
       input.body.segmentId &&
       input.body.targetLocale
     ) {

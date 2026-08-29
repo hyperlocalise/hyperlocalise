@@ -25,7 +25,7 @@ export const issuePriorityValues = ["P0", "P1", "P2"] as const;
 export type IssuePriorityValue = (typeof issuePriorityValues)[number];
 
 export const issueLinkKindValues = [
-  "cat_segment",
+  "content_editor_segment",
   "native_issue",
   "provider_issue",
   "agent_run",
@@ -142,7 +142,7 @@ export function issuePriorityVariant(priority: string) {
 
 export function linkKindLabel(intl: IntlShape, value: string) {
   switch (value as IssueLinkKindValue) {
-    case "cat_segment":
+    case "content_editor_segment":
       return intl.formatMessage(sharedMessages.linkKindCatSegment);
     case "native_issue":
       return intl.formatMessage(sharedMessages.linkKindNativeIssue);
@@ -174,7 +174,7 @@ export function buildIssueCatHref(
   if (issue.segmentId) {
     params.set("segment", issue.segmentId);
   }
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`;
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`;
 }
 
 export function isHttpOrHttpsUrl(url: string) {

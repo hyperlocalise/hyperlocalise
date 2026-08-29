@@ -38,7 +38,10 @@ import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
-import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
+import {
+  buildJobContentEditorHref,
+  canOpenJobContentEditor,
+} from "@/lib/projects/job-content-editor-routing";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
@@ -200,8 +203,10 @@ export function NativeJobDetailContent({
 
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
-  const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
-  const showCatAction = job ? canOpenJobCat(job) : false;
+  const contentEditorHref = job
+    ? buildJobContentEditorHref(organizationSlug, projectId, job)
+    : null;
+  const showCatAction = job ? canOpenJobContentEditor(job) : false;
   const isProviderBacked = Boolean(job && isProviderBackedJob(job));
   const isNativeEditable = Boolean(job && canEditJobFields && !isProviderBacked);
   const description = job
@@ -314,8 +319,8 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.markAsFailed} />
         </Button>
       ) : null}
-      {showCatAction && catHref ? (
-        <Button size="sm" render={<Link href={catHref} />}>
+      {showCatAction && contentEditorHref ? (
+        <Button size="sm" render={<Link href={contentEditorHref} />}>
           <HugeiconsIcon icon={LeftToRightListBulletIcon} />
           <FormattedMessage {...messages.openEditor} />
         </Button>
