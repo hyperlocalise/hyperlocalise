@@ -77,8 +77,9 @@ export const contentEditorFileViewMessages = defineMessages({
   },
   documentEditorAria: {
     defaultMessage: "Translated document",
-    id: "ztZNSXlXOQ",
-    description: "Accessible label for the TipTap document editor in CAT File view",
+    id: "ooqPdhd9NW",
+    description:
+      "Accessible label for the raw Markdown/MDX document editor in Content Editor File view",
   },
   imageSourceAlt: {
     defaultMessage: "Source image",

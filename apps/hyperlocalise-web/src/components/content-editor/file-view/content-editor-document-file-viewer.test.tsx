@@ -13,18 +13,12 @@
 // @vitest-environment happy-dom
 
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { ContentEditorDocumentFileViewerPane } from "./content-editor-document-file-viewer";
-
-vi.mock("@/components/markdown-editor/markdown-editor", () => ({
-  MarkdownEditor: ({ value }: { value: string }) => (
-    <textarea aria-label="Translated document" defaultValue={value} />
-  ),
-  MarkdownPreview: ({ value }: { value: string }) => <div>{value}</div>,
-}));
 
 function requestUrl(input: RequestInfo | URL) {
   if (typeof input === "string") {
@@ -111,5 +105,44 @@ describe("ContentEditorDocumentFileViewerPane", () => {
       expect(screen.getByLabelText("Translated document")).toHaveValue("");
     });
     expect(screen.queryByDisplayValue("# Source body")).not.toBeInTheDocument();
+  });
+
+  it("preserves MDX JSX and raw HTML when saving after an edit", async () => {
+    const user = userEvent.setup();
+    const mdxBody = '# Guide\n\n<Callout type="info">Tip</Callout>\n\nPress <kbd>Esc</kbd>.\n';
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(mdxBody, { status: 200 })),
+    );
+    const onSave = vi.fn<(file: File) => Promise<void>>(async () => undefined);
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorDocumentFileViewerPane
+          role="target"
+          src="https://example.com/guide.mdx"
+          filename="guide.mdx"
+          onSave={onSave}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const editor = await screen.findByLabelText("Translated document");
+    expect(editor).toHaveValue(mdxBody);
+
+    await user.type(editor, " Updated.");
+    await user.click(screen.getByRole("button", { name: /save edits/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+    const savedFile = onSave.mock.calls[0]?.[0];
+    expect(savedFile).toBeInstanceOf(File);
+    const savedText = await savedFile!.text();
+    expect(savedText).toContain('<Callout type="info">Tip</Callout>');
+    expect(savedText).toContain("<kbd>Esc</kbd>");
+    expect(savedText).not.toContain("&lt;Callout");
+    expect(savedText).not.toContain("&lt;kbd");
+    expect(savedText).toContain("Updated.");
   });
 });
