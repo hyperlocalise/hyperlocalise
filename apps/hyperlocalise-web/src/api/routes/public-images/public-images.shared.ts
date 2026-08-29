@@ -20,6 +20,14 @@ export function projectNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "project_not_found");
 }
 
+export function fileVariantNotFoundResponse(c: JsonContext) {
+  return notFoundResponse(
+    c,
+    "file_variant_not_found",
+    "No file is available for this source path and locale.",
+  );
+}
+
 export function imageVariantNotFoundResponse(c: JsonContext) {
   return notFoundResponse(
     c,

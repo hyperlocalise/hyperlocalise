@@ -34,6 +34,17 @@ describe("parseHlEntriesJson", () => {
       /must be a string or object/,
     );
   });
+
+  it("skips the reserved document envelope", () => {
+    expect(
+      parseHlEntriesJson({
+        "md.Heading[0]": { text: "Title", fingerprint: "abc", path: "Heading[0]", kind: "body" },
+        __hl_document: { format: "markdown", parts: [] },
+      }),
+    ).toEqual({
+      "md.Heading[0]": { text: "Title", fingerprint: "abc", path: "Heading[0]", kind: "body" },
+    });
+  });
 });
 
 describe("entriesFromHlOutput", () => {

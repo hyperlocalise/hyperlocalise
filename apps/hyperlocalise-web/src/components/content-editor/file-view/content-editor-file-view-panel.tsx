@@ -46,6 +46,10 @@ import {
   CAT_VIDEO_FILE_UPLOAD_ACCEPT,
   ContentEditorVideoFileViewerPane,
 } from "./content-editor-video-file-viewer";
+import {
+  CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT,
+  ContentEditorDocumentFileViewerPane,
+} from "./content-editor-document-file-viewer";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
@@ -117,14 +121,18 @@ export function ContentEditorFileViewPanel({
       ? CAT_IMAGE_FILE_UPLOAD_ACCEPT
       : viewerId === "video"
         ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
-        : contentEditorOfficeUploadAccept(viewerId);
+        : viewerId === "markdown"
+          ? CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT
+          : contentEditorOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
   const isMediaViewer = viewerId === "image" || viewerId === "video";
+  const isDocumentViewer = viewerId === "markdown";
 
-  const sourceSrc = isMediaViewer || officeKind ? (segment.sourceAssetUrl ?? null) : null;
+  const sourceSrc =
+    isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
-    isMediaViewer || officeKind
+    isMediaViewer || officeKind || isDocumentViewer
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -259,6 +267,17 @@ export function ContentEditorFileViewPanel({
                 isBusy={isImageBusy}
                 onSave={onUpload}
               />
+            ) : isDocumentViewer ? (
+              <ContentEditorDocumentFileViewerPane
+                role="target"
+                src={targetSrc}
+                seedSrc={sourceSrc}
+                filename={displayName}
+                isLoading={isSegmentTargetLoading}
+                canEdit={canEdit}
+                isBusy={isImageBusy}
+                onSave={onUpload}
+              />
             ) : (
               <UnsupportedPreview />
             )}
@@ -279,6 +298,13 @@ export function ContentEditorFileViewPanel({
             ) : officeKind ? (
               <ContentEditorOfficeFileViewerPane
                 kind={officeKind}
+                role="source"
+                src={sourceSrc}
+                filename={displayName}
+                canEdit={false}
+              />
+            ) : isDocumentViewer ? (
+              <ContentEditorDocumentFileViewerPane
                 role="source"
                 src={sourceSrc}
                 filename={displayName}

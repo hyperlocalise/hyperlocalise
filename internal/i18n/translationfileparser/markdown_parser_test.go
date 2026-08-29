@@ -833,28 +833,25 @@ func TestStrategyParsesMDX(t *testing.T) {
 	}
 }
 
-func TestMarkdownParserKeysAreStableAcrossInsertedSegments(t *testing.T) {
-	base := []byte("Alpha\nBeta\n")
-	withInsert := []byte("Intro\nAlpha\nBeta\n")
+func TestMarkdownParserFingerprintsAreStableAcrossInsertedSegments(t *testing.T) {
+	base := []byte("Alpha\n\nBeta\n")
+	withInsert := []byte("Intro\n\nAlpha\n\nBeta\n")
 
-	baseEntries, err := (MarkdownParser{}).Parse(base)
-	if err != nil {
-		t.Fatalf("parse base: %v", err)
-	}
-	insertedEntries, err := (MarkdownParser{}).Parse(withInsert)
-	if err != nil {
-		t.Fatalf("parse with insert: %v", err)
-	}
+	baseDoc := ParseMarkdownDocumentIR(base, false)
+	insertedDoc := ParseMarkdownDocumentIR(withInsert, false)
 
-	baseAlpha := findKeyByValue(baseEntries, "Alpha")
-	baseBeta := findKeyByValue(baseEntries, "Beta")
-	insertAlpha := findKeyByValue(insertedEntries, "Alpha")
-	insertBeta := findKeyByValue(insertedEntries, "Beta")
-	if baseAlpha == "" || baseBeta == "" || insertAlpha == "" || insertBeta == "" {
-		t.Fatalf("expected keys for shared segments")
+	baseAlpha := findDocumentBlockByText(baseDoc, "Alpha")
+	baseBeta := findDocumentBlockByText(baseDoc, "Beta")
+	insertAlpha := findDocumentBlockByText(insertedDoc, "Alpha")
+	insertBeta := findDocumentBlockByText(insertedDoc, "Beta")
+	if baseAlpha.ID == "" || baseBeta.ID == "" || insertAlpha.ID == "" || insertBeta.ID == "" {
+		t.Fatalf("expected blocks for shared segments")
 	}
-	if baseAlpha != insertAlpha || baseBeta != insertBeta {
-		t.Fatalf("expected stable hash keys, base=(%s,%s) inserted=(%s,%s)", baseAlpha, baseBeta, insertAlpha, insertBeta)
+	if baseAlpha.Fingerprint != insertAlpha.Fingerprint || baseBeta.Fingerprint != insertBeta.Fingerprint {
+		t.Fatalf("expected stable fingerprints, base=(%s,%s) inserted=(%s,%s)", baseAlpha.Fingerprint, baseBeta.Fingerprint, insertAlpha.Fingerprint, insertBeta.Fingerprint)
+	}
+	if baseAlpha.ID == insertAlpha.ID {
+		t.Fatalf("expected slot ids to shift after insert, both %s", baseAlpha.ID)
 	}
 }
 
@@ -1571,7 +1568,7 @@ func TestMarshalMarkdownWithTargetFallbackRepairsDanglingTableRowClosersFromTest
 }
 
 func TestMarkdownParserParseMdxFixtureQuickstartSkipsCodeGroupExports(t *testing.T) {
-	source := readFixture(t, "docs/getting-started/quickstart.mdx")
+	source := readFixture(t, "docs/cli/getting-started/quickstart.mdx")
 
 	entries, err := (MarkdownParser{MDX: true}).Parse(source)
 	if err != nil {
@@ -1771,7 +1768,7 @@ func TestMarshalMarkdownFallsBackToSourceWhenPlaceholderTokensRemainUnrecoverabl
 func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t *testing.T) {
 	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
 
-	entries, err := (MarkdownParser{}).Parse(template)
+	entries, err := (MarkdownParser{MDX: true}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -1794,7 +1791,7 @@ func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t
 func TestMarshalMarkdownFallsBackToSourceWhenMalformedTokenTargetsWrongPlaceholderIndex(t *testing.T) {
 	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
 
-	entries, err := (MarkdownParser{}).Parse(template)
+	entries, err := (MarkdownParser{MDX: true}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}

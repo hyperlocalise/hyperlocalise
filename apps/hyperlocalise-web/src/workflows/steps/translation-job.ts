@@ -411,6 +411,49 @@ export async function persistFileProjectTranslationsStep(input: {
   return persistFileJobTranslations(input);
 }
 
+export async function persistDocumentVariantBytesStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  content: Buffer;
+  contentType: string;
+  filename: string;
+  repositorySourceFileId?: string | null;
+  sourceJobId?: string | null;
+}) {
+  "use step";
+  const { getImageVariant, replaceImageVariantBytes } =
+    await import("@/lib/projects/files/image-variant-service");
+  const result = await replaceImageVariantBytes({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+    content: input.content,
+    contentType: input.contentType,
+    filename: input.filename,
+    repositorySourceFileId: input.repositorySourceFileId,
+    sourceJobId: input.sourceJobId,
+    provenance: "translation_job",
+  });
+  if (!result.ok) {
+    if (result.error.code === "approved_locked") {
+      const existing = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+      });
+      if (existing?.storedFileId) {
+        return existing;
+      }
+    }
+    throw new Error(`failed to persist document variant: ${result.error.code}`);
+  }
+  return result.value;
+}
+
 export async function completeFileTranslationJobStep(input: {
   jobId: string;
   projectId: string;

@@ -709,6 +709,7 @@ export const projectFileCatContentKindSchema = z.enum([
   "video_file",
   "video_url",
   "office_file",
+  "document",
 ]);
 
 export const projectFileCatTranslationSchema = z.object({

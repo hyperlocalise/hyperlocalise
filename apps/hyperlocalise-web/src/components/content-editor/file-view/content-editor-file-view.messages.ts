@@ -60,6 +60,26 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "3wxYCVb3wu",
     description: "Empty state when the CAT File view target preview has no file",
   },
+  documentLoadFailed: {
+    defaultMessage: "Could not load the translated file",
+    id: "GYiDdOqYU0",
+    description: "Error when CAT document viewer fails to fetch an existing target file",
+  },
+  documentFrontmatter: {
+    defaultMessage: "Frontmatter",
+    id: "8Y86+IM3Ps",
+    description: "Heading for YAML frontmatter fields in the CAT document editor",
+  },
+  documentBody: {
+    defaultMessage: "Body",
+    id: "90JdQQe9zz",
+    description: "Heading for the Markdown/MDX body editor in CAT document view",
+  },
+  documentEditorAria: {
+    defaultMessage: "Translated document",
+    id: "ztZNSXlXOQ",
+    description: "Accessible label for the TipTap document editor in CAT File view",
+  },
   imageSourceAlt: {
     defaultMessage: "Source image",
     id: "86pJK6MuXF",

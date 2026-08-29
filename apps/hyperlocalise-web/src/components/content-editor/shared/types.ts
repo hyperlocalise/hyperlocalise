@@ -18,7 +18,8 @@ export type ContentEditorContentKind =
   | "image_url"
   | "video_file"
   | "video_url"
-  | "office_file";
+  | "office_file"
+  | "document";
 
 export type ContentEditorSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 

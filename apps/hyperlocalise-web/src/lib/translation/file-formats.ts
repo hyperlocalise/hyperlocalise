@@ -146,6 +146,31 @@ export function isBinaryTranslationFileFormat(
   );
 }
 
+export const supportedDocumentTranslationFileFormats = ["markdown", "mdx"] as const;
+
+export type SupportedDocumentTranslationFileFormat =
+  (typeof supportedDocumentTranslationFileFormats)[number];
+
+/** Markdown/MDX documents stored and edited as whole files, not CAT string keys. */
+export function isDocumentTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedDocumentTranslationFileFormat {
+  return supportedDocumentTranslationFileFormats.includes(
+    format as SupportedDocumentTranslationFileFormat,
+  );
+}
+
+/** Formats whose CAT/download unit is the stored file (binary assets + documents). */
+export function isWholeFileTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is
+  | SupportedImageTranslationFileFormat
+  | SupportedVideoTranslationFileFormat
+  | SupportedOfficeTranslationFileFormat
+  | SupportedDocumentTranslationFileFormat {
+  return isBinaryTranslationFileFormat(format) || isDocumentTranslationFileFormat(format);
+}
+
 export function isSupportedFileTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is SupportedFileTranslationFileFormat {
@@ -227,6 +252,33 @@ export function inferSupportedBinaryTranslationFileFormat(
   | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isBinaryTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+export function inferSupportedDocumentTranslationFileFormat(
+  filename: string,
+): SupportedDocumentTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isDocumentTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+export function inferSupportedWholeFileTranslationFileFormat(
+  filename: string,
+):
+  | SupportedImageTranslationFileFormat
+  | SupportedVideoTranslationFileFormat
+  | SupportedOfficeTranslationFileFormat
+  | SupportedDocumentTranslationFileFormat
+  | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isWholeFileTranslationFileFormat(format)) {
     return null;
   }
 

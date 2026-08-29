@@ -20,6 +20,12 @@ export type HlEntryRecord = {
 
 export type HlEntriesPayload = Record<string, string | HlEntryRecord>;
 
+export const HL_DOCUMENT_ENTRIES_META_KEY = "__hl_document";
+
+function isReservedHlEntriesKey(key: string) {
+  return key === HL_DOCUMENT_ENTRIES_META_KEY || key.startsWith("__hl_");
+}
+
 function isHlEntryRecord(value: unknown): value is HlEntryRecord {
   if (!value || typeof value !== "object" || !("text" in value)) {
     return false;
@@ -31,6 +37,9 @@ function isHlEntryRecord(value: unknown): value is HlEntryRecord {
 export function hlEntriesPayloadToStringMap(payload: HlEntriesPayload): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(payload)) {
+    if (isReservedHlEntriesKey(key)) {
+      continue;
+    }
     out[key] = typeof value === "string" ? value : value.text;
   }
   return out;
@@ -38,6 +47,7 @@ export function hlEntriesPayloadToStringMap(payload: HlEntriesPayload): Record<s
 
 export function entriesFromHlOutput(payload: HlEntriesPayload): ProjectSourceStringEntry[] {
   return Object.entries(payload)
+    .filter(([key]) => !isReservedHlEntriesKey(key))
     .map(([key, value]) => {
       const text = typeof value === "string" ? value : value.text;
       const maxLength =
@@ -67,6 +77,9 @@ export function parseHlEntriesJson(raw: unknown): HlEntriesPayload {
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof value === "string") {
       payload[key] = value;
+      continue;
+    }
+    if (isReservedHlEntriesKey(key)) {
       continue;
     }
     if (isHlEntryRecord(value)) {

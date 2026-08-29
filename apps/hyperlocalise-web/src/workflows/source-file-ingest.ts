@@ -15,6 +15,7 @@ import { getWorkflowMetadata } from "workflow";
 import {
   inferSupportedTranslationFileFormat,
   isBinaryTranslationFileFormat,
+  isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -86,7 +87,11 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     }
 
     const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
-    if (inferredFormat && isBinaryTranslationFileFormat(inferredFormat)) {
+    if (
+      inferredFormat &&
+      (isBinaryTranslationFileFormat(inferredFormat) ||
+        isDocumentTranslationFileFormat(inferredFormat))
+    ) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
@@ -107,7 +112,10 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
           repositorySourceFileId,
           targetLocales,
         });
-      } else if (isImageTranslationFileFormat(inferredFormat)) {
+      } else if (
+        isImageTranslationFileFormat(inferredFormat) ||
+        isDocumentTranslationFileFormat(inferredFormat)
+      ) {
         await ensureImageVariantsForSourceFileStep({
           organizationId: event.organizationId,
           projectId: event.projectId,

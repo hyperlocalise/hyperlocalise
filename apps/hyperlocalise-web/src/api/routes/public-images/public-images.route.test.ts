@@ -83,6 +83,70 @@ describe("publicImageRoutes", () => {
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("localized-image-bytes");
   });
 
+  it("downloads stored file variant bytes from files/download", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const sourcePath = "docs/intro.md";
+    const markdownBytes = Buffer.from("# Bonjour\n");
+    const storedFile = await createStoredFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      role: "output",
+      sourceKind: "job_output",
+      filename: "intro-fr.md",
+      contentType: "text/markdown",
+      content: markdownBytes,
+      adapter: fileStorageAdapter,
+    });
+
+    await db.insert(schema.projectImageVariants).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath,
+      targetLocale: "fr",
+      storedFileId: storedFile.id,
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await client.api.v1.projects[":projectId"].files.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath, locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/markdown");
+    expect(response.headers.get("content-disposition")).toContain("intro-fr.md");
+    expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("# Bonjour\n");
+  });
+
+  it("returns 404 when the file variant is missing", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const response = await client.api.v1.projects[":projectId"].files.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath: "docs/missing.md", locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "file_variant_not_found" });
+  });
+
   it("returns 404 when the image variant is missing", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db

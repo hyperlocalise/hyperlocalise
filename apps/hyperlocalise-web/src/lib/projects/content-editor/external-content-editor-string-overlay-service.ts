@@ -147,7 +147,14 @@ export async function getExternalContentEditorStringOverlay(input: {
 export function enrichExternalContentEditorSegmentImageFields<
   T extends {
     sourceText: string;
-    contentKind?: "text" | "image_file" | "image_url" | "video_file" | "video_url" | "office_file";
+    contentKind?:
+      | "text"
+      | "image_file"
+      | "image_url"
+      | "video_file"
+      | "video_url"
+      | "office_file"
+      | "document";
     sourceAssetUrl?: string | null;
     looksLikeImageUrl?: boolean;
   },
@@ -170,7 +177,14 @@ export function enrichExternalContentEditorSegmentImageFields<
 export function enrichExternalContentEditorTranslationImageFields<
   T extends {
     text: string;
-    contentKind?: "text" | "image_file" | "image_url" | "video_file" | "video_url" | "office_file";
+    contentKind?:
+      | "text"
+      | "image_file"
+      | "image_url"
+      | "video_file"
+      | "video_url"
+      | "office_file"
+      | "document";
     targetAssetUrl?: string | null;
   },
 >(translation: T, overlay?: ExternalContentEditorStringOverlay | null): T {
@@ -204,7 +218,8 @@ export async function enrichExternalContentEditorFileImageFields<
         | "image_url"
         | "video_file"
         | "video_url"
-        | "office_file";
+        | "office_file"
+        | "document";
       sourceAssetUrl?: string | null;
       looksLikeImageUrl?: boolean;
     }>;

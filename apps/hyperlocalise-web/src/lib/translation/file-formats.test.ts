@@ -21,10 +21,13 @@ import {
   inferSupportedSourceUploadFormat,
   inferSupportedTranslationFileFormat,
   isBinaryTranslationFileFormat,
+  inferSupportedDocumentTranslationFileFormat,
+  isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
   isSupportedSourceUploadFormat,
   isVideoTranslationFileFormat,
+  isWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "./file-formats";
@@ -107,6 +110,19 @@ describe("translation file formats", () => {
     expect(isBinaryTranslationFileFormat("xlsx")).toBe(true);
     expect(isBinaryTranslationFileFormat("png")).toBe(true);
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
+  });
+
+  it("treats markdown and mdx as whole-file documents, not binary", () => {
+    expect(inferSupportedDocumentTranslationFileFormat("readme.md")).toBe("markdown");
+    expect(inferSupportedDocumentTranslationFileFormat("page.mdx")).toBe("mdx");
+    expect(isDocumentTranslationFileFormat("markdown")).toBe(true);
+    expect(isDocumentTranslationFileFormat("mdx")).toBe(true);
+    expect(isDocumentTranslationFileFormat("json")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("markdown")).toBe(true);
+    expect(isWholeFileTranslationFileFormat("mdx")).toBe(true);
+    expect(isWholeFileTranslationFileFormat("json")).toBe(false);
+    expect(isBinaryTranslationFileFormat("markdown")).toBe(false);
+    expect(isBinaryTranslationFileFormat("mdx")).toBe(false);
   });
 
   it("builds a source-upload accept list including office and images", () => {

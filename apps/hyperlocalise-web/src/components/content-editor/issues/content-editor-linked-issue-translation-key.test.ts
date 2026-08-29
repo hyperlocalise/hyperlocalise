@@ -60,6 +60,13 @@ describe("resolveCatLinkedIssueTranslationKeyId", () => {
         contentKind: "office_file",
       }),
     ).toBeNull();
+    expect(
+      resolveCatLinkedIssueTranslationKeyId({
+        isNativeProject: true,
+        segmentId: "source-file-1",
+        contentKind: "document",
+      }),
+    ).toBeNull();
   });
 
   it("returns null for provider-backed projects", () => {

@@ -407,6 +407,8 @@ export async function replaceImageVariantBytes(input: {
   externalTmsFileId?: string | null;
   createdByUserId?: string | null;
   force?: boolean;
+  provenance?: (typeof schema.projectImageVariants.$inferSelect)["provenance"];
+  sourceJobId?: string | null;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant(input);
   if (existing?.status === "approved" && !input.force) {
@@ -443,7 +445,8 @@ export async function replaceImageVariantBytes(input: {
     .set({
       storedFileId: stored.id,
       status: "needs_review",
-      provenance: "manual",
+      provenance: input.provenance ?? "manual",
+      sourceJobId: input.sourceJobId ?? null,
       reviewedByUserId: null,
       reviewedAt: null,
       updatedAt: new Date(),

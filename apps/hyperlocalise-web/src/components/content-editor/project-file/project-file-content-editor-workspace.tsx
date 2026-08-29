@@ -377,7 +377,8 @@ export function ProjectFileContentEditorWorkspace({
       if (
         segment?.contentKind === "image_file" ||
         segment?.contentKind === "video_file" ||
-        segment?.contentKind === "office_file"
+        segment?.contentKind === "office_file" ||
+        segment?.contentKind === "document"
       ) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"

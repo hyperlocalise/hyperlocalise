@@ -44,10 +44,11 @@ import {
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
-  inferSupportedBinaryTranslationFileFormat,
+  inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
+  inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
@@ -83,6 +84,10 @@ function videoFileExternalStringId(sourceFileId: string, sourcePath: string) {
 }
 
 function officeFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return binaryFileExternalStringId(sourceFileId, sourcePath);
+}
+
+function documentFileExternalStringId(sourceFileId: string, sourcePath: string) {
   return binaryFileExternalStringId(sourceFileId, sourcePath);
 }
 
@@ -201,6 +206,13 @@ export class NativeContentEditorService extends ProjectServiceBase {
 
     if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
       return this.buildOfficeCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
+    }
+
+    if (inferSupportedDocumentTranslationFileFormat(input.sourcePath)) {
+      return this.buildDocumentCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
       });
@@ -464,6 +476,76 @@ export class NativeContentEditorService extends ProjectServiceBase {
           context: null,
           type: null,
           contentKind: "office_file",
+          sourceAssetUrl,
+          targetAssetUrl,
+          imageVariantId: variant?.id ?? null,
+        },
+      ],
+    };
+  }
+
+  private async buildDocumentCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileContentEditorQueueFile> {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getImageVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
+    return {
+      sourcePath: input.input.sourcePath,
+      filename: filenameFromSourcePath(input.input.sourcePath),
+      provider: null,
+      targetLocale: input.input.targetLocale,
+      canEditTranslations: input.input.canEditTranslations,
+      truncated: false,
+      segments: [
+        {
+          externalStringId: documentFileExternalStringId(
+            input.sourceFileId,
+            input.input.sourcePath,
+          ),
+          key: input.input.sourcePath,
+          sourceText: input.input.sourcePath,
+          context: null,
+          type: null,
+          contentKind: "document",
           sourceAssetUrl,
           targetAssetUrl,
           imageVariantId: variant?.id ?? null,
@@ -851,7 +933,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
   }): Promise<ProjectFileContentEditorTranslation | null | "not_found"> {
     if (
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
-      inferSupportedBinaryTranslationFileFormat(input.sourcePath)
+      inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
       const sourceFile = await this.translations.getRepositorySourceFileByPath({
         organizationId: input.organizationId,
@@ -865,11 +947,14 @@ export class NativeContentEditorService extends ProjectServiceBase {
 
       const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
       const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
       const contentKind = isVideo
         ? ("video_file" as const)
         : isOffice
           ? ("office_file" as const)
-          : ("image_file" as const);
+          : isDocument
+            ? ("document" as const)
+            : ("image_file" as const);
       const expectedIds = new Set(fileBackedCatSegmentIds(sourceFile.id, input.sourcePath));
       if (!expectedIds.has(input.externalStringId)) {
         return "not_found";
@@ -971,7 +1056,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
   }): Promise<ProjectFileContentEditorComment[]> {
     if (
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
-      inferSupportedBinaryTranslationFileFormat(input.sourcePath)
+      inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
       return [];
     }

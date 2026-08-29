@@ -54,7 +54,7 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 
 	doc := markdownDocument{parts: make([]markdownPart, 0, len(candidates)*2+1)}
 	entries := map[string]string{}
-	hashOccurrences := map[string]int{}
+	pathOccurrences := map[string]int{}
 	cursor := 0
 
 	for _, candidate := range candidates {
@@ -80,7 +80,7 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 			yamlPlain:         candidate.yamlPlain,
 			sourceSyntaxCount: rawHTMLSyntaxStartCount(placeholdered),
 		}
-		part.key = markdownSegmentKey(part.source, hashOccurrences)
+		assignMarkdownKeyedPart(&part, pathOccurrences)
 		doc.parts = append(doc.parts, part)
 		entries[part.key] = part.source
 		cursor = candidate.stop

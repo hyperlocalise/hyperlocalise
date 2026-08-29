@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import {
+  inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
@@ -19,9 +20,9 @@ import {
 import type { ContentEditorContentKind } from "@/components/content-editor/shared/types";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office";
+export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
 
-export type ContentEditorFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx";
+export type ContentEditorFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx" | "markdown";
 
 export type ContentEditorFileViewCapabilities = {
   family: ContentEditorFileViewFamily;
@@ -41,6 +42,7 @@ const IMAGE_VIEWS = [
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const VIDEO_VIEWS = IMAGE_VIEWS;
 const OFFICE_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const DOCUMENT_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -102,7 +104,16 @@ export function resolveCatFileViewCapabilities(input: {
     };
   }
 
-  // String CAT files and unknown paths stay in segment views.
+  if (contentKind === "document" || inferSupportedDocumentTranslationFileFormat(sourcePath)) {
+    return {
+      family: "document",
+      availableViews: DOCUMENT_VIEWS,
+      defaultView: "file",
+      viewerId: "markdown",
+    };
+  }
+
+  // String Content Editor files and unknown paths stay in segment views.
   return {
     family: "text",
     availableViews: SEGMENT_VIEWS,
