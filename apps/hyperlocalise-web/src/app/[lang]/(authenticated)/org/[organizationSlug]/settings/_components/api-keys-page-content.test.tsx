@@ -60,7 +60,12 @@ function createKey(overrides: Partial<AccessTokenSummary> = {}): AccessTokenSumm
     lastUsedAt: null,
     revokedAt: null,
     createdAt: "2026-08-01T15:30:00.000Z",
-    createdByUserId: "user_1",
+    owner: {
+      userId: "user_1",
+      email: "me@example.com",
+      firstName: null,
+      lastName: null,
+    },
     ...overrides,
   };
 }

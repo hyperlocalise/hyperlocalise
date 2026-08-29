@@ -70,7 +70,12 @@ function createToken(overrides: Partial<AccessTokenSummary> = {}): AccessTokenSu
     lastUsedAt: null,
     revokedAt: null,
     createdAt: "2026-08-01T15:30:00.000Z",
-    createdByUserId: CURRENT_USER_ID,
+    owner: {
+      userId: CURRENT_USER_ID,
+      email: "me@example.com",
+      firstName: null,
+      lastName: null,
+    },
     ...overrides,
   };
 }
@@ -146,7 +151,12 @@ describe("PersonalAccessTokensPageContent", () => {
       createToken({
         id: "token_3",
         name: "Someone else",
-        createdByUserId: "user_2",
+        owner: {
+          userId: "user_2",
+          email: "them@example.com",
+          firstName: null,
+          lastName: null,
+        },
       }),
     ]);
 

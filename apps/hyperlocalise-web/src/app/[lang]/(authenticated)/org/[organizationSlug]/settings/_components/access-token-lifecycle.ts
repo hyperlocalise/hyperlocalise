@@ -13,7 +13,7 @@
 
 import type { IntlShape } from "react-intl";
 
-import type { ApiKeyPermission } from "@/api/routes/api-key/api-key.schema";
+import type { ApiKeyOwner, ApiKeyPermission } from "@/api/routes/api-key/api-key.schema";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
 
 export type AccessTokenSummary = {
@@ -24,16 +24,16 @@ export type AccessTokenSummary = {
   lastUsedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
-  createdByUserId?: string | null;
+  owner?: ApiKeyOwner | null;
 };
 
 export const ACCESS_TOKEN_PERMISSIONS = defaultApiKeyPermissions;
 
-export function selectOwnedAccessTokens<T extends { createdByUserId?: string | null }>(
+export function selectOwnedAccessTokens<T extends { owner?: { userId: string } | null }>(
   tokens: readonly T[],
   currentUserId: string,
 ): T[] {
-  return tokens.filter((token) => token.createdByUserId === currentUserId);
+  return tokens.filter((token) => token.owner?.userId === currentUserId);
 }
 
 export function formatAccessTokenDate(

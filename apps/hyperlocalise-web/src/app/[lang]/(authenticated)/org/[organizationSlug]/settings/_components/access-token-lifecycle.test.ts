@@ -26,13 +26,13 @@ const intl = getIntlShape("en");
 describe("selectOwnedAccessTokens", () => {
   it("keeps only tokens owned by the current user", () => {
     const tokens = [
-      { id: "mine", createdByUserId: "user_1" },
-      { id: "theirs", createdByUserId: "user_2" },
-      { id: "legacy", createdByUserId: null },
+      { id: "mine", owner: { userId: "user_1" } },
+      { id: "theirs", owner: { userId: "user_2" } },
+      { id: "legacy", owner: null },
     ];
 
     expect(selectOwnedAccessTokens(tokens, "user_1")).toEqual([
-      { id: "mine", createdByUserId: "user_1" },
+      { id: "mine", owner: { userId: "user_1" } },
     ]);
   });
 });
