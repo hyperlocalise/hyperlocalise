@@ -235,6 +235,10 @@
     "defaultMessage": "Campaign",
     "description": "Flow template pill for campaign"
   },
+  "+f0xDGLORc": {
+    "defaultMessage": "This file can’t be opened in the Content Editor.",
+    "description": "Toast when a selected file cannot open in the Content Editor"
+  },
   "+iTCqdA5ec": {
     "defaultMessage": "Glossary name",
     "description": "Accessible label for the new team glossary name in CAT"
@@ -611,6 +615,10 @@
     "defaultMessage": "Issue template settings saved",
     "description": "Toast after issue template settings save successfully"
   },
+  "/nKOFEgkYN": {
+    "defaultMessage": "Translation & Content Editor behavior",
+    "description": "Content Editor settings section title"
+  },
   "/nzPUPTay3": {
     "defaultMessage": "Environment Variables",
     "description": "Section title for environment variables panel"
@@ -650,10 +658,6 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn",
     "description": "LinkedIn link label on founder cards"
-  },
-  "/xJskut0lc": {
-    "defaultMessage": "Grouped rows will expand after CAT drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
-    "description": "Disable grouping confirmation description"
   },
   "/y+q4g0L8i": {
     "defaultMessage": "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
@@ -1079,10 +1083,6 @@
     "defaultMessage": "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
     "description": "Bottom CTA description for the self-evolving knowledge product page"
   },
-  "1Ax42ak5yi": {
-    "defaultMessage": "This file can’t be opened in the CAT workspace.",
-    "description": "Error when a selected source file cannot be opened in CAT"
-  },
   "1BOxhADmQk": {
     "defaultMessage": "Failed to update hidden strings",
     "description": "Fallback error when hiding or unhiding native CAT source strings fails"
@@ -1194,6 +1194,10 @@
   "1XPTC/SDY9": {
     "defaultMessage": "{title} | Hyperlocalise",
     "description": "Browser tab title for the application 404 page"
+  },
+  "1XfD1U3TWk": {
+    "defaultMessage": "Content Editor",
+    "description": "Project sidebar navigation item for the Content Editor"
   },
   "1XhleWdrNP": {
     "defaultMessage": "Loading columns...",
@@ -1375,10 +1379,6 @@
     "defaultMessage": "Toast",
     "description": "Segment context label for toast strings in the CAT mock"
   },
-  "21nIG8nStI": {
-    "defaultMessage": "View strings",
-    "description": "Button or link to open the job CAT workspace"
-  },
   "22+D8zh5+I": {
     "defaultMessage": "GTM content publishing",
     "description": "Automations mock UI GTM content publishing use case title"
@@ -1454,6 +1454,10 @@
   "2E7H5Qc2gc": {
     "defaultMessage": "Significant localisation gaps are affecting the experience.",
     "description": "Score interpretation for a poor localisation audit"
+  },
+  "2F2dNLV6FZ": {
+    "defaultMessage": "Show exact source-text duplicates as a shared group when the Content Editor refreshes.",
+    "description": "Identical string grouping setting description"
   },
   "2Gq43ufxii": {
     "defaultMessage": "Norwegian Bokmål (Norway)",
@@ -1531,10 +1535,6 @@
     "defaultMessage": "Assignee",
     "description": "Label for single-assignee selection on native jobs"
   },
-  "2Wf+R5t111": {
-    "defaultMessage": "{requestedLocale} is not a target locale for this file. Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    "description": "Hint when the requested locale is unavailable and a fallback will be used"
-  },
   "2Wk4xEwU1H": {
     "defaultMessage": "Coming soon",
     "description": "Disabled button label for integrations not yet available"
@@ -1554,6 +1554,10 @@
   "2a9969NmAV": {
     "defaultMessage": "QA failure on hero headline",
     "description": "Issue row title in content ops mock"
+  },
+  "2bsWQjcWxE": {
+    "defaultMessage": "Content Editor action",
+    "description": "TM match context for the QA banner segment in the hero Content Editor mock"
   },
   "2bzJ4YBqX2": {
     "defaultMessage": "Source term",
@@ -1762,10 +1766,6 @@
   "3DgHaZOLH3": {
     "defaultMessage": "Multilingual content operations, unified. <muted>From GTM brief to market release — generate more multilingual content without adding headcount.</muted>",
     "description": "Marketing homepage principles section headline; muted wraps the supporting sentence"
-  },
-  "3EJ5L34UDR": {
-    "defaultMessage": "The CAT workspace is not available for this provider file type yet.",
-    "description": "Empty state when a provider file type cannot open in CAT"
   },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic",
@@ -2283,10 +2283,6 @@
     "defaultMessage": "Unable to delete concept",
     "description": "Fallback error when a glossary concept deletion fails"
   },
-  "4jWhf0M3TR": {
-    "defaultMessage": "Choose a source file from the project files list to open it in the CAT workspace.",
-    "description": "Empty state when the CAT page is opened without a source file"
-  },
   "4km4YTRiRQ": {
     "defaultMessage": "Pending: {count}",
     "description": "Summary badge for pending proposal count"
@@ -2507,10 +2503,6 @@
     "defaultMessage": "https://…",
     "description": "Placeholder for the link URL input"
   },
-  "5P6X7lQjQL": {
-    "defaultMessage": "CAT workspace / Review queue",
-    "description": "Location breadcrumb for the QA banner segment in the hero CAT mock"
-  },
   "5PG+VBWgIw": {
     "defaultMessage": "Couldn't load assignable members",
     "description": "Error when job assignee member list fails to load"
@@ -2666,6 +2658,10 @@
   "6/dB+QQNUG": {
     "defaultMessage": "Export TMX",
     "description": "Button to open translation memory TMX export options"
+  },
+  "6/jXIwGpnv": {
+    "defaultMessage": "Loading Content Editor",
+    "description": "Accessible label while the full Content Editor skeleton is shown"
   },
   "60PQQ7C+fN": {
     "defaultMessage": "Last used {date}",
@@ -2927,10 +2923,6 @@
     "defaultMessage": "Failed to load in-context preview",
     "description": "Fallback error when in-context visual preview fails to load"
   },
-  "6oebBi3G9m": {
-    "defaultMessage": "View strings",
-    "description": "Button label to open the CAT workspace for a live provider job"
-  },
   "6ofd3aj3i1": {
     "defaultMessage": "Localize an image",
     "description": "Suggested prompt chip to localize an attached image via a file translation job"
@@ -3075,6 +3067,10 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after stack trace is copied to the clipboard"
   },
+  "77t4Y4uY0a": {
+    "defaultMessage": "Locked strings can't be edited from the Content Editor. Unlock the string first.",
+    "description": "Error when saving a translation for a locked Content Editor segment"
+  },
   "78OEnC/JOf": {
     "defaultMessage": "Workspace slug",
     "description": "Label for the workspace slug field on account settings"
@@ -3090,6 +3086,10 @@
   "7A2BIhpV5s": {
     "defaultMessage": "Test workflow",
     "description": "Bottom-center button that runs the fake workflow animation"
+  },
+  "7A4K42htKk": {
+    "defaultMessage": "Shorten to \"Payer maintenant\" (16 chars). Open checkout.json in the Content Editor to apply and re-run QA.",
+    "description": "Inbox assistant answer for issue in content ops mock"
   },
   "7AiYKudhqp": {
     "defaultMessage": "Cancelled",
@@ -3199,10 +3199,6 @@
     "defaultMessage": "Create job",
     "description": "Button on project overview to open the create job dialog"
   },
-  "7WrG5oy0+1": {
-    "defaultMessage": "View strings",
-    "description": "Button to open the selected project file in the CAT workspace"
-  },
   "7X4JZ1+tNc": {
     "defaultMessage": "Unlimited seats",
     "description": "Growth plan feature: unlimited seats"
@@ -3290,6 +3286,10 @@
   "7nMUUnudcv": {
     "defaultMessage": "Smartling",
     "description": "Smartling TMS integration name on the integrations page"
+  },
+  "7oTwMQ/lzH": {
+    "defaultMessage": "Grouped rows will expand after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
+    "description": "Disable grouping confirmation description"
   },
   "7qHTh1/iSP": {
     "defaultMessage": "Failed to create translation job",
@@ -3559,6 +3559,10 @@
     "defaultMessage": "Working as a Localisation Engineer at Canva — a product used by millions around the world — Minh saw firsthand that localisation wasn't simply about translating software. It was one of the highest-leverage investments a company could make. Every new language unlocked new customers, stronger engagement, and deeper trust. More importantly, it allowed people to use technology in a language and culture that felt like home.",
     "description": "Second paragraph of the founders note on the company page"
   },
+  "8Y86+IM3Ps": {
+    "defaultMessage": "Frontmatter",
+    "description": "Heading for YAML frontmatter fields in the CAT document editor"
+  },
   "8YwlZNuV6a": {
     "defaultMessage": "Bearer token",
     "description": "Label for MCP bearer token field"
@@ -3746,6 +3750,10 @@
   "9/2rO3b/i4": {
     "defaultMessage": "Site owner note",
     "description": "Heading for the crawl access note on the localisation audit form"
+  },
+  "90JdQQe9zz": {
+    "defaultMessage": "Body",
+    "description": "Heading for the Markdown/MDX body editor in CAT document view"
   },
   "90L8I4Y/Gl": {
     "defaultMessage": "{label} · {badge}",
@@ -4387,6 +4395,10 @@
     "defaultMessage": "Save",
     "description": "Submit button to save workspace settings"
   },
+  "AytrEpkx2G": {
+    "defaultMessage": "Choose a target locale to open this file in the Content Editor.",
+    "description": "Empty state when no target locale is available for the Content Editor file"
+  },
   "AzlAJgQRne": {
     "defaultMessage": "Unable to export TMX",
     "description": "Fallback error when translation memory TMX export fails"
@@ -4919,10 +4931,6 @@
     "defaultMessage": "{prefix}••••••••",
     "description": "Masked API key prefix shown in the keys list"
   },
-  "CWdGpW4jOj": {
-    "defaultMessage": "Strings",
-    "description": "Project sidebar navigation item for the CAT strings workspace"
-  },
   "CXxeX4tNjR": {
     "defaultMessage": "Push source",
     "description": "Toggle label for the push source GitHub sync workflow"
@@ -5191,6 +5199,10 @@
     "defaultMessage": "Source Content",
     "description": "Template category filter tab for source content templates"
   },
+  "DIFU6fRpPu": {
+    "defaultMessage": "Failed to load the Content Editor.",
+    "description": "Fallback error when the Content Editor query fails without an Error instance"
+  },
   "DIWOumxoRD": {
     "defaultMessage": "GPT-5.6 Terra",
     "description": "Label for the OpenAI GPT-5.6 Terra automation model"
@@ -5218,6 +5230,10 @@
   "DOGd1ZI3w4": {
     "defaultMessage": "Localization PM",
     "description": "Marketing homepage testimonial speaker role"
+  },
+  "DOYogzInHA": {
+    "defaultMessage": "Unable to load Content Editor behavior",
+    "description": "Content Editor behavior load failure"
   },
   "DPE4D8nJkF": {
     "defaultMessage": "Add Trigger",
@@ -5519,10 +5535,6 @@
     "defaultMessage": "{provider} logo",
     "description": "Alt text for a model provider logo image"
   },
-  "EBgNz2ZSu6": {
-    "defaultMessage": "View strings",
-    "description": "Button on project overview linking to the project Strings page"
-  },
   "EC/XnP73At": {
     "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
     "description": "Workflow section description for the github-release-localisation use case"
@@ -5554,6 +5566,10 @@
   "EH16+mA9TP": {
     "defaultMessage": "Desktop preview",
     "description": "Aria label for desktop device toggle in visual editor canvas"
+  },
+  "EH1mWPBRDl": {
+    "defaultMessage": "Open this file in the Content Editor to review and edit translations.",
+    "description": "Helper text when the selected file can open in the Content Editor"
   },
   "EHcSgWwvER": {
     "defaultMessage": "Phrase",
@@ -5719,6 +5735,10 @@
     "defaultMessage": "Side by side",
     "description": "CAT workspace view mode with source and translation columns"
   },
+  "ElqTdiMapl": {
+    "defaultMessage": "Browse source files from the connected TMS provider, then open one in the Content Editor when it is supported.",
+    "description": "Project files page description for provider-backed projects"
+  },
   "ElyQMTBOLz": {
     "defaultMessage": "Failed to update character limit",
     "description": "Fallback error when updating a native segment max length fails"
@@ -5754,10 +5774,6 @@
   "EtLBqA9kAL": {
     "defaultMessage": "No related variants.",
     "description": "Empty state when a translation memory entry has no related variants"
-  },
-  "EuTWCTh8wL": {
-    "defaultMessage": "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported.",
-    "description": "Project files page description for provider-backed projects"
   },
   "Euo1Muino3": {
     "defaultMessage": "Orchestrate localisation across TMS platforms, LLM providers, vendors, and reviewers. One workflow layer for localisation managers without replacing your stack.",
@@ -6255,6 +6271,10 @@
     "defaultMessage": "Translated image",
     "description": "Alt text for the translated image in CAT File view"
   },
+  "GYiDdOqYU0": {
+    "defaultMessage": "Could not load the translated file",
+    "description": "Error when CAT document viewer fails to fetch an existing target file"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
@@ -6502,10 +6522,6 @@
   "HDJPwmFPXK": {
     "defaultMessage": "Product strings change faster than localisation can follow",
     "description": "Problem section title for the product-localisation use case"
-  },
-  "HDO9bAX2qb": {
-    "defaultMessage": "Open in CAT",
-    "description": "Button to open the linked CAT segment"
   },
   "HETvCDj5wB": {
     "defaultMessage": "No findings match the current filters. <clear>Clear filters</clear>",
@@ -6791,10 +6807,6 @@
     "defaultMessage": "Bad translations reach production because there is no automated regression layer.",
     "description": "Problem pain point 5 for the github-release-localisation use case"
   },
-  "IJ3WXU/p3C": {
-    "defaultMessage": "CAT action",
-    "description": "TM match context for the QA banner segment in the hero CAT mock"
-  },
   "IJ657tMK8/": {
     "defaultMessage": "Agent proposal",
     "description": "Column heading for the agent-proposed target text"
@@ -6915,13 +6927,13 @@
     "defaultMessage": "Hyperlocalise Native",
     "description": "Built-in TMS integration name on the integrations page"
   },
+  "Ik3lLiqJti": {
+    "defaultMessage": "Double-click a file or use Open Editor to edit {targetLocale}.",
+    "description": "Hint explaining how to open the selected file in the Content Editor"
+  },
   "IksPpT37Wn": {
     "defaultMessage": "{count} open",
     "description": "Badge showing open issue count on the Issue Sheet page"
-  },
-  "Il904Owiy9": {
-    "defaultMessage": "Failed to load CAT workspace.",
-    "description": "Fallback error when the CAT workspace query fails without an Error instance"
   },
   "Ilx4ITrXQ9": {
     "defaultMessage": "Proposal review saved",
@@ -7170,10 +7182,6 @@
   "JZfUqPa7pu": {
     "defaultMessage": "Select a target locale.",
     "description": "Validation error when importing without a target locale"
-  },
-  "JaX2Kyy6KI": {
-    "defaultMessage": "Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    "description": "Hint explaining how to open CAT for the selected file and locale"
   },
   "JbcBwrXofR": {
     "defaultMessage": "Search for a command to run...",
@@ -7459,10 +7467,6 @@
     "defaultMessage": "Built by people who believe localisation connects the world",
     "description": "Primary headline on the marketing company page"
   },
-  "Kdwno+5sGa": {
-    "defaultMessage": "CAT workspace failed to load",
-    "description": "Error boundary title when the full CAT workspace crashes"
-  },
   "Kdyh8ZKnlc": {
     "defaultMessage": "Untranslated",
     "description": "CAT queue filter option for segments without a target translation"
@@ -7703,6 +7707,10 @@
     "defaultMessage": "Just now",
     "description": "Timestamp label for a comment added moments ago"
   },
+  "LPgS5mUnwV": {
+    "defaultMessage": "Open Editor",
+    "description": "Button on project overview linking to the project Content Editor page"
+  },
   "LRZ3vQhI80": {
     "defaultMessage": "Failed",
     "description": "Linked domain status label for failed"
@@ -7722,10 +7730,6 @@
   "LWbZAQ/S/H": {
     "defaultMessage": "Total automations",
     "description": "Stat card label for total automation count"
-  },
-  "LWxfVFhHEJ": {
-    "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open CAT from the project Files page instead, or ask support to narrow the project file list.",
-    "description": "Error when the project file list was truncated before the CAT source file could be found"
   },
   "LX+MrzNv6y": {
     "defaultMessage": "Restore subscription",
@@ -8015,6 +8019,10 @@
     "defaultMessage": "Automation settings reset",
     "description": "Toast after repository automation settings are reset"
   },
+  "MRKdPjdzv/": {
+    "defaultMessage": "Open in Content Editor",
+    "description": "Link label stored on issues created from the Content Editor"
+  },
   "MRWPAMp/Eg": {
     "defaultMessage": "All types",
     "description": "Workspace files type filter option to show every resource type"
@@ -8263,6 +8271,14 @@
     "defaultMessage": "{actor} mentioned you on {issueTitle}",
     "description": "Inbox notification preview for a mention"
   },
+  "NCBmUnLeBR": {
+    "defaultMessage": "Control how source strings are organized in the Content Editor.",
+    "description": "Content Editor settings section description"
+  },
+  "NE7U3TnX7s": {
+    "defaultMessage": "Content Editor segment",
+    "description": "Issue Sheet link kind for a Content Editor segment"
+  },
   "NEC/JxS1Sr": {
     "defaultMessage": "Words to do",
     "description": "Job property row label for remaining words"
@@ -8503,6 +8519,10 @@
     "defaultMessage": "Configure fields shown on issues in this project. Hidden fields keep their values.",
     "description": "Description for the project issue columns settings section"
   },
+  "NzYmU9Xvq7": {
+    "defaultMessage": "Unable to update Content Editor behavior",
+    "description": "Content Editor behavior update failure"
+  },
   "O+Rhddgv8v": {
     "defaultMessage": "Descending",
     "description": "Issue list sort direction descending"
@@ -8582,6 +8602,10 @@
   "ODcZRmwDmR": {
     "defaultMessage": "Cancel",
     "description": "Cancel button label in reset automation settings dialog"
+  },
+  "ODdrcnPdPR": {
+    "defaultMessage": "This file can’t be opened in the Content Editor.",
+    "description": "Error when a selected source file cannot be opened in the Content Editor"
   },
   "ODozvMZNye": {
     "defaultMessage": "Translate with agent",
@@ -9279,6 +9303,10 @@
     "defaultMessage": "Quality",
     "description": "Template category filter tab for quality templates"
   },
+  "QZMo6wMmMc": {
+    "defaultMessage": "Hidden strings can't be edited from the Content Editor. Unhide the string in Crowdin first.",
+    "description": "Error when saving a translation for a hidden string"
+  },
   "QZh18oy2Qs": {
     "defaultMessage": "Team deleted",
     "description": "Toast after a team is deleted successfully"
@@ -9527,6 +9555,10 @@
     "defaultMessage": "Who should choose Starter vs Growth?",
     "description": "Pricing FAQ question comparing Starter and Growth"
   },
+  "RO0Hv9SR8x": {
+    "defaultMessage": "Failed to load Content Editor queue",
+    "description": "Fallback error when the project file Content Editor queue request fails"
+  },
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
@@ -9598,10 +9630,6 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Access denied",
     "description": "Default access denied page title"
-  },
-  "RbHK79ne0Y": {
-    "defaultMessage": "Strings",
-    "description": "App shell breadcrumb title for the project strings CAT page"
   },
   "RcUVixjzZV": {
     "defaultMessage": "Contact us",
@@ -10119,6 +10147,10 @@
     "defaultMessage": "None",
     "description": "Shown when a project has no open jobs"
   },
+  "TEw3QR5zHs": {
+    "defaultMessage": "Content Editor view mode",
+    "description": "Accessible label for the Content Editor view mode switcher"
+  },
   "TFnG73Az5B": {
     "defaultMessage": "Live jobs assigned to you in the connected provider.",
     "description": "Description under the TMS jobs section for personal assigned scope"
@@ -10246,6 +10278,10 @@
   "TdSqSMSpF8": {
     "defaultMessage": "All files exceed the maximum size.",
     "description": "Error when all selected files are larger than the allowed size"
+  },
+  "TdxzXMOinv": {
+    "defaultMessage": "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. The Content Editor always preselects Context request, regardless of this setting.",
+    "description": "Description of the project issue templates settings section"
   },
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
@@ -10386,6 +10422,10 @@
   "U0PoyhfZi2": {
     "defaultMessage": "French and English pages don't point to each other, so visitors can miss the other language entirely.",
     "description": "Sample finding body on the localisation audit landing page"
+  },
+  "U1nd6V4lHp": {
+    "defaultMessage": "Double-click a file or use Open Editor to edit {targetLocale}.",
+    "description": "Hint explaining how to open the Content Editor for the selected file and locale"
   },
   "U1qJ2BS3gD": {
     "defaultMessage": "TMS agnostic",
@@ -10534,6 +10574,10 @@
   "UWZ1G1FSvB": {
     "defaultMessage": "Untranslated first",
     "description": "CAT queue sort option that shows untranslated segments first"
+  },
+  "UWhFvnWW9k": {
+    "defaultMessage": "Open Editor",
+    "description": "Button label to open the Content Editor for a live provider job"
   },
   "UWtBPjqoSn": {
     "defaultMessage": "Done",
@@ -10763,10 +10807,6 @@
     "defaultMessage": "Syncing",
     "description": "Sync filter option for translation memories currently syncing"
   },
-  "VKDvjxl+TJ": {
-    "defaultMessage": "View strings",
-    "description": "Button to open the selected source file in the CAT workspace"
-  },
   "VKgVfj+ht+": {
     "defaultMessage": "Concept added to the team glossary",
     "description": "Toast after a CAT concept is added to a team glossary"
@@ -10939,10 +10979,6 @@
     "defaultMessage": "Read-only",
     "description": "Capability badge for live provider translation memories that cannot be edited"
   },
-  "VwBtOss3uh": {
-    "defaultMessage": "View strings",
-    "description": "Button label to open the job CAT workspace"
-  },
   "VwOY5uI6LH": {
     "defaultMessage": "GitHub",
     "description": "Automation product visual integration source name"
@@ -10978,10 +11014,6 @@
   "VzdHtrwQej": {
     "defaultMessage": "Send an invitation by email. They join after accepting through your identity provider.",
     "description": "Description of the invite member dialog"
-  },
-  "VzzqUlIKvt": {
-    "defaultMessage": "Choose a target locale to open this file in the CAT workspace.",
-    "description": "Empty state when no target locale is available for the CAT file"
   },
   "W/3juG8Ln3": {
     "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
@@ -11155,6 +11187,10 @@
     "defaultMessage": "Stop explaining the same rules twice. Hyperlocalise turns every review into reusable context",
     "description": "Hero subcopy for the self-evolving knowledge product page"
   },
+  "Wbm7kwzdGk": {
+    "defaultMessage": "Open Editor",
+    "description": "Button to open the selected project file in the Content Editor"
+  },
   "Wdc+D1uETy": {
     "defaultMessage": "Filter",
     "description": "Button that opens the issue list filter popover"
@@ -11319,6 +11355,10 @@
     "defaultMessage": "How can I help you today?",
     "description": "Empty-state heading inside the marketing chat dock mock"
   },
+  "X8XWn3q89C": {
+    "defaultMessage": "Content Editor failed to load",
+    "description": "Error boundary title when the full Content Editor crashes"
+  },
   "X9+GfdK3RZ": {
     "defaultMessage": "Scope",
     "description": "Label for the scope note on a localisation audit result"
@@ -11338,10 +11378,6 @@
   "X9s4kh3gLN": {
     "defaultMessage": "Localisation audit report",
     "description": "Heading above the attached audit report on domain detail"
-  },
-  "XAJ64thIXq": {
-    "defaultMessage": "Show exact source-text duplicates as a shared group when the CAT workspace refreshes.",
-    "description": "Identical string grouping setting description"
   },
   "XBIwe6jLdQ": {
     "defaultMessage": "Search source and target text",
@@ -11907,6 +11943,10 @@
     "defaultMessage": "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667",
     "description": "Copyright notice in the marketing footer with the current year"
   },
+  "Z/xptRbaiC": {
+    "defaultMessage": "Content Editor",
+    "description": "App shell breadcrumb title for the project Content Editor page"
+  },
   "Z0zZRENUvf": {
     "defaultMessage": "Failed to load issue columns.",
     "description": "Error state when issue columns fail to load"
@@ -12098,6 +12138,10 @@
   "ZeZBOe2pAC": {
     "defaultMessage": "Trusted by",
     "description": "Label above customer logos at the bottom of the marketing homepage hero"
+  },
+  "Zg7mAl/85b": {
+    "defaultMessage": "Open in Content Editor",
+    "description": "Link label on an issue sheet row pointing back to the Content Editor"
   },
   "Zgi1lh5USb": {
     "defaultMessage": "{providerName} OAuth App client secret",
@@ -12306,10 +12350,6 @@
   "a9LRHeifdU": {
     "defaultMessage": "Close",
     "description": "Label and tooltip for the sheet close control"
-  },
-  "a9TiPhW1/A": {
-    "defaultMessage": "Capture a localization issue and optionally link it to CAT or an external tracker.",
-    "description": "Description of the create Issue Sheet issue dialog"
   },
   "a9xpifQQ4Q": {
     "defaultMessage": "Checked missing translations and placeholders",
@@ -12967,10 +13007,6 @@
     "defaultMessage": "{actor} set priority to {nextPriority}",
     "description": "Activity line when an issue priority is set for the first time"
   },
-  "cVbj5KLUfe": {
-    "defaultMessage": "View strings",
-    "description": "Context menu action to open a project file in the CAT workspace"
-  },
   "cXcTyAvqBj": {
     "defaultMessage": "Import batch",
     "description": "Label for the import batch provenance field"
@@ -12986,10 +13022,6 @@
   "cbNqGo9VKV": {
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed inbox panel"
-  },
-  "cd7UpbIU0k": {
-    "defaultMessage": "Add a source path and locale to open this issue in CAT.",
-    "description": "Helper when Open in CAT is unavailable"
   },
   "cdYuP66GRZ": {
     "defaultMessage": "Spanish (Mexico)",
@@ -13287,10 +13319,6 @@
     "defaultMessage": "Failed to save description",
     "description": "Fallback toast when saving a job description fails without a message"
   },
-  "dXiW8gUOg9": {
-    "defaultMessage": "Add an issue manually or from CAT to start tracking team context.",
-    "description": "Empty-state description when the filtered Issue Sheet has no rows"
-  },
   "dY8L59VF27": {
     "defaultMessage": "TMS provider",
     "description": "Fallback provider name in the TMS disconnect dialog title"
@@ -13367,10 +13395,6 @@
     "defaultMessage": "Issues could not be loaded.",
     "description": "Error state when Issue Sheet rows fail to load"
   },
-  "djDzIFmWT8": {
-    "defaultMessage": "CAT view mode",
-    "description": "Accessible label for the CAT workspace view mode switcher"
-  },
   "djWAPr32N4": {
     "defaultMessage": "Cancel",
     "description": "Dismiss button in the mark-as-failed confirmation dialog"
@@ -13390,10 +13414,6 @@
   "dpJb4JeW+k": {
     "defaultMessage": "12 high-intent gaps found in DE",
     "description": "Automations mock UI keyword research step 3 — highlight"
-  },
-  "dpL071W81r": {
-    "defaultMessage": "Open in CAT",
-    "description": "Link label to open issue in CAT editor"
   },
   "dsAsLnB2MG": {
     "defaultMessage": "Row",
@@ -13438,10 +13458,6 @@
   "dx3e9pudVb": {
     "defaultMessage": "A localisation manager receives intake from a product release, a marketing campaign, twelve updated help articles, and a vendor translation batch. Hyperlocalise structures each stream with the right context and glossary rules, assigns product strings to an LLM agent with human review, routes marketing copy through legal approval, sends vendor work to the TMS with quality gates, and surfaces a single dashboard showing locale coverage, review backlog, and blocked releases across all four streams.",
     "description": "Scenario narrative for the localisation-operations use case"
-  },
-  "dxMF5D4P3C": {
-    "defaultMessage": "Open in CAT",
-    "description": "Link label to open the related CAT segment for an issue"
   },
   "dy2mVzOtSq": {
     "defaultMessage": "Target is missing {tokens} from the source string.",
@@ -13587,10 +13603,6 @@
     "defaultMessage": "Add note",
     "description": "Placeholder for a long-text custom column cell"
   },
-  "eHWGrpWi9b": {
-    "defaultMessage": "Double-click a file or use View strings to open the CAT workspace for {targetLocale}.",
-    "description": "Hint explaining how to open the selected file in the CAT workspace"
-  },
   "eI8CB+a2hA": {
     "defaultMessage": "Translation mistake",
     "description": "Issue type filter option for a translation mistake"
@@ -13678,10 +13690,6 @@
   "eWt/E3rn/c": {
     "defaultMessage": "Delete",
     "description": "Button to delete a custom issue column"
-  },
-  "eXEsN78hyb": {
-    "defaultMessage": "Loading CAT workspace",
-    "description": "Accessible label while the full CAT workspace skeleton is shown"
   },
   "eYMRp4gEgK": {
     "defaultMessage": "Invitation sent; access starts after they accept.",
@@ -13943,10 +13951,6 @@
     "defaultMessage": "Early-stage startups can get up to 80% off the Growth plan for the first 12 months, or while you qualify. We confirm fit and pricing on the demo.",
     "description": "Supporting copy for the startup program eligibility section"
   },
-  "fO8mdMfpdf": {
-    "defaultMessage": "Open in CAT",
-    "description": "Link label stored on issues created from CAT"
-  },
   "fOCWpBnaX6": {
     "defaultMessage": "Off-brand for checkout — too formal. Use a short verb CTA like \"Jetzt starten\" (max 24 characters).",
     "description": "Inbox assistant answer in content ops mock"
@@ -14118,6 +14122,10 @@
   "fyhM45TkNF": {
     "defaultMessage": "What we notice",
     "description": "Heading for the methodology section on the localisation audit landing page"
+  },
+  "fyihAjDSvB": {
+    "defaultMessage": "Add a source path and locale to open this issue in the Content Editor.",
+    "description": "Helper when Open in Content Editor is unavailable"
   },
   "fzSGIYfOgO": {
     "defaultMessage": "slide",
@@ -14570,6 +14578,10 @@
   "hAPzbQIEDY": {
     "defaultMessage": "Translation file",
     "description": "Label for the translation file picker in the import dialog"
+  },
+  "hAgLhRJv6O": {
+    "defaultMessage": "This project has more than {fetchedCount, number} files, so the source file could not be resolved from the loaded file list. Open the Content Editor from the project Files page instead, or ask support to narrow the project file list.",
+    "description": "Error when the project file list was truncated before the Content Editor source file could be found"
   },
   "hAjH8+r2iy": {
     "defaultMessage": "Remove member",
@@ -15359,6 +15371,10 @@
     "defaultMessage": "Failed to upload {sourcePath}",
     "description": "Fallback API error when a specific source file upload fails"
   },
+  "jX3Wpfqfza": {
+    "defaultMessage": "Content Editor behavior updated",
+    "description": "Content Editor behavior save success"
+  },
   "jXIBasnzrF": {
     "defaultMessage": "{usage} / {granted} used",
     "description": "Usage row showing consumed versus granted amount"
@@ -15747,10 +15763,6 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the github-release-localisation use case"
   },
-  "kWfjLcxlRC": {
-    "defaultMessage": "Locked strings can't be edited from the CAT. Unlock the string first.",
-    "description": "Error when saving a translation for a locked CAT segment"
-  },
   "kXIRvT5GuG": {
     "defaultMessage": "Memories",
     "description": "Knowledge memories tool title in the marketing automation editor mock"
@@ -15995,10 +16007,6 @@
     "defaultMessage": "Workspace archived",
     "description": "Access denied page title when the workspace is archived"
   },
-  "lE4XkWZPD6": {
-    "defaultMessage": "Failed to load CAT queue",
-    "description": "Fallback error when the project file CAT queue request fails"
-  },
   "lEAnS9LFlv": {
     "defaultMessage": "Jobs by locale",
     "description": "Section heading for jobs grouped by locale in the file detail panel"
@@ -16046,10 +16054,6 @@
   "lO+u6H8vSf": {
     "defaultMessage": "Automation settings saved",
     "description": "Toast after repository automation settings are saved"
-  },
-  "lODK5YiNr1": {
-    "defaultMessage": "Unable to load CAT behavior",
-    "description": "CAT behavior load failure"
   },
   "lOhCmO7eKl": {
     "defaultMessage": "Target term",
@@ -16138,10 +16142,6 @@
   "lkoT8UVKCp": {
     "defaultMessage": "Notify #gtm when drafts are ready for review.",
     "description": "Slack tool description in campaign agent setup mock"
-  },
-  "llWEpZcDRe": {
-    "defaultMessage": "Unable to update CAT behavior",
-    "description": "CAT behavior update failure"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Go to dashboard",
@@ -16243,10 +16243,6 @@
     "defaultMessage": "Finding files",
     "description": "Live explore status when the agent is listing files without a pattern"
   },
-  "mABAdUPLF4": {
-    "defaultMessage": "Control how source strings are organized in the CAT workspace.",
-    "description": "CAT settings section description"
-  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear",
     "description": "Button to clear all selected target locales"
@@ -16266,6 +16262,10 @@
   "mDYRJWtk3P": {
     "defaultMessage": "Connect {providerName} with an OAuth App. Each member links their own account before using {providerName} data in Hyperlocalise.",
     "description": "Intro text before connecting an OAuth-based TMS provider"
+  },
+  "mDjF2xCptL": {
+    "defaultMessage": "Browse the file tree, or choose All Files to edit content across every file.",
+    "description": "Description of the Content Editor header source file picker dialog"
   },
   "mE9BVZ+4OT": {
     "defaultMessage": "Push and scheduled triggers are mutually exclusive.",
@@ -16527,10 +16527,6 @@
     "defaultMessage": "Could not save the character limit. Try again.",
     "description": "Error shown when saving a native segment max length fails"
   },
-  "mwlaVsXCWL": {
-    "defaultMessage": "This file can’t be opened in the CAT workspace.",
-    "description": "Toast when a selected file cannot open in the CAT workspace"
-  },
   "myimkcq73K": {
     "defaultMessage": "e.g. de-DE",
     "description": "Placeholder for the target locale input"
@@ -16614,6 +16610,10 @@
   "nBWhU6jbvc": {
     "defaultMessage": "Template",
     "description": "Label for the read-only issue template provenance field"
+  },
+  "nBYmE0FBb3": {
+    "defaultMessage": "The Content Editor is not available for this file yet.",
+    "description": "Helper text when the selected file cannot open in the Content Editor"
   },
   "nCW7Lueszj": {
     "defaultMessage": "Delete",
@@ -16730,6 +16730,10 @@
   "nULuPBbLbZ": {
     "defaultMessage": "Localise Pricing Messages",
     "description": "Subtitle under the translate task title in the translation flow illustration"
+  },
+  "nUgKkvDPwN": {
+    "defaultMessage": "Add an issue manually or from the Content Editor to start tracking team context.",
+    "description": "Empty-state description when the filtered Issue Sheet has no rows"
   },
   "nVaRoL1Gb1": {
     "defaultMessage": "Unable to load agent runs",
@@ -17131,6 +17135,10 @@
     "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
     "description": "Description for email digest vs immediate delivery format"
   },
+  "ooqPdhd9NW": {
+    "defaultMessage": "Translated document",
+    "description": "Accessible label for the raw Markdown/MDX document editor in Content Editor File view"
+  },
   "opXLqo3spW": {
     "defaultMessage": "Built for quality at scale",
     "description": "Capabilities section title for the localisation-quality-monitoring use case"
@@ -17227,10 +17235,6 @@
     "defaultMessage": "Settings",
     "description": "Segment context label for settings strings in the CAT mock"
   },
-  "pAXX9L54+r": {
-    "defaultMessage": "Translation & CAT behavior",
-    "description": "CAT settings section title"
-  },
   "pCwlsos9AL": {
     "defaultMessage": "Choose a day of the week for weekly schedules.",
     "description": "API error when weekly schedule has an invalid day of week"
@@ -17299,6 +17303,10 @@
     "defaultMessage": "Remove",
     "description": "Button to remove a staged file from the upload list"
   },
+  "pNA+bX2Ulk": {
+    "defaultMessage": "Content Editor / Review queue",
+    "description": "Location breadcrumb for the QA banner segment in the hero Content Editor mock"
+  },
   "pNAbj0ztLi": {
     "defaultMessage": "Assign",
     "description": "Bulk action to assign selected issues"
@@ -17330,6 +17338,10 @@
   "pV6OSYt6fC": {
     "defaultMessage": "Passed",
     "description": "Label for a CAT format check that passed"
+  },
+  "pWLMdEuyPH": {
+    "defaultMessage": "{requestedLocale} is not a target locale for this file. Double-click a file or use Open Editor to edit {targetLocale}.",
+    "description": "Hint when the requested locale is unavailable and a fallback will be used"
   },
   "pWQfZXsgvn": {
     "defaultMessage": "Sydney, Australia",
@@ -17439,10 +17451,6 @@
     "defaultMessage": "Untranslated",
     "description": "CAT segment status label for segments without a target translation"
   },
-  "pof2HIGAaZ": {
-    "defaultMessage": "Open in CAT",
-    "description": "Link label on an issue sheet row pointing back to the CAT editor"
-  },
   "ppXDMSLgyj": {
     "defaultMessage": "Queue panel failed to load",
     "description": "Error boundary title when the CAT queue panel crashes"
@@ -17491,10 +17499,6 @@
     "defaultMessage": "Enforce brand voice and terminology",
     "description": "Capability 2 title for the marketing-localisation use case"
   },
-  "pzOrHk3KQa": {
-    "defaultMessage": "Open this file in the CAT workspace to review and edit translations.",
-    "description": "Helper text when the selected file can open in the CAT workspace"
-  },
   "pzP0LynEOg": {
     "defaultMessage": "Not saved yet",
     "description": "Shown when organization knowledge memory has never been saved"
@@ -17502,6 +17506,10 @@
   "q+3+ldE+Vn": {
     "defaultMessage": "Service-level agreement",
     "description": "Pricing matrix row label for SLA"
+  },
+  "q+l1A/4r0n": {
+    "defaultMessage": "Open Editor",
+    "description": "Context menu action to open a project file in the Content Editor"
   },
   "q+vOWtU/QG": {
     "defaultMessage": "Type",
@@ -17807,9 +17815,17 @@
     "defaultMessage": "Blocked by",
     "description": "Relationship kind: this issue is blocked by another"
   },
+  "r1LA5pAcBV": {
+    "defaultMessage": "Open Editor",
+    "description": "Button or link to open the job Content Editor"
+  },
   "r1aEK84u1V": {
     "defaultMessage": "Part of speech",
     "description": "Label for the part of speech field on a glossary term form"
+  },
+  "r2yxIB3t+w": {
+    "defaultMessage": "Open in Content Editor",
+    "description": "Button to open the linked Content Editor segment"
   },
   "r3j9bzJdAk": {
     "defaultMessage": "Could not load relationships",
@@ -18007,6 +18023,10 @@
     "defaultMessage": "Keep it short and action-oriented.",
     "description": "Intent for the CTA segment in the hero CAT mock"
   },
+  "rg7WUSTOmR": {
+    "defaultMessage": "Capture a localization issue and optionally link it to the Content Editor or an external tracker.",
+    "description": "Description of the create Issue Sheet issue dialog"
+  },
   "rh4QHX9qYb": {
     "defaultMessage": "No provider files were found for this project.",
     "description": "Empty-state description for provider projects with no files"
@@ -18163,6 +18183,10 @@
     "defaultMessage": "{label}: {count}",
     "description": "Summary chip showing a labeled count"
   },
+  "s9vKrtKT/S": {
+    "defaultMessage": "Open in Content Editor",
+    "description": "Link label to open the related Content Editor segment for an issue"
+  },
   "sAOynMMuiJ": {
     "defaultMessage": "Try again",
     "description": "Button to retry sign-in after a pending workspace invite may have been accepted"
@@ -18318,10 +18342,6 @@
   "seugisaDUz": {
     "defaultMessage": "Issue ID copied",
     "description": "Toast after copying the human-readable issue ID"
-  },
-  "sfQrLcactN": {
-    "defaultMessage": "Hidden strings can't be edited from the CAT. Unhide the string in Crowdin first.",
-    "description": "Error when saving a translation for a hidden string"
   },
   "shk3PWB9yz": {
     "defaultMessage": "Targets {locales}",
@@ -18847,6 +18867,10 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after copying the inbound email address"
   },
+  "uQY+c5lAJq": {
+    "defaultMessage": "The Content Editor is not available for this provider file type yet.",
+    "description": "Empty state when a provider file type cannot open in the Content Editor"
+  },
   "uQr06xdr2T": {
     "defaultMessage": "If we can help those teams scale without losing quality or humanity, then we've done something worthwhile.",
     "description": "Eleventh paragraph of the founders note on the company page"
@@ -18898,10 +18922,6 @@
   "uWYTH2Am0l": {
     "defaultMessage": "Tone: friendly, direct, no jargon",
     "description": "Guideline mock UI style rule"
-  },
-  "uY0scW79py": {
-    "defaultMessage": "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. CAT always preselects Context request, regardless of this setting.",
-    "description": "Description of the project issue templates settings section"
   },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
@@ -18970,6 +18990,10 @@
   "ugpx7KUX9X": {
     "defaultMessage": "Workspace",
     "description": "Eyebrow label above the glossaries page title"
+  },
+  "uhtYKc3fnS": {
+    "defaultMessage": "Upload source files, then open one in the Content Editor to review and edit translations.",
+    "description": "Project files page description for native Hyperlocalise projects"
   },
   "uirqgKf7xz": {
     "defaultMessage": "© {year} Hyperlocalise",
@@ -19050,14 +19074,6 @@
   "uycq9iF49K": {
     "defaultMessage": "GitHub push",
     "description": "Trigger label for a GitHub push automation in the list"
-  },
-  "uzkJ9jkLaR": {
-    "defaultMessage": "Upload source files, then open one in the CAT workspace to review and edit translations.",
-    "description": "Project files page description for native Hyperlocalise projects"
-  },
-  "v+JpRsdgw2": {
-    "defaultMessage": "CAT segment",
-    "description": "Issue Sheet link kind for a CAT segment"
   },
   "v/bExbFK7z": {
     "defaultMessage": "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
@@ -19311,10 +19327,6 @@
     "defaultMessage": "Preview and localize this URL as an image",
     "description": "Tooltip for the treat-as-image toggle in CAT"
   },
-  "vem1yM2hIl": {
-    "defaultMessage": "Browse the file tree, or choose All Files to view strings across every file.",
-    "description": "Description of the CAT header source file picker dialog"
-  },
   "vf2HgEHa0O": {
     "defaultMessage": "Resume demo rotation",
     "description": "Accessible label for resuming content ops tab autoplay"
@@ -19330,10 +19342,6 @@
   "vhTlP0jReG": {
     "defaultMessage": "Selected string",
     "description": "Fallback right-panel heading when a visual editor string has no context label"
-  },
-  "vjPfgNgxUm": {
-    "defaultMessage": "CAT behavior updated",
-    "description": "CAT behavior save success"
   },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
@@ -19402,10 +19410,6 @@
   "vwVyosrRNf": {
     "defaultMessage": "Trigger",
     "description": "Accessible label for the lightning badge on trigger nodes"
-  },
-  "vy7kjRq93r": {
-    "defaultMessage": "Shorten to \"Payer maintenant\" (16 chars). Open checkout.json in the CAT editor to apply and re-run QA.",
-    "description": "Inbox assistant answer for issue in content ops mock"
   },
   "vyiCHg90XK": {
     "defaultMessage": "Reset",
@@ -19791,6 +19795,10 @@
     "defaultMessage": "Daily",
     "description": "Schedule cadence pill in the marketing automation editor mock"
   },
+  "x5IFswpz2S": {
+    "defaultMessage": "Open Editor",
+    "description": "Button to open the selected source file in the Content Editor"
+  },
   "x5RsQtpxzS": {
     "defaultMessage": "Order",
     "description": "Accessible label for the translation memory entry sort direction"
@@ -20071,10 +20079,6 @@
     "defaultMessage": "Add",
     "description": "Button label to add a branch pattern"
   },
-  "xozianrnAl": {
-    "defaultMessage": "No matching terms.",
-    "description": "Empty state when an unlabeled team section has no matching glossary concepts"
-  },
   "xp0uIyHTq6": {
     "defaultMessage": "Choose Enterprise when you need custom limits, SSO, a service-level agreement, dedicated support, or help with security reviews. Book a demo and we will scope the workspace with you.",
     "description": "Pricing FAQ answer about Enterprise fit"
@@ -20179,6 +20183,10 @@
     "defaultMessage": "An AI-native layer across your product stack — not another TMS",
     "description": "Differentiator section title for the product-localisation use case"
   },
+  "y9MQtQc7gb": {
+    "defaultMessage": "Open in Content Editor",
+    "description": "Link label to open issue in the Content Editor"
+  },
   "y9blutdtEE": {
     "defaultMessage": "$2,000",
     "description": "Growth plan price on the pricing page"
@@ -20274,10 +20282,6 @@
   "yKtWAeejtx": {
     "defaultMessage": "New request",
     "description": "Dashboard call-to-action to start a new localization request"
-  },
-  "yPsLdM5F3Q": {
-    "defaultMessage": "The CAT workspace is not available for this file yet.",
-    "description": "Helper text when the selected file cannot open in the CAT workspace"
   },
   "yQ7T8Cq+ij": {
     "defaultMessage": "Crowdin",
@@ -20394,6 +20398,10 @@
   "ypyJIGOXrt": {
     "defaultMessage": "No segments match your search.",
     "description": "Empty state when CAT queue search returns no segments"
+  },
+  "yq/V+p8X/b": {
+    "defaultMessage": "Choose a source file from the project files list to open it in the Content Editor.",
+    "description": "Empty state when the Content Editor page is opened without a source file"
   },
   "yqDgUgDi10": {
     "defaultMessage": "Acme · Issues",
@@ -20730,6 +20738,10 @@
   "znjMm102W+": {
     "defaultMessage": "API key",
     "description": "Label for the provider API key input"
+  },
+  "znlespRIYt": {
+    "defaultMessage": "Open Editor",
+    "description": "Button label to open the job Content Editor"
   },
   "zstI+O20TZ": {
     "defaultMessage": "Contact",
