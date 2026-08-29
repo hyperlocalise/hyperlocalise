@@ -212,12 +212,31 @@ func TestNewEncoding(t *testing.T) {
 	})
 }
 
-// Hunspell_create empirically tolerates malformed-but-readable dictionaries,
-// returning a non-NULL handle with no usable entries rather than failing.
-func TestNewToleratesMalformedDictionaryData(t *testing.T) {
-	d, err := New(malformedAff, malformedDic)
+func TestNewRejectsNonNumericWordCountHeader(t *testing.T) {
+	_, err := New(malformedAff, malformedDic)
+	if !errors.Is(err, errDicWordCountHeader) {
+		t.Fatalf("New() error = %v, want error wrapping errDicWordCountHeader (an unparseable count would load zero words)", err)
+	}
+}
+
+func TestNewNormalizesHashPrefixedWordCountHeader(t *testing.T) {
+	dir := t.TempDir()
+	aff := filepath.Join(dir, "test.aff")
+	dic := filepath.Join(dir, "test.dic")
+	valid, err := os.ReadFile(validAff)
 	if err != nil {
-		t.Fatalf("New() error = %v, want nil (Hunspell tolerates this input instead of failing construction)", err)
+		t.Fatalf("read valid aff: %v", err)
+	}
+	if err := os.WriteFile(aff, valid, 0o600); err != nil {
+		t.Fatalf("write aff: %v", err)
+	}
+	if err := os.WriteFile(dic, []byte("#2\nhello\napple\n"), 0o600); err != nil {
+		t.Fatalf("write dic: %v", err)
+	}
+
+	d, err := New(aff, dic)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil for a #prefixed word-count header", err)
 	}
 	t.Cleanup(func() {
 		if err := d.Close(); err != nil {
@@ -229,8 +248,8 @@ func TestNewToleratesMalformedDictionaryData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Spell() error = %v, want nil", err)
 	}
-	if got {
-		t.Errorf(`Spell("hello") = true, want false: a dictionary loaded from malformed data should have no usable entries`)
+	if !got {
+		t.Error(`Spell("hello") = false, want true after normalizing "#2" to "2"`)
 	}
 }
 

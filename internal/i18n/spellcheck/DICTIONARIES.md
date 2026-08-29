@@ -23,10 +23,12 @@ that mapping is trusted (source, pinned version, licence, evidence).
   Undeclared or unknown encodings are skipped.
 - Hunspell reads the first line of a `.dic` as the word count and loads an
   **empty** word list when it cannot parse one, which silently reports every
-  word in that locale as misspelled. `fetch-dictionaries.sh` therefore drops a
-  leading `#` from that line when the remainder is a bare integer (`ms_MY`
-  ships `#30975`), and fails the build if any staged dictionary is left with a
-  non-numeric count. The word list itself is never modified.
+  word in that locale as misspelled. `fetch-dictionaries.sh` and the CGO
+  loader both strip a leading `#` and surrounding whitespace from that line
+  (`ms_MY` ships `#30975`) and rewrite it to a bare integer. A header with
+  no digits fails staging and, at runtime, fails `hunspell.New` so the
+  locale is skipped instead of flagging every word. The word list itself is
+  never modified.
 
 ## Supported locales (20)
 

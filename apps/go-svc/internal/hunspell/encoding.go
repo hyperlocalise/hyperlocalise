@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
@@ -16,6 +18,7 @@ import (
 var (
 	errAffixEncodingUndeclared = errors.New("hunspell: affix file has no SET declaration")
 	errAffixEncodingNotUTF8    = errors.New("hunspell: affix file declares a non-UTF-8 encoding")
+	errDicWordCountHeader      = errors.New("hunspell: dictionary word-count header is not numeric")
 )
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
@@ -38,8 +41,46 @@ func prepareUTF8Dictionary(affPath, dicPath string) (loadAff, loadDic string, cl
 		return "", "", cleanup, fmt.Errorf("%w: %q declares %q, which cannot be transcoded to UTF-8", errAffixEncodingNotUTF8, affPath, declaredEncoding)
 	}
 
-	if decoder == nil && !bom {
-		return affPath, dicPath, cleanup, nil
+	dicData, err := os.ReadFile(dicPath)
+	if err != nil {
+		return "", "", cleanup, fmt.Errorf("hunspell: reading dictionary file: %w", err)
+	}
+
+	// UTF-8 dictionaries skip transcoding, so normalize the header on the
+	// original bytes. 8-bit dictionaries are transcoded first: the header is
+	// ASCII, and one rewrite then covers both encoding and the word-count line.
+	if decoder == nil {
+		var changed bool
+		dicData, changed, err = normalizeDicWordCountHeader(dicData)
+		if err != nil {
+			return "", "", cleanup, fmt.Errorf("%w: %q", err, dicPath)
+		}
+		if !bom && !changed {
+			return affPath, dicPath, cleanup, nil
+		}
+
+		tmpDir, err := os.MkdirTemp("", "hunspell-utf8-")
+		if err != nil {
+			return "", "", cleanup, fmt.Errorf("hunspell: create utf-8 staging dir: %w", err)
+		}
+		cleanup = func() { _ = os.RemoveAll(tmpDir) }
+
+		loadAff, loadDic = affPath, dicPath
+		if changed {
+			loadDic = filepath.Join(tmpDir, filepath.Base(dicPath))
+			if err := os.WriteFile(loadDic, dicData, 0o600); err != nil {
+				cleanup()
+				return "", "", func() {}, fmt.Errorf("hunspell: write utf-8 dictionary file: %w", err)
+			}
+		}
+		if bom {
+			loadAff = filepath.Join(tmpDir, filepath.Base(affPath))
+			if err := os.WriteFile(loadAff, bytes.TrimPrefix(affData, utf8BOM), 0o600); err != nil {
+				cleanup()
+				return "", "", func() {}, fmt.Errorf("hunspell: write utf-8 affix file: %w", err)
+			}
+		}
+		return loadAff, loadDic, cleanup, nil
 	}
 
 	tmpDir, err := os.MkdirTemp("", "hunspell-utf8-")
@@ -47,15 +88,8 @@ func prepareUTF8Dictionary(affPath, dicPath string) (loadAff, loadDic string, cl
 		return "", "", cleanup, fmt.Errorf("hunspell: create utf-8 staging dir: %w", err)
 	}
 	cleanup = func() { _ = os.RemoveAll(tmpDir) }
-
 	loadAff = filepath.Join(tmpDir, filepath.Base(affPath))
-	if decoder == nil {
-		if err := os.WriteFile(loadAff, bytes.TrimPrefix(affData, utf8BOM), 0o600); err != nil {
-			cleanup()
-			return "", "", func() {}, fmt.Errorf("hunspell: write utf-8 affix file: %w", err)
-		}
-		return loadAff, dicPath, cleanup, nil
-	}
+	loadDic = filepath.Join(tmpDir, filepath.Base(dicPath))
 
 	affUTF8, err := decoder.NewDecoder().Bytes(affData)
 	if err != nil {
@@ -68,18 +102,17 @@ func prepareUTF8Dictionary(affPath, dicPath string) (loadAff, loadDic string, cl
 		return "", "", func() {}, fmt.Errorf("hunspell: rewrite affix SET in %q: %w", affPath, err)
 	}
 
-	dicData, err := os.ReadFile(dicPath)
-	if err != nil {
-		cleanup()
-		return "", "", func() {}, fmt.Errorf("hunspell: reading dictionary file: %w", err)
-	}
 	dicUTF8, err := decoder.NewDecoder().Bytes(dicData)
 	if err != nil {
 		cleanup()
 		return "", "", func() {}, fmt.Errorf("hunspell: transcode dictionary file %q from %s: %w", dicPath, declaredEncoding, err)
 	}
+	dicUTF8, _, err = normalizeDicWordCountHeader(dicUTF8)
+	if err != nil {
+		cleanup()
+		return "", "", func() {}, fmt.Errorf("%w: %q", err, dicPath)
+	}
 
-	loadDic = filepath.Join(tmpDir, filepath.Base(dicPath))
 	if err := os.WriteFile(loadAff, affUTF8, 0o600); err != nil {
 		cleanup()
 		return "", "", func() {}, fmt.Errorf("hunspell: write utf-8 affix file: %w", err)
@@ -90,6 +123,64 @@ func prepareUTF8Dictionary(affPath, dicPath string) (loadAff, loadDic string, cl
 	}
 
 	return loadAff, loadDic, cleanup, nil
+}
+
+// parseDicWordCount reads the integer Hunspell would take from a .dic first
+// line. A leading '#' is ignored so dictionaries that ship "#30975" (ms_MY)
+// still load; Hunspell's atoi stops at '#' and would otherwise load zero words.
+func parseDicWordCount(line []byte) (int, bool) {
+	s := strings.TrimSpace(string(bytes.TrimSuffix(line, []byte{'\r'})))
+	s = strings.TrimLeft(s, "#")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
+	}
+	end := 0
+	for end < len(s) && unicode.IsDigit(rune(s[end])) {
+		end++
+	}
+	if end == 0 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(s[:end])
+	if err != nil || n < 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+// normalizeDicWordCountHeader rewrites the first .dic line to a bare integer
+// when Hunspell would fail to parse it. The word list is never modified.
+func normalizeDicWordCountHeader(dicData []byte) (normalized []byte, changed bool, err error) {
+	rest := dicData
+	hasBOM := bytes.HasPrefix(rest, utf8BOM)
+	if hasBOM {
+		rest = rest[len(utf8BOM):]
+	}
+
+	line, remainder, found := bytes.Cut(rest, []byte{'\n'})
+	count, ok := parseDicWordCount(line)
+	if !ok {
+		header := strings.TrimSuffix(string(line), "\r")
+		return nil, false, fmt.Errorf("%w %q; Hunspell would load zero words", errDicWordCountHeader, header)
+	}
+
+	canonical := strconv.Itoa(count)
+	current := strings.TrimSuffix(string(line), "\r")
+	if current == canonical {
+		return dicData, false, nil
+	}
+
+	var out bytes.Buffer
+	if hasBOM {
+		out.Write(utf8BOM)
+	}
+	out.WriteString(canonical)
+	if found {
+		out.WriteByte('\n')
+		out.Write(remainder)
+	}
+	return out.Bytes(), true, nil
 }
 
 func parseAffEncoding(affData []byte) (name string, declared, bom bool) {

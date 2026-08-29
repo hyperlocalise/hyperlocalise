@@ -3,7 +3,52 @@
 # DICTIONARIES.md is the source of truth for supported locales and files.
 #
 # Usage: fetch-dictionaries.sh <repo-root> <dict-staging-dir> <licence-staging-dir>
+#        fetch-dictionaries.sh --normalize-header <dic-file>   (test helper)
 set -euo pipefail
+
+# Hunspell reads the first .dic line as the word count (atoi) and loads an
+# empty word list when it cannot parse one, which silently flags every word
+# in that locale. Strip a leading '#' and surrounding whitespace (ms_MY ships
+# "#30975"), rewrite the line to a bare integer, and fail when nothing
+# numeric remains. Matches parseDicWordCount in
+# apps/go-svc/internal/hunspell/encoding.go. The word list is never modified.
+normalize_dic_word_count_header() {
+    local file="$1"
+    local locale="${2:-}"
+    local header stripped digits
+    header="$(head -n1 "$file" | sed -e '1s/^\xEF\xBB\xBF//' | tr -d '\r')"
+    stripped="${header#"${header%%[![:space:]]*}"}"
+    stripped="${stripped#\#}"
+    stripped="${stripped#"${stripped%%[![:space:]]*}"}"
+    digits="$(printf '%s' "$stripped" | sed -n 's/^\([0-9][0-9]*\).*/\1/p')"
+    if [ -z "$digits" ]; then
+        if [ -n "$locale" ]; then
+            echo "fetch-dictionaries: '$file' has a non-numeric word-count header '$header'; Hunspell would load zero words for $locale" >&2
+        else
+            echo "fetch-dictionaries: '$file' has a non-numeric word-count header '$header'; Hunspell would load zero words" >&2
+        fi
+        return 1
+    fi
+    if [ "$header" = "$digits" ]; then
+        return 0
+    fi
+    echo "fetch-dictionaries: normalizing '$(basename "$file")' word-count header '$header' -> '$digits'"
+    local tmp
+    tmp="$(mktemp)"
+    {
+        if [ "$(od -An -tx1 -N3 "$file" | tr -d ' \n')" = "efbbbf" ]; then
+            printf '\xEF\xBB\xBF'
+        fi
+        printf '%s\n' "$digits"
+        tail -n +2 "$file"
+    } >"$tmp"
+    mv "$tmp" "$file"
+}
+
+if [ "${1:-}" = "--normalize-header" ]; then
+    normalize_dic_word_count_header "${2:?dic file required}"
+    exit $?
+fi
 
 REPO_ROOT="${1:?repo root required}"
 STAGE_DICT="${2:?dictionary staging dir required}"
@@ -113,19 +158,7 @@ while IFS=$'\t' read -r bcp47 aff dic evidence_csv repo; do
     cp "$aff_src" "$STAGE_DICT/$aff"
     cp "$dic_src" "$STAGE_DICT/$dic"
 
-    # Hunspell reads the first .dic line as the word count and loads an empty
-    # word list when it cannot parse one, which silently flags every word in
-    # that locale. ms_MY ships "#30975"; drop a leading '#' when the rest is a
-    # bare integer, then require a numeric header so a future dictionary with a
-    # different malformed count fails the build instead of shipping empty.
-    header="$(head -n1 "$STAGE_DICT/$dic" | sed -e '1s/^\xEF\xBB\xBF//' | tr -d '\r')"
-    if [[ "$header" =~ ^#([0-9]+)$ ]]; then
-        echo "fetch-dictionaries: normalizing '$dic' word-count header '$header' -> '${BASH_REMATCH[1]}'"
-        sed -i '1s/^\(\xEF\xBB\xBF\)\{0,1\}#/\1/' "$STAGE_DICT/$dic"
-        header="${BASH_REMATCH[1]}"
-    fi
-    if ! [[ "$header" =~ ^[0-9]+$ ]]; then
-        echo "fetch-dictionaries: '$dic' has a non-numeric word-count header '$header'; Hunspell would load zero words for $bcp47" >&2
+    if ! normalize_dic_word_count_header "$STAGE_DICT/$dic" "$bcp47"; then
         missing=$((missing + 1))
         continue
     fi

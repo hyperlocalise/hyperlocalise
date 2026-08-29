@@ -166,12 +166,9 @@ func TestHunspellSpellCheckerChecksAreIsolatedPerLocale(t *testing.T) {
 		t.Errorf("Check(aa-AA, %q) = %+v, want no issues (word is in this locale's dictionary)", "hello", gotA)
 	}
 
-	gotB, err := checker.Check(context.Background(), "bb-BB", []string{"hello"})
-	if err != nil {
-		t.Fatalf("Check(bb-BB) error = %v, want nil", err)
-	}
-	if len(gotB) != 1 || gotB[0].Word != "hello" {
-		t.Errorf("Check(bb-BB, %q) = %+v, want a single issue for %q (malformed dictionary has no usable entries)", "hello", gotB, "hello")
+	_, err = checker.Check(context.Background(), "bb-BB", []string{"hello"})
+	if !errors.Is(err, spellcheck.ErrUnsupportedLocale) {
+		t.Fatalf("Check(bb-BB) error = %v, want error wrapping spellcheck.ErrUnsupportedLocale (malformed header must skip the locale, not flag every word)", err)
 	}
 }
 
