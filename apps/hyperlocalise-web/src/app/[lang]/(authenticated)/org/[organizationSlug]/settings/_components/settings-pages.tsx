@@ -12,16 +12,8 @@
  */
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
-import {
-  AiUserIcon,
-  ArrowRight01Icon,
-  Key01Icon,
-  CreditCardIcon,
-  Globe02Icon,
-  Settings01Icon,
-} from "@hugeicons/core-free-icons";
+import { AiUserIcon, ArrowRight01Icon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { IntlShape } from "@formatjs/intl";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,6 +27,7 @@ import { cn } from "@/lib/primitives/cn";
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { WorkspaceSettingsForm } from "./workspace-settings-form";
 import { NotificationPreferencesSection } from "./notification-preferences-section";
+import { buildSettingsHubRows, filterVisibleSettingsHubRows } from "./settings-hub-rows";
 
 type SettingsPageProps = {
   organizationSlug: string;
@@ -58,86 +51,6 @@ type SettingsRowProps = {
   label: string;
   openLabel: string;
 };
-
-type SettingsRowConfig = {
-  description: string;
-  href: string;
-  icon: ComponentProps<typeof HugeiconsIcon>["icon"];
-  label: string;
-  requiredCapability?: OrganizationCapability;
-  absoluteHref?: boolean;
-  requiresDomainsFeature?: boolean;
-};
-
-function buildSettingsRows(
-  intl: IntlShape,
-  organizationSlug: string,
-): readonly SettingsRowConfig[] {
-  return [
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Account",
-        id: "318/PLILOK",
-        description: "Settings hub row label for account settings",
-      }),
-      description: intl.formatMessage({
-        defaultMessage: "Profile details and workspace identity.",
-        id: "PnVI3u5zSd",
-        description: "Settings hub row description for account settings",
-      }),
-      href: "account",
-      icon: AiUserIcon,
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "API Keys",
-        id: "Wzlq8Ew/Ii",
-        description: "Settings hub row label for API keys",
-      }),
-      description: intl.formatMessage({
-        defaultMessage:
-          "Manage API keys for programmatic access to translation jobs and workspace data.",
-        id: "5qiaSV4RG8",
-        description: "Settings hub row description for API keys",
-      }),
-      href: "api-keys",
-      icon: Key01Icon,
-      requiredCapability: "api_keys:read",
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Domains",
-        id: "UFpFmP3uvn",
-        description: "Settings hub row label for workspace domains",
-      }),
-      description: intl.formatMessage({
-        defaultMessage: "View verified domains and attached localisation audit reports.",
-        id: "gqCGKqkwz/",
-        description: "Settings hub row description for workspace domains",
-      }),
-      href: `/org/${organizationSlug}/domains`,
-      absoluteHref: true,
-      icon: Globe02Icon,
-      requiredCapability: "projects:read",
-      requiresDomainsFeature: true,
-    },
-    {
-      label: intl.formatMessage({
-        defaultMessage: "Billing",
-        id: "OmGkdjrtzD",
-        description: "Settings hub row label for billing",
-      }),
-      description: intl.formatMessage({
-        defaultMessage: "Plan usage, payment method, invoices, and billing contacts.",
-        id: "K0I+hdjpXe",
-        description: "Settings hub row description for billing",
-      }),
-      href: "billing",
-      icon: CreditCardIcon,
-      requiredCapability: "billing:read",
-    },
-  ];
-}
 
 function SettingsHeader({
   description,
@@ -223,16 +136,11 @@ export async function SettingsPageContent({
 }: SettingsPageProps) {
   const intl = getIntlShape(await getAppLocale());
   const baseHref = `/org/${organizationSlug}/settings`;
-  const settingsRows = buildSettingsRows(intl, organizationSlug);
-  const visibleRows = settingsRows.filter((row) => {
-    if (row.requiredCapability && !capabilities.includes(row.requiredCapability)) {
-      return false;
-    }
-    if (row.requiresDomainsFeature && !domainsEnabled) {
-      return false;
-    }
-    return true;
-  });
+  const visibleRows = filterVisibleSettingsHubRows(
+    buildSettingsHubRows(intl, organizationSlug),
+    capabilities,
+    domainsEnabled,
+  );
   const openLabel = intl.formatMessage({
     defaultMessage: "Open",
     id: "PEy6fPw+25",

@@ -103,9 +103,16 @@ describe("apiKeyRoutes", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { apiKeys: Array<{ name: string }> };
+    const body = (await response.json()) as {
+      apiKeys: Array<{ name: string; createdByUserId: string | null }>;
+    };
     expect(body.apiKeys).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "List Key" })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "List Key",
+          createdByUserId: await getLocalUserId(identity.user.workosUserId),
+        }),
+      ]),
     );
   });
 

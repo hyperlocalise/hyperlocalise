@@ -22,7 +22,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,33 +40,10 @@ import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
 import { TypographyP } from "@/components/ui/typography";
+import { type AccessTokenSummary, formatAccessTokenDate } from "./access-token-lifecycle";
 import { apiKeysPageContentMessages } from "./api-keys-page-content.messages";
 
-type ApiKey = {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  permissions: string[];
-  lastUsedAt: string | null;
-  revokedAt: string | null;
-  createdAt: string;
-};
-
 const apiKeysQueryKey = (organizationSlug: string) => ["api-keys", organizationSlug];
-
-function formatApiKeyDate(intl: IntlShape, date: string | null) {
-  if (!date) {
-    return intl.formatMessage(apiKeysPageContentMessages.neverUsed);
-  }
-
-  return intl.formatDate(new Date(date), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
@@ -87,7 +64,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         throw new Error(intl.formatMessage(apiKeysPageContentMessages.loadFailed));
       }
       const body = await response.json();
-      return (body.apiKeys ?? []) as ApiKey[];
+      return (body.apiKeys ?? []) as AccessTokenSummary[];
     },
   });
 
@@ -242,13 +219,25 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                     <span>
                       <FormattedMessage
                         {...apiKeysPageContentMessages.createdAt}
-                        values={{ date: formatApiKeyDate(intl, key.createdAt) }}
+                        values={{
+                          date: formatAccessTokenDate(
+                            intl,
+                            key.createdAt,
+                            intl.formatMessage(apiKeysPageContentMessages.neverUsed),
+                          ),
+                        }}
                       />
                     </span>
                     <span>
                       <FormattedMessage
                         {...apiKeysPageContentMessages.lastUsed}
-                        values={{ date: formatApiKeyDate(intl, key.lastUsedAt) }}
+                        values={{
+                          date: formatAccessTokenDate(
+                            intl,
+                            key.lastUsedAt,
+                            intl.formatMessage(apiKeysPageContentMessages.neverUsed),
+                          ),
+                        }}
                       />
                     </span>
                   </div>

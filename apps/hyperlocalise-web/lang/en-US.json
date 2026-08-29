@@ -20782,5 +20782,197 @@
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
     "description": "Screen reader label for the repository enabled checkbox column"
+  },
+  "pAtNvUsed01": {
+    "defaultMessage": "Never",
+    "description": "Shown when a personal access token has never been used"
+  },
+  "pAtLdFail01": {
+    "defaultMessage": "Failed to load personal access tokens",
+    "description": "Error when the personal access token list request fails"
+  },
+  "pAtCrFail01": {
+    "defaultMessage": "Failed to create personal access token",
+    "description": "Error when creating a personal access token fails"
+  },
+  "pAtRvFail01": {
+    "defaultMessage": "Failed to revoke personal access token",
+    "description": "Error when revoking a personal access token fails"
+  },
+  "pAtRvToas01": {
+    "defaultMessage": "Personal access token revoked",
+    "description": "Success toast after revoking a personal access token"
+  },
+  "pAtCpToas01": {
+    "defaultMessage": "Token copied to clipboard",
+    "description": "Success toast after copying a newly created personal access token"
+  },
+  "pAtCpFail01": {
+    "defaultMessage": "Failed to copy to clipboard",
+    "description": "Error toast when clipboard copy of a personal access token fails"
+  },
+  "pAtPgLbl01": {
+    "defaultMessage": "Account settings",
+    "description": "Breadcrumb-style label above the personal access tokens page title"
+  },
+  "pAtPgTtl01": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Personal access tokens settings page heading"
+  },
+  "pAtPgDsc01": {
+    "defaultMessage": "Create tokens for the CLI, CI, and integrations. A token acts with your current workspace access and stops working if you leave the organization.",
+    "description": "Personal access tokens settings page description"
+  },
+  "pAtPgDtl01": {
+    "defaultMessage": "Copy a new token immediately. You cannot view the secret again after you close this page.",
+    "description": "Personal access tokens settings page note about one-time secret disclosure"
+  },
+  "pAtCrBtn01": {
+    "defaultMessage": "Create token",
+    "description": "Button to open the create personal access token dialog"
+  },
+  "pAtSecLbl01": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Accessible label for the personal access tokens list section"
+  },
+  "pAtLoading1": {
+    "defaultMessage": "Loading personal access tokens...",
+    "description": "Loading state while fetching personal access tokens"
+  },
+  "pAtLdErrT1": {
+    "defaultMessage": "Personal access tokens failed to load.",
+    "description": "Error title when the personal access token list fails to load"
+  },
+  "pAtLdErrF1": {
+    "defaultMessage": "Refresh the page to try again.",
+    "description": "Fallback error guidance when loading personal access tokens fails"
+  },
+  "pAtEmptyT1": {
+    "defaultMessage": "No personal access tokens yet",
+    "description": "Empty state title when the signed-in user has no personal access tokens"
+  },
+  "pAtEmptyD1": {
+    "defaultMessage": "Create a token to authenticate scripts and integrations as yourself in this workspace.",
+    "description": "Empty state description for the personal access tokens list"
+  },
+  "pAtMaskPf1": {
+    "defaultMessage": "{prefix}••••••••",
+    "description": "Masked personal access token prefix shown in the tokens list"
+  },
+  "pAtPerms01": {
+    "defaultMessage": "Permissions: {permissions}",
+    "description": "Personal access token row showing granted permissions"
+  },
+  "pAtCreated1": {
+    "defaultMessage": "Created {date}",
+    "description": "Personal access token row showing creation timestamp"
+  },
+  "pAtLstUsd1": {
+    "defaultMessage": "Last used {date}",
+    "description": "Personal access token row showing last-used timestamp"
+  },
+  "pAtRevSts1": {
+    "defaultMessage": "Revoked",
+    "description": "Badge shown on a revoked personal access token"
+  },
+  "pAtRevoke1": {
+    "defaultMessage": "Revoke",
+    "description": "Button to open the revoke personal access token confirmation dialog"
+  },
+  "pAtCrDlgT1": {
+    "defaultMessage": "Create personal access token",
+    "description": "Title of the create personal access token dialog before the token is generated"
+  },
+  "pAtCdDlgT1": {
+    "defaultMessage": "Personal access token created",
+    "description": "Title of the create personal access token dialog after the token is generated"
+  },
+  "pAtCrDlgD1": {
+    "defaultMessage": "Name the token and choose the scopes it may use. The token can only do what your current role allows.",
+    "description": "Description in the create personal access token dialog before generation"
+  },
+  "pAtCdDlgD1": {
+    "defaultMessage": "Copy this token now. You will not be able to see it again.",
+    "description": "Warning shown after a personal access token is created"
+  },
+  "pAtCopied1": {
+    "defaultMessage": "Copied",
+    "description": "Copy button label after the personal access token was copied"
+  },
+  "pAtCopy001": {
+    "defaultMessage": "Copy",
+    "description": "Button to copy the newly created personal access token"
+  },
+  "pAtNameLb1": {
+    "defaultMessage": "Token name",
+    "description": "Label for the personal access token name field"
+  },
+  "pAtNamePh1": {
+    "defaultMessage": "e.g. Local CLI",
+    "description": "Placeholder for the personal access token name field"
+  },
+  "pAtPermLg1": {
+    "defaultMessage": "Permissions",
+    "description": "Legend for the personal access token permission scope checkboxes"
+  },
+  "pAtScpJr01": {
+    "defaultMessage": "Read jobs",
+    "description": "Label for the jobs:read personal access token scope"
+  },
+  "pAtScpJw01": {
+    "defaultMessage": "Write jobs",
+    "description": "Label for the jobs:write personal access token scope"
+  },
+  "pAtScpFr01": {
+    "defaultMessage": "Read files",
+    "description": "Label for the files:read personal access token scope"
+  },
+  "pAtScpFw01": {
+    "defaultMessage": "Write files",
+    "description": "Label for the files:write personal access token scope"
+  },
+  "pAtDone001": {
+    "defaultMessage": "Done",
+    "description": "Button to close the create personal access token dialog after copying the token"
+  },
+  "pAtCancel1": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in personal access token dialogs"
+  },
+  "pAtCreating": {
+    "defaultMessage": "Creating...",
+    "description": "Create personal access token button label while the request is pending"
+  },
+  "pAtCrSub01": {
+    "defaultMessage": "Create token",
+    "description": "Submit button to create a personal access token"
+  },
+  "pAtRvDlgT1": {
+    "defaultMessage": "Revoke personal access token",
+    "description": "Title of the revoke personal access token confirmation dialog"
+  },
+  "pAtRvDlgD1": {
+    "defaultMessage": "Revoke {name} ({prefix}…)? Integrations using this token will lose access immediately.",
+    "description": "Description in the revoke personal access token confirmation dialog identifying the token"
+  },
+  "pAtRevoking": {
+    "defaultMessage": "Revoking...",
+    "description": "Revoke personal access token button label while the request is pending"
+  },
+  "pAtRvCnf01": {
+    "defaultMessage": "Revoke token",
+    "description": "Confirm button to revoke a personal access token"
+  },
+  "pAtHubLbl01": {
+    "defaultMessage": "Personal access tokens",
+    "description": "Settings hub row label for personal access tokens"
+  },
+  "pAtHubDsc01": {
+    "defaultMessage": "Create and revoke tokens that act with your current workspace access.",
+    "description": "Settings hub row description for personal access tokens"
+  },
+  "pAtCrumb01": {
+    "defaultMessage": "Personal access tokens",
+    "description": "App shell breadcrumb title for the personal access tokens settings page"
   }
 }

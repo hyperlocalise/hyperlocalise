@@ -38,6 +38,7 @@ export const apiKeySummarySchema = z.object({
   lastUsedAt: z.string().nullable().optional(),
   revokedAt: z.string().nullable().optional(),
   createdAt: z.string(),
+  createdByUserId: z.string().nullable().optional(),
 });
 
 export const createdApiKeySchema = apiKeySummarySchema

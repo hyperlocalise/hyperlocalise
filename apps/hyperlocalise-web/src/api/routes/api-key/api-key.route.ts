@@ -65,6 +65,7 @@ export function createApiKeyRoutes() {
           lastUsedAt: schema.organizationApiKeys.lastUsedAt,
           revokedAt: schema.organizationApiKeys.revokedAt,
           createdAt: schema.organizationApiKeys.createdAt,
+          createdByUserId: schema.organizationApiKeys.createdByUserId,
         })
         .from(schema.organizationApiKeys)
         .where(
