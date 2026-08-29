@@ -77,9 +77,9 @@ export function createApiKeyRoutes() {
           permissions: row.permissions,
           lastUsedAt: row.lastUsedAt,
           // A token whose owner cannot be resolved is permanently unusable, so
-          // it must never read as active. The migration stamps `revokedAt` on
-          // known legacy rows; `updatedAt` is the best-effort fallback for a
-          // row orphaned later by user deletion.
+          // it must never read as active. `updatedAt` is the fallback when
+          // `revokedAt` was never written (legacy unowned rows, or a later
+          // user deletion that nulls the owner).
           revokedAt: owner ? row.revokedAt : (row.revokedAt ?? row.updatedAt),
           createdAt: row.createdAt,
           owner,

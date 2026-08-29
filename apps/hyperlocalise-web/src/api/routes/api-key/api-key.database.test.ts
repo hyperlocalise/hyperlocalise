@@ -12,10 +12,7 @@
  */
 import "dotenv/config";
 
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
-
-import { sql, type SQL } from "drizzle-orm";
+import { type SQL } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
@@ -26,7 +23,6 @@ import { createApiKeyTestFixture } from "./api-key.fixture";
 import { revocableApiKeyWhere, visibleApiKeysWhere } from "./api-key.shared";
 
 const fixture = createApiKeyTestFixture();
-const migrationsDirectory = path.join(process.cwd(), "drizzle");
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -48,31 +44,6 @@ async function selectApiKeyNames(where: SQL | undefined) {
     .where(where);
 
   return rows.map((row) => row.name).sort();
-}
-
-/** The backfill ships inside a generated migration, so find it by its predicate. */
-async function readLegacyRevocationBackfillStatement() {
-  const fileNames = (await readdir(migrationsDirectory)).filter((name) => name.endsWith(".sql"));
-  const statements: string[] = [];
-
-  for (const fileName of fileNames) {
-    const contents = await readFile(path.join(migrationsDirectory, fileName), "utf8");
-
-    for (const statement of contents.split("--> statement-breakpoint")) {
-      const withoutComments = statement
-        .split("\n")
-        .filter((line) => !line.trimStart().startsWith("--"))
-        .join("\n")
-        .trim();
-
-      if (withoutComments.startsWith('UPDATE "organization_api_keys" SET "revoked_at"')) {
-        statements.push(withoutComments.replace(/;\s*$/, ""));
-      }
-    }
-  }
-
-  expect(statements).toHaveLength(1);
-  return statements[0]!;
 }
 
 describe("api key ownership predicates", () => {
@@ -153,47 +124,5 @@ describe("api key ownership predicates", () => {
     expect(await selectApiKeyNames(revocableApiKeyWhere(adminAuth, memberKey.id))).toEqual([
       "member-owned",
     ]);
-  });
-});
-
-describe("legacy token revocation backfill", () => {
-  it("revokes only unowned tokens that are still active", async () => {
-    const identity = fixture.createWorkosIdentity();
-    const auth = await authContextFor(identity);
-    const organizationId = auth.organization.localOrganizationId;
-
-    const { apiKey: legacyKey } = await fixture.insertApiKey({
-      organizationId,
-      name: "legacy-unowned",
-    });
-    const { apiKey: ownedKey } = await fixture.insertApiKey({
-      organizationId,
-      name: "owned",
-      createdByUserId: auth.user.localUserId,
-    });
-    const alreadyRevokedAt = new Date("2026-01-01T00:00:00.000Z");
-    const { apiKey: revokedLegacyKey } = await fixture.insertApiKey({
-      organizationId,
-      name: "legacy-already-revoked",
-      revokedAt: alreadyRevokedAt,
-    });
-
-    const backfill = await readLegacyRevocationBackfillStatement();
-    // Scope the shipped statement to this test's workspace so concurrent tests
-    // keep their own rows.
-    await db.execute(sql.raw(`${backfill} AND "organization_id" = '${organizationId}'`));
-
-    const rows = await db
-      .select({
-        id: schema.organizationApiKeys.id,
-        revokedAt: schema.organizationApiKeys.revokedAt,
-      })
-      .from(schema.organizationApiKeys)
-      .where(visibleApiKeysWhere(auth));
-    const revokedAtById = new Map(rows.map((row) => [row.id, row.revokedAt]));
-
-    expect(revokedAtById.get(legacyKey.id)).not.toBeNull();
-    expect(revokedAtById.get(ownedKey.id)).toBeNull();
-    expect(revokedAtById.get(revokedLegacyKey.id)).toEqual(alreadyRevokedAt);
   });
 });
