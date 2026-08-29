@@ -1,9 +1,19 @@
-import { render, waitFor } from "@testing-library/react";
+import { cleanup, render, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { App } from "./app";
 import type { FigmaPageJobBinding } from "./page-binding";
 import type { FigmaPageJob, PluginSettings, SandboxToUiMessage } from "./plugin-messages";
+
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
 
 const succeededJob: FigmaPageJob = {
   jobId: "job_figma",
@@ -60,6 +70,7 @@ function readyMessage(binding: FigmaPageJobBinding | null) {
 
 describe("Figma plugin UI", () => {
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -74,7 +85,7 @@ describe("Figma plugin UI", () => {
 
   it("hydrates the page job card and keeps Close enabled", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/api/integrations/figma/session")) {
         return jsonResponse({
           session: {
@@ -86,7 +97,9 @@ describe("Figma plugin UI", () => {
       }
       if (url.includes("/api/integrations/figma/projects")) {
         return jsonResponse({
-          projects: [{ id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] }],
+          projects: [
+            { id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
+          ],
         });
       }
       if (url.includes("/api/integrations/figma/jobs/current")) {
@@ -103,12 +116,9 @@ describe("Figma plugin UI", () => {
       sourcePath: "figma/files/file-1/pages/page-1.json",
     });
 
-    await waitFor(() => {
-      expect(result.getByLabelText("Page job")).toBeTruthy();
-    });
-
-    expect(result.getByText("Ready")).toBeTruthy();
-    expect(result.getByText("job_figma")).toBeTruthy();
+    const card = await waitFor(() => result.getByLabelText("Page job"));
+    expect(within(card).getByText("Ready")).toBeTruthy();
+    expect(within(card).getByText("job_figma")).toBeTruthy();
     expect(result.getByRole("link", { name: "Open in Hyperlocalise" }).getAttribute("href")).toBe(
       "https://app.hyperlocalise.com/org/acme/projects/proj_1/jobs/job_figma",
     );
@@ -120,14 +130,14 @@ describe("Figma plugin UI", () => {
         .disabled,
     ).toBe(false);
 
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("jobs/current"))).toBe(
+    expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).includes("jobs/current"))).toBe(
       true,
     );
   });
 
   it("hides the job card when the server has no job for the page", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/api/integrations/figma/session")) {
         return jsonResponse({
           session: {
@@ -139,7 +149,9 @@ describe("Figma plugin UI", () => {
       }
       if (url.includes("/api/integrations/figma/projects")) {
         return jsonResponse({
-          projects: [{ id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] }],
+          projects: [
+            { id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
+          ],
         });
       }
       if (url.includes("/api/integrations/figma/jobs/current")) {
@@ -157,12 +169,9 @@ describe("Figma plugin UI", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock.mock.calls.some(([input]) => String(input).includes("jobs/current"))).toBe(
-        true,
-      );
+      expect(result.getByText("dev@example.com")).toBeTruthy();
+      expect(result.queryByLabelText("Page job")).toBeNull();
     });
-
-    expect(result.queryByLabelText("Page job")).toBeNull();
     expect(
       (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
         .disabled,

@@ -704,7 +704,9 @@ export function App() {
                 <span className={`jobBadge jobBadge-${pageJob.status}`}>
                   {jobStatusLabel(pageJob.status)}
                 </span>
-                {isInFlightStatus(pageJob.status) ? <span className="jobPulse">Working…</span> : null}
+                {isInFlightStatus(pageJob.status) ? (
+                  <span className="jobPulse">Working…</span>
+                ) : null}
               </p>
               <p className="jobCardId">{pageJob.jobId}</p>
               {pageJob.lastError && pageJob.status === "failed" ? (
@@ -786,7 +788,11 @@ export function App() {
       {errorMessage ? <p className="error">{errorMessage}</p> : null}
 
       <div className="footer">
-        <button type="button" className="button" onClick={() => postPluginMessage({ type: "cancel" })}>
+        <button
+          type="button"
+          className="button"
+          onClick={() => postPluginMessage({ type: "cancel" })}
+        >
           Close
         </button>
       </div>

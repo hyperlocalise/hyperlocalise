@@ -7,6 +7,16 @@ import {
 } from "./hyperlocalise-client";
 import type { FigmaPageJob } from "./plugin-messages";
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
 const pageJob: FigmaPageJob = {
   jobId: "job_figma",
   status: "waiting_for_review",
@@ -34,7 +44,7 @@ describe("figma hyperlocalise client", () => {
 
   it("loads the current page job and omits an empty projectId", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      expect(String(input)).toBe(
+      expect(requestUrl(input)).toBe(
         "https://app.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1",
       );
       return jsonResponse({ job: pageJob });
@@ -54,7 +64,7 @@ describe("figma hyperlocalise client", () => {
 
   it("scopes the current page job when a project id is provided", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      expect(String(input)).toContain("projectId=proj_1");
+      expect(requestUrl(input)).toContain("projectId=proj_1");
       return jsonResponse({ job: null });
     });
     vi.stubGlobal("fetch", fetchMock);

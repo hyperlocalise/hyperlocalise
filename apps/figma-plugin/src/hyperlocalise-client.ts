@@ -374,7 +374,15 @@ export async function pullFigmaTranslations(input: {
   );
   const payload = (await response.json().catch(() => null)) as
     | ({
-        translations?: Partial<FigmaJobStatus> & { status?: string; jobId?: string | null };
+        translations?: {
+          jobId?: string | null;
+          status?: FigmaJobStatus["status"] | "not_found";
+          projectId?: string;
+          sourcePath?: string;
+          targetLocales?: string[];
+          lastError?: string | null;
+          translationsByLocale?: Record<string, Record<string, string>>;
+        };
       } & ErrorPayload)
     | null;
 
@@ -392,10 +400,7 @@ export async function pullFigmaTranslations(input: {
     );
   }
 
-  if (
-    payload.translations.status === "queued" ||
-    payload.translations.status === "running"
-  ) {
+  if (payload.translations.status === "queued" || payload.translations.status === "running") {
     throw new HyperlocaliseClientError(
       "translations_not_ready",
       "Translations are still running. Wait until the job is ready, then pull.",
@@ -403,10 +408,7 @@ export async function pullFigmaTranslations(input: {
   }
 
   if (!payload.translations.projectId || !payload.translations.sourcePath) {
-    throw new HyperlocaliseClientError(
-      "figma_translations_failed",
-      "Unable to pull translations.",
-    );
+    throw new HyperlocaliseClientError("figma_translations_failed", "Unable to pull translations.");
   }
 
   return {

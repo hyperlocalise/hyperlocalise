@@ -46,7 +46,12 @@ export type UiToSandboxMessage =
   | { type: "cancel" };
 
 export type SandboxToUiMessage =
-  | { type: "ready"; settings: PluginSettings; file: FigmaFileInfo; binding: FigmaPageJobBinding | null }
+  | {
+      type: "ready";
+      settings: PluginSettings;
+      file: FigmaFileInfo;
+      binding: FigmaPageJobBinding | null;
+    }
   | { type: "page-changed"; file: FigmaFileInfo; binding: FigmaPageJobBinding | null }
   | { type: "extracted"; segments: FigmaSegment[]; file: FigmaFileInfo }
   | { type: "applied"; count: number }

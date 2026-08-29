@@ -21,7 +21,11 @@ export function parsePageJobBinding(value: string | null | undefined): FigmaPage
       return null;
     }
     const candidate = parsed as Record<string, unknown>;
-    if (!hasValue(candidate.projectId) || !hasValue(candidate.jobId) || !hasValue(candidate.sourcePath)) {
+    if (
+      !hasValue(candidate.projectId) ||
+      !hasValue(candidate.jobId) ||
+      !hasValue(candidate.sourcePath)
+    ) {
       return null;
     }
     return {

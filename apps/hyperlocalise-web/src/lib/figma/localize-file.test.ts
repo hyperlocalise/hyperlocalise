@@ -116,9 +116,12 @@ describe("isFigmaIntegrationJob", () => {
     };
     expect(figmaJobMatchesPage(payload, { fileKey: "abc123", pageId: "12:34" })).toBe(true);
     expect(figmaJobMatchesPage(payload, { fileKey: "abc123", pageId: "99:00" })).toBe(false);
-    expect(figmaJobMatchesPage({ metadata: { integration: "canva" } }, { fileKey: "abc123", pageId: "12:34" })).toBe(
-      false,
-    );
+    expect(
+      figmaJobMatchesPage(
+        { metadata: { integration: "canva" } },
+        { fileKey: "abc123", pageId: "12:34" },
+      ),
+    ).toBe(false);
   });
 
   it("maps unknown statuses to queued and treats review as pullable", () => {

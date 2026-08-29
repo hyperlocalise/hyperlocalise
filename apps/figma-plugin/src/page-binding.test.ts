@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  buildFigmaJobUrl,
-  parsePageJobBinding,
-  serializePageJobBinding,
-} from "./page-binding";
+import { buildFigmaJobUrl, parsePageJobBinding, serializePageJobBinding } from "./page-binding";
 
 describe("page job binding", () => {
   it("round-trips a valid binding", () => {
