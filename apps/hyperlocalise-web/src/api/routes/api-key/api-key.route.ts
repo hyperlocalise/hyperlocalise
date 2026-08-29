@@ -15,20 +15,16 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { apiErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
 
-import {
-  apiKeyIdParamsSchema,
-  createApiKeyBodySchema,
-  defaultApiKeyPermissions,
-} from "./api-key.schema";
+import { getGrantableApiKeyPermissions, getRefusedApiKeyPermissions } from "./api-key.permissions";
+import { apiKeyIdParamsSchema, createApiKeyBodySchema } from "./api-key.schema";
 import {
   apiKeyNotFoundResponse,
   apiKeyOwnerColumns,
-  forbiddenResponse,
   invalidApiKeyPayloadResponse,
-  isApiKeyCreateAllowed,
   revocableApiKeyWhere,
   toApiKeyOwner,
   visibleApiKeysWhere,
@@ -93,11 +89,23 @@ export function createApiKeyRoutes() {
       return c.json({ apiKeys }, 200);
     })
     .post("/", validateCreateApiKeyBody, async (c) => {
-      if (!isApiKeyCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+      // Any active member may create a token. Scopes are capped by the owner's
+      // current role; a token cannot exceed what that role can already do.
+      const payload = c.req.valid("json");
+      const grantable = getGrantableApiKeyPermissions(c.var.auth.membership.role);
+      const requested = payload.permissions ?? grantable;
+      const refused = getRefusedApiKeyPermissions(c.var.auth.membership.role, requested);
+
+      if (grantable.length === 0 || refused.length > 0) {
+        return apiErrorResponse(
+          c,
+          403,
+          "api_key_permissions_not_grantable",
+          "Requested API key permissions exceed the owner's role",
+          { permissions: refused.length > 0 ? refused : requested },
+        );
       }
 
-      const payload = c.req.valid("json");
       const plainKey = generateApiKey();
       const keyHash = hashApiKey(plainKey);
       const keyPrefix = getApiKeyPrefix(plainKey);
@@ -112,7 +120,7 @@ export function createApiKeyRoutes() {
             name: payload.name,
             keyHash,
             keyPrefix,
-            permissions: payload.permissions ?? [...defaultApiKeyPermissions],
+            permissions: requested,
             createdByUserId: c.var.auth.user.localUserId,
           })
           .returning({

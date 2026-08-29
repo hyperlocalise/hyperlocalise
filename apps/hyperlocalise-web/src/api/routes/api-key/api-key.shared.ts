@@ -51,10 +51,6 @@ export function canRevokeOtherUsersApiKeys(role: ApiAuthContext["membership"]["r
   return hasCapability(role, "api_keys:write");
 }
 
-export function isApiKeyCreateAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return hasCapability(role, "api_keys:write");
-}
-
 function organizationApiKeyScope(auth: ApiAuthContext) {
   return eq(schema.organizationApiKeys.organizationId, auth.organization.localOrganizationId);
 }

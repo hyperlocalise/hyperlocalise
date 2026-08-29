@@ -395,7 +395,44 @@ describe("apiKeyRoutes", () => {
     expect(authResponse.status).toBe(404);
   });
 
-  it("returns 403 when a member creates an API key", async () => {
+  it("lets a member create a read-only token when permissions are omitted", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+
+    const response = await createApiKeyViaApi(memberIdentity, { name: "Member Key" });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as ApiKeyResponse;
+    expect(body.apiKey.key).toMatch(/^hl_/);
+    expect(body.apiKey.permissions).toEqual(["jobs:read", "files:read"]);
+    expect(body.apiKey.owner).toEqual(
+      expect.objectContaining({ email: memberIdentity.user.email }),
+    );
+  });
+
+  it("lets a translator create a token with the full grantable set", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const translatorIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+
+    const response = await createApiKeyViaApi(translatorIdentity, { name: "Translator CLI" });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as ApiKeyResponse;
+    expect(body.apiKey.permissions).toEqual([
+      "jobs:read",
+      "jobs:write",
+      "files:read",
+      "files:write",
+    ]);
+  });
+
+  it("refuses scopes the caller's role cannot back", async () => {
     const ownerIdentity = createWorkosIdentity();
     const memberIdentity = createWorkosIdentityForOrganization(
       ownerIdentity.organization,
@@ -405,7 +442,7 @@ describe("apiKeyRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["api-keys"].$post(
       {
         param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
-        json: { name: "Member Key" },
+        json: { name: "Member Write Key", permissions: ["jobs:read", "jobs:write"] },
       },
       {
         headers: await authHeadersFor(memberIdentity),
@@ -413,8 +450,10 @@ describe("apiKeyRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    const responseBody = await response.json();
-    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+    expect(await response.json()).toMatchObject({
+      error: "api_key_permissions_not_grantable",
+      details: { permissions: ["jobs:write"] },
+    });
   });
 });
 
@@ -570,6 +609,60 @@ describe("publicJobRoutes", () => {
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
+  });
+
+  it("returns 403 when a member-owned token lists jobs:write", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    const projectResponse = await createProjectViaApi(ownerIdentity);
+    const project = ((await projectResponse.json()) as { project: { id: string } }).project;
+    await authHeadersFor(memberIdentity);
+
+    const [projectRow] = await db
+      .select({ teamId: schema.projects.teamId })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+    expect(projectRow?.teamId).toBeTruthy();
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: projectRow!.teamId!,
+      userId: await getLocalUserId(memberIdentity.user.workosUserId),
+      role: "member",
+    });
+
+    const { plainKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(ownerIdentity.organization.workosOrganizationId),
+      name: "Member Write Key",
+      createdByUserId: await getLocalUserId(memberIdentity.user.workosUserId),
+      permissions: ["jobs:read", "jobs:write"],
+    });
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "string",
+          projectId: project.id,
+          stringInput: {
+            sourceText: "Hello",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      {
+        headers: { "x-api-key": plainKey },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: "forbidden",
+      message: expect.any(String),
+    });
   });
 
   it("returns 403 when API key lacks jobs:write permission", async () => {
