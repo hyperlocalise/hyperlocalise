@@ -87,7 +87,7 @@ export const tmsLinks = pgTable(
 );
 
 /**
- * Stores hashed organization API keys, display prefixes, permissions, creator, revocation state, and last-used metadata for public API access.
+ * Stores hashed personal access tokens, display prefixes, permissions, owner, revocation state, and last-used metadata for public API access. Each row is owned by exactly one user and one organization; both bindings are set at creation and never change.
  */
 export const organizationApiKeys = pgTable(
   "organization_api_keys",
@@ -109,7 +109,8 @@ export const organizationApiKeys = pgTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb`),
-    // User who created the key.
+    // Owner of the key: the identity it acts as, not merely who clicked create.
+    // Stays nullable because user deletion nulls it; such a key is unusable.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -129,6 +130,8 @@ export const organizationApiKeys = pgTable(
     uniqueIndex("organization_api_keys_key_hash_key").on(table.keyHash),
     index("idx_organization_api_keys_org").on(table.organizationId),
     index("idx_organization_api_keys_created_at").on(table.createdAt),
+    // Backs owner-scoped listing and revocation predicates.
+    index("idx_organization_api_keys_org_owner").on(table.organizationId, table.createdByUserId),
   ],
 );
 
