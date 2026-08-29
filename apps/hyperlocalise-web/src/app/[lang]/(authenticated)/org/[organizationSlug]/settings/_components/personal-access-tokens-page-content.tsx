@@ -94,10 +94,7 @@ export function PersonalAccessTokensPageContent({
         throw new Error(intl.formatMessage(messages.loadFailed));
       }
       const body = await response.json();
-      return selectOwnedAccessTokens(
-        (body.apiKeys ?? []) as AccessTokenSummary[],
-        currentUserId,
-      );
+      return selectOwnedAccessTokens((body.apiKeys ?? []) as AccessTokenSummary[], currentUserId);
     },
   });
 
@@ -249,10 +246,7 @@ export function PersonalAccessTokensPageContent({
         ) : (
           <div className="divide-y divide-border">
             {tokens.map((token) => (
-              <div
-                key={token.id}
-                className="flex items-start justify-between gap-4 px-5 py-4"
-              >
+              <div key={token.id} className="flex items-start justify-between gap-4 px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <TypographyP className="text-sm font-medium text-foreground">
@@ -398,7 +392,10 @@ export function PersonalAccessTokensPageContent({
                           );
                         }}
                       />
-                      <FieldLabel htmlFor={`token-permission-${permission}`} className="font-normal">
+                      <FieldLabel
+                        htmlFor={`token-permission-${permission}`}
+                        className="font-normal"
+                      >
                         <FormattedMessage {...permissionLabels[permission]} />
                       </FieldLabel>
                     </Field>

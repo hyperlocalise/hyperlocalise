@@ -270,7 +270,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "personal-access-tokens":
       return intl.formatMessage({
         defaultMessage: "Personal access tokens",
-        id: "pAtCrumb01",
+        id: "n8n3wB0NdJ",
         description: "App shell breadcrumb title for the personal access tokens settings page",
       });
     case "projects":

@@ -254,7 +254,9 @@ describe("PersonalAccessTokensPageContent", () => {
 
     await user.click(await screen.findByRole("button", { name: "Revoke" }));
     expect(
-      screen.getByText("Revoke Local CLI (hl_AbCd…)? Integrations using this token will lose access immediately."),
+      screen.getByText(
+        "Revoke Local CLI (hl_AbCd…)? Integrations using this token will lose access immediately.",
+      ),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Revoke token" }));

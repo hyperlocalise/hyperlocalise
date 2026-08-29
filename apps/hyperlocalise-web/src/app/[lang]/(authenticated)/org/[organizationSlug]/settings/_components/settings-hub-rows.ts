@@ -50,12 +50,12 @@ export function buildSettingsHubRows(
     {
       label: intl.formatMessage({
         defaultMessage: "Personal access tokens",
-        id: "pAtHubLbl01",
+        id: "rfxarBP3bw",
         description: "Settings hub row label for personal access tokens",
       }),
       description: intl.formatMessage({
         defaultMessage: "Create and revoke tokens that act with your current workspace access.",
-        id: "pAtHubDsc01",
+        id: "kpE4nKZSfj",
         description: "Settings hub row description for personal access tokens",
       }),
       href: "personal-access-tokens",
