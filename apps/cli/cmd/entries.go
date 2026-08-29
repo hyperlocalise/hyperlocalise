@@ -57,7 +57,7 @@ func newEntriesCmd() *cobra.Command {
 		&sourcePath,
 		"source",
 		"",
-		"source file used to align content-hashed keys for markdown/MDX targets",
+		"source file used to align markdown/MDX target documents onto source slot ids",
 	)
 	return cmd
 }
@@ -74,11 +74,16 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale st
 			if err != nil {
 				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
 			}
-			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, ext == ".mdx")
-			return translationfileparser.EncodeEntriesCommandOutput(
-				translationfileparser.IngestEntriesFromStringMap(aligned),
-			), nil
+			mdx := ext == ".mdx"
+			sourceDoc := translationfileparser.ParseMarkdownDocumentIR(sourceContent, mdx)
+			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, mdx)
+			return translationfileparser.EncodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned)), nil
 		}
+	}
+
+	if translationfileparser.IsMarkdownDocumentExtension(path) {
+		doc := translationfileparser.ParseMarkdownDocumentIR(content, translationfileparser.IsMarkdownDocumentMDX(path))
+		return translationfileparser.EncodeDocumentEntriesCommandOutput(doc), nil
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()

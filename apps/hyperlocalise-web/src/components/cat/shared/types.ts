@@ -18,7 +18,8 @@ export type CatContentKind =
   | "image_url"
   | "video_file"
   | "video_url"
-  | "office_file";
+  | "office_file"
+  | "document";
 
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 

@@ -27,14 +27,14 @@ func parseMarkdownMDXDocument(content []byte) (markdownDocument, map[string]stri
 func extractMDXDocument(root *mdxNode, source string) (markdownDocument, map[string]string) {
 	doc := markdownDocument{parts: make([]markdownPart, 0, len(root.Children)*2+1)}
 	entries := map[string]string{}
-	hashOccurrences := map[string]int{}
+	pathOccurrences := map[string]int{}
 	pathState := mdxPathState{textOrdinals: map[string]int{}}
 	parserState := markdownParseState{}
 	extractState := mdxExtractState{
 		source:          source,
 		doc:             &doc,
 		entries:         entries,
-		hashOccurrences: hashOccurrences,
+		pathOccurrences: pathOccurrences,
 		pathState:       &pathState,
 		parserState:     &parserState,
 	}
@@ -47,7 +47,7 @@ type mdxExtractState struct {
 	source          string
 	doc             *markdownDocument
 	entries         map[string]string
-	hashOccurrences map[string]int
+	pathOccurrences map[string]int
 	pathState       *mdxPathState
 	parserState     *markdownParseState
 	prevTrimmed     string
@@ -97,10 +97,9 @@ func (s *mdxExtractState) walk(node *mdxNode, stack []mdxContainer) {
 
 func (s *mdxExtractState) emitFrontmatterText(text string) {
 	appendKey := func(part markdownPart) {
-		key := markdownSegmentKey(part.source, s.hashOccurrences)
-		part.key = key
+		assignMarkdownKeyedPart(&part, s.pathOccurrences)
 		s.doc.parts = append(s.doc.parts, part)
-		s.entries[key] = part.source
+		s.entries[part.key] = part.source
 	}
 	// BOLT OPTIMIZATION: Avoid strings.SplitAfter(text, "\n") to reduce allocations.
 	for len(text) > 0 {
@@ -122,10 +121,9 @@ func (s *mdxExtractState) emitFrontmatterText(text string) {
 
 func (s *mdxExtractState) emitMarkdownText(text string, stack []mdxContainer) {
 	appendKey := func(part markdownPart) {
-		key := markdownSegmentKey(part.source, s.hashOccurrences)
-		part.key = key
+		assignMarkdownKeyedPart(&part, s.pathOccurrences)
 		s.doc.parts = append(s.doc.parts, part)
-		s.entries[key] = part.source
+		s.entries[part.key] = part.source
 	}
 	// BOLT OPTIMIZATION: Avoid strings.SplitAfter(text, "\n") to reduce allocations.
 	for len(text) > 0 {

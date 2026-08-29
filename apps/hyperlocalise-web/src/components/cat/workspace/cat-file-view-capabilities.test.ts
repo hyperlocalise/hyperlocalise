@@ -104,6 +104,24 @@ describe("cat-file-view-capabilities", () => {
     ).toBe("office");
   });
 
+  it("defaults markdown and mdx to file view with the document editor", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/intro.md" })).toEqual({
+      family: "document",
+      availableViews: ["file"],
+      defaultView: "file",
+      viewerId: "markdown",
+    });
+    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/page.mdx" }).viewerId).toBe(
+      "markdown",
+    );
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "CAT_ALL_FILES",
+        contentKind: "document",
+      }).family,
+    ).toBe("document");
+  });
+
   it("clamps disallowed modes to the family default", () => {
     const text = resolveCatFileViewCapabilities({ sourcePath: "a.json" });
     expect(clampCatWorkspaceViewMode("file", text)).toBe("comfortable");

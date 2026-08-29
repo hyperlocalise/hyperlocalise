@@ -19,6 +19,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
@@ -37,6 +38,7 @@ import {
   localizeImageVariantForJobStep,
   localizeVideoVariantForJobStep,
   persistFileProjectTranslationsStep,
+  persistDocumentVariantBytesStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
@@ -960,16 +962,22 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             sourceEntries,
             targetEntries,
           });
-          await persistFileProjectTranslationsStep({
-            organizationId,
-            projectId: claim.job.projectId,
-            jobId: claim.job.id,
-            sourcePath: repositorySourcePath,
-            sourceLocale: parsedInput.sourceLocale,
-            targetLocale,
-            sourceEntries,
-            targetEntries,
-          });
+          if (
+            !isDocumentTranslationFileFormat(
+              parsedInput.fileFormat as SupportedTranslationFileFormat,
+            )
+          ) {
+            await persistFileProjectTranslationsStep({
+              organizationId,
+              projectId: claim.job.projectId,
+              jobId: claim.job.id,
+              sourcePath: repositorySourcePath,
+              sourceLocale: parsedInput.sourceLocale,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
         } catch (error) {
           console.warn("[file-translation-workflow] incremental translation persistence failed", {
             jobId: claim.job.id,
@@ -1420,6 +1428,22 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         content: translatedContent,
       });
 
+      if (
+        isDocumentTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat) &&
+        repositorySourcePath
+      ) {
+        await persistDocumentVariantBytesStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+          content: translatedContent,
+          contentType: sourceFile.contentType,
+          filename: outputFilename,
+          sourceJobId: claim.job.id,
+        });
+      }
+
       if (sourceEntries && repositorySourcePath) {
         try {
           const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
@@ -1435,16 +1459,22 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             sourceEntries,
             targetEntries,
           });
-          await persistFileProjectTranslationsStep({
-            organizationId,
-            projectId: claim.job.projectId,
-            jobId: claim.job.id,
-            sourcePath: repositorySourcePath,
-            sourceLocale: parsedInput.sourceLocale,
-            targetLocale,
-            sourceEntries,
-            targetEntries,
-          });
+          if (
+            !isDocumentTranslationFileFormat(
+              parsedInput.fileFormat as SupportedTranslationFileFormat,
+            )
+          ) {
+            await persistFileProjectTranslationsStep({
+              organizationId,
+              projectId: claim.job.projectId,
+              jobId: claim.job.id,
+              sourcePath: repositorySourcePath,
+              sourceLocale: parsedInput.sourceLocale,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
         } catch (error) {
           console.warn("[file-translation-workflow] target TM persistence failed", {
             jobId: claim.job.id,

@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import {
+  inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
@@ -19,9 +20,9 @@ import {
 import type { CatContentKind } from "@/components/cat/shared/types";
 import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 
-export type CatFileViewFamily = "image" | "video" | "text" | "office";
+export type CatFileViewFamily = "image" | "video" | "text" | "office" | "document";
 
-export type CatFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx";
+export type CatFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx" | "markdown";
 
 export type CatFileViewCapabilities = {
   family: CatFileViewFamily;
@@ -41,6 +42,7 @@ const IMAGE_VIEWS = [
 ] as const satisfies readonly CatWorkspaceViewMode[];
 const VIDEO_VIEWS = IMAGE_VIEWS;
 const OFFICE_VIEWS = ["file"] as const satisfies readonly CatWorkspaceViewMode[];
+const DOCUMENT_VIEWS = ["file"] as const satisfies readonly CatWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -99,6 +101,15 @@ export function resolveCatFileViewCapabilities(input: {
       availableViews: OFFICE_VIEWS,
       defaultView: "file",
       viewerId: officeViewerIdForExtension(extension) ?? "docx",
+    };
+  }
+
+  if (contentKind === "document" || inferSupportedDocumentTranslationFileFormat(sourcePath)) {
+    return {
+      family: "document",
+      availableViews: DOCUMENT_VIEWS,
+      defaultView: "file",
+      viewerId: "markdown",
     };
   }
 

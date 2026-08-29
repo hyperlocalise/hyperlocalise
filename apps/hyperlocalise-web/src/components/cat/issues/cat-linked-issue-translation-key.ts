@@ -18,6 +18,7 @@ const FILE_BACKED_CONTENT_KINDS = new Set<NonNullable<CatSegment["contentKind"]>
   "image_file",
   "video_file",
   "office_file",
+  "document",
 ]);
 
 export function isFileBackedCatSegment(contentKind: CatSegment["contentKind"]) {

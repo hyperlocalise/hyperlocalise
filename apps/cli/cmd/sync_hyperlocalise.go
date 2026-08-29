@@ -212,15 +212,15 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			}
 
 			var content []byte
-			if isHyperlocaliseBinaryFileFormat(plan.FileFormat) {
-				content, err = rt.client.downloadImageVariant(ctx, rt.projectID, plan.SourcePath, locale)
+			if isHyperlocaliseWholeFileFormat(plan.FileFormat) {
+				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.SourcePath, locale)
 				if err != nil {
 					if isHyperlocaliseNotFound(err) {
 						report.Skipped++
 						continue
 					}
 					report.Complete = false
-					return report, fmt.Errorf("download binary variant for source %q locale %q: %w", plan.SourcePath, locale, err)
+					return report, fmt.Errorf("download file variant for source %q locale %q: %w", plan.SourcePath, locale, err)
 				}
 				if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
 					report.Complete = false
@@ -500,8 +500,21 @@ func isHyperlocaliseOfficeFileFormat(format string) bool {
 	}
 }
 
+func isHyperlocaliseDocumentFileFormat(format string) bool {
+	switch format {
+	case "markdown", "mdx":
+		return true
+	default:
+		return false
+	}
+}
+
 func isHyperlocaliseBinaryFileFormat(format string) bool {
 	return isHyperlocaliseImageFileFormat(format) || isHyperlocaliseOfficeFileFormat(format)
+}
+
+func isHyperlocaliseWholeFileFormat(format string) bool {
+	return isHyperlocaliseBinaryFileFormat(format) || isHyperlocaliseDocumentFileFormat(format)
 }
 
 func sha256File(path string) (string, error) {
@@ -595,7 +608,7 @@ func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, 
 	return content, nil
 }
 
-func (c *hyperlocaliseAPIClient) downloadImageVariant(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
+func (c *hyperlocaliseAPIClient) downloadFileVariant(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
 	query := url.Values{}
 	query.Set("sourcePath", sourcePath)
 	query.Set("locale", locale)
@@ -603,7 +616,7 @@ func (c *hyperlocaliseAPIClient) downloadImageVariant(ctx context.Context, proje
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		c.baseURL+"/v1/projects/"+url.PathEscape(projectID)+"/images/download?"+query.Encode(),
+		c.baseURL+"/v1/projects/"+url.PathEscape(projectID)+"/files/download?"+query.Encode(),
 		nil,
 	)
 	if err != nil {
@@ -627,7 +640,7 @@ func (c *hyperlocaliseAPIClient) downloadImageVariant(ctx context.Context, proje
 		return nil, err
 	}
 	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
-		return nil, fmt.Errorf("downloaded image variant exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
+		return nil, fmt.Errorf("downloaded file variant exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
 	}
 	return content, nil
 }

@@ -60,6 +60,21 @@ export const catFileViewMessages = defineMessages({
     id: "3wxYCVb3wu",
     description: "Empty state when the CAT File view target preview has no file",
   },
+  documentFrontmatter: {
+    defaultMessage: "Frontmatter",
+    id: "catDocFmHd",
+    description: "Heading for YAML frontmatter fields in the CAT document editor",
+  },
+  documentBody: {
+    defaultMessage: "Body",
+    id: "catDocBdHd",
+    description: "Heading for the Markdown/MDX body editor in CAT document view",
+  },
+  documentEditorAria: {
+    defaultMessage: "Translated document",
+    id: "catDocEdAr",
+    description: "Accessible label for the TipTap document editor in CAT File view",
+  },
   imageSourceAlt: {
     defaultMessage: "Source image",
     id: "86pJK6MuXF",

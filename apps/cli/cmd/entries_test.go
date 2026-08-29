@@ -69,8 +69,10 @@ func TestEntriesCommandOutputsParsedEntries(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
 	if payload["title"] != "Hello" || payload["nested.cta"] != "Click" {
 		t.Fatalf("unexpected payload: %+v", payload)
@@ -115,8 +117,10 @@ func TestEntriesCommandUsesLocaleForXCStrings(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
 	if payload["hello"] != "Bonjour" {
 		t.Fatalf("expected French target locale value, got %+v", payload)
@@ -141,8 +145,10 @@ func TestEntriesCommandUsesLocaleForCSV(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
 	if payload["hello"] != "Bonjour" {
 		t.Fatalf("expected French CSV column value, got %+v", payload)
@@ -167,8 +173,10 @@ func TestEntriesCommandParsesSubtitleCues(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
 	if payload["srt.0001"] != "Hello" {
 		t.Fatalf("expected srt cue payload, got %+v", payload)
@@ -208,8 +216,10 @@ func TestEntriesCommandAlignsMarkdownTargetToSourceKeys(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
 	if got := strings.TrimSpace(payload[introKey]); got != "Intro existant." {
 		t.Fatalf("expected intro mapped to source key %q, got %q (payload=%+v)", introKey, got, payload)
@@ -244,7 +254,7 @@ func TestEntriesCommandRejectsMismatchedMarkdownSourceExtension(t *testing.T) {
 	}
 }
 
-func TestEntriesCommandWithoutSourceRehashesMarkdownTarget(t *testing.T) {
+func TestEntriesCommandWithoutSourceUsesStructuralSlotKeys(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "guide.md")
 	targetPath := filepath.Join(dir, "guide-fr.md")
@@ -276,14 +286,13 @@ func TestEntriesCommandWithoutSourceRehashesMarkdownTarget(t *testing.T) {
 	}
 
 	var payload map[string]string
-	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+	if decoded, err := decodeEntriesCommandStrings(out.Bytes()); err != nil {
 		t.Fatalf("decode output: %v", err)
+	} else {
+		payload = decoded
 	}
-	if _, ok := payload[introKey]; ok {
-		t.Fatalf("expected bare entries on translated markdown not to keep source key %q, got %+v", introKey, payload)
-	}
-	if findEntriesTestKeyByValue(payload, "Intro existant.") == "" {
-		t.Fatalf("expected translated segment under a rehashed key, got %+v", payload)
+	if got := strings.TrimSpace(payload[introKey]); got != "Intro existant." {
+		t.Fatalf("expected target intro under source slot %q, got %q (payload=%+v)", introKey, got, payload)
 	}
 }
 
@@ -294,4 +303,30 @@ func findEntriesTestKeyByValue(entries map[string]string, want string) string {
 		}
 	}
 	return ""
+}
+
+func decodeEntriesCommandStrings(raw []byte) (map[string]string, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(payload))
+	for key, value := range payload {
+		if key == translationfileparser.DocumentEntriesMetaKey {
+			continue
+		}
+		var text string
+		if err := json.Unmarshal(value, &text); err == nil {
+			out[key] = text
+			continue
+		}
+		var record struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(value, &record); err != nil {
+			return nil, err
+		}
+		out[key] = record.Text
+	}
+	return out, nil
 }

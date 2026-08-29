@@ -67,7 +67,7 @@ func TestHyperlocalisePullWritesImageVariantsDirectly(t *testing.T) {
 	imageBytes := []byte("localized-png-bytes")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/images/download") {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download") {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
@@ -140,7 +140,7 @@ func TestHyperlocalisePullWritesOfficeVariantsDirectly(t *testing.T) {
 	officeBytes := []byte("localized-docx-bytes")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/images/download") {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download") {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
@@ -191,6 +191,79 @@ func TestHyperlocalisePullWritesOfficeVariantsDirectly(t *testing.T) {
 	}
 	if string(got) != string(officeBytes) {
 		t.Fatalf("target content = %q, want %q", string(got), string(officeBytes))
+	}
+}
+
+func TestHyperlocalisePullWritesMarkdownVariantsDirectly(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	sourcePath := "docs/en/intro.md"
+	targetPath := "docs/fr/intro.md"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "# Hello\n")
+	markdownBytes := []byte("# Bonjour\n")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
+			t.Fatalf("sourcePath = %q, want %q", got, sourcePath)
+		}
+		if got := r.URL.Query().Get("locale"); got != "fr" {
+			t.Fatalf("locale = %q, want fr", got)
+		}
+		_, _ = w.Write(markdownBytes)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"docs": {
+					Files: []config.BucketFileMapping{{
+						From: "docs/en/**/*.md",
+						To:   "docs/{{target}}/**/*.md",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull markdown variant: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded markdown file", report)
+	}
+
+	got, err := os.ReadFile(filepath.FromSlash(targetPath))
+	if err != nil {
+		t.Fatalf("read target markdown file: %v", err)
+	}
+	if string(got) != string(markdownBytes) {
+		t.Fatalf("target content = %q, want %q", string(got), string(markdownBytes))
 	}
 }
 
@@ -519,28 +592,6 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 		assertNative  func(t *testing.T, content string)
 	}{
 		{
-			name:          "markdown",
-			sourceLocale:  "en-US",
-			targetLocale:  "de-DE",
-			sourcePath:    "_posts/en/hello.md",
-			targetPath:    "_posts/de-DE/hello.md",
-			fromPattern:   "_posts/en/**/*.md",
-			toPattern:     "_posts/{{target}}/**/*.md",
-			sourceContent: "# Hello\n\nWorld.\n",
-			translate: func(_, value string) string {
-				return strings.ReplaceAll(value, "World", "Welt")
-			},
-			assertNative: func(t *testing.T, content string) {
-				t.Helper()
-				if strings.Contains(content, `"md.`) {
-					t.Fatalf("target should be markdown, got JSON-like content: %q", content)
-				}
-				if !strings.Contains(content, "Welt") || !strings.HasPrefix(content, "# Hello") {
-					t.Fatalf("target content = %q, want translated markdown", content)
-				}
-			},
-		},
-		{
 			name:          "json",
 			sourceLocale:  "en",
 			targetLocale:  "fr",
@@ -730,28 +781,6 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 				t.Helper()
 				if !strings.Contains(content, `"hello" = "Bonjour"`) {
 					t.Fatalf("target content = %q, want translated Apple strings entry", content)
-				}
-			},
-		},
-		{
-			name:          "mdx",
-			sourceLocale:  "en",
-			targetLocale:  "fr-FR",
-			sourcePath:    "docs/en/guide.mdx",
-			targetPath:    "docs/fr-FR/guide.mdx",
-			fromPattern:   "docs/en/**/*.mdx",
-			toPattern:     "docs/{{target}}/**/*.mdx",
-			sourceContent: "# Guide\n\nWelcome.\n",
-			translate: func(_, value string) string {
-				return strings.ReplaceAll(value, "Welcome", "Bienvenue")
-			},
-			assertNative: func(t *testing.T, content string) {
-				t.Helper()
-				if strings.Contains(content, `"md.`) {
-					t.Fatalf("target should be MDX, got JSON-like content: %q", content)
-				}
-				if !strings.Contains(content, "Bienvenue") || !strings.HasPrefix(content, "# Guide") {
-					t.Fatalf("target content = %q, want translated MDX", content)
 				}
 			},
 		},

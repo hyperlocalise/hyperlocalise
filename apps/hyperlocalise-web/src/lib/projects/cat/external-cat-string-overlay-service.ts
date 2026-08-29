@@ -143,7 +143,14 @@ export async function getExternalCatStringOverlay(input: {
 export function enrichExternalCatSegmentImageFields<
   T extends {
     sourceText: string;
-    contentKind?: "text" | "image_file" | "image_url" | "video_file" | "video_url" | "office_file";
+    contentKind?:
+      | "text"
+      | "image_file"
+      | "image_url"
+      | "video_file"
+      | "video_url"
+      | "office_file"
+      | "document";
     sourceAssetUrl?: string | null;
     looksLikeImageUrl?: boolean;
   },
@@ -166,7 +173,14 @@ export function enrichExternalCatSegmentImageFields<
 export function enrichExternalCatTranslationImageFields<
   T extends {
     text: string;
-    contentKind?: "text" | "image_file" | "image_url" | "video_file" | "video_url" | "office_file";
+    contentKind?:
+      | "text"
+      | "image_file"
+      | "image_url"
+      | "video_file"
+      | "video_url"
+      | "office_file"
+      | "document";
     targetAssetUrl?: string | null;
   },
 >(translation: T, overlay?: ExternalCatStringOverlay | null): T {
@@ -200,7 +214,8 @@ export async function enrichExternalCatFileImageFields<
         | "image_url"
         | "video_file"
         | "video_url"
-        | "office_file";
+        | "office_file"
+        | "document";
       sourceAssetUrl?: string | null;
       looksLikeImageUrl?: boolean;
     }>;

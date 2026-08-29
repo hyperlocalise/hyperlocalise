@@ -149,6 +149,33 @@ func TestHyperlocaliseSyncRecognizesOfficeFiles(t *testing.T) {
 	}
 }
 
+func TestHyperlocaliseSyncRecognizesDocumentFiles(t *testing.T) {
+	cases := []struct {
+		path   string
+		format string
+	}{
+		{path: "docs/intro.md", format: "markdown"},
+		{path: "docs/page.mdx", format: "mdx"},
+	}
+	for _, tc := range cases {
+		if got := inferHyperlocaliseFileFormat(tc.path); got != tc.format {
+			t.Fatalf("inferHyperlocaliseFileFormat(%q) = %q, want %q", tc.path, got, tc.format)
+		}
+		if !isHyperlocaliseDocumentFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseDocumentFileFormat(%q) = false, want true", tc.format)
+		}
+		if !isHyperlocaliseWholeFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseWholeFileFormat(%q) = false, want true", tc.format)
+		}
+		if isHyperlocaliseBinaryFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseBinaryFileFormat(%q) = true, want false", tc.format)
+		}
+	}
+	if isHyperlocaliseDocumentFileFormat("json") {
+		t.Fatalf("isHyperlocaliseDocumentFileFormat(json) = true, want false")
+	}
+}
+
 func TestHyperlocalisePullDownloadsTranslationExports(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "locales", "en.json")
@@ -353,11 +380,11 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 		t.Fatalf("chdir project dir: %v", err)
 	}
 
-	sourcePath := "_posts/en/hello.md"
-	targetPattern := "_posts/{{target}}/hello.md"
-	targetPath := "_posts/de-DE/hello.md"
-	sourceMarkdown := "# Hello\n\nWorld.\n"
-	writePullSourceFile(t, sourcePath, sourceMarkdown)
+	sourcePath := "locales/en.json"
+	targetPattern := "locales/{{target}}.json"
+	targetPath := "locales/de-DE.json"
+	sourceJSON := `{"hello":"Hello"}`
+	writePullSourceFile(t, sourcePath, sourceJSON)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
@@ -375,7 +402,7 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 				Targets: []string{"de-DE"},
 			},
 			Buckets: map[string]config.BucketConfig{
-				"markdown": {
+				"json": {
 					Files: []config.BucketFileMapping{{
 						From: sourcePath,
 						To:   targetPattern,
@@ -405,10 +432,10 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 		t.Fatalf("read target: %v", err)
 	}
 	if strings.Contains(string(content), `"md.`) || string(content) == "{}\n" {
-		t.Fatalf("target content = %q, want reconstructed markdown from source", string(content))
+		t.Fatalf("target content = %q, want reconstructed JSON from source", string(content))
 	}
-	if string(content) != sourceMarkdown {
-		t.Fatalf("target content = %q, want source markdown template %q", string(content), sourceMarkdown)
+	if !strings.Contains(string(content), `"hello"`) || !strings.Contains(string(content), `"Hello"`) {
+		t.Fatalf("target content = %q, want source JSON keys reconstructed", string(content))
 	}
 }
 
@@ -425,18 +452,18 @@ func TestHyperlocalisePullSkipsNativeExportWithoutLocalSource(t *testing.T) {
 		t.Fatalf("chdir project dir: %v", err)
 	}
 
-	sourcePath := "_posts/en/hello.md"
-	targetPattern := "_posts/{{target}}/hello.md"
-	targetPath := "_posts/de-DE/hello.md"
+	sourcePath := "locales/en.json"
+	targetPattern := "locales/{{target}}.json"
+	targetPath := "locales/de-DE.json"
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		t.Fatalf("mkdir target dir: %v", err)
 	}
-	existingContent := []byte("# Existing\n")
+	existingContent := []byte(`{"hello":"Existing"}`)
 	if err := os.WriteFile(targetPath, existingContent, 0o644); err != nil {
 		t.Fatalf("write existing target: %v", err)
 	}
 
-	exportBody := []byte("{\n  \"md.0.heading\": \"Bonjour\"\n}\n")
+	exportBody := []byte("{\n  \"hello\": \"Bonjour\"\n}\n")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
 			_, _ = w.Write(exportBody)
@@ -453,7 +480,7 @@ func TestHyperlocalisePullSkipsNativeExportWithoutLocalSource(t *testing.T) {
 				Targets: []string{"de-DE"},
 			},
 			Buckets: map[string]config.BucketConfig{
-				"markdown": {
+				"json": {
 					Files: []config.BucketFileMapping{{
 						From: sourcePath,
 						To:   targetPattern,

@@ -20,6 +20,8 @@ type markdownPart struct {
 	source       string
 	placeholders map[string]string
 	path         string
+	fingerprint  string
+	kind         string
 	yamlPlain    bool
 	// BOLT OPTIMIZATION: precompute raw HTML syntax count to avoid redundant scans.
 	sourceSyntaxCount int
@@ -94,22 +96,36 @@ func (d markdownDocument) keyContexts() []markdownKeyContext {
 	return out
 }
 
-func markdownSegmentKey(segment string, occurrences map[string]int) string {
+func markdownContentFingerprint(segment string) string {
 	sum := sha256.Sum256([]byte(segment))
-	// BOLT OPTIMIZATION: Format the 16-hex-char digest into a stack buffer to bypass
-	// hex.EncodeToString heap allocations.
 	var hexBuf [16]byte
 	hex.Encode(hexBuf[:], sum[:8])
+	return string(hexBuf[:])
+}
 
-	count := occurrences[string(hexBuf[:])]
-	if count == 0 {
-		key := "md." + string(hexBuf[:])
-		// Store a sliced view of key into the map so map storage reuses key's string buffer.
-		occurrences[key[3:]] = 1
-		return key
+func markdownSlotKey(path string, occurrences map[string]int) string {
+	if path == "" {
+		path = "slot"
 	}
-	occurrences[string(hexBuf[:])] = count + 1
-	return "md." + string(hexBuf[:]) + "." + strconv.Itoa(count+1)
+	count := occurrences[path]
+	occurrences[path] = count + 1
+	if count == 0 {
+		return "md." + path
+	}
+	return "md." + path + "." + strconv.Itoa(count+1)
+}
+
+func assignMarkdownKeyedPart(part *markdownPart, occurrences map[string]int) {
+	part.fingerprint = markdownContentFingerprint(part.source)
+	part.key = markdownSlotKey(part.path, occurrences)
+	part.kind = string(markdownBlockKindForPath(part.path))
+}
+
+func markdownBlockKindForPath(path string) DocumentBlockKind {
+	if strings.HasPrefix(path, "frontmatter/") {
+		return DocumentBlockKindField
+	}
+	return DocumentBlockKindBody
 }
 
 func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(markdownPart), state *markdownParseState, path string) {
@@ -674,7 +690,12 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 			return
 		}
 		doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead]})
-		appendKey(markdownPart{source: plainValue, yamlPlain: true, sourceSyntaxCount: rawHTMLSyntaxStartCount(plainValue)})
+		appendKey(markdownPart{
+			source:            plainValue,
+			path:              "frontmatter/" + key,
+			yamlPlain:         true,
+			sourceSyntaxCount: rawHTMLSyntaxStartCount(plainValue),
+		})
 		doc.parts = append(doc.parts, markdownPart{literal: newline})
 		return
 	}
@@ -692,7 +713,11 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 	}
 
 	doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead] + string(quote)})
-	appendKey(markdownPart{source: quotedText, sourceSyntaxCount: rawHTMLSyntaxStartCount(quotedText)})
+	appendKey(markdownPart{
+		source:            quotedText,
+		path:              "frontmatter/" + key,
+		sourceSyntaxCount: rawHTMLSyntaxStartCount(quotedText),
+	})
 	doc.parts = append(doc.parts, markdownPart{literal: valueRest[end:] + newline})
 }
 

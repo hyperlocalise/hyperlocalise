@@ -160,6 +160,16 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 		return nil, fmt.Errorf("translation file parser: file %q has no extension", path)
 	}
 
+	if IsMarkdownDocumentExtension(path) {
+		mdx := IsMarkdownDocumentMDX(path)
+		doc := ParseMarkdownDocumentIR(content, mdx)
+		entries := doc.ingestEntries()
+		if entries == nil {
+			entries = map[string]IngestEntry{}
+		}
+		return entries, nil
+	}
+
 	switch ext {
 	case ".strings":
 		parser, ok := s.parsersByExt[ext].(AppleStringsParser)

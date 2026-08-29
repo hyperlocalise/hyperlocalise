@@ -248,10 +248,10 @@ import {
 } from "@/lib/translation/cat";
 import {
   inferSupportedFileTranslationFileFormat,
-  inferSupportedBinaryTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedVideoTranslationFileFormat,
+  inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
@@ -2065,7 +2065,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         // File-backed segments may be locked under sourceFile.id or binary:/image:/video:
         // aliases. Expand aliases before the write so omitting or aliasing externalStringId
         // cannot bypass a lock (status already uses fileBackedCatSegmentIds).
-        const fileBackedSourceFile = inferSupportedBinaryTranslationFileFormat(body.sourcePath)
+        const fileBackedSourceFile = inferSupportedWholeFileTranslationFileFormat(body.sourcePath)
           ? await getRepositorySourceFileByPath({
               organizationId,
               projectId: params.projectId,
@@ -2073,7 +2073,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             })
           : null;
         const isFileBackedAsset = Boolean(
-          inferSupportedBinaryTranslationFileFormat(body.sourcePath),
+          inferSupportedWholeFileTranslationFileFormat(body.sourcePath),
         );
         const lockedImageResponse = await catSegmentLockedResponse(c, {
           organizationId,
@@ -2319,7 +2319,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationId = c.var.auth.organization.localOrganizationId;
         const isFileBackedUpload =
           target.kind !== "provider" &&
-          Boolean(inferSupportedBinaryTranslationFileFormat(sourcePath));
+          Boolean(inferSupportedWholeFileTranslationFileFormat(sourcePath));
         const fileBackedUploadSourceFile = isFileBackedUpload
           ? await getRepositorySourceFileByPath({
               organizationId,
@@ -2518,7 +2518,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
-        if (inferSupportedBinaryTranslationFileFormat(sourcePath)) {
+        if (inferSupportedWholeFileTranslationFileFormat(sourcePath)) {
           const sourceFile = fileBackedUploadSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
@@ -2724,7 +2724,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
-        if (inferSupportedBinaryTranslationFileFormat(body.sourcePath)) {
+        if (inferSupportedWholeFileTranslationFileFormat(body.sourcePath)) {
           const result = await updateImageVariantStatus({
             organizationId,
             projectId: params.projectId,

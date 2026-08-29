@@ -104,7 +104,7 @@ func TestMarkdownParserParseSkipsRawHTMLBlocks(t *testing.T) {
 func TestMarkdownParserParseMdxKeepsComponentsAndAttributesOut(t *testing.T) {
 	template := []byte("---\ntitle: Mdx Page\n---\n\nimport Tabs from '@theme/Tabs'\n\n<Tabs defaultValue=\"first\">\n  <Tab value=\"first\" label=\"First tab\">\n    Here is a paragraph with <Badge text=\"New\" /> and [docs](https://mintlify.com).\n  </Tab>\n</Tabs>\n\n<CodeGroup>\n```bash\necho \"hi\"\n```\n</CodeGroup>\n\n> <Note icon=\"info\">Read me</Note>\n")
 
-	entries, err := (MarkdownParser{MDX: true}).Parse(template)
+	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -739,7 +739,7 @@ func TestMarshalMarkdownLeavesUnclosedMultiBacktickSpanLiteral(t *testing.T) {
 
 func TestMarshalMarkdownMdxRoundTripPreservesComponentSyntax(t *testing.T) {
 	template := []byte("<Tabs defaultValue=\"cli\">\n<Tab value=\"cli\" label=\"CLI\">Run the command.</Tab>\n</Tabs>\n")
-	entries, err := (MarkdownParser{MDX: true}).Parse(template)
+	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -833,28 +833,25 @@ func TestStrategyParsesMDX(t *testing.T) {
 	}
 }
 
-func TestMarkdownParserKeysAreStableAcrossInsertedSegments(t *testing.T) {
-	base := []byte("Alpha\nBeta\n")
-	withInsert := []byte("Intro\nAlpha\nBeta\n")
+func TestMarkdownParserFingerprintsAreStableAcrossInsertedSegments(t *testing.T) {
+	base := []byte("Alpha\n\nBeta\n")
+	withInsert := []byte("Intro\n\nAlpha\n\nBeta\n")
 
-	baseEntries, err := (MarkdownParser{}).Parse(base)
-	if err != nil {
-		t.Fatalf("parse base: %v", err)
-	}
-	insertedEntries, err := (MarkdownParser{}).Parse(withInsert)
-	if err != nil {
-		t.Fatalf("parse with insert: %v", err)
-	}
+	baseDoc := ParseMarkdownDocumentIR(base, false)
+	insertedDoc := ParseMarkdownDocumentIR(withInsert, false)
 
-	baseAlpha := findKeyByValue(baseEntries, "Alpha")
-	baseBeta := findKeyByValue(baseEntries, "Beta")
-	insertAlpha := findKeyByValue(insertedEntries, "Alpha")
-	insertBeta := findKeyByValue(insertedEntries, "Beta")
-	if baseAlpha == "" || baseBeta == "" || insertAlpha == "" || insertBeta == "" {
-		t.Fatalf("expected keys for shared segments")
+	baseAlpha := findDocumentBlockByText(baseDoc, "Alpha")
+	baseBeta := findDocumentBlockByText(baseDoc, "Beta")
+	insertAlpha := findDocumentBlockByText(insertedDoc, "Alpha")
+	insertBeta := findDocumentBlockByText(insertedDoc, "Beta")
+	if baseAlpha.ID == "" || baseBeta.ID == "" || insertAlpha.ID == "" || insertBeta.ID == "" {
+		t.Fatalf("expected blocks for shared segments")
 	}
-	if baseAlpha != insertAlpha || baseBeta != insertBeta {
-		t.Fatalf("expected stable hash keys, base=(%s,%s) inserted=(%s,%s)", baseAlpha, baseBeta, insertAlpha, insertBeta)
+	if baseAlpha.Fingerprint != insertAlpha.Fingerprint || baseBeta.Fingerprint != insertBeta.Fingerprint {
+		t.Fatalf("expected stable fingerprints, base=(%s,%s) inserted=(%s,%s)", baseAlpha.Fingerprint, baseBeta.Fingerprint, insertAlpha.Fingerprint, insertBeta.Fingerprint)
+	}
+	if baseAlpha.ID == insertAlpha.ID {
+		t.Fatalf("expected slot ids to shift after insert, both %s", baseAlpha.ID)
 	}
 }
 
@@ -1120,7 +1117,7 @@ func TestMarkdownParserParseMdxSkipsFencedCodeInsideJSXWrappers(t *testing.T) {
 func TestMarshalMarkdownMdxPreservesMalformedJSXRegionWhileTranslatingSafeProse(t *testing.T) {
 	template := []byte("Intro paragraph.\n\n<Card title=\"broken\"\n  Replace only safe prose outside malformed tag.\n\nOutro paragraph.\n")
 
-	entries, err := (MarkdownParser{MDX: true}).Parse(template)
+	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -1142,7 +1139,7 @@ func TestMarshalMarkdownMdxPreservesMalformedJSXRegionWhileTranslatingSafeProse(
 func TestMarshalMarkdownMdxPreservesMalformedExpressionRegionWhileTranslatingSafeProse(t *testing.T) {
 	template := []byte("Intro paragraph.\n\nFallback route: {locale === \"vi-VN\" ? \"/vi-VN\" : \"/\"\n\nOutro paragraph.\n")
 
-	entries, err := (MarkdownParser{MDX: true}).Parse(template)
+	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -1771,7 +1768,7 @@ func TestMarshalMarkdownFallsBackToSourceWhenPlaceholderTokensRemainUnrecoverabl
 func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t *testing.T) {
 	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
 
-	entries, err := (MarkdownParser{}).Parse(template)
+	entries, err := (MarkdownParser{MDX: true}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -1794,7 +1791,7 @@ func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t
 func TestMarshalMarkdownFallsBackToSourceWhenMalformedTokenTargetsWrongPlaceholderIndex(t *testing.T) {
 	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
 
-	entries, err := (MarkdownParser{}).Parse(template)
+	entries, err := (MarkdownParser{MDX: true}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -2004,7 +2001,7 @@ func TestAlignMarkdownTargetToSourceMdxDoesNotCrossMatchReorderedSameLineSibling
 func TestMarshalMarkdownMdxPreservesBytesOutsideTranslatedSpans(t *testing.T) {
 	template := []byte("import Tabs from '@theme/Tabs'\n\n<Tabs items={[\"cli\", \"api\"]}>\n  <Tab value=\"cli\">\n    Run the command.\n  </Tab>\n</Tabs>\n")
 
-	entries, err := (MarkdownParser{MDX: true}).Parse(template)
+	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}

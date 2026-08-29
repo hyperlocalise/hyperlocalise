@@ -12,8 +12,12 @@ const maxIngestEntryLength = 100_000
 
 // IngestEntry is a parsed translation entry with optional import metadata.
 type IngestEntry struct {
-	Text      string
-	MaxLength int
+	Text        string
+	MaxLength   int
+	Fingerprint string
+	Path        string
+	Kind        string
+	Format      string
 }
 
 var maxLengthCommentPattern = regexp.MustCompile(`(?i)(?:max[\s._-]?length|character[\s._-]?limit|hl:max-length)\s*[:=]\s*(\d+)`)

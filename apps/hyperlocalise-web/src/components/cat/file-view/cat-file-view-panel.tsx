@@ -40,6 +40,7 @@ import { cn } from "@/lib/primitives/cn";
 import { catFileViewMessages } from "./cat-file-view.messages";
 import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
 import { CAT_VIDEO_FILE_UPLOAD_ACCEPT, CatVideoFileViewerPane } from "./cat-video-file-viewer";
+import { CAT_DOCUMENT_FILE_UPLOAD_ACCEPT, CatDocumentFileViewerPane } from "./cat-document-file-viewer";
 import { catOfficeUploadAccept } from "./cat-office-mime";
 import type { CatOfficeKind } from "./cat-office-convert";
 
@@ -109,14 +110,18 @@ export function CatFileViewPanel({
       ? CAT_IMAGE_FILE_UPLOAD_ACCEPT
       : viewerId === "video"
         ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
-        : catOfficeUploadAccept(viewerId);
+        : viewerId === "markdown"
+          ? CAT_DOCUMENT_FILE_UPLOAD_ACCEPT
+          : catOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
   const isMediaViewer = viewerId === "image" || viewerId === "video";
+  const isDocumentViewer = viewerId === "markdown";
 
-  const sourceSrc = isMediaViewer || officeKind ? (segment.sourceAssetUrl ?? null) : null;
+  const sourceSrc =
+    isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
-    isMediaViewer || officeKind
+    isMediaViewer || officeKind || isDocumentViewer
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -251,6 +256,17 @@ export function CatFileViewPanel({
                 isBusy={isImageBusy}
                 onSave={onUpload}
               />
+            ) : isDocumentViewer ? (
+              <CatDocumentFileViewerPane
+                role="target"
+                src={targetSrc}
+                seedSrc={sourceSrc}
+                filename={displayName}
+                isLoading={isSegmentTargetLoading}
+                canEdit={canEdit}
+                isBusy={isImageBusy}
+                onSave={onUpload}
+              />
             ) : (
               <UnsupportedPreview />
             )}
@@ -271,6 +287,13 @@ export function CatFileViewPanel({
             ) : officeKind ? (
               <CatOfficeFileViewerPane
                 kind={officeKind}
+                role="source"
+                src={sourceSrc}
+                filename={displayName}
+                canEdit={false}
+              />
+            ) : isDocumentViewer ? (
+              <CatDocumentFileViewerPane
                 role="source"
                 src={sourceSrc}
                 filename={displayName}
