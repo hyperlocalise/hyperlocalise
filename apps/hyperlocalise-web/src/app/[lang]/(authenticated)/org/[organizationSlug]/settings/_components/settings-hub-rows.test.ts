@@ -20,18 +20,18 @@ import { buildSettingsHubRows, filterVisibleSettingsHubRows } from "./settings-h
 const intl = getIntlShape("en");
 
 describe("settings hub rows", () => {
-  it("hides personal access tokens without api_keys:write", () => {
+  it("shows personal access tokens to any member", () => {
     const rows = buildSettingsHubRows(intl, "acme");
-    const visible = filterVisibleSettingsHubRows(rows, ["api_keys:read", "projects:read"], false);
+    const visible = filterVisibleSettingsHubRows(rows, [], false);
 
-    expect(visible.map((row) => row.href)).toEqual(["account", "api-keys"]);
+    expect(visible.map((row) => row.href)).toEqual(["account", "personal-access-tokens"]);
   });
 
-  it("shows personal access tokens when the caller can write API keys", () => {
+  it("keeps the organization API keys row behind api_keys:read", () => {
     const rows = buildSettingsHubRows(intl, "acme");
     const visible = filterVisibleSettingsHubRows(
       rows,
-      ["api_keys:read", "api_keys:write", "billing:read"],
+      ["api_keys:read", "billing:read"],
       false,
     );
 
@@ -41,12 +41,5 @@ describe("settings hub rows", () => {
       "api-keys",
       "billing",
     ]);
-  });
-
-  it("keeps the organization API keys row behind api_keys:read", () => {
-    const rows = buildSettingsHubRows(intl, "acme");
-    const visible = filterVisibleSettingsHubRows(rows, ["api_keys:write"], false);
-
-    expect(visible.map((row) => row.href)).toEqual(["account", "personal-access-tokens"]);
   });
 });

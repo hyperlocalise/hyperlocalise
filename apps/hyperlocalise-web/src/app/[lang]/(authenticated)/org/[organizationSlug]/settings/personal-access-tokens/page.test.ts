@@ -13,12 +13,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { requireAppCapabilityMock } = vi.hoisted(() => ({
-  requireAppCapabilityMock: vi.fn(),
+const { requireAppAuthContextMock } = vi.hoisted(() => ({
+  requireAppAuthContextMock: vi.fn(),
 }));
 
 vi.mock("@/lib/workos/app-auth", () => ({
-  requireAppCapability: requireAppCapabilityMock,
+  requireAppAuthContext: requireAppAuthContextMock,
 }));
 
 vi.mock("../_components/personal-access-tokens-page-content", () => ({
@@ -29,17 +29,17 @@ import PersonalAccessTokensSettingsPage from "./page";
 
 describe("PersonalAccessTokensSettingsPage", () => {
   beforeEach(() => {
-    requireAppCapabilityMock.mockResolvedValue({
+    requireAppAuthContextMock.mockResolvedValue({
       user: { localUserId: "user_1" },
     });
   });
 
-  it("gates the route on api_keys:write and renders the signed-in user's tokens", async () => {
+  it("requires organization membership and renders the signed-in user's tokens", async () => {
     const element = await PersonalAccessTokensSettingsPage({
       params: Promise.resolve({ organizationSlug: "acme" }),
     });
 
-    expect(requireAppCapabilityMock).toHaveBeenCalledWith("api_keys:write", {
+    expect(requireAppAuthContextMock).toHaveBeenCalledWith({
       organizationSlug: "acme",
     });
     expect(element.props).toEqual({

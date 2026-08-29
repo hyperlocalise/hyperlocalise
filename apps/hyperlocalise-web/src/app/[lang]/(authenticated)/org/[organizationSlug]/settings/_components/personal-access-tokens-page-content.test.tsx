@@ -126,7 +126,7 @@ afterEach(() => {
 });
 
 describe("PersonalAccessTokensPageContent", () => {
-  it("hides create and revoke actions without api_keys:write", async () => {
+  it("hides create and revoke actions when token management is disabled", async () => {
     mockList([createToken()]);
 
     renderPage({ canManageTokens: false });

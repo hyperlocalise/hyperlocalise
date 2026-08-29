@@ -60,7 +60,6 @@ export function buildSettingsHubRows(
       }),
       href: "personal-access-tokens",
       icon: Key01Icon,
-      requiredCapability: "api_keys:write",
     },
     {
       label: intl.formatMessage({

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { requireAppCapability } from "@/lib/workos/app-auth";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { PersonalAccessTokensPageContent } from "../_components/personal-access-tokens-page-content";
 
@@ -20,7 +20,7 @@ export default async function PersonalAccessTokensSettingsPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  const auth = await requireAppCapability("api_keys:write", { organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
     <PersonalAccessTokensPageContent
