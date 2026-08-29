@@ -46,6 +46,25 @@ const LOCALE_OPTIONS = [
 
 type BusyAction = "login" | "extract" | "create" | "generate" | "pull" | null;
 
+function HyperlocaliseJobLink({ href }: { href: string }) {
+  let parsed: URL;
+  try {
+    parsed = new URL(href);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return null;
+  }
+
+  return (
+    <a className="jobLink" href={parsed.href} target="_blank" rel="noopener noreferrer">
+      Open in Hyperlocalise
+    </a>
+  );
+}
+
 function postPluginMessage(message: UiToSandboxMessage) {
   parent.postMessage({ pluginMessage: message }, "*");
 }
@@ -712,11 +731,7 @@ export function App() {
               {pageJob.lastError && pageJob.status === "failed" ? (
                 <p className="error">{pageJob.lastError}</p>
               ) : null}
-              {jobHref ? (
-                <a className="jobLink" href={jobHref} target="_blank" rel="noreferrer">
-                  Open in Hyperlocalise
-                </a>
-              ) : null}
+              {jobHref ? <HyperlocaliseJobLink href={jobHref} /> : null}
             </section>
           ) : null}
 

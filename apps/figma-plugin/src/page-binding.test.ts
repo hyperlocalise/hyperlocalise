@@ -27,5 +27,25 @@ describe("page job binding", () => {
         jobId: "job_1",
       }),
     ).toBe("https://app.hyperlocalise.com/org/acme/projects/proj_1/jobs/job_1");
+    expect(
+      buildFigmaJobUrl({
+        appUrl: "http://localhost:3000",
+        organizationSlug: "acme",
+        projectId: "proj_1",
+        jobId: "job_1",
+      }),
+    ).toBe("http://localhost:3000/org/acme/projects/proj_1/jobs/job_1");
+  });
+
+  it("rejects non-http job URLs", () => {
+    const input = {
+      organizationSlug: "acme",
+      projectId: "proj_1",
+      jobId: "job_1",
+    };
+    expect(buildFigmaJobUrl({ ...input, appUrl: "javascript:alert(1)" })).toBeNull();
+    expect(buildFigmaJobUrl({ ...input, appUrl: "data:text/html,hi" })).toBeNull();
+    expect(buildFigmaJobUrl({ ...input, appUrl: "https://user:pass@evil.example" })).toBeNull();
+    expect(buildFigmaJobUrl({ ...input, appUrl: "not a url" })).toBeNull();
   });
 });

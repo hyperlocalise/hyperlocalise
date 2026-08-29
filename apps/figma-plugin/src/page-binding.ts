@@ -46,12 +46,38 @@ export function serializePageJobBinding(binding: FigmaPageJobBinding): string {
   });
 }
 
+function parseHttpUrl(value: string): URL | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return null;
+  }
+
+  if (parsed.username || parsed.password) {
+    return null;
+  }
+
+  return parsed;
+}
+
 export function buildFigmaJobUrl(input: {
   appUrl: string;
   organizationSlug: string;
   projectId: string;
   jobId: string;
-}): string {
-  const origin = input.appUrl.replace(/\/+$/, "");
-  return `${origin}/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}`;
+}): string | null {
+  const parsed = parseHttpUrl(input.appUrl);
+  if (!parsed) {
+    return null;
+  }
+
+  return new URL(
+    `/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}`,
+    parsed.origin,
+  ).href;
 }
