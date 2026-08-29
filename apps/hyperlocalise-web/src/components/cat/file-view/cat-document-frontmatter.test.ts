@@ -153,9 +153,7 @@ draft: "true"
   it("decodes escaped newlines in double-quoted YAML scalars", () => {
     const rawFrontmatter = `title: "Line\\nOne"`;
     const split = splitCatDocument(`---\n${rawFrontmatter}\n---\n\n# Hello\n`);
-    expect(split.fields).toEqual([
-      { key: "title", value: "Line\nOne", rawValue: '"Line\\nOne"' },
-    ]);
+    expect(split.fields).toEqual([{ key: "title", value: "Line\nOne", rawValue: '"Line\\nOne"' }]);
     expect(
       joinCatDocument({
         hasFrontmatter: true,
@@ -188,9 +186,7 @@ title: "Line\\nTwo"
   it("unescapes doubled single quotes in YAML scalars", () => {
     const rawFrontmatter = `title: 'It''s fine'`;
     const split = splitCatDocument(`---\n${rawFrontmatter}\n---\n\n# Hello\n`);
-    expect(split.fields).toEqual([
-      { key: "title", value: "It's fine", rawValue: "'It''s fine'" },
-    ]);
+    expect(split.fields).toEqual([{ key: "title", value: "It's fine", rawValue: "'It''s fine'" }]);
     expect(
       joinCatDocument({
         hasFrontmatter: true,
