@@ -38,17 +38,83 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-export function isApiKeyReadAllowed(role: ApiAuthContext["membership"]["role"]) {
+/**
+ * `api_keys:read` and `api_keys:write` govern other members' tokens, not the
+ * caller's own. Acting on your own token needs nothing beyond an active
+ * membership. See `docs/adr/2026-08-29-personal-access-token-contract-design.md`.
+ */
+export function canAdministerOtherUsersApiKeys(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "api_keys:read");
 }
 
-export function isApiKeyWriteAllowed(role: ApiAuthContext["membership"]["role"]) {
+export function canRevokeOtherUsersApiKeys(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "api_keys:write");
 }
 
-export function ownedApiKeyWhere(auth: ApiAuthContext, apiKeyId: string) {
-  return and(
+export function isApiKeyCreateAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "api_keys:write");
+}
+
+function organizationApiKeyScope(auth: ApiAuthContext) {
+  return eq(schema.organizationApiKeys.organizationId, auth.organization.localOrganizationId);
+}
+
+function ownedByCaller(auth: ApiAuthContext) {
+  return eq(schema.organizationApiKeys.createdByUserId, auth.user.localUserId);
+}
+
+/** Tokens the caller may list: their own, or every token when they administer tokens. */
+export function visibleApiKeysWhere(auth: ApiAuthContext) {
+  if (canAdministerOtherUsersApiKeys(auth.membership.role)) {
+    return organizationApiKeyScope(auth);
+  }
+
+  return and(organizationApiKeyScope(auth), ownedByCaller(auth));
+}
+
+/**
+ * A single token the caller may revoke: their own, or any token in the
+ * organization when they hold `api_keys:write`. A token that does not match is
+ * indistinguishable from an unknown id, so callers cannot probe for other
+ * members' tokens.
+ */
+export function revocableApiKeyWhere(auth: ApiAuthContext, apiKeyId: string) {
+  const identityScope = and(
     eq(schema.organizationApiKeys.id, apiKeyId),
-    eq(schema.organizationApiKeys.organizationId, auth.organization.localOrganizationId),
+    organizationApiKeyScope(auth),
   );
+
+  if (canRevokeOtherUsersApiKeys(auth.membership.role)) {
+    return identityScope;
+  }
+
+  return and(identityScope, ownedByCaller(auth));
+}
+
+/** Owner columns joined from `users`. Null for a token whose owner is unresolvable. */
+export const apiKeyOwnerColumns = {
+  ownerUserId: schema.users.id,
+  ownerEmail: schema.users.email,
+  ownerFirstName: schema.users.firstName,
+  ownerLastName: schema.users.lastName,
+} as const;
+
+type ApiKeyOwnerRow = {
+  ownerUserId: string | null;
+  ownerEmail: string | null;
+  ownerFirstName: string | null;
+  ownerLastName: string | null;
+};
+
+export function toApiKeyOwner(row: ApiKeyOwnerRow) {
+  if (!row.ownerUserId || row.ownerEmail === null) {
+    return null;
+  }
+
+  return {
+    userId: row.ownerUserId,
+    email: row.ownerEmail,
+    firstName: row.ownerFirstName,
+    lastName: row.ownerLastName,
+  };
 }

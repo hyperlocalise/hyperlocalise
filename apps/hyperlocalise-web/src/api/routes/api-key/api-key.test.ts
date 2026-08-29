@@ -12,6 +12,8 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
@@ -34,11 +36,12 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database/client";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createApiKeyTestFixture } from "./api-key.fixture";
-import type { ApiKeyResponse } from "./api-key.schema";
+import type { ApiKeyResponse, ApiKeysResponse } from "./api-key.schema";
 import { createProjectTestFixture } from "../project/project.fixture";
 
 function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
@@ -62,6 +65,7 @@ const {
   createWorkosIdentityForOrganization,
   authHeadersFor,
   createApiKeyViaApi,
+  getLocalOrganizationId,
   getLocalUserId,
   insertApiKey,
 } = apiKeyFixture;
@@ -77,8 +81,42 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+async function listApiKeysAs(identity: WorkosAuthIdentity) {
+  return client.api.orgs[":organizationSlug"]["api-keys"].$get(
+    {
+      param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+    },
+    { headers: await authHeadersFor(identity) },
+  );
+}
+
+async function revokeApiKeyAs(identity: WorkosAuthIdentity, apiKeyId: string) {
+  return client.api.orgs[":organizationSlug"]["api-keys"][":apiKeyId"].$delete(
+    {
+      param: {
+        organizationSlug: identity.organization.slug ?? "missing-slug",
+        apiKeyId,
+      },
+    },
+    { headers: await authHeadersFor(identity) },
+  );
+}
+
+async function readApiKeyRow(apiKeyId: string) {
+  const [row] = await db
+    .select({
+      revokedAt: schema.organizationApiKeys.revokedAt,
+      createdByUserId: schema.organizationApiKeys.createdByUserId,
+    })
+    .from(schema.organizationApiKeys)
+    .where(eq(schema.organizationApiKeys.id, apiKeyId))
+    .limit(1);
+
+  return row;
+}
+
 describe("apiKeyRoutes", () => {
-  it("creates an API key for owner", async () => {
+  it("creates a token owned by the caller and discloses the secret once", async () => {
     const identity = createWorkosIdentity();
     const response = await createApiKeyViaApi(identity, { name: "Production Key" });
 
@@ -87,51 +125,70 @@ describe("apiKeyRoutes", () => {
     expect(body.apiKey.name).toBe("Production Key");
     expect(body.apiKey.key).toMatch(/^hl_/);
     expect(body.apiKey.keyPrefix).toBe(body.apiKey.key.slice(0, 8));
+    expect(body.apiKey.owner).toEqual({
+      userId: await getLocalUserId(identity.user.workosUserId),
+      email: identity.user.email,
+      firstName: null,
+      lastName: null,
+    });
+
+    const listResponse = await listApiKeysAs(identity);
+    const listed = ((await listResponse.json()) as ApiKeysResponse).apiKeys.find(
+      (key) => key.id === body.apiKey.id,
+    );
+
+    expect(Object.keys(listed ?? {}).sort()).toEqual([
+      "createdAt",
+      "id",
+      "keyPrefix",
+      "lastUsedAt",
+      "name",
+      "owner",
+      "permissions",
+      "revokedAt",
+    ]);
   });
 
-  it("lists API keys for the organization", async () => {
+  it("lists the caller's own tokens with owner attribution", async () => {
     const identity = createWorkosIdentity();
-    const headers = await authHeadersFor(identity);
 
     await createApiKeyViaApi(identity, { name: "List Key" });
 
-    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-      },
-      { headers },
-    );
+    const response = await listApiKeysAs(identity);
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { apiKeys: Array<{ name: string }> };
+    const body = (await response.json()) as ApiKeysResponse;
     expect(body.apiKeys).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "List Key" })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "List Key",
+          owner: expect.objectContaining({ email: identity.user.email }),
+        }),
+      ]),
     );
   });
 
-  it("returns 200 when an admin lists API keys", async () => {
+  it("returns every token in the workspace to a holder of api_keys:read", async () => {
     const ownerIdentity = createWorkosIdentity();
     const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
 
     await createApiKeyViaApi(ownerIdentity, { name: "Admin Visible Key" });
 
-    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
-      {
-        param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
-      },
-      {
-        headers: await authHeadersFor(adminIdentity),
-      },
-    );
+    const response = await listApiKeysAs(adminIdentity);
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { apiKeys: Array<{ name: string }> };
+    const body = (await response.json()) as ApiKeysResponse;
     expect(body.apiKeys).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "Admin Visible Key" })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "Admin Visible Key",
+          owner: expect.objectContaining({ email: ownerIdentity.user.email }),
+        }),
+      ]),
     );
   });
 
-  it("returns 403 when a member lists API keys", async () => {
+  it("returns only the caller's own tokens to a member without api_keys:read", async () => {
     const ownerIdentity = createWorkosIdentity();
     const memberIdentity = createWorkosIdentityForOrganization(
       ownerIdentity.organization,
@@ -139,49 +196,203 @@ describe("apiKeyRoutes", () => {
     );
 
     await createApiKeyViaApi(ownerIdentity, { name: "Hidden Key" });
+    await authHeadersFor(memberIdentity);
+    await insertApiKey({
+      organizationId: await getLocalOrganizationId(
+        memberIdentity.organization.workosOrganizationId,
+      ),
+      name: "Member Own Key",
+      createdByUserId: await getLocalUserId(memberIdentity.user.workosUserId),
+    });
 
-    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
-      {
-        param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
-      },
-      {
-        headers: await authHeadersFor(memberIdentity),
-      },
-    );
+    const response = await listApiKeysAs(memberIdentity);
 
-    expect(response.status).toBe(403);
-    const responseBody = await response.json();
-    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+    expect(response.status).toBe(200);
+    const names = ((await response.json()) as ApiKeysResponse).apiKeys.map((key) => key.name);
+    expect(names).toContain("Member Own Key");
+    expect(names).not.toContain("Hidden Key");
   });
 
-  it("revokes an API key", async () => {
-    const identity = createWorkosIdentity();
-    const headers = await authHeadersFor(identity);
+  it("revokes the caller's own token without api_keys:write", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(memberIdentity);
 
-    const createResponse = await createApiKeyViaApi(identity, { name: "To Revoke" });
+    const { apiKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(
+        memberIdentity.organization.workosOrganizationId,
+      ),
+      name: "Member Own Key",
+      createdByUserId: await getLocalUserId(memberIdentity.user.workosUserId),
+    });
 
-    const createBody = (await createResponse.json()) as ApiKeyResponse;
+    const response = await revokeApiKeyAs(memberIdentity, apiKey.id);
 
-    const deleteResponse = await client.api.orgs[":organizationSlug"]["api-keys"][
-      ":apiKeyId"
-    ].$delete(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          apiKeyId: createBody.apiKey.id,
-        },
-      },
-      { headers },
+    expect(response.status).toBe(204);
+    expect((await readApiKeyRow(apiKey.id))?.revokedAt).not.toBeNull();
+  });
+
+  it("returns 404 when a member revokes another member's token", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
     );
 
-    expect(deleteResponse.status).toBe(204);
+    const createResponse = await createApiKeyViaApi(ownerIdentity, { name: "Owner Key" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
 
-    const keys = await db
-      .select({ revokedAt: schema.organizationApiKeys.revokedAt })
-      .from(schema.organizationApiKeys)
-      .where(eq(schema.organizationApiKeys.id, createBody.apiKey.id));
+    const response = await revokeApiKeyAs(memberIdentity, created.apiKey.id);
 
-    expect(keys[0]?.revokedAt).not.toBeNull();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      error: "api_key_not_found",
+      message: expect.any(String),
+    });
+    expect((await readApiKeyRow(created.apiKey.id))?.revokedAt).toBeNull();
+  });
+
+  it("revokes another member's token for a holder of api_keys:write", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(memberIdentity);
+
+    const { apiKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(ownerIdentity.organization.workosOrganizationId),
+      name: "Member Key",
+      createdByUserId: await getLocalUserId(memberIdentity.user.workosUserId),
+    });
+
+    const response = await revokeApiKeyAs(ownerIdentity, apiKey.id);
+
+    expect(response.status).toBe(204);
+    expect((await readApiKeyRow(apiKey.id))?.revokedAt).not.toBeNull();
+  });
+
+  it("returns 404 for a token in another organization", async () => {
+    const identityA = createWorkosIdentity();
+    const identityB = createWorkosIdentity();
+
+    const createResponse = await createApiKeyViaApi(identityA, { name: "Org A Key" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
+
+    const response = await revokeApiKeyAs(identityB, created.apiKey.id);
+
+    expect(response.status).toBe(404);
+    expect((await readApiKeyRow(created.apiKey.id))?.revokedAt).toBeNull();
+  });
+
+  it("returns 404 for unknown and malformed token ids", async () => {
+    const identity = createWorkosIdentity();
+
+    const unknownResponse = await revokeApiKeyAs(identity, randomUUID());
+    expect(unknownResponse.status).toBe(404);
+
+    const malformedResponse = await revokeApiKeyAs(identity, "not-a-token-id");
+    expect(malformedResponse.status).toBe(404);
+    expect(await malformedResponse.json()).toMatchObject({ error: "api_key_not_found" });
+  });
+
+  it("keeps the first revocation timestamp when a token is revoked twice", async () => {
+    const identity = createWorkosIdentity();
+
+    const createResponse = await createApiKeyViaApi(identity, { name: "Twice Revoked" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
+
+    expect((await revokeApiKeyAs(identity, created.apiKey.id)).status).toBe(204);
+    const firstRevokedAt = (await readApiKeyRow(created.apiKey.id))?.revokedAt;
+    expect(firstRevokedAt).not.toBeNull();
+
+    expect((await revokeApiKeyAs(identity, created.apiKey.id)).status).toBe(204);
+    expect((await readApiKeyRow(created.apiKey.id))?.revokedAt).toEqual(firstRevokedAt);
+  });
+
+  it("stops authentication as soon as a token is revoked", async () => {
+    const identity = createWorkosIdentity();
+    await authHeadersFor(identity);
+
+    const { plainKey, apiKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(identity.organization.workosOrganizationId),
+      name: "Revoke During Use",
+      createdByUserId: await getLocalUserId(identity.user.workosUserId),
+    });
+
+    const beforeRevoke = await client.api.v1.jobs[":jobId"].$get(
+      { param: { jobId: `job_${randomUUID()}` } },
+      { headers: { "x-api-key": plainKey } },
+    );
+    expect(beforeRevoke.status).toBe(404);
+
+    expect((await revokeApiKeyAs(identity, apiKey.id)).status).toBe(204);
+
+    const afterRevoke = await client.api.v1.jobs[":jobId"].$get(
+      { param: { jobId: `job_${randomUUID()}` } },
+      { headers: { "x-api-key": plainKey } },
+    );
+    expect(afterRevoke.status).toBe(401);
+    expect(await afterRevoke.json()).toMatchObject({ error: "unauthorized" });
+  });
+
+  it("presents a legacy token with no owner as revoked and hides it from other members", async () => {
+    const adminIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      adminIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(adminIdentity);
+
+    const { plainKey, apiKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(adminIdentity.organization.workosOrganizationId),
+      name: "Legacy Key",
+    });
+    expect((await readApiKeyRow(apiKey.id))?.createdByUserId).toBeNull();
+
+    const adminList = ((await (await listApiKeysAs(adminIdentity)).json()) as ApiKeysResponse)
+      .apiKeys;
+    const legacyEntry = adminList.find((key) => key.id === apiKey.id);
+    expect(legacyEntry?.owner).toBeNull();
+    expect(legacyEntry?.revokedAt).toBeTruthy();
+
+    const memberList = ((await (await listApiKeysAs(memberIdentity)).json()) as ApiKeysResponse)
+      .apiKeys;
+    expect(memberList.map((key) => key.id)).not.toContain(apiKey.id);
+
+    const authResponse = await client.api.v1.jobs[":jobId"].$get(
+      { param: { jobId: `job_${randomUUID()}` } },
+      { headers: { "x-api-key": plainKey } },
+    );
+    expect(authResponse.status).toBe(403);
+  });
+
+  it("keeps listing and authenticating a pre-existing key created outside the route", async () => {
+    const identity = createWorkosIdentity();
+    await authHeadersFor(identity);
+
+    const { plainKey, apiKey } = await insertApiKey({
+      organizationId: await getLocalOrganizationId(identity.organization.workosOrganizationId),
+      name: "Pre-existing Key",
+      createdByUserId: await getLocalUserId(identity.user.workosUserId),
+    });
+
+    const listed = ((await (await listApiKeysAs(identity)).json()) as ApiKeysResponse).apiKeys.find(
+      (key) => key.id === apiKey.id,
+    );
+    expect(listed?.owner).toEqual(
+      expect.objectContaining({ email: identity.user.email, userId: apiKey.createdByUserId }),
+    );
+    expect(listed?.revokedAt).toBeNull();
+
+    const authResponse = await client.api.v1.jobs[":jobId"].$get(
+      { param: { jobId: `job_${randomUUID()}` } },
+      { headers: { "x-api-key": plainKey } },
+    );
+    expect(authResponse.status).toBe(404);
   });
 
   it("returns 403 when a member creates an API key", async () => {
