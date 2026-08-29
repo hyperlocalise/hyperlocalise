@@ -537,7 +537,10 @@ export class NativeCatService extends ProjectServiceBase {
       truncated: false,
       segments: [
         {
-          externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+          externalStringId: documentFileExternalStringId(
+            input.sourceFileId,
+            input.input.sourcePath,
+          ),
           key: input.input.sourcePath,
           sourceText: input.input.sourcePath,
           context: null,

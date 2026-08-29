@@ -40,7 +40,10 @@ import { cn } from "@/lib/primitives/cn";
 import { catFileViewMessages } from "./cat-file-view.messages";
 import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
 import { CAT_VIDEO_FILE_UPLOAD_ACCEPT, CatVideoFileViewerPane } from "./cat-video-file-viewer";
-import { CAT_DOCUMENT_FILE_UPLOAD_ACCEPT, CatDocumentFileViewerPane } from "./cat-document-file-viewer";
+import {
+  CAT_DOCUMENT_FILE_UPLOAD_ACCEPT,
+  CatDocumentFileViewerPane,
+} from "./cat-document-file-viewer";
 import { catOfficeUploadAccept } from "./cat-office-mime";
 import type { CatOfficeKind } from "./cat-office-convert";
 

@@ -20,19 +20,45 @@ describe("splitCatDocument", () => {
       fields: [],
       body: "# Hello\n\nBody.\n",
       hasFrontmatter: false,
+      rawFrontmatter: "",
     });
   });
 
   it("extracts scalar frontmatter fields and leaves the body for TipTap", () => {
-    expect(
-      splitCatDocument("---\ntitle: Docs\ndescription: Intro page\n---\n\n# Hello\n"),
-    ).toEqual({
-      fields: [
-        { key: "title", value: "Docs" },
-        { key: "description", value: "Intro page" },
-      ],
+    expect(splitCatDocument("---\ntitle: Docs\ndescription: Intro page\n---\n\n# Hello\n")).toEqual(
+      {
+        fields: [
+          { key: "title", value: "Docs" },
+          { key: "description", value: "Intro page" },
+        ],
+        body: "\n# Hello\n",
+        hasFrontmatter: true,
+        rawFrontmatter: "title: Docs\ndescription: Intro page",
+      },
+    );
+  });
+
+  it("keeps nested YAML, lists, and comments out of editable fields", () => {
+    const text = `---
+title: Docs
+# keep this comment
+tags:
+  - one
+  - two
+authors:
+  - name: Ada
+description: |
+  Multi-line
+---
+
+# Hello
+`;
+    expect(splitCatDocument(text)).toEqual({
+      fields: [{ key: "title", value: "Docs" }],
       body: "\n# Hello\n",
       hasFrontmatter: true,
+      rawFrontmatter:
+        "title: Docs\n# keep this comment\ntags:\n  - one\n  - two\nauthors:\n  - name: Ada\ndescription: |\n  Multi-line",
     });
   });
 });
@@ -56,5 +82,37 @@ describe("joinCatDocument", () => {
         body: "# Hello\n",
       }),
     ).toBe("# Hello\n");
+  });
+
+  it("patches scalar fields without dropping nested YAML or comments", () => {
+    const rawFrontmatter = `title: Docs
+# keep this comment
+tags:
+  - one
+  - two
+authors:
+  - name: Ada
+description: |
+  Multi-line`;
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: [{ key: "title", value: "Guides" }],
+        body: "# Hello\n",
+        rawFrontmatter,
+      }),
+    ).toBe(`---
+title: Guides
+# keep this comment
+tags:
+  - one
+  - two
+authors:
+  - name: Ada
+description: |
+  Multi-line
+---
+# Hello
+`);
   });
 });

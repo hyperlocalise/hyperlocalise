@@ -380,18 +380,23 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 		t.Fatalf("chdir project dir: %v", err)
 	}
 
-	sourcePath := "locales/en.json"
-	targetPattern := "locales/{{target}}.json"
-	targetPath := "locales/de-DE.json"
-	sourceJSON := `{"hello":"Hello"}`
-	writePullSourceFile(t, sourcePath, sourceJSON)
+	sourcePath := "_posts/en/hello.md"
+	targetPattern := "_posts/{{target}}/hello.md"
+	targetPath := "_posts/de-DE/hello.md"
+	sourceMarkdown := "# Hello\n\nWorld.\n"
+	writePullSourceFile(t, sourcePath, sourceMarkdown)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download"):
+			http.NotFound(w, r)
+			return
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
 			_, _ = w.Write([]byte("{}\n"))
 			return
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		t.Fatalf("unexpected path: %s", r.URL.Path)
 	}))
 	defer server.Close()
 
@@ -402,7 +407,7 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 				Targets: []string{"de-DE"},
 			},
 			Buckets: map[string]config.BucketConfig{
-				"json": {
+				"markdown": {
 					Files: []config.BucketFileMapping{{
 						From: sourcePath,
 						To:   targetPattern,
@@ -432,10 +437,10 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 		t.Fatalf("read target: %v", err)
 	}
 	if strings.Contains(string(content), `"md.`) || string(content) == "{}\n" {
-		t.Fatalf("target content = %q, want reconstructed JSON from source", string(content))
+		t.Fatalf("target content = %q, want reconstructed markdown from source", string(content))
 	}
-	if !strings.Contains(string(content), `"hello"`) || !strings.Contains(string(content), `"Hello"`) {
-		t.Fatalf("target content = %q, want source JSON keys reconstructed", string(content))
+	if string(content) != sourceMarkdown {
+		t.Fatalf("target content = %q, want source markdown template %q", string(content), sourceMarkdown)
 	}
 }
 
@@ -452,24 +457,29 @@ func TestHyperlocalisePullSkipsNativeExportWithoutLocalSource(t *testing.T) {
 		t.Fatalf("chdir project dir: %v", err)
 	}
 
-	sourcePath := "locales/en.json"
-	targetPattern := "locales/{{target}}.json"
-	targetPath := "locales/de-DE.json"
+	sourcePath := "_posts/en/hello.md"
+	targetPattern := "_posts/{{target}}/hello.md"
+	targetPath := "_posts/de-DE/hello.md"
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		t.Fatalf("mkdir target dir: %v", err)
 	}
-	existingContent := []byte(`{"hello":"Existing"}`)
+	existingContent := []byte("# Existing\n")
 	if err := os.WriteFile(targetPath, existingContent, 0o644); err != nil {
 		t.Fatalf("write existing target: %v", err)
 	}
 
-	exportBody := []byte("{\n  \"hello\": \"Bonjour\"\n}\n")
+	exportBody := []byte("{\n  \"md.0.heading\": \"Bonjour\"\n}\n")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download"):
+			http.NotFound(w, r)
+			return
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
 			_, _ = w.Write(exportBody)
 			return
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		t.Fatalf("unexpected path: %s", r.URL.Path)
 	}))
 	defer server.Close()
 
@@ -480,7 +490,7 @@ func TestHyperlocalisePullSkipsNativeExportWithoutLocalSource(t *testing.T) {
 				Targets: []string{"de-DE"},
 			},
 			Buckets: map[string]config.BucketConfig{
-				"json": {
+				"markdown": {
 					Files: []config.BucketFileMapping{{
 						From: sourcePath,
 						To:   targetPattern,

@@ -267,6 +267,179 @@ func TestHyperlocalisePullWritesMarkdownVariantsDirectly(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePullReconstructsMarkdownWhenFileVariantMissing(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	sourcePath := "docs/en/intro.md"
+	targetPath := "docs/fr/intro.md"
+	sourceContent := "# Hello\n\nWorld.\n"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), sourceContent)
+
+	strategy := translationfileparser.NewDefaultStrategy()
+	entries, err := strategy.Parse(sourcePath, []byte(sourceContent))
+	if err != nil {
+		t.Fatalf("parse markdown source: %v", err)
+	}
+	prefilled := make(map[string]string, len(entries))
+	for key, value := range entries {
+		prefilled[key] = strings.ReplaceAll(value, "World", "Monde")
+	}
+	prefilledJSON, err := json.Marshal(prefilled)
+	if err != nil {
+		t.Fatalf("marshal prefilled entries: %v", err)
+	}
+
+	var filesDownloadCount atomic.Int32
+	var translationDownloadCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download"):
+			filesDownloadCount.Add(1)
+			http.NotFound(w, r)
+			return
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
+			translationDownloadCount.Add(1)
+			if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
+				t.Fatalf("sourcePath = %q, want %q", got, sourcePath)
+			}
+			if got := r.URL.Query().Get("locale"); got != "fr" {
+				t.Fatalf("locale = %q, want fr", got)
+			}
+			_, _ = w.Write(prefilledJSON)
+			return
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"docs": {
+					Files: []config.BucketFileMapping{{
+						From: "docs/en/**/*.md",
+						To:   "docs/{{target}}/**/*.md",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull markdown fallback: %v", err)
+	}
+	if filesDownloadCount.Load() != 1 {
+		t.Fatalf("files/download count = %d, want 1", filesDownloadCount.Load())
+	}
+	if translationDownloadCount.Load() != 1 {
+		t.Fatalf("translations/download count = %d, want 1", translationDownloadCount.Load())
+	}
+	if report.Downloaded != 1 || report.Skipped != 0 {
+		t.Fatalf("report = %#v, want one reconstructed markdown file", report)
+	}
+
+	got, err := os.ReadFile(filepath.FromSlash(targetPath))
+	if err != nil {
+		t.Fatalf("read target markdown file: %v", err)
+	}
+	if strings.Contains(string(got), `"md.`) {
+		t.Fatalf("expected markdown output, got JSON-like content: %q", string(got))
+	}
+	if !strings.Contains(string(got), "Monde") {
+		t.Fatalf("target content = %q, want reconstructed translation", string(got))
+	}
+}
+
+func TestHyperlocalisePullSkipsMissingImageVariants(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	sourcePath := "assets/en/banner.png"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "source-png-bytes")
+
+	var translationDownloadCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download") {
+			http.NotFound(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			translationDownloadCount.Add(1)
+			http.NotFound(w, r)
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"images": {
+					Files: []config.BucketFileMapping{{
+						From: "assets/en/**/*.png",
+						To:   "assets/{{target}}/**/*.png",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull missing image variant: %v", err)
+	}
+	if translationDownloadCount.Load() != 0 {
+		t.Fatalf("translations/download count = %d, want 0 for missing image variants", translationDownloadCount.Load())
+	}
+	if report.Downloaded != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %#v, want skipped missing image variant", report)
+	}
+}
+
 func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

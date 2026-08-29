@@ -65,6 +65,7 @@ export function CatDocumentFileViewerPane({
   const [fields, setFields] = useState<CatDocumentFrontmatterField[]>([]);
   const [body, setBody] = useState("");
   const [hasFrontmatter, setHasFrontmatter] = useState(false);
+  const [rawFrontmatter, setRawFrontmatter] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -99,6 +100,7 @@ export function CatDocumentFileViewerPane({
         setFields(split.fields);
         setBody(split.body);
         setHasFrontmatter(split.hasFrontmatter);
+        setRawFrontmatter(split.rawFrontmatter);
       } catch {
         if (!cancelled) {
           setError(
@@ -129,7 +131,7 @@ export function CatDocumentFileViewerPane({
     }
     setIsSaving(true);
     try {
-      const text = joinCatDocument({ fields, body, hasFrontmatter });
+      const text = joinCatDocument({ fields, body, hasFrontmatter, rawFrontmatter });
       const file = new File([text], filename, { type: "text/markdown" });
       await onSave(file);
     } finally {

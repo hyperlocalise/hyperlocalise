@@ -62,17 +62,17 @@ export const catFileViewMessages = defineMessages({
   },
   documentFrontmatter: {
     defaultMessage: "Frontmatter",
-    id: "catDocFmHd",
+    id: "8Y86+IM3Ps",
     description: "Heading for YAML frontmatter fields in the CAT document editor",
   },
   documentBody: {
     defaultMessage: "Body",
-    id: "catDocBdHd",
+    id: "90JdQQe9zz",
     description: "Heading for the Markdown/MDX body editor in CAT document view",
   },
   documentEditorAria: {
     defaultMessage: "Translated document",
-    id: "catDocEdAr",
+    id: "ztZNSXlXOQ",
     description: "Accessible label for the TipTap document editor in CAT File view",
   },
   imageSourceAlt: {

@@ -214,20 +214,22 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			var content []byte
 			if isHyperlocaliseWholeFileFormat(plan.FileFormat) {
 				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.SourcePath, locale)
-				if err != nil {
-					if isHyperlocaliseNotFound(err) {
-						report.Skipped++
-						continue
+				switch {
+				case err == nil:
+					if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+						report.Complete = false
+						return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
 					}
+					report.Downloaded++
+					continue
+				case !isHyperlocaliseNotFound(err):
 					report.Complete = false
 					return report, fmt.Errorf("download file variant for source %q locale %q: %w", plan.SourcePath, locale, err)
+				case !isHyperlocaliseDocumentFileFormat(plan.FileFormat):
+					report.Skipped++
+					continue
 				}
-				if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
-					report.Complete = false
-					return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
-				}
-				report.Downloaded++
-				continue
+				// Document variants are new; older markdown/MDX locales still live as translation rows.
 			}
 
 			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
