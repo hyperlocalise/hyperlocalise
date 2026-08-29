@@ -143,18 +143,19 @@ export function parseMemoryImportContent(payload: {
   });
 }
 
-type PlannedAction = {
+export type PlannedImportAction = {
   candidate: MemoryImportCandidate;
   action: "create" | "update" | "variant" | "skip";
   existingId?: string;
 };
 
-function planImportActions(
+/** Plans create/update/skip actions before persistence. Exported for unit tests. */
+export function planImportActions(
   candidates: MemoryImportCandidate[],
-  existingByExternalKey: Map<string, MemoryEntryRow>,
-  existingBySourceKey: Map<string, MemoryEntryRow>,
-): PlannedAction[] {
-  const planned: PlannedAction[] = [];
+  existingByExternalKey: Map<string, Pick<MemoryEntryRow, "id" | "externalKey">>,
+  existingBySourceKey: Map<string, Pick<MemoryEntryRow, "id" | "externalKey">>,
+): PlannedImportAction[] {
+  const planned: PlannedImportAction[] = [];
   const reservedExternal = new Set(existingByExternalKey.keys());
   const reservedSource = new Set(existingBySourceKey.keys());
 

@@ -28,7 +28,8 @@ export type MemoryExportFilters = {
   targetLocale?: string;
 };
 
-function asTuid(metadata: Record<string, unknown>, externalKey: string | null) {
+/** Resolves the TMX tuid used when grouping multilingual export units. */
+export function asTuid(metadata: Record<string, unknown>, externalKey: string | null) {
   if (typeof metadata.tuid === "string" && metadata.tuid.trim()) {
     return metadata.tuid;
   }
@@ -57,7 +58,11 @@ function toExportEntry(row: {
   };
 }
 
-function trailingTuidGroup(entries: TmxExportEntry[]) {
+/**
+ * Holds back the trailing same-tuid group so a full export page does not split
+ * multilingual variants across streamed XML chunks.
+ */
+export function trailingTuidGroup(entries: TmxExportEntry[]) {
   const lastTuid = entries.at(-1)?.tuid;
   if (!lastTuid) {
     return { flush: entries, pending: [] as TmxExportEntry[] };
