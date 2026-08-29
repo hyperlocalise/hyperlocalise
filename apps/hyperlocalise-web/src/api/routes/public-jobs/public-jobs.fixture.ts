@@ -10,20 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { hashApiKey } from "@/lib/security/api-keys";
 
 const createdWorkosOrganizationIds = new Set<string>();
 const createdWorkosUserIds = new Set<string>();
 
-export function hashApiKey(key: string) {
-  return createHash("sha256").update(key).digest("hex");
-}
+export { hashApiKey };
 
 export async function createPublicApiFixture(options?: {
   permissions?: string[];
