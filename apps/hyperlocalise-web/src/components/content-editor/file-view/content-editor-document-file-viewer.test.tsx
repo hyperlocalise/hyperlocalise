@@ -145,4 +145,36 @@ describe("ContentEditorDocumentFileViewerPane", () => {
     expect(savedText).not.toContain("&lt;kbd");
     expect(savedText).toContain("Updated.");
   });
+
+  it("renders read-only panes as a formatted preview instead of raw markup", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("# Heading\n\nSome [link](https://example.com).\n", {
+            status: 200,
+          }),
+      ),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorDocumentFileViewerPane
+          role="source"
+          src="https://example.com/source.md"
+          filename="intro.md"
+          canEdit={false}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: "Heading" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: "link" })).toHaveAttribute(
+      "href",
+      "https://example.com",
+    );
+    expect(screen.queryByLabelText("Translated document")).not.toBeInTheDocument();
+  });
 });

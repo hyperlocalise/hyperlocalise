@@ -23,11 +23,11 @@ import {
   type ContentEditorDocumentFrontmatterField,
 } from "@/components/content-editor/file-view/content-editor-document-frontmatter";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/primitives/cn";
 
 export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx";
 
@@ -210,23 +210,21 @@ export function ContentEditorDocumentFileViewerPane({
                 <FormattedMessage {...contentEditorFileViewMessages.documentBody} />
               </h4>
             ) : null}
-            {/*
-              Use a raw textarea — not TipTap MarkdownEditor. TipTap's getMarkdown()
-              HTML-escapes angle brackets, which permanently corrupts MDX/JSX and raw
-              HTML on Save (e.g. <Callout> → &lt;Callout&gt;).
-            */}
-            <Textarea
-              value={body}
-              readOnly={readOnly}
-              disabled={readOnly}
-              onChange={(event) => setBody(event.currentTarget.value)}
-              aria-label={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
-              placeholder={readOnly ? emptyLabel : undefined}
-              className={cn(
-                "min-h-[16rem] resize-y font-mono text-sm leading-relaxed",
-                readOnly && "opacity-90",
-              )}
-            />
+            {readOnly ? (
+              <MarkdownPreview value={body} className="min-h-[16rem]" emptyMessage={emptyLabel} />
+            ) : (
+              /*
+                Author edits in a raw textarea — not TipTap MarkdownEditor. TipTap's
+                getMarkdown() HTML-escapes angle brackets, which permanently corrupts
+                MDX/JSX and raw HTML on Save (e.g. <Callout> → &lt;Callout&gt;).
+              */
+              <Textarea
+                value={body}
+                onChange={(event) => setBody(event.currentTarget.value)}
+                aria-label={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
+                className="min-h-[16rem] resize-y font-mono text-sm leading-relaxed"
+              />
+            )}
           </div>
 
           {onSave && !readOnly ? (
