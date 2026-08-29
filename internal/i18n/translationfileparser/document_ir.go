@@ -2,8 +2,6 @@ package translationfileparser
 
 import (
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -26,8 +24,6 @@ const (
 	DocumentBlockKindBody  DocumentBlockKind = "body"
 	DocumentBlockKindField DocumentBlockKind = "field"
 )
-
-var markdownLegacyHashKeyPattern = regexp.MustCompile(`^md\.[0-9a-f]{16}(?:\.\d+)?$`)
 
 // DocumentPart is one reconstructed document region: frozen literal or a translatable block.
 type DocumentPart struct {
@@ -64,69 +60,6 @@ func IsMarkdownDocumentExtension(path string) bool {
 // IsMarkdownDocumentMDX reports whether path should use the MDX adapter.
 func IsMarkdownDocumentMDX(path string) bool {
 	return strings.ToLower(filepath.Ext(strings.TrimSpace(path))) == ".mdx"
-}
-
-// IsLegacyMarkdownHashKey reports whether key is a pre-slot content-hash identity.
-func IsLegacyMarkdownHashKey(key string) bool {
-	return markdownLegacyHashKeyPattern.MatchString(strings.TrimSpace(key))
-}
-
-// RemapLegacyMarkdownPrefill rewrites pre-slot `md.<16-hex>` translation keys onto
-// the current structural slot ids for source. Keys that are already slot ids stay as-is.
-func RemapLegacyMarkdownPrefill(source []byte, mdx bool, prefilled map[string]string) map[string]string {
-	if len(prefilled) == 0 {
-		return prefilled
-	}
-	hasLegacy := false
-	for key := range prefilled {
-		if IsLegacyMarkdownHashKey(key) {
-			hasLegacy = true
-			break
-		}
-	}
-	if !hasLegacy {
-		return prefilled
-	}
-
-	doc := ParseMarkdownDocumentIR(source, mdx)
-	idsByFingerprint := make(map[string][]string, len(doc.Blocks))
-	for _, block := range doc.Blocks {
-		if block.Fingerprint == "" {
-			continue
-		}
-		idsByFingerprint[block.Fingerprint] = append(idsByFingerprint[block.Fingerprint], block.ID)
-	}
-
-	out := make(map[string]string, len(prefilled))
-	for key, value := range prefilled {
-		if !IsLegacyMarkdownHashKey(key) {
-			out[key] = value
-			continue
-		}
-		fingerprint, index := splitLegacyMarkdownHashKey(key)
-		ids := idsByFingerprint[fingerprint]
-		if index >= 0 && index < len(ids) {
-			out[ids[index]] = value
-			continue
-		}
-		out[key] = value
-	}
-	return out
-}
-
-func splitLegacyMarkdownHashKey(key string) (string, int) {
-	rest := strings.TrimPrefix(strings.TrimSpace(key), "md.")
-	if len(rest) == 16 {
-		return rest, 0
-	}
-	if len(rest) > 17 && rest[16] == '.' {
-		n, err := strconv.Atoi(rest[17:])
-		if err != nil || n < 2 {
-			return rest[:16], 0
-		}
-		return rest[:16], n - 1
-	}
-	return rest, 0
 }
 
 // ParseMarkdownDocumentIR parses markdown or MDX into a document IR with stable slot ids.

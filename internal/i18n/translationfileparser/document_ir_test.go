@@ -1,7 +1,6 @@
 package translationfileparser
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -94,53 +93,6 @@ func TestEncodeDocumentEntriesCommandOutputIncludesEnvelope(t *testing.T) {
 	}
 	if meta["format"] != DocumentFormatMarkdown {
 		t.Fatalf("format = %v, want markdown", meta["format"])
-	}
-}
-
-func TestIsLegacyMarkdownHashKey(t *testing.T) {
-	t.Parallel()
-
-	if !IsLegacyMarkdownHashKey("md.0123456789abcdef") {
-		t.Fatalf("expected hash key to be legacy")
-	}
-	if IsLegacyMarkdownHashKey("md.Heading[0]") {
-		t.Fatalf("slot key should not be treated as a legacy hash")
-	}
-}
-
-func TestRemapLegacyMarkdownPrefillMapsHashKeysOntoSlots(t *testing.T) {
-	t.Parallel()
-
-	source := []byte("# Hello\n\nWorld.\n")
-	doc := ParseMarkdownDocumentIR(source, false)
-	if len(doc.Blocks) == 0 {
-		t.Fatalf("expected source blocks")
-	}
-
-	legacy := make(map[string]string, len(doc.Blocks))
-	want := make(map[string]string, len(doc.Blocks))
-	counts := make(map[string]int)
-	for _, block := range doc.Blocks {
-		n := counts[block.Fingerprint]
-		counts[block.Fingerprint] = n + 1
-		key := "md." + block.Fingerprint
-		if n > 0 {
-			key += "." + strconv.Itoa(n+1)
-		}
-		legacy[key] = "FR-" + block.Text
-		want[block.ID] = "FR-" + block.Text
-	}
-
-	got := RemapLegacyMarkdownPrefill(source, false, legacy)
-	for id, text := range want {
-		if got[id] != text {
-			t.Fatalf("remapped[%q] = %q, want %q (map=%v)", id, got[id], text, got)
-		}
-	}
-
-	marshaled := string(MarshalMarkdown(source, legacy, false))
-	if !strings.Contains(marshaled, "FR-World") {
-		t.Fatalf("marshaled = %q, want legacy hash keys applied", marshaled)
 	}
 }
 

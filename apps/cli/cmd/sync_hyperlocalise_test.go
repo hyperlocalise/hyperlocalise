@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -268,7 +267,7 @@ func TestHyperlocalisePullWritesMarkdownVariantsDirectly(t *testing.T) {
 	}
 }
 
-func TestHyperlocalisePullReconstructsMarkdownWhenFileVariantMissing(t *testing.T) {
+func TestHyperlocalisePullSkipsMarkdownWhenFileVariantMissing(t *testing.T) {
 	dir := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
@@ -283,47 +282,22 @@ func TestHyperlocalisePullReconstructsMarkdownWhenFileVariantMissing(t *testing.
 
 	sourcePath := "docs/en/intro.md"
 	targetPath := "docs/fr/intro.md"
-	sourceContent := "# Hello\n\nWorld.\n"
-	writePullSourceFile(t, filepath.FromSlash(sourcePath), sourceContent)
-
-	doc := translationfileparser.ParseMarkdownDocumentIR([]byte(sourceContent), false)
-	prefilled := make(map[string]string, len(doc.Blocks))
-	counts := make(map[string]int)
-	for _, block := range doc.Blocks {
-		n := counts[block.Fingerprint]
-		counts[block.Fingerprint] = n + 1
-		key := "md." + block.Fingerprint
-		if n > 0 {
-			key += "." + strconv.Itoa(n+1)
-		}
-		prefilled[key] = strings.ReplaceAll(block.Text, "World", "Monde")
-	}
-	prefilledJSON, err := json.Marshal(prefilled)
-	if err != nil {
-		t.Fatalf("marshal prefilled entries: %v", err)
-	}
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "# Hello\n\nWorld.\n")
 
 	var filesDownloadCount atomic.Int32
 	var translationDownloadCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download"):
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download") {
 			filesDownloadCount.Add(1)
 			http.NotFound(w, r)
 			return
-		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
-			translationDownloadCount.Add(1)
-			if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
-				t.Fatalf("sourcePath = %q, want %q", got, sourcePath)
-			}
-			if got := r.URL.Query().Get("locale"); got != "fr" {
-				t.Fatalf("locale = %q, want fr", got)
-			}
-			_, _ = w.Write(prefilledJSON)
-			return
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
+		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			translationDownloadCount.Add(1)
+			t.Fatalf("unexpected translations/download for missing markdown variant")
+			return
+		}
+		t.Fatalf("unexpected path: %s", r.URL.Path)
 	}))
 	t.Cleanup(server.Close)
 
@@ -353,27 +327,19 @@ func TestHyperlocalisePullReconstructsMarkdownWhenFileVariantMissing(t *testing.
 
 	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
 	if err != nil {
-		t.Fatalf("pull markdown fallback: %v", err)
+		t.Fatalf("pull missing markdown variant: %v", err)
 	}
 	if filesDownloadCount.Load() != 1 {
 		t.Fatalf("files/download count = %d, want 1", filesDownloadCount.Load())
 	}
-	if translationDownloadCount.Load() != 1 {
-		t.Fatalf("translations/download count = %d, want 1", translationDownloadCount.Load())
+	if translationDownloadCount.Load() != 0 {
+		t.Fatalf("translations/download count = %d, want 0", translationDownloadCount.Load())
 	}
-	if report.Downloaded != 1 || report.Skipped != 0 {
-		t.Fatalf("report = %#v, want one reconstructed markdown file", report)
+	if report.Downloaded != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %#v, want skipped missing markdown variant", report)
 	}
-
-	got, err := os.ReadFile(filepath.FromSlash(targetPath))
-	if err != nil {
-		t.Fatalf("read target markdown file: %v", err)
-	}
-	if strings.Contains(string(got), `"md.`) {
-		t.Fatalf("expected markdown output, got JSON-like content: %q", string(got))
-	}
-	if !strings.Contains(string(got), "Monde") {
-		t.Fatalf("target content = %q, want reconstructed translation", string(got))
+	if _, err := os.Stat(filepath.FromSlash(targetPath)); !os.IsNotExist(err) {
+		t.Fatalf("stat target = %v, want not exist", err)
 	}
 }
 

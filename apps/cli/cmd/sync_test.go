@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -367,7 +368,7 @@ func TestHyperlocalisePullFallsBackToExportWithoutLocalSource(t *testing.T) {
 	}
 }
 
-func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
+func TestHyperlocalisePullSkipsMarkdownWithoutStoredVariant(t *testing.T) {
 	dir := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
@@ -386,13 +387,17 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 	sourceMarkdown := "# Hello\n\nWorld.\n"
 	writePullSourceFile(t, sourcePath, sourceMarkdown)
 
+	var filesDownloadCount atomic.Int32
+	var translationDownloadCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/files/download"):
+			filesDownloadCount.Add(1)
 			http.NotFound(w, r)
 			return
 		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
-			_, _ = w.Write([]byte("{}\n"))
+			translationDownloadCount.Add(1)
+			t.Fatalf("unexpected translations/download for missing markdown variant")
 			return
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -428,19 +433,17 @@ func TestHyperlocalisePullWritesEmptyNativeExportFromSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pull empty native export: %v", err)
 	}
-	if report.Downloaded != 1 {
-		t.Fatalf("report = %#v, want one downloaded export", report)
+	if filesDownloadCount.Load() != 1 {
+		t.Fatalf("files/download count = %d, want 1", filesDownloadCount.Load())
 	}
-
-	content, err := os.ReadFile(targetPath)
-	if err != nil {
-		t.Fatalf("read target: %v", err)
+	if translationDownloadCount.Load() != 0 {
+		t.Fatalf("translations/download count = %d, want 0", translationDownloadCount.Load())
 	}
-	if strings.Contains(string(content), `"md.`) || string(content) == "{}\n" {
-		t.Fatalf("target content = %q, want reconstructed markdown from source", string(content))
+	if report.Downloaded != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %#v, want skipped missing markdown variant", report)
 	}
-	if string(content) != sourceMarkdown {
-		t.Fatalf("target content = %q, want source markdown template %q", string(content), sourceMarkdown)
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("stat target = %v, want not exist", err)
 	}
 }
 
