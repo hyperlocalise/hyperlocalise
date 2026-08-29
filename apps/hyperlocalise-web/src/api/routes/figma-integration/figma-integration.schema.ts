@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import { projectIdSchema, optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const figmaSegmentSchema = z.object({
   key: z.string().min(1).max(256),
@@ -34,6 +34,12 @@ export const createFigmaJobBodySchema = z.object({
 
 export const figmaJobIdParamSchema = z.object({
   jobId: z.string().min(1).max(128),
+});
+
+export const currentFigmaJobQuerySchema = z.object({
+  projectId: optionalProjectIdSchema,
+  fileKey: z.string().min(1).max(128),
+  pageId: z.string().min(1).max(128),
 });
 
 export const pullFigmaTranslationsQuerySchema = z.object({

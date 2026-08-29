@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 
 import {
   createFigmaJob,
+  fetchCurrentFigmaJob,
   fetchFigmaProjects,
   fetchFigmaSession,
+  FIGMA_JOB_POLL_INTERVAL_MS,
   generateFigmaJob,
+  getFigmaJob,
   HyperlocaliseClientError,
-  pollFigmaJob,
   pullFigmaTranslations,
   signInWithOAuth,
   type FigmaProject,
 } from "./hyperlocalise-client";
+import { buildFigmaJobUrl, type FigmaPageJobBinding } from "./page-binding";
 import type {
   FigmaFileInfo,
+  FigmaPageJob,
   FigmaSegment,
   PluginSettings,
   SandboxToUiMessage,
@@ -72,12 +76,53 @@ function requestFromSandbox<T extends SandboxToUiMessage["type"]>(
   });
 }
 
+function isInFlightStatus(status: FigmaPageJob["status"]) {
+  return status === "queued" || status === "running";
+}
+
+function jobStatusLabel(status: FigmaPageJob["status"]) {
+  switch (status) {
+    case "queued":
+      return "Queued";
+    case "running":
+      return "Translating";
+    case "waiting_for_review":
+      return "Needs review";
+    case "succeeded":
+      return "Ready";
+    case "failed":
+      return "Failed";
+    case "cancelled":
+      return "Cancelled";
+  }
+}
+
+function pageJobFromCreate(input: {
+  jobId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocales: string[];
+  generated: boolean;
+}): FigmaPageJob {
+  return {
+    jobId: input.jobId,
+    status: input.generated ? "queued" : "queued",
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocales: input.targetLocales,
+    lastError: null,
+    translationsByLocale: {},
+  };
+}
+
 export function App() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
   const [file, setFile] = useState<FigmaFileInfo | null>(null);
   const [projects, setProjects] = useState<FigmaProject[]>([]);
   const [organizations, setOrganizations] = useState<Array<{ slug: string; name: string }>>([]);
   const [segments, setSegments] = useState<FigmaSegment[]>([]);
+  const [pageBinding, setPageBinding] = useState<FigmaPageJobBinding | null>(null);
+  const [pageJob, setPageJob] = useState<FigmaPageJob | null>(null);
   const [applyLocale, setApplyLocale] = useState("");
   const [busy, setBusy] = useState<BusyAction>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -94,11 +139,44 @@ export function App() {
     segments.length > 0 &&
     busy == null;
   const canPull =
-    signedIn && Boolean(settings.organizationSlug) && Boolean(settings.projectId) && busy == null;
+    signedIn &&
+    Boolean(settings.organizationSlug) &&
+    Boolean(pageJob?.projectId || settings.projectId) &&
+    busy !== "pull" &&
+    pageJob != null &&
+    (pageJob.status === "succeeded" || pageJob.status === "waiting_for_review");
+  const canGeneratePageJob =
+    signedIn &&
+    pageJob != null &&
+    (pageJob.status === "queued" || pageJob.status === "failed") &&
+    busy == null;
 
   const persistSettings = (next: PluginSettings) => {
     setSettings(next);
     postPluginMessage({ type: "storage-set", settings: next });
+  };
+
+  const persistBinding = (binding: FigmaPageJobBinding | null) => {
+    setPageBinding(binding);
+    if (binding) {
+      postPluginMessage({ type: "binding-set", binding });
+    } else {
+      postPluginMessage({ type: "binding-clear" });
+    }
+  };
+
+  const rememberPageJob = (job: FigmaPageJob) => {
+    setPageJob(job);
+    persistBinding({
+      projectId: job.projectId,
+      jobId: job.jobId,
+      sourcePath: job.sourcePath,
+    });
+    setSettings((current) => {
+      const next = { ...current, lastJobId: job.jobId };
+      postPluginMessage({ type: "storage-set", settings: next });
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -107,7 +185,15 @@ export function App() {
       if (payload?.type === "ready") {
         setSettings(mergeSettings(payload.settings));
         setFile(payload.file);
+        setPageBinding(payload.binding);
         setBooted(true);
+      }
+      if (payload?.type === "page-changed") {
+        setFile(payload.file);
+        setPageBinding(payload.binding);
+        setPageJob(null);
+        setSegments([]);
+        setStatusMessage(null);
       }
     };
 
@@ -190,6 +276,117 @@ export function App() {
     };
   }, [booted, settings.sealedSession, settings.organizationSlug]);
 
+  useEffect(() => {
+    if (!booted || !settings.sealedSession || !file || !settings.organizationSlug) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydratePageJob() {
+      try {
+        const job = await fetchCurrentFigmaJob({
+          appUrl: settings.appUrl,
+          sealedSession: settings.sealedSession!,
+          organizationSlug: settings.organizationSlug,
+          fileKey: file!.fileKey,
+          pageId: file!.pageId,
+          projectId: pageBinding?.projectId || settings.projectId || undefined,
+        });
+        if (cancelled) {
+          return;
+        }
+        if (job) {
+          rememberPageJob(job);
+          const locales = Object.keys(job.translationsByLocale);
+          setApplyLocale((current) => current || locales[0] || job.targetLocales[0] || "");
+          return;
+        }
+        persistBinding(null);
+        setPageJob(null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        if (pageBinding?.jobId) {
+          try {
+            const job = await getFigmaJob({
+              appUrl: settings.appUrl,
+              sealedSession: settings.sealedSession!,
+              organizationSlug: settings.organizationSlug,
+              jobId: pageBinding.jobId,
+            });
+            if (!cancelled) {
+              rememberPageJob(job);
+            }
+            return;
+          } catch {
+            // Keep the page binding and show the stored job id as a fallback.
+          }
+        }
+        setErrorMessage(error instanceof Error ? error.message : "Unable to load the page job.");
+      }
+    }
+
+    void hydratePageJob();
+    return () => {
+      cancelled = true;
+    };
+  }, [booted, settings.sealedSession, settings.organizationSlug, file?.fileKey, file?.pageId]);
+
+  useEffect(() => {
+    if (!pageJob || !isInFlightStatus(pageJob.status) || !settings.sealedSession) {
+      return;
+    }
+
+    let cancelled = false;
+    const jobId = pageJob.jobId;
+
+    async function refreshJob() {
+      try {
+        const job = await getFigmaJob({
+          appUrl: settings.appUrl,
+          sealedSession: settings.sealedSession!,
+          organizationSlug: settings.organizationSlug,
+          jobId,
+        });
+        if (cancelled) {
+          return;
+        }
+        setPageJob(job);
+        persistBinding({
+          projectId: job.projectId,
+          jobId: job.jobId,
+          sourcePath: job.sourcePath,
+        });
+        if (!isInFlightStatus(job.status)) {
+          const locales = Object.keys(job.translationsByLocale);
+          setApplyLocale((current) => current || locales[0] || job.targetLocales[0] || "");
+          if (job.status === "succeeded") {
+            setStatusMessage("Translations are ready. Choose a locale and pull them into Figma.");
+          } else if (job.status === "waiting_for_review") {
+            setStatusMessage("Needs review. You can still pull the current translations.");
+          } else if (job.status === "failed") {
+            setErrorMessage(job.lastError || "Translation job failed.");
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to check job status.");
+        }
+      }
+    }
+
+    void refreshJob();
+    const interval = window.setInterval(() => {
+      void refreshJob();
+    }, FIGMA_JOB_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [pageJob?.jobId, pageJob?.status, settings.sealedSession, settings.organizationSlug]);
+
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
     setErrorMessage(null);
@@ -222,6 +419,7 @@ export function App() {
       lastJobId: null,
     });
     setProjects([]);
+    setPageJob(null);
     setStatusMessage("Signed out.");
   };
 
@@ -263,30 +461,22 @@ export function App() {
         segments,
       });
 
-      persistSettings({ ...settings, lastJobId: created.jobId });
+      rememberPageJob(
+        pageJobFromCreate({
+          ...created,
+          targetLocales: settings.targetLocales,
+        }),
+      );
       setStatusMessage(
         generate
-          ? "Job created. Generating translations…"
+          ? "Job created. Translating…"
           : `Job ${created.jobId} created. Generate translations when you are ready.`,
       );
-
-      if (generate) {
-        const completed = await pollFigmaJob({
-          appUrl: settings.appUrl,
-          sealedSession: settings.sealedSession,
-          organizationSlug: settings.organizationSlug,
-          jobId: created.jobId,
-        });
-        const locales =
-          completed.status === "succeeded" ? Object.keys(completed.translationsByLocale) : [];
-        setApplyLocale((current) => current || locales[0] || settings.targetLocales[0] || "");
-        setStatusMessage("Translations are ready. Choose a locale and pull them into Figma.");
-      }
     });
 
   const handleGenerateExisting = () =>
     runAction("generate", async () => {
-      if (!settings.sealedSession || !settings.lastJobId) {
+      if (!settings.sealedSession || !pageJob) {
         throw new Error("Create a job first.");
       }
 
@@ -294,18 +484,10 @@ export function App() {
         appUrl: settings.appUrl,
         sealedSession: settings.sealedSession,
         organizationSlug: settings.organizationSlug,
-        jobId: settings.lastJobId,
+        jobId: pageJob.jobId,
       });
-      const completed = await pollFigmaJob({
-        appUrl: settings.appUrl,
-        sealedSession: settings.sealedSession,
-        organizationSlug: settings.organizationSlug,
-        jobId: settings.lastJobId,
-      });
-      const locales =
-        completed.status === "succeeded" ? Object.keys(completed.translationsByLocale) : [];
-      setApplyLocale((current) => current || locales[0] || settings.targetLocales[0] || "");
-      setStatusMessage("Translations are ready. Choose a locale and pull them into Figma.");
+      setPageJob({ ...pageJob, status: "queued", lastError: null });
+      setStatusMessage("Generating translations…");
     });
 
   const handlePull = () =>
@@ -313,7 +495,8 @@ export function App() {
       if (!settings.sealedSession || !file) {
         throw new Error("Sign in first.");
       }
-      if (!settings.projectId) {
+      const projectId = pageJob?.projectId || settings.projectId;
+      if (!projectId) {
         throw new Error("Select a project to pull translations from.");
       }
 
@@ -321,10 +504,11 @@ export function App() {
         appUrl: settings.appUrl,
         sealedSession: settings.sealedSession,
         organizationSlug: settings.organizationSlug,
-        projectId: settings.projectId,
+        projectId,
         fileKey: file.fileKey,
         pageId: file.pageId,
       });
+      rememberPageJob(pulled);
       const locales = Object.keys(pulled.translationsByLocale);
       const locale = applyLocale || locales[0] || settings.targetLocales[0];
       if (!locale || !pulled.translationsByLocale[locale]) {
@@ -340,11 +524,20 @@ export function App() {
         },
         "applied",
       );
-      persistSettings({ ...settings, lastJobId: pulled.jobId ?? settings.lastJobId });
       setStatusMessage(
         `Applied ${applied.count} translated segment${applied.count === 1 ? "" : "s"} (${locale}).`,
       );
     });
+
+  const jobHref =
+    pageJob && settings.organizationSlug
+      ? buildFigmaJobUrl({
+          appUrl: settings.appUrl,
+          organizationSlug: settings.organizationSlug,
+          projectId: pageJob.projectId,
+          jobId: pageJob.jobId,
+        })
+      : null;
 
   return (
     <div className="container">
@@ -505,6 +698,26 @@ export function App() {
             {selectedProject ? ` · ${selectedProject.name}` : ""}
           </p>
 
+          {pageJob ? (
+            <section className="jobCard" aria-label="Page job">
+              <p className="jobCardStatus">
+                <span className={`jobBadge jobBadge-${pageJob.status}`}>
+                  {jobStatusLabel(pageJob.status)}
+                </span>
+                {isInFlightStatus(pageJob.status) ? <span className="jobPulse">Working…</span> : null}
+              </p>
+              <p className="jobCardId">{pageJob.jobId}</p>
+              {pageJob.lastError && pageJob.status === "failed" ? (
+                <p className="error">{pageJob.lastError}</p>
+              ) : null}
+              {jobHref ? (
+                <a className="jobLink" href={jobHref} target="_blank" rel="noreferrer">
+                  Open in Hyperlocalise
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
           <div className="actions">
             <button
               type="button"
@@ -521,7 +734,7 @@ export function App() {
               disabled={!canCreateJob}
               title={!settings.projectId ? "Select a project to upload to" : undefined}
             >
-              {busy === "generate" ? "Generating…" : "Create job and generate"}
+              {busy === "generate" ? "Creating…" : "Create job and generate"}
             </button>
             <button
               type="button"
@@ -536,9 +749,9 @@ export function App() {
               type="button"
               className="button"
               onClick={() => void handleGenerateExisting()}
-              disabled={!settings.lastJobId || busy != null}
+              disabled={!canGeneratePageJob}
             >
-              Generate last job
+              {busy === "generate" && pageJob ? "Generating…" : "Generate job"}
             </button>
           </div>
 
@@ -547,7 +760,7 @@ export function App() {
             <select
               value={applyLocale || settings.targetLocales[0] || ""}
               onChange={(event) => setApplyLocale(event.target.value)}
-              disabled={busy != null}
+              disabled={busy === "pull"}
             >
               {settings.targetLocales.map((locale) => (
                 <option key={locale} value={locale}>
@@ -573,12 +786,7 @@ export function App() {
       {errorMessage ? <p className="error">{errorMessage}</p> : null}
 
       <div className="footer">
-        <button
-          type="button"
-          className="button"
-          onClick={() => postPluginMessage({ type: "cancel" })}
-          disabled={busy != null}
-        >
+        <button type="button" className="button" onClick={() => postPluginMessage({ type: "cancel" })}>
           Close
         </button>
       </div>

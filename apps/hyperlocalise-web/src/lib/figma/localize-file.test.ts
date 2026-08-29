@@ -12,7 +12,13 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isFigmaIntegrationJob, publicJobOutputFiles } from "./localize-file";
+import {
+  figmaJobHasPullableTranslations,
+  figmaJobMatchesPage,
+  isFigmaIntegrationJob,
+  publicFigmaJobStatus,
+  publicJobOutputFiles,
+} from "./localize-file";
 
 describe("publicJobOutputFiles", () => {
   it("returns null for non file_result outcomes", () => {
@@ -98,6 +104,29 @@ describe("isFigmaIntegrationJob", () => {
         metadata: { integration: "figma-plugin" },
       }),
     ).toBe(true);
+  });
+
+  it("matches jobs to a Figma file and page", () => {
+    const payload = {
+      metadata: {
+        integration: "figma-plugin",
+        figmaFileKey: "abc123",
+        figmaPageId: "12:34",
+      },
+    };
+    expect(figmaJobMatchesPage(payload, { fileKey: "abc123", pageId: "12:34" })).toBe(true);
+    expect(figmaJobMatchesPage(payload, { fileKey: "abc123", pageId: "99:00" })).toBe(false);
+    expect(figmaJobMatchesPage({ metadata: { integration: "canva" } }, { fileKey: "abc123", pageId: "12:34" })).toBe(
+      false,
+    );
+  });
+
+  it("maps unknown statuses to queued and treats review as pullable", () => {
+    expect(publicFigmaJobStatus("running")).toBe("running");
+    expect(publicFigmaJobStatus("waiting_for_review")).toBe("waiting_for_review");
+    expect(publicFigmaJobStatus("mystery")).toBe("queued");
+    expect(figmaJobHasPullableTranslations("waiting_for_review")).toBe(true);
+    expect(figmaJobHasPullableTranslations("queued")).toBe(false);
   });
 
   it("rejects non-figma jobs and empty metadata", () => {

@@ -1,3 +1,5 @@
+import type { FigmaPageJobBinding } from "./page-binding";
+
 export type FigmaSegment = {
   key: string;
   nodeId: string;
@@ -24,15 +26,28 @@ export type PluginSettings = {
   lastJobId: string | null;
 };
 
+export type FigmaPageJob = {
+  jobId: string;
+  status: "queued" | "running" | "waiting_for_review" | "succeeded" | "failed" | "cancelled";
+  projectId: string;
+  sourcePath: string;
+  targetLocales: string[];
+  lastError: string | null;
+  translationsByLocale: Record<string, Record<string, string>>;
+};
+
 export type UiToSandboxMessage =
   | { type: "boot" }
   | { type: "storage-set"; settings: PluginSettings }
+  | { type: "binding-set"; binding: FigmaPageJobBinding }
+  | { type: "binding-clear" }
   | { type: "extract"; preserveFormatting: boolean }
   | { type: "apply"; translations: Record<string, string>; preserveFormatting: boolean }
   | { type: "cancel" };
 
 export type SandboxToUiMessage =
-  | { type: "ready"; settings: PluginSettings; file: FigmaFileInfo }
+  | { type: "ready"; settings: PluginSettings; file: FigmaFileInfo; binding: FigmaPageJobBinding | null }
+  | { type: "page-changed"; file: FigmaFileInfo; binding: FigmaPageJobBinding | null }
   | { type: "extracted"; segments: FigmaSegment[]; file: FigmaFileInfo }
   | { type: "applied"; count: number }
   | { type: "error"; message: string };

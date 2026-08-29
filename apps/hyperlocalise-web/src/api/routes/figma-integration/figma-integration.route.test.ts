@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 const mocks = vi.hoisted(() => ({
   startFigmaLocalizationMock: vi.fn(),
   getFigmaLocalizationStatusMock: vi.fn(),
+  getCurrentFigmaPageJobMock: vi.fn(),
   generateFigmaLocalizationMock: vi.fn(),
   pullLatestFigmaTranslationsMock: vi.fn(),
   listOrganizationProjectsMock: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 vi.mock("@/lib/figma/localize-file", () => ({
   startFigmaLocalization: mocks.startFigmaLocalizationMock,
   getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
+  getCurrentFigmaPageJob: mocks.getCurrentFigmaPageJobMock,
   generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
   pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
 }));
@@ -305,6 +307,8 @@ describe("figmaIntegrationRoutes", () => {
     mocks.startFigmaLocalizationMock.mockResolvedValue({
       jobId: "job_figma",
       generated: true,
+      projectId: "proj_1",
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
     });
 
     const response = await client.api.integrations.figma.jobs.$post(
@@ -331,7 +335,12 @@ describe("figmaIntegrationRoutes", () => {
 
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
-      job: { jobId: "job_figma", generated: true },
+      job: {
+        jobId: "job_figma",
+        generated: true,
+        projectId: "proj_1",
+        sourcePath: "figma/files/fileKey123/pages/12:34.json",
+      },
     });
     expect(mocks.startFigmaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -349,12 +358,20 @@ describe("figmaIntegrationRoutes", () => {
     mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
       jobId: "job_figma",
       status: "succeeded",
+      projectId: "proj_1",
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+      targetLocales: ["es"],
+      lastError: null,
       translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
     });
     mocks.generateFigmaLocalizationMock.mockResolvedValue({ jobId: "job_figma" });
     mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
       jobId: "job_figma",
-      status: "succeeded",
+      status: "waiting_for_review",
+      projectId: "proj_1",
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+      targetLocales: ["es"],
+      lastError: null,
       translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
     });
 
@@ -379,7 +396,7 @@ describe("figmaIntegrationRoutes", () => {
     );
     expect(pullResponse.status).toBe(200);
     await expect(pullResponse.json()).resolves.toMatchObject({
-      translations: { status: "succeeded" },
+      translations: { status: "waiting_for_review" },
     });
     expect(mocks.pullLatestFigmaTranslationsMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -388,5 +405,83 @@ describe("figmaIntegrationRoutes", () => {
         pageId: "12:34",
       }),
     );
+  });
+
+  it("returns the current page job for a Figma file and page", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.getCurrentFigmaPageJobMock.mockResolvedValue({
+      job: {
+        jobId: "job_figma",
+        status: "queued",
+        projectId: "proj_1",
+        sourcePath: "figma/files/fileKey123/pages/12:34.json",
+        targetLocales: ["es"],
+        lastError: null,
+        translationsByLocale: {},
+      },
+    });
+
+    const response = await client.api.integrations.figma.jobs.current.$get(
+      { query: { projectId: "proj_1", fileKey: "fileKey123", pageId: "12:34" } },
+      sessionHeaders,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      job: { jobId: "job_figma", status: "queued" },
+    });
+    expect(mocks.getCurrentFigmaPageJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "proj_1",
+        fileKey: "fileKey123",
+        pageId: "12:34",
+      }),
+    );
+  });
+
+  it("looks up the current page job across the org when projectId is omitted", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.getCurrentFigmaPageJobMock.mockResolvedValue({ job: null });
+
+    const response = await client.api.integrations.figma.jobs.current.$get(
+      { query: { fileKey: "fileKey123", pageId: "12:34" } },
+      sessionHeaders,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ job: null });
+    expect(mocks.getCurrentFigmaPageJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileKey: "fileKey123",
+        pageId: "12:34",
+      }),
+    );
+    expect(mocks.getCurrentFigmaPageJobMock.mock.calls[0]?.[0].projectId).toBeUndefined();
+  });
+
+  it("returns failed Figma jobs as a 200 status body", async () => {
+    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
+    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
+      jobId: "job_figma",
+      status: "failed",
+      projectId: "proj_1",
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+      targetLocales: ["es"],
+      lastError: "provider_timeout",
+      translationsByLocale: {},
+    });
+
+    const response = await client.api.integrations.figma.jobs[":jobId"].$get(
+      { param: { jobId: "job_figma" } },
+      sessionHeaders,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      job: { status: "failed", lastError: "provider_timeout" },
+    });
   });
 });

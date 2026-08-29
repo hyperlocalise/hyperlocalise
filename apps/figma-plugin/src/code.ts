@@ -1,9 +1,19 @@
 import type { FigmaFileInfo, SandboxToUiMessage, UiToSandboxMessage } from "./plugin-messages";
 import { SETTINGS_STORAGE_KEY } from "./plugin-messages";
+import {
+  PAGE_BINDING_KEY,
+  parsePageJobBinding,
+  serializePageJobBinding,
+  type FigmaPageJobBinding,
+} from "./page-binding";
 import { createFigmaSegment } from "./segment-file";
 import { mergeSettings } from "./settings";
 
-figma.showUI(__html__, { themeColors: true, width: 360, height: 620 });
+figma.showUI(__html__, { themeColors: true, width: 360, height: 720 });
+
+figma.on("currentpagechange", () => {
+  postToUi({ type: "page-changed", file: currentFileInfo(), binding: readPageBinding() });
+});
 
 figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
   try {
@@ -14,12 +24,22 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
 
     if (msg.type === "boot") {
       const settings = mergeSettings(await figma.clientStorage.getAsync(SETTINGS_STORAGE_KEY));
-      postToUi({ type: "ready", settings, file: currentFileInfo() });
+      postToUi({ type: "ready", settings, file: currentFileInfo(), binding: readPageBinding() });
       return;
     }
 
     if (msg.type === "storage-set") {
       await figma.clientStorage.setAsync(SETTINGS_STORAGE_KEY, msg.settings);
+      return;
+    }
+
+    if (msg.type === "binding-set") {
+      writePageBinding(msg.binding);
+      return;
+    }
+
+    if (msg.type === "binding-clear") {
+      figma.currentPage.setPluginData(PAGE_BINDING_KEY, "");
       return;
     }
 
@@ -42,6 +62,14 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
     });
   }
 };
+
+function readPageBinding(): FigmaPageJobBinding | null {
+  return parsePageJobBinding(figma.currentPage.getPluginData(PAGE_BINDING_KEY));
+}
+
+function writePageBinding(binding: FigmaPageJobBinding) {
+  figma.currentPage.setPluginData(PAGE_BINDING_KEY, serializePageJobBinding(binding));
+}
 
 function postToUi(message: SandboxToUiMessage) {
   figma.ui.postMessage(message);

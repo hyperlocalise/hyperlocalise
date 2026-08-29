@@ -17,18 +17,33 @@ export type FigmaDesignSegment = {
   text: string;
 };
 
+export type FigmaJobStatusName =
+  | "queued"
+  | "running"
+  | "waiting_for_review"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export type FigmaPageJob = {
+  jobId: string;
+  status: FigmaJobStatusName;
+  projectId: string;
+  sourcePath: string;
+  targetLocales: string[];
+  lastError: string | null;
+  translationsByLocale: Record<string, Record<string, string>>;
+};
+
 export type StartFigmaLocalizationResult = {
   jobId: string;
   generated: boolean;
+  projectId: string;
+  sourcePath: string;
 };
 
-export type FigmaLocalizationStatus =
-  | {
-      jobId: string;
-      status: "queued" | "running";
-    }
-  | {
-      jobId: string;
-      status: "succeeded";
-      translationsByLocale: Record<string, Record<string, string>>;
-    };
+export type FigmaLocalizationStatus = FigmaPageJob;
+
+export type FigmaCurrentJobResult = {
+  job: FigmaPageJob | null;
+};

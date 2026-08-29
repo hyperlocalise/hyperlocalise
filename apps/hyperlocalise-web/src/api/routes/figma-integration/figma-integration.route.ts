@@ -20,6 +20,7 @@ import type { AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   generateFigmaLocalization,
+  getCurrentFigmaPageJob,
   getFigmaLocalizationStatus,
   pullLatestFigmaTranslations,
   startFigmaLocalization,
@@ -30,6 +31,7 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
   createFigmaJobBodySchema,
+  currentFigmaJobQuerySchema,
   figmaJobIdParamSchema,
   pullFigmaTranslationsQuerySchema,
 } from "./figma-integration.schema";
@@ -51,6 +53,19 @@ const validateJobIdParams = validator("param", (value, c) => {
   const parsed = figmaJobIdParamSchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(c, "invalid_figma_job_id", "Figma job id is invalid.");
+  }
+  return parsed.data;
+});
+
+const validateCurrentJobQuery = validator("query", (value, c) => {
+  const parsed = currentFigmaJobQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_current_job_query",
+      "Figma current job query is invalid.",
+      parsed.error.flatten(),
+    );
   }
   return parsed.data;
 });
@@ -185,6 +200,20 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
           fileStorageAdapter: options.fileStorageAdapter,
         });
         return c.json({ job: result }, 201);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .get("/jobs/current", figmaSessionAuthMiddleware, validateCurrentJobQuery, async (c) => {
+      const query = c.req.valid("query");
+      try {
+        const result = await getCurrentFigmaPageJob({
+          auth: c.var.auth,
+          fileKey: query.fileKey,
+          pageId: query.pageId,
+          projectId: query.projectId,
+        });
+        return c.json(result, 200);
       } catch (error) {
         return localizeErrorResponse(c, error);
       }

@@ -12,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleJobsWhere, buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -39,8 +39,11 @@ import {
   segmentsToTranslationFile,
 } from "./segment-file";
 import type {
+  FigmaCurrentJobResult,
   FigmaDesignSegment,
+  FigmaJobStatusName,
   FigmaLocalizationStatus,
+  FigmaPageJob,
   StartFigmaLocalizationResult,
 } from "./types";
 
@@ -146,6 +149,115 @@ function readMetadataString(inputPayload: unknown, key: string): string | null {
 /** True when a translation job was created by the Figma plugin integration. */
 export function isFigmaIntegrationJob(inputPayload: unknown) {
   return readMetadataString(inputPayload, "integration") === "figma-plugin";
+}
+
+/** True when job metadata points at this Figma file and page. */
+export function figmaJobMatchesPage(
+  inputPayload: unknown,
+  input: { fileKey: string; pageId: string },
+) {
+  return (
+    isFigmaIntegrationJob(inputPayload) &&
+    readMetadataString(inputPayload, "figmaFileKey") === input.fileKey &&
+    readMetadataString(inputPayload, "figmaPageId") === input.pageId
+  );
+}
+
+const FIGMA_JOB_STATUSES = new Set<FigmaJobStatusName>([
+  "queued",
+  "running",
+  "waiting_for_review",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+
+export function publicFigmaJobStatus(status: string): FigmaJobStatusName {
+  if (FIGMA_JOB_STATUSES.has(status as FigmaJobStatusName)) {
+    return status as FigmaJobStatusName;
+  }
+  return "queued";
+}
+
+export function figmaJobHasPullableTranslations(status: FigmaJobStatusName) {
+  return status === "succeeded" || status === "waiting_for_review";
+}
+
+function readJobTargetLocales(inputPayload: unknown): string[] {
+  if (!inputPayload || typeof inputPayload !== "object") {
+    return [];
+  }
+  const locales = (inputPayload as Record<string, unknown>).targetLocales;
+  if (!Array.isArray(locales)) {
+    return [];
+  }
+  return locales.filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+type FigmaJobSnapshot = {
+  id: string;
+  status: string;
+  projectId: string | null;
+  inputPayload: unknown;
+  lastError: string | null;
+  type: string | null;
+  outcomeKind: string | null;
+  outcomePayload: unknown;
+};
+
+function figmaJobSelectFields() {
+  return {
+    id: schema.jobs.id,
+    status: schema.jobs.status,
+    projectId: schema.jobs.projectId,
+    inputPayload: schema.jobs.inputPayload,
+    lastError: schema.jobs.lastError,
+    type: schema.translationJobDetails.type,
+    outcomeKind: schema.translationJobDetails.outcomeKind,
+    outcomePayload: schema.jobs.outcomePayload,
+  };
+}
+
+async function toFigmaPageJob(input: {
+  job: FigmaJobSnapshot;
+  organizationId: string;
+}): Promise<FigmaPageJob> {
+  const projectId = input.job.projectId;
+  if (!projectId) {
+    throw new Error("translation_job_missing_project");
+  }
+
+  const status = publicFigmaJobStatus(input.job.status);
+  const sourcePath =
+    readMetadataString(input.job.inputPayload, "sourcePath") ??
+    normalizeSourcePath(
+      buildFigmaSourcePath(
+        readMetadataString(input.job.inputPayload, "figmaFileKey") ?? "unknown",
+        readMetadataString(input.job.inputPayload, "figmaPageId") ?? "unknown",
+      ),
+    );
+
+  let translationsByLocale: Record<string, Record<string, string>> = {};
+  if (figmaJobHasPullableTranslations(status)) {
+    const outputFiles = publicJobOutputFiles(input.job) ?? [];
+    if (outputFiles.length > 0) {
+      translationsByLocale = await loadTranslationsByLocale({
+        organizationId: input.organizationId,
+        projectId,
+        outputFiles,
+      });
+    }
+  }
+
+  return {
+    jobId: input.job.id,
+    status,
+    projectId,
+    sourcePath,
+    targetLocales: readJobTargetLocales(input.job.inputPayload),
+    lastError: input.job.lastError,
+    translationsByLocale,
+  };
 }
 
 export async function getAccessibleFigmaProject(auth: ApiAuthContext, projectId: string) {
@@ -271,7 +383,12 @@ export async function startFigmaLocalization(input: {
     }
   }
 
-  return { jobId: created.jobId, generated: input.generate };
+  return {
+    jobId: created.jobId,
+    generated: input.generate,
+    projectId: project.id,
+    sourcePath,
+  };
 }
 
 export async function generateFigmaLocalization(input: {
@@ -305,16 +422,7 @@ async function getFigmaTranslationJobSnapshot(input: {
 }) {
   const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
   const [job] = await db
-    .select({
-      id: schema.jobs.id,
-      status: schema.jobs.status,
-      projectId: schema.jobs.projectId,
-      inputPayload: schema.jobs.inputPayload,
-      lastError: schema.jobs.lastError,
-      type: schema.translationJobDetails.type,
-      outcomeKind: schema.translationJobDetails.outcomeKind,
-      outcomePayload: schema.jobs.outcomePayload,
-    })
+    .select(figmaJobSelectFields())
     .from(schema.jobs)
     .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
     .where(
@@ -343,33 +451,71 @@ export async function getFigmaLocalizationStatus(input: {
     auth: input.auth,
   });
 
-  if (job.status === "succeeded") {
-    const projectId = job.projectId;
-    if (!projectId) {
-      throw new Error("translation_job_missing_project");
-    }
+  return toFigmaPageJob({
+    job,
+    organizationId: input.auth.organization.localOrganizationId,
+  });
+}
 
-    const outputFiles = publicJobOutputFiles(job) ?? [];
-    const translationsByLocale = await loadTranslationsByLocale({
-      organizationId: input.auth.organization.localOrganizationId,
-      projectId,
-      outputFiles,
-    });
+async function findLatestFigmaPageJob(input: {
+  auth: ApiAuthContext;
+  fileKey: string;
+  pageId: string;
+  projectId?: string;
+}): Promise<FigmaJobSnapshot | null> {
+  const organizationId = input.auth.organization.localOrganizationId;
+  const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
+  const conditions = [
+    eq(schema.jobs.organizationId, organizationId),
+    eq(schema.jobs.kind, "translation"),
+    accessibleJobsWhere,
+    sql`${schema.jobs.inputPayload}->'metadata'->>'integration' = 'figma-plugin'`,
+    sql`${schema.jobs.inputPayload}->'metadata'->>'figmaFileKey' = ${input.fileKey}`,
+    sql`${schema.jobs.inputPayload}->'metadata'->>'figmaPageId' = ${input.pageId}`,
+  ];
 
-    return {
-      jobId: job.id,
-      status: "succeeded",
-      translationsByLocale,
-    };
+  if (input.projectId) {
+    conditions.push(eq(schema.jobs.projectId, input.projectId));
   }
 
-  if (job.status === "failed" || job.status === "cancelled") {
-    throw new Error(job.lastError ?? "translation_job_failed");
+  const [job] = await db
+    .select(figmaJobSelectFields())
+    .from(schema.jobs)
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .where(and(...conditions))
+    .orderBy(desc(schema.jobs.createdAt))
+    .limit(1);
+
+  if (!job || !figmaJobMatchesPage(job.inputPayload, input) || !job.projectId) {
+    return null;
+  }
+
+  return job;
+}
+
+export async function getCurrentFigmaPageJob(input: {
+  auth: ApiAuthContext;
+  fileKey: string;
+  pageId: string;
+  projectId?: string;
+}): Promise<FigmaCurrentJobResult> {
+  if (input.projectId) {
+    const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+    if (!project) {
+      throw new Error("figma_project_not_found");
+    }
+  }
+
+  const job = await findLatestFigmaPageJob(input);
+  if (!job) {
+    return { job: null };
   }
 
   return {
-    jobId: job.id,
-    status: job.status === "running" ? "running" : "queued",
+    job: await toFigmaPageJob({
+      job,
+      organizationId: input.auth.organization.localOrganizationId,
+    }),
   };
 }
 
@@ -378,67 +524,24 @@ export async function pullLatestFigmaTranslations(input: {
   projectId: string;
   fileKey: string;
   pageId: string;
-}): Promise<
-  | { jobId: null; status: "not_found" }
-  | {
-      jobId: string;
-      status: "succeeded";
-      translationsByLocale: Record<string, Record<string, string>>;
-    }
-> {
+}): Promise<{ jobId: null; status: "not_found" } | FigmaPageJob> {
   const project = await getAccessibleFigmaProject(input.auth, input.projectId);
   if (!project) {
     throw new Error("figma_project_not_found");
   }
 
-  const organizationId = input.auth.organization.localOrganizationId;
-  const sourcePath = normalizeSourcePath(buildFigmaSourcePath(input.fileKey, input.pageId));
-  const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
-
-  const [job] = await db
-    .select({
-      id: schema.jobs.id,
-      projectId: schema.jobs.projectId,
-      type: schema.translationJobDetails.type,
-      outcomeKind: schema.translationJobDetails.outcomeKind,
-      outcomePayload: schema.jobs.outcomePayload,
-      inputPayload: schema.jobs.inputPayload,
-    })
-    .from(schema.repositorySourceFileVersions)
-    .innerJoin(
-      schema.translationJobDetails,
-      eq(schema.translationJobDetails.sourceFileVersionId, schema.repositorySourceFileVersions.id),
-    )
-    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.translationJobDetails.jobId))
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, project.id),
-        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-        accessibleJobsWhere,
-        eq(schema.jobs.kind, "translation"),
-        eq(schema.jobs.status, "succeeded"),
-        eq(schema.translationJobDetails.type, "file"),
-        eq(schema.translationJobDetails.outcomeKind, "file_result"),
-      ),
-    )
-    .orderBy(desc(schema.repositorySourceFileVersions.createdAt), desc(schema.jobs.createdAt))
-    .limit(1);
-
-  if (!job || !isFigmaIntegrationJob(job.inputPayload) || !job.projectId) {
+  const job = await findLatestFigmaPageJob({
+    auth: input.auth,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    projectId: project.id,
+  });
+  if (!job) {
     return { jobId: null, status: "not_found" };
   }
 
-  const outputFiles = publicJobOutputFiles(job) ?? [];
-  const translationsByLocale = await loadTranslationsByLocale({
-    organizationId,
-    projectId: job.projectId,
-    outputFiles,
+  return toFigmaPageJob({
+    job,
+    organizationId: input.auth.organization.localOrganizationId,
   });
-
-  return {
-    jobId: job.id,
-    status: "succeeded",
-    translationsByLocale,
-  };
 }
