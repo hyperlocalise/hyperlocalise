@@ -381,6 +381,27 @@ describe("apiKeyAuthMiddleware", () => {
       role: "admin",
     });
 
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: project.organizationId,
+        name: "Runtime Access Team",
+        slug: `runtime-access-${user.id.slice(0, 8)}`,
+      })
+      .returning();
+    expect(team).toBeDefined();
+
+    await db
+      .update(schema.projects)
+      .set({ teamId: team!.id })
+      .where(eq(schema.projects.id, project.id));
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team!.id,
+      userId: user.id,
+      role: "member",
+    });
+
     await db
       .update(schema.organizationMemberships)
       .set({ role: "translator" })

@@ -110,8 +110,8 @@ of the owner's role at creation. Regression coverage lives in
     whether a presented secret hashes to a stored row.
 22. **Archived organizations and unresolvable memberships fail closed.**
     Archived orgs answer `403 workspace_archived`. Missing users, inactive or
-    non-authoritative memberships, and stale WorkOS lookups answer `403
-    forbidden`. Fresh reconcile fallback stays allowed inside the TTL.
+    non-authoritative memberships, and stale WorkOS lookups answer 403
+    `forbidden`. Fresh reconcile fallback stays allowed inside the TTL.
 23. **Membership removal revokes the owner's tokens.**
     `revokeOrganizationMembershipAccess` sets `revoked_at` on every unrevoked
     PAT owned by that user in that organization, in the same transaction as
