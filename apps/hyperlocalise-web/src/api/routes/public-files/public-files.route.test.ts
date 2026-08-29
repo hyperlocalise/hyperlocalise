@@ -25,6 +25,7 @@ import {
   createExternalTmsPublicApiFixture,
   createPublicApiFixture,
   cleanupPublicApiFixture,
+  hashApiKey,
 } from "./public-files.fixture";
 
 const uploadSourceFileMock = vi.hoisted(() => vi.fn());
@@ -318,5 +319,56 @@ describe("publicFileRoutes", () => {
     expect(response.status).toBe(201);
     const body = (await response.json()) as { file: { id: string } };
     expect(body.file.id).toMatch(/^file_/);
+  });
+
+  it("rejects source uploads without files:write", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["jobs:read", "jobs:write", "files:read"] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("rejects file downloads without files:read", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const uploadResponse = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/secret.md",
+          file: new File(["# Secret"], "secret.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+    expect(uploadResponse.status).toBe(201);
+    const uploadBody = (await uploadResponse.json()) as { file: { id: string } };
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["jobs:read", "jobs:write", "files:write"] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const downloadResponse = await client.api.v1.files[":fileId"].download.$get(
+      { param: { fileId: uploadBody.file.id } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(downloadResponse.status).toBe(403);
+    await expect(downloadResponse.json()).resolves.toMatchObject({ error: "forbidden" });
   });
 });

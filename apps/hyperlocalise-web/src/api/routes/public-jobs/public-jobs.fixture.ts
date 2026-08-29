@@ -14,6 +14,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
@@ -24,7 +25,10 @@ export function hashApiKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export async function createPublicApiFixture() {
+export async function createPublicApiFixture(options?: {
+  permissions?: string[];
+  role?: OrganizationMembershipRole;
+}) {
   const suffix = randomUUID();
   const workosOrganizationId = `org_${suffix}`;
   const workosUserId = `user_${suffix}`;
@@ -53,7 +57,7 @@ export async function createPublicApiFixture() {
   await db.insert(schema.organizationMemberships).values({
     organizationId: organization.id,
     userId: user.id,
-    role: "admin",
+    role: options?.role ?? "admin",
     workosMembershipId: `om_${suffix}`,
   });
 
@@ -70,16 +74,23 @@ export async function createPublicApiFixture() {
     })
     .returning();
 
-  await db.insert(schema.organizationApiKeys).values({
-    organizationId: organization.id,
-    name: "Public API Test Key",
-    keyHash: hashApiKey(apiKey),
-    keyPrefix: apiKey.slice(0, 8),
-    permissions: ["jobs:read", "jobs:write"],
-    createdByUserId: user.id,
-  });
+  const [apiKeyRow] = await db
+    .insert(schema.organizationApiKeys)
+    .values({
+      organizationId: organization.id,
+      name: "Public API Test Key",
+      keyHash: hashApiKey(apiKey),
+      keyPrefix: apiKey.slice(0, 8),
+      permissions: options?.permissions ?? ["jobs:read", "jobs:write"],
+      createdByUserId: user.id,
+    })
+    .returning({ id: schema.organizationApiKeys.id });
 
-  return { apiKey, project };
+  if (!apiKeyRow) {
+    throw new Error("api key insert failed");
+  }
+
+  return { apiKey, apiKeyId: apiKeyRow.id, project, user };
 }
 
 export async function insertStoredSourceFile(params: {

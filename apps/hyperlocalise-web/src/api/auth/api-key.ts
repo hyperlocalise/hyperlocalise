@@ -35,8 +35,19 @@ export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
   };
 };
 
+/** Shared 401 for unknown, revoked, and ownerless tokens. Do not distinguish them. */
+export const INVALID_OR_REVOKED_API_KEY_MESSAGE = "Invalid or revoked API key";
+
 function hashApiKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
+}
+
+function scheduleApiKeyLastUsedAtUpdate(apiKeyId: string) {
+  db.update(schema.organizationApiKeys)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(schema.organizationApiKeys.id, apiKeyId))
+    .execute()
+    .catch(() => {});
 }
 
 export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVariables }>(
@@ -66,8 +77,10 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       .where(eq(schema.organizationApiKeys.keyHash, keyHash))
       .limit(1);
 
-    if (!keyRecord || keyRecord.revokedAt) {
-      return unauthorizedResponse(c, "unauthorized", "Invalid or revoked API key");
+    // Unknown, revoked, and ownerless tokens share one 401 so callers cannot
+    // probe whether a secret hashes to a stored row.
+    if (!keyRecord || keyRecord.revokedAt || !keyRecord.createdByUserId) {
+      return unauthorizedResponse(c, "unauthorized", INVALID_OR_REVOKED_API_KEY_MESSAGE);
     }
 
     if (keyRecord.lifecycleStatus !== "active") {
@@ -87,12 +100,9 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       );
     }
 
-    // Update lastUsedAt asynchronously — don't block the request.
-    db.update(schema.organizationApiKeys)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(schema.organizationApiKeys.id, keyRecord.id))
-      .execute()
-      .catch(() => {});
+    // Telemetry only. Never block the request, and never write on a rejected
+    // credential — lastUsedAt is set only after authentication succeeds.
+    scheduleApiKeyLastUsedAtUpdate(keyRecord.id);
 
     c.set("auth", {
       organization: {
@@ -108,6 +118,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       auth: {
         apiKeyId: keyRecord.id,
         localOrganizationId: keyRecord.organizationId,
+        ownerUserId: keyRecord.createdByUserId,
       },
     });
 
@@ -115,6 +126,12 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
   },
 );
 
+/**
+ * Runtime gate for `/api/v1/*`. Effective access is the intersection of the
+ * token's stored scopes and the owner's current role. `api_keys:write` is a
+ * session management capability, not a token scope — it never grants broader
+ * public-API access here.
+ */
 export function requireApiKeyPermission(permission: string) {
   return createMiddleware<{ Variables: ApiKeyAuthVariables }>(async (c, next) => {
     const auth = c.get("auth");

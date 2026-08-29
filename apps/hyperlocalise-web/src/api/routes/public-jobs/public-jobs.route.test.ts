@@ -476,4 +476,23 @@ describe("publicJobRoutes", () => {
       },
     ]);
   });
+
+  it("rejects job reads without jobs:read", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: ["jobs:write"],
+    });
+
+    const response = await client.api.v1.jobs.latest.$get(
+      {
+        query: {
+          projectId: project.id,
+          sourcePath: "locales/en/source.xliff",
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
 });
