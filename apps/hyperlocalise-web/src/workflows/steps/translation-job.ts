@@ -423,7 +423,8 @@ export async function persistDocumentVariantBytesStep(input: {
   sourceJobId?: string | null;
 }) {
   "use step";
-  const { replaceImageVariantBytes } = await import("@/lib/projects/files/image-variant-service");
+  const { getImageVariant, replaceImageVariantBytes } =
+    await import("@/lib/projects/files/image-variant-service");
   const result = await replaceImageVariantBytes({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -437,6 +438,17 @@ export async function persistDocumentVariantBytesStep(input: {
     provenance: "translation_job",
   });
   if (!result.ok) {
+    if (result.error.code === "approved_locked") {
+      const existing = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+      });
+      if (existing?.storedFileId) {
+        return existing;
+      }
+    }
     throw new Error(`failed to persist document variant: ${result.error.code}`);
   }
   return result.value;
