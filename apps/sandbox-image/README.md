@@ -43,7 +43,7 @@ verified against pinned upstream commits and SHA-256 checksums.
 
 | Path | Contents |
 |------|----------|
-| `/usr/share/hunspell` | 20 `.aff`/`.dic` pairs; also exported as `DICPATH` so `hunspell -d en_US` works without an absolute path |
+| `/usr/share/hunspell` (override with `HUNSPELL_DICT_DIR`) | 20 `.aff`/`.dic` pairs; `DICPATH` is set to the same path so `hunspell -d en_US` resolves without an absolute path |
 | `/usr/share/doc/hunspell-dictionaries/<locale>` | licence evidence, required because the dictionaries are redistributed under GPL/LGPL/MPL terms |
 | `/usr/share/doc/hunspell-dictionaries/SHA256SUMS` | checksums of the staged dictionaries, asserted at build time |
 
@@ -98,15 +98,19 @@ vcr.vercel.com/<VERCEL_TEAM_SLUG>/<VERCEL_PROJECT_SLUG>/hyperlocalise-sandbox:la
 
 ## Local build and push
 
-```bash
-cd apps/sandbox-image
+Build from the repository root. The dictionary stage copies
+`internal/i18n/spellcheck/DICTIONARIES.md` and
+`apps/go-svc/build/fetch-dictionaries.sh`, which are outside
+`apps/sandbox-image`.
 
+```bash
 # Authenticate Docker to VCR (OIDC, 12h credentials)
 vercel link   # if not already linked to hyperlocalise-web
 vercel vcr login docker
 
-# Build + push (recommended)
-vercel vcr build docker . hyperlocalise-sandbox:latest --push
+# Build + push (recommended). Flags after -- go to Docker.
+vercel vcr build docker . hyperlocalise-sandbox:latest --push \
+  -- --file apps/sandbox-image/Dockerfile
 ```
 
 Or with Docker Buildx:
@@ -116,6 +120,7 @@ IMAGE=vcr.vercel.com/<team-slug>/<project-slug>/hyperlocalise-sandbox:latest
 
 docker buildx build \
   --platform linux/amd64 \
+  --file apps/sandbox-image/Dockerfile \
   --output "type=image,name=${IMAGE},push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true" \
   --push \
   .

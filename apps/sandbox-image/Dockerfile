@@ -152,7 +152,9 @@ ENV HOME=/vercel
 ENV VOLTA_HOME=/vercel/.volta
 ENV PATH="/vercel/.volta/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/hyperlocalise-browser-runtime/ms-playwright
-ENV DICPATH=/usr/share/hunspell
+# Must track HUNSPELL_DICT_DIR so `hunspell -d en_US` finds the pinned set
+# when the image is built with a non-default dictionary path.
+ENV DICPATH=${HUNSPELL_DICT_DIR}
 USER ubuntu
 WORKDIR /vercel
 
