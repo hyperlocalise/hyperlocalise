@@ -34,12 +34,15 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
     }
 
     if (msg.type === "binding-set") {
-      writePageBinding(msg.binding);
+      await writePageBinding(msg.pageId, msg.binding);
       return;
     }
 
     if (msg.type === "binding-clear") {
-      figma.currentPage.setPluginData(PAGE_BINDING_KEY, "");
+      const page = await pageNode(msg.pageId);
+      if (page) {
+        page.setPluginData(PAGE_BINDING_KEY, "");
+      }
       return;
     }
 
@@ -67,8 +70,21 @@ function readPageBinding(): FigmaPageJobBinding | null {
   return parsePageJobBinding(figma.currentPage.getPluginData(PAGE_BINDING_KEY));
 }
 
-function writePageBinding(binding: FigmaPageJobBinding) {
-  figma.currentPage.setPluginData(PAGE_BINDING_KEY, serializePageJobBinding(binding));
+async function pageNode(pageId: string): Promise<PageNode | null> {
+  if (figma.currentPage.id === pageId) {
+    return figma.currentPage;
+  }
+
+  const node = await figma.getNodeByIdAsync(pageId);
+  return node?.type === "PAGE" ? node : null;
+}
+
+async function writePageBinding(pageId: string, binding: FigmaPageJobBinding) {
+  const page = await pageNode(pageId);
+  if (!page) {
+    return;
+  }
+  page.setPluginData(PAGE_BINDING_KEY, serializePageJobBinding(binding));
 }
 
 function postToUi(message: SandboxToUiMessage) {

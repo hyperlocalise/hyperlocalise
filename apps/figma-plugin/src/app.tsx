@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   createFigmaJob,
@@ -147,6 +147,7 @@ export function App() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [booted, setBooted] = useState(false);
+  const pageIdRef = useRef<string | null>(null);
 
   const signedIn = Boolean(settings.sealedSession);
   const selectedProject = projects.find((project) => project.id === settings.projectId);
@@ -161,36 +162,41 @@ export function App() {
     signedIn &&
     Boolean(settings.organizationSlug) &&
     Boolean(pageJob?.projectId || settings.projectId) &&
-    busy !== "pull" &&
+    busy == null &&
     pageJob != null &&
     (pageJob.status === "succeeded" || pageJob.status === "waiting_for_review");
   const canGeneratePageJob =
-    signedIn &&
-    pageJob != null &&
-    (pageJob.status === "queued" || pageJob.status === "failed") &&
-    busy == null;
+    signedIn && pageJob != null && pageJob.status === "queued" && busy == null;
 
   const persistSettings = (next: PluginSettings) => {
     setSettings(next);
     postPluginMessage({ type: "storage-set", settings: next });
   };
 
-  const persistBinding = (binding: FigmaPageJobBinding | null) => {
-    setPageBinding(binding);
+  const persistBinding = (binding: FigmaPageJobBinding | null, pageId: string) => {
+    if (pageIdRef.current === pageId) {
+      setPageBinding(binding);
+    }
     if (binding) {
-      postPluginMessage({ type: "binding-set", binding });
+      postPluginMessage({ type: "binding-set", binding, pageId });
     } else {
-      postPluginMessage({ type: "binding-clear" });
+      postPluginMessage({ type: "binding-clear", pageId });
     }
   };
 
-  const rememberPageJob = (job: FigmaPageJob) => {
+  const rememberPageJob = (job: FigmaPageJob, pageId: string) => {
+    persistBinding(
+      {
+        projectId: job.projectId,
+        jobId: job.jobId,
+        sourcePath: job.sourcePath,
+      },
+      pageId,
+    );
+    if (pageIdRef.current !== pageId) {
+      return;
+    }
     setPageJob(job);
-    persistBinding({
-      projectId: job.projectId,
-      jobId: job.jobId,
-      sourcePath: job.sourcePath,
-    });
     setSettings((current) => {
       const next = { ...current, lastJobId: job.jobId };
       postPluginMessage({ type: "storage-set", settings: next });
@@ -199,16 +205,22 @@ export function App() {
   };
 
   useEffect(() => {
+    pageIdRef.current = file?.pageId ?? null;
+  }, [file?.pageId]);
+
+  useEffect(() => {
     const handleMessage = (event: MessageEvent<{ pluginMessage?: SandboxToUiMessage }>) => {
       const payload = event.data.pluginMessage;
       if (payload?.type === "ready") {
         setSettings(mergeSettings(payload.settings));
         setFile(payload.file);
+        pageIdRef.current = payload.file.pageId;
         setPageBinding(payload.binding);
         setBooted(true);
       }
       if (payload?.type === "page-changed") {
         setFile(payload.file);
+        pageIdRef.current = payload.file.pageId;
         setPageBinding(payload.binding);
         setPageJob(null);
         setSegments([]);
@@ -303,30 +315,31 @@ export function App() {
     let cancelled = false;
 
     async function hydratePageJob() {
+      const originatedPageId = file!.pageId;
       try {
         const job = await fetchCurrentFigmaJob({
           appUrl: settings.appUrl,
           sealedSession: settings.sealedSession!,
           organizationSlug: settings.organizationSlug,
           fileKey: file!.fileKey,
-          pageId: file!.pageId,
+          pageId: originatedPageId,
           projectId: pageBinding?.projectId || settings.projectId || undefined,
         });
-        if (cancelled) {
-          return;
-        }
         if (job) {
-          rememberPageJob(job);
+          rememberPageJob(job, originatedPageId);
+          if (cancelled || pageIdRef.current !== originatedPageId) {
+            return;
+          }
           const locales = Object.keys(job.translationsByLocale);
           setApplyLocale((current) => current || locales[0] || job.targetLocales[0] || "");
           return;
         }
-        persistBinding(null);
-        setPageJob(null);
-      } catch (error) {
-        if (cancelled) {
+        persistBinding(null, originatedPageId);
+        if (cancelled || pageIdRef.current !== originatedPageId) {
           return;
         }
+        setPageJob(null);
+      } catch (error) {
         if (pageBinding?.jobId) {
           try {
             const job = await getFigmaJob({
@@ -335,15 +348,15 @@ export function App() {
               organizationSlug: settings.organizationSlug,
               jobId: pageBinding.jobId,
             });
-            if (!cancelled) {
-              rememberPageJob(job);
-            }
+            rememberPageJob(job, originatedPageId);
             return;
           } catch {
             // Keep the page binding and show the stored job id as a fallback.
           }
         }
-        setErrorMessage(error instanceof Error ? error.message : "Unable to load the page job.");
+        if (!cancelled && pageIdRef.current === originatedPageId) {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to load the page job.");
+        }
       }
     }
 
@@ -360,6 +373,7 @@ export function App() {
 
     let cancelled = false;
     const jobId = pageJob.jobId;
+    const originatedPageId = pageIdRef.current;
 
     async function refreshJob() {
       try {
@@ -369,15 +383,21 @@ export function App() {
           organizationSlug: settings.organizationSlug,
           jobId,
         });
-        if (cancelled) {
+        if (cancelled || !originatedPageId) {
+          return;
+        }
+        persistBinding(
+          {
+            projectId: job.projectId,
+            jobId: job.jobId,
+            sourcePath: job.sourcePath,
+          },
+          originatedPageId,
+        );
+        if (pageIdRef.current !== originatedPageId) {
           return;
         }
         setPageJob(job);
-        persistBinding({
-          projectId: job.projectId,
-          jobId: job.jobId,
-          sourcePath: job.sourcePath,
-        });
         if (!isInFlightStatus(job.status)) {
           const locales = Object.keys(job.translationsByLocale);
           setApplyLocale((current) => current || locales[0] || job.targetLocales[0] || "");
@@ -390,7 +410,7 @@ export function App() {
           }
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && originatedPageId && pageIdRef.current === originatedPageId) {
           setErrorMessage(error instanceof Error ? error.message : "Unable to check job status.");
         }
       }
@@ -450,6 +470,7 @@ export function App() {
       );
       setSegments(result.segments);
       setFile(result.file);
+      pageIdRef.current = result.file.pageId;
       setStatusMessage(
         result.segments.length > 0
           ? `Extracted ${result.segments.length} text segment${result.segments.length === 1 ? "" : "s"} from ${result.file.pageName}.`
@@ -466,13 +487,14 @@ export function App() {
         throw new Error("Select a project to upload to.");
       }
 
+      const originatedPageId = file.pageId;
       const created = await createFigmaJob({
         appUrl: settings.appUrl,
         sealedSession: settings.sealedSession,
         organizationSlug: settings.organizationSlug,
         projectId: settings.projectId,
         fileKey: file.fileKey,
-        pageId: file.pageId,
+        pageId: originatedPageId,
         fileName: file.fileName,
         sourceLocale: settings.sourceLocale,
         targetLocales: settings.targetLocales,
@@ -485,7 +507,11 @@ export function App() {
           ...created,
           targetLocales: settings.targetLocales,
         }),
+        originatedPageId,
       );
+      if (pageIdRef.current !== originatedPageId) {
+        return;
+      }
       setStatusMessage(
         generate
           ? "Job created. Translating…"
@@ -499,12 +525,16 @@ export function App() {
         throw new Error("Create a job first.");
       }
 
+      const originatedPageId = pageIdRef.current;
       await generateFigmaJob({
         appUrl: settings.appUrl,
         sealedSession: settings.sealedSession,
         organizationSlug: settings.organizationSlug,
         jobId: pageJob.jobId,
       });
+      if (!originatedPageId || pageIdRef.current !== originatedPageId) {
+        return;
+      }
       setPageJob({ ...pageJob, status: "queued", lastError: null });
       setStatusMessage("Generating translations…");
     });
@@ -519,15 +549,19 @@ export function App() {
         throw new Error("Select a project to pull translations from.");
       }
 
+      const originatedPageId = file.pageId;
       const pulled = await pullFigmaTranslations({
         appUrl: settings.appUrl,
         sealedSession: settings.sealedSession,
         organizationSlug: settings.organizationSlug,
         projectId,
         fileKey: file.fileKey,
-        pageId: file.pageId,
+        pageId: originatedPageId,
       });
-      rememberPageJob(pulled);
+      rememberPageJob(pulled, originatedPageId);
+      if (pageIdRef.current !== originatedPageId) {
+        return;
+      }
       const locales = Object.keys(pulled.translationsByLocale);
       const locale = applyLocale || locales[0] || settings.targetLocales[0];
       if (!locale || !pulled.translationsByLocale[locale]) {

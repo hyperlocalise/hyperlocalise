@@ -39,8 +39,8 @@ export type FigmaPageJob = {
 export type UiToSandboxMessage =
   | { type: "boot" }
   | { type: "storage-set"; settings: PluginSettings }
-  | { type: "binding-set"; binding: FigmaPageJobBinding }
-  | { type: "binding-clear" }
+  | { type: "binding-set"; binding: FigmaPageJobBinding; pageId: string }
+  | { type: "binding-clear"; pageId: string }
   | { type: "extract"; preserveFormatting: boolean }
   | { type: "apply"; translations: Record<string, string>; preserveFormatting: boolean }
   | { type: "cancel" };
