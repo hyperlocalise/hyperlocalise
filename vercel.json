@@ -37,14 +37,6 @@
       "entrypoint": "Dockerfile.vercel"
     }
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": {
-        "service": "web"
-      }
-    }
-  ],
   "crons": [
     {
       "path": "/api/cron/github-repository-automation-dispatch",

@@ -8,8 +8,10 @@ Use the Go segment-validation service as the CAT editor's source of truth for fo
 
 The CAT client posts to `/api/go-svc/v1/validate/segment`. Next.js
 proxies that path to go-svc over the Vercel service binding
-(`GO_SVC_URL`). go-svc is not on the public rewrite table; only `web`
-is. The proxy forwards the WorkOS session cookie, and go-svc still
+(`GO_SVC_URL`). go-svc has no public rewrite, so it is unreachable
+from the internet. Next.js is a route-owning service, so it serves
+public traffic through its own route table instead of a catch-all
+rewrite. The proxy forwards the WorkOS session cookie, and go-svc still
 authenticates the call. Local development uses `http://127.0.0.1:8080`
 when `GO_SVC_URL` is unset.
 
