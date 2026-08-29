@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -285,14 +286,17 @@ func TestHyperlocalisePullReconstructsMarkdownWhenFileVariantMissing(t *testing.
 	sourceContent := "# Hello\n\nWorld.\n"
 	writePullSourceFile(t, filepath.FromSlash(sourcePath), sourceContent)
 
-	strategy := translationfileparser.NewDefaultStrategy()
-	entries, err := strategy.Parse(sourcePath, []byte(sourceContent))
-	if err != nil {
-		t.Fatalf("parse markdown source: %v", err)
-	}
-	prefilled := make(map[string]string, len(entries))
-	for key, value := range entries {
-		prefilled[key] = strings.ReplaceAll(value, "World", "Monde")
+	doc := translationfileparser.ParseMarkdownDocumentIR([]byte(sourceContent), false)
+	prefilled := make(map[string]string, len(doc.Blocks))
+	counts := make(map[string]int)
+	for _, block := range doc.Blocks {
+		n := counts[block.Fingerprint]
+		counts[block.Fingerprint] = n + 1
+		key := "md." + block.Fingerprint
+		if n > 0 {
+			key += "." + strconv.Itoa(n+1)
+		}
+		prefilled[key] = strings.ReplaceAll(block.Text, "World", "Monde")
 	}
 	prefilledJSON, err := json.Marshal(prefilled)
 	if err != nil {

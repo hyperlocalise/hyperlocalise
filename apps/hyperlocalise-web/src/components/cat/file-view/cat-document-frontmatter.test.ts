@@ -28,8 +28,8 @@ describe("splitCatDocument", () => {
     expect(splitCatDocument("---\ntitle: Docs\ndescription: Intro page\n---\n\n# Hello\n")).toEqual(
       {
         fields: [
-          { key: "title", value: "Docs" },
-          { key: "description", value: "Intro page" },
+          { key: "title", value: "Docs", rawValue: "Docs" },
+          { key: "description", value: "Intro page", rawValue: "Intro page" },
         ],
         body: "\n# Hello\n",
         hasFrontmatter: true,
@@ -54,7 +54,7 @@ description: |
 # Hello
 `;
     expect(splitCatDocument(text)).toEqual({
-      fields: [{ key: "title", value: "Docs" }],
+      fields: [{ key: "title", value: "Docs", rawValue: "Docs" }],
       body: "\n# Hello\n",
       hasFrontmatter: true,
       rawFrontmatter:
@@ -111,6 +111,40 @@ authors:
   - name: Ada
 description: |
   Multi-line
+---
+# Hello
+`);
+  });
+
+  it("keeps original quoting for untouched scalars", () => {
+    const rawFrontmatter = `title: "true"
+code: "001"`;
+    const split = splitCatDocument(`---\n${rawFrontmatter}\n---\n\n# Hello\n`);
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: split.fields,
+        body: "# Hello\n",
+        rawFrontmatter: split.rawFrontmatter,
+      }),
+    ).toBe(`---
+title: "true"
+code: "001"
+---
+# Hello
+`);
+  });
+
+  it("quotes edited values that would change YAML type", () => {
+    expect(
+      joinCatDocument({
+        hasFrontmatter: true,
+        fields: [{ key: "draft", value: "true", rawValue: "false" }],
+        body: "# Hello\n",
+        rawFrontmatter: "draft: false",
+      }),
+    ).toBe(`---
+draft: "true"
 ---
 # Hello
 `);

@@ -30,15 +30,21 @@ import { Label } from "@/components/ui/label";
 
 export const CAT_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx";
 
-async function loadDocumentText(src: string | null | undefined) {
+type LoadedDocument = { status: "missing" } | { status: "ok"; text: string } | { status: "error" };
+
+async function loadDocumentText(src: string | null | undefined): Promise<LoadedDocument> {
   if (!src) {
-    return "";
+    return { status: "missing" };
   }
-  const response = await fetch(src);
-  if (!response.ok) {
-    throw new Error(`document_fetch_${response.status}`);
+  try {
+    const response = await fetch(src);
+    if (!response.ok) {
+      return { status: "error" };
+    }
+    return { status: "ok", text: await response.text() };
+  } catch {
+    return { status: "error" };
   }
-  return response.text();
 }
 
 export function CatDocumentFileViewerPane({
@@ -76,21 +82,28 @@ export function CatDocumentFileViewerPane({
     setIsFetching(true);
     void (async () => {
       try {
-        let loaded = "";
-        try {
-          loaded = await loadDocumentText(src);
-        } catch {
-          loaded = "";
-        }
-        if (!loaded && role === "target") {
-          try {
-            loaded = await loadDocumentText(seedSrc);
-          } catch {
-            loaded = "";
-          }
-        }
+        const primary = await loadDocumentText(src);
         if (cancelled) {
           return;
+        }
+        if (primary.status === "error") {
+          setError(
+            role === "source"
+              ? intl.formatMessage(catFileViewMessages.sourceEmpty)
+              : intl.formatMessage(catFileViewMessages.documentLoadFailed),
+          );
+          return;
+        }
+
+        let loaded = primary.status === "ok" ? primary.text : "";
+        if (primary.status === "missing" && role === "target") {
+          const seed = await loadDocumentText(seedSrc);
+          if (cancelled) {
+            return;
+          }
+          if (seed.status === "ok") {
+            loaded = seed.text;
+          }
         }
         if (!loaded && role === "source") {
           setError(intl.formatMessage(catFileViewMessages.sourceEmpty));

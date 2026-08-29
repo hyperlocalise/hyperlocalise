@@ -60,6 +60,11 @@ export const catFileViewMessages = defineMessages({
     id: "3wxYCVb3wu",
     description: "Empty state when the CAT File view target preview has no file",
   },
+  documentLoadFailed: {
+    defaultMessage: "Could not load the translated file",
+    id: "GYiDdOqYU0",
+    description: "Error when CAT document viewer fails to fetch an existing target file",
+  },
   documentFrontmatter: {
     defaultMessage: "Frontmatter",
     id: "8Y86+IM3Ps",

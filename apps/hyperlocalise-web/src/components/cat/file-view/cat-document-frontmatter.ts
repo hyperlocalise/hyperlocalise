@@ -17,6 +17,7 @@ const SIMPLE_FIELD_PATTERN = /^([A-Za-z0-9_-]+):\s*(.*)$/;
 export type CatDocumentFrontmatterField = {
   key: string;
   value: string;
+  rawValue?: string;
 };
 
 export type SplitCatDocument = {
@@ -87,7 +88,7 @@ function parseEditableScalarLine(line: string): CatDocumentFrontmatterField | nu
   if (!isPlainYamlScalar(rawValue)) {
     return null;
   }
-  return { key: field[1] ?? "", value: unquoteYamlScalar(rawValue) };
+  return { key: field[1] ?? "", value: unquoteYamlScalar(rawValue), rawValue };
 }
 
 function isPlainYamlScalar(value: string) {
@@ -111,16 +112,20 @@ function patchRawFrontmatter(raw: string, fields: CatDocumentFrontmatterField[])
   const valuesByKey = new Map(
     fields
       .filter((field) => field.key.trim().length > 0)
-      .map((field) => [field.key, field.value] as const),
+      .map((field) => [field.key, field] as const),
   );
   return raw
     .split(/\r?\n/)
     .map((line) => {
       const field = parseEditableScalarLine(line);
-      if (!field || !valuesByKey.has(field.key)) {
+      const next = field ? valuesByKey.get(field.key) : undefined;
+      if (!field || !next) {
         return line;
       }
-      return `${field.key}: ${quoteYamlScalar(valuesByKey.get(field.key) ?? "")}`;
+      if (next.value === field.value) {
+        return line;
+      }
+      return `${field.key}: ${quoteYamlScalar(next.value)}`;
     })
     .join("\n");
 }
@@ -137,8 +142,23 @@ function unquoteYamlScalar(value: string) {
 }
 
 function quoteYamlScalar(value: string) {
-  if (value === "" || /[:#{}[\],&*?|<>=!%@`]/.test(value) || value !== value.trim()) {
+  if (
+    value === "" ||
+    value !== value.trim() ||
+    /[:#{}[\],&*?|<>=!%@`]/.test(value) ||
+    isYamlAmbiguousScalar(value)
+  ) {
     return JSON.stringify(value);
   }
   return value;
+}
+
+function isYamlAmbiguousScalar(value: string) {
+  if (/^(?:true|false|null|yes|no|on|off|~)$/i.test(value)) {
+    return true;
+  }
+  if (/^-?0\d/.test(value)) {
+    return true;
+  }
+  return /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value);
 }

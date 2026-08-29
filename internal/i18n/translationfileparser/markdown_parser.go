@@ -1217,8 +1217,9 @@ func MarshalMarkdown(template []byte, values map[string]string, mdx bool) []byte
 }
 
 func MarshalMarkdownWithDiagnostics(template []byte, values map[string]string, mdx bool) ([]byte, MarkdownRenderDiagnostics) {
-	doc, _ := parseMarkdownDocument(stripBOM(template), mdx)
-	return doc.render(values)
+	stripped := stripBOM(template)
+	doc, _ := parseMarkdownDocument(stripped, mdx)
+	return doc.render(RemapLegacyMarkdownPrefill(stripped, mdx, values))
 }
 
 func isThematicBreak(s string) bool {
@@ -1317,7 +1318,9 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 }
 
 func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate []byte, values map[string]string, mdx bool) ([]byte, MarkdownRenderDiagnostics) {
-	sourceDoc, sourceEntries := parseMarkdownDocument(stripBOM(sourceTemplate), mdx)
+	strippedSource := stripBOM(sourceTemplate)
+	values = RemapLegacyMarkdownPrefill(strippedSource, mdx, values)
+	sourceDoc, sourceEntries := parseMarkdownDocument(strippedSource, mdx)
 	targetDoc, _ := parseMarkdownDocument(stripBOM(targetTemplate), mdx)
 	targetContexts := targetDoc.keyContexts()
 	targetPartUsed := make([]bool, len(targetDoc.parts))
