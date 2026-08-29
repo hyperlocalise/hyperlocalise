@@ -9,6 +9,11 @@
 Accepted. This document fixes the product boundary for HL-665. It changes no
 behaviour on its own. Follow-on issues implement it.
 
+It supersedes one bullet in the issue and the project brief. Both said that
+creating a token requires `api_keys:write`. It does not. Any active member may
+create a token, and their role decides what that token can do. The reasoning is
+in [Who may create a token](#who-may-create-a-token).
+
 ## Context
 
 Hyperlocalise already ships an organization API key. A row in
@@ -58,6 +63,15 @@ The first two are presentation and contract gaps rather than security holes:
 bounded, because team and project scope still applies and only the `member` role
 is affected, but it means a demotion does not fully take effect. Fixing it is
 part of this contract.
+
+There is also a product problem, and it is the reason the credential is being
+productized at all. Because `api_keys:write` belongs to `admin` and
+`localization_manager` alone, the four roles who do the actual localization work
+cannot obtain a credential. A developer cannot run the CLI. A translator cannot
+script a download. Today they either borrow an admin's secret, which destroys
+attribution and survives their own departure, or an admin creates a token that
+carries the admin's access and hands it over, which is worse. A personal
+credential that nobody but an administrator can hold is not personal.
 
 ## Decision
 
@@ -118,15 +132,113 @@ substitute for each other.
 
 | Action | Requirement |
 | --- | --- |
-| List tokens in an organization | Active membership and `api_keys:read` |
-| Create a token | Active membership and `api_keys:write` |
-| Revoke any token in the organization | Active membership and `api_keys:write` |
+| Create a token for yourself | Active membership |
+| List your own tokens | Active membership |
+| Revoke your own token | Active membership |
+| List other members' tokens | Active membership and `api_keys:read` |
+| Revoke another member's token | Active membership and `api_keys:write` |
 
-`api_keys:read` and `api_keys:write` belong to `admin` and
-`localization_manager`. This document does not change that mapping.
+Acting on your own tokens needs nothing beyond being a member of the
+organization. Acting on somebody else's is administration and keeps the existing
+capabilities.
 
-**Using a token** runs on the `x-api-key` header against `/api/v1/*`. A request
-succeeds only when every one of these holds, in this order:
+That is a change in what `api_keys:read` and `api_keys:write` mean. They stop
+being "may use API keys at all" and become "may administer other members'
+tokens". The role-to-capability mapping in `LOCALIZATION_ROLES.md` does not
+change, but its description of these two rows does, and the follow-on that
+implements this must update that file.
+
+#### Scope-to-capability mapping
+
+Everything below rests on one table. Each token scope names the organization
+capability its owner must hold for that scope to mean anything. The mapping
+mirrors the capability the equivalent session-authenticated action already
+requires:
+
+| Token scope | Owner must hold | Roles that qualify |
+| --- | --- | --- |
+| `jobs:read` | `jobs:read` | all |
+| `jobs:write` | `jobs:write` | all except `member` |
+| `files:read` | `projects:read` | all |
+| `files:write` | `jobs:create` | all except `member` |
+
+`files:read` and `files:write` have no organization capability of their own, so
+they map to the capability governing the equivalent product action: reading
+project content, and starting work on it.
+
+This mapping is applied twice, and both applications matter. At creation it
+decides what a member may be granted. At request time it decides what the token
+may still do. Neither substitutes for the other: the first stops a low-privileged
+user minting a powerful credential, the second stops any credential surviving its
+owner's demotion.
+
+#### Who may create a token
+
+Any member may create a token. Creation is not gated on a capability.
+
+Gating creation on `api_keys:write` was the original decision and is reversed
+here. It fails on its own terms: it locks the credential away from the developers
+and translators who need it, and their workaround is to share an administrator's
+secret, which is strictly worse than issuing them their own. A gate that people
+route around by escalating is not a control.
+
+Removing the gate grants no new access, because a token cannot exceed its
+owner's role. A translator creating a token gains nothing they could not already
+do while signed in. What they gain is a way to do it from a script, attributed to
+them, revocable on its own, and dead the moment they leave.
+
+Two things make that safe, and both are load-bearing:
+
+- Scopes are capped by the owner's role at creation, so a `member` cannot mint a
+  write credential.
+- Scopes are capped again by the owner's *current* role on every request, so a
+  token cannot outlive the access that justified it.
+
+A user whose role is unknown to the capability map holds no capabilities and can
+therefore grant no scopes. Creation is refused outright rather than producing an
+empty token.
+
+#### Grantable scopes at creation
+
+The scopes a token may be granted are exactly those its owner's role can back.
+Applying the mapping to the real capability table produces the following,
+computed from `getCapabilitiesForRole` rather than derived by hand:
+
+| Role | Grantable scopes |
+| --- | --- |
+| `admin` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
+| `localization_manager` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
+| `developer` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
+| `reviewer` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
+| `translator` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
+| `member` | `jobs:read`, `files:read` |
+| unknown | none — creation refused |
+
+Only `member` is restricted, and only to read. Every other role gets the full
+set, so opening creation changes what four roles can hold without changing what
+any of them can do.
+
+The default when `permissions` is omitted is the owner's full grantable set, not
+the fixed list of four scopes it is today. A `member` who omits `permissions`
+gets a read-only token instead of a `403`.
+
+Requesting a scope the role cannot back is refused, not silently narrowed. A
+credential that quietly does less than you asked for fails at three in the
+morning inside somebody's pipeline. The response is `403`
+`api_key_permissions_not_grantable`, and `details` names the refused scopes so
+the caller can see which ones and ask for the right role.
+
+Granted scopes are frozen at creation. A `member` later promoted to `translator`
+does not gain `jobs:write` on an existing read-only token; they create a new one.
+This is deliberate: the stored scope set records what was asked for and
+approved, and widening it silently on promotion would make it meaningless.
+Narrowing runs the other way and is not frozen, because the runtime check below
+re-applies the owner's live role on every request.
+
+#### Using a token
+
+Requests carry the secret in the `x-api-key` header against `/api/v1/*`. A
+request succeeds only when every one of these holds, in this order:
 
 1. The hash of the presented secret matches a row.
 2. `revoked_at` is null.
@@ -134,20 +246,18 @@ succeeds only when every one of these holds, in this order:
 4. The owner has an authoritative WorkOS membership in that organization,
    resolved live on this request.
 5. The route's required scope is present in the token's `permissions` array,
-   **and** the owner's role holds the capability that scope maps to.
+   **and** the owner's current role holds the capability that scope maps to.
 
 Steps 1 and 2 answer `401`. Steps 3, 4, and 5 answer `403`. The second half of
-step 5 does not exist yet; see below.
+step 5 does not exist yet.
 
 **Effective access is the intersection of the owner's current access and the
-token's scopes.** Scopes subtract; they never add.
-
-Token scopes are the four public values: `jobs:read`, `jobs:write`,
-`files:read`, `files:write`. They gate `/api/v1/*` routes only. They are not
-organization capabilities and must never be treated as such.
+token's scopes.** Scopes subtract; they never add. Token scopes gate `/api/v1/*`
+routes only; they are not organization capabilities and must never be treated as
+such.
 
 The owner's access is resolved live on every request, never snapshotted at
-creation, and it has two halves. Only one of them is enforced today.
+creation, and it has two halves. Only one is enforced today.
 
 **Project and team scope is enforced.** `resolveApiKeyTeamAccessContext`
 rebuilds the owner's context per request, and `buildAccessibleProjectsWhere`
@@ -164,25 +274,13 @@ consequence was reproduced against the running application: a token scoped
 the project's own team, created a job with `HTTP 201` — even though `member` does
 not hold the `jobs:write` capability.
 
-That contradicts the principle above, so the contract requires
-`requireApiKeyPermission` to check the owner's capability as well as the token's
-scope. Both must pass. The mapping mirrors the capability the equivalent
-session-authenticated action already requires:
-
-| Token scope | Owner must also hold | Effect |
-| --- | --- | --- |
-| `jobs:read` | `jobs:read` | None. Every role holds it. |
-| `jobs:write` | `jobs:write` | `member`-owned tokens stop writing jobs. |
-| `files:read` | `projects:read` | None today. Makes the rule total. |
-| `files:write` | `jobs:create` | `member`-owned tokens stop uploading sources. |
-
-Only `member` loses anything, and only where it never had the underlying
-capability. `files:*` have no organization capability of their own, so they map
-to the capability governing the equivalent product action: reading project
-content, and starting work on it.
+Applying the mapping here is what closes that. A `member`-owned token stops
+writing jobs and uploading sources; nothing else changes, because every other
+role holds all four capabilities. This check is also what makes open creation
+safe, so it must ship before or with the creation change, never after.
 
 A failed capability check answers `403`, matching the existing scope failure.
-The two are indistinguishable to the caller on purpose; a token holder learns
+The two are indistinguishable to the caller on purpose: a token holder learns
 that access was denied, not how the owner's role is configured.
 
 Three non-escalation properties follow, and follow-on work must preserve all
@@ -190,43 +288,44 @@ three:
 
 - **A token cannot manage tokens.** The management routes mount under the
   org-scoped app router behind `workosAuthMiddleware`, not under `/api/v1`. No
-  token can create or revoke a token, including its own. Holding
-  `api_keys:write` is a property of a human session, never of a credential.
-  This holds today and was verified.
+  token can create or revoke a token, including its own. This holds today and
+  was verified, and it is what keeps open creation from becoming self-replicating:
+  a leaked secret cannot mint more secrets.
 - **A token cannot outrank its owner.** Requesting a scope is not the same as
   being granted the underlying capability. This does **not** hold today. The
   mapping above is what makes it hold.
-- **`api_keys:write` is a creation gate, not a carried privilege.** The token
-  never carries it.
-
-One consequence is deliberate and should surprise nobody who reads this. A user
-demoted to `translator` or `reviewer` keeps working tokens, because those roles
-still hold every capability in the mapping above, but loses the ability to
-revoke them. An admin or localization manager must revoke on their behalf, and
-removing the member revokes automatically. Self-service revocation without
-`api_keys:write` is excluded from V1; see [Out of scope](#out-of-scope).
+- **A token never carries `api_keys:read` or `api_keys:write`.** Those describe
+  what a human session may do to other people's tokens. No credential holds
+  them.
 
 ### Cross-user visibility and revocation
 
-Visibility stays organization-wide. Everyone with `api_keys:read` sees every
-token in the organization, including tokens they do not own.
+Everyone sees their own tokens. Nobody else's list is visible without
+`api_keys:read`.
 
-Restricting the list to its owner was considered and rejected. The capability
-already belongs only to the two roles accountable for workspace security, and
-hiding live credentials from them would trade a real oversight capability for a
-privacy gain that the role mapping already provides.
+That split is new. Today the settings page is gated entirely on `api_keys:read`,
+so a `translator` cannot reach it at all. Once any member can create a token,
+every member must be able to see and revoke what they created. A credential you
+can mint but cannot find is worse than no credential.
 
-The defect is not the breadth of the list. It is that the list is anonymous. So:
+Organization-wide visibility survives on top of it. A holder of `api_keys:read`
+sees every token in the organization, not only their own. Narrowing the list to
+its owner was considered and rejected: the two roles accountable for workspace
+security would lose sight of live credentials at exactly the moment the product
+starts issuing far more of them.
+
+The remaining rules:
 
 - **Owner attribution is mandatory.** Every token representation returned by the
-  API carries its owner. A token rendered without an owner is a bug.
-- Any holder of `api_keys:write` may revoke any token in the organization,
-  including tokens they do not own. This matches today's behaviour and stays.
+  API carries its owner. A token rendered without an owner is a bug, and it
+  matters far more now that six roles can appear in the list rather than two.
+- An owner may always revoke their own token, needing nothing but an active
+  membership. This closes a hole in the earlier draft, where a user demoted below
+  `api_keys:write` could not kill a credential they had created.
+- A holder of `api_keys:write` may revoke any token in the organization.
 - Revoking someone else's token is a deliberate act and must read as one. The UI
   names the owner in the confirmation and states that the owner is not notified
   in V1.
-- The owner is never a stranger to their own token. Owners with `api_keys:read`
-  always see their own tokens listed.
 
 ### Lifecycle
 
@@ -237,8 +336,9 @@ and `repository_source_file_versions.uploaded_by_api_key_id` keep resolving.
 There is no un-revoke, by design: a leaked secret stays dead, and restoring
 access means creating a new token.
 
-A token is revoked when a holder of `api_keys:write` revokes it, or when the
-owner's organization membership is removed. Membership removal is handled by
+A token is revoked when its owner revokes it, when a holder of `api_keys:write`
+revokes it, or when the owner's organization membership is removed. Membership
+removal is handled by
 `revokeOrganizationMembershipAccess`, which reaches every unrevoked token owned
 by the departing user in that organization and leaves other members' tokens
 alone.
@@ -274,11 +374,15 @@ was or was not used.
 
 ### API contract
 
-Paths, methods, and status codes are unchanged. One field is added.
+Paths and methods are unchanged. One field is added, and the authorization on
+each endpoint changes as described above.
 
-`GET /api/orgs/:organizationSlug/api-keys` — requires `api_keys:read`. Returns
-every token in the organization, revoked ones included, ordered by `createdAt`.
-Each entry gains `owner`:
+`GET /api/orgs/:organizationSlug/api-keys` — requires an active membership.
+Returns the caller's own tokens, revoked ones included, ordered by `createdAt`.
+A caller who also holds `api_keys:read` receives every token in the
+organization instead. The shape is identical either way, so the client does not
+branch on the caller's role; it renders what it is given. Each entry gains
+`owner`:
 
 ```jsonc
 {
@@ -299,42 +403,59 @@ Each entry gains `owner`:
 }
 ```
 
-`POST /api/orgs/:organizationSlug/api-keys` — requires `api_keys:write`. Body is
-`{ name, permissions? }`. `permissions` defaults to all four scopes. The
-response is `201` and carries the plaintext `key` once, plus the same `owner`
-object, which always describes the caller.
+`POST /api/orgs/:organizationSlug/api-keys` — requires an active membership.
+Body is `{ name, permissions? }`. Omitting `permissions` grants the caller's full
+grantable set rather than a fixed list of four. The response is `201` and carries
+the plaintext `key` once, plus the same `owner` object, which always describes
+the caller.
 
-`DELETE /api/orgs/:organizationSlug/api-keys/:apiKeyId` — requires
-`api_keys:write`. Scoped to the caller's organization. Answers `204`, or `404`
-`api_key_not_found` for an unknown id or a token in another organization.
+Requesting a scope the caller's role cannot back answers `403`
+`api_key_permissions_not_grantable`, with `details` naming the refused scopes. A
+caller whose role is unknown to the capability map can grant nothing and receives
+the same error.
+
+`DELETE /api/orgs/:organizationSlug/api-keys/:apiKeyId` — requires an active
+membership when the caller owns the token, and `api_keys:write` otherwise.
+Scoped to the caller's organization.
+
+The failure for a token the caller neither owns nor may administer is `404`
+`api_key_not_found`, the same answer as an unknown id or a token in another
+organization. A member must not be able to probe for the existence of other
+people's tokens by watching `403` and `404` diverge.
 
 Revoking an already-revoked token must stay `204` and must leave `revoked_at`
 untouched. This is a change: the handler currently re-stamps `revoked_at` on
 every call, so a second revoke silently rewrites the moment access was withdrawn
 and destroys the only timestamp an incident review has.
 
-Owner email appears in this authenticated response because the settings surface
-already shows member emails. It must not reach logs.
+Owner email appears in these authenticated responses because the settings
+surface already shows member emails. It must not reach logs.
 `x-api-key` is already redacted by `src/lib/log.ts`, and that redaction stays.
 
 ### UI contract
 
-The settings page keeps its route and gains the ownership model.
+The settings page keeps its route and opens to everyone.
 
+- **Every member reaches the page.** Today `page.tsx` calls
+  `requireAppCapability("api_keys:read")` and the settings nav and app shell hide
+  the link behind the same capability. All three drop to requiring an active
+  membership. This is the change that actually delivers the feature; without it a
+  translator can create a token through the API and never see it in product.
 - Rename the page and its copy to "Personal access tokens".
-- Split the list into the signed-in user's tokens and other members' tokens.
-  Attribute every row to its owner.
+- Show "Your tokens" to everyone. Show a second "All workspace tokens" section
+  only to holders of `api_keys:read`, and attribute every row in it to its owner.
 - Say plainly that a token acts with its owner's access and that it stops
-  working when the owner leaves the organization. This is the single most
-  surprising property of the credential and it is currently undocumented in
-  product.
+  working when the owner leaves the organization. This is the most surprising
+  property of the credential and it is currently undocumented in product.
+- Tell a `member` why their token is read-only, and say which role would grant
+  more. A disabled control with no explanation reads as a bug.
 - Name the owner in the revoke confirmation when revoking someone else's token.
 - Surface revoked tokens instead of filtering them out of the list, so that an
   automation failure can be diagnosed. Today the client drops every row with a
   `revokedAt`, which hides exactly the evidence an operator needs.
-- The scope picker stays out of V1. The UI keeps creating tokens with all four
-  default scopes, and the API keeps accepting a narrowed `permissions` array for
-  callers that want it.
+- The scope picker stays out of V1. Creation requests the caller's full grantable
+  set, and the API keeps accepting a narrowed `permissions` array for callers
+  that want one.
 
 ### Compatibility and migration of existing keys
 
@@ -357,11 +478,16 @@ Three cases and their handling:
 The third case is a data-consistency fix, not a functional change. Those rows
 already answer `403`; the backfill stops them from appearing active in the list.
 
+Opening creation to every member touches no existing row. It only widens who may
+add new ones.
+
 One live token can break, and only one kind. Enforcing the scope-to-capability
 mapping stops a token whose owner's role no longer holds the underlying
-capability, which in practice means a token owned by someone demoted all the way
-to `member`. That is the defect being fixed, so the break is intended, but it is
-still a break for whoever is running that automation. Before shipping the
+capability. Because creation has always required `api_keys:write`, every
+existing token was created by an admin or a localization manager, so the only
+way to reach that state is a demotion all the way down to `member`. The
+population should be near zero, and the fix is the defect being closed, but it
+is still a break for whoever is running that automation. Before shipping the
 authorization change, count the affected rows by joining unrevoked tokens to
 their owner's membership role, and notify those organizations. The remedy is a
 role correction or a token owned by someone who holds the capability.
@@ -447,48 +573,64 @@ Excluded from V1 and not to be reopened by follow-on issues:
 Also excluded, and specific to this contract:
 
 - **Token transfer or owner reassignment.**
-- **Editing scopes after creation.**
-- **Self-service revocation by an owner lacking `api_keys:write`.**
+- **Editing scopes after creation**, including widening a token when its owner
+  is promoted.
 - **Notifying an owner when someone else revokes their token.**
 - **A scope picker in the create UI.**
 - **Retrieving a secret after creation.**
+- **A per-user token limit.** Open creation makes one worth considering, but
+  guessing a number before any usage data exists would be arbitrary. Revisit it
+  once the audit events from step 4 show real creation rates.
 
 ## Consequences
 
-The credential users already hold becomes the credential the product describes.
-No secret is reissued, the `x-api-key` header and `hl_` format are untouched, and
-the CLI needs no change. What changes is that ownership becomes visible and
-enforced: an admin can tell whose access a live token carries, and a demotion
-now narrows the token instead of only narrowing its project list.
+The credential users already hold becomes the credential the product describes,
+and for the first time the people who need it can get one. A developer runs the
+CLI under their own name. A translator scripts a download. Neither has to borrow
+an admin's secret, which is the practice this replaces and the reason the
+current gate was never really a control.
 
-That last part is the one behavioural break, and it is deliberate. A token owned
-by someone demoted to `member` stops writing jobs and uploading sources. Leaving
-it working would mean shipping a contract whose central claim — scopes never
-expand the owner's access — is false in the product.
+Nothing about that widens access. A token cannot exceed its owner's role at
+creation or at request time, so issuing one grants exactly what the owner could
+already do through the browser. What changes is the shape of the risk: instead
+of a handful of powerful admin secrets shared by hand, there are more secrets,
+each weaker and each attributable. That is the better trade, but it is a trade,
+and it only holds if the two caps ship together. Opening creation without the
+runtime capability check would let a `member` mint a write credential. The
+ordering below is therefore not a preference.
 
-The cost is accepting two rough edges rather than papering over them. A user
-demoted below `api_keys:write` cannot revoke their own token. A Canva connection
-bound to a departing member's token breaks and must be rebound by hand. Both
-follow from choosing personal ownership without service credentials, both are
-written down here rather than discovered later, and both are the clearest
-argument for building organization-owned service credentials after V1.
+Two rough edges remain, and one from the earlier draft is gone. A user demoted
+below `api_keys:write` can now revoke their own token, because owners always can.
+What is left: a token owned by someone demoted to `member` stops writing jobs and
+uploading sources, which is the defect being fixed rather than a regression; and
+a Canva connection bound to a departing member's token still breaks and must be
+rebound by hand. The second follows from personal ownership without service
+credentials and is the clearest argument for building those after V1.
 
-Follow-on issues implement this contract in this order. Each is independently
-shippable:
+Follow-on issues implement this contract in this order. Steps 1 and 2 may ship
+together but step 3 must not precede step 2:
 
 1. **Ownership in the API.** Add `owner` to the list and create responses.
    Backfill `revoked_at` on rows with a null `created_by_user_id`. Add route
    tests for owner attribution and for cross-user revocation staying allowed.
 2. **Authorization hardening.** Teach `requireApiKeyPermission` to check the
-   owner's capability alongside the token's scope, using the mapping above. Stop
+   owner's capability alongside the token's scope, using the mapping. Stop
    re-stamping `revoked_at` on an already-revoked token. Pin the three
    non-escalation properties with tests, including a regression test for the
    `member`-owned `jobs:write` case, which passes today and must fail after this
    lands.
-3. **Settings UI.** Rename to personal access tokens, split own versus others,
-   attribute every row, show revoked tokens, and name the owner in the revoke
-   confirmation.
-4. **Audit events and logging.** Emit `pat.created` and `pat.revoked` with the
+3. **Open creation.** Drop the `api_keys:write` gate on create, cap granted
+   scopes to the owner's grantable set, default `permissions` to that set, and
+   add `api_key_permissions_not_grantable`. Scope list and revoke to the caller's
+   own tokens unless they hold the administration capability, returning `404`
+   rather than `403` for tokens they may not see. Update the two `api_keys` rows
+   in `LOCALIZATION_ROLES.md` to describe administration rather than use.
+4. **Settings UI.** Open the page, nav entry, and app-shell link to every member.
+   Rename to personal access tokens, show "Your tokens" to everyone and the
+   workspace-wide section to administrators, attribute every row, explain why a
+   `member` token is read-only, show revoked tokens, and name the owner in the
+   revoke confirmation.
+5. **Audit events and logging.** Emit `pat.created` and `pat.revoked` with the
    fields above. Add the owner user id to the request log context.
-5. **Canva connection warning.** Flag a connection whose bound token is revoked
+6. **Canva connection warning.** Flag a connection whose bound token is revoked
    or whose owner has left.
