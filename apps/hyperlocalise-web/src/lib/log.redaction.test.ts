@@ -53,6 +53,24 @@ describe("Logger Redaction", () => {
     expect(event?.message).toBe("test message");
   });
 
+  it("should redact a personal access token hash while keeping the display prefix", () => {
+    const logger = createLogger();
+
+    logger.info({
+      apiKeyId: "3f1b7c2a-0000-4000-8000-000000000000",
+      keyPrefix: "hl_AbCd",
+      keyHash: "sha256-of-secret",
+      personalAccessToken: { key_hash: "sha256-of-secret" },
+    });
+
+    const [event] = drainedEvents;
+    const nested = event?.personalAccessToken as Record<string, unknown>;
+    expect(event?.keyHash).toBe("[REDACTED]");
+    expect(nested.key_hash).toBe("[REDACTED]");
+    expect(event?.keyPrefix).toBe("hl_AbCd");
+    expect(event?.apiKeyId).toBe("3f1b7c2a-0000-4000-8000-000000000000");
+  });
+
   it("should redact sensitive headers", () => {
     const logger = createLogger();
 
