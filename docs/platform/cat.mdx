@@ -1,0 +1,70 @@
+---
+title: "CAT"
+description: "Review multilingual content in context in the Cloud workspace."
+---
+
+CAT is the review surface of Hyperlocalise Cloud. Open a file, edit segments, and save reviewed translations with product context attached.
+
+## Open CAT
+
+1. Open a project from **Projects**.
+2. Open **Files**.
+3. Select a source file and a target locale.
+
+Native projects: upload with **Add files**, then **Upload**, if the list is empty. Provider-backed projects browse files from the connected TMS.
+
+If the project supports it, **Strings** opens an all-files queue instead of one file at a time.
+
+## Workspace tabs
+
+CAT has three tabs:
+
+| Tab | Use it to |
+| --- | --- |
+| **Edit** | Change the current target string |
+| **Queue** | Browse and filter segments |
+| **AI** | See translation intelligence for the selected string |
+
+When the file has a website preview, you also get **Desktop preview**, **Tablet preview**, and **Mobile preview**. Use **Highlight translatable**, then click a string to load it in **Selected string**.
+
+## Edit a segment
+
+Select a row in **Queue** or click a string in the preview. CAT loads source, target, and suggestions from translation memory, glossary, and AI.
+
+On a native project, **Approve** saves the current target text. On a TMS-backed project, **Save to provider** (or **Approve**) writes the target back to the provider.
+
+Some roles can inspect strings but cannot write translations back.
+
+Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve.
+
+## Filter the queue
+
+Use **Filter queue** and **Search key, source, or translation…** to narrow the list.
+
+Common filters:
+
+- **All strings**
+- **Untranslated**
+- **Needs review**
+- **Approved**
+- **Has issues**
+- **Skipped**
+- **Hidden**
+- **Unsaved translations**
+
+Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
+
+**Download** exports the filtered view. **Load more** continues the infinite-scroll list.
+
+## Issues
+
+Open **Issues** in the project or workspace sidebar when a segment needs a tracker item instead of an in-line comment. Filter the queue with **Has issues** to find those strings.
+
+## CAT behavior
+
+Project **Settings** → **Translation & CAT behavior** controls how source strings are grouped. **Show exact source-text duplicates as a shared group** collapses identical source text when the workspace refreshes.
+
+## Next
+
+- [Knowledge](/platform/knowledge)
+- [Automations](/platform/automations)

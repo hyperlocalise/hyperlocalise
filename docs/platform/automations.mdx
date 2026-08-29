@@ -1,0 +1,52 @@
+---
+title: "Automations"
+description: "Playbooks that run multilingual content operations on schedule, GitHub, or upload."
+---
+
+Automations are the playbooks that run content operations after you set them once.
+
+Create an automation, choose a trigger, and let Cloud generate or review when source files change.
+
+**Automations** is a Beta item under the **Agents** group in the organization sidebar. It also appears on each project. Workflows respond to schedules and GitHub pushes.
+
+## Where automations live
+
+| Location | Scope |
+| --- | --- |
+| Organization **Automations** | Can run across **Projects** |
+| Project **Automations** | Stays on that project |
+
+The list shows **Total automations**, **Active**, and **Paused**, plus columns for **Automation**, **Tools**, **Status**, and **Creator**. Open **Run History** on an automation to inspect past runs.
+
+## Create an automation
+
+1. Click **New Automation**.
+2. Add **Triggers**.
+3. Attach tools and knowledge the agent should use (glossaries, memories, guideline).
+4. Save. Pause later from the same page if you need to stop it.
+
+### Triggers
+
+| Trigger | Runs when |
+| --- | --- |
+| **Manual run** | A teammate queues a run from this automation |
+| **Scheduled** | The cadence you set (**Hour**, day, or week) in **Schedule timezone** |
+| **GitHub push** | A matching **Push** and/or **Pull request opened** on the selected **Repository** and **Branch patterns** |
+| **Source upload** | A source file is uploaded to the selected project (UI upload or CLI `sync push`) |
+| **Contentful webhook** | Contentful sends a matching entry create or update webhook |
+
+GitHub triggers need the GitHub App connected first. The UI shows **Connect first** until **Integrations** → **GitHub** is linked. See [Integrations](/platform/integrations).
+
+**Source upload** is the Cloud-side counterpart to [CLI sync push](/platform/cli): the CLI uploads files; this trigger starts translation.
+
+## One-off work
+
+For a single agent session instead of a saved automation, use **New Request** (under **Agents**) or **Inbox**. Track your own runs in **My Jobs**.
+
+Workspace **AI Engine** chooses the model provider agents use.
+
+## Next
+
+- [Knowledge](/platform/knowledge)
+- [Connect the CLI](/platform/cli)
+- [Getting started](/platform/getting-started)

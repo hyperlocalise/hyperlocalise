@@ -1,11 +1,13 @@
 ---
-title: "What is Hyperlocalise?"
-description: "CLI-first localization workflows for AI draft generation, optional TMS curation sync, and status reporting."
+title: "What is the Hyperlocalise CLI?"
+description: "CLI localization workflows for AI draft generation, optional TMS curation sync, and status reporting."
 ---
 
-`hyperlocalise` helps you generate local translation drafts, optionally sync with your TMS, and track what still needs review.
+The `hyperlocalise` CLI generates local translation drafts, optionally syncs with Cloud or your TMS, and tracks what still needs review.
 
-## Platform focus
+For the Cloud workspace — infrastructure for multilingual content operations — see [Hyperlocalise Cloud](/).
+
+## CLI focus
 
 - LLM provider layer: OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama
 - TMS adapters (experimental): Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling
@@ -41,25 +43,26 @@ Use this CLI if you:
 
 | Stage | Action | Why it matters |
 | --- | --- | --- |
-| 1 | [`init`](/commands/init) | Scaffold `i18n.yml` and bootstrap defaults. |
-| 2 | Configure [`i18n config`](/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
-| 3 | [`run --dry-run`](/commands/run) | Validate plan and detect issues before writing drafts. |
-| 4 | [`run`](/commands/run) | Generate local draft translations. |
-| 5 | [Release from local repo](/commands/run) | Zero-human path when your process allows direct publish from generated outputs. |
-| 6 (optional) | [`sync push` (experimental)](/commands/sync-push) | Upload local changes to your TMS for curation workflows. |
+| 1 | [`init`](/cli/commands/init) | Scaffold `i18n.yml` and bootstrap defaults. |
+| 2 | Configure [`i18n config`](/cli/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
+| 3 | [`run --dry-run`](/cli/commands/run) | Validate plan and detect issues before writing drafts. |
+| 4 | [`run`](/cli/commands/run) | Generate local draft translations. |
+| 5 | [Release from local repo](/cli/commands/run) | Zero-human path when your process allows direct publish from generated outputs. |
+| 6 (optional) | [`sync push` (experimental)](/cli/commands/sync-push) | Upload local changes to your TMS for curation workflows. |
 | 7 (optional) | Curate in TMS | Human review and correction in your translation platform. |
-| 8 (optional) | [`sync pull` (experimental)](/commands/sync-pull) | Bring curated translations back into the repository. |
-| 9 | [`status`](/commands/status) | Measure completion and unresolved work in either workflow path. |
+| 8 (optional) | [`sync pull` (experimental)](/cli/commands/sync-pull) | Bring curated translations back into the repository. |
+| 9 | [`status`](/cli/commands/status) | Measure completion and unresolved work in either workflow path. |
 
 ## Start in 10 minutes
 
-1. [Installation](/getting-started/install).
-2. [Run quickstart](/getting-started/quickstart).
-3. [Set up your i18n config](/configuration/i18n-config).
+1. [Installation](/cli/getting-started/install).
+2. [Run quickstart](/cli/getting-started/quickstart).
+3. [Set up your i18n config](/cli/configuration/i18n-config).
 
 ## Common next steps
 
-- Learn command behavior in [commands overview](/commands/overview).
-- Configure provider credentials in [provider credentials](/configuration/provider-credentials).
-- Understand sync behavior in [storage overview](/storage/overview).
-- Review feature maturity in the [stability matrix](/reference/stability-matrix).
+- Sync a repo with Cloud: [Connect the CLI](/platform/cli).
+- Learn command behavior in [commands overview](/cli/commands/overview).
+- Configure provider credentials in [provider credentials](/cli/configuration/provider-credentials).
+- Understand TMS adapter sync in [storage overview](/cli/storage/overview).
+- Review feature maturity in the [stability matrix](/cli/reference/stability-matrix).

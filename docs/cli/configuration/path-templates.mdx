@@ -34,8 +34,8 @@ description: "Use source and target placeholders safely in bucket file mappings.
 
 ```jsonc
 {
-  "from": "docs/**/*.mdx",
-  "to": "docs/{{localeDir}}/**/*.mdx"
+  "from": "docs/cli/**/*.mdx",
+  "to": "docs/{{localeDir}}/cli/**/*.mdx"
 }
 ```
 
@@ -43,12 +43,12 @@ This keeps the source file structure and writes translated files into the same r
 
 With `source=en` and targets `fr`, `es`, and `zh`:
 
-- `target=en` resolves `docs/{{localeDir}}/index.mdx` to `docs/index.mdx`
-- `target=fr` resolves `docs/{{localeDir}}/index.mdx` to `docs/fr/index.mdx`
-- `target=es` resolves `docs/{{localeDir}}/index.mdx` to `docs/es/index.mdx`
-- `target=zh` resolves `docs/{{localeDir}}/index.mdx` to `docs/zh/index.mdx`
+- `target=en` resolves `docs/{{localeDir}}/cli/index.mdx` to `docs/cli/index.mdx`
+- `target=fr` resolves `docs/{{localeDir}}/cli/index.mdx` to `docs/fr/cli/index.mdx`
+- `target=es` resolves `docs/{{localeDir}}/cli/index.mdx` to `docs/es/cli/index.mdx`
+- `target=zh` resolves `docs/{{localeDir}}/cli/index.mdx` to `docs/zh/cli/index.mdx`
 
-Use this pattern when your English source pages live directly under `docs/` and translated pages should be written into locale folders.
+Use this pattern when English source pages live under a product folder such as `docs/cli/` and translated pages should be written into the same relative paths under each locale folder.
 
 ## Good patterns
 

@@ -11,12 +11,13 @@ It combines a local-first CLI, CI automation, and storage adapters so localizati
 
 The full product documentation lives at [hyperlocalise.dev](https://hyperlocalise.dev).
 
-- Getting started: [Install](https://hyperlocalise.dev/getting-started/install), [Quickstart](https://hyperlocalise.dev/getting-started/quickstart), [First project](https://hyperlocalise.dev/getting-started/first-project)
-- Configuration: [i18n config](https://hyperlocalise.dev/configuration/i18n-config), [provider credentials](https://hyperlocalise.dev/configuration/provider-credentials)
-- Commands: [CLI overview](https://hyperlocalise.dev/commands/overview), [`run`](https://hyperlocalise.dev/commands/run), [`eval`](https://hyperlocalise.dev/commands/eval), [`status`](https://hyperlocalise.dev/commands/status), [`sync pull`](https://hyperlocalise.dev/commands/sync-pull), [`sync push`](https://hyperlocalise.dev/commands/sync-push)
-- Workflows: [local generation](https://hyperlocalise.dev/workflows/local-generation), [CI automation](https://hyperlocalise.dev/workflows/ci-automation), [TMS curation loop](https://hyperlocalise.dev/workflows/tms-curation-loop)
-- Providers: [provider overview](https://hyperlocalise.dev/providers/overview)
-- TMS adapters: [storage overview](https://hyperlocalise.dev/storage/overview)
+- Cloud: [Platform overview](https://hyperlocalise.dev)
+- CLI getting started: [Install](https://hyperlocalise.dev/cli/getting-started/install), [Quickstart](https://hyperlocalise.dev/cli/getting-started/quickstart), [First project](https://hyperlocalise.dev/cli/getting-started/first-project)
+- Configuration: [i18n config](https://hyperlocalise.dev/cli/configuration/i18n-config), [provider credentials](https://hyperlocalise.dev/cli/configuration/provider-credentials)
+- Commands: [CLI overview](https://hyperlocalise.dev/cli/commands/overview), [`run`](https://hyperlocalise.dev/cli/commands/run), [`eval`](https://hyperlocalise.dev/cli/commands/eval), [`status`](https://hyperlocalise.dev/cli/commands/status), [`sync pull`](https://hyperlocalise.dev/cli/commands/sync-pull), [`sync push`](https://hyperlocalise.dev/cli/commands/sync-push)
+- Workflows: [local generation](https://hyperlocalise.dev/cli/workflows/local-generation), [CI automation](https://hyperlocalise.dev/cli/workflows/ci-automation), [TMS curation loop](https://hyperlocalise.dev/cli/workflows/tms-curation-loop)
+- Providers: [provider overview](https://hyperlocalise.dev/cli/providers/overview)
+- TMS adapters: [storage overview](https://hyperlocalise.dev/cli/storage/overview)
 
 ## Install
 

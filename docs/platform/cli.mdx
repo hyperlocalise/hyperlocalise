@@ -1,0 +1,91 @@
+---
+title: "Connect the CLI"
+description: "Connect git and CI to Hyperlocalise Cloud with an API key."
+---
+
+The CLI is the repository and CI edge of Hyperlocalise Cloud. It talks to Cloud over the [public API](/platform/api). There is no `hyperlocalise login` command. You create an API key in Cloud and inject it at runtime.
+
+## Create an API key
+
+1. Open **Settings** → **API Keys**.
+2. Click **Create API key**.
+3. Enter a **Key name** such as `Production CI`.
+4. Click **Create key**.
+5. Click **Copy**. Cloud shows the secret once.
+
+Treat the key like a password. Do not commit it to git. Revoke it from the same page if it leaks.
+
+Default permissions are `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The CLI sync commands need file read and write. Job permissions matter when your own scripts create or poll jobs.
+
+## Point the CLI at the project
+
+Open the project, then **Settings**. The **Connect CLI & CI** panel shows the **Project ID** and a **Sample i18n.yml**. Copy both.
+
+```yaml
+hyperlocalise:
+  project_id: project_123
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  timeout_seconds: 1200
+```
+
+You can set `project_id_env` instead of `project_id` when the id should come from the environment. Field details are in [i18n config](/cli/configuration/i18n-config).
+
+`sync push` and `sync pull` use this top-level `hyperlocalise` block. They do not use the `storage` TMS adapter block.
+
+Set the env var named in `api_key_env` (default `HYPERLOCALISE_API_KEY`) in your shell or CI secrets. The CLI sends it as the `x-api-key` header to `api_base_url`.
+
+<Note>
+The sample config in Cloud uses `https://hyperlocalise.com/api`. Requests then hit `/v1/...` on that host, for example `POST https://hyperlocalise.com/api/v1/files`.
+</Note>
+
+## Push sources
+
+```bash
+hyperlocalise sync push --dry-run
+hyperlocalise sync push
+```
+
+During a real push, the CLI reads source files from `i18n.yml` buckets and uploads each file. It does not enqueue translation jobs. Configure a **Source upload** automation, or start a run from **New Request**, when you want Cloud to translate after upload.
+
+See [sync push](/cli/commands/sync-push).
+
+## Pull translations
+
+```bash
+hyperlocalise sync pull --dry-run
+hyperlocalise sync pull
+```
+
+For each source file and target locale, the CLI reconstructs the translated file from project translation state and writes it to the target path in `i18n.yml`. It does not read job IDs. If no translation exists for a path and locale, pull skips that file.
+
+See [sync pull](/cli/commands/sync-pull).
+
+## CI
+
+Keep the key in your CI secret manager. Inject it only in jobs that call `hyperlocalise sync`. Commit `api_key_env`, not the secret.
+
+Use `--dry-run` in pull-request checks. Run a real pull or push only in jobs that are allowed to write.
+
+Install the binary with the [GitHub Action](/cli/workflows/ci-automation):
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+- run: hyperlocalise sync pull --dry-run
+  env:
+    HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+```
+
+## What the CLI does not do here
+
+- It does not replace CAT review. Reviewers still work in Cloud.
+- Provider commands such as `crowdin` and `phrase` keep their own config. Those are TMS adapters, not Cloud native sync.
+- Local `run` / `eval` still use LLM provider credentials from `i18n.yml`. See the [CLI docs](/cli).
+
+## Next
+
+- [Getting started](/platform/getting-started)
+- [Public API](/platform/api)
+- [CI automation](/cli/workflows/ci-automation)

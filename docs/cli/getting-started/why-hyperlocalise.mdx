@@ -36,7 +36,7 @@ If your team needs speed over review in specific pipelines, you can also run a l
 
 ### 3. Better visibility for release decisions
 
-Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
+Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/cli/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
 
 ### 4. Provider and platform flexibility
 
@@ -46,21 +46,22 @@ You can run multiple LLM providers and integrate with common TMS adapters (for e
 
 A typical path looks like this:
 
-1. Initialize config with [`init`](/commands/init).
-2. Define locales, buckets, and profiles in [`i18n config`](/configuration/i18n-config).
-3. Generate drafts with [`run`](/commands/run).
-4. Optional curation path: use [`sync push` (experimental)](/commands/sync-push), curate in TMS, then [`sync pull` (experimental)](/commands/sync-pull).
-5. Verify progress with [`status`](/commands/status) before release.
+1. Initialize config with [`init`](/cli/commands/init).
+2. Define locales, buckets, and profiles in [`i18n config`](/cli/configuration/i18n-config).
+3. Generate drafts with [`run`](/cli/commands/run).
+4. Optional curation path: use [`sync push` (experimental)](/cli/commands/sync-push), curate in TMS, then [`sync pull` (experimental)](/cli/commands/sync-pull).
+5. Verify progress with [`status`](/cli/commands/status) before release.
 
-For a full curation sequence, see [TMS curation loop (experimental)](/workflows/tms-curation-loop).
+For a full curation sequence, see [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop).
 
-## When Hyperlocalise is not the best fit (yet!)
+## When the CLI is not the best fit
 
-Hyperlocalise may not be the right choice today if you:
+Use [Hyperlocalise Cloud](/) when your team wants infrastructure for multilingual content operations without running the CLI.
 
-- need a fully hosted localization platform with no CLI usage,
+The CLI is a poor fit if you:
+
 - cannot run repository-based workflows in developer or CI environments,
-- require a workflow where all localization operations are managed only inside a hosted TMS UI.
+- need every localization operation to stay inside a hosted UI with no local files.
 
 ## Quick comparison
 
@@ -90,10 +91,10 @@ Yes, it can. TMS curation is optional, and teams can choose a zero-human-review 
 
 ## Next steps
 
-New user path: [Install](/getting-started/install) -> [Quickstart](/getting-started/quickstart) -> [i18n config](/configuration/i18n-config)
+New user path: [Install](/cli/getting-started/install) -> [Quickstart](/cli/getting-started/quickstart) -> [i18n config](/cli/configuration/i18n-config)
 
-Evaluation path: [Quickstart](/getting-started/quickstart) -> [`eval` (experimental)](/commands/eval) -> [`status`](/commands/status)
+Evaluation path: [Quickstart](/cli/getting-started/quickstart) -> [`eval` (experimental)](/cli/commands/eval) -> [`status`](/cli/commands/status)
 
-TMS curation path: [Storage overview](/storage/overview) -> [`sync push` (experimental)](/commands/sync-push) -> [TMS curation loop (experimental)](/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/commands/sync-pull)
+TMS curation path: [Storage overview](/cli/storage/overview) -> [`sync push` (experimental)](/cli/commands/sync-push) -> [TMS curation loop (experimental)](/cli/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/cli/commands/sync-pull)
 
-Decision support: [Stability matrix](/reference/stability-matrix)
+Decision support: [Stability matrix](/cli/reference/stability-matrix)

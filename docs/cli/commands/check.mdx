@@ -40,8 +40,8 @@ Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include
 - `--bucket`: filter by bucket name
 - `--file`: filter by source file path. Not supported with **`--diff-stdin`**
 - `--key`: filter by translation key. With **`--diff-stdin`**, this becomes an extra intersection filter on top of the changed keys extracted from the patch. With **`--prefix-id`**, the filter is applied after stripping the source key prefix (use the packed id, for example `title` rather than `src.components.app-header.title`)
-- `--prefix-id`: strip [`extract --prefix-id`](/commands/extract) filename prefixes from **source** keys before comparing them to target keys, using the same rules as [`pack --prefix-id`](/commands/pack). Use this when sources still have prefixed ids (for example `src.components.app-header.title`) but targets were packed without those prefixes (for example `title`). Target keys are never stripped. Also applies to **`--key`** filters and changed keys from **`--diff-stdin`** on source files. If two prefixed source keys strip to the same packed id, `check` exits with an error unless **`--ignore-duplicate-id`** is set. With **`--fix`**, findings report the packed id but retranslation uses the original prefixed source key
-- `--ignore-duplicate-id`: ignore duplicate packed ids and keep the first value. Same behavior as [`pack --ignore-duplicate-id`](/commands/pack). Useful with **`--prefix-id`** when multiple source ids strip to the same packed id
+- `--prefix-id`: strip [`extract --prefix-id`](/cli/commands/extract) filename prefixes from **source** keys before comparing them to target keys, using the same rules as [`pack --prefix-id`](/cli/commands/pack). Use this when sources still have prefixed ids (for example `src.components.app-header.title`) but targets were packed without those prefixes (for example `title`). Target keys are never stripped. Also applies to **`--key`** filters and changed keys from **`--diff-stdin`** on source files. If two prefixed source keys strip to the same packed id, `check` exits with an error unless **`--ignore-duplicate-id`** is set. With **`--fix`**, findings report the packed id but retranslation uses the original prefixed source key
+- `--ignore-duplicate-id`: ignore duplicate packed ids and keep the first value. Same behavior as [`pack --ignore-duplicate-id`](/cli/commands/pack). Useful with **`--prefix-id`** when multiple source ids strip to the same packed id
 - `--diff-stdin`: read a unified diff from stdin and validate changed keys only. Supports configured **`.json`**, **`.jsonc`**, and **`.arb`** files. Runs only key-scoped checks: `not_localized`, `same_as_source`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. Skips `missing_target_file`, `orphaned_key`, and `markdown_ast_mismatch`. Pair with **`--prefix-id`** when the diff touches prefixed source keys but targets use packed ids
 - `--check`: run only specific checks (repeatable)
 - `--exclude-check`: skip specific default checks (repeatable)
@@ -50,7 +50,7 @@ Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include
 - `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling). Findings include `annotationFile` and `annotationLine` when the CLI can map a key to a line. For **`.md` / `.mdx`** segments with keys prefixed `md.`, the line is taken from the markdown/MDX parse order (start of that translatable segment). For other files, resolution falls back to searching for a quoted key fragment or a substring of the segment text in the target file, which can mis-rank lines when the same text appears more than once
 - `--no-fail`: return exit code `0` even when findings exist
 - `--quiet`: omit **warning** findings from stdout, `--output-file`, and `--json-report`; use exit code `0` when the full result would be warnings only. The internal check still runs on all severities; **`--fix`** still plans from the full result (including warnings) so fixable issues are not skipped.
-- `--fix`: after reporting, retranslate **fixable** findings using the same AI pipeline as [`run`](/commands/run) (same config, profiles, and environment variables). Applies to keyed findings of types `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. For **`markdown_ast_mismatch`** on `.md`/`.mdx` files (per-file findings, often without a `key`), `--fix` retranslates **all** aligned segments for that source/target/locale pair so structure can realign. Does not fix `same_as_source` (intentional copy), missing target files, or orphaned keys.
+- `--fix`: after reporting, retranslate **fixable** findings using the same AI pipeline as [`run`](/cli/commands/run) (same config, profiles, and environment variables). Applies to keyed findings of types `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. For **`markdown_ast_mismatch`** on `.md`/`.mdx` files (per-file findings, often without a `key`), `--fix` retranslates **all** aligned segments for that source/target/locale pair so structure can realign. Does not fix `same_as_source` (intentional copy), missing target files, or orphaned keys.
 - `--fix-dry-run`: with `--fix`, resolve planned translation tasks without writing targets or calling the model (still loads config and planning).
 - `--workers`: with `--fix`, number of parallel translation workers (default: number of CPU cores)
 
@@ -100,7 +100,7 @@ git diff --cached | hyperlocalise check --diff-stdin --prefix-id --no-fail
 
 ## See also
 
-- [extract](/commands/extract)
-- [pack](/commands/pack)
-- [status](/commands/status)
-- [run](/commands/run)
+- [extract](/cli/commands/extract)
+- [pack](/cli/commands/pack)
+- [status](/cli/commands/status)
+- [run](/cli/commands/run)

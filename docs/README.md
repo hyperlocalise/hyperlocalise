@@ -1,18 +1,16 @@
 # Hyperlocalise Docs
 
 This directory contains the Mintlify documentation site for Hyperlocalise. The
-site covers the CLI, configuration, provider setup, storage adapters, workflows,
-and contributor guides.
+site covers Hyperlocalise Cloud and the CLI, plus contributor guides.
 
 ## Structure
 
 - `docs.json`: Mintlify site configuration and navigation
-- `index.mdx`: English docs landing page
-- `getting-started/`, `commands/`, `configuration/`, `workflows/`: product
-  documentation
-- `providers/` and `storage/`: integration guides
+- `index.mdx`: Cloud landing page
+- `platform/`: Cloud guides
+- `cli/`: CLI, configuration, commands, providers, and TMS adapters
 - `contributing/`: contributor and maintainer documentation
-- `zh-CN/` and `vi-VN/`: localized documentation
+- `zh-CN/` and `vi-VN/`: localized documentation with the same folders
 
 Do not edit localized docs under `zh-CN/` or `vi-VN/` unless the change is
 explicitly for those locales.

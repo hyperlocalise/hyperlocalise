@@ -1,0 +1,84 @@
+---
+title: "Getting started"
+description: "Stand up Hyperlocalise Cloud, then work in the UI or connect the CLI."
+---
+
+Hyperlocalise Cloud is infrastructure for multilingual content operations. Create a project, then either work in the workspace or connect git and CI.
+
+<CardGroup cols={2}>
+  <Card title="Cloud workspace" icon="cloud" href="#cloud-workspace">
+    Sign in, create a project, and add source content.
+  </Card>
+  <Card title="CLI and CI" icon="terminal" href="#cli-and-ci">
+    Install the CLI, store an API key, and sync the repo.
+  </Card>
+</CardGroup>
+
+## Cloud workspace
+
+### Sign in
+
+1. Go to [hyperlocalise.com](https://www.hyperlocalise.com).
+2. Sign in with the identity provider your team uses.
+3. Select an organization, or create one if you are the first member.
+
+### Create a project
+
+1. Open **Projects** in the sidebar.
+2. Create a project and give it a name your team will recognize.
+3. Choose the source locale and the target locales you need now. You can add more later.
+
+### Add source content
+
+In the project, open **Files**. For a native Hyperlocalise project:
+
+1. Click **Add files**.
+2. Stage JSON, YAML, XLIFF, PO, images, Office files, or other supported formats.
+3. Click **Upload**.
+
+To pull files from GitHub instead, connect the GitHub App under **Integrations**. See [Integrations](/platform/integrations).
+
+### Review
+
+Open a file from **Files** to enter CAT, or use **Strings** when the project supports an all-files queue. See [CAT](/platform/cat).
+
+## CLI and CI
+
+Use this path when source files already live in a repository.
+
+1. [Install the CLI](/cli/getting-started/install).
+2. In Cloud, create the project as above, then copy the **Project ID** from project **Settings** → **Connect CLI & CI**.
+3. Create an organization key under **Settings** → **API Keys**. Copy it once. You will not see it again.
+4. Add a `hyperlocalise` block to `i18n.yml` and set `HYPERLOCALISE_API_KEY` in the environment.
+
+```yaml
+hyperlocalise:
+  project_id: project_123
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  timeout_seconds: 1200
+```
+
+5. Preview, then upload sources:
+
+```bash
+hyperlocalise sync push --dry-run
+hyperlocalise sync push
+```
+
+`sync push` uploads sources only. It does not create translation jobs. Add a **Source upload** automation in Cloud, or start work from **New Request**, when you want generation after upload.
+
+6. After translations exist in the project, write them back to local paths:
+
+```bash
+hyperlocalise sync pull --dry-run
+hyperlocalise sync pull
+```
+
+The full key, config, and CI notes are in [Connect the CLI](/platform/cli).
+
+## Next
+
+- [CAT](/platform/cat)
+- [Automations](/platform/automations)
+- [Public API](/platform/api)

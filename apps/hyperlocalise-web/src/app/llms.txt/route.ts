@@ -97,7 +97,7 @@ ${formatLinks(useCaseLinks)}
 ## Docs
 
 - [Documentation](https://hyperlocalise.dev): Product docs and guides for Hyperlocalise.
-- [CLI overview](https://hyperlocalise.dev/commands/overview): CLI commands for automation and CI workflows.
+- [CLI overview](https://hyperlocalise.dev/cli/commands/overview): CLI commands for automation and CI workflows.
 
 ## Company
 

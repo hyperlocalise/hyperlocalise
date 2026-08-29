@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-const installDocsUrl = "https://hyperlocalise.dev/getting-started/install";
+const installDocsUrl = "https://hyperlocalise.dev/cli/getting-started/install";
 const installScriptUrl =
   "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh";
 

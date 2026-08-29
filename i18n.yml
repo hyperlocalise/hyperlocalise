@@ -16,10 +16,14 @@ buckets:
   # Bucket name is arbitrary; choose a name that matches your domain.
   docs:
     files:
-      - # Input path template (e.g. docs/getting-started/quickstart.mdx).
-        from: docs/**/*.mdx
-        # Output path template (e.g. docs/zh-CN/getting-started/quickstart.mdx when target=zh-CN).
-        to: docs/{{localeDir}}/**/*.mdx
+      - from: docs/index.mdx
+        to: docs/{{localeDir}}/index.mdx
+      - from: docs/platform/**/*.mdx
+        to: docs/{{localeDir}}/platform/**/*.mdx
+      - from: docs/cli/**/*.mdx
+        to: docs/{{localeDir}}/cli/**/*.mdx
+      - from: docs/contributing/**/*.mdx
+        to: docs/{{localeDir}}/contributing/**/*.mdx
   tests_json:
     files:
       - from: tests/json/en-US.json

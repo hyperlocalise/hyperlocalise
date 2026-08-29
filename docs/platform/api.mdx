@@ -1,0 +1,243 @@
+---
+title: "Public API"
+description: "HTTP API for the same multilingual content operations pipeline the CLI uses."
+---
+
+The public API is the machine edge of Hyperlocalise Cloud. It is the contract the [CLI](/platform/cli) uses to upload sources and download translations. Use it from your own scripts when you need the same operations without the CLI.
+
+There is no published OpenAPI spec yet. The routes below are the `/api/v1` surface Cloud actually serves.
+
+## Base URL
+
+```
+https://hyperlocalise.com/api/v1
+```
+
+The CLI `hyperlocalise.api_base_url` default is `https://hyperlocalise.com/api`. Paths below are relative to that host, including `/v1`.
+
+## Authentication
+
+Create a key under **Settings** → **API Keys**. Send it on every request:
+
+```
+x-api-key: <secret>
+```
+
+Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An archived workspace returns `403` with `error: "workspace_archived"`.
+
+### Permissions
+
+| Permission | Used by |
+| --- | --- |
+| `files:write` | Upload a source file |
+| `files:read` | Download a stored file, reconstructed translation, or image variant |
+| `jobs:write` | Create a translation job |
+| `jobs:read` | Read job status and latest job for a source path |
+
+New keys receive all four permissions.
+
+A key only sees projects the key's creator can access.
+
+## Errors
+
+JSON errors use this envelope:
+
+```json
+{
+  "error": "machine_readable_code",
+  "message": "Human-readable description"
+}
+```
+
+Branch on `error`. `message` is for debugging and may change. File downloads return the raw body instead of JSON.
+
+## Files
+
+### Upload a source file
+
+`POST /v1/files`
+
+Permission: `files:write`
+
+`multipart/form-data`. Maximum body size is 25 MiB.
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `file` | yes | The source file bytes |
+| `projectId` | yes | Cloud project id |
+| `sourcePath` | yes | Repository-style path, max 2048 characters |
+| `sourceHash` | no | |
+| `commitSha` | no | |
+| `workflowRunId` | no | |
+| `sourceLocale` | no | |
+| `format` | no | |
+| `branch` | no | |
+
+`201` response for a native project (resource-keyed):
+
+```json
+{
+  "file": {
+    "id": "file_...",
+    "sourceFileVersionId": "...",
+    "filename": "en.json",
+    "contentType": "application/json",
+    "byteSize": 128,
+    "sha256": "...",
+    "destination": "native"
+  }
+}
+```
+
+TMS-backed projects return `destination: "external_tms"` plus provider fields instead of the stored-file metadata.
+
+This is the same upload `hyperlocalise sync push` performs. It does not create a job.
+
+### Download a stored file
+
+`GET /v1/files/{fileId}/download`
+
+Permission: `files:read`
+
+Returns the file bytes with `Content-Type` and `Content-Disposition`.
+
+## Jobs
+
+### Create a job
+
+`POST /v1/jobs`
+
+Permission: `jobs:write`
+
+JSON body. Discriminate on `type`.
+
+**String job**
+
+```json
+{
+  "type": "string",
+  "projectId": "project_123",
+  "stringInput": {
+    "sourceText": "Save changes",
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR"],
+    "context": "Primary toolbar button",
+    "maxLength": 24
+  }
+}
+```
+
+**File job**
+
+```json
+{
+  "type": "file",
+  "projectId": "project_123",
+  "fileInput": {
+    "sourceFileId": "file_...",
+    "fileFormat": "json",
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR"]
+  }
+}
+```
+
+`sourceFileId` must already exist in the project (upload first). Locales must match the project. `201` response:
+
+```json
+{
+  "job": {
+    "id": "job_...",
+    "type": "file",
+    "status": "queued"
+  }
+}
+```
+
+The CLI does not call this endpoint during `sync push`. Cloud automations and the UI create jobs after upload.
+
+### Latest job for a source path
+
+`GET /v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
+
+Permission: `jobs:read`
+
+Returns the most recent file job for that source path, including `outputFiles` when the job has finished.
+
+### Get a job
+
+`GET /v1/jobs/{jobId}`
+
+Permission: `jobs:read`
+
+```json
+{
+  "job": {
+    "id": "job_...",
+    "projectId": "project_123",
+    "type": "file",
+    "status": "completed",
+    "createdAt": "...",
+    "updatedAt": "...",
+    "completedAt": "...",
+    "lastError": null,
+    "outputFiles": [
+      { "fileId": "file_...", "locale": "fr-FR", "filename": "fr.json" }
+    ]
+  }
+}
+```
+
+### Job status
+
+`GET /v1/jobs/{jobId}/status`
+
+Permission: `jobs:read`
+
+Smaller payload with `id`, `projectId`, `status`, timestamps, and `lastError`.
+
+## Translations and images
+
+These reconstruct current project state. They do not require a job id. That is what `sync pull` uses.
+
+### Download a reconstructed translation
+
+`GET /v1/projects/{projectId}/translations/download?sourcePath={sourcePath}&locale={locale}`
+
+Permission: `files:read`
+
+Returns the translated file bytes for that source path and target locale.
+
+### Download an image variant
+
+`GET /v1/projects/{projectId}/images/download?sourcePath={sourcePath}&locale={locale}`
+
+Permission: `files:read`
+
+Returns the localized image variant when one exists for that path and locale.
+
+## Example
+
+Upload a source file with curl:
+
+```bash
+curl -X POST "https://hyperlocalise.com/api/v1/files" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -F "projectId=project_123" \
+  -F "sourcePath=locales/en-US.json" \
+  -F "file=@locales/en-US.json"
+```
+
+Download the French reconstruction:
+
+```bash
+curl -L "https://hyperlocalise.com/api/v1/projects/project_123/translations/download?sourcePath=locales/en-US.json&locale=fr-FR" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -o locales/fr-FR.json
+```
+
+## Next
+
+- [Connect the CLI](/platform/cli)
+- [Settings](/platform/settings)
+- [sync push](/cli/commands/sync-push)

@@ -1,11 +1,13 @@
 # Contribute to the Documentation
 
-Thanks for improving the Hyperlocalise docs. These docs explain how to install,
-configure, and operate Hyperlocalise, plus how to contribute to the project.
+Thanks for improving the Hyperlocalise docs. These docs explain Cloud and the
+CLI, plus how to contribute to the project.
 
 ## What to Edit
 
-- Update English docs under `docs/` for routine fixes and new content.
+- Update English Platform docs under `docs/platform/` and `docs/index.mdx`.
+- Update English CLI docs under `docs/cli/`.
+- Update English docs under `docs/` for shared pages such as contributing.
 - Update `docs.json` when you add, move, rename, or remove a page.
 - Leave `docs/zh-CN/` and `docs/vi-VN/` unchanged unless you are explicitly
   updating localized content.

@@ -1,0 +1,35 @@
+---
+title: "Integrations"
+description: "Connect GitHub, a TMS, and other systems into Hyperlocalise Cloud."
+---
+
+Connect the systems that already hold your source files or reviewed translations so content operations run on those sources.
+
+## GitHub
+
+Open **Integrations**, find **GitHub**, then click **Connect**.
+
+GitHub is used for pull request reviews, localization fixes, and repository context. After the app is installed:
+
+1. Confirm the account in **Connected as**.
+2. **Enable** the repositories Cloud should see, or **Enable all**.
+3. Use **Refresh repo list** to reload names and default **Branch** from GitHub. Refresh does not push or pull translations.
+4. **Manage access on GitHub** if you need to change installation permissions.
+
+Use those enabled repos in automation **GitHub push** triggers. See [Automations](/platform/automations).
+
+Click **Disconnect** to unlink the installation from this organization.
+
+## TMS and CLI sync
+
+Cloud can work with an existing TMS. For repository-first native projects, the CLI [pushes](/cli/commands/sync-push) and [pulls](/cli/commands/sync-pull) against Hyperlocalise. See [Connect the CLI](/platform/cli).
+
+## API keys
+
+Create organization keys under [Settings](/platform/settings) → **API Keys** when a script or CI job should call the [public API](/platform/api).
+
+## Next
+
+- [Connect the CLI](/platform/cli)
+- [Settings](/platform/settings)
+- [Automations](/platform/automations)

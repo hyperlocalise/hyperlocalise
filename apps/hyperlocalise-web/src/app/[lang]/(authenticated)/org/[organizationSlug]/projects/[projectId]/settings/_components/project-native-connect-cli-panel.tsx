@@ -120,7 +120,7 @@ export function ProjectNativeConnectCliPanel({
           nativeButton={false}
           render={
             <a
-              href="https://hyperlocalise.com/docs/commands/sync-push"
+              href="https://hyperlocalise.dev/cli/commands/sync-push"
               target="_blank"
               rel="noopener noreferrer"
             />
@@ -135,7 +135,7 @@ export function ProjectNativeConnectCliPanel({
           nativeButton={false}
           render={
             <a
-              href="https://hyperlocalise.com/docs/commands/sync-pull"
+              href="https://hyperlocalise.dev/cli/commands/sync-pull"
               target="_blank"
               rel="noopener noreferrer"
             />
