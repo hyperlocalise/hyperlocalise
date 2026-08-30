@@ -39,6 +39,33 @@ function hashApiKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
+export function apiKeyAuthLogContext(keyRecord: {
+  id: string;
+  organizationId: string;
+  createdByUserId: string | null;
+  keyPrefix: string;
+}) {
+  return {
+    auth: {
+      apiKeyId: keyRecord.id,
+      localOrganizationId: keyRecord.organizationId,
+      localUserId: keyRecord.createdByUserId,
+      keyPrefix: keyRecord.keyPrefix,
+    },
+  };
+}
+
+/**
+ * Best-effort usage telemetry. Failure must never delay or fail the request.
+ */
+export function touchApiKeyLastUsedAt(apiKeyId: string) {
+  db.update(schema.organizationApiKeys)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(schema.organizationApiKeys.id, apiKeyId))
+    .execute()
+    .catch(() => {});
+}
+
 export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVariables }>(
   async (c, next) => {
     const apiKey = c.req.header("x-api-key");
@@ -53,6 +80,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       .select({
         id: schema.organizationApiKeys.id,
         organizationId: schema.organizationApiKeys.organizationId,
+        keyPrefix: schema.organizationApiKeys.keyPrefix,
         permissions: schema.organizationApiKeys.permissions,
         createdByUserId: schema.organizationApiKeys.createdByUserId,
         revokedAt: schema.organizationApiKeys.revokedAt,
@@ -87,12 +115,8 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       );
     }
 
-    // Update lastUsedAt asynchronously — don't block the request.
-    db.update(schema.organizationApiKeys)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(schema.organizationApiKeys.id, keyRecord.id))
-      .execute()
-      .catch(() => {});
+    // Usage telemetry is best-effort and must never delay the request.
+    touchApiKeyLastUsedAt(keyRecord.id);
 
     c.set("auth", {
       organization: {
@@ -104,12 +128,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       },
       teamAccess,
     });
-    c.get("log").set({
-      auth: {
-        apiKeyId: keyRecord.id,
-        localOrganizationId: keyRecord.organizationId,
-      },
-    });
+    c.get("log").set(apiKeyAuthLogContext(keyRecord));
 
     await next();
   },

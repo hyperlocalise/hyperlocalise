@@ -15,8 +15,15 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { apiErrorResponse } from "@/api/response.schema";
+import { apiErrorResponse, internalErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
+import { isErr } from "@/lib/primitives/result/results";
+import {
+  ACCESS_TOKEN_REVOKE_REASONS,
+  emitPatCreated,
+  emitPatRevoked,
+  sessionAccessTokenActor,
+} from "@/lib/security/access-token-audit";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
 
 import { getGrantableApiKeyPermissions, getRefusedApiKeyPermissions } from "./api-key.permissions";
@@ -75,13 +82,14 @@ export function createApiKeyRoutes() {
           name: row.name,
           keyPrefix: row.keyPrefix,
           permissions: row.permissions,
-          lastUsedAt: row.lastUsedAt,
+          lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
           // A token whose owner cannot be resolved is permanently unusable, so
           // it must never read as active. `updatedAt` is the fallback when
           // `revokedAt` was never written (legacy unowned rows, or a later
           // user deletion that nulls the owner).
-          revokedAt: owner ? row.revokedAt : (row.revokedAt ?? row.updatedAt),
-          createdAt: row.createdAt,
+          revokedAt:
+            (owner ? row.revokedAt : (row.revokedAt ?? row.updatedAt))?.toISOString() ?? null,
+          createdAt: row.createdAt.toISOString(),
           owner,
         };
       });
@@ -137,10 +145,37 @@ export function createApiKeyRoutes() {
           .limit(1),
       ]);
 
+      if (!apiKey) {
+        return internalErrorResponse(c, "internal_error", "The token could not be created");
+      }
+
+      const auditResult = emitPatCreated(c.get("log"), {
+        actor: sessionAccessTokenActor(c.var.auth.user.localUserId),
+        ownerUserId: c.var.auth.user.localUserId,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        tokenId: apiKey.id,
+        keyPrefix: apiKey.keyPrefix,
+        permissions: apiKey.permissions,
+      });
+
+      if (isErr(auditResult)) {
+        await db
+          .update(schema.organizationApiKeys)
+          .set({ revokedAt: new Date() })
+          .where(eq(schema.organizationApiKeys.id, apiKey.id));
+
+        return internalErrorResponse(
+          c,
+          "access_token_audit_failed",
+          "The token could not be recorded safely and was not issued",
+        );
+      }
+
       return c.json(
         {
           apiKey: {
             ...apiKey,
+            createdAt: apiKey.createdAt.toISOString(),
             key: plainKey,
             owner: ownerRow ? toApiKeyOwner(ownerRow) : null,
           },
@@ -158,6 +193,9 @@ export function createApiKeyRoutes() {
       const [existing] = await db
         .select({
           id: schema.organizationApiKeys.id,
+          keyPrefix: schema.organizationApiKeys.keyPrefix,
+          createdByUserId: schema.organizationApiKeys.createdByUserId,
+          organizationId: schema.organizationApiKeys.organizationId,
           revokedAt: schema.organizationApiKeys.revokedAt,
         })
         .from(schema.organizationApiKeys)
@@ -177,6 +215,15 @@ export function createApiKeyRoutes() {
         .update(schema.organizationApiKeys)
         .set({ revokedAt: new Date() })
         .where(and(revocable, isNull(schema.organizationApiKeys.revokedAt)));
+
+      emitPatRevoked(c.get("log"), {
+        actor: sessionAccessTokenActor(c.var.auth.user.localUserId),
+        ownerUserId: existing.createdByUserId,
+        organizationId: existing.organizationId,
+        tokenId: existing.id,
+        keyPrefix: existing.keyPrefix,
+        reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
+      });
 
       return c.body(null, 204);
     });

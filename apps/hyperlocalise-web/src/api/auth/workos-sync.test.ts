@@ -15,6 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
+import { mockAudit } from "evlog";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import {
@@ -28,6 +29,11 @@ import {
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { clearReplacingWorkosMembershipSentinel } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database/client";
+import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
+import {
+  ACCESS_TOKEN_AUDIT_ACTIONS,
+  ACCESS_TOKEN_REVOKE_REASONS,
+} from "@/lib/security/access-token-audit";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   REPLACING_WORKOS_MEMBERSHIP_ID,
@@ -165,5 +171,49 @@ describe("revokeOrganizationMembershipAccess", () => {
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
     });
+  });
+
+  it("emits membership-removal audits for each revoked token", async () => {
+    const captured = mockAudit();
+    const identity = createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, identity);
+    const plainKey = generateApiKey();
+
+    const [apiKey] = await db
+      .insert(schema.organizationApiKeys)
+      .values({
+        organizationId: synced.organization.id,
+        name: "Leaving Member Key",
+        keyHash: hashApiKey(plainKey),
+        keyPrefix: getApiKeyPrefix(plainKey),
+        createdByUserId: synced.user.id,
+      })
+      .returning({
+        id: schema.organizationApiKeys.id,
+        keyPrefix: schema.organizationApiKeys.keyPrefix,
+      });
+
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+      actor: { type: "system", id: "workos_webhook" },
+    });
+
+    expect(result.apiKeysRevoked).toBe(1);
+    const event = captured.assertAudit({
+      action: ACCESS_TOKEN_AUDIT_ACTIONS.revoked,
+      actor: { type: "system", id: "workos_webhook" },
+      target: { id: apiKey!.id },
+    });
+    expect(event.reason).toBe(ACCESS_TOKEN_REVOKE_REASONS.membershipRemoved);
+    expect(event.target).toMatchObject({
+      organizationId: synced.organization.id,
+      ownerUserId: synced.user.id,
+      keyPrefix: apiKey!.keyPrefix,
+    });
+    expect(JSON.stringify(event)).not.toContain(plainKey);
+    expect(JSON.stringify(event)).not.toContain(identity.user.email);
+    captured.restore();
   });
 });

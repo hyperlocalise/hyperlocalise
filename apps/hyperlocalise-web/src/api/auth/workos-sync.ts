@@ -17,6 +17,13 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import { db, type DatabaseClient } from "@/lib/database/client";
 import {
+  ACCESS_TOKEN_REVOKE_REASONS,
+  emitPatRevoked,
+  sessionAccessTokenActor,
+  systemAccessTokenActor,
+  type AccessTokenAuditLogger,
+} from "@/lib/security/access-token-audit";
+import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
   REPLACING_WORKOS_MEMBERSHIP_ID,
@@ -425,6 +432,11 @@ export type RevokeOrganizationMembershipAccessResult = {
   apiKeysRevoked: number;
 };
 
+export type MembershipRevocationActor = {
+  type: "user" | "system";
+  id: string;
+};
+
 async function resolveRevocationTarget(
   database: DatabaseClient,
   input: {
@@ -482,8 +494,10 @@ async function resolveRevocationTarget(
 async function revokeOrganizationApiKeysForUser(
   database: DatabaseClient,
   target: RevocationTarget,
+  actor: MembershipRevocationActor,
+  log?: AccessTokenAuditLogger,
 ): Promise<Pick<RevokeOrganizationMembershipAccessResult, "apiKeysRevoked">> {
-  const apiKeysRevoked = await database
+  const revokedKeys = await database
     .update(schema.organizationApiKeys)
     .set({ revokedAt: new Date() })
     .where(
@@ -492,10 +506,30 @@ async function revokeOrganizationApiKeysForUser(
         eq(schema.organizationApiKeys.createdByUserId, target.userId),
         isNull(schema.organizationApiKeys.revokedAt),
       ),
-    );
+    )
+    .returning({
+      id: schema.organizationApiKeys.id,
+      keyPrefix: schema.organizationApiKeys.keyPrefix,
+      organizationId: schema.organizationApiKeys.organizationId,
+      createdByUserId: schema.organizationApiKeys.createdByUserId,
+    });
+
+  const auditActor =
+    actor.type === "user" ? sessionAccessTokenActor(actor.id) : systemAccessTokenActor(actor.id);
+
+  for (const token of revokedKeys) {
+    emitPatRevoked(log, {
+      actor: auditActor,
+      ownerUserId: token.createdByUserId,
+      organizationId: token.organizationId,
+      tokenId: token.id,
+      keyPrefix: token.keyPrefix,
+      reason: ACCESS_TOKEN_REVOKE_REASONS.membershipRemoved,
+    });
+  }
 
   return {
-    apiKeysRevoked: Number(apiKeysRevoked.rowCount ?? 0),
+    apiKeysRevoked: revokedKeys.length,
   };
 }
 
@@ -537,6 +571,8 @@ async function deleteTeamMembershipsAndMcpSessions(
 async function revokeMembershipAccessForTarget(
   database: DatabaseClient,
   target: RevocationTarget,
+  actor: MembershipRevocationActor,
+  log?: AccessTokenAuditLogger,
 ): Promise<RevokeOrganizationMembershipAccessResult> {
   const organizationMembershipsDeleted = await database
     .delete(schema.organizationMemberships)
@@ -548,7 +584,7 @@ async function revokeMembershipAccessForTarget(
     );
 
   const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
-  const apiKeyRevocation = await revokeOrganizationApiKeysForUser(database, target);
+  const apiKeyRevocation = await revokeOrganizationApiKeysForUser(database, target, actor, log);
 
   return {
     organizationMembershipsDeleted: Number(organizationMembershipsDeleted.rowCount ?? 0),
@@ -567,9 +603,12 @@ export async function revokeOrganizationMembershipAccess(
     workosMembershipId?: string;
     workosOrganizationId?: string;
     workosUserId?: string;
+    actor?: MembershipRevocationActor;
+    log?: AccessTokenAuditLogger;
   },
 ): Promise<RevokeOrganizationMembershipAccessResult> {
   const target = await resolveRevocationTarget(database, input);
+  const actor = input.actor ?? { type: "system", id: "membership_reconcile" };
 
   if (!target) {
     return {
@@ -581,8 +620,10 @@ export async function revokeOrganizationMembershipAccess(
   }
 
   if (isRootDatabaseClient(database)) {
-    return database.transaction((tx) => revokeMembershipAccessForTarget(tx, target));
+    return database.transaction((tx) =>
+      revokeMembershipAccessForTarget(tx, target, actor, input.log),
+    );
   }
 
-  return revokeMembershipAccessForTarget(database, target);
+  return revokeMembershipAccessForTarget(database, target, actor, input.log);
 }

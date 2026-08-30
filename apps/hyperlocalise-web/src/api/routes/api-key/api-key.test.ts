@@ -15,6 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
+import { mockAudit } from "evlog";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -38,6 +39,12 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database/client";
+import { err } from "@/lib/primitives/result/results";
+import * as accessTokenAudit from "@/lib/security/access-token-audit";
+import {
+  ACCESS_TOKEN_AUDIT_ACTIONS,
+  ACCESS_TOKEN_REVOKE_REASONS,
+} from "@/lib/security/access-token-audit";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createApiKeyTestFixture } from "./api-key.fixture";
@@ -147,6 +154,91 @@ describe("apiKeyRoutes", () => {
       "permissions",
       "revokedAt",
     ]);
+    expect(listed?.createdAt).toEqual(expect.any(String));
+    expect(listed?.lastUsedAt).toBeNull();
+  });
+
+  it("emits a safe pat.created audit record", async () => {
+    const captured = mockAudit();
+    const identity = createWorkosIdentity();
+    const response = await createApiKeyViaApi(identity, { name: "Audited Key" });
+    const body = (await response.json()) as ApiKeyResponse;
+    const ownerUserId = await getLocalUserId(identity.user.workosUserId);
+
+    expect(response.status).toBe(201);
+    const event = captured.assertAudit({
+      action: ACCESS_TOKEN_AUDIT_ACTIONS.created,
+      actor: { type: "user", id: ownerUserId },
+      target: { id: body.apiKey.id },
+    });
+    expect(event.target).toMatchObject({
+      organizationId: await getLocalOrganizationId(identity.organization.workosOrganizationId),
+      ownerUserId,
+      keyPrefix: body.apiKey.keyPrefix,
+    });
+    const serialized = JSON.stringify(event);
+    expect(serialized).not.toContain(body.apiKey.key);
+    expect(serialized).not.toContain(identity.user.email);
+    expect(serialized).not.toContain("x-api-key");
+    captured.restore();
+  });
+
+  it("revokes the token and omits the secret when audit recording fails", async () => {
+    const identity = createWorkosIdentity();
+    const emitSpy = vi
+      .spyOn(accessTokenAudit, "emitPatCreated")
+      .mockReturnValueOnce(err({ code: "audit_emit_failed" }));
+
+    const response = await createApiKeyViaApi(identity, { name: "Unrecorded Key" });
+    const body = (await response.json()) as { error?: string; apiKey?: { key?: string } };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("access_token_audit_failed");
+    expect(body.apiKey?.key).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("hl_");
+
+    const rows = await db
+      .select({
+        name: schema.organizationApiKeys.name,
+        revokedAt: schema.organizationApiKeys.revokedAt,
+      })
+      .from(schema.organizationApiKeys)
+      .where(
+        eq(
+          schema.organizationApiKeys.organizationId,
+          await getLocalOrganizationId(identity.organization.workosOrganizationId),
+        ),
+      );
+    const created = rows.find((row) => row.name === "Unrecorded Key");
+    expect(created?.revokedAt).not.toBeNull();
+    emitSpy.mockRestore();
+  });
+
+  it("emits a manual pat.revoked audit record for the acting user", async () => {
+    const captured = mockAudit();
+    const ownerIdentity = createWorkosIdentity();
+    const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
+    const createResponse = await createApiKeyViaApi(ownerIdentity, { name: "Revoke Audit" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
+
+    expect((await revokeApiKeyAs(adminIdentity, created.apiKey.id)).status).toBe(204);
+
+    const actorUserId = await getLocalUserId(adminIdentity.user.workosUserId);
+    const ownerUserId = await getLocalUserId(ownerIdentity.user.workosUserId);
+
+    const event = captured.assertAudit({
+      action: ACCESS_TOKEN_AUDIT_ACTIONS.revoked,
+      actor: { type: "user", id: actorUserId },
+      target: { id: created.apiKey.id },
+    });
+    expect(event.reason).toBe(ACCESS_TOKEN_REVOKE_REASONS.manual);
+    expect(event.target).toMatchObject({
+      ownerUserId,
+      keyPrefix: created.apiKey.keyPrefix,
+    });
+    expect(JSON.stringify(event)).not.toContain(created.apiKey.key);
+    expect(JSON.stringify(event)).not.toContain(ownerIdentity.user.email);
+    captured.restore();
   });
 
   it("lists the caller's own tokens with owner attribution", async () => {

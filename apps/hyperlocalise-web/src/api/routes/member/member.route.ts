@@ -917,6 +917,8 @@ export function createMemberRoutes() {
           workosMembershipId: member.workosMembershipId ?? undefined,
           workosOrganizationId,
           workosUserId: member.workosUserId,
+          actor: { type: "user", id: c.var.auth.user.localUserId },
+          log: c.get("log"),
         });
 
         return { ok: true as const };

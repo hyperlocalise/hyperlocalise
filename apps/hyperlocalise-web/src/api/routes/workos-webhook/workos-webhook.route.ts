@@ -192,6 +192,7 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
         workosMembershipId: readString(data, "id", "membership_id"),
         workosOrganizationId,
         workosUserId,
+        actor: { type: "system", id: "workos_webhook" },
       }),
     );
 
@@ -275,6 +276,7 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
             workosMembershipId,
             workosOrganizationId,
             workosUserId,
+            actor: { type: "system", id: "workos_webhook" },
           }),
         );
         return;
