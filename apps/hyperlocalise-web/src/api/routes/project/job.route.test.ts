@@ -69,6 +69,7 @@ async function insertNativeJob(input: {
   projectId?: string | null;
   createdByUserId?: string | null;
   ownerUserId?: string | null;
+  kind?: (typeof schema.jobs.$inferInsert)["kind"];
   status?: (typeof schema.jobs.$inferInsert)["status"];
   updatedAt?: Date;
   inputPayload?: (typeof schema.jobs.$inferInsert)["inputPayload"];
@@ -81,7 +82,7 @@ async function insertNativeJob(input: {
       projectId: input.projectId ?? null,
       createdByUserId: input.createdByUserId ?? null,
       ownerUserId: input.ownerUserId ?? null,
-      kind: "translation",
+      kind: input.kind ?? "translation",
       status: input.status ?? "queued",
       updatedAt: input.updatedAt,
       inputPayload: input.inputPayload ?? {
@@ -584,6 +585,121 @@ describe("project job create", () => {
         description: "Check product names stay untranslated.",
       },
     });
+  });
+
+  it("cancels native proofread jobs stuck in waiting_for_review", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Proofread cancel",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string; status: string } };
+    expect(created.job.status).toBe("waiting_for_review");
+
+    const cancelResponse = await createClient.api.orgs[":organizationSlug"].jobs[
+      ":jobId"
+    ].cancel.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: created.job.id,
+        },
+      },
+      { headers },
+    );
+    expect(cancelResponse.status).toBe(200);
+    const cancelled = (await cancelResponse.json()) as { job: { id: string; status: string } };
+    expect(cancelled.job.status).toBe("cancelled");
+
+    const [job] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, created.job.id))
+      .limit(1);
+    expect(job?.status).toBe("cancelled");
+  });
+
+  it("rejects proofread create when open-job budget is exhausted", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    // MAX_OPEN_JOBS_PER_ORGANIZATION is 50; fill open slots with waiting_for_review.
+    await db.insert(schema.jobs).values(
+      Array.from({ length: 50 }, () => ({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        kind: "proofread" as const,
+        status: "waiting_for_review" as const,
+        inputPayload: {
+          sourceFileId: sourceFile.id,
+          fileFormat: "json",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      })),
+    );
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Proofread over budget",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(429);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("organization_job_budget_exceeded");
+    expect(enqueueJob).not.toHaveBeenCalled();
   });
 });
 

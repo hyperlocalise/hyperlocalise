@@ -171,11 +171,14 @@ export function canRetryJob(job: JobDetailRecord) {
 }
 
 export function canMarkJobFailed(job: JobDetailRecord) {
-  return job.status === "queued" || job.status === "running";
+  return job.status === "queued" || job.status === "running" || job.status === "waiting_for_review";
 }
 
 export function canCancelJob(job: JobDetailRecord) {
-  return !isProviderBackedJob(job) && (job.status === "queued" || job.status === "running");
+  return (
+    !isProviderBackedJob(job) &&
+    (job.status === "queued" || job.status === "running" || job.status === "waiting_for_review")
+  );
 }
 
 export function buildJobsListHref(organizationSlug: string, projectId: string) {
