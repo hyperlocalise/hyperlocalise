@@ -102,6 +102,24 @@ describe("isAllowedBashCommand", () => {
     expect(isAllowedBashCommand("git diff main...HEAD")).toBe(true);
   });
 
+  it.each(["ls ./src", "find ./foo -type f", "git log HEAD..main"])(
+    "allows relative workspace paths in %s",
+    (command) => {
+      expect(isAllowedBashCommand(command)).toBe(true);
+    },
+  );
+
+  it.each([
+    "ls /./etc",
+    "ls /.ssh",
+    "find /./etc -type f",
+    "find /. -type f",
+    "hl check --config /./secret.yml",
+    "ls /etc",
+  ])("blocks absolute path disguised with /. in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
+
   it.each([
     "git log --output=package.json",
     "git log --output package.json",
