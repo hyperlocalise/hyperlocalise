@@ -99,6 +99,7 @@ const INTEGRATION_CATEGORY_IDS = [
   "tms",
   "cms",
   "customer-engagement",
+  "experimentation",
   "seo-tools",
   "mcp-servers",
 ] as const;
@@ -110,6 +111,7 @@ type IntegrationCategoryFilter = "all" | IntegrationCategoryId;
 const PROVIDER_INTEGRATION_CATEGORY_IDS = new Set<IntegrationCategoryId>([
   "tms",
   "cms",
+  "experimentation",
   "seo-tools",
   "mcp-servers",
 ]);
@@ -118,6 +120,7 @@ const INTEGRATION_CATEGORY_MESSAGES = {
   "source-control": agentIntegrationsSectionMessages.sourceControlCategory,
   tms: integrationsPageContentMessages.tmsCategory,
   cms: integrationsPageContentMessages.cmsCategory,
+  experimentation: integrationsPageContentMessages.experimentationCategory,
   "seo-tools": integrationsPageContentMessages.seoToolsCategory,
   "mcp-servers": integrationsPageContentMessages.mcpServersCategory,
   collaboration: agentIntegrationsSectionMessages.collaborationCategory,
@@ -1195,6 +1198,18 @@ export function IntegrationsPageContent({
                   organizationSlug={organizationSlug}
                   userIsAdmin={userIsAdmin}
                   showIntercom={canManageProviderIntegrations}
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("experimentation") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="experimentation">
+                <IntegrationRow
+                  name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
+                  description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
+                  icon={<IntegrationLogo src="/images/logo.png" />}
+                  iconMuted
+                  action="coming-soon"
+                  isLast
                 />
               </IntegrationCategorySection>
             ) : null}

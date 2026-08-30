@@ -99,9 +99,9 @@ export const dashboardPageViewModelMessages = defineMessages({
     description: "Dashboard call-to-action to open assigned jobs",
   },
   nativeSourceLabel: {
-    defaultMessage: "Native",
-    id: "WSbyg2v11q",
-    description: "Source label for Hyperlocalise-native projects on the dashboard",
+    defaultMessage: "Workspace",
+    id: "47mnWgc1PT",
+    description: "Source label for workspace projects on the dashboard",
   },
   automationFallbackName: {
     defaultMessage: "Automation",

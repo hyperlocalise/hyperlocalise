@@ -29,6 +29,7 @@ type IntegrationsEmailAgentFixture = typeof integrationsEmailAgentFixture;
 
 function createIntegrationsGetHandlers({
   providerCredential = integrationsProviderCredentialFixture,
+  providerCredentials = providerCredential ? [providerCredential] : [],
   externalTmsCredentials = integrationsExternalTmsCredentialsFixture,
   activeExternalTmsProviderCredential = integrationsCrowdinCredentialFixture,
   githubInstallation = integrationsGitHubInstallationFixture,
@@ -38,6 +39,7 @@ function createIntegrationsGetHandlers({
   contentfulConnections = integrationsContentfulConnectionsFixture,
 }: {
   providerCredential?: typeof integrationsProviderCredentialFixture | null;
+  providerCredentials?: (typeof integrationsProviderCredentialFixture)[];
   externalTmsCredentials?: typeof integrationsExternalTmsCredentialsFixture;
   activeExternalTmsProviderCredential?: typeof integrationsCrowdinCredentialFixture | null;
   githubInstallation?: typeof integrationsGitHubInstallationFixture | null;
@@ -48,7 +50,10 @@ function createIntegrationsGetHandlers({
 } = {}) {
   return [
     http.get("/api/orgs/:organizationSlug/provider-credential", () =>
-      HttpResponse.json({ providerCredential }),
+      HttpResponse.json({
+        providerCredentials,
+        providerCredential: providerCredentials[0] ?? null,
+      }),
     ),
     http.get("/api/orgs/:organizationSlug/external-tms-provider-credential", () =>
       HttpResponse.json({
@@ -86,6 +91,7 @@ export const integrationsConnectedMswHandlers = createIntegrationsGetHandlers();
 
 export const integrationsDisconnectedMswHandlers = createIntegrationsGetHandlers({
   providerCredential: null,
+  providerCredentials: [],
   externalTmsCredentials: [],
   activeExternalTmsProviderCredential: null,
   githubInstallation: null,
@@ -104,12 +110,25 @@ export const integrationsDisconnectedMswHandlers = createIntegrationsGetHandlers
 
 export const integrationsManagedProviderMswHandlers = createIntegrationsGetHandlers({
   providerCredential: null,
+  providerCredentials: [],
+});
+
+export const integrationsMultiProviderMswHandlers = createIntegrationsGetHandlers({
+  providerCredentials: [
+    integrationsProviderCredentialFixture,
+    {
+      provider: "anthropic" as const,
+      defaultModel: "claude-sonnet-4-6",
+      maskedApiKeySuffix: "••••-ant",
+      lastValidatedAt: integrationsProviderCredentialFixture.lastValidatedAt,
+    },
+  ],
 });
 
 export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/provider-credential", async () => {
     await delay("infinite");
-    return HttpResponse.json({ providerCredential: null });
+    return HttpResponse.json({ providerCredentials: [], providerCredential: null });
   }),
   http.get("/api/orgs/:organizationSlug/external-tms-provider-credential", async () => {
     await delay("infinite");

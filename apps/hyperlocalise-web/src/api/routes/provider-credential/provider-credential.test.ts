@@ -163,6 +163,69 @@ describe("providerCredentialRoutes", () => {
     await expect(response.json()).resolves.toEqual({ error: "forbidden" });
   });
 
+  it("lists multiple provider credentials independently", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    );
+
+    const identity = fixture.createWorkosIdentity();
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const headers = await fixture.authHeadersFor(identity);
+
+    await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-openai-key",
+      defaultModel: "gpt-5.5",
+    });
+    await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "anthropic",
+      apiKey: "sk-anthropic-key",
+      defaultModel: "claude-sonnet-4-6",
+    });
+
+    const listResponse = await client.api.orgs[":organizationSlug"]["provider-credential"].$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      providerCredentials: expect.arrayContaining([
+        expect.objectContaining({ provider: "openai" }),
+        expect.objectContaining({ provider: "anthropic" }),
+      ]),
+    });
+
+    const deleteResponse = await client.api.orgs[":organizationSlug"][
+      "provider-credential"
+    ].$delete(
+      {
+        param: { organizationSlug },
+        query: { provider: "openai" },
+      },
+      { headers },
+    );
+
+    expect(deleteResponse.status).toBe(204);
+
+    const remainingResponse = await client.api.orgs[":organizationSlug"][
+      "provider-credential"
+    ].$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    await expect(remainingResponse.json()).resolves.toMatchObject({
+      providerCredentials: [expect.objectContaining({ provider: "anthropic" })],
+      providerCredential: expect.objectContaining({ provider: "anthropic" }),
+    });
+  });
+
   it("reveals a stored provider credential only after explicit confirmation", async () => {
     vi.stubGlobal(
       "fetch",

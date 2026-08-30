@@ -57,8 +57,10 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "Source control" })).toBeInTheDocument();
     await expect(canvas.getByText("Translation Management System")).toBeInTheDocument();
     await expect(canvas.getByText("Content & publishing")).toBeInTheDocument();
+    await expect(canvas.getByText("Experimentation")).toBeInTheDocument();
     await expect(canvas.getByText("Projects & files")).toBeInTheDocument();
-    await expect(canvas.getByText("Files & pages")).toBeInTheDocument();
+    await expect(canvas.getByText("Pages")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlab")).toBeInTheDocument();
     await expect(canvas.getByText("HyperSEO")).toBeInTheDocument();
     await expect(canvas.getAllByText("Included").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();

@@ -269,7 +269,7 @@ export const LiveAllProjects: Story = {
     pageEnd: 0,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Native glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Workspace glossaries")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin glossaries")).toBeInTheDocument();
   },
 };

@@ -16,12 +16,13 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   deleteOrganizationProviderCredential,
-  getOrganizationProviderCredentialSummary,
+  listOrganizationProviderCredentialSummaries,
   revealOrganizationProviderCredential,
   upsertOrganizationProviderCredential,
 } from "@/lib/providers/credentials/organization-provider-credentials";
 
 import {
+  deleteProviderCredentialQuerySchema,
   revealProviderCredentialBodySchema,
   updateProviderCredentialBodySchema,
 } from "./provider-credential.schema";
@@ -53,6 +54,15 @@ const validateRevealProviderCredentialBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateDeleteProviderCredentialQuery = validator("query", (value, c) => {
+  const parsed = deleteProviderCredentialQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProviderCredentialPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 export function createProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -61,11 +71,17 @@ export function createProviderCredentialRoutes() {
         return forbiddenResponse(c);
       }
 
-      const providerCredential = await getOrganizationProviderCredentialSummary(
+      const providerCredentials = await listOrganizationProviderCredentialSummaries(
         c.var.auth.organization.localOrganizationId,
       );
 
-      return c.json({ providerCredential }, 200);
+      return c.json(
+        {
+          providerCredentials,
+          providerCredential: providerCredentials[0] ?? null,
+        },
+        200,
+      );
     })
     .put("/", validateUpdateProviderCredentialBody, async (c) => {
       if (!isProviderCredentialMutationAllowed(c.var.auth.membership.role)) {
@@ -114,11 +130,18 @@ export function createProviderCredentialRoutes() {
         throw error;
       }
     })
-    .delete("/", async (c) => {
+    .delete("/", validateDeleteProviderCredentialQuery, async (c) => {
+      if (!isProviderCredentialMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const { provider } = c.req.valid("query");
+
       try {
         const deleted = await deleteOrganizationProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           role: c.var.auth.membership.role,
+          provider,
         });
 
         if (!deleted) {

@@ -42,6 +42,10 @@ export const revealProviderCredentialBodySchema = z.object({
   confirmed: z.literal(true),
 });
 
+export const deleteProviderCredentialQuerySchema = z.object({
+  provider: llmProviderSchema,
+});
+
 export const providerCredentialSummarySchema = z.object({
   organizationId: z.string(),
   provider: llmProviderSchema,
@@ -53,6 +57,7 @@ export const providerCredentialSummarySchema = z.object({
 });
 
 export const providerCredentialResponseSchema = z.object({
+  providerCredentials: z.array(providerCredentialSummarySchema),
   providerCredential: providerCredentialSummarySchema.nullable(),
 });
 
@@ -67,6 +72,7 @@ export const providerCredentialDefaults = Object.fromEntries(
   Object.entries(defaultModelByProvider).map(([provider, model]) => [provider, model]),
 );
 
+export type DeleteProviderCredentialQuery = z.infer<typeof deleteProviderCredentialQuerySchema>;
 export type UpdateProviderCredentialBody = z.infer<typeof updateProviderCredentialBodySchema>;
 export type RevealProviderCredentialBody = z.infer<typeof revealProviderCredentialBodySchema>;
 export type ProviderCredentialSummary = z.infer<typeof providerCredentialSummarySchema>;

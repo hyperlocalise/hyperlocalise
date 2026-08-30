@@ -40,19 +40,35 @@ export const integrationsPageContentMessages = defineMessages({
     id: "basdUhXB4X",
     description: "Category label for SEO tool connections on the Integrations page",
   },
+  experimentationCategory: {
+    defaultMessage: "Experimentation",
+    id: "SC/0sLWYV4",
+    description: "Integrations page section heading for experimentation tools",
+  },
+  hyperlabName: {
+    defaultMessage: "Hyperlab",
+    id: "dj/oJykkFj",
+    description: "Built-in market experiments product name on the integrations page",
+  },
+  hyperlabDetail: {
+    defaultMessage:
+      "Run and measure market experiments across locales — variants, rollouts, and winner selection built into Hyperlocalise.",
+    id: "A9QMrzJCol",
+    description: "Built-in market experiments product description on the integrations page",
+  },
   cmsCategory: {
     defaultMessage: "Content & publishing",
     id: "snHz5G+RBI",
     description: "Integrations page section heading for content and publishing connectors",
   },
   contentPublishingFilesName: {
-    defaultMessage: "Files & pages",
-    id: "nrq7sowU8O",
-    description: "Built-in content integration name on the integrations page",
+    defaultMessage: "Pages",
+    id: "WYPwI9kUrL",
+    description: "Built-in pages integration name on the integrations page",
   },
   contentPublishingFilesDetail: {
-    defaultMessage: "Store, edit, and publish localized content from Hyperlocalise.",
-    id: "hA+s+oiKXa",
+    defaultMessage: "Create, edit, and publish localized pages from Hyperlocalise.",
+    id: "ZQP7LGFxPh",
     description: "Built-in content integration description on the integrations page",
   },
   hyperSeoName: {

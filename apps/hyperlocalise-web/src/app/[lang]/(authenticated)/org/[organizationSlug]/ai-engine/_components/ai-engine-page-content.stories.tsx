@@ -17,7 +17,7 @@ import {
   integrationsConnectedMswHandlers,
   integrationsDisconnectedMswHandlers,
   integrationsLoadingMswHandlers,
-  integrationsManagedProviderMswHandlers,
+  integrationsMultiProviderMswHandlers,
 } from "../../integrations/_components/integrations-msw-handlers";
 import { integrationsOrganizationSlug } from "../../integrations/_components/integrations.fixture";
 import { AiEnginePageContent } from "./ai-engine-page-content";
@@ -50,9 +50,18 @@ export const Default: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "AI Engine" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Provider" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Hyperlocalise Agent" })).toBeInTheDocument();
+    await expect(canvas.getByText("Workspace default")).toBeInTheDocument();
+    await expect(canvas.getByText("Ask")).toBeInTheDocument();
+    await expect(canvas.getByText("Translation")).toBeInTheDocument();
+    await expect(canvas.getByText("Coding")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Workspace default").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Open AI")).toBeInTheDocument();
     await expect(canvas.getByText("Included models")).toBeInTheDocument();
-    await expect(canvas.getByText("Configure")).toBeInTheDocument();
+    await expect(canvas.getByText("Always available")).toBeInTheDocument();
+    await expect(canvas.getByText("Connected")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Manage provider").length).toBeGreaterThan(0);
   },
 };
 
@@ -66,19 +75,25 @@ export const Disconnected: Story = {
     await expect(canvas.getByRole("heading", { name: "AI Engine" })).toBeInTheDocument();
     await expect(canvas.getByText("Included models")).toBeInTheDocument();
     await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByText("Always available")).toBeInTheDocument();
+    await expect(canvas.getByText("Included")).toBeInTheDocument();
+    await expect(canvas.getByText("gpt-5.6-luna")).toBeInTheDocument();
+    await expect(canvas.queryByText("Connected")).not.toBeInTheDocument();
+    await expect(canvas.getAllByText("Configure").length).toBe(3);
   },
 };
 
-export const ManagedProviderOnly: Story = {
+export const MultipleProvidersConnected: Story = {
   parameters: {
     msw: {
-      handlers: integrationsManagedProviderMswHandlers,
+      handlers: integrationsMultiProviderMswHandlers,
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Included models")).toBeInTheDocument();
-    await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Connected").length).toBe(2);
+    await expect(canvas.getByText("Always available")).toBeInTheDocument();
     await expect(canvas.getByText("Configure")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Manage provider").length).toBeGreaterThan(0);
   },
 };
 
