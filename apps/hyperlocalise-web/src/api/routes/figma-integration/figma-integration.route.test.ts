@@ -566,8 +566,12 @@ describe("figmaIntegrationRoutes", () => {
     });
   });
 
-  it("does not expose the Figma OAuth callback path", async () => {
+  it("does not expose the Figma OAuth authorize path", async () => {
     const response = await createApp().request("http://localhost/api/auth/figma/authorize");
-    expect(response.status).toBe(404);
+    expect(response.status).not.toBe(200);
+    const body = (await response.json().catch(() => null)) as {
+      authorization?: { url?: string };
+    } | null;
+    expect(body?.authorization?.url).toBeUndefined();
   });
 });

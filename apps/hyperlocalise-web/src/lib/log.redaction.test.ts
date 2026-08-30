@@ -64,9 +64,8 @@ describe("Logger Redaction", () => {
     });
 
     const [event] = drainedEvents;
-    const nested = event?.personalAccessToken as Record<string, unknown>;
     expect(event?.keyHash).toBe("[REDACTED]");
-    expect(nested.key_hash).toBe("[REDACTED]");
+    expect(event?.personalAccessToken).toBe("[REDACTED]");
     expect(event?.keyPrefix).toBe("hl_AbCd");
     expect(event?.apiKeyId).toBe("3f1b7c2a-0000-4000-8000-000000000000");
   });

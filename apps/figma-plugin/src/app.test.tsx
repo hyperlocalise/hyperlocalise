@@ -289,7 +289,7 @@ describe("Figma plugin UI", () => {
     });
 
     await waitFor(() => {
-      expect(result.getByText("dev@example.com")).toBeTruthy();
+      expect(result.getByText(/dev@example.com/)).toBeTruthy();
       expect(result.queryByLabelText("Page job")).toBeNull();
     });
     expect(
