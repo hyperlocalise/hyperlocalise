@@ -593,7 +593,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             .update(schema.jobs)
             .set({
               status: "failed",
-              lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+              lastError:
+                error instanceof Error ? error.message : "translation job queue unavailable",
             })
             .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
 
