@@ -165,6 +165,23 @@ describe("isAllowedBashCommand", () => {
   ])("blocks find symlink-follow flag in %s", (command) => {
     expect(isAllowedBashCommand(command)).toBe(false);
   });
+
+  it.each([
+    "ls /./etc",
+    "ls /.ssh",
+    "find /./etc -type f",
+    "find /. -type f",
+    "hl check --config /./secret.yml",
+  ])("blocks absolute paths disguised with /. in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
+
+  it.each(["ls ./src", "find ./foo -type f", "git log HEAD..main"])(
+    "still allows relative paths and git ranges in %s",
+    (command) => {
+      expect(isAllowedBashCommand(command)).toBe(true);
+    },
+  );
 });
 
 describe("createBashTool", () => {

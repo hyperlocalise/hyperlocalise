@@ -58,7 +58,9 @@ const ALLOWED_COMMAND_PATTERNS = [
 
 // Also match paths glued onto `--flag=` / `-o=` so `--output=/tmp/x` and
 // `--output=../../outside.txt` cannot skip the whitespace-bounded heuristics.
-const ABSOLUTE_PATH_PATTERN = /(^|[\s="'])\/(?!\.)(?!\s|$)/;
+// Leading `/` after a token boundary is absolute. Do not exempt `/.…` —
+// `/./etc` and `/.ssh` must stay blocked (relative `./foo` never matches here).
+const ABSOLUTE_PATH_PATTERN = /(^|[\s="'])\/(?!\s|$)/;
 const PARENT_TRAVERSAL_PATTERN = /(^|[\s="'])\.\.(\/|[\s"']|$)/;
 
 function unquoteFlagValue(value: string): string {
