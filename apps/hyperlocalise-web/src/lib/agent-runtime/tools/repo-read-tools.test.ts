@@ -735,6 +735,15 @@ describe("createDetectRepoConfigTool", () => {
     expect(result).toMatchObject({ success: true, found: false });
   });
 
+  it("accepts ./ as the workspace root", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.yml": "locales:\n  source: en\n",
+    });
+    const t = createDetectRepoConfigTool(ctx);
+    const result = await t.execute!({ path: "./" }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, found: true, configPath: "i18n.yml" });
+  });
+
   it("finds i18n.yml", async () => {
     const yaml = `locales:
   source: en
@@ -889,6 +898,32 @@ describe("createRepoGitStateTool", () => {
       changedFiles: [],
     });
     expect((result as { commit: string }).commit).toHaveLength(40);
+  });
+
+  it("accepts ./ as the workspace root", async () => {
+    const ctx = createTestContext();
+    const dirs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        dirs.push(args[1] ?? "");
+        if (args[2] === "rev-parse" && args[3] === "--abbrev-ref") {
+          return { stdout: "main\n", stderr: "", exitCode: 0 };
+        }
+        if (args[2] === "rev-parse" && args[3] === "HEAD") {
+          return { stdout: "abc123def456789012345678901234567890abcd\n", stderr: "", exitCode: 0 };
+        }
+        if (args[2] === "status" && args[3] === "--porcelain") {
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRepoGitStateTool(ctx);
+    const result = await t.execute!({ path: "./" }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, branch: "main", isDirty: false });
+    expect(dirs).toContain(".");
+    expect(dirs).not.toContain("./");
   });
 
   it("dirty state", async () => {

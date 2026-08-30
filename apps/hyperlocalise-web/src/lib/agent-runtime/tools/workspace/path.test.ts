@@ -33,6 +33,8 @@ describe("isGitMetadataPath", () => {
 describe("normalizeWorkspacePath", () => {
   it("keeps workspace-relative source paths", () => {
     expect(normalizeWorkspacePath("./src/app.tsx")).toBe("src/app.tsx");
+    expect(normalizeWorkspacePath(".")).toBe(".");
+    expect(normalizeWorkspacePath("./")).toBe(".");
   });
 
   it("rejects traversal and absolute paths", () => {

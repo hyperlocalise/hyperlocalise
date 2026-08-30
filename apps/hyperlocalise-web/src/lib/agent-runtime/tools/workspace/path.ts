@@ -14,7 +14,10 @@
  * Normalize a workspace-relative path. Returns null when the path escapes the repo root.
  */
 export function normalizeWorkspacePath(path: string): string | null {
-  const normalized = path.replace(/\\/g, "/").replace(/^\.\//, "").trim();
+  const withForwardSlashes = path.replace(/\\/g, "/").trim();
+  const stripped = withForwardSlashes.replace(/^\.\//, "");
+  // "./" strips to empty; keep it as the workspace root, same as ".".
+  const normalized = stripped === "" && withForwardSlashes === "./" ? "." : stripped;
   if (!normalized || normalized.startsWith("/") || normalized.split("/").includes("..")) {
     return null;
   }
