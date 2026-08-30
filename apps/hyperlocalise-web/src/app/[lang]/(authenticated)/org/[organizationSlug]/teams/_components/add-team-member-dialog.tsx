@@ -113,7 +113,7 @@ export function AddTeamMemberDialog({
                   <FormattedMessage {...addTeamMemberDialogMessages.memberLabel} />
                 </FieldLabel>
                 <Select
-                  value={workosUserId}
+                  value={workosUserId || null}
                   onValueChange={(value) => {
                     if (value) {
                       setWorkosUserId(value);
@@ -132,7 +132,11 @@ export function AddTeamMemberDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {assignableMembers.map((member) => (
-                      <SelectItem key={member.workosUserId} value={member.workosUserId}>
+                      <SelectItem
+                        key={member.workosUserId}
+                        value={member.workosUserId}
+                        label={member.email}
+                      >
                         {member.email}
                       </SelectItem>
                     ))}
@@ -154,7 +158,11 @@ export function AddTeamMemberDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {teamRoles.map((teamRole) => (
-                      <SelectItem key={teamRole} value={teamRole}>
+                      <SelectItem
+                        key={teamRole}
+                        value={teamRole}
+                        label={getTeamRoleLabel(teamRole, intl)}
+                      >
                         {getTeamRoleLabel(teamRole, intl)}
                       </SelectItem>
                     ))}

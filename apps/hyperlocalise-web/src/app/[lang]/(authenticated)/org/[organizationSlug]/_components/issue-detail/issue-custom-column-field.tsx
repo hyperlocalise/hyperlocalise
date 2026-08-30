@@ -74,7 +74,7 @@ export function IssueCustomColumnField({
 
     return (
       <Select
-        value={currentValue || undefined}
+        value={currentValue || null}
         items={selectItems}
         onValueChange={(next) => {
           onChange(next ?? "");

@@ -31,7 +31,7 @@ type WorkspacePageShellProps = ComponentProps<"main">;
 
 export function WorkspacePageShell({ children, className, ...props }: WorkspacePageShellProps) {
   return (
-    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)} {...props}>
+    <main className={cn("flex w-full flex-col gap-6 p-4", className)} {...props}>
       {children}
     </main>
   );

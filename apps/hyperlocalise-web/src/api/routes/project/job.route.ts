@@ -414,16 +414,20 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
-      let enrichedInputPayload =
-        payload.title && payload.title.trim().length > 0
-          ? {
-              ...inputPayload,
-              metadata: {
-                ...inputPayload.metadata,
-                title: payload.title.trim(),
-              },
-            }
-          : inputPayload;
+      const title = payload.title?.trim();
+      const description = payload.description?.trim();
+      const jobKind = payload.kind === "proofread" ? "proofread" : "translation";
+      let enrichedInputPayload = inputPayload;
+      if (title || description) {
+        enrichedInputPayload = {
+          ...inputPayload,
+          metadata: {
+            ...inputPayload.metadata,
+            ...(title ? { title } : {}),
+            ...(description ? { description } : {}),
+          },
+        };
+      }
 
       const localeValidation = validateJobLocalesAgainstProject(project, {
         sourceLocale: enrichedInputPayload.sourceLocale,
@@ -534,7 +538,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               createdByUserId: c.var.auth.user.localUserId,
               ownerUserId,
               assigneeType: ownerUserId ? "user" : null,
-              kind: "translation",
+              kind: jobKind,
               status: "queued",
               inputPayload: enrichedInputPayload,
             })

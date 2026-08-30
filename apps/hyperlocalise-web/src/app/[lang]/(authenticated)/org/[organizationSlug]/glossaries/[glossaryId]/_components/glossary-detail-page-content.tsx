@@ -2337,7 +2337,7 @@ export function GlossaryDetailPageContent({
           {canManage && isNative ? (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
-                value={selectedProjectId}
+                value={selectedProjectId || null}
                 onValueChange={(value) => setSelectedProjectId(value ?? "")}
               >
                 <SelectTrigger className="sm:max-w-sm">

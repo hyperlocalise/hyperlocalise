@@ -57,18 +57,23 @@ export const fileTranslationJobInputSchema = z.object({
   metadata: metadataSchema,
 });
 
+const createJobSharedFields = {
+  ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
+  title: z.string().trim().min(1).max(256).optional(),
+  description: z.string().trim().max(2_048).optional(),
+  kind: z.enum(["translation", "proofread"]).optional(),
+};
+
 export const createJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     stringInput: stringTranslationJobInputSchema,
-    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
-    title: z.string().trim().min(1).max(256).optional(),
+    ...createJobSharedFields,
   }),
   z.object({
     type: z.literal("file"),
     fileInput: fileTranslationJobInputSchema,
-    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
-    title: z.string().trim().min(1).max(256).optional(),
+    ...createJobSharedFields,
   }),
 ]);
 

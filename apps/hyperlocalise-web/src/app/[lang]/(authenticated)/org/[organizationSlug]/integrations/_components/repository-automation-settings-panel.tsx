@@ -127,7 +127,7 @@ function ProjectSelectField({
       <Label htmlFor={id}>{label}</Label>
       <p className="text-xs text-muted-foreground">{description}</p>
       <Select
-        value={value || undefined}
+        value={value || null}
         onValueChange={(nextValue) => {
           if (nextValue) {
             onChange(nextValue);
@@ -140,7 +140,7 @@ function ProjectSelectField({
         </SelectTrigger>
         <SelectContent>
           {projects.map((project) => (
-            <SelectItem key={project.id} value={project.id}>
+            <SelectItem key={project.id} value={project.id} label={project.name}>
               {project.name}
             </SelectItem>
           ))}

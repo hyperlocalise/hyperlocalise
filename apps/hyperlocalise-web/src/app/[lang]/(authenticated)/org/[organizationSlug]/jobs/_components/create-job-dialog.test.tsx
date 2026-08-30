@@ -189,8 +189,8 @@ describe("CreateJobDialog", () => {
     expect(screen.queryByLabelText("Source locale")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Target locales")).toHaveTextContent("All locales");
     expect(screen.getByLabelText("Assignee")).toHaveTextContent("Unassigned");
-    expect(screen.queryByLabelText("Task type")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Task type")).toHaveTextContent("Translation");
+    expect(screen.getByLabelText("Description")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create job" })).toBeDisabled();
 
     expect(await screen.findByRole("group", { name: "Files" })).toBeInTheDocument();
@@ -371,6 +371,10 @@ describe("CreateJobDialog", () => {
     renderDialog({ onOpenChange, onCreated });
 
     await user.type(screen.getByLabelText("Title"), "Release notes");
+    await user.type(screen.getByLabelText("Description"), "Ship JP and KO first.");
+    await user.click(screen.getByLabelText("Task type"));
+    const taskTypeList = await screen.findByRole("listbox");
+    await user.click(within(taskTypeList).getByRole("option", { name: "Proofread" }));
     await user.click(await screen.findByRole("checkbox", { name: "marketing/home.json" }));
     await user.click(screen.getByRole("button", { name: "Create job" }));
 
@@ -380,6 +384,8 @@ describe("CreateJobDialog", () => {
       json: {
         type: "file",
         title: "Release notes",
+        kind: "proofread",
+        description: "Ship JP and KO first.",
         fileInput: {
           sourceFileId: "file_home_json",
           fileFormat: "json",

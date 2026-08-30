@@ -408,19 +408,25 @@ export function JobAgentRunDiffReviewSection({
 
       {reviewableRuns.length > 1 ? (
         <div className="mt-4 max-w-sm">
-          <Select value={selectedRun?.id ?? ""} onValueChange={(value) => setSelectedRunId(value)}>
+          <Select
+            value={selectedRun?.id || null}
+            onValueChange={(value) => setSelectedRunId(value)}
+          >
             <SelectTrigger>
               <SelectValue placeholder={intl.formatMessage(messages.selectAgentRunPlaceholder)} />
             </SelectTrigger>
             <SelectContent>
-              {reviewableRuns.map((run) => (
-                <SelectItem key={run.id} value={run.id}>
-                  {intl.formatMessage(messages.agentRunOption, {
-                    kind: run.kind.replaceAll("_", " "),
-                    createdAt: new Date(run.createdAt).toLocaleString(),
-                  })}
-                </SelectItem>
-              ))}
+              {reviewableRuns.map((run) => {
+                const label = intl.formatMessage(messages.agentRunOption, {
+                  kind: run.kind.replaceAll("_", " "),
+                  createdAt: new Date(run.createdAt).toLocaleString(),
+                });
+                return (
+                  <SelectItem key={run.id} value={run.id} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

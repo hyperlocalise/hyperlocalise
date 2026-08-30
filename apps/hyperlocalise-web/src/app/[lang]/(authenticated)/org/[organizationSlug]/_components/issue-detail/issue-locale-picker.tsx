@@ -168,7 +168,7 @@ export function IssueLocalePicker({
       ? ANY_LOCALE_VALUE
       : allowClear
         ? CLEAR_LOCALE_VALUE
-        : undefined;
+        : null;
   const hasChoices = options.length > 0 || allowAny || allowClear;
 
   return (

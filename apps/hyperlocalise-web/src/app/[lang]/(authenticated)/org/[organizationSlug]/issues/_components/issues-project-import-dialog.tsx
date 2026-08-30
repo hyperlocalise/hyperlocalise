@@ -116,7 +116,7 @@ export function IssuesProjectImportDialog({
             </p>
           ) : (
             <Select
-              value={selectedProjectId || undefined}
+              value={selectedProjectId || null}
               items={projectItems}
               onValueChange={(value) => setSelectedProjectId(value ?? "")}
             >

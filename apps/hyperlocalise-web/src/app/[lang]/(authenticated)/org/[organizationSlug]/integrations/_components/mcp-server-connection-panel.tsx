@@ -310,10 +310,16 @@ export function McpServerConnectionPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="http">
+                    <SelectItem
+                      value="http"
+                      label={intl.formatMessage(mcpServerConnectionPanelMessages.transportHttp)}
+                    >
                       <FormattedMessage {...mcpServerConnectionPanelMessages.transportHttp} />
                     </SelectItem>
-                    <SelectItem value="sse">
+                    <SelectItem
+                      value="sse"
+                      label={intl.formatMessage(mcpServerConnectionPanelMessages.transportSse)}
+                    >
                       <FormattedMessage {...mcpServerConnectionPanelMessages.transportSse} />
                     </SelectItem>
                   </SelectContent>
@@ -337,13 +343,22 @@ export function McpServerConnectionPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">
+                    <SelectItem
+                      value="none"
+                      label={intl.formatMessage(mcpServerConnectionPanelMessages.authNone)}
+                    >
                       <FormattedMessage {...mcpServerConnectionPanelMessages.authNone} />
                     </SelectItem>
-                    <SelectItem value="bearer">
+                    <SelectItem
+                      value="bearer"
+                      label={intl.formatMessage(mcpServerConnectionPanelMessages.authBearer)}
+                    >
                       <FormattedMessage {...mcpServerConnectionPanelMessages.authBearer} />
                     </SelectItem>
-                    <SelectItem value="headers">
+                    <SelectItem
+                      value="headers"
+                      label={intl.formatMessage(mcpServerConnectionPanelMessages.authHeaders)}
+                    >
                       <FormattedMessage {...mcpServerConnectionPanelMessages.authHeaders} />
                     </SelectItem>
                   </SelectContent>

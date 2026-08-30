@@ -870,7 +870,7 @@ export function IssueSheetCreateIssueDialog({
 
               {showProjectPicker ? (
                 <Select
-                  value={selectedProjectId || undefined}
+                  value={selectedProjectId || null}
                   items={projectItems}
                   onValueChange={(value) => {
                     setSelectedProjectId(value ?? "");

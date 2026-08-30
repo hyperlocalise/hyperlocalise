@@ -17164,8 +17164,8 @@
     "description": "Dashboard panel description for live TMS jobs"
   },
   "nqQ9RngvcW": {
-    "defaultMessage": "Create Crowdin tasks with files, locales, and assignees.",
-    "description": "Create job dialog description for Crowdin provider projects"
+    "defaultMessage": "Create a job with context, files, locales, and assignees.",
+    "description": "Create job dialog accessible description"
   },
   "nqV2qZ+dzM": {
     "defaultMessage": "File and string translation jobs, batch localization, and translation subagents.",

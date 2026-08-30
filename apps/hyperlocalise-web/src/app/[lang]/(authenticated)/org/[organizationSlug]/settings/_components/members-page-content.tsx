@@ -116,6 +116,7 @@ function RoleSelectItem({
   return (
     <SelectItem
       value={role}
+      label={getRoleLabel(role, intl)}
       className="items-start py-2 [&>:first-child]:w-full [&>:first-child]:min-w-0 [&>:first-child]:shrink [&>:first-child]:whitespace-normal"
     >
       <div className="flex min-w-0 flex-col gap-0.5 text-start">
