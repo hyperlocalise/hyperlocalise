@@ -501,7 +501,8 @@ describe("apiKeyRoutes", () => {
       { param: { jobId: `job_${randomUUID()}` } },
       { headers: { "x-api-key": plainKey } },
     );
-    expect(authResponse.status).toBe(403);
+    expect(authResponse.status).toBe(401);
+    expect(await authResponse.json()).toMatchObject({ error: "unauthorized" });
   });
 
   it("keeps listing and authenticating a pre-existing key created outside the route", async () => {

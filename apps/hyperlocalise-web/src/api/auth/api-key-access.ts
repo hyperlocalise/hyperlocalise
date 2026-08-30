@@ -23,6 +23,20 @@ import { db, schema } from "@/lib/database/client";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
+/**
+ * Rebuild the PAT owner's live organization membership, role, team scope, and
+ * capabilities. Fail closed when the owner, membership, or organization cannot
+ * be established as currently authorized:
+ *
+ * - ownerless token (`createdByUserId` null) or deleted user row
+ * - archived or missing organization
+ * - WorkOS lookup failed and the last reconcile is stale
+ * - no authoritative WorkOS membership (pending invite, replacing sentinel,
+ *   removed member, or inactive local row)
+ *
+ * A successful result is the access the owner would have interactively. Token
+ * scopes subtract from it in `requireApiKeyPermission`; they never add.
+ */
 export async function resolveApiKeyTeamAccessContext(input: {
   organizationId: string;
   createdByUserId: string | null;

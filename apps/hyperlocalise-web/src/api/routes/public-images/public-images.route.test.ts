@@ -166,4 +166,23 @@ describe("publicImageRoutes", () => {
     const body = await response.json();
     expect(body).toMatchObject({ error: "image_variant_not_found" });
   });
+
+  it("rejects image downloads without files:read", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["jobs:read", "jobs:write"] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const response = await client.api.v1.projects[":projectId"].images.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath: "assets/banner.png", locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
 });

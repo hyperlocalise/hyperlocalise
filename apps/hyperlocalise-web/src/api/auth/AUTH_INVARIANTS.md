@@ -92,6 +92,33 @@ full WorkOS identity model.
     a membership role, are skipped during reconcile/webhook sync, and resolve to
     no capabilities. See [`LOCALIZATION_ROLES.md`](./LOCALIZATION_ROLES.md).
 
+## Personal access tokens (`api-key.ts`)
+
+PATs reuse `organization_api_keys`. They act as the owner, never as a snapshot
+of the owner's role at creation. Regression coverage lives in
+`api-key.test.ts` and the public `/api/v1` route tests.
+
+19. **Live membership, not stored scopes.** Every authenticated request resolves
+    the owner's current organization membership, role, team access, and
+    capabilities through `resolveApiKeyTeamAccessContext`. Fail closed when
+    that access cannot be established.
+20. **Intersection only.** Effective access is token scopes ∩ the owner's
+    current capabilities. A role downgrade takes effect on the next request.
+    `api_keys:write` is a session management permission; it is not a token
+    scope and never grants broader runtime access.
+21. **Same 401 for unknown, revoked, and ownerless tokens.** Do not leak
+    whether a presented secret hashes to a stored row.
+22. **Archived organizations and unresolvable memberships fail closed.**
+    Archived orgs answer `403 workspace_archived`. Missing users, inactive or
+    non-authoritative memberships, and stale WorkOS lookups answer 403
+    `forbidden`. Fresh reconcile fallback stays allowed inside the TTL.
+23. **Membership removal revokes the owner's tokens.**
+    `revokeOrganizationMembershipAccess` sets `revoked_at` on every unrevoked
+    PAT owned by that user in that organization, in the same transaction as
+    membership deletion.
+24. **`lastUsedAt` is non-blocking telemetry.** Write it only after
+    authentication succeeds. Never fail the request if the write fails.
+
 ## Future extension points
 
 When adding team-scoped roles or external contributor access:

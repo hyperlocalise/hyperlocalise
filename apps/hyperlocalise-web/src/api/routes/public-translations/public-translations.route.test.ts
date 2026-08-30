@@ -240,4 +240,23 @@ describe("publicTranslationRoutes", () => {
       farewell: "Goodbye",
     });
   });
+
+  it("rejects translation downloads without files:read", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["jobs:read", "jobs:write"] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath: "lang/en.json", locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
 });

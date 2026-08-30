@@ -17,7 +17,11 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { apiKeyAuthLogContext, touchApiKeyLastUsedAt } from "@/api/auth/api-key";
+import {
+  apiKeyAuthLogContext,
+  INVALID_OR_REVOKED_API_KEY_MESSAGE,
+  touchApiKeyLastUsedAt,
+} from "@/api/auth/api-key";
 import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import {
   cleanupPublicApiFixture,
@@ -284,29 +288,165 @@ describe("apiKeyAuthMiddleware", () => {
     expect(keyRecord?.revokedAt).not.toBeNull();
   });
 
-  it("updates lastUsedAt after successful authentication without blocking failures", async () => {
-    const { apiKey, project } = await createPublicApiFixture();
+  it("rejects unknown, revoked, and ownerless tokens with the same 401", async () => {
+    const { apiKey, apiKeyId, project } = await createPublicApiFixture();
+    const expected = {
+      error: "unauthorized",
+      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
+    };
+
+    const unknownResponse = await createStringJob("hl_unknown_token_does_not_exist", project.id);
+    expect(unknownResponse.status).toBe(401);
+    await expect(unknownResponse.json()).resolves.toMatchObject(expected);
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(schema.organizationApiKeys.id, apiKeyId));
+
+    const revokedResponse = await createStringJob(apiKey, project.id);
+    expect(revokedResponse.status).toBe(401);
+    await expect(revokedResponse.json()).resolves.toMatchObject(expected);
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: null, createdByUserId: null })
+      .where(eq(schema.organizationApiKeys.id, apiKeyId));
+
+    const ownerlessResponse = await createStringJob(apiKey, project.id);
+    expect(ownerlessResponse.status).toBe(401);
+    await expect(ownerlessResponse.json()).resolves.toMatchObject(expected);
+  });
+
+  it("rejects a token after its owner user row is removed", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture();
+
+    await db.delete(schema.users).where(eq(schema.users.id, user.id));
 
     const response = await createStringJob(apiKey, project.id);
-    expect(response.status).toBe(201);
 
-    await vi.waitFor(async () => {
-      const [keyRecord] = await db
-        .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
-        .from(schema.organizationApiKeys)
-        .where(
-          and(
-            eq(schema.organizationApiKeys.organizationId, project.organizationId),
-            eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)),
-          ),
-        )
-        .limit(1);
-
-      expect(keyRecord?.lastUsedAt).not.toBeNull();
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "unauthorized",
+      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
     });
   });
 
-  it("does not update lastUsedAt for a rejected credential", async () => {
+  it("denies jobs:write when the token scope does not include it", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: ["jobs:read"],
+    });
+
+    const response = await createStringJob(apiKey, project.id);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("denies jobs:write when the owner's current role cannot back the scope", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: ["jobs:read", "jobs:write"],
+      role: "member",
+    });
+
+    const response = await createStringJob(apiKey, project.id);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("applies a role downgrade on the next authenticated request", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture({
+      permissions: ["jobs:read", "jobs:write"],
+      role: "admin",
+    });
+
+    const allowed = await createStringJob(apiKey, project.id);
+    expect(allowed.status).toBe(201);
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "member" })
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, project.organizationId),
+          eq(schema.organizationMemberships.userId, user.id),
+        ),
+      );
+
+    const denied = await createStringJob(apiKey, project.id);
+    expect(denied.status).toBe(403);
+    await expect(denied.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("does not grant broader runtime access after the owner loses api_keys:write", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture({
+      permissions: ["jobs:read", "jobs:write"],
+      role: "admin",
+    });
+
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: project.organizationId,
+        name: "Runtime Access Team",
+        slug: `runtime-access-${user.id.slice(0, 8)}`,
+      })
+      .returning();
+    expect(team).toBeDefined();
+
+    await db
+      .update(schema.projects)
+      .set({ teamId: team!.id })
+      .where(eq(schema.projects.id, project.id));
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team!.id,
+      userId: user.id,
+      role: "member",
+    });
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "translator" })
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, project.organizationId),
+          eq(schema.organizationMemberships.userId, user.id),
+        ),
+      );
+
+    const response = await createStringJob(apiKey, project.id);
+    expect(response.status).toBe(201);
+  });
+
+  it("updates lastUsedAt only after successful authentication", async () => {
+    const { apiKey, apiKeyId, project } = await createPublicApiFixture();
+
+    const rejected = await createStringJob("hl_unknown_token_does_not_exist", project.id);
+    expect(rejected.status).toBe(401);
+
+    const [untouched] = await db
+      .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
+      .from(schema.organizationApiKeys)
+      .where(eq(schema.organizationApiKeys.id, apiKeyId))
+      .limit(1);
+    expect(untouched?.lastUsedAt).toBeNull();
+
+    const allowed = await createStringJob(apiKey, project.id);
+    expect(allowed.status).toBe(201);
+
+    await vi.waitFor(async () => {
+      const [touched] = await db
+        .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
+        .from(schema.organizationApiKeys)
+        .where(eq(schema.organizationApiKeys.id, apiKeyId))
+        .limit(1);
+      expect(touched?.lastUsedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  it("does not update lastUsedAt for a revoked credential", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 
     await db
