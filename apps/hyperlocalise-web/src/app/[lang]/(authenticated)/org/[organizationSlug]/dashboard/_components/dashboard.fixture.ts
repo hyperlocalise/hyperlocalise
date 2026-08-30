@@ -183,7 +183,7 @@ export const dashboardProjectsItemsFixture: DashboardProjectItem[] = dashboardPr
     sourceLabel:
       project.source === "external_tms" && project.externalProviderKind
         ? providerLabel(project.externalProviderKind)
-        : "Native",
+        : "Workspace",
     localeRoute: formatDashboardLocaleRoute(project.sourceLocale, project.targetLocales),
     pendingActionCount: project.openJobCount,
     updatedAt: project.lastSyncedAt ?? project.updated,

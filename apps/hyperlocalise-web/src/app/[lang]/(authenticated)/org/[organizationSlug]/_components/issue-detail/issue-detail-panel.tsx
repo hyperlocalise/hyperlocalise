@@ -976,7 +976,7 @@ export const IssueDetailPanel = forwardRef<
                   label={<FormattedMessage {...messages.fieldPriority} />}
                 >
                   <Select
-                    value={priority || undefined}
+                    value={priority || null}
                     items={priorityItems}
                     onValueChange={(value) => {
                       if (value) {
@@ -1240,7 +1240,7 @@ export const IssueDetailPanel = forwardRef<
 
               {showPriorityField ? (
                 <Select
-                  value={priority || undefined}
+                  value={priority || null}
                   items={priorityItems}
                   onValueChange={(value) => {
                     if (value) {

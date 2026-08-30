@@ -130,6 +130,37 @@ api_token: identity-secret
 	}
 }
 
+func TestLoadClientConfigAcceptsCrowdinIdentityBasePath(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	identityPath := filepath.Join(dir, ".crowdin.yml")
+	if err := os.WriteFile(configPath, []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(identityPath, []byte(`
+project_id: 123
+api_token: identity-secret
+base_path: .
+base_url: https://api.crowdin.com
+`), 0o644); err != nil {
+		t.Fatalf("write identity: %v", err)
+	}
+
+	cfg, _, err := LoadClientConfig(configPath, identityPath)
+	if err != nil {
+		t.Fatalf("load client config: %v", err)
+	}
+	if cfg.ProjectID != "123" {
+		t.Fatalf("project id = %q", cfg.ProjectID)
+	}
+	if cfg.APIToken != "identity-secret" {
+		t.Fatalf("api token = %q", cfg.APIToken)
+	}
+	if cfg.APIBaseURL != "https://api.crowdin.com" {
+		t.Fatalf("api base url = %q", cfg.APIBaseURL)
+	}
+}
+
 func TestLoadFileWorkflowConfigUsesLegacyTokenFallback(t *testing.T) {
 	t.Setenv(defaultProjectIDEnvName, "123")
 	t.Setenv(legacyAPITokenEnvName, "legacy-secret")

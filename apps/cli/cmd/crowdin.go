@@ -74,6 +74,43 @@ type crowdinTranslationMemoryWriter interface {
 	WriteTranslationMemoryTMX(context.Context, crowdinstorage.TranslationMemoryDownloadRequest, io.Writer) (crowdinstorage.TranslationMemoryDownloadResult, error)
 }
 
+type crowdinBranchLister interface {
+	ListBranches(context.Context, string) ([]crowdinstorage.Branch, error)
+}
+
+type crowdinBranchAdder interface {
+	AddBranch(context.Context, string, string) (crowdinstorage.Branch, error)
+}
+
+type crowdinFileLister interface {
+	ListProjectFiles(context.Context, string, string) ([]crowdinstorage.ProjectFile, error)
+}
+
+type crowdinLanguageLister interface {
+	ListProjectLanguages(context.Context, string) ([]crowdinstorage.ProjectLanguage, error)
+	ListAllLanguages(context.Context) ([]crowdinstorage.ProjectLanguage, error)
+}
+
+type crowdinGlossaryLister interface {
+	ListGlossaries(context.Context, string) ([]crowdinstorage.GlossarySummary, error)
+}
+
+type crowdinTranslationMemoryLister interface {
+	ListTranslationMemories(context.Context, string) ([]crowdinstorage.TranslationMemorySummary, error)
+}
+
+type crowdinLocaleResolver interface {
+	ResolveLocales(context.Context, string, []string) ([]crowdinstorage.ResolvedLocale, error)
+}
+
+type crowdinTranslationMemoryImporter interface {
+	ImportTranslationMemoryFile(context.Context, int, string) (crowdinstorage.ImportResult, error)
+}
+
+type crowdinGlossaryImporter interface {
+	ImportGlossaryFile(context.Context, int, string) (crowdinstorage.ImportResult, error)
+}
+
 var newCrowdinTranslationStatusReader = func(cfg crowdinstorage.Config) (crowdinTranslationStatusReader, error) {
 	return crowdinstorage.NewHTTPClient(cfg)
 }
@@ -86,6 +123,42 @@ var newCrowdinTranslationMemoryWriter = func(cfg crowdinstorage.Config) (crowdin
 	return crowdinstorage.NewHTTPClient(cfg)
 }
 
+var newCrowdinBranchLister = func(cfg crowdinstorage.Config) (crowdinBranchLister, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinBranchAdder = func(cfg crowdinstorage.Config) (crowdinBranchAdder, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinFileLister = func(cfg crowdinstorage.Config) (crowdinFileLister, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinLanguageLister = func(cfg crowdinstorage.Config) (crowdinLanguageLister, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinGlossaryLister = func(cfg crowdinstorage.Config) (crowdinGlossaryLister, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinTranslationMemoryLister = func(cfg crowdinstorage.Config) (crowdinTranslationMemoryLister, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinLocaleResolver = func(cfg crowdinstorage.Config) (crowdinLocaleResolver, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinTranslationMemoryImporter = func(cfg crowdinstorage.Config) (crowdinTranslationMemoryImporter, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
+var newCrowdinGlossaryImporter = func(cfg crowdinstorage.Config) (crowdinGlossaryImporter, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
 func newCrowdinCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "crowdin",
@@ -95,6 +168,9 @@ func newCrowdinCmd() *cobra.Command {
 	cmd.AddCommand(newCrowdinInitCmd())
 	cmd.AddCommand(newCrowdinConfigCmd())
 	cmd.AddCommand(newCrowdinStatusCmd())
+	cmd.AddCommand(newCrowdinBranchCmd())
+	cmd.AddCommand(newCrowdinFileCmd())
+	cmd.AddCommand(newCrowdinLanguageCmd())
 	cmd.AddCommand(newCrowdinUploadCmd())
 	cmd.AddCommand(newCrowdinDownloadCmd())
 	cmd.AddCommand(newCrowdinGlossaryCmd())
@@ -135,9 +211,11 @@ func newCrowdinInitCmd() *cobra.Command {
 func newCrowdinConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "validate Crowdin-compatible config",
+		Short: "validate Crowdin-compatible config and list configured files",
 	}
 	cmd.AddCommand(newCrowdinConfigValidateCmd())
+	cmd.AddCommand(newCrowdinConfigSourcesCmd())
+	cmd.AddCommand(newCrowdinConfigTranslationsCmd())
 	return cmd
 }
 
@@ -491,7 +569,9 @@ func newCrowdinGlossaryCmd() *cobra.Command {
 		Use:   "glossary",
 		Short: "Crowdin glossary commands",
 	}
+	cmd.AddCommand(newCrowdinGlossaryListCmd())
 	cmd.AddCommand(newCrowdinGlossaryDownloadCmd())
+	cmd.AddCommand(newCrowdinGlossaryUploadCmd())
 	return cmd
 }
 
@@ -570,7 +650,9 @@ func newCrowdinTranslationMemoryCmd() *cobra.Command {
 		Aliases: []string{"translation-memory"},
 		Short:   "Crowdin translation memory commands",
 	}
+	cmd.AddCommand(newCrowdinTranslationMemoryListCmd())
 	cmd.AddCommand(newCrowdinTranslationMemoryDownloadCmd())
+	cmd.AddCommand(newCrowdinTranslationMemoryUploadCmd())
 	return cmd
 }
 

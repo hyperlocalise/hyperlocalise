@@ -235,6 +235,90 @@ func TestFileAdapterUploadTranslationsRespectsLanguagesMappingAndExclusions(t *t
 	}
 }
 
+func TestFileAdapterUploadTranslationsExcludesLanguageIDWhenFolderLocaleDiffers(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
+	writeJSONFixture(t, filepath.Join(base, "dist", "fr-FR", "messages.json"), `{"hello":"Bonjour"}`)
+	writeJSONFixture(t, filepath.Join(base, "dist", "de-DE", "messages.json"), `{"hello":"Hallo"}`)
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de-DE"}},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:                  "/src/*.json",
+			Translation:             "/dist/%locale%/%original_file_name%",
+			ExcludedTargetLanguages: []string{"fr"},
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+
+	result, err := adapter.UploadTranslations(context.Background(), storage.FileUploadTranslationsRequest{})
+	if err != nil {
+		t.Fatalf("upload translations: %v", err)
+	}
+	if !reflect.DeepEqual(result.Processed, []string{filepath.Join(base, "dist", "de-DE", "messages.json")}) {
+		t.Fatalf("processed = %#v", result.Processed)
+	}
+	if !reflect.DeepEqual(result.Skipped, []string{"src/messages.json@fr"}) {
+		t.Fatalf("skipped = %#v", result.Skipped)
+	}
+	if got, want := client.uploadedTranslations, []string{"de:1:messages.json"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("uploaded translations = %#v, want %#v", got, want)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsExcludesLanguageIDWhenFolderLocaleDiffers(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de-DE"}},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+		downloadPayload: []byte("translated"),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:                  "/src/*.json",
+			Translation:             "/download/%locale%/%original_file_name%",
+			ExcludedTargetLanguages: []string{"fr"},
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{})
+	if err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+	wantPath := filepath.Join(base, "download", "de-DE", "messages.json")
+	if !reflect.DeepEqual(result.Processed, []string{wantPath}) {
+		t.Fatalf("processed = %#v, want %#v", result.Processed, []string{wantPath})
+	}
+	if !reflect.DeepEqual(result.Skipped, []string{"src/messages.json@fr"}) {
+		t.Fatalf("skipped = %#v", result.Skipped)
+	}
+	if got, want := client.downloaded, []string{"de:1"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("downloaded translations = %#v, want %#v", got, want)
+	}
+}
+
 func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 	base := t.TempDir()
 	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)

@@ -49,7 +49,7 @@ function getInputPayloadStringArray(job: JobDetailRecord, key: string) {
 export function isNativeFileTranslationJob(job: JobDetailRecord) {
   return (
     !isProviderBackedJob(job) &&
-    job.kind === "translation" &&
+    (job.kind === "translation" || job.kind === "proofread") &&
     job.type === "file" &&
     Boolean(getInputPayloadString(job, "sourceFileId"))
   );

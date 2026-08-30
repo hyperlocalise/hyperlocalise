@@ -138,6 +138,7 @@ export function TranslationMemoriesPageContent({
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
+  const [projectFilter, setProjectFilter] = useState("all");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderMemories = Boolean(activeTmsProvider);
   const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
@@ -190,6 +191,7 @@ export function TranslationMemoriesPageContent({
       ...memoriesQueryKey(organizationSlug, page),
       useLiveProviderMemories ? "live" : "native",
       selectedExternalProjectId,
+      projectFilter,
     ],
     enabled: !useLiveProviderMemories || Boolean(selectedExternalProjectId),
     queryFn: async () => {
@@ -230,6 +232,7 @@ export function TranslationMemoriesPageContent({
         query: {
           limit: String(MEMORIES_PAGE_SIZE),
           offset: String((page - 1) * MEMORIES_PAGE_SIZE),
+          ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
         },
       });
 
@@ -308,6 +311,14 @@ export function TranslationMemoriesPageContent({
   const pageStart = memoryTotal === 0 ? 0 : (page - 1) * MEMORIES_PAGE_SIZE + 1;
   const pageEnd = Math.min(page * MEMORIES_PAGE_SIZE, memoryTotal);
 
+  const filterProjects = useMemo(
+    () =>
+      (projectsQuery.data ?? [])
+        .map((project) => ({ id: project.id, name: project.name }))
+        .toSorted((left, right) => left.name.localeCompare(right.name)),
+    [projectsQuery.data],
+  );
+
   const providerKinds = useMemo(() => {
     const kinds = new Set<string>();
     for (const memory of memories) {
@@ -343,10 +354,12 @@ export function TranslationMemoriesPageContent({
     providerFilter,
     syncFilter,
     selectedExternalProjectId,
+    projectFilter,
   ]);
 
   useEffect(() => {
     setSelectedExternalProjectId("");
+    setProjectFilter("all");
   }, [organizationSlug, useLiveProviderMemories]);
 
   useEffect(() => {
@@ -393,18 +406,26 @@ export function TranslationMemoriesPageContent({
       onSearchQueryChange={setSearchQuery}
       sourceFilter={sourceFilter}
       onSourceFilterChange={setSourceFilter}
+      projectFilter={projectFilter}
+      onProjectFilterChange={setProjectFilter}
+      projects={filterProjects}
       providerFilter={providerFilter}
       onProviderFilterChange={setProviderFilter}
       syncFilter={syncFilter}
       onSyncFilterChange={setSyncFilter}
       providerKinds={providerKinds}
       hasExternalMemories={hasExternalMemories}
-      hasMemories={memories.length > 0}
-      activeFilterCount={activeFilterCount}
+      hasMemories={memories.length > 0 || (projectFilter !== "all" && memoryTotal === 0)}
+      activeFilterCount={activeFilterCount + (projectFilter === "all" ? 0 : 1)}
       showNoFilterMatches={
-        memoriesQuery.isSuccess && memories.length > 0 && filteredMemories.length === 0
+        memoriesQuery.isSuccess &&
+        ((memories.length > 0 && filteredMemories.length === 0) ||
+          (projectFilter !== "all" && memoryTotal === 0))
       }
-      onClearFilters={clearFilters}
+      onClearFilters={() => {
+        clearFilters();
+        setProjectFilter("all");
+      }}
       page={page}
       totalPages={totalPages}
       pageStart={pageStart}

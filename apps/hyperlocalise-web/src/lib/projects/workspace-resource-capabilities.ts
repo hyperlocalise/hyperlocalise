@@ -77,7 +77,7 @@ export function canOpenNativeJobContentEditor(job: {
     return false;
   }
 
-  if (job.kind !== "translation" || job.type !== "file") {
+  if ((job.kind !== "translation" && job.kind !== "proofread") || job.type !== "file") {
     return false;
   }
 

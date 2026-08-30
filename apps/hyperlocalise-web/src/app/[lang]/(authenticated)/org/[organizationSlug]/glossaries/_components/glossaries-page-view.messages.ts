@@ -63,9 +63,9 @@ export const glossariesPageViewMessages = defineMessages({
     description: "Empty search state for glossaries, with a clear-search action",
   },
   nativeSectionTitle: {
-    defaultMessage: "Native glossaries",
-    id: "tR49yNVFBv",
-    description: "Heading for workspace-native glossaries",
+    defaultMessage: "Workspace glossaries",
+    id: "dLOnbBe+SR",
+    description: "Heading for workspace glossaries",
   },
   externalSectionTitle: {
     defaultMessage: "Provider glossaries",
@@ -78,14 +78,15 @@ export const glossariesPageViewMessages = defineMessages({
     description: "Heading for live Crowdin glossaries",
   },
   nativeEmptyTitle: {
-    defaultMessage: "No native glossaries",
-    id: "EN/XL+26FR",
-    description: "Empty state title for the native glossary section when creation is unavailable",
+    defaultMessage: "No workspace glossaries",
+    id: "032V4XY9wg",
+    description:
+      "Empty state title for the workspace glossary section when creation is unavailable",
   },
   nativeEmptyDescription: {
-    defaultMessage: "Native glossaries created in this workspace will appear here.",
-    id: "cH3TG4pXPd",
-    description: "Empty state description for native glossaries",
+    defaultMessage: "Workspace glossaries created in this workspace will appear here.",
+    id: "im9nnXP/O2",
+    description: "Empty state description for workspace glossaries",
   },
   externalEmptyTitle: {
     defaultMessage: "No provider glossaries",

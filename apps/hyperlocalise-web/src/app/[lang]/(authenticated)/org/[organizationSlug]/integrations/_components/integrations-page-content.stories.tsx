@@ -27,8 +27,10 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/${integrationsOrganizationSlug}/integrations`,
+        query: {},
       },
     },
   },
@@ -51,18 +53,50 @@ export const Default: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    await expect(canvas.getByText("Workspace level")).toBeInTheDocument();
-    await expect(canvas.getByText("Source control")).toBeInTheDocument();
+    await expect(canvas.getByRole("tab", { name: "All" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Source control" })).toBeInTheDocument();
     await expect(canvas.getByText("Translation Management System")).toBeInTheDocument();
-    await expect(canvas.getByText("Content Management System")).toBeInTheDocument();
+    await expect(canvas.getByText("Content & publishing")).toBeInTheDocument();
+    await expect(canvas.getByText("Experimentation")).toBeInTheDocument();
+    await expect(canvas.getByText("Projects & files")).toBeInTheDocument();
+    await expect(canvas.getByText("Pages")).toBeInTheDocument();
+    await expect(canvas.getByText("Hyperlab")).toBeInTheDocument();
+    await expect(canvas.getByText("HyperSEO")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Included").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
+    await expect(canvas.getByText("Customer engagement")).toBeInTheDocument();
     await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();
     await expect(canvas.getByText("GitHub")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+    await expect(canvas.getByText("Intercom")).toBeInTheDocument();
+    await expect(canvas.getByText("Semrush")).toBeInTheDocument();
+    await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();
     await expect(canvas.getByText("Slack")).toBeInTheDocument();
     await expect(canvas.getByText("Email")).toBeInTheDocument();
+    await expect(canvas.getByText("Jira")).toBeInTheDocument();
+    await expect(canvas.getByText("Braze")).toBeInTheDocument();
+    await expect(canvas.getByText("Iterable")).toBeInTheDocument();
+    await expect(canvas.getByText("Customer.io")).toBeInTheDocument();
+    await expect(canvas.getByText("HubSpot")).toBeInTheDocument();
+    await expect(canvas.getByText("Mailchimp")).toBeInTheDocument();
+    await expect(canvas.getByText("Loops")).toBeInTheDocument();
+    await expect(canvas.getByText("SendGrid")).toBeInTheDocument();
     await expect(canvas.queryByText("Open AI")).not.toBeInTheDocument();
+  },
+};
+
+export const FilteredCategory: Story = {
+  parameters: {
+    msw: {
+      handlers: integrationsConnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "MCP servers" }));
+    await expect(canvas.getByRole("heading", { name: "MCP servers" })).toBeInTheDocument();
+    await expect(canvas.getByText("MCP Server")).toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "Source control" })).not.toBeInTheDocument();
   },
 };
 
@@ -102,10 +136,17 @@ export const ReadOnly: Story = {
       handlers: integrationsConnectedMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
-    await expect(canvas.getAllByText("View only").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("button", { name: "View only" }).length).toBeGreaterThan(0);
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
+    await userEvent.click(canvas.getByRole("button", { name: "View only" }));
+    await expect(canvas.getByText("Support workspace")).toBeInTheDocument();
+    await expect(canvas.getByText("US · token ending in abcd")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add connection" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
   },
 };
 
@@ -123,6 +164,7 @@ export const WithoutProviderIntegrations: Story = {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
     await expect(canvas.getByText("Source control")).toBeInTheDocument();
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
+    await expect(canvas.getByText("Customer engagement")).toBeInTheDocument();
     await expect(canvas.queryByText("Translation Management System")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();
   },

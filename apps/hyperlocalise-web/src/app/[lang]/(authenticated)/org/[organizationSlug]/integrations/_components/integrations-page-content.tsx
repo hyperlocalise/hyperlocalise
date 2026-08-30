@@ -15,10 +15,11 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { Alert02Icon, ArrowDown01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siContentful, siCrowdin } from "simple-icons";
+import { siCrowdin } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -49,11 +50,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH1 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
 import {
   CollaborationIntegrationsSection,
+  CustomerEngagementIntegrationsSection,
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
 import {
@@ -66,16 +70,73 @@ import {
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
 import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
-import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
-import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
+import { IntegrationLogo } from "./integration-logo";
+import {
+  CollapsibleIntegrationRow,
+  IntegrationCategoryCard,
+  IntegrationCategoryLabel,
+  IntegrationRow,
+  integrationConnectButtonClassName,
+} from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
 import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();
+
+const INTEGRATION_CATEGORY_IDS = [
+  "source-control",
+  "collaboration",
+  "tms",
+  "cms",
+  "customer-engagement",
+  "experimentation",
+  "seo-tools",
+  "mcp-servers",
+] as const;
+
+type IntegrationCategoryId = (typeof INTEGRATION_CATEGORY_IDS)[number];
+
+type IntegrationCategoryFilter = "all" | IntegrationCategoryId;
+
+const PROVIDER_INTEGRATION_CATEGORY_IDS = new Set<IntegrationCategoryId>([
+  "tms",
+  "cms",
+  "experimentation",
+  "seo-tools",
+  "mcp-servers",
+]);
+
+const INTEGRATION_CATEGORY_MESSAGES = {
+  "source-control": agentIntegrationsSectionMessages.sourceControlCategory,
+  tms: integrationsPageContentMessages.tmsCategory,
+  cms: integrationsPageContentMessages.cmsCategory,
+  experimentation: integrationsPageContentMessages.experimentationCategory,
+  "seo-tools": integrationsPageContentMessages.seoToolsCategory,
+  "mcp-servers": integrationsPageContentMessages.mcpServersCategory,
+  collaboration: agentIntegrationsSectionMessages.collaborationCategory,
+  "customer-engagement": agentIntegrationsSectionMessages.customerEngagementCategory,
+} as const;
+
+function IntegrationCategorySection({
+  categoryId,
+  children,
+}: {
+  categoryId: IntegrationCategoryId;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <IntegrationCategoryLabel>
+        <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+      </IntegrationCategoryLabel>
+      <IntegrationCategoryCard>{children}</IntegrationCategoryCard>
+    </section>
+  );
+}
 
 type IntegrationsPageContentProps = {
   organizationSlug: string;
@@ -135,7 +196,7 @@ const tmsIntegrationMeta = [
 ] as const;
 
 const contentfulIntegrationMeta = {
-  icon: siContentful,
+  logo: "/images/contentful-logo.svg",
 } as const;
 
 function useExternalTmsCredentials(organizationSlug: string) {
@@ -494,6 +555,7 @@ function TmsIntegrationRow({
   userIsAdmin,
   expanded,
   onExpandedChange,
+  isLoading = false,
   isLast,
   children,
 }: {
@@ -504,6 +566,7 @@ function TmsIntegrationRow({
   userIsAdmin: boolean;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
+  isLoading?: boolean;
   isLast: boolean;
   children?: ReactNode;
 }) {
@@ -562,12 +625,19 @@ function TmsIntegrationRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-base font-medium text-foreground">{integration.name}</p>
+            {isIncluded ? (
+              <Badge variant="outline">
+                <FormattedMessage {...integrationRowMessages.included} />
+              </Badge>
+            ) : null}
           </div>
           <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
         </div>
 
         <div className="shrink-0">
-          {isIncluded ? (
+          {isLoading && !isIncluded && userIsAdmin ? (
+            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+          ) : isIncluded ? (
             <Button
               type="button"
               variant="outline"
@@ -637,98 +707,6 @@ function TmsIntegrationRow({
   );
 }
 
-function CmsIntegrationRow({
-  integration,
-  connection,
-  userIsAdmin,
-  expanded,
-  onExpandedChange,
-  children,
-}: {
-  integration: { name: string; detail: string; icon: SimpleIcon };
-  connection?: ContentfulConnectionSummary;
-  userIsAdmin: boolean;
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-  children?: ReactNode;
-}) {
-  const isConnected = Boolean(connection);
-
-  return (
-    <Collapsible
-      open={userIsAdmin && expanded}
-      onOpenChange={onExpandedChange}
-      className="border-b border-border last:border-b-0"
-    >
-      <div
-        className={cn(
-          "flex items-center gap-4 px-5 py-4 transition-colors",
-          "hover:bg-muted/20",
-          expanded && "bg-muted/20",
-        )}
-      >
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
-            isConnected
-              ? "border-border bg-muted text-foreground"
-              : "border-border bg-muted/50 text-muted-foreground",
-          )}
-        >
-          <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-medium text-foreground">{integration.name}</p>
-          </div>
-          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
-        </div>
-
-        <div className="shrink-0">
-          {userIsAdmin ? (
-            <CollapsibleTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={isConnected ? undefined : integrationConnectButtonClassName}
-                >
-                  {isConnected ? (
-                    <FormattedMessage {...integrationRowMessages.manage} />
-                  ) : (
-                    <FormattedMessage {...integrationRowMessages.connect} />
-                  )}
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
-                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                    strokeWidth={2}
-                  />
-                </Button>
-              }
-            />
-          ) : isConnected ? (
-            <Badge variant="outline">
-              <FormattedMessage {...integrationRowMessages.viewOnly} />
-            </Badge>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
-            </span>
-          )}
-        </div>
-      </div>
-
-      {userIsAdmin ? (
-        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
-          {children}
-        </CollapsibleContent>
-      ) : null}
-    </Collapsible>
-  );
-}
-
 function useDeleteExternalTmsCredential(organizationSlug: string, intl: IntlShape) {
   const queryClient = useQueryClient();
 
@@ -769,6 +747,8 @@ export function IntegrationsPageContent({
 }: IntegrationsPageContentProps) {
   const intl = useIntl();
   const integrationError = getTmsUserOAuthErrorCopy(errorCode ?? null);
+  const [categoryFilter, setCategoryFilter] = useState<IntegrationCategoryFilter>("all");
+  const [categoryListRef] = useAutoAnimate<HTMLDivElement>();
   const [expandedContentful, setExpandedContentful] = useState(false);
 
   const { data: externalTmsCredentialState, isLoading: isLoadingExternalTms } =
@@ -818,6 +798,12 @@ export function IntegrationsPageContent({
   const tmsCrowdinAuthModeFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
   const userCanManageAgents = canManageAgents(membershipRole);
+  const visibleCategoryIds = INTEGRATION_CATEGORY_IDS.filter(
+    (categoryId) =>
+      canManageProviderIntegrations || !PROVIDER_INTEGRATION_CATEGORY_IDS.has(categoryId),
+  );
+  const showCategory = (categoryId: IntegrationCategoryId) =>
+    categoryFilter === "all" || categoryFilter === categoryId;
 
   const tmsIntegrations = useMemo<readonly TmsIntegrationConfig[]>(
     () =>
@@ -937,14 +923,9 @@ export function IntegrationsPageContent({
 
   return (
     <main className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-          <FormattedMessage {...integrationsPageContentMessages.pageTitle} />
-        </TypographyH1>
-        <Badge variant="outline" className="rounded-full lg:self-start">
-          <FormattedMessage {...integrationsPageContentMessages.workspaceLevelBadge} />
-        </Badge>
-      </div>
+      <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+        <FormattedMessage {...integrationsPageContentMessages.pageTitle} />
+      </TypographyH1>
 
       {integrationError ? (
         <div
@@ -959,31 +940,41 @@ export function IntegrationsPageContent({
         </div>
       ) : null}
 
-      <SourceControlIntegrationsSection
-        organizationSlug={organizationSlug}
-        userCanManage={userCanManageAgents}
-      />
-
-      {canManageProviderIntegrations ? (
-        <>
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>
-              <FormattedMessage {...integrationsPageContentMessages.tmsCategory} />
-            </IntegrationCategoryLabel>
-
-            {isLoadingExternalTms ? (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-                {tmsIntegrations.map((integration, index) => (
-                  <div
-                    key={integration.name}
-                    className={cn("px-5 py-4", index > 0 && "border-t border-border")}
-                  >
-                    <Skeleton className="h-14 rounded-lg" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+      <section className="flex flex-col gap-4">
+        <Tabs
+          value={categoryFilter}
+          onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
+          className="gap-5"
+        >
+          <TabsList>
+            <TabsTrigger value="all">
+              <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
+            </TabsTrigger>
+            {visibleCategoryIds.map((categoryId) => (
+              <TabsTrigger key={categoryId} value={categoryId}>
+                <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <div ref={categoryListRef} className="flex flex-col gap-6">
+            {showCategory("source-control") ? (
+              <IntegrationCategorySection categoryId="source-control">
+                <SourceControlIntegrationsSection
+                  organizationSlug={organizationSlug}
+                  userCanManage={userCanManageAgents}
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("collaboration") ? (
+              <IntegrationCategorySection categoryId="collaboration">
+                <CollaborationIntegrationsSection
+                  organizationSlug={organizationSlug}
+                  userCanManage={userCanManageAgents}
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("tms") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="tms">
                 {tmsIntegrations.map((integration, index) => {
                   const tmsCredential =
                     integration.providerKind === "native"
@@ -1000,6 +991,7 @@ export function IntegrationsPageContent({
                       activeExternalProviderKind={activeExternalTmsProviderCredential?.providerKind}
                       organizationSlug={organizationSlug}
                       userIsAdmin={userIsAdmin}
+                      isLoading={isLoadingExternalTms}
                       isLast={index === tmsIntegrations.length - 1}
                       expanded={
                         integration.providerKind !== "native" &&
@@ -1125,28 +1117,31 @@ export function IntegrationsPageContent({
                     </TmsIntegrationRow>
                   );
                 })}
-              </div>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>
-              <FormattedMessage {...integrationsPageContentMessages.cmsCategory} />
-            </IntegrationCategoryLabel>
-            {isLoadingContentful ? (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-                <div className="px-5 py-4">
-                  <Skeleton className="h-14 rounded-lg" />
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-                <CmsIntegrationRow
-                  integration={contentfulIntegration}
-                  connection={contentfulConnections?.[0]}
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("cms") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="cms">
+                <IntegrationRow
+                  name={intl.formatMessage(
+                    integrationsPageContentMessages.contentPublishingFilesName,
+                  )}
+                  description={intl.formatMessage(
+                    integrationsPageContentMessages.contentPublishingFilesDetail,
+                  )}
+                  icon={<IntegrationLogo src="/images/logo.png" />}
+                  iconMuted
+                  action="coming-soon"
+                />
+                <CollapsibleIntegrationRow
+                  name={contentfulIntegration.name}
+                  description={contentfulIntegration.detail}
+                  icon={<IntegrationLogo src={contentfulIntegration.logo} />}
+                  isConnected={Boolean(contentfulConnections?.[0])}
                   userIsAdmin={userIsAdmin}
                   expanded={expandedContentful}
                   onExpandedChange={handleContentfulExpandedChange}
+                  isLoading={isLoadingContentful}
+                  isLast
                 >
                   <ContentfulConnectionPanel
                     connection={contentfulConnections?.[0]}
@@ -1184,50 +1179,62 @@ export function IntegrationsPageContent({
                       );
                     }}
                   />
-                </CmsIntegrationRow>
-                <div className="border-t border-border">
-                  <IntercomConnectionPanel
-                    organizationSlug={organizationSlug}
-                    disabled={!userIsAdmin}
-                  />
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>
-              <FormattedMessage {...integrationsPageContentMessages.seoToolsCategory} />
-            </IntegrationCategoryLabel>
-            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-              <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
-              <div className="border-t border-border">
-                <AhrefsConnectionPanel
+                </CollapsibleIntegrationRow>
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("customer-engagement") ? (
+              <IntegrationCategorySection categoryId="customer-engagement">
+                <CustomerEngagementIntegrationsSection
+                  organizationSlug={organizationSlug}
+                  userIsAdmin={userIsAdmin}
+                  showIntercom={canManageProviderIntegrations}
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("experimentation") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="experimentation">
+                <IntegrationRow
+                  name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
+                  description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
+                  icon={<IntegrationLogo src="/images/logo.png" />}
+                  iconMuted
+                  action="coming-soon"
+                  isLast
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("seo-tools") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="seo-tools">
+                <IntegrationRow
+                  name={intl.formatMessage(integrationsPageContentMessages.hyperSeoName)}
+                  description={intl.formatMessage(integrationsPageContentMessages.hyperSeoDetail)}
+                  icon={<IntegrationLogo src="/images/logo.png" />}
+                  iconMuted
+                  action="coming-soon"
+                />
+                <SemrushConnectionPanel
                   organizationSlug={organizationSlug}
                   disabled={!userIsAdmin}
                 />
-              </div>
-            </div>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>
-              <FormattedMessage {...integrationsPageContentMessages.mcpServersCategory} />
-            </IntegrationCategoryLabel>
-            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-              <McpServerConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-              />
-            </div>
-          </section>
-        </>
-      ) : null}
-
-      <CollaborationIntegrationsSection
-        organizationSlug={organizationSlug}
-        userCanManage={userCanManageAgents}
-      />
+                <AhrefsConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                  isLast
+                />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("mcp-servers") && canManageProviderIntegrations ? (
+              <IntegrationCategorySection categoryId="mcp-servers">
+                <McpServerConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                  isLast
+                />
+              </IntegrationCategorySection>
+            ) : null}
+          </div>
+        </Tabs>
+      </section>
 
       {canManageProviderIntegrations ? (
         <AlertDialog

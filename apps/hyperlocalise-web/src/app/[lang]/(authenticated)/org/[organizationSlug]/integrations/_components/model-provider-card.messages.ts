@@ -15,14 +15,14 @@
 import { defineMessages } from "react-intl";
 
 export const modelProviderCardMessages = defineMessages({
-  activeBadge: {
-    defaultMessage: "Active",
-    id: "D6hzyJl9hV",
-    description: "Badge on the workspace’s currently selected model provider card",
+  connectedBadge: {
+    defaultMessage: "Connected",
+    id: "9hS+AK0NkX",
+    description: "Badge on a BYOK model provider card when credentials are saved",
   },
   managedBadge: {
-    defaultMessage: "Managed",
-    id: "jBITE1qEv6",
-    description: "Badge on Hyperlocalise-managed model provider cards",
+    defaultMessage: "Included",
+    id: "dyR32pVyyw",
+    description: "Badge on Hyperlocalise Included model provider cards",
   },
 });

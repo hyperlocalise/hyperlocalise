@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -27,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -69,6 +68,7 @@ export function TmImportExportPanel({
   onImported: () => Promise<void> | void;
 }) {
   const intl = useIntl();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [preview, setPreview] = useState<MemoryImportResponse | null>(null);
   const [result, setResult] = useState<MemoryImportResponse | null>(null);
@@ -170,19 +170,31 @@ export function TmImportExportPanel({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {canEdit ? (
-        <Input
-          type="file"
-          accept=".csv,.tmx,text/csv,application/xml,text/xml"
-          aria-label={intl.formatMessage(messages.importLabel)}
-          className="max-w-xs"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) previewImport.mutate(file);
-            event.currentTarget.value = "";
-          }}
-        />
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.tmx,text/csv,application/xml,text/xml"
+            aria-label={intl.formatMessage(messages.importLabel)}
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) previewImport.mutate(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={previewImport.isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <FormattedMessage {...messages.import} />
+          </Button>
+        </>
       ) : null}
-      <Button type="button" variant="outline" onClick={() => setExportOpen(true)}>
+      <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
         <FormattedMessage {...messages.exportTmx} />
       </Button>
 

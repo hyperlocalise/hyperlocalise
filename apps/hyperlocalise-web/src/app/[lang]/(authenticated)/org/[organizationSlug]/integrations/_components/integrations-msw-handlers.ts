@@ -19,6 +19,7 @@ import {
   integrationsExternalTmsCredentialsFixture,
   integrationsGitHubInstallationFixture,
   integrationsGitHubRepositoriesFixture,
+  integrationsIntercomConnectionsFixture,
   integrationsProviderCredentialFixture,
   integrationsSlackAgentFixture,
 } from "./integrations.fixture";
@@ -29,6 +30,7 @@ type IntegrationsEmailAgentFixture = typeof integrationsEmailAgentFixture;
 
 function createIntegrationsGetHandlers({
   providerCredential = integrationsProviderCredentialFixture,
+  providerCredentials = providerCredential ? [providerCredential] : [],
   externalTmsCredentials = integrationsExternalTmsCredentialsFixture,
   activeExternalTmsProviderCredential = integrationsCrowdinCredentialFixture,
   githubInstallation = integrationsGitHubInstallationFixture,
@@ -36,8 +38,10 @@ function createIntegrationsGetHandlers({
   slackAgent = integrationsSlackAgentFixture,
   emailAgent = integrationsEmailAgentFixture,
   contentfulConnections = integrationsContentfulConnectionsFixture,
+  intercomConnections = integrationsIntercomConnectionsFixture,
 }: {
   providerCredential?: typeof integrationsProviderCredentialFixture | null;
+  providerCredentials?: (typeof integrationsProviderCredentialFixture)[];
   externalTmsCredentials?: typeof integrationsExternalTmsCredentialsFixture;
   activeExternalTmsProviderCredential?: typeof integrationsCrowdinCredentialFixture | null;
   githubInstallation?: typeof integrationsGitHubInstallationFixture | null;
@@ -45,10 +49,14 @@ function createIntegrationsGetHandlers({
   slackAgent?: IntegrationsSlackAgentFixture;
   emailAgent?: IntegrationsEmailAgentFixture;
   contentfulConnections?: typeof integrationsContentfulConnectionsFixture;
+  intercomConnections?: typeof integrationsIntercomConnectionsFixture;
 } = {}) {
   return [
     http.get("/api/orgs/:organizationSlug/provider-credential", () =>
-      HttpResponse.json({ providerCredential }),
+      HttpResponse.json({
+        providerCredentials,
+        providerCredential: providerCredentials[0] ?? null,
+      }),
     ),
     http.get("/api/orgs/:organizationSlug/external-tms-provider-credential", () =>
       HttpResponse.json({
@@ -67,6 +75,18 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
       HttpResponse.json({ contentfulConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
+      HttpResponse.json({ intercomConnections }),
+    ),
+    http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
+      HttpResponse.json({ semrushConnections: [] }),
+    ),
+    http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
+      HttpResponse.json({ ahrefsConnections: [] }),
+    ),
+    http.get("/api/orgs/:organizationSlug/mcp-server-connections", () =>
+      HttpResponse.json({ mcpServerConnections: [] }),
+    ),
   ];
 }
 
@@ -74,6 +94,7 @@ export const integrationsConnectedMswHandlers = createIntegrationsGetHandlers();
 
 export const integrationsDisconnectedMswHandlers = createIntegrationsGetHandlers({
   providerCredential: null,
+  providerCredentials: [],
   externalTmsCredentials: [],
   activeExternalTmsProviderCredential: null,
   githubInstallation: null,
@@ -88,16 +109,30 @@ export const integrationsDisconnectedMswHandlers = createIntegrationsGetHandlers
     inboundEmailAddress: null,
   },
   contentfulConnections: [],
+  intercomConnections: [],
 });
 
 export const integrationsManagedProviderMswHandlers = createIntegrationsGetHandlers({
   providerCredential: null,
+  providerCredentials: [],
+});
+
+export const integrationsMultiProviderMswHandlers = createIntegrationsGetHandlers({
+  providerCredentials: [
+    integrationsProviderCredentialFixture,
+    {
+      provider: "anthropic" as const,
+      defaultModel: "claude-sonnet-4-6",
+      maskedApiKeySuffix: "••••-ant",
+      lastValidatedAt: integrationsProviderCredentialFixture.lastValidatedAt,
+    },
+  ],
 });
 
 export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/provider-credential", async () => {
     await delay("infinite");
-    return HttpResponse.json({ providerCredential: null });
+    return HttpResponse.json({ providerCredentials: [], providerCredential: null });
   }),
   http.get("/api/orgs/:organizationSlug/external-tms-provider-credential", async () => {
     await delay("infinite");
@@ -136,5 +171,21 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ contentfulConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/intercom-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ intercomConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/semrush-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ semrushConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ ahrefsConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/mcp-server-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ mcpServerConnections: [] });
   }),
 ];

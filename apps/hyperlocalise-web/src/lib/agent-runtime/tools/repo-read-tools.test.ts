@@ -735,6 +735,15 @@ describe("createDetectRepoConfigTool", () => {
     expect(result).toMatchObject({ success: true, found: false });
   });
 
+  it("accepts ./ as the workspace root", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.yml": "locales:\n  source: en\n",
+    });
+    const t = createDetectRepoConfigTool(ctx);
+    const result = await t.execute!({ path: "./" }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, found: true, configPath: "i18n.yml" });
+  });
+
   it("finds i18n.yml", async () => {
     const yaml = `locales:
   source: en
@@ -810,6 +819,40 @@ storage:
     expect(config?.buckets).toContain("app");
     expect(config?.storageAdapter).toBe("local");
   });
+
+  it.each(["/tmp/outside", "../outside", "foo/../../secret"])(
+    "rejects escaping path %s before exec",
+    async (path) => {
+      const ctx = createTestContext();
+      let invoked = false;
+      ctx.bash.registerCommand(
+        defineCommand("test", async () => {
+          invoked = true;
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }),
+      );
+      ctx.bash.registerCommand(
+        defineCommand("yq", async () => {
+          invoked = true;
+          return { stdout: "{}", stderr: "", exitCode: 0 };
+        }),
+      );
+      ctx.bash.registerCommand(
+        defineCommand("cat", async () => {
+          invoked = true;
+          return { stdout: "{}", stderr: "", exitCode: 0 };
+        }),
+      );
+
+      const t = createDetectRepoConfigTool(ctx);
+      const result = await t.execute!({ path }, toolCallInfo);
+      expect(result).toMatchObject({
+        success: false,
+        error: expect.stringContaining("workspace"),
+      });
+      expect(invoked).toBe(false);
+    },
+  );
 });
 
 describe("createRepoGitStateTool", () => {
@@ -857,6 +900,32 @@ describe("createRepoGitStateTool", () => {
     expect((result as { commit: string }).commit).toHaveLength(40);
   });
 
+  it("accepts ./ as the workspace root", async () => {
+    const ctx = createTestContext();
+    const dirs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        dirs.push(args[1] ?? "");
+        if (args[2] === "rev-parse" && args[3] === "--abbrev-ref") {
+          return { stdout: "main\n", stderr: "", exitCode: 0 };
+        }
+        if (args[2] === "rev-parse" && args[3] === "HEAD") {
+          return { stdout: "abc123def456789012345678901234567890abcd\n", stderr: "", exitCode: 0 };
+        }
+        if (args[2] === "status" && args[3] === "--porcelain") {
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRepoGitStateTool(ctx);
+    const result = await t.execute!({ path: "./" }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, branch: "main", isDirty: false });
+    expect(dirs).toContain(".");
+    expect(dirs).not.toContain("./");
+  });
+
   it("dirty state", async () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
@@ -882,6 +951,28 @@ describe("createRepoGitStateTool", () => {
     });
     expect((result as { changedFiles: string[] }).changedFiles).toContain("dirty.txt");
   });
+
+  it.each(["/tmp", "../", "foo/../../outside"])(
+    "rejects escaping path %s before git exec",
+    async (path) => {
+      const ctx = createTestContext();
+      let invoked = false;
+      ctx.bash.registerCommand(
+        defineCommand("git", async () => {
+          invoked = true;
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }),
+      );
+
+      const t = createRepoGitStateTool(ctx);
+      const result = await t.execute!({ path }, toolCallInfo);
+      expect(result).toMatchObject({
+        success: false,
+        error: expect.stringContaining("workspace"),
+      });
+      expect(invoked).toBe(false);
+    },
+  );
 });
 
 describe("createGitHistoryTool", () => {
@@ -1695,6 +1786,28 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect(hlArgs).toEqual(["check", "--config=custom/i18n.yml"]);
   });
 
+  it.each(["foo/../../secret.yml", "/tmp/secret.yml", "../i18n.yml"])(
+    "rejects escaping --config %s without invoking hl",
+    async (config) => {
+      const ctx = createTestContext();
+      let invoked = false;
+      ctx.bash.registerCommand(
+        defineCommand("hl", async () => {
+          invoked = true;
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }),
+      );
+
+      const t = createRunHyperlocaliseCliTool(ctx);
+      const result = await t.execute!({ subcommand: "check", flags: { config } }, toolCallInfo);
+      expect(result).toMatchObject({
+        success: false,
+        error: expect.stringContaining("workspace"),
+      });
+      expect(invoked).toBe(false);
+    },
+  );
+
   it.each(["phrase", "crowdin", "lokalise"] as const)(
     "rejects provider/TMS actions for %s for now",
     async (provider) => {
@@ -1858,5 +1971,22 @@ describe("buildHlArgs", () => {
       ok: false,
       error: { code: "flag_value_contains_invalid_characters" },
     });
+  });
+
+  it.each(["foo/../../secret.yml", "/tmp/secret.yml", "../i18n.yml"])(
+    "rejects --config that escapes the workspace: %s",
+    (config) => {
+      expect(buildHlArgs({ subcommand: "check", flags: { config } })).toMatchObject({
+        ok: false,
+        error: { code: "flag_value_escapes_workspace", name: "config" },
+      });
+    },
+  );
+
+  it("normalizes a relative --config path", () => {
+    const result = buildHlArgs({ subcommand: "check", flags: { config: "./custom/i18n.yml" } });
+    expect(isOk(result)).toBe(true);
+    if (isErr(result)) throw new Error("expected valid hl args");
+    expect(result.value).toEqual(["check", "--config=custom/i18n.yml"]);
   });
 });

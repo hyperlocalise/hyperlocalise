@@ -56,6 +56,19 @@ func TestIndexSourceStringMarksAmbiguousMapping(t *testing.T) {
 	}
 }
 
+func TestEntryFilterAllowsLanguageIDWhenFolderLocaleDiffers(t *testing.T) {
+	filter := buildEntryFilter(ListStringsInput{
+		EntryIDs: []storage.EntryID{{Key: "hello", Context: "home", Locale: "fr"}},
+	})
+	locale := ResolvedLocale{LanguageID: "fr", Locale: "fr-FR"}
+	if !filter.allowsLocale("hello", "home", locale) {
+		t.Fatal("expected entry stored as language id fr to match resolved fr/fr-FR")
+	}
+	if filter.allowsLocale("hello", "home", ResolvedLocale{LanguageID: "de", Locale: "de-DE"}) {
+		t.Fatal("did not expect unrelated language to match")
+	}
+}
+
 func TestIsRetryableUpsertError(t *testing.T) {
 	cases := []struct {
 		name string
@@ -529,22 +542,47 @@ func TestHTTPClientDownloadSourceFileUsesDownloadLink(t *testing.T) {
 	}
 }
 
-func TestHTTPClientResolveLocalesWithExplicitLocalesDoesNotFetchProject(t *testing.T) {
+func TestHTTPClientResolveLocalesWithExplicitLocalesUsesSupportedLocale(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()
 
 	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("unexpected project lookup for explicit locales")
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		_, _ = io.WriteString(w, `{"data":{"id":123,"targetLanguageIds":["fr","de"],"targetLanguages":[]}}`)
 	})
 	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("unexpected language lookup for explicit locales")
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":"fr","name":"French","locale":"fr-FR"}},{"data":{"id":"de","name":"German","locale":"de-DE"}}],"pagination":{"offset":0,"limit":500}}`)
 	})
 
 	locales, err := client.ResolveLocales(context.Background(), "123", []string{" fr ", "fr", "de"})
 	if err != nil {
 		t.Fatalf("resolve locales: %v", err)
 	}
-	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}, {LanguageID: "de", Locale: "de"}}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de-DE"}}
+	if !reflect.DeepEqual(locales, want) {
+		t.Fatalf("locales = %#v, want %#v", locales, want)
+	}
+}
+
+func TestHTTPClientResolveLocalesDedupesLanguageIDAndFolderLocaleAliases(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		_, _ = io.WriteString(w, `{"data":{"id":123,"targetLanguageIds":["fr","de"],"targetLanguages":[]}}`)
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":"fr","name":"French","locale":"fr-FR"}},{"data":{"id":"de","name":"German","locale":"de-DE"}}],"pagination":{"offset":0,"limit":500}}`)
+	})
+
+	locales, err := client.ResolveLocales(context.Background(), "123", []string{"fr", "fr-FR", "de"})
+	if err != nil {
+		t.Fatalf("resolve locales: %v", err)
+	}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de-DE"}}
 	if !reflect.DeepEqual(locales, want) {
 		t.Fatalf("locales = %#v, want %#v", locales, want)
 	}

@@ -167,6 +167,10 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
         return { success: false, error: `Translation memory ${memoryId} not found.` };
       }
 
+      await ctx.db
+        .delete(schema.projectMemories)
+        .where(eq(schema.projectMemories.memoryId, memoryId));
+
       return { success: true, deletedId: deleted[0].id };
     },
   });

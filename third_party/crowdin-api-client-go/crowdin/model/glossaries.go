@@ -301,11 +301,11 @@ type GlossaryImportRequest struct {
 	// conceptUrl – column with concepts url
 	// conceptFigure – column with concepts figure
 	// Note: Used for upload of CSV or XLS/XLSX files only.
-	Scheme map[string]int `json:"scheme"`
+	Scheme map[string]int `json:"scheme,omitempty"`
 	// Defines whether file includes first row header that should not be imported.
 	// Default: false.
 	// Note: Used for upload of CSV or XLS/XLSX files only.
-	FirstLineContainsHeader *bool `json:"firstLineContainsHeader"`
+	FirstLineContainsHeader *bool `json:"firstLineContainsHeader,omitempty"`
 }
 
 // Validate checks if the request is valid.

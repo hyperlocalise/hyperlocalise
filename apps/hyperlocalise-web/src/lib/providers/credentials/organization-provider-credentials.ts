@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { assertCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
@@ -54,6 +54,16 @@ async function getCredentialByOrganizationId(organizationId: string, provider?: 
     .limit(1);
 
   return credential ?? null;
+}
+
+export async function listOrganizationProviderCredentialSummaries(organizationId: string) {
+  const credentials = await db
+    .select()
+    .from(schema.organizationLlmProviderCredentials)
+    .where(eq(schema.organizationLlmProviderCredentials.organizationId, organizationId))
+    .orderBy(desc(schema.organizationLlmProviderCredentials.updatedAt));
+
+  return credentials.map(summarizeCredential);
 }
 
 export async function getOrganizationProviderCredentialSummary(organizationId: string) {
@@ -165,12 +175,18 @@ export async function revealOrganizationProviderCredential(input: {
 export async function deleteOrganizationProviderCredential(input: {
   organizationId: string;
   role: OrganizationMembershipRole;
+  provider: LlmProvider;
 }) {
   assertProviderCredentialAdmin(input.role);
 
   const deleted = await db
     .delete(schema.organizationLlmProviderCredentials)
-    .where(eq(schema.organizationLlmProviderCredentials.organizationId, input.organizationId))
+    .where(
+      and(
+        eq(schema.organizationLlmProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationLlmProviderCredentials.provider, input.provider),
+      ),
+    )
     .returning({ id: schema.organizationLlmProviderCredentials.id });
 
   return deleted.length > 0;

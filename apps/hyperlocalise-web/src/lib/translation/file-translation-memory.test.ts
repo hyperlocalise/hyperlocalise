@@ -36,6 +36,8 @@ type ReusableMemoryEntryRow = {
 const {
   andMock,
   eqMock,
+  ensureDefaultMemoryIdsMock,
+  listAttachedMemoryIdsMock,
   inArrayMock,
   insertMock,
   listHiddenKeysMock,
@@ -57,10 +59,14 @@ const {
   const fromMock = vi.fn(() => ({ where: whereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
   const listHiddenKeysMock = vi.fn(async () => [] as string[]);
+  const ensureDefaultMemoryIdsMock = vi.fn(async () => [] as string[]);
+  const listAttachedMemoryIdsMock = vi.fn(async () => ["memory_1", "memory_2"]);
 
   return {
     andMock: vi.fn((...conditions: unknown[]) => ["and", conditions]),
     eqMock: vi.fn((field: string, value: unknown) => ["eq", field, value]),
+    ensureDefaultMemoryIdsMock,
+    listAttachedMemoryIdsMock,
     inArrayMock: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
     insertMock,
     listHiddenKeysMock,
@@ -81,6 +87,11 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   listHiddenProjectTranslationKeysForSourcePath: listHiddenKeysMock,
+}));
+
+vi.mock("@/lib/memory/ensure-default-native-project-memory", () => ({
+  ensureDefaultNativeProjectMemoryForProject: ensureDefaultMemoryIdsMock,
+  listAttachedProjectMemoryIds: listAttachedMemoryIdsMock,
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -117,6 +128,7 @@ describe("persistFileTranslationMemoryEntries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listHiddenKeysMock.mockResolvedValue([]);
+    listAttachedMemoryIdsMock.mockResolvedValue(["memory_1", "memory_2"]);
   });
 
   it("dedupes duplicate normalized sources before batch upsert", async () => {
@@ -215,6 +227,26 @@ describe("persistFileTranslationMemoryEntries", () => {
     expect(values.every((value) => value.targetText === "Bonjour")).toBe(true);
   });
 
+  it("creates a default native memory when the project has none attached", async () => {
+    listAttachedMemoryIdsMock.mockResolvedValueOnce([]);
+    ensureDefaultMemoryIdsMock.mockResolvedValueOnce(["memory_created"]);
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries: { greeting: "Hello" },
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries: { greeting: "Bonjour" },
+      targetLocale: "fr",
+    });
+
+    expect(ensureDefaultMemoryIdsMock).toHaveBeenCalledWith("project_1");
+    const [values] = valuesMock.mock.calls[0];
+    expect(values.map((value) => value.memoryId)).toEqual(["memory_created"]);
+  });
+
   it("does not write memory entries when every source key is hidden", async () => {
     listHiddenKeysMock.mockResolvedValueOnce(["hidden.copy"]);
 
@@ -236,10 +268,12 @@ describe("persistFileTranslationMemoryEntries", () => {
 describe("reuseFileTranslationMemoryEntries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listAttachedMemoryIdsMock.mockResolvedValue(["memory_1", "memory_2"]);
   });
 
   it("excludes non-approved memory entries from reuse lookup", async () => {
-    whereMock.mockResolvedValueOnce([{ memoryId: "memory_1" }]).mockResolvedValueOnce([]);
+    listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
+    whereMock.mockResolvedValueOnce([]);
 
     await reuseFileTranslationMemoryEntries({
       projectId: "project_1",
@@ -258,9 +292,7 @@ describe("reuseFileTranslationMemoryEntries", () => {
   });
 
   it("scopes reusable memory entry lookup to the project's attached memories", async () => {
-    whereMock
-      .mockResolvedValueOnce([{ memoryId: "memory_1" }, { memoryId: "memory_2" }])
-      .mockResolvedValueOnce([]);
+    whereMock.mockResolvedValueOnce([]);
 
     await reuseFileTranslationMemoryEntries({
       projectId: "project_1",
@@ -281,30 +313,28 @@ describe("reuseFileTranslationMemoryEntries", () => {
   });
 
   it("reuses only rows that match the target locale, segment key, and source hash", async () => {
-    whereMock
-      .mockResolvedValueOnce([{ memoryId: "memory_1" }, { memoryId: "memory_2" }])
-      .mockResolvedValueOnce([
-        {
-          memoryId: "memory_1",
-          metadata: {
-            segmentKey: "first",
-            sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
-          },
-          normalizedSourceText: "hello",
-          targetLocale: "fr",
-          targetText: "Bonjour",
+    whereMock.mockResolvedValueOnce([
+      {
+        memoryId: "memory_1",
+        metadata: {
+          segmentKey: "first",
+          sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
         },
-        {
-          memoryId: "memory_2",
-          metadata: {
-            segmentKey: "first",
-            sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
-          },
-          normalizedSourceText: "hello",
-          targetLocale: "de",
-          targetText: "Hallo",
+        normalizedSourceText: "hello",
+        targetLocale: "fr",
+        targetText: "Bonjour",
+      },
+      {
+        memoryId: "memory_2",
+        metadata: {
+          segmentKey: "first",
+          sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
         },
-      ]);
+        normalizedSourceText: "hello",
+        targetLocale: "de",
+        targetText: "Hallo",
+      },
+    ]);
 
     const result = await reuseFileTranslationMemoryEntries({
       projectId: "project_1",

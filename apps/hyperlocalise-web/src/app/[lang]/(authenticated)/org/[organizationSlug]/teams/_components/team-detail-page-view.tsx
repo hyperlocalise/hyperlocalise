@@ -375,10 +375,10 @@ export function TeamDetailPageView({
                             <SelectValue>{getTeamRoleLabel(member.role, intl)}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="manager">
+                            <SelectItem value="manager" label={getTeamRoleLabel("manager", intl)}>
                               {getTeamRoleLabel("manager", intl)}
                             </SelectItem>
-                            <SelectItem value="member">
+                            <SelectItem value="member" label={getTeamRoleLabel("member", intl)}>
                               {getTeamRoleLabel("member", intl)}
                             </SelectItem>
                           </SelectContent>

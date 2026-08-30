@@ -31,33 +31,33 @@ export type ModelProviderCardConfig = {
   logo: string;
 };
 
+type ModelProviderCardProps = {
+  provider: ModelProviderCardConfig;
+  isConnected?: boolean;
+  isManaged?: boolean;
+  footerLabel?: string;
+  onSelect?: () => void;
+  disabled?: boolean;
+  interactive?: boolean;
+};
+
 export function ModelProviderCard({
   provider,
-  isActive,
+  isConnected = false,
   isManaged,
   footerLabel,
   onSelect,
   disabled,
-}: {
-  provider: ModelProviderCardConfig;
-  isActive: boolean;
-  isManaged?: boolean;
-  footerLabel?: string;
-  onSelect: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={disabled}
-      className={cn(
-        "group relative flex min-h-44 w-full flex-col rounded-lg border border-border bg-card p-5 text-left text-card-foreground transition-colors",
-        "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60",
-        isActive && "border-foreground",
-      )}
-    >
-      {isActive ? (
+  interactive = true,
+}: ModelProviderCardProps) {
+  const cardClassName = cn(
+    "group relative flex min-h-44 w-full flex-col rounded-lg border border-border bg-card p-5 text-left text-card-foreground transition-colors",
+    interactive && "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60",
+  );
+
+  const content = (
+    <>
+      {isConnected ? (
         <Badge
           variant="outline"
           className={cn(
@@ -65,25 +65,25 @@ export function ModelProviderCard({
             "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
           )}
         >
-          <FormattedMessage {...modelProviderCardMessages.activeBadge} />
+          <FormattedMessage {...modelProviderCardMessages.connectedBadge} />
         </Badge>
       ) : null}
 
       <div
         className={cn(
           "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
-          isActive ? "bg-muted text-foreground" : "bg-background text-foreground",
+          isConnected ? "bg-muted text-foreground" : "bg-background text-foreground",
         )}
       >
         {provider.icon ? (
-          <SimpleBrandIcon icon={provider.icon} colored={isActive} />
+          <SimpleBrandIcon icon={provider.icon} colored={isConnected} />
         ) : (
           <Image
             src={provider.logo}
             alt=""
             width={28}
             height={28}
-            className={cn("max-h-7 w-auto object-contain", !isActive && "opacity-75")}
+            className={cn("max-h-7 w-auto object-contain", !isConnected && "opacity-75")}
           />
         )}
       </div>
@@ -99,14 +99,33 @@ export function ModelProviderCard({
 
       <p className="mt-1 text-sm text-muted-foreground">{provider.description}</p>
 
-      <div className="mt-auto flex items-center justify-end gap-1 pt-6 text-sm text-muted-foreground">
-        {footerLabel ? <span>{footerLabel}</span> : null}
-        <HugeiconsIcon
-          icon={ArrowRight01Icon}
-          strokeWidth={1.8}
-          className="size-4 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0"
-        />
-      </div>
+      {footerLabel ? (
+        <div
+          className={cn(
+            "mt-auto flex items-center justify-end gap-1 pt-6 text-sm text-muted-foreground",
+            interactive && "group-disabled:opacity-60",
+          )}
+        >
+          <span>{footerLabel}</span>
+          {interactive ? (
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
+              strokeWidth={1.8}
+              className="size-4 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0"
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (!interactive) {
+    return <div className={cardClassName}>{content}</div>;
+  }
+
+  return (
+    <button type="button" onClick={onSelect} disabled={disabled} className={cardClassName}>
+      {content}
     </button>
   );
 }

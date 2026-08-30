@@ -440,15 +440,6 @@ func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocale
 		requested = append(requested, trimmed)
 	}
 
-	if len(requested) > 0 {
-		out := make([]ResolvedLocale, 0, len(requested))
-		for _, locale := range requested {
-			out = append(out, ResolvedLocale{LanguageID: locale, Locale: locale})
-		}
-		c.debugf("action=resolve-locales project_id=%d requested=%s resolved=%s", projectID, strings.Join(requested, ","), strings.Join(resolvedLocaleIDs(out), ","))
-		return out, nil
-	}
-
 	project, _, err := c.client.Projects.Get(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("get project: %w", err)
@@ -456,44 +447,93 @@ func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocale
 	if project == nil {
 		return nil, fmt.Errorf("get project: empty response")
 	}
-
-	targetIDs := make(map[string]struct{}, len(project.TargetLanguageIDs))
-	for _, locale := range project.TargetLanguageIDs {
-		trimmed := strings.TrimSpace(locale)
-		if trimmed == "" {
-			continue
-		}
-		targetIDs[trimmed] = struct{}{}
-	}
-
 	languages, err := c.supportedLanguageLookup(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]ResolvedLocale, 0, len(project.TargetLanguageIDs))
-	seen := make(map[string]struct{}, len(project.TargetLanguageIDs))
+
+	if len(requested) > 0 {
+		out := make([]ResolvedLocale, 0, len(requested))
+		seen := make(map[string]struct{}, len(requested))
+		for _, token := range requested {
+			resolved := resolveRequestedLocale(token, project.TargetLanguages, languages)
+			languageID := strings.TrimSpace(resolved.LanguageID)
+			if languageID == "" {
+				languageID = token
+			}
+			if _, exists := seen[languageID]; exists {
+				continue
+			}
+			seen[languageID] = struct{}{}
+			out = append(out, resolved)
+		}
+		c.debugf("action=resolve-locales project_id=%d requested=%s resolved=%s", projectID, strings.Join(requested, ","), strings.Join(resolvedLocaleIDs(out), ","))
+		return out, nil
+	}
+
+	languageIDs := make([]string, 0, len(project.TargetLanguageIDs)+len(project.TargetLanguages))
 	for _, languageID := range project.TargetLanguageIDs {
-		trimmedID := strings.TrimSpace(languageID)
-		if trimmedID == "" {
+		if trimmed := strings.TrimSpace(languageID); trimmed != "" {
+			languageIDs = append(languageIDs, trimmed)
+		}
+	}
+	if len(languageIDs) == 0 {
+		for _, language := range project.TargetLanguages {
+			if language == nil {
+				continue
+			}
+			if trimmed := strings.TrimSpace(language.ID); trimmed != "" {
+				languageIDs = append(languageIDs, trimmed)
+			}
+		}
+	}
+
+	out := make([]ResolvedLocale, 0, len(languageIDs))
+	seen := make(map[string]struct{}, len(languageIDs))
+	for _, languageID := range languageIDs {
+		if _, exists := seen[languageID]; exists {
 			continue
 		}
-		if _, exists := seen[trimmedID]; exists {
-			continue
-		}
-		seen[trimmedID] = struct{}{}
-		out = append(out, ResolvedLocale{LanguageID: trimmedID, Locale: resolveFolderLocale(trimmedID, project.TargetLanguages, languages.localeByID)})
+		seen[languageID] = struct{}{}
+		out = append(out, ResolvedLocale{LanguageID: languageID, Locale: resolveFolderLocale(languageID, project.TargetLanguages, languages.localeByID)})
 	}
 	c.debugf("action=resolve-locales project_id=%d requested=all resolved=%s", projectID, strings.Join(resolvedLocaleIDs(out), ","))
 	return out, nil
 }
 
+func resolveRequestedLocale(token string, projectLanguages []*model.Language, languages supportedLanguageLookup) ResolvedLocale {
+	for _, language := range projectLanguages {
+		if language == nil {
+			continue
+		}
+		if strings.TrimSpace(language.ID) == token {
+			return ResolvedLocale{
+				LanguageID: token,
+				Locale:     resolveFolderLocale(token, projectLanguages, languages.localeByID),
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(language.Locale), token) {
+			return ResolvedLocale{LanguageID: strings.TrimSpace(language.ID), Locale: strings.TrimSpace(language.Locale)}
+		}
+	}
+	if locale := languages.localeByID[token]; locale != "" {
+		return ResolvedLocale{LanguageID: token, Locale: locale}
+	}
+	if languageID := languages.idByLocale[token]; languageID != "" {
+		return ResolvedLocale{LanguageID: languageID, Locale: token}
+	}
+	return ResolvedLocale{LanguageID: token, Locale: token}
+}
+
 type supportedLanguageLookup struct {
 	localeByID map[string]string
+	idByLocale map[string]string
 }
 
 func (c *HTTPClient) supportedLanguageLookup(ctx context.Context) (supportedLanguageLookup, error) {
 	out := supportedLanguageLookup{
 		localeByID: make(map[string]string),
+		idByLocale: make(map[string]string),
 	}
 	offset := 0
 	for {
@@ -505,7 +545,7 @@ func (c *HTTPClient) supportedLanguageLookup(ctx context.Context) (supportedLang
 			return supportedLanguageLookup{}, fmt.Errorf("list supported languages: %w", err)
 		}
 		for _, language := range languages {
-			addLanguageLookup(out.localeByID, language)
+			addLanguageLookup(&out, language)
 		}
 		if len(languages) < pageLimit {
 			break
@@ -515,13 +555,16 @@ func (c *HTTPClient) supportedLanguageLookup(ctx context.Context) (supportedLang
 	return out, nil
 }
 
-func addLanguageLookup(localeByID map[string]string, language *model.Language) {
-	if language == nil || strings.TrimSpace(language.ID) == "" {
+func addLanguageLookup(out *supportedLanguageLookup, language *model.Language) {
+	if out == nil || language == nil || strings.TrimSpace(language.ID) == "" {
 		return
 	}
 	id := strings.TrimSpace(language.ID)
 	if locale := strings.TrimSpace(language.Locale); locale != "" {
-		localeByID[id] = locale
+		out.localeByID[id] = locale
+		if _, exists := out.idByLocale[locale]; !exists {
+			out.idByLocale[locale] = id
+		}
 	}
 }
 
@@ -924,7 +967,7 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 				if !exists {
 					continue
 				}
-				if !entryFilter.matches(source.key, source.context, locale.Locale) {
+				if !entryFilter.allowsLocale(source.key, source.context, locale) {
 					continue
 				}
 				entries = append(entries, StringTranslation{
@@ -1190,6 +1233,10 @@ func (f entryFilter) matches(key, context, locale string) bool {
 		}
 	}
 	return false
+}
+
+func (f entryFilter) allowsLocale(key, context string, locale ResolvedLocale) bool {
+	return f.matches(key, context, locale.LanguageID) || f.matches(key, context, locale.Locale)
 }
 
 func classifySourceStringConflict(err error) *upsertConflict {

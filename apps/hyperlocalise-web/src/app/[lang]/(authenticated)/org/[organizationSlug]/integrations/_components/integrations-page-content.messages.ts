@@ -20,10 +20,10 @@ export const integrationsPageContentMessages = defineMessages({
     id: "9glYgHRgqB",
     description: "Integrations page heading",
   },
-  workspaceLevelBadge: {
-    defaultMessage: "Workspace level",
-    id: "rywDd6XWpM",
-    description: "Badge indicating integrations apply to the whole workspace",
+  categoryFilterAll: {
+    defaultMessage: "All",
+    id: "UdxBZORXpe",
+    description: "Integration category filter tab showing every category",
   },
   tmsCategory: {
     defaultMessage: "Translation Management System",
@@ -40,21 +40,58 @@ export const integrationsPageContentMessages = defineMessages({
     id: "basdUhXB4X",
     description: "Category label for SEO tool connections on the Integrations page",
   },
+  experimentationCategory: {
+    defaultMessage: "Experimentation",
+    id: "SC/0sLWYV4",
+    description: "Integrations page section heading for experimentation tools",
+  },
+  hyperlabName: {
+    defaultMessage: "Hyperlab",
+    id: "dj/oJykkFj",
+    description: "Built-in market experiments product name on the integrations page",
+  },
+  hyperlabDetail: {
+    defaultMessage:
+      "Run and measure market experiments across locales — variants, rollouts, and winner selection built into Hyperlocalise.",
+    id: "A9QMrzJCol",
+    description: "Built-in market experiments product description on the integrations page",
+  },
   cmsCategory: {
-    defaultMessage: "Content Management System",
-    id: "dWHU+zjwUO",
-    description: "Integrations page section heading for CMS connectors",
+    defaultMessage: "Content & publishing",
+    id: "snHz5G+RBI",
+    description: "Integrations page section heading for content and publishing connectors",
+  },
+  contentPublishingFilesName: {
+    defaultMessage: "Pages",
+    id: "WYPwI9kUrL",
+    description: "Built-in pages integration name on the integrations page",
+  },
+  contentPublishingFilesDetail: {
+    defaultMessage: "Create, edit, and publish localized pages from Hyperlocalise.",
+    id: "ZQP7LGFxPh",
+    description: "Built-in content integration description on the integrations page",
+  },
+  hyperSeoName: {
+    defaultMessage: "HyperSEO",
+    id: "l2rdlltKQu",
+    description: "Built-in SEO product name on the integrations page",
+  },
+  hyperSeoDetail: {
+    defaultMessage:
+      "Keyword research, rankings, technical SEO, content optimization, and locale-aware audits built into Hyperlocalise.",
+    id: "1VHN7KiWQG",
+    description: "Built-in SEO product description on the integrations page",
   },
   tmsNativeName: {
-    defaultMessage: "Hyperlocalise Native",
-    id: "Ij4qN1o4kr",
-    description: "Built-in TMS integration name on the integrations page",
+    defaultMessage: "Projects & files",
+    id: "sPnHTuWYkS",
+    description: "Built-in translation workspace name on the integrations page",
   },
   tmsNativeDetail: {
     defaultMessage:
-      "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
-    id: "ayMjHyvmox",
-    description: "Built-in TMS integration description on the integrations page",
+      "Manage translations, jobs, and memories in Hyperlocalise without an external TMS.",
+    id: "M+1IVHnYL6",
+    description: "Built-in translation workspace description on the integrations page",
   },
   tmsCrowdinName: {
     defaultMessage: "Crowdin",

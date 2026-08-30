@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
   Delete02Icon,
   Key01Icon,
@@ -28,12 +28,12 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import {
   defaultModelByProvider,
   llmProviderContentEditoralog,
 } from "@/lib/providers/shared/catalog";
 import { createApiClient } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,10 +55,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import {
+  IntegrationCategoryCard,
+  IntegrationCategoryLabel,
+} from "../../integrations/_components/integration-row";
+import {
   ModelProviderCard,
   type ModelProviderCardConfig,
 } from "../../integrations/_components/model-provider-card";
 
+import { agentCapabilityIds } from "./ai-engine-agent-capabilities";
+import { AiEngineAgentCapabilityRow } from "./ai-engine-agent-capability-row";
+import { AiEngineCurrentSetupPanel } from "./ai-engine-current-setup-panel";
 import { aiEnginePageContentMessages } from "./ai-engine-page-content.messages";
 
 const api = createApiClient();
@@ -73,6 +80,11 @@ type ProviderCredentialSummary = {
   defaultModel: string;
   maskedApiKeySuffix: string;
   lastValidatedAt: string;
+};
+
+type ProviderCredentialsResponse = {
+  providerCredentials: ProviderCredentialSummary[];
+  providerCredential: ProviderCredentialSummary | null;
 };
 
 type ManagedProviderId = "hyperlocalise-go";
@@ -101,7 +113,7 @@ const byokProviderMeta = [
   icon?: SimpleIcon;
 }[];
 
-function useProviderCredential(organizationSlug: string) {
+function useProviderCredentials(organizationSlug: string) {
   return useQuery({
     queryKey: ["provider-credential", organizationSlug],
     queryFn: async () => {
@@ -112,8 +124,8 @@ function useProviderCredential(organizationSlug: string) {
         throw new Error("Failed to fetch provider credential");
       }
 
-      const data = await res.json();
-      return data.providerCredential as ProviderCredentialSummary | null;
+      const data = (await res.json()) as ProviderCredentialsResponse;
+      return data;
     },
   });
 }
@@ -161,9 +173,10 @@ function useDeleteProviderCredential(organizationSlug: string, intl: IntlShape) 
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (provider: LlmProvider) => {
       const res = await api.api.orgs[":organizationSlug"]["provider-credential"].$delete({
         param: { organizationSlug },
+        query: { provider },
       });
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "delete_failed" }));
@@ -185,7 +198,13 @@ export function AiEnginePageContent({
   canManageAiEngine,
 }: AiEnginePageContentProps) {
   const intl = useIntl();
-  const { data: credential, isLoading } = useProviderCredential(organizationSlug);
+  const { data: providerCredentialsResponse, isLoading } = useProviderCredentials(organizationSlug);
+  const providerCredentials = providerCredentialsResponse?.providerCredentials ?? [];
+  const workspaceDefaultCredential = providerCredentialsResponse?.providerCredential ?? null;
+  const credentialsByProvider = useMemo(
+    () => new Map(providerCredentials.map((credential) => [credential.provider, credential])),
+    [providerCredentials],
+  );
   const saveCredential = useSaveProviderCredential(organizationSlug, intl);
   const deleteCredential = useDeleteProviderCredential(organizationSlug, intl);
   const [selectedProvider, setSelectedProvider] = useState<ProviderOptionId | null>(null);
@@ -241,13 +260,55 @@ export function AiEnginePageContent({
     [byokProviders, hyperlocaliseGoProvider],
   );
 
+  const agentCapabilities = useMemo(
+    () =>
+      agentCapabilityIds.map((capabilityId) => {
+        const copyById = {
+          ask: {
+            name: aiEnginePageContentMessages.capabilityAskName,
+            description: aiEnginePageContentMessages.capabilityAskDescription,
+          },
+          translation: {
+            name: aiEnginePageContentMessages.capabilityTranslationName,
+            description: aiEnginePageContentMessages.capabilityTranslationDescription,
+          },
+          coding: {
+            name: aiEnginePageContentMessages.capabilityCodingName,
+            description: aiEnginePageContentMessages.capabilityCodingDescription,
+          },
+        } as const;
+
+        const copy = copyById[capabilityId];
+
+        return {
+          id: capabilityId,
+          name: intl.formatMessage(copy.name),
+          description: intl.formatMessage(copy.description),
+        };
+      }),
+    [intl],
+  );
+
+  const workspaceDefaultModel =
+    workspaceDefaultCredential?.defaultModel ?? hyperlocaliseAgentModelId;
+  const workspaceDefaultProviderLabel = workspaceDefaultCredential
+    ? (byokProviders.find((provider) => provider.id === workspaceDefaultCredential.provider)
+        ?.label ?? llmProviderContentEditoralog[workspaceDefaultCredential.provider].label)
+    : hyperlocaliseGoProvider.label;
+  const isIncludedWorkspaceDefault = !workspaceDefaultCredential;
+  const selectedByokProvider =
+    selectedProvider && selectedProvider !== hyperlocaliseGoProviderId ? selectedProvider : null;
+  const selectedProviderCredential = selectedByokProvider
+    ? (credentialsByProvider.get(selectedByokProvider) ?? null)
+    : null;
+
   useEffect(() => {
-    if (!credential || selectedProvider !== credential.provider) {
+    if (!selectedProviderCredential || selectedProvider !== selectedProviderCredential.provider) {
       return;
     }
 
-    setSelectedModel(credential.defaultModel);
-  }, [credential, selectedProvider]);
+    setSelectedModel(selectedProviderCredential.defaultModel);
+  }, [selectedProviderCredential, selectedProvider]);
 
   useEffect(() => {
     if (!selectedProvider || selectedProvider === hyperlocaliseGoProviderId) {
@@ -263,8 +324,17 @@ export function AiEnginePageContent({
     }
   }, [selectedModel, selectedProvider]);
 
-  const selectedByokProvider =
-    selectedProvider && selectedProvider !== hyperlocaliseGoProviderId ? selectedProvider : null;
+  const openByokConfigure = useCallback(
+    (provider: LlmProvider) => {
+      const connectedCredential = credentialsByProvider.get(provider);
+      setSelectedProvider(provider);
+      setSelectedModel(connectedCredential?.defaultModel ?? defaultModelByProvider[provider]);
+      setApiKey("");
+      setDialogOpen(true);
+    },
+    [credentialsByProvider],
+  );
+
   const selectedProviderConfig = selectedByokProvider
     ? llmProviderContentEditoralog[selectedByokProvider]
     : null;
@@ -273,77 +343,113 @@ export function AiEnginePageContent({
     selectedProviderConfig?.label;
 
   return (
-    <main className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-1.5">
-          <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-            <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
-          </TypographyH1>
-          <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
-          </TypographyP>
-        </div>
-        <Badge variant="outline" className="rounded-full lg:self-start">
-          <FormattedMessage {...aiEnginePageContentMessages.workspaceLevelBadge} />
-        </Badge>
+    <main className="space-y-8">
+      <div className="flex flex-col gap-1.5">
+        <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+          <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
+        </TypographyH1>
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
+        </TypographyP>
       </div>
 
       {canManageAiEngine ? (
         <>
-          {isLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {modelProviderCards.map((provider) => (
-                <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {modelProviderCards.map((provider) => {
-                const isManaged = provider.id === hyperlocaliseGoProviderId;
-                const isByok = !isManaged;
-                const isConfigured = isByok && credential?.provider === provider.id;
-                const isActive = isManaged ? !credential : isConfigured;
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...aiEnginePageContentMessages.providerSectionTitle} />
+            </IntegrationCategoryLabel>
 
-                return (
-                  <ModelProviderCard
-                    key={provider.id}
-                    provider={provider}
-                    isActive={isActive}
-                    isManaged={isManaged}
-                    footerLabel={
-                      isManaged
-                        ? isActive
-                          ? undefined
-                          : intl.formatMessage(aiEnginePageContentMessages.switchToManagedFooter)
-                        : intl.formatMessage(aiEnginePageContentMessages.configureFooter)
-                    }
-                    disabled={
-                      isManaged && isActive ? true : isManaged && deleteCredential.isPending
-                    }
-                    onSelect={() => {
-                      if (isManaged) {
-                        if (credential) {
-                          deleteCredential.mutate();
-                        }
-                        return;
+            {isLoading ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {modelProviderCards.map((provider) => (
+                  <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {modelProviderCards.map((provider) => {
+                  const isManaged = provider.id === hyperlocaliseGoProviderId;
+
+                  if (isManaged) {
+                    return (
+                      <ModelProviderCard
+                        key={provider.id}
+                        provider={provider}
+                        isManaged
+                        interactive={false}
+                        footerLabel={intl.formatMessage(
+                          aiEnginePageContentMessages.includedAlwaysAvailableFooter,
+                        )}
+                      />
+                    );
+                  }
+
+                  const connectedCredential = credentialsByProvider.get(provider.id as LlmProvider);
+                  const isConnected = Boolean(connectedCredential);
+
+                  return (
+                    <ModelProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      isConnected={isConnected}
+                      footerLabel={
+                        isConnected
+                          ? intl.formatMessage(aiEnginePageContentMessages.manageProviderAction)
+                          : intl.formatMessage(aiEnginePageContentMessages.configureFooter)
                       }
+                      disabled={saveCredential.isPending || deleteCredential.isPending}
+                      onSelect={() => openByokConfigure(provider.id as LlmProvider)}
+                    />
+                  );
+                })}
+              </div>
+            )}
 
-                      const byokProvider = provider.id as LlmProvider;
+            <AiEngineCurrentSetupPanel
+              isLoading={isLoading}
+              providerLabel={workspaceDefaultProviderLabel}
+              isIncluded={isIncludedWorkspaceDefault}
+              defaultModel={workspaceDefaultModel}
+              maskedApiKeySuffix={workspaceDefaultCredential?.maskedApiKeySuffix}
+              lastValidatedAt={workspaceDefaultCredential?.lastValidatedAt}
+              onManageProvider={
+                workspaceDefaultCredential
+                  ? () => openByokConfigure(workspaceDefaultCredential.provider)
+                  : undefined
+              }
+              manageDisabled={saveCredential.isPending || deleteCredential.isPending}
+            />
+          </section>
 
-                      setSelectedProvider(byokProvider);
-                      setSelectedModel(
-                        isConfigured && credential
-                          ? credential.defaultModel
-                          : defaultModelByProvider[byokProvider],
-                      );
-                      setApiKey("");
-                      setDialogOpen(true);
-                    }}
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>
+              <FormattedMessage {...aiEnginePageContentMessages.agentSectionTitle} />
+            </IntegrationCategoryLabel>
+            <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              <FormattedMessage {...aiEnginePageContentMessages.agentSectionDescription} />
+            </TypographyP>
+
+            {isLoading ? (
+              <Skeleton className="h-52 w-full rounded-lg" aria-hidden />
+            ) : (
+              <IntegrationCategoryCard>
+                {agentCapabilities.map((capability, index) => (
+                  <AiEngineAgentCapabilityRow
+                    key={capability.id}
+                    name={capability.name}
+                    description={capability.description}
+                    effectiveModel={workspaceDefaultModel}
+                    isLast={index === agentCapabilities.length - 1}
                   />
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </IntegrationCategoryCard>
+            )}
+
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...aiEnginePageContentMessages.agentAutomationsNote} />
+            </TypographyP>
+          </section>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent>
@@ -445,8 +551,22 @@ export function AiEnginePageContent({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => deleteCredential.mutate()}
-                      disabled={!credential || deleteCredential.isPending}
+                      onClick={() => {
+                        if (!selectedByokProvider) {
+                          return;
+                        }
+
+                        deleteCredential.mutate(selectedByokProvider, {
+                          onSuccess: () => {
+                            setDialogOpen(false);
+                          },
+                        });
+                      }}
+                      disabled={
+                        !selectedProviderCredential ||
+                        deleteCredential.isPending ||
+                        saveCredential.isPending
+                      }
                     >
                       <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
                       {deleteCredential.isPending

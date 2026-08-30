@@ -71,6 +71,16 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "pT9uAzxhrd",
     description: "Source filter option for provider translation memories",
   },
+  projectLabel: {
+    defaultMessage: "Project",
+    id: "/R/xwR7ZOR",
+    description: "Label for the translation memory project filter",
+  },
+  projectAll: {
+    defaultMessage: "All projects",
+    id: "/X++ueXvVD",
+    description: "Project filter option for all translation memories",
+  },
   providerLabel: {
     defaultMessage: "Provider",
     id: "1GUuDck/5O",

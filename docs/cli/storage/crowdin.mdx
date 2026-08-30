@@ -96,7 +96,12 @@ Use the compatible CLI surface:
 ```bash
 hyperlocalise crowdin init
 hyperlocalise crowdin config validate
+hyperlocalise crowdin config sources
+hyperlocalise crowdin config translations --language fr
 hyperlocalise crowdin status --language es
+hyperlocalise crowdin branch list
+hyperlocalise crowdin file list
+hyperlocalise crowdin language list
 hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin download sources
@@ -104,6 +109,8 @@ hyperlocalise crowdin download sources --file-id 101 --output /tmp/messages.json
 hyperlocalise crowdin download translations --language fr --export-only-approved --skip-untranslated-strings
 hyperlocalise crowdin download translations --language fr --merge-approved
 hyperlocalise crowdin download translations --language fr --include-sources
+hyperlocalise crowdin glossary upload --glossary-id 77 --input terms.tbx
+hyperlocalise crowdin tm upload --tm-id 4 --input memory.tmx
 ```
 
 `download sources` writes Crowdin source files into `files[].source` paths from `crowdin.yml`, or into a single `--output` file when you pass `--file-id`.

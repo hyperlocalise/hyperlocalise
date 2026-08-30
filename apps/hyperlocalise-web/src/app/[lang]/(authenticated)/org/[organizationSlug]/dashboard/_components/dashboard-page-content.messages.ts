@@ -26,8 +26,8 @@ export const dashboardPageContentMessages = defineMessages({
     description: "Warning when live TMS assigned jobs fail but native jobs loaded",
   },
   nativeJobsWarning: {
-    defaultMessage: "Native workspace jobs could not be loaded.",
-    id: "+KUpBJ/DPe",
-    description: "Warning when native assigned jobs fail but live TMS jobs loaded",
+    defaultMessage: "Workspace jobs could not be loaded.",
+    id: "YAgd2vmpnm",
+    description: "Warning when workspace assigned jobs fail but live TMS jobs loaded",
   },
 });

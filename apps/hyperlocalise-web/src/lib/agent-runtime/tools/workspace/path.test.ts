@@ -33,10 +33,14 @@ describe("isGitMetadataPath", () => {
 describe("normalizeWorkspacePath", () => {
   it("keeps workspace-relative source paths", () => {
     expect(normalizeWorkspacePath("./src/app.tsx")).toBe("src/app.tsx");
+    expect(normalizeWorkspacePath(".")).toBe(".");
+    expect(normalizeWorkspacePath("./")).toBe(".");
   });
 
   it("rejects traversal and absolute paths", () => {
     expect(normalizeWorkspacePath("../secret")).toBeNull();
+    expect(normalizeWorkspacePath("foo/../../secret")).toBeNull();
+    expect(normalizeWorkspacePath("./../secret")).toBeNull();
     expect(normalizeWorkspacePath("/etc/passwd")).toBeNull();
   });
 });

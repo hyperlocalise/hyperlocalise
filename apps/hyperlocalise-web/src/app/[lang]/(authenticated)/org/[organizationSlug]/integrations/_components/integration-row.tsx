@@ -14,7 +14,7 @@
  */
 import { ArrowDown01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { integrationRowMessages } from "./integration-row.messages";
@@ -22,6 +22,7 @@ import { integrationRowMessages } from "./integration-row.messages";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyH3 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
@@ -175,6 +176,110 @@ export function IntegrationRow({
 
 export const integrationConnectButtonClassName = actionStyles.connect.button!;
 
+type CollapsibleIntegrationRowProps = {
+  name: string;
+  description: string;
+  icon: ReactNode;
+  isConnected: boolean;
+  userIsAdmin: boolean;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  isLoading?: boolean;
+  isLast?: boolean;
+  children?: ReactNode;
+};
+
+export function CollapsibleIntegrationRow({
+  name,
+  description,
+  icon,
+  isConnected,
+  userIsAdmin,
+  expanded,
+  onExpandedChange,
+  isLoading = false,
+  isLast = false,
+  children,
+}: CollapsibleIntegrationRowProps) {
+  const showPanel = userIsAdmin || isConnected;
+
+  return (
+    <Collapsible
+      open={showPanel && expanded}
+      onOpenChange={onExpandedChange}
+      className={cn(!isLast && "border-b border-border")}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-4 px-5 py-4 transition-colors",
+          "hover:bg-muted/20",
+          expanded && "bg-muted/20",
+        )}
+      >
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
+            isConnected
+              ? "border-border bg-muted text-foreground"
+              : "border-border bg-muted/50 text-muted-foreground",
+          )}
+        >
+          {icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-medium text-foreground">{name}</p>
+          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="shrink-0">
+          {isLoading && showPanel ? (
+            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+          ) : showPanel ? (
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={
+                    userIsAdmin && !isConnected ? integrationConnectButtonClassName : undefined
+                  }
+                >
+                  {userIsAdmin ? (
+                    isConnected ? (
+                      <FormattedMessage {...integrationRowMessages.manage} />
+                    ) : (
+                      <FormattedMessage {...integrationRowMessages.connect} />
+                    )
+                  ) : (
+                    <FormattedMessage {...integrationRowMessages.viewOnly} />
+                  )}
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
+                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                    strokeWidth={2}
+                  />
+                </Button>
+              }
+            />
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {showPanel ? (
+        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
+          {children}
+        </CollapsibleContent>
+      ) : null}
+    </Collapsible>
+  );
+}
+
 export function IntegrationCategoryLabel({
   children,
   className,
@@ -183,20 +288,31 @@ export function IntegrationCategoryLabel({
   className?: string;
 }) {
   return (
-    <h3
-      className={cn(
-        "text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase md:text-sm",
-        className,
-      )}
+    <TypographyH3
+      className={cn("pb-0 font-sans text-lg font-medium tracking-normal md:text-lg", className)}
     >
       {children}
-    </h3>
+    </TypographyH3>
   );
 }
 
-export function IntegrationCategoryCard({ children }: { children: ReactNode }) {
+export function IntegrationCategoryCard({
+  children,
+  className,
+  ref,
+}: {
+  children: ReactNode;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+    <div
+      ref={ref}
+      className={cn(
+        "overflow-hidden rounded-lg border border-border bg-card text-card-foreground",
+        className,
+      )}
+    >
       {children}
     </div>
   );

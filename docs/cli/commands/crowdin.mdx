@@ -8,11 +8,23 @@ description: "Crowdin-compatible file workflow commands powered by crowdin.yml."
 ```bash
 hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
+hyperlocalise crowdin config sources [--config <path>] [--identity <path>] [--output text|json]
+hyperlocalise crowdin config translations [--config <path>] [--identity <path>] [--language <id>] [--output text|json]
 hyperlocalise crowdin status [--config <path>] [--identity <path>] [--branch <name>] [--language <id>] [--output text|json] [--fail-if-incomplete]
+hyperlocalise crowdin branch list [--config <path>] [--identity <path>] [--output text|json]
+hyperlocalise crowdin branch add --name <name> [--config <path>] [--identity <path>]
+hyperlocalise crowdin file list [--config <path>] [--identity <path>] [--branch <name>] [--output text|json]
+hyperlocalise crowdin language list [--config <path>] [--identity <path>] [--all] [--output text|json]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
 hyperlocalise crowdin download sources [--config <path>] [--identity <path>] [--branch <name>] [--file-id <id>] [--source <path>] [--output <path>] [--force]
 hyperlocalise crowdin download translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
+hyperlocalise crowdin glossary list [--config <path>] [--identity <path>] [--output text|json]
+hyperlocalise crowdin glossary download --glossary-id <id> [--language <id>] [--output <path>]
+hyperlocalise crowdin glossary upload --glossary-id <id> --input <file.tbx>
+hyperlocalise crowdin tm list [--config <path>] [--identity <path>] [--output text|json]
+hyperlocalise crowdin tm download --tm-id <id> --source-language <id> --target-language <id> [--format csv|tmx]
+hyperlocalise crowdin tm upload --tm-id <id> --input <file.tmx>
 ```
 
 ## What this command family does
@@ -30,7 +42,8 @@ Use them when you want Crowdin-compatible file mode:
 - optional source download alongside translations with `download translations --include-sources`
 - branch-scoped upload and download with root `branch:` or `--branch`
 - translation and approval progress with `status`
-- glossary and translation-memory download
+- branch list/add, file list, language list, and configured source/translation listing
+- glossary and translation-memory list, download, and upload
 - strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
 ## Supported config fields
@@ -69,7 +82,9 @@ YAML keys not listed above still cause a decode error (`KnownFields`).
 This v1 file-mode implementation does not support:
 
 - screenshot, comment, task, distribution, or app commands
-- glossary or TM upload (download exists)
+- glossary CSV/TBX scheme mapping (upload accepts Crowdin-native TBX only)
+- TM CSV import (upload accepts Crowdin-native TMX only)
+- low-level `file upload` / `file download` / `file delete`, `string list`, or `pre-translate`
 - permissive "warn and ignore" compatibility mode
 - interactive Crowdin project bootstrap
 
@@ -81,10 +96,25 @@ Validate config:
 hyperlocalise crowdin config validate
 ```
 
+List source and translation paths from `crowdin.yml`:
+
+```bash
+hyperlocalise crowdin config sources
+hyperlocalise crowdin config translations --language fr
+```
+
 Show translation and approval progress:
 
 ```bash
 hyperlocalise crowdin status --language es --output json
+```
+
+List branches, files, and languages:
+
+```bash
+hyperlocalise crowdin branch list
+hyperlocalise crowdin file list --branch feature/login
+hyperlocalise crowdin language list
 ```
 
 Upload source files:
@@ -157,3 +187,16 @@ hyperlocalise crowdin download translations --language fr --merge-approved
 
 `download translations --merge-approved` currently supports JSON object translation files. It forces an approved-only sparse export for the request, then overwrites only keys present in the approved Crowdin payload.
 Downloaded values that still match the source JSON are treated as Crowdin source-language fallbacks and are not merged over existing local translations.
+
+List glossaries and translation memories, then import Crowdin-native files:
+
+```bash
+hyperlocalise crowdin glossary list
+hyperlocalise crowdin glossary upload --glossary-id 77 --input terms.tbx
+hyperlocalise crowdin tm list
+hyperlocalise crowdin tm upload --tm-id 4 --input memory.tmx
+```
+
+`glossary upload` accepts TBX only. The CSV from `glossary download` is a Hyperlocalise export format and is not import-compatible.
+
+`tm upload` accepts TMX only. The CSV from `tm download` is not import-compatible. Re-importing TMX produced by `tm download --format tmx` is best-effort.

@@ -21,14 +21,111 @@ export const aiEnginePageContentMessages = defineMessages({
     description: "AI Engine page heading",
   },
   pageDescription: {
-    defaultMessage: "Choose the model provider agents use in this workspace.",
-    id: "vd5foq/6mc",
+    defaultMessage:
+      "Connect one or more model providers and set the workspace default for Hyperlocalise Agent. Included models stay available even when BYOK providers are connected.",
+    id: "6du8XKbuUv",
     description: "AI Engine page description",
   },
-  workspaceLevelBadge: {
-    defaultMessage: "Workspace level",
-    id: "Mbl8Jg/bPv",
-    description: "Badge indicating AI Engine settings apply to the whole workspace",
+  providerSectionTitle: {
+    defaultMessage: "Provider",
+    id: "Niev/tzFno",
+    description: "Section heading for workspace model provider selection",
+  },
+  agentSectionTitle: {
+    defaultMessage: "Hyperlocalise Agent",
+    id: "IiWzWDOWnD",
+    description: "Section heading for Hyperlocalise Agent capability model settings",
+  },
+  agentSectionDescription: {
+    defaultMessage:
+      "Ask, Translation, and Coding use the workspace default model today. Per-capability overrides are coming soon.",
+    id: "vSisR0WmWz",
+    description: "Description under the Hyperlocalise Agent section heading",
+  },
+  agentAutomationsNote: {
+    defaultMessage:
+      "Workspace automations currently use the same models as Coding and Translation.",
+    id: "+4e8C+B7dz",
+    description: "Footnote explaining automation model inheritance on the AI Engine page",
+  },
+  currentSetupTitle: {
+    defaultMessage: "Workspace default",
+    id: "hbYZCJv/dT",
+    description: "Heading for the workspace default model summary panel",
+  },
+  currentSetupDescription: {
+    defaultMessage:
+      "Hyperlocalise Agent capabilities inherit this provider and model until customized per capability.",
+    id: "Dx+sE/p7+P",
+    description: "Description for the workspace default model summary panel",
+  },
+  currentSetupProviderLabel: {
+    defaultMessage: "Provider",
+    id: "o8nZfgq6Yv",
+    description: "Label for the active provider name in the summary panel",
+  },
+  currentSetupModelLabel: {
+    defaultMessage: "Default model",
+    id: "XpeTF2YWKH",
+    description: "Label for the workspace default model in the summary panel",
+  },
+  currentSetupApiKeyLabel: {
+    defaultMessage: "API key",
+    id: "vlpA416ahD",
+    description: "Label for the masked API key in the summary panel",
+  },
+  currentSetupValidatedLabel: {
+    defaultMessage: "Last validated",
+    id: "WkCXvs44H8",
+    description: "Label for the provider credential validation timestamp",
+  },
+  manageProviderAction: {
+    defaultMessage: "Manage provider",
+    id: "AFid22/7fj",
+    description: "Button to open BYOK provider configuration",
+  },
+  includedBadge: {
+    defaultMessage: "Included",
+    id: "KoatxZfPmW",
+    description: "Badge for Hyperlocalise-managed inference on the AI Engine page",
+  },
+  workspaceDefaultBadge: {
+    defaultMessage: "Workspace default",
+    id: "AR7fkvL1P9",
+    description: "Badge showing an agent capability inherits the workspace default model",
+  },
+  capabilityAskName: {
+    defaultMessage: "Ask",
+    id: "7JjjDkCqaI",
+    description: "Hyperlocalise Agent Ask capability name",
+  },
+  capabilityAskDescription: {
+    defaultMessage:
+      "Chat, Slack, and general workspace questions with project and glossary context.",
+    id: "XtzSAMs4em",
+    description: "Hyperlocalise Agent Ask capability description",
+  },
+  capabilityTranslationName: {
+    defaultMessage: "Translation",
+    id: "sk24eCggsw",
+    description: "Hyperlocalise Agent Translation capability name",
+  },
+  capabilityTranslationDescription: {
+    defaultMessage:
+      "File and string translation jobs, batch localization, and translation subagents.",
+    id: "nqV2qZ+dzM",
+    description: "Hyperlocalise Agent Translation capability description",
+  },
+  capabilityCodingName: {
+    defaultMessage: "Coding",
+    id: "Q8OhM5eaVm",
+    description: "Hyperlocalise Agent Coding capability name",
+  },
+  capabilityCodingDescription: {
+    defaultMessage:
+      "Repository agent, GitHub automations, patches, and sandboxed code changes for localization fixes.",
+    id: "CIjzfipJPL",
+    description: "Hyperlocalise Agent Coding capability description",
   },
   noAccess: {
     defaultMessage: "You do not have permission to manage AI providers in this workspace.",
@@ -36,8 +133,8 @@ export const aiEnginePageContentMessages = defineMessages({
     description: "Shown when the current role cannot view AI Engine provider settings",
   },
   hyperlocaliseGoLabel: {
-    defaultMessage: "Hyperlocalise GO",
-    id: "Qkra2VNwUo",
+    defaultMessage: "Included models",
+    id: "MUcqH6QBF5",
     description: "Managed Hyperlocalise model provider name",
   },
   hyperlocaliseGoDescription: {
@@ -85,10 +182,10 @@ export const aiEnginePageContentMessages = defineMessages({
     id: "kDfywMCo7J",
     description: "Toast after disconnecting the workspace LLM provider",
   },
-  switchToManagedFooter: {
-    defaultMessage: "Switch to managed",
-    id: "CIdkhlQIV6",
-    description: "Footer label on managed model provider card when BYOK is active",
+  includedAlwaysAvailableFooter: {
+    defaultMessage: "Always available",
+    id: "49VwGXQnqx",
+    description: "Footer label on Included model provider card",
   },
   configureFooter: {
     defaultMessage: "Configure",
@@ -102,8 +199,8 @@ export const aiEnginePageContentMessages = defineMessages({
   },
   configureDialogDescription: {
     defaultMessage:
-      "Save one shared provider key for this workspace. Saving validates the key, encrypts it at rest, and replaces the current provider.",
-    id: "uMS3Md9f77",
+      "Save a shared provider key for this workspace. Saving validates the key and encrypts it at rest.",
+    id: "njR/Tp8zi7",
     description: "Description for the BYOK model provider configuration dialog",
   },
   defaultModelLabel: {

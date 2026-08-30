@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader"
@@ -63,7 +65,9 @@ func newRootCmd(version string) *cobra.Command {
 
 // Execute invokes the command.
 func Execute(version string) error {
-	if err := newRootCmd(version).Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := newRootCmd(version).ExecuteContext(ctx); err != nil {
 		return fmt.Errorf("error executing root command: %w", err)
 	}
 

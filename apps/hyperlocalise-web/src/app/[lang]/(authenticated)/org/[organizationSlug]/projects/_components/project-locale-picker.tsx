@@ -78,7 +78,7 @@ export function ProjectSourceLocalePicker({
         <FormattedMessage {...projectLocalePickerMessages.sourceLocaleLabel} />
       </FieldLabel>
       <Select
-        value={value || undefined}
+        value={value || null}
         onValueChange={(next) => {
           if (next) {
             onChange(next);

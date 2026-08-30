@@ -20,15 +20,10 @@ export const createJobDialogMessages = defineMessages({
     id: "yRg4x8kKbX",
     description: "Create job dialog title",
   },
-  descriptionProvider: {
-    defaultMessage: "Create Crowdin tasks with files, locales, and assignees.",
-    id: "nqQ9RngvcW",
-    description: "Create job dialog description for Crowdin provider projects",
-  },
-  descriptionNative: {
-    defaultMessage: "Create native translation jobs with files, locales, and an assignee.",
-    id: "UASZI6ojDa",
-    description: "Create job dialog description for native Hyperlocalise projects",
+  description: {
+    defaultMessage: "Create a job with context, files, locales, and assignees.",
+    id: "/e6ibZCuf5",
+    description: "Create job dialog accessible description",
   },
   titleLabel: {
     defaultMessage: "Title",
@@ -42,18 +37,18 @@ export const createJobDialogMessages = defineMessages({
   },
   taskTypeLabel: {
     defaultMessage: "Task type",
-    id: "CTLXW62s69",
-    description: "Label for the Crowdin task type select",
+    id: "AIsMxGkzgi",
+    description: "Label for the job task type select",
   },
   taskTypeTranslation: {
     defaultMessage: "Translation",
-    id: "2ghn1bUXd2",
-    description: "Crowdin task type option for translation",
+    id: "EYRqZtZx0G",
+    description: "Job task type option for translation",
   },
   taskTypeProofread: {
     defaultMessage: "Proofread",
-    id: "39i3huA7AM",
-    description: "Crowdin task type option for proofread",
+    id: "kV6HE87ScC",
+    description: "Job task type option for proofread",
   },
   descriptionLabel: {
     defaultMessage: "Description",

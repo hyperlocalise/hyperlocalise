@@ -511,7 +511,7 @@ function GithubRepositorySelect({
         <FormattedMessage {...workspaceAutomationFormMessages.repositoryLabel} />
       </Label>
       <Select
-        value={form.githubInstallationRepositoryId || undefined}
+        value={form.githubInstallationRepositoryId || null}
         onValueChange={(value) => {
           if (!value) {
             return;
@@ -533,7 +533,11 @@ function GithubRepositorySelect({
         </SelectTrigger>
         <SelectContent>
           {repositories.map((repository) => (
-            <SelectItem key={repository.id} value={repository.id}>
+            <SelectItem
+              key={repository.id}
+              value={repository.id}
+              label={formatRepositoryOptionLabel(intl, repository)}
+            >
               {formatRepositoryOptionLabel(intl, repository)}
             </SelectItem>
           ))}
@@ -1081,7 +1085,7 @@ function TriggerSettings({
             <div className="flex w-full min-w-0 flex-col gap-1.5">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                 <Select
-                  value={form.githubInstallationRepositoryId || undefined}
+                  value={form.githubInstallationRepositoryId || null}
                   onValueChange={(value) => {
                     if (!value) {
                       return;
@@ -1108,7 +1112,11 @@ function TriggerSettings({
                   </SelectTrigger>
                   <SelectContent>
                     {repositories.map((repository) => (
-                      <SelectItem key={repository.id} value={repository.id}>
+                      <SelectItem
+                        key={repository.id}
+                        value={repository.id}
+                        label={formatRepositoryOptionLabel(intl, repository)}
+                      >
                         {formatRepositoryOptionLabel(intl, repository)}
                       </SelectItem>
                     ))}
@@ -2195,7 +2203,7 @@ function ToolsSettings({
                   <FormattedMessage {...workspaceAutomationFormMessages.connectionLabel} />
                 </Label>
                 <Select
-                  value={form.contentfulConnectionId || undefined}
+                  value={form.contentfulConnectionId || null}
                   disabled={disabled || !contentfulConnected}
                   onValueChange={(value) => {
                     if (!value) {
@@ -2221,7 +2229,18 @@ function ToolsSettings({
                   </SelectTrigger>
                   <SelectContent>
                     {contentfulConnections.map((connection) => (
-                      <SelectItem key={connection.id} value={connection.id}>
+                      <SelectItem
+                        key={connection.id}
+                        value={connection.id}
+                        label={
+                          connection.enabled
+                            ? connection.displayName
+                            : intl.formatMessage(
+                                workspaceAutomationFormMessages.connectionDisabledSuffix,
+                                { name: connection.displayName },
+                              )
+                        }
+                      >
                         {connection.enabled
                           ? connection.displayName
                           : intl.formatMessage(
@@ -2366,7 +2385,7 @@ function ToolsSettings({
                 <FormattedMessage {...workspaceAutomationFormMessages.selectProject} />
               </Label>
               <Select
-                value={form.crowdinProjectId || undefined}
+                value={form.crowdinProjectId || null}
                 disabled={disabled || !crowdinConnected}
                 onValueChange={(value) => {
                   if (!value) {
@@ -2385,7 +2404,7 @@ function ToolsSettings({
                 </SelectTrigger>
                 <SelectContent>
                   {crowdinProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                    <SelectItem key={project.id} value={project.id} label={project.name}>
                       {project.name}
                     </SelectItem>
                   ))}
@@ -2557,7 +2576,7 @@ function ToolsSettings({
                 <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
               </Label>
               <Select
-                value={form.mcpConnectionId || undefined}
+                value={form.mcpConnectionId || null}
                 disabled={disabled || !mcpConnected}
                 onValueChange={(value) => {
                   if (!value) {
@@ -2580,7 +2599,11 @@ function ToolsSettings({
                 </SelectTrigger>
                 <SelectContent>
                   {enabledMcpServerConnections.map((connection) => (
-                    <SelectItem key={connection.id} value={connection.id}>
+                    <SelectItem
+                      key={connection.id}
+                      value={connection.id}
+                      label={connection.displayName}
+                    >
                       {connection.displayName}
                     </SelectItem>
                   ))}
@@ -2619,7 +2642,7 @@ function ToolsSettings({
                 <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
               </Label>
               <Select
-                value={form.semrushConnectionId || undefined}
+                value={form.semrushConnectionId || null}
                 disabled={disabled || !semrushConnected}
                 onValueChange={(value) => {
                   if (!value) {
@@ -2642,7 +2665,11 @@ function ToolsSettings({
                 </SelectTrigger>
                 <SelectContent>
                   {enabledSemrushConnections.map((connection) => (
-                    <SelectItem key={connection.id} value={connection.id}>
+                    <SelectItem
+                      key={connection.id}
+                      value={connection.id}
+                      label={connection.displayName}
+                    >
                       {connection.displayName}
                     </SelectItem>
                   ))}
@@ -2681,7 +2708,7 @@ function ToolsSettings({
                 <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
               </Label>
               <Select
-                value={form.ahrefsConnectionId || undefined}
+                value={form.ahrefsConnectionId || null}
                 disabled={disabled || !ahrefsConnected}
                 onValueChange={(value) => {
                   if (!value) {
@@ -2704,7 +2731,11 @@ function ToolsSettings({
                 </SelectTrigger>
                 <SelectContent>
                   {enabledAhrefsConnections.map((connection) => (
-                    <SelectItem key={connection.id} value={connection.id}>
+                    <SelectItem
+                      key={connection.id}
+                      value={connection.id}
+                      label={connection.displayName}
+                    >
                       {connection.displayName}
                     </SelectItem>
                   ))}

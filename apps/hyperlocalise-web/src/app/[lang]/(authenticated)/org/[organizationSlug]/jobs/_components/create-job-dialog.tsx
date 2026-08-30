@@ -577,6 +577,7 @@ export function CreateJobDialog({
       );
       const ownerWorkosUserId = selectedAssignees[0];
       const createdIds: string[] = [];
+      const trimmedDescription = description.trim();
 
       for (const file of eligibleFiles) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -586,6 +587,8 @@ export function CreateJobDialog({
           json: {
             type: "file",
             title: title.trim(),
+            kind,
+            ...(trimmedDescription ? { description: trimmedDescription } : {}),
             ...(ownerWorkosUserId ? { ownerWorkosUserId } : {}),
             fileInput: {
               sourceFileId: file.storedFileId!,
@@ -700,11 +703,7 @@ export function CreateJobDialog({
               <FormattedMessage {...createJobDialogMessages.title} />
             </DialogTitle>
             <DialogDescription className="sr-only">
-              {isProviderProject ? (
-                <FormattedMessage {...createJobDialogMessages.descriptionProvider} />
-              ) : (
-                <FormattedMessage {...createJobDialogMessages.descriptionNative} />
-              )}
+              <FormattedMessage {...createJobDialogMessages.description} />
             </DialogDescription>
           </DialogHeader>
 
@@ -722,18 +721,16 @@ export function CreateJobDialog({
               className="h-auto rounded-none border-0 bg-transparent px-0 py-1 text-base font-medium shadow-none focus-visible:ring-0 md:text-lg"
             />
 
-            {isProviderProject ? (
-              <MarkdownEditor
-                value={description}
-                onChange={setDescription}
-                disabled={createJob.isPending}
-                placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
-                ariaLabel={intl.formatMessage(createJobDialogMessages.descriptionLabel)}
-                chrome="minimal"
-                imageUpload={{ organizationSlug, projectId }}
-                className="min-h-28 bg-transparent px-0"
-              />
-            ) : null}
+            <MarkdownEditor
+              value={description}
+              onChange={setDescription}
+              disabled={createJob.isPending}
+              placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
+              ariaLabel={intl.formatMessage(createJobDialogMessages.descriptionLabel)}
+              chrome="default"
+              imageUpload={{ organizationSlug, projectId }}
+              className="min-h-28"
+            />
 
             <CreateJobFileTree
               files={fileOptions}
@@ -744,52 +741,50 @@ export function CreateJobDialog({
             />
 
             <div className="flex flex-wrap items-center gap-0.5 pt-1">
-              {isProviderProject ? (
-                <Select
-                  value={kind}
-                  items={kindItems}
-                  onValueChange={(value) => {
-                    if (value === "translation" || value === "proofread") {
-                      setKind(value);
-                    }
-                  }}
-                  disabled={createJob.isPending}
+              <Select
+                value={kind}
+                items={kindItems}
+                onValueChange={(value) => {
+                  if (value === "translation" || value === "proofread") {
+                    setKind(value);
+                  }
+                }}
+                disabled={createJob.isPending}
+              >
+                <SelectTrigger
+                  aria-label={intl.formatMessage(createJobDialogMessages.taskTypeLabel)}
+                  showIcon={false}
+                  className={propertyTriggerClassName}
                 >
-                  <SelectTrigger
-                    aria-label={intl.formatMessage(createJobDialogMessages.taskTypeLabel)}
-                    showIcon={false}
-                    className={propertyTriggerClassName}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <HugeiconsIcon
-                        icon={kind === "proofread" ? CheckListIcon : TranslateIcon}
-                        strokeWidth={1.8}
-                        className="size-3.5"
-                      />
-                      {intl.formatMessage(
-                        kind === "proofread"
-                          ? createJobDialogMessages.taskTypeProofread
-                          : createJobDialogMessages.taskTypeTranslation,
-                      )}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {kindItems.map((item) => (
-                        <SelectItem key={item.value} value={item.value} label={item.label}>
-                          <span className="flex items-center gap-2">
-                            <HugeiconsIcon
-                              icon={item.value === "proofread" ? CheckListIcon : TranslateIcon}
-                              strokeWidth={1.8}
-                            />
-                            {item.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              ) : null}
+                  <span className="flex items-center gap-1.5">
+                    <HugeiconsIcon
+                      icon={kind === "proofread" ? CheckListIcon : TranslateIcon}
+                      strokeWidth={1.8}
+                      className="size-3.5"
+                    />
+                    {intl.formatMessage(
+                      kind === "proofread"
+                        ? createJobDialogMessages.taskTypeProofread
+                        : createJobDialogMessages.taskTypeTranslation,
+                    )}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {kindItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        <span className="flex items-center gap-2">
+                          <HugeiconsIcon
+                            icon={item.value === "proofread" ? CheckListIcon : TranslateIcon}
+                            strokeWidth={1.8}
+                          />
+                          {item.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
 
               <CreateJobPropertyPicker
                 icon={LanguageCircleIcon}

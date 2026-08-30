@@ -123,9 +123,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Dashboard panel description for recent projects",
   },
   recentProjectsEmpty: {
-    defaultMessage: "No native projects yet. Create a project to get started.",
-    id: "1Do2u8ufv7",
-    description: "Empty state when there are no native projects",
+    defaultMessage: "No projects yet. Create a project to get started.",
+    id: "6NGN+mn8CD",
+    description: "Empty state when there are no workspace projects",
   },
   tmsJobsTitle: {
     defaultMessage: "{providerName} jobs",

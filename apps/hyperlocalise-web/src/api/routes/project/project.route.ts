@@ -46,6 +46,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
+import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
 import {
   insertWithAllocatedProjectIdentifier,
   isProjectIdentifierTaken,
@@ -368,8 +369,8 @@ const projectStore: ProjectStore = {
       organizationId: auth.organization.localOrganizationId,
       name: payload.name,
       database,
-      insert: (identifier, attemptDb) =>
-        attemptDb
+      insert: async (identifier, attemptDb) => {
+        const created = await attemptDb
           .insert(schema.projects)
           .values({
             id: `project_${randomUUID()}`,
@@ -384,7 +385,19 @@ const projectStore: ProjectStore = {
             sourceLocale: payload.sourceLocale,
             targetLocales: payload.targetLocales,
           })
-          .returning(),
+          .returning();
+        const createdProject = created[0];
+        if (createdProject) {
+          await ensureDefaultNativeProjectMemory({
+            organizationId: auth.organization.localOrganizationId,
+            projectId: createdProject.id,
+            projectName: createdProject.name,
+            createdByUserId: auth.user.localUserId,
+            database: attemptDb,
+          });
+        }
+        return created;
+      },
     });
 
     // Creators without teams:write only see projects on teams they belong to.

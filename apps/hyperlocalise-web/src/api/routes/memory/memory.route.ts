@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 
 import {
   buildAccessibleProjectsWhere,
@@ -106,7 +106,26 @@ const memoryStore: MemoryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    const where = await buildProjectLinkedMemoryWhere(auth);
+    const projectId = query?.projectId;
+    if (projectId && !(await getOwnedProject(auth, projectId))) {
+      return { memories: [], total: 0 };
+    }
+
+    const accessWhere = await buildProjectLinkedMemoryWhere(auth);
+    const projectMemoryIds = projectId
+      ? db
+          .select({ memoryId: schema.projectMemories.memoryId })
+          .from(schema.projectMemories)
+          .where(
+            and(
+              eq(schema.projectMemories.projectId, projectId),
+              eq(schema.projectMemories.organizationId, auth.organization.localOrganizationId),
+            ),
+          )
+      : null;
+    const where = projectMemoryIds
+      ? and(accessWhere, inArray(schema.memories.id, projectMemoryIds))
+      : accessWhere;
 
     const [memories, totalRow] = await Promise.all([
       db
@@ -151,12 +170,21 @@ const memoryStore: MemoryStore = {
     return memory ?? null;
   },
   async delete(auth, memoryId) {
-    const deletedMemories = await db
-      .delete(schema.memories)
-      .where(await ownedMemoryWhere(auth, memoryId))
-      .returning({ id: schema.memories.id });
+    const memoryWhere = await ownedMemoryWhere(auth, memoryId);
+    return db.transaction(async (tx) => {
+      const deletedMemories = await tx
+        .delete(schema.memories)
+        .where(memoryWhere)
+        .returning({ id: schema.memories.id });
 
-    return deletedMemories.length > 0;
+      if (deletedMemories.length === 0) {
+        return false;
+      }
+
+      await tx.delete(schema.projectMemories).where(eq(schema.projectMemories.memoryId, memoryId));
+
+      return true;
+    });
   },
 };
 

@@ -59,6 +59,8 @@ type identityConfigYAML struct {
 	APITokenEnv  string `yaml:"api_token_env"`
 	BaseURL      string `yaml:"base_url"`
 	BaseURLEnv   string `yaml:"base_url_env"`
+	// Crowdin CLI identity files often include base_path; credentials loading ignores it.
+	BasePath string `yaml:"base_path"`
 }
 
 type fileGroupYAML struct {

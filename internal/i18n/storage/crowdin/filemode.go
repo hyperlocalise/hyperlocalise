@@ -159,8 +159,8 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
 			for _, locale := range locales {
-				if _, isExcluded := excluded[locale.Locale]; isExcluded {
-					skipped = append(skipped, remotePath+"@"+locale.Locale)
+				if isExcludedTargetLanguage(excluded, locale) {
+					skipped = append(skipped, remotePath+"@"+locale.LanguageID)
 					continue
 				}
 				translationPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
@@ -303,8 +303,8 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				processed = append(processed, sourcePath)
 			}
 			for _, locale := range locales {
-				if _, isExcluded := excluded[locale.Locale]; isExcluded {
-					skipped = append(skipped, remotePath+"@"+locale.Locale)
+				if isExcludedTargetLanguage(excluded, locale) {
+					skipped = append(skipped, remotePath+"@"+locale.LanguageID)
 					continue
 				}
 				exportOptions := effectiveFileExportOptions(group.Export, req.ExportOverrides)
@@ -869,6 +869,22 @@ func parseGlobCharClass(pattern string) (string, int) {
 	}
 
 	return `\[`, 1
+}
+
+func isExcludedTargetLanguage(excluded map[string]struct{}, locale ResolvedLocale) bool {
+	if len(excluded) == 0 {
+		return false
+	}
+	for _, token := range []string{locale.LanguageID, locale.Locale} {
+		trimmed := strings.TrimSpace(token)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := excluded[trimmed]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func makeStringSet(values []string) map[string]struct{} {

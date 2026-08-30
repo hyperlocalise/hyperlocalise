@@ -329,7 +329,7 @@ export function ContentEditorRepositorySelect({
 
   return (
     <Select
-      value={selectedRepositoryFullName ?? ""}
+      value={selectedRepositoryFullName || null}
       onValueChange={handleValueChange}
       disabled={repositoryFullNames.length <= 1}
     >
@@ -346,7 +346,11 @@ export function ContentEditorRepositorySelect({
       </SelectTrigger>
       <SelectContent>
         {repositoryFullNames.map((repositoryFullName) => (
-          <SelectItem key={repositoryFullName} value={repositoryFullName}>
+          <SelectItem
+            key={repositoryFullName}
+            value={repositoryFullName}
+            label={repositoryFullName}
+          >
             <GitHubMark className="size-4 text-muted-foreground" />
             {repositoryFullName}
           </SelectItem>
