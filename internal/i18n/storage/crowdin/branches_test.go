@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -49,5 +50,17 @@ func TestAddBranch(t *testing.T) {
 	}
 	if got != (Branch{ID: 11, Name: "feature/login"}) {
 		t.Fatalf("branch = %#v", got)
+	}
+}
+
+func TestAddBranchRejectsBlankName(t *testing.T) {
+	client, _, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	for _, name := range []string{"", "   "} {
+		_, err := client.AddBranch(context.Background(), "123", name)
+		if err == nil || !strings.Contains(err.Error(), "name is required") {
+			t.Fatalf("name %q error = %v", name, err)
+		}
 	}
 }

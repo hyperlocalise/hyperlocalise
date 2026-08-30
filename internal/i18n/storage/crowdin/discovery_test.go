@@ -263,3 +263,72 @@ func TestListGlossariesAndTranslationMemoriesFiltersOtherProjects(t *testing.T) 
 		t.Fatalf("translation memories = %#v", memories)
 	}
 }
+
+func TestAssignedToCrowdinProject(t *testing.T) {
+	cases := []struct {
+		name              string
+		projectID         int
+		defaultProjectIDs []int
+		projectIDs        []int
+		want              bool
+	}{
+		{name: "empty assignment lists include all", projectID: 123, want: true},
+		{name: "match defaultProjectIDs", projectID: 123, defaultProjectIDs: []int{99, 123}, want: true},
+		{name: "match projectIDs only", projectID: 123, projectIDs: []int{123}, want: true},
+		{name: "miss both lists", projectID: 123, defaultProjectIDs: []int{1}, projectIDs: []int{2}, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := assignedToCrowdinProject(tc.projectID, tc.defaultProjectIDs, tc.projectIDs)
+			if got != tc.want {
+				t.Fatalf("assignedToCrowdinProject = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestListProjectFilesDedupesNestedDuplicates(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 17, "name": "messages.json", "path": "/messages.json"}},
+					map[string]any{"data": map[string]any{"id": 18, "name": "nested.json", "path": "/src/nested.json"}},
+				},
+			})
+		case "directoryId=9&limit=500&recursion=true":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 18, "name": "nested.json", "path": "/src/nested.json"}},
+					map[string]any{"data": map[string]any{"id": 19, "name": "deep.json", "path": "/src/deep.json"}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected files query %q", r.URL.RawQuery)
+		}
+	})
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{"id": 9, "name": "src", "path": "/src"}},
+			},
+		})
+	})
+
+	got, err := client.ListProjectFiles(context.Background(), "123", "")
+	if err != nil {
+		t.Fatalf("list files: %v", err)
+	}
+	want := []ProjectFile{
+		{ID: 17, Name: "messages.json", Path: "/messages.json"},
+		{ID: 18, Name: "nested.json", Path: "/src/nested.json"},
+		{ID: 19, Name: "deep.json", Path: "/src/deep.json"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("files = %#v, want %#v", got, want)
+	}
+}
