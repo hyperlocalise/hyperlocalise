@@ -105,6 +105,18 @@ describe("canOpenNativeJobContentEditor", () => {
         },
       }),
     ).toBe(true);
+    expect(
+      canOpenNativeJobContentEditor({
+        id: "job_native_proofread",
+        kind: "proofread",
+        type: "file",
+        externalProviderKind: null,
+        inputPayload: {
+          sourceFileId: "file_home_json",
+          targetLocales: ["fr-FR"],
+        },
+      }),
+    ).toBe(true);
   });
 
   it("rejects provider jobs and non-file translation jobs", () => {

@@ -508,15 +508,18 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const jobId = `job_${randomUUID()}`;
+      const isProofreadJob = jobKind === "proofread";
       let job;
       try {
         [job] = await db.transaction(async (tx) => {
-          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-            tx,
-            c.var.auth.organization.localOrganizationId,
-          );
-          if (isErr(jobBudget)) {
-            throw new OrganizationJobBudgetExceededError(jobBudget.error);
+          if (!isProofreadJob) {
+            const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+              tx,
+              c.var.auth.organization.localOrganizationId,
+            );
+            if (isErr(jobBudget)) {
+              throw new OrganizationJobBudgetExceededError(jobBudget.error);
+            }
           }
 
           const sourceFileVersion =
@@ -539,7 +542,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               ownerUserId,
               assigneeType: ownerUserId ? "user" : null,
               kind: jobKind,
-              status: "queued",
+              status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
             })
             .returning();
@@ -553,17 +556,19 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             })
             .returning();
 
-          const usageEventResult = await reserveUsageEvent({
-            db: tx,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            featureId: usageFeatureIds.translationJobs,
-            operationKey: `job:${jobId}:translation_jobs`,
-            source: "translation_job_create",
-            jobId,
-            quantity: 1,
-          });
-          if (isErr(usageEventResult)) {
-            throw new Error(formatUsageControlError(usageEventResult.error));
+          if (!isProofreadJob) {
+            const usageEventResult = await reserveUsageEvent({
+              db: tx,
+              organizationId: c.var.auth.organization.localOrganizationId,
+              featureId: usageFeatureIds.translationJobs,
+              operationKey: `job:${jobId}:translation_jobs`,
+              source: "translation_job_create",
+              jobId,
+              quantity: 1,
+            });
+            if (isErr(usageEventResult)) {
+              throw new Error(formatUsageControlError(usageEventResult.error));
+            }
           }
 
           return [{ ...createdJob, type: details.type }];
@@ -575,23 +580,25 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         throw error;
       }
 
-      try {
-        await options.jobQueue.enqueue({
-          kind: "translation",
-          jobId: job.id,
-          projectId: job.projectId ?? params.projectId,
-          type: job.type,
-        });
-      } catch (error) {
-        await db
-          .update(schema.jobs)
-          .set({
-            status: "failed",
-            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-          })
-          .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+      if (!isProofreadJob) {
+        try {
+          await options.jobQueue.enqueue({
+            kind: "translation",
+            jobId: job.id,
+            projectId: job.projectId ?? params.projectId,
+            type: job.type,
+          });
+        } catch (error) {
+          await db
+            .update(schema.jobs)
+            .set({
+              status: "failed",
+              lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+            })
+            .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
 
-        return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
+          return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
+        }
       }
 
       const createdJob = await getOwnedJob(params.projectId, job.id);

@@ -58,6 +58,21 @@ describe("canOpenJobContentEditor", () => {
         }),
       ),
     ).toBe(true);
+    expect(
+      canOpenJobContentEditor(
+        createJob({
+          externalProviderKind: null,
+          externalTargetLocales: null,
+          id: "job_native_proofread",
+          kind: "proofread",
+          type: "file",
+          inputPayload: {
+            sourceFileId: "file_home_json",
+            targetLocales: ["fr-FR"],
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("rejects native jobs without a source file id", () => {
@@ -145,6 +160,24 @@ describe("buildJobContentEditorHref", () => {
       ),
     ).toBe(
       "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=untranslated",
+    );
+    expect(
+      buildJobContentEditorHref(
+        "acme",
+        "project-1",
+        createJob({
+          externalProviderKind: null,
+          externalTargetLocales: null,
+          id: "job_native_proofread",
+          kind: "proofread",
+          inputPayload: {
+            sourceFileId: "file_home_json",
+            targetLocales: ["fr-FR"],
+          },
+        }),
+      ),
+    ).toBe(
+      "/org/acme/projects/project-1/jobs/job_native_proofread/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=needs_review",
     );
   });
 });

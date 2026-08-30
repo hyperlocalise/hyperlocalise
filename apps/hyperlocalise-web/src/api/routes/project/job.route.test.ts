@@ -560,15 +560,24 @@ describe("project job create", () => {
     );
 
     expect(response.status).toBe(201);
-    const body = (await response.json()) as { job: { id: string; kind: string } };
+    const body = (await response.json()) as {
+      job: { id: string; kind: string; status: string };
+    };
     expect(body.job.kind).toBe("proofread");
+    expect(body.job.status).toBe("waiting_for_review");
+    expect(enqueueJob).not.toHaveBeenCalled();
     const [job] = await db
-      .select({ kind: schema.jobs.kind, inputPayload: schema.jobs.inputPayload })
+      .select({
+        kind: schema.jobs.kind,
+        status: schema.jobs.status,
+        inputPayload: schema.jobs.inputPayload,
+      })
       .from(schema.jobs)
       .where(eq(schema.jobs.id, body.job.id))
       .limit(1);
 
     expect(job?.kind).toBe("proofread");
+    expect(job?.status).toBe("waiting_for_review");
     expect(job?.inputPayload).toMatchObject({
       metadata: {
         title: "Proofread homepage",
