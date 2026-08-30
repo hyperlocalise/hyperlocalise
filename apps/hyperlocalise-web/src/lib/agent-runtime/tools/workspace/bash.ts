@@ -74,7 +74,35 @@ function attachedFlagValueEscapesWorkspace(token: string): boolean {
   if (!value) {
     return false;
   }
-  return value.startsWith("/") || value.split("/").includes("..");
+  return value.startsWith("/") || hasParentPathSegment(value);
+}
+
+/** Same rule as normalizeWorkspacePath: a `/`-separated `..` segment escapes the workspace. */
+function hasParentPathSegment(value: string): boolean {
+  return value.replace(/\\/g, "/").split("/").includes("..");
+}
+
+function tokenHasParentPathSegment(token: string): boolean {
+  if (hasParentPathSegment(token)) {
+    return true;
+  }
+  const separator = token.indexOf("=");
+  if (separator === -1) {
+    return false;
+  }
+  return hasParentPathSegment(unquoteFlagValue(token.slice(separator + 1)));
+}
+
+/** GNU find -L/-H/-follow walk symlinks out of the workspace. Do not treat git -L as the same. */
+function isDisallowedFindFollowFlag(token: string, bin: string): boolean {
+  if (bin !== "find" || !token.startsWith("-")) {
+    return false;
+  }
+  if (/^-[LH]+$/i.test(token)) {
+    return true;
+  }
+  const name = flagBasename(token);
+  return name === "l" || name === "h" || name === "follow";
 }
 
 function isDisallowedGitOutputFlag(token: string): boolean {
@@ -127,7 +155,13 @@ export function isAllowedBashCommand(command: string): boolean {
   if (tokens.some((token) => isDisallowedFlagToken(token, bin))) {
     return false;
   }
+  if (tokens.some((token) => isDisallowedFindFollowFlag(token, bin))) {
+    return false;
+  }
   if (tokens.some(attachedFlagValueEscapesWorkspace)) {
+    return false;
+  }
+  if (tokens.some(tokenHasParentPathSegment)) {
     return false;
   }
 

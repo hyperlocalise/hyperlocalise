@@ -37,6 +37,8 @@ describe("normalizeWorkspacePath", () => {
 
   it("rejects traversal and absolute paths", () => {
     expect(normalizeWorkspacePath("../secret")).toBeNull();
+    expect(normalizeWorkspacePath("foo/../../secret")).toBeNull();
+    expect(normalizeWorkspacePath("./../secret")).toBeNull();
     expect(normalizeWorkspacePath("/etc/passwd")).toBeNull();
   });
 });

@@ -61,11 +61,25 @@ export function createDetectRepoConfigTool(ctx: RepoToolContext) {
       path: z.string().optional().describe("Directory to check. Defaults to repo root."),
     }),
     execute: async ({ path }) => {
-      const checkPath = path || ".";
+      const checkPathResult = requireWorkspacePath(path);
+      if (isErr(checkPathResult)) {
+        return {
+          success: false as const,
+          error: checkPathResult.error,
+        };
+      }
+      const checkPath = checkPathResult.value;
       const candidates = ["i18n.yml", "i18n.jsonc"];
 
       for (const name of candidates) {
-        const filePath = checkPath === "." ? name : `${checkPath}/${name}`;
+        const joined = checkPath === "." ? name : `${checkPath}/${name}`;
+        const filePath = normalizeWorkspacePath(joined);
+        if (!filePath) {
+          return {
+            success: false as const,
+            error: "Path must stay within the workspace.",
+          };
+        }
         const result = await ctx.bash.exec("test", { args: ["-f", filePath] });
         if (result.exitCode === 0) {
           const summary = await extractConfigSummary(ctx.bash, filePath, name);
@@ -136,7 +150,14 @@ export function createRepoGitStateTool(ctx: RepoToolContext) {
       path: z.string().optional().describe("Directory to inspect. Defaults to repo root."),
     }),
     execute: async ({ path }) => {
-      const dir = path || ".";
+      const dirResult = requireWorkspacePath(path);
+      if (isErr(dirResult)) {
+        return {
+          success: false,
+          error: dirResult.error,
+        };
+      }
+      const dir = dirResult.value;
 
       const branchResult = await ctx.bash.exec("git", {
         args: ["-C", dir, "rev-parse", "--abbrev-ref", "HEAD"],
@@ -1043,11 +1064,23 @@ export type RunHyperlocaliseCliOutput = {
 const HL_SUBCOMMANDS = ["check", "status", "extract"] as const;
 const HL_YAML_CONFIG_NAME = "i18n.yml";
 
+function isConfigFlagName(name: string): boolean {
+  return name.replace(/^-+/, "").toLowerCase() === "config";
+}
+
 function hasConfigFlag(flags?: Record<string, string>): boolean {
   if (!flags) {
     return false;
   }
-  return Object.keys(flags).some((key) => key.replace(/^-+/, "").toLowerCase() === "config");
+  return Object.keys(flags).some(isConfigFlagName);
+}
+
+function requireWorkspacePath(path: string | undefined): Result<string, string> {
+  const normalized = normalizeWorkspacePath(path || ".");
+  if (!normalized) {
+    return err("Path must stay within the workspace.");
+  }
+  return ok(normalized);
 }
 
 async function resolveDefaultHlYamlConfigPath(ctx: RepoToolContext): Promise<string | null> {
@@ -1156,7 +1189,8 @@ export type HyperlocaliseCliArgsError =
   | { code: "positional_arg_looks_like_flag"; value: string }
   | { code: "flag_not_allowed"; name: string }
   | { code: "flag_contains_invalid_characters"; name: string }
-  | { code: "flag_value_contains_invalid_characters" };
+  | { code: "flag_value_contains_invalid_characters" }
+  | { code: "flag_value_escapes_workspace"; name: string };
 
 export function formatHyperlocaliseCliArgsError(error: HyperlocaliseCliArgsError): string {
   switch (error.code) {
@@ -1170,6 +1204,8 @@ export function formatHyperlocaliseCliArgsError(error: HyperlocaliseCliArgsError
       return `Flag "${error.name}" contains invalid characters`;
     case "flag_value_contains_invalid_characters":
       return "Flag value contains invalid characters";
+    case "flag_value_escapes_workspace":
+      return `Flag "${error.name}" value must stay within the workspace.`;
   }
 }
 
@@ -1216,7 +1252,15 @@ export function buildHlArgs(input: {
     if (isErr(valueResult)) {
       return err(valueResult.error);
     }
-    args.push("--" + k + "=" + v);
+    let flagValue = v;
+    if (isConfigFlagName(k)) {
+      const normalizedConfig = normalizeWorkspacePath(v);
+      if (!normalizedConfig) {
+        return err({ code: "flag_value_escapes_workspace", name: k });
+      }
+      flagValue = normalizedConfig;
+    }
+    args.push("--" + k + "=" + flagValue);
   }
 
   return ok(args);
