@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { LlmProvider } from "@/lib/database/types";
+import type { IntercomConnectionSummary } from "@/lib/intercom/types";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/contracts/external-tms-provider-credential";
 import { OAUTH_AUTH_MODE } from "@/lib/providers/contracts/external-tms-provider-credential";
 import type { TmsProviderCapabilityAction } from "@/lib/providers/capabilities/tms-capabilities";
@@ -128,5 +129,21 @@ export const integrationsContentfulConnectionsFixture: ContentfulConnectionSumma
       lastDeliveredAt: integrationTimestamp,
       lastError: null,
     },
+  },
+];
+
+export const integrationsIntercomConnectionsFixture: IntercomConnectionSummary[] = [
+  {
+    id: "intercom_conn_001",
+    organizationId: "org_acme",
+    displayName: "Support workspace",
+    restEndpoint: "us",
+    enabled: true,
+    validationStatus: "valid",
+    validationMessage: null,
+    lastValidatedAt: integrationTimestamp,
+    maskedAccessTokenSuffix: "abcd",
+    createdAt: integrationTimestamp,
+    updatedAt: integrationTimestamp,
   },
 ];

@@ -136,10 +136,17 @@ export const ReadOnly: Story = {
       handlers: integrationsConnectedMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
-    await expect(canvas.getAllByText("View only").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("button", { name: "View only" }).length).toBeGreaterThan(0);
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
+    await userEvent.click(canvas.getByRole("button", { name: "View only" }));
+    await expect(canvas.getByText("Support workspace")).toBeInTheDocument();
+    await expect(canvas.getByText("US · token ending in abcd")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add connection" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
   },
 };
 

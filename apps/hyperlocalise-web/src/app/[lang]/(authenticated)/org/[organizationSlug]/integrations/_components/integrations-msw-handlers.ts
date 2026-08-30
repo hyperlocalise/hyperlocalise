@@ -19,6 +19,7 @@ import {
   integrationsExternalTmsCredentialsFixture,
   integrationsGitHubInstallationFixture,
   integrationsGitHubRepositoriesFixture,
+  integrationsIntercomConnectionsFixture,
   integrationsProviderCredentialFixture,
   integrationsSlackAgentFixture,
 } from "./integrations.fixture";
@@ -37,6 +38,7 @@ function createIntegrationsGetHandlers({
   slackAgent = integrationsSlackAgentFixture,
   emailAgent = integrationsEmailAgentFixture,
   contentfulConnections = integrationsContentfulConnectionsFixture,
+  intercomConnections = integrationsIntercomConnectionsFixture,
 }: {
   providerCredential?: typeof integrationsProviderCredentialFixture | null;
   providerCredentials?: (typeof integrationsProviderCredentialFixture)[];
@@ -47,6 +49,7 @@ function createIntegrationsGetHandlers({
   slackAgent?: IntegrationsSlackAgentFixture;
   emailAgent?: IntegrationsEmailAgentFixture;
   contentfulConnections?: typeof integrationsContentfulConnectionsFixture;
+  intercomConnections?: typeof integrationsIntercomConnectionsFixture;
 } = {}) {
   return [
     http.get("/api/orgs/:organizationSlug/provider-credential", () =>
@@ -73,7 +76,7 @@ function createIntegrationsGetHandlers({
       HttpResponse.json({ contentfulConnections }),
     ),
     http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
-      HttpResponse.json({ intercomConnections: [] }),
+      HttpResponse.json({ intercomConnections }),
     ),
     http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
       HttpResponse.json({ semrushConnections: [] }),
@@ -106,6 +109,7 @@ export const integrationsDisconnectedMswHandlers = createIntegrationsGetHandlers
     inboundEmailAddress: null,
   },
   contentfulConnections: [],
+  intercomConnections: [],
 });
 
 export const integrationsManagedProviderMswHandlers = createIntegrationsGetHandlers({

@@ -19,7 +19,6 @@ import { FormattedMessage } from "react-intl";
 
 import { integrationRowMessages } from "./integration-row.messages";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -202,7 +201,7 @@ export function CollapsibleIntegrationRow({
   isLast = false,
   children,
 }: CollapsibleIntegrationRowProps) {
-  const showPanel = userIsAdmin;
+  const showPanel = userIsAdmin || isConnected;
 
   return (
     <Collapsible
@@ -234,21 +233,27 @@ export function CollapsibleIntegrationRow({
         </div>
 
         <div className="shrink-0">
-          {isLoading && userIsAdmin ? (
+          {isLoading && showPanel ? (
             <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
-          ) : userIsAdmin ? (
+          ) : showPanel ? (
             <CollapsibleTrigger
               render={
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className={isConnected ? undefined : integrationConnectButtonClassName}
+                  className={
+                    userIsAdmin && !isConnected ? integrationConnectButtonClassName : undefined
+                  }
                 >
-                  {isConnected ? (
-                    <FormattedMessage {...integrationRowMessages.manage} />
+                  {userIsAdmin ? (
+                    isConnected ? (
+                      <FormattedMessage {...integrationRowMessages.manage} />
+                    ) : (
+                      <FormattedMessage {...integrationRowMessages.connect} />
+                    )
                   ) : (
-                    <FormattedMessage {...integrationRowMessages.connect} />
+                    <FormattedMessage {...integrationRowMessages.viewOnly} />
                   )}
                   <HugeiconsIcon
                     icon={ArrowDown01Icon}
@@ -258,10 +263,6 @@ export function CollapsibleIntegrationRow({
                 </Button>
               }
             />
-          ) : isConnected ? (
-            <Badge variant="outline">
-              <FormattedMessage {...integrationRowMessages.viewOnly} />
-            </Badge>
           ) : (
             <span className="text-sm text-muted-foreground">
               <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
