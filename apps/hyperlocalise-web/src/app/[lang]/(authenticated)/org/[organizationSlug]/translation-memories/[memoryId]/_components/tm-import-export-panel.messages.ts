@@ -15,10 +15,15 @@
 import { defineMessages } from "react-intl";
 
 export const tmImportExportPanelMessages = defineMessages({
+  import: {
+    defaultMessage: "Import",
+    id: "Z3fCUPrSEf",
+    description: "Button to import translation memory entries from a CSV or TMX file",
+  },
   importLabel: {
-    defaultMessage: "Import CSV or TMX",
-    id: "4JzoGkf5qD",
-    description: "Accessible label for the translation memory import file input",
+    defaultMessage: "Import CSV or TMX file",
+    id: "B1NsXVl3wA",
+    description: "Accessible label for the hidden translation memory import file input",
   },
   previewTitle: {
     defaultMessage: "Import preview",
@@ -57,9 +62,9 @@ export const tmImportExportPanelMessages = defineMessages({
     description: "Button to close the translation memory import report",
   },
   exportTmx: {
-    defaultMessage: "Export TMX",
-    id: "6/dB+QQNUG",
-    description: "Button to open translation memory TMX export options",
+    defaultMessage: "Export",
+    id: "wJpMrv20rr",
+    description: "Button to open translation memory export options",
   },
   exportTitle: {
     defaultMessage: "Export translation memory",

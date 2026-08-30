@@ -2180,8 +2180,8 @@
     "description": "Marketing homepage testimonial quote"
   },
   "4JzoGkf5qD": {
-    "defaultMessage": "Import CSV or TMX",
-    "description": "Accessible label for the translation memory import file input"
+    "defaultMessage": "Import CSV or TMX file",
+    "description": "Accessible label for the hidden translation memory import file input"
   },
   "4LIUIf2s6l": {
     "defaultMessage": "Assignee",
@@ -2688,8 +2688,8 @@
     "description": "Fallback error when removing a project from a translation memory fails"
   },
   "6/dB+QQNUG": {
-    "defaultMessage": "Export TMX",
-    "description": "Button to open translation memory TMX export options"
+    "defaultMessage": "Export",
+    "description": "Button to open translation memory export options"
   },
   "6/jXIwGpnv": {
     "defaultMessage": "Loading Content Editor",
@@ -13351,6 +13351,10 @@
     "defaultMessage": "Shared guidance for agents and teams",
     "description": "Sidebar description for the Guideline navigation item"
   },
+  "dF9jC6xA5e": {
+    "defaultMessage": "Save an aligned source and target example to this memory.",
+    "description": "Description for the dialog that adds a translation memory entry"
+  },
   "dFDzTr1DKC": {
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
     "description": "Scenario section title for the localisation-operations use case"
@@ -15891,6 +15895,10 @@
     "defaultMessage": "To {value}",
     "description": "Chip label for the modified-to filter"
   },
+  "kR7tW4hM2b": {
+    "defaultMessage": "Add entry",
+    "description": "Title for the dialog that adds a translation memory entry"
+  },
   "kRgGKX2G/s": {
     "defaultMessage": "Connect",
     "description": "Link label to connect an integration"
@@ -16839,6 +16847,10 @@
     "defaultMessage": "Source mistake",
     "description": "Issue type filter option for a source mistake"
   },
+  "nK8wQ2mR4t": {
+    "defaultMessage": "Import",
+    "description": "Button to import translation memory entries from a CSV or TMX file"
+  },
   "nLGLyaeThi": {
     "defaultMessage": "Locale",
     "description": "Label for issue target locale field"
@@ -17450,6 +17462,10 @@
   "pKzlTiRlHt": {
     "defaultMessage": "Members",
     "description": "Group label for assignable workspace members"
+  },
+  "pL3nS8vQ1c": {
+    "defaultMessage": "Cancel",
+    "description": "Button to close the add translation memory entry dialog"
   },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
@@ -19706,6 +19722,10 @@
   "wGu07dv5qW": {
     "defaultMessage": "Project: {projectName}",
     "description": "Crowdin App inbox header showing the linked Hyperlocalise project"
+  },
+  "wH2uE5nY8s": {
+    "defaultMessage": "Projects",
+    "description": "Toolbar button that opens assigned projects for a translation memory"
   },
   "wHFmp4/+wj": {
     "defaultMessage": "Source file",

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Cancel01Icon, FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -140,6 +140,7 @@ export function TmEntryListToolbar({
   onSearchDraftChange,
   onStateChange,
   onClearFilters,
+  actions,
 }: {
   state: TmEntryListUrlState;
   searchDraft: string;
@@ -147,6 +148,7 @@ export function TmEntryListToolbar({
   onSearchDraftChange: (value: string) => void;
   onStateChange: (patch: Partial<TmEntryListUrlState>) => void;
   onClearFilters: () => void;
+  actions?: ReactNode;
 }) {
   const intl = useIntl();
   const chips = getActiveTmEntryFilterChips(state);
@@ -407,6 +409,10 @@ export function TmEntryListToolbar({
             </SelectContent>
           </Select>
         </div>
+
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2 sm:ms-auto">{actions}</div>
+        ) : null}
       </div>
 
       {chips.length > 0 ? (

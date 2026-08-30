@@ -155,6 +155,26 @@ export const translationMemoryDetailPageContentMessages = defineMessages({
     id: "Zb2NG5FzSq",
     description: "Button to add a new translation memory entry",
   },
+  cancelAddEntry: {
+    defaultMessage: "Cancel",
+    id: "5jk6z2ASrH",
+    description: "Button to close the add translation memory entry dialog",
+  },
+  addEntryDialogTitle: {
+    defaultMessage: "Add entry",
+    id: "Y9WqHw/9nv",
+    description: "Title for the dialog that adds a translation memory entry",
+  },
+  addEntryDialogDescription: {
+    defaultMessage: "Save an aligned source and target example to this memory.",
+    id: "F9qtJj6l6D",
+    description: "Description for the dialog that adds a translation memory entry",
+  },
+  projectsToolbar: {
+    defaultMessage: "Projects",
+    id: "XiZ3CdNBSX",
+    description: "Toolbar button that opens assigned projects for a translation memory",
+  },
   cancelEdit: {
     defaultMessage: "Cancel edit",
     id: "Rlnuzntk1P",

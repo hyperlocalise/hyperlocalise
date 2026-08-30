@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -56,6 +56,7 @@ export function TmEntryExplorer({
   canManageMemories = false,
   onDeleteEntry,
   isDeleting = false,
+  toolbarActions,
 }: {
   organizationSlug: string;
   memoryId: string;
@@ -64,6 +65,7 @@ export function TmEntryExplorer({
   canManageMemories?: boolean;
   onDeleteEntry?: (entryId: string) => void;
   isDeleting?: boolean;
+  toolbarActions?: ReactNode;
 }) {
   const intl = useIntl();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } =
@@ -226,6 +228,7 @@ export function TmEntryExplorer({
         onSearchDraftChange={setSearchDraft}
         onStateChange={updateState}
         onClearFilters={clearFilters}
+        actions={toolbarActions}
       />
 
       <div className="sr-only" role="status" aria-live="polite">

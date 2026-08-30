@@ -14,7 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft01Icon, Database01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -23,6 +23,14 @@ import { toast } from "sonner";
 import type { MemoryProjectRecord, MemoryRecord } from "@/api/routes/memory/memory.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -70,6 +78,8 @@ export function TranslationMemoryDetailPageContent({
   const queryClient = useQueryClient();
   const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [addEntryOpen, setAddEntryOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
 
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
@@ -147,6 +157,7 @@ export function TranslationMemoryDetailPageContent({
     onSuccess: async () => {
       await invalidateEntries();
       setEntryForm(emptyEntryForm);
+      setAddEntryOpen(false);
       toast.success(intl.formatMessage(messages.entryAdded));
     },
     onError: (error) => toast.error(error.message),
@@ -241,13 +252,9 @@ export function TranslationMemoryDetailPageContent({
         <FormattedMessage {...messages.backToList} />
       </Link>
 
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <HugeiconsIcon
-            icon={Database01Icon}
-            className="size-5 text-muted-foreground"
-            strokeWidth={1.8}
-          />
+          <TypographyH1 className="font-sans text-2xl font-medium">{memory.name}</TypographyH1>
           <Badge variant="outline">
             {memory.source === "native" ? (
               <FormattedMessage {...messages.sourceWorkspace} />
@@ -256,32 +263,60 @@ export function TranslationMemoryDetailPageContent({
             )}
           </Badge>
         </div>
-        <TypographyH1 className="font-sans text-2xl font-medium">{memory.name}</TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          {memory.description || intl.formatMessage(messages.descriptionFallback)}
-        </TypographyP>
+        {memory.description ? (
+          <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            {memory.description}
+          </TypographyP>
+        ) : null}
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-border p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <TypographyP className="text-sm font-medium text-foreground">
-              <FormattedMessage {...messages.entriesTitle} />
-            </TypographyP>
-            <TypographyP className="text-xs text-muted-foreground">
-              <FormattedMessage {...messages.entriesDescription} />
-            </TypographyP>
-          </div>
-          <TmImportExportPanel
-            organizationSlug={organizationSlug}
-            memoryId={memoryId}
-            localeCoverage={memory.localeCoverage}
-            canEdit={canEdit}
-            onImported={invalidateEntries}
-          />
-        </div>
+      <TmEntryExplorer
+        organizationSlug={organizationSlug}
+        memoryId={memoryId}
+        localeCoverage={memory.localeCoverage}
+        canEdit={canEdit}
+        canManageMemories={canManageMemories}
+        isDeleting={deleteEntry.isPending}
+        onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
+        toolbarActions={
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
+              <FormattedMessage {...messages.projectsToolbar} />
+            </Button>
+            <TmImportExportPanel
+              organizationSlug={organizationSlug}
+              memoryId={memoryId}
+              localeCoverage={memory.localeCoverage}
+              canEdit={canEdit}
+              onImported={invalidateEntries}
+            />
+            {canEdit ? (
+              <Button type="button" size="sm" onClick={() => setAddEntryOpen(true)}>
+                <FormattedMessage {...messages.addEntry} />
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
-        {canEdit ? (
+      <Dialog
+        open={addEntryOpen}
+        onOpenChange={(open) => {
+          setAddEntryOpen(open);
+          if (!open) {
+            setEntryForm(emptyEntryForm);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...messages.addEntryDialogTitle} />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage {...messages.addEntryDialogDescription} />
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-3 md:grid-cols-2">
             <TmEntryLocaleField
               label={intl.formatMessage(messages.sourceLocaleLabel)}
@@ -333,101 +368,105 @@ export function TranslationMemoryDetailPageContent({
                 }
               />
             </Field>
-            <div className="flex gap-2 md:col-span-2">
-              <Button
-                type="button"
-                disabled={
-                  !entryForm.sourceText.trim() ||
-                  !entryForm.targetText.trim() ||
-                  !entryForm.sourceLocale.trim() ||
-                  !entryForm.targetLocale.trim() ||
-                  saveEntry.isPending
-                }
-                onClick={() => saveEntry.mutate(entryForm)}
-              >
-                <FormattedMessage {...messages.addEntry} />
-              </Button>
-            </div>
           </div>
-        ) : null}
-
-        <TmEntryExplorer
-          organizationSlug={organizationSlug}
-          memoryId={memoryId}
-          localeCoverage={memory.localeCoverage}
-          canEdit={canEdit}
-          canManageMemories={canManageMemories}
-          isDeleting={deleteEntry.isPending}
-          onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
-        />
-      </section>
-
-      <section className="grid gap-4 rounded-lg border border-border p-4">
-        <div>
-          <TypographyP className="text-sm font-medium text-foreground">
-            <FormattedMessage {...messages.assignedProjectsTitle} />
-          </TypographyP>
-          <TypographyP className="text-xs text-muted-foreground">
-            <FormattedMessage {...messages.assignedProjectsDescription} />
-          </TypographyP>
-        </div>
-        {canEdit ? (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Select
-              value={selectedProjectId}
-              onValueChange={(value) => setSelectedProjectId(value ?? "")}
-            >
-              <SelectTrigger className="sm:max-w-sm">
-                <SelectValue placeholder={intl.formatMessage(messages.selectProjectPlaceholder)} />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProjects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <DialogFooter>
             <Button
               type="button"
-              disabled={!selectedProjectId || attachProject.isPending}
-              onClick={() => attachProject.mutate(selectedProjectId)}
+              variant="outline"
+              onClick={() => {
+                setAddEntryOpen(false);
+                setEntryForm(emptyEntryForm);
+              }}
             >
-              <FormattedMessage {...messages.assignToProject} />
+              <FormattedMessage {...messages.cancelAddEntry} />
             </Button>
-          </div>
-        ) : null}
-        <div className="grid gap-2">
-          {(attachedProjectsQuery.data ?? []).map((project) => (
-            <div
-              key={project.projectId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+            <Button
+              type="button"
+              disabled={
+                !entryForm.sourceText.trim() ||
+                !entryForm.targetText.trim() ||
+                !entryForm.sourceLocale.trim() ||
+                !entryForm.targetLocale.trim() ||
+                saveEntry.isPending
+              }
+              onClick={() => saveEntry.mutate(entryForm)}
             >
-              <Link
-                href={`/org/${organizationSlug}/projects/${project.projectId}`}
-                className="text-sm font-medium text-foreground hover:underline"
+              <FormattedMessage {...messages.addEntry} />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={projectsOpen} onOpenChange={setProjectsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...messages.assignedProjectsTitle} />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage {...messages.assignedProjectsDescription} />
+            </DialogDescription>
+          </DialogHeader>
+          {canEdit ? (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Select
+                value={selectedProjectId || null}
+                onValueChange={(value) => setSelectedProjectId(value ?? "")}
               >
-                {project.projectName}
-              </Link>
-              {canEdit ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => detachProject.mutate(project.projectId)}
-                >
-                  <FormattedMessage {...messages.removeProject} />
-                </Button>
-              ) : null}
+                <SelectTrigger className="sm:max-w-sm">
+                  <SelectValue
+                    placeholder={intl.formatMessage(messages.selectProjectPlaceholder)}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id} label={project.name}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                disabled={!selectedProjectId || attachProject.isPending}
+                onClick={() => attachProject.mutate(selectedProjectId)}
+              >
+                <FormattedMessage {...messages.assignToProject} />
+              </Button>
             </div>
-          ))}
-          {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-            <TypographyP className="text-sm text-muted-foreground">
-              <FormattedMessage {...messages.noProjectsAssigned} />
-            </TypographyP>
           ) : null}
-        </div>
-      </section>
+          <div className="grid gap-2">
+            {(attachedProjectsQuery.data ?? []).map((project) => (
+              <div
+                key={project.projectId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+              >
+                <Link
+                  href={`/org/${organizationSlug}/projects/${project.projectId}`}
+                  className="text-sm font-medium text-foreground hover:underline"
+                >
+                  {project.projectName}
+                </Link>
+                {canEdit ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => detachProject.mutate(project.projectId)}
+                  >
+                    <FormattedMessage {...messages.removeProject} />
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+            {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.noProjectsAssigned} />
+              </TypographyP>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
