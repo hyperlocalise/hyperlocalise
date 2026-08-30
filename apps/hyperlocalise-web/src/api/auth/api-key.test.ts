@@ -17,7 +17,11 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { INVALID_OR_REVOKED_API_KEY_MESSAGE } from "@/api/auth/api-key";
+import {
+  apiKeyAuthLogContext,
+  INVALID_OR_REVOKED_API_KEY_MESSAGE,
+  touchApiKeyLastUsedAt,
+} from "@/api/auth/api-key";
 import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import {
   cleanupPublicApiFixture,
@@ -440,5 +444,76 @@ describe("apiKeyAuthMiddleware", () => {
         .limit(1);
       expect(touched?.lastUsedAt).toBeInstanceOf(Date);
     });
+  });
+
+  it("does not update lastUsedAt for a revoked credential", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(schema.organizationApiKeys.organizationId, project.organizationId),
+          eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)),
+        ),
+      );
+
+    const response = await createStringJob(apiKey, project.id);
+    expect(response.status).toBe(401);
+
+    const [keyRecord] = await db
+      .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
+      .from(schema.organizationApiKeys)
+      .where(
+        and(
+          eq(schema.organizationApiKeys.organizationId, project.organizationId),
+          eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)),
+        ),
+      )
+      .limit(1);
+
+    expect(keyRecord?.lastUsedAt).toBeNull();
+  });
+});
+
+describe("apiKeyAuthLogContext", () => {
+  it("binds only opaque ids and the safe prefix", () => {
+    const context = apiKeyAuthLogContext({
+      id: "token_123",
+      organizationId: "org_123",
+      createdByUserId: "user_123",
+      keyPrefix: "hl_AbCd",
+    });
+
+    expect(context).toEqual({
+      auth: {
+        apiKeyId: "token_123",
+        localOrganizationId: "org_123",
+        localUserId: "user_123",
+        keyPrefix: "hl_AbCd",
+      },
+    });
+    expect(JSON.stringify(context)).not.toContain("@");
+    expect(JSON.stringify(context)).not.toContain("x-api-key");
+  });
+});
+
+describe("touchApiKeyLastUsedAt", () => {
+  it("swallows write failures so authentication is not delayed", async () => {
+    const updateSpy = vi.spyOn(db, "update").mockImplementation(
+      () =>
+        ({
+          set: () => ({
+            where: () => ({
+              execute: () => Promise.reject(new Error("hl_must_not_escape")),
+            }),
+          }),
+        }) as never,
+    );
+
+    expect(() => touchApiKeyLastUsedAt("token_123")).not.toThrow();
+    await Promise.resolve();
+    updateSpy.mockRestore();
   });
 });

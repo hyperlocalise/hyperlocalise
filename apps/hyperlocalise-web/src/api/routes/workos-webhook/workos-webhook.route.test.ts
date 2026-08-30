@@ -175,6 +175,7 @@ describe("workosWebhookRoutes", () => {
       workosMembershipId: "membership_123",
       workosOrganizationId: "org_123",
       workosUserId: "user_123",
+      actor: { type: "system", id: "workos_webhook" },
     });
   });
 });

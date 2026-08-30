@@ -43,7 +43,7 @@ export const apiKeySummarySchema = z.object({
   name: z.string(),
   keyPrefix: z.string(),
   permissions: z.array(apiKeyPermissionSchema),
-  lastUsedAt: z.string().nullable().optional(),
+  lastUsedAt: z.string().nullable(),
   revokedAt: z.string().nullable().optional(),
   createdAt: z.string(),
   // Null only for legacy rows with no resolvable owner. Such a token is

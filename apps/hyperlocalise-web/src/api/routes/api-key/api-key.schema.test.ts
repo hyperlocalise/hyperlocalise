@@ -93,6 +93,14 @@ describe("apiKeySummarySchema", () => {
     expect(apiKeySummarySchema.safeParse(summaryFixture({ owner: null })).success).toBe(true);
   });
 
+  it("requires createdAt and a nullable lastUsedAt without the secret", () => {
+    expect(apiKeySummarySchema.parse(summaryFixture()).lastUsedAt).toBeNull();
+    expect(apiKeySummarySchema.parse(summaryFixture()).createdAt).toBe("2026-08-29T00:00:00.000Z");
+
+    const { lastUsedAt: _lastUsedAt, ...withoutLastUsedAt } = summaryFixture();
+    expect(apiKeySummarySchema.safeParse(withoutLastUsedAt).success).toBe(false);
+  });
+
   it("carries neither the secret nor its hash", () => {
     const parsed = apiKeySummarySchema.parse(
       summaryFixture({ key: "hl_secret", keyHash: "hash" }) as never,

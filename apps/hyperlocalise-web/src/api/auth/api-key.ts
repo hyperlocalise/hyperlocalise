@@ -42,7 +42,27 @@ function hashApiKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-function scheduleApiKeyLastUsedAtUpdate(apiKeyId: string) {
+export function apiKeyAuthLogContext(keyRecord: {
+  id: string;
+  organizationId: string;
+  createdByUserId: string | null;
+  keyPrefix: string;
+}) {
+  return {
+    auth: {
+      apiKeyId: keyRecord.id,
+      localOrganizationId: keyRecord.organizationId,
+      localUserId: keyRecord.createdByUserId,
+      keyPrefix: keyRecord.keyPrefix,
+    },
+  };
+}
+
+/**
+ * Best-effort usage telemetry. Failure must never delay or fail the request.
+ * Call only after authentication succeeds.
+ */
+export function touchApiKeyLastUsedAt(apiKeyId: string) {
   db.update(schema.organizationApiKeys)
     .set({ lastUsedAt: new Date() })
     .where(eq(schema.organizationApiKeys.id, apiKeyId))
@@ -64,6 +84,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       .select({
         id: schema.organizationApiKeys.id,
         organizationId: schema.organizationApiKeys.organizationId,
+        keyPrefix: schema.organizationApiKeys.keyPrefix,
         permissions: schema.organizationApiKeys.permissions,
         createdByUserId: schema.organizationApiKeys.createdByUserId,
         revokedAt: schema.organizationApiKeys.revokedAt,
@@ -102,7 +123,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
 
     // Telemetry only. Never block the request, and never write on a rejected
     // credential — lastUsedAt is set only after authentication succeeds.
-    scheduleApiKeyLastUsedAtUpdate(keyRecord.id);
+    touchApiKeyLastUsedAt(keyRecord.id);
 
     c.set("auth", {
       organization: {
@@ -114,13 +135,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       },
       teamAccess,
     });
-    c.get("log").set({
-      auth: {
-        apiKeyId: keyRecord.id,
-        localOrganizationId: keyRecord.organizationId,
-        ownerUserId: keyRecord.createdByUserId,
-      },
-    });
+    c.get("log").set(apiKeyAuthLogContext(keyRecord));
 
     await next();
   },

@@ -27,6 +27,10 @@ const REDACTED = "[REDACTED]";
 export const REDACTION_PATHS = [
   "apiKey",
   "*.apiKey",
+  "email",
+  "*.email",
+  "plainKey",
+  "*.plainKey",
   "token",
   "*.token",
   "accessToken",

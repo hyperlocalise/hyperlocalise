@@ -84,6 +84,23 @@ describe("Logger Redaction", () => {
     expect(settings.personalAccessToken).toBe("[REDACTED]");
   });
 
+  it("should redact owner emails and plaintext token fields", () => {
+    const logger = createLogger();
+
+    logger.info({
+      email: "owner@example.com",
+      owner: { email: "owner@example.com", userId: "user_123" },
+      plainKey: "hl_secret_value",
+    });
+
+    const [event] = drainedEvents;
+    const owner = event?.owner as Record<string, unknown>;
+    expect(event?.email).toBe("[REDACTED]");
+    expect(owner.email).toBe("[REDACTED]");
+    expect(owner.userId).toBe("user_123");
+    expect(event?.plainKey).toBe("[REDACTED]");
+  });
+
   it("should redact sensitive headers", () => {
     const logger = createLogger();
 
