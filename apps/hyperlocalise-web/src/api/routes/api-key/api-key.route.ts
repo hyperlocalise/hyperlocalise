@@ -210,20 +210,26 @@ export function createApiKeyRoutes() {
         return c.body(null, 204);
       }
 
-      // `isNull` keeps the first revocation timestamp intact when two revokes race.
-      await db
+      // `isNull` keeps the first revocation timestamp intact when two revokes
+      // race. Only the update that actually changes the row may emit success.
+      const [revoked] = await db
         .update(schema.organizationApiKeys)
         .set({ revokedAt: new Date() })
-        .where(and(revocable, isNull(schema.organizationApiKeys.revokedAt)));
+        .where(and(revocable, isNull(schema.organizationApiKeys.revokedAt)))
+        .returning({
+          id: schema.organizationApiKeys.id,
+        });
 
-      emitPatRevoked(c.get("log"), {
-        actor: sessionAccessTokenActor(c.var.auth.user.localUserId),
-        ownerUserId: existing.createdByUserId,
-        organizationId: existing.organizationId,
-        tokenId: existing.id,
-        keyPrefix: existing.keyPrefix,
-        reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
-      });
+      if (revoked) {
+        emitPatRevoked(c.get("log"), {
+          actor: sessionAccessTokenActor(c.var.auth.user.localUserId),
+          ownerUserId: existing.createdByUserId,
+          organizationId: existing.organizationId,
+          tokenId: existing.id,
+          keyPrefix: existing.keyPrefix,
+          reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
+        });
+      }
 
       return c.body(null, 204);
     });

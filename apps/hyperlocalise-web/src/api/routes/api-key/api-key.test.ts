@@ -241,6 +241,48 @@ describe("apiKeyRoutes", () => {
     captured.restore();
   });
 
+  it("emits pat.revoked only for the revoke that updates the token", async () => {
+    const identity = createWorkosIdentity();
+    const createResponse = await createApiKeyViaApi(identity, { name: "Idempotent Revoke Audit" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
+    const captured = mockAudit();
+
+    expect((await revokeApiKeyAs(identity, created.apiKey.id)).status).toBe(204);
+    expect((await revokeApiKeyAs(identity, created.apiKey.id)).status).toBe(204);
+
+    const revokedEvents = captured.events.filter(
+      (event) => event.action === ACCESS_TOKEN_AUDIT_ACTIONS.revoked,
+    );
+    expect(revokedEvents).toHaveLength(1);
+    expect(revokedEvents[0]).toMatchObject({
+      action: ACCESS_TOKEN_AUDIT_ACTIONS.revoked,
+      reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
+      target: { id: created.apiKey.id },
+    });
+    captured.restore();
+  });
+
+  it("emits a single pat.revoked when two authorized revokes race", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
+    const createResponse = await createApiKeyViaApi(ownerIdentity, { name: "Raced Revoke Audit" });
+    const created = (await createResponse.json()) as ApiKeyResponse;
+    const captured = mockAudit();
+
+    const [first, second] = await Promise.all([
+      revokeApiKeyAs(ownerIdentity, created.apiKey.id),
+      revokeApiKeyAs(adminIdentity, created.apiKey.id),
+    ]);
+
+    expect(first.status).toBe(204);
+    expect(second.status).toBe(204);
+    expect(
+      captured.events.filter((event) => event.action === ACCESS_TOKEN_AUDIT_ACTIONS.revoked),
+    ).toHaveLength(1);
+    expect((await readApiKeyRow(created.apiKey.id))?.revokedAt).not.toBeNull();
+    captured.restore();
+  });
+
   it("lists the caller's own tokens with owner attribution", async () => {
     const identity = createWorkosIdentity();
 
