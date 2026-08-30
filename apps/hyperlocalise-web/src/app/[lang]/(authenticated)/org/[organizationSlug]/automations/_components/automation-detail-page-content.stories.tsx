@@ -42,6 +42,13 @@ const meta = {
   component: AutomationDetailPageContent,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/automations/${githubAutomation.id}`,
+        query: {},
+      },
+    },
   },
   args: {
     organizationSlug: "acme",
@@ -58,6 +65,7 @@ export const GithubTriggerHidesRun: Story = {
       handlers: createAutomationDetailMswHandlers(githubAutomation),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${githubAutomation.id}`,
       },
@@ -80,6 +88,7 @@ export const DeleteConfirmsRemoval: Story = {
       handlers: createAutomationDetailMswHandlers(githubAutomation),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${githubAutomation.id}`,
       },
@@ -109,6 +118,7 @@ export const ScheduledTriggerShowsRun: Story = {
       handlers: createAutomationDetailMswHandlers(scheduledAutomation),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${scheduledAutomation.id}`,
       },
@@ -130,6 +140,7 @@ export const ManualTriggerShowsRun: Story = {
       handlers: createAutomationDetailMswHandlers(manualAutomation),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${manualAutomation.id}`,
       },
@@ -151,6 +162,7 @@ export const SaveEnablesAfterFormChange: Story = {
       handlers: createAutomationDetailMswHandlers(scheduledAutomation),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${scheduledAutomation.id}`,
       },
@@ -178,6 +190,7 @@ export const SavePendingDisablesDelete: Story = {
       }),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${scheduledAutomation.id}`,
       },
@@ -205,6 +218,7 @@ export const DeletePendingDisablesSave: Story = {
       }),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/automations/${scheduledAutomation.id}`,
       },

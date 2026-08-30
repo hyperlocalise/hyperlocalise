@@ -90,6 +90,7 @@ const meta = {
       handlers: automationEditorMswHandlers,
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: "/org/acme/automations/new",
       },
@@ -239,6 +240,7 @@ export const CreateValidationErrors: Story = {
 export const DetailDefault: Story = {
   parameters: {
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: "/org/acme/automations/11111111-1111-4111-8111-111111111111",
       },

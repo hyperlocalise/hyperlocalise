@@ -87,12 +87,6 @@ import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta
 
 const api = createApiClient();
 
-const INTEGRATION_CATEGORY_FILTER_TABS_CLASS =
-  "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
-
-const INTEGRATION_CATEGORY_TABS_LIST_CLASS =
-  "flex h-auto min-h-0 w-full flex-wrap items-start justify-start gap-x-1 gap-y-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto";
-
 const INTEGRATION_CATEGORY_IDS = [
   "source-control",
   "collaboration",
@@ -952,16 +946,12 @@ export function IntegrationsPageContent({
           onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
           className="gap-5"
         >
-          <TabsList variant="line" className={INTEGRATION_CATEGORY_TABS_LIST_CLASS}>
-            <TabsTrigger value="all" className={INTEGRATION_CATEGORY_FILTER_TABS_CLASS}>
+          <TabsList>
+            <TabsTrigger value="all">
               <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
             </TabsTrigger>
             {visibleCategoryIds.map((categoryId) => (
-              <TabsTrigger
-                key={categoryId}
-                value={categoryId}
-                className={INTEGRATION_CATEGORY_FILTER_TABS_CLASS}
-              >
+              <TabsTrigger key={categoryId} value={categoryId}>
                 <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
               </TabsTrigger>
             ))}

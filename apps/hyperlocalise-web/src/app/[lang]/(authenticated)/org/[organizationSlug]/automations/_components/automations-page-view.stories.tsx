@@ -23,6 +23,13 @@ const meta = {
   component: AutomationsPageView,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/acme/automations",
+        query: {},
+      },
+    },
   },
   args: {
     organizationSlug: "acme",
@@ -151,6 +158,15 @@ export const ProjectScoped: Story = {
   args: {
     projectId: "project-1",
     automations: automationsFixture.filter((automation) => automation.projectId === "project-1"),
+  },
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/acme/projects/project-1/automations",
+        query: {},
+      },
+    },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();

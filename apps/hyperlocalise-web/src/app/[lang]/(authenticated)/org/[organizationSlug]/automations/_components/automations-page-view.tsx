@@ -47,9 +47,6 @@ import {
 } from "./automations-page-view-model";
 import { GithubAutoReviewCard } from "./github-auto-review-card";
 
-const TEMPLATE_FILTER_TABS_CLASS =
-  "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
-
 const AUTOMATION_LIST_GRID_CLASS =
   "grid min-w-[52rem] grid-cols-[minmax(0,1.5fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_minmax(0,0.8fr)_minmax(0,0.45fr)] gap-4";
 
@@ -350,16 +347,9 @@ export function AutomationsPageView({
           }
           className="gap-5"
         >
-          <TabsList
-            variant="line"
-            className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0"
-          >
+          <TabsList>
             {templateCategoryTabs.map((category) => (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className={TEMPLATE_FILTER_TABS_CLASS}
-              >
+              <TabsTrigger key={category.id} value={category.id}>
                 <FormattedMessage {...TEMPLATE_CATEGORY_MESSAGES[category.id]} />
               </TabsTrigger>
             ))}
