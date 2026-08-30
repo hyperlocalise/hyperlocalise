@@ -9,8 +9,9 @@ translations, and pulls them back onto the file.
 - Node.js `^22` or `^24`
 - [Vite+](https://vite.plus) (`vp`)
 - A Hyperlocalise workspace with a native project
-- A personal access token with `files:read` and `jobs:read`, plus `jobs:write`
-  to create or generate jobs
+- A personal access token with `files:read` and `jobs:read`, plus `files:write`
+  and `jobs:write` to create jobs (`jobs:write` is enough to generate an
+  existing job)
 
 ## Quick start
 

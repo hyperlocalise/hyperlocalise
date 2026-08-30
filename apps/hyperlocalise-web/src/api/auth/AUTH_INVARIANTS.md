@@ -56,11 +56,13 @@ full WorkOS identity model.
    9c. **Figma plugin clients use a personal access token.** The plugin sends
    the PAT as `x-api-key` only. Protected `/api/integrations/figma/*` routes
    authenticate through `apiKeyAuthMiddleware` and authorize with
-   `requireApiKeyPermission`. Effective access is the token scopes ∩ the
-   owner's current membership, role, team access, and capabilities. Do not
-   accept WorkOS sealed sessions, `X-Hyperlocalise-Figma-Session`, or
-   `Authorization: Bearer` as Figma integration auth. Do not mint a
-   Figma-specific identity token.
+   `requireApiKeyPermission`. Compound routes require every scope they
+   exercise: session and job-status reads need `files:read` (job status also
+   needs `jobs:read`); creating a job needs `jobs:write` and `files:write`.
+   Effective access is the token scopes ∩ the owner's current membership,
+   role, team access, and capabilities. Do not accept WorkOS sealed sessions,
+   `X-Hyperlocalise-Figma-Session`, or `Authorization: Bearer` as Figma
+   integration auth. Do not mint a Figma-specific identity token.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable

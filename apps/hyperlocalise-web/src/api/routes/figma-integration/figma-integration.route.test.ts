@@ -53,7 +53,7 @@ import { db, schema } from "@/lib/database/client";
 
 const client = testClient(createApp());
 
-const FIGMA_PERMISSIONS = ["files:read", "jobs:read", "jobs:write"];
+const FIGMA_PERMISSIONS = ["files:read", "files:write", "jobs:read", "jobs:write"];
 
 function apiKeyHeaders(apiKey: string) {
   return {
@@ -249,6 +249,25 @@ describe("figmaIntegrationRoutes", () => {
     const jobsOnly = await createPublicApiFixture({
       permissions: ["jobs:read", "jobs:write"],
     });
+    const jobsWithoutFileWrite = await createPublicApiFixture({
+      permissions: ["files:read", "jobs:read", "jobs:write"],
+    });
+    const noScopes = await createPublicApiFixture({
+      permissions: [],
+    });
+
+    const sessionDenied = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders(noScopes.apiKey),
+    );
+    expect(sessionDenied.status).toBe(403);
+    await expect(sessionDenied.json()).resolves.toMatchObject({ error: "forbidden" });
+
+    const jobsOnlySessionDenied = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders(jobsOnly.apiKey),
+    );
+    expect(jobsOnlySessionDenied.status).toBe(403);
 
     const projectsDenied = await client.api.integrations.figma.projects.$get(
       undefined,
@@ -264,29 +283,55 @@ describe("figmaIntegrationRoutes", () => {
       sourcePath: "figma/files/fileKey123/pages/12:34.json",
     });
 
-    const createDenied = await client.api.integrations.figma.jobs.$post(
-      {
-        json: {
-          projectId: readOnly.project.id,
-          fileKey: "fileKey123",
-          pageId: "12:34",
-          sourceLocale: "en",
-          targetLocales: ["es"],
-          generate: true,
-          segments: [
-            {
-              key: "figma.segment.1:1.0",
-              nodeId: "1:1",
-              regionIndex: 0,
-              text: "Hello",
-            },
-          ],
+    const createJobJson = {
+      projectId: readOnly.project.id,
+      fileKey: "fileKey123",
+      pageId: "12:34",
+      sourceLocale: "en",
+      targetLocales: ["es"],
+      generate: true,
+      segments: [
+        {
+          key: "figma.segment.1:1.0",
+          nodeId: "1:1",
+          regionIndex: 0,
+          text: "Hello",
         },
-      },
+      ],
+    };
+
+    const createDenied = await client.api.integrations.figma.jobs.$post(
+      { json: createJobJson },
       apiKeyHeaders(readOnly.apiKey),
     );
     expect(createDenied.status).toBe(403);
     expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+
+    const createWithoutFileWrite = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          ...createJobJson,
+          projectId: jobsWithoutFileWrite.project.id,
+        },
+      },
+      apiKeyHeaders(jobsWithoutFileWrite.apiKey),
+    );
+    expect(createWithoutFileWrite.status).toBe(403);
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+
+    const currentDenied = await client.api.integrations.figma.jobs.current.$get(
+      { query: { fileKey: "fileKey123", pageId: "12:34" } },
+      apiKeyHeaders(jobsOnly.apiKey),
+    );
+    expect(currentDenied.status).toBe(403);
+    expect(mocks.getCurrentFigmaPageJobMock).not.toHaveBeenCalled();
+
+    const statusDenied = await client.api.integrations.figma.jobs[":jobId"].$get(
+      { param: { jobId: "job_figma" } },
+      apiKeyHeaders(jobsOnly.apiKey),
+    );
+    expect(statusDenied.status).toBe(403);
+    expect(mocks.getFigmaLocalizationStatusMock).not.toHaveBeenCalled();
 
     const translationsDenied = await client.api.integrations.figma.translations.$get(
       { query: { projectId: jobsOnly.project.id, fileKey: "fileKey123", pageId: "12:34" } },

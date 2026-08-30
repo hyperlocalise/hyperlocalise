@@ -34,9 +34,12 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import {
   createFigmaJobBodySchema,
   currentFigmaJobQuerySchema,
+  FIGMA_FILES_READ_PERMISSION,
+  FIGMA_FILES_WRITE_PERMISSION,
   FIGMA_JOB_READ_PERMISSION,
   FIGMA_JOB_WRITE_PERMISSION,
   FIGMA_PROJECTS_PERMISSION,
+  FIGMA_SESSION_PERMISSION,
   FIGMA_TRANSLATIONS_PERMISSION,
   figmaJobIdParamSchema,
   pullFigmaTranslationsQuerySchema,
@@ -136,25 +139,30 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
     .get("/health", async (c) => {
       return c.json({ ok: true }, 200);
     })
-    .get("/session", apiKeyAuthMiddleware, async (c) => {
-      const auth = c.var.auth.teamAccess;
-      return c.json(
-        {
-          session: {
-            user: {
-              email: auth.user.email,
-              localUserId: auth.user.localUserId,
-            },
-            organization: {
-              slug: auth.organization.slug ?? null,
-              name: auth.organization.name,
-              id: auth.organization.localOrganizationId,
+    .get(
+      "/session",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_SESSION_PERMISSION),
+      async (c) => {
+        const auth = c.var.auth.teamAccess;
+        return c.json(
+          {
+            session: {
+              user: {
+                email: auth.user.email,
+                localUserId: auth.user.localUserId,
+              },
+              organization: {
+                slug: auth.organization.slug ?? null,
+                name: auth.organization.name,
+                id: auth.organization.localOrganizationId,
+              },
             },
           },
-        },
-        200,
-      );
-    })
+          200,
+        );
+      },
+    )
     .get(
       "/projects",
       apiKeyAuthMiddleware,
@@ -178,6 +186,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
       "/jobs",
       apiKeyAuthMiddleware,
       requireApiKeyPermission(FIGMA_JOB_WRITE_PERMISSION),
+      requireApiKeyPermission(FIGMA_FILES_WRITE_PERMISSION),
       validateCreateJobBody,
       async (c) => {
         if (!options.jobQueue) {
@@ -209,6 +218,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
       "/jobs/current",
       apiKeyAuthMiddleware,
       requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
+      requireApiKeyPermission(FIGMA_FILES_READ_PERMISSION),
       validateCurrentJobQuery,
       async (c) => {
         const query = c.req.valid("query");
@@ -229,6 +239,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
       "/jobs/:jobId",
       apiKeyAuthMiddleware,
       requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
+      requireApiKeyPermission(FIGMA_FILES_READ_PERMISSION),
       validateJobIdParams,
       async (c) => {
         const { jobId } = c.req.valid("param");

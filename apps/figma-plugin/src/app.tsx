@@ -655,7 +655,7 @@ export function App() {
             />
             <p className="hint">
               Create a token in Hyperlocalise under Settings → Personal access tokens. Include
-              files:read and jobs:read, plus jobs:write to create jobs.
+              files:read and jobs:read, plus files:write and jobs:write to create jobs.
             </p>
           </label>
           <button
