@@ -615,6 +615,10 @@
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
   },
+  "/e6ibZCuf5": {
+    "defaultMessage": "Create a job with context, files, locales, and assignees.",
+    "description": "Create job dialog accessible description"
+  },
   "/enSUmEMs6": {
     "defaultMessage": "Add aligned source and target examples manually or import CSV/TMX files.",
     "description": "Section description for translation memory entries"
@@ -1615,10 +1619,6 @@
     "defaultMessage": "Inbox",
     "description": "App shell breadcrumb title for the inbox page"
   },
-  "2ghn1bUXd2": {
-    "defaultMessage": "Translation",
-    "description": "Crowdin task type option for translation"
-  },
   "2hGlbn4iZa": {
     "defaultMessage": "Create",
     "description": "Button that creates a team glossary from CAT"
@@ -1778,10 +1778,6 @@
   "38GSO8BtcX": {
     "defaultMessage": "Key capabilities",
     "description": "Use case page capabilities section label"
-  },
-  "39i3huA7AM": {
-    "defaultMessage": "Proofread",
-    "description": "Crowdin task type option for proofread"
   },
   "3AEM15DaMz": {
     "defaultMessage": "Use glob patterns such as <mainExample>main</mainExample> or <releaseExample>release/*</releaseExample>. Up to 32 patterns.",
@@ -2194,10 +2190,6 @@
   "4Jm91tEu1i": {
     "defaultMessage": "Keeping our TMS while adding agent workflows is the difference.",
     "description": "Marketing homepage testimonial quote"
-  },
-  "4JzoGkf5qD": {
-    "defaultMessage": "Import CSV or TMX file",
-    "description": "Accessible label for the hidden translation memory import file input"
   },
   "4LIUIf2s6l": {
     "defaultMessage": "Assignee",
@@ -2647,6 +2639,10 @@
     "defaultMessage": "{value}% complete",
     "description": "Accessible label for a progress bar showing percent complete"
   },
+  "5jk6z2ASrH": {
+    "defaultMessage": "Cancel",
+    "description": "Button to close the add translation memory entry dialog"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "Request a Demo",
     "description": "Primary call-to-action button on the marketing homepage hero"
@@ -2702,10 +2698,6 @@
   "6/4F992ZiW": {
     "defaultMessage": "Unable to remove project",
     "description": "Fallback error when removing a project from a translation memory fails"
-  },
-  "6/dB+QQNUG": {
-    "defaultMessage": "Export",
-    "description": "Button to open translation memory export options"
   },
   "6/jXIwGpnv": {
     "defaultMessage": "Loading Content Editor",
@@ -4311,6 +4303,10 @@
     "defaultMessage": "Slack",
     "description": "Slack tool chip in content ops terminal mock"
   },
+  "AIsMxGkzgi": {
+    "defaultMessage": "Task type",
+    "description": "Label for the job task type select"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "Needs attention ({count})",
     "description": "Heading for failed localisation audit criteria"
@@ -4502,6 +4498,10 @@
   "B17gDUeMj6": {
     "defaultMessage": "Applied while drafting Q2 global launch campaign",
     "description": "Guideline mock UI style guide panel subtitle"
+  },
+  "B1NsXVl3wA": {
+    "defaultMessage": "Import CSV or TMX file",
+    "description": "Accessible label for the hidden translation memory import file input"
   },
   "B3vlmNRWNz": {
     "defaultMessage": "sync push docs",
@@ -5010,10 +5010,6 @@
   "CT9/X7v9OM": {
     "defaultMessage": "Link",
     "description": "Bubble menu button to add or remove a hyperlink"
-  },
-  "CTLXW62s69": {
-    "defaultMessage": "Task type",
-    "description": "Label for the Crowdin task type select"
   },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
@@ -5751,6 +5747,10 @@
     "defaultMessage": "Saving…",
     "description": "Button label while a job description save is in progress"
   },
+  "EYRqZtZx0G": {
+    "defaultMessage": "Translation",
+    "description": "Job task type option for translation"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "Reset settings",
     "description": "Button label to reset repository automation settings"
@@ -5982,6 +5982,10 @@
   "F8EegdWpYQ": {
     "defaultMessage": "Context",
     "description": "Column header for string context in the source strings preview table"
+  },
+  "F9qtJj6l6D": {
+    "defaultMessage": "Save an aligned source and target example to this memory.",
+    "description": "Description for the dialog that adds a translation memory entry"
   },
   "F9y826AvJs": {
     "defaultMessage": "Sort queue",
@@ -10651,10 +10655,6 @@
     "defaultMessage": "User ID",
     "description": "Issue Sheet column type option for a user ID"
   },
-  "UASZI6ojDa": {
-    "defaultMessage": "Create native translation jobs with files, locales, and an assignee.",
-    "description": "Create job dialog description for native Hyperlocalise projects"
-  },
   "UAby6HY7Nw": {
     "defaultMessage": "No format or QA checks for this segment yet.",
     "description": "Empty state when a CAT segment has no format or QA checks"
@@ -11763,6 +11763,10 @@
     "defaultMessage": "Hyperlocalise is working…",
     "description": "Status marker shown while the inbox assistant response is still streaming"
   },
+  "XiZ3CdNBSX": {
+    "defaultMessage": "Projects",
+    "description": "Toolbar button that opens assigned projects for a translation memory"
+  },
   "XifoTZH6H7": {
     "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably.",
     "description": "Problem pain point 4 for the github-release-localisation use case"
@@ -11870,6 +11874,10 @@
   "Y89oWQA4Iq": {
     "defaultMessage": "Run QA",
     "description": "Toggle label for running QA on Contentful translations"
+  },
+  "Y9WqHw/9nv": {
+    "defaultMessage": "Add entry",
+    "description": "Title for the dialog that adds a translation memory entry"
   },
   "Y9q11GovtH": {
     "defaultMessage": "Marketing teams move fast. Localisation becomes a bottleneck when brand nuance and regional intent never reach the translator.",
@@ -12194,6 +12202,10 @@
   "Z3S7OrVNyY": {
     "defaultMessage": "Email agent enabled",
     "description": "Toast after enabling the email agent"
+  },
+  "Z3fCUPrSEf": {
+    "defaultMessage": "Import",
+    "description": "Button to import translation memory entries from a CSV or TMX file"
   },
   "Z4DRhv/lJb": {
     "defaultMessage": "View all jobs",
@@ -13466,10 +13478,6 @@
   "dEzuHMWHq4": {
     "defaultMessage": "Shared guidance for agents and teams",
     "description": "Sidebar description for the Guideline navigation item"
-  },
-  "dF9jC6xA5e": {
-    "defaultMessage": "Save an aligned source and target example to this memory.",
-    "description": "Description for the dialog that adds a translation memory entry"
   },
   "dFDzTr1DKC": {
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
@@ -16035,10 +16043,6 @@
     "defaultMessage": "To {value}",
     "description": "Chip label for the modified-to filter"
   },
-  "kR7tW4hM2b": {
-    "defaultMessage": "Add entry",
-    "description": "Title for the dialog that adds a translation memory entry"
-  },
   "kRgGKX2G/s": {
     "defaultMessage": "Connect",
     "description": "Link label to connect an integration"
@@ -16058,6 +16062,10 @@
   "kUu0YJ4PK9": {
     "defaultMessage": "Issue linked",
     "description": "Toast when an existing issue is linked to the string"
+  },
+  "kV6HE87ScC": {
+    "defaultMessage": "Proofread",
+    "description": "Job task type option for proofread"
   },
   "kWeceyqgt+": {
     "defaultMessage": "LLM agnostic",
@@ -16995,10 +17003,6 @@
     "defaultMessage": "Source mistake",
     "description": "Issue type filter option for a source mistake"
   },
-  "nK8wQ2mR4t": {
-    "defaultMessage": "Import",
-    "description": "Button to import translation memory entries from a CSV or TMX file"
-  },
   "nLGLyaeThi": {
     "defaultMessage": "Locale",
     "description": "Label for issue target locale field"
@@ -17174,10 +17178,6 @@
   "nqMa1yML6t": {
     "defaultMessage": "Live jobs fetched from {providerName}.",
     "description": "Dashboard panel description for live TMS jobs"
-  },
-  "nqQ9RngvcW": {
-    "defaultMessage": "Create a job with context, files, locales, and assignees.",
-    "description": "Create job dialog accessible description"
   },
   "nqV2qZ+dzM": {
     "defaultMessage": "File and string translation jobs, batch localization, and translation subagents.",
@@ -17622,10 +17622,6 @@
   "pKzlTiRlHt": {
     "defaultMessage": "Members",
     "description": "Group label for assignable workspace members"
-  },
-  "pL3nS8vQ1c": {
-    "defaultMessage": "Cancel",
-    "description": "Button to close the add translation memory entry dialog"
   },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
@@ -19895,10 +19891,6 @@
     "defaultMessage": "Project: {projectName}",
     "description": "Crowdin App inbox header showing the linked Hyperlocalise project"
   },
-  "wH2uE5nY8s": {
-    "defaultMessage": "Projects",
-    "description": "Toolbar button that opens assigned projects for a translation memory"
-  },
   "wHFmp4/+wj": {
     "defaultMessage": "Source file",
     "description": "Inbox issue detail source label in content ops mock"
@@ -19914,6 +19906,10 @@
   "wJduDnIsm8": {
     "defaultMessage": "Created",
     "description": "Metadata label for a live provider glossary creation time"
+  },
+  "wJpMrv20rr": {
+    "defaultMessage": "Export",
+    "description": "Button to open translation memory export options"
   },
   "wLreqnuDf7": {
     "defaultMessage": "Unable to load source files",
