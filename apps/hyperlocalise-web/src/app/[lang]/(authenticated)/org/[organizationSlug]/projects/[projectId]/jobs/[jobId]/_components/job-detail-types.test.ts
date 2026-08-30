@@ -66,14 +66,12 @@ describe("canCancelJob / canMarkJobFailed", () => {
     expect(canMarkJobFailed(job)).toBe(true);
   });
 
-  it("rejects cancel for provider-backed waiting_for_review jobs", () => {
-    expect(
-      canCancelJob(
-        createJob({
-          externalProviderKind: "crowdin",
-          externalJobId: "task_1",
-        }),
-      ),
-    ).toBe(false);
+  it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", () => {
+    const job = createJob({
+      externalProviderKind: "crowdin",
+      externalJobId: "task_1",
+    });
+    expect(canCancelJob(job)).toBe(false);
+    expect(canMarkJobFailed(job)).toBe(false);
   });
 });

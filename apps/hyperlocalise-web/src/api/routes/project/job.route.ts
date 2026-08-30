@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, notExists, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -213,6 +213,15 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
       eq(schema.jobs.status, "queued"),
       eq(schema.jobs.status, "running"),
       eq(schema.jobs.status, "waiting_for_review"),
+    ),
+    // Provider mirrors stay in sync with the remote TMS. Local cancel /
+    // mark-failed would leave the remote task active until the next sync
+    // overwrites the local status.
+    notExists(
+      db
+        .select({ jobId: schema.externalJobDetails.jobId })
+        .from(schema.externalJobDetails)
+        .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
     ),
   );
 }

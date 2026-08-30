@@ -646,6 +646,131 @@ describe("project job create", () => {
     expect(job?.status).toBe("cancelled");
   });
 
+  it("marks native proofread jobs stuck in waiting_for_review as failed", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Proofread mark failed",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string; status: string } };
+    expect(created.job.status).toBe("waiting_for_review");
+
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[
+      ":jobId"
+    ]["mark-failed"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: created.job.id,
+        },
+      },
+      { headers },
+    );
+    expect(markFailedResponse.status).toBe(200);
+    const failed = (await markFailedResponse.json()) as { job: { id: string; status: string } };
+    expect(failed.job.status).toBe("failed");
+  });
+
+  it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+
+    await upsertExternalTmsJobRecords({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project",
+      tasks: [
+        {
+          externalJobId: "provider-review-job",
+          externalStatus: "in_review",
+          title: "Provider review task",
+          assignedUsers: [],
+        },
+      ],
+    });
+
+    const [providerJob] = await db
+      .select({ id: schema.jobs.id, status: schema.jobs.status })
+      .from(schema.jobs)
+      .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+      .where(
+        and(
+          eq(schema.jobs.organizationId, organization.id),
+          eq(schema.externalJobDetails.externalJobId, "provider-review-job"),
+        ),
+      )
+      .limit(1);
+
+    expect(providerJob?.status).toBe("waiting_for_review");
+
+    const cancelResponse = await createClient.api.orgs[":organizationSlug"].jobs[
+      ":jobId"
+    ].cancel.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: providerJob!.id,
+        },
+      },
+      { headers },
+    );
+    expect(cancelResponse.status).toBe(409);
+    await expect(cancelResponse.json()).resolves.toMatchObject({
+      error: "job_action_unavailable",
+    });
+
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[
+      ":jobId"
+    ]["mark-failed"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: providerJob!.id,
+        },
+      },
+      { headers },
+    );
+    expect(markFailedResponse.status).toBe(409);
+    await expect(markFailedResponse.json()).resolves.toMatchObject({
+      error: "job_action_unavailable",
+    });
+
+    const [unchanged] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, providerJob!.id))
+      .limit(1);
+    expect(unchanged?.status).toBe("waiting_for_review");
+  });
+
   it("rejects proofread create when open-job budget is exhausted", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
