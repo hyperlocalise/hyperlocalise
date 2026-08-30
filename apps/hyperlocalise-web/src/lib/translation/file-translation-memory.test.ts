@@ -36,6 +36,7 @@ type ReusableMemoryEntryRow = {
 const {
   andMock,
   eqMock,
+  ensureDefaultMemoryIdsMock,
   inArrayMock,
   insertMock,
   listHiddenKeysMock,
@@ -57,10 +58,12 @@ const {
   const fromMock = vi.fn(() => ({ where: whereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
   const listHiddenKeysMock = vi.fn(async () => [] as string[]);
+  const ensureDefaultMemoryIdsMock = vi.fn(async () => [] as string[]);
 
   return {
     andMock: vi.fn((...conditions: unknown[]) => ["and", conditions]),
     eqMock: vi.fn((field: string, value: unknown) => ["eq", field, value]),
+    ensureDefaultMemoryIdsMock,
     inArrayMock: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
     insertMock,
     listHiddenKeysMock,
@@ -81,6 +84,10 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   listHiddenProjectTranslationKeysForSourcePath: listHiddenKeysMock,
+}));
+
+vi.mock("@/lib/memory/ensure-default-native-project-memory", () => ({
+  ensureDefaultNativeProjectMemoryForProject: ensureDefaultMemoryIdsMock,
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -213,6 +220,26 @@ describe("persistFileTranslationMemoryEntries", () => {
     const [values] = valuesMock.mock.calls[0];
     expect(values.map((value) => value.metadata.segmentKey)).toEqual(["greeting", "greeting"]);
     expect(values.every((value) => value.targetText === "Bonjour")).toBe(true);
+  });
+
+  it("creates a default native memory when the project has none attached", async () => {
+    whereMock.mockResolvedValueOnce([]);
+    ensureDefaultMemoryIdsMock.mockResolvedValueOnce(["memory_created"]);
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries: { greeting: "Hello" },
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries: { greeting: "Bonjour" },
+      targetLocale: "fr",
+    });
+
+    expect(ensureDefaultMemoryIdsMock).toHaveBeenCalledWith("project_1");
+    const [values] = valuesMock.mock.calls[0];
+    expect(values.map((value) => value.memoryId)).toEqual(["memory_created"]);
   });
 
   it("does not write memory entries when every source key is hidden", async () => {

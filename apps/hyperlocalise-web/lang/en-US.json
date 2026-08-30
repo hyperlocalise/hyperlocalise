@@ -515,6 +515,10 @@
     "defaultMessage": "Should AcmePay stay untranslated in Spanish onboarding?",
     "description": "Inbox assistant glossary question in content ops mock"
   },
+  "/R/xwR7ZOR": {
+    "defaultMessage": "Project",
+    "description": "Label for the translation memory project filter"
+  },
   "/RotSbukS0": {
     "defaultMessage": "Unable to load projects",
     "description": "Error item when projects fail to load in the selector"
@@ -566,6 +570,10 @@
   "/WfsxTCk+E": {
     "defaultMessage": "Saving…",
     "description": "Status text while notification preferences are saving"
+  },
+  "/X++ueXvVD": {
+    "defaultMessage": "All projects",
+    "description": "Project filter option for all translation memories"
   },
   "/X6DitE9lx": {
     "defaultMessage": "All sync states",

@@ -14,6 +14,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { db, schema } from "@/lib/database/client";
+import { ensureDefaultNativeProjectMemoryForProject } from "@/lib/memory/ensure-default-native-project-memory";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -166,7 +167,10 @@ export class FileTranslationMemoryStore {
       .select({ memoryId: schema.projectMemories.memoryId })
       .from(schema.projectMemories)
       .where(eq(schema.projectMemories.projectId, input.projectId));
-    const memoryIds = attached.map((x) => x.memoryId);
+    let memoryIds = attached.map((x) => x.memoryId);
+    if (memoryIds.length === 0) {
+      memoryIds = await ensureDefaultNativeProjectMemoryForProject(input.projectId);
+    }
     if (memoryIds.length === 0) {
       return;
     }

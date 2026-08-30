@@ -76,6 +76,9 @@ export function TranslationMemoriesPageView({
   onSearchQueryChange,
   sourceFilter,
   onSourceFilterChange,
+  projectFilter,
+  onProjectFilterChange,
+  projects,
   providerFilter,
   onProviderFilterChange,
   syncFilter,
@@ -115,6 +118,9 @@ export function TranslationMemoriesPageView({
   onSearchQueryChange: (value: string) => void;
   sourceFilter: string;
   onSourceFilterChange: (value: string) => void;
+  projectFilter: string;
+  onProjectFilterChange: (value: string) => void;
+  projects: readonly { id: string; name: string }[];
   providerFilter: string;
   onProviderFilterChange: (value: string) => void;
   syncFilter: string;
@@ -171,6 +177,11 @@ export function TranslationMemoriesPageView({
 
   const memoriesQuery = { isLoading, isError, isSuccess, error };
   const allProvidersLabel = intl.formatMessage(translationMemoriesPageViewMessages.providerAll);
+  const allProjectsLabel = intl.formatMessage(translationMemoriesPageViewMessages.projectAll);
+  const selectedProjectName =
+    projectFilter === "all"
+      ? allProjectsLabel
+      : (projects.find((project) => project.id === projectFilter)?.name ?? allProjectsLabel);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -204,7 +215,7 @@ export function TranslationMemoriesPageView({
         </div>
       ) : null}
 
-      {isSuccess && hasMemories ? (
+      {isSuccess && (hasMemories || projects.length > 0) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
           <WorkspaceFilterField
             label={intl.formatMessage(translationMemoriesPageViewMessages.searchLabel)}
@@ -252,6 +263,31 @@ export function TranslationMemoriesPageView({
               </SelectContent>
             </Select>
           </WorkspaceFilterField>
+          {!useLiveProviderMemories && projects.length > 0 ? (
+            <WorkspaceFilterField
+              label={intl.formatMessage(translationMemoriesPageViewMessages.projectLabel)}
+              className="w-full sm:w-52"
+            >
+              <Select
+                value={projectFilter}
+                onValueChange={(value) => onProjectFilterChange(value ?? "all")}
+              >
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>{selectedProjectName}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" label={allProjectsLabel}>
+                    {allProjectsLabel}
+                  </SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id} label={project.name}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </WorkspaceFilterField>
+          ) : null}
 
           {hasExternalMemories && sourceFilter !== "native" ? (
             <WorkspaceFilterField

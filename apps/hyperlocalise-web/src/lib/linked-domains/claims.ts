@@ -21,6 +21,7 @@ import type {
 } from "@/lib/database/schema/linked-domains";
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
@@ -474,6 +475,13 @@ export async function verifyAndClaimLinkedDomain(input: {
         if (!project) {
           throw new Error("project_create_failed");
         }
+        await ensureDefaultNativeProjectMemory({
+          organizationId: input.organizationId,
+          projectId: project.id,
+          projectName: project.name,
+          createdByUserId: input.userId,
+          database: tx,
+        });
         projectId = project.id;
       } else if (projectId) {
         const [existingProject] = await tx

@@ -12,6 +12,8 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -35,7 +37,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { db } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
@@ -195,5 +199,88 @@ describe("memoryRoutes", () => {
       source: "memory",
     });
     trackSpy.mockRestore();
+  });
+
+  it("filters translation memories by attached project", async () => {
+    const { identity, organization, user } = await fixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const [firstProject, secondProject] = await db
+      .insert(schema.projects)
+      .values([
+        {
+          id: `project_${randomUUID()}`,
+          identifier: uniqueTestProjectIdentifier(),
+          organizationId: organization.id,
+          teamId: team.id,
+          createdByUserId: user.id,
+          name: "First",
+          description: "",
+          translationContext: "",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+        {
+          id: `project_${randomUUID()}`,
+          identifier: uniqueTestProjectIdentifier(),
+          organizationId: organization.id,
+          teamId: team.id,
+          createdByUserId: user.id,
+          name: "Second",
+          description: "",
+          translationContext: "",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      ])
+      .returning();
+    const [matchingMemory, otherMemory] = await db
+      .insert(schema.memories)
+      .values([
+        {
+          organizationId: organization.id,
+          createdByUserId: user.id,
+          name: "Matching TM",
+          description: "",
+        },
+        {
+          organizationId: organization.id,
+          createdByUserId: user.id,
+          name: "Other TM",
+          description: "",
+        },
+      ])
+      .returning();
+
+    await db.insert(schema.projectMemories).values([
+      {
+        organizationId: organization.id,
+        projectId: firstProject.id,
+        memoryId: matchingMemory.id,
+        priority: 0,
+      },
+      {
+        organizationId: organization.id,
+        projectId: secondProject.id,
+        memoryId: otherMemory.id,
+        priority: 0,
+      },
+    ]);
+
+    const headers = await fixture.authHeadersFor(identity);
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0", projectId: firstProject.id },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      total: number;
+      memories: Array<{ id: string; name: string }>;
+    };
+    expect(body.total).toBe(1);
+    expect(body.memories).toEqual([expect.objectContaining({ id: matchingMemory.id })]);
   });
 });

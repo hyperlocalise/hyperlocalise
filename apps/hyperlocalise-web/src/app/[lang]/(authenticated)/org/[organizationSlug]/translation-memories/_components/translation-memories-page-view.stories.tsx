@@ -42,6 +42,12 @@ const meta = {
     onSearchQueryChange: fn(),
     sourceFilter: "all",
     onSourceFilterChange: fn(),
+    projectFilter: "all",
+    onProjectFilterChange: fn(),
+    projects: [
+      { id: "project-marketing", name: "Marketing Site" },
+      { id: "project-docs", name: "Docs" },
+    ],
     providerFilter: "all",
     onProviderFilterChange: fn(),
     syncFilter: "all",
@@ -73,6 +79,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Translation Memories" })).toBeInTheDocument();
+    await expect(canvas.getByText("All projects")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase TM")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Memory")).toBeInTheDocument();
@@ -83,6 +90,7 @@ export const Loading: Story = {
   args: {
     memories: [],
     memoryTotal: 0,
+    projects: [],
     isLoading: true,
     isSuccess: false,
     pageStart: 0,
@@ -100,6 +108,7 @@ export const Empty: Story = {
   args: {
     memories: [],
     memoryTotal: 0,
+    projects: [],
     pageStart: 0,
     pageEnd: 0,
     providerKinds: [],
