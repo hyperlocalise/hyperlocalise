@@ -35,6 +35,7 @@ export async function listAttachedProjectMemoryIds(
   const attached = await database
     .select({ memoryId: schema.projectMemories.memoryId })
     .from(schema.projectMemories)
+    .innerJoin(schema.memories, eq(schema.memories.id, schema.projectMemories.memoryId))
     .where(eq(schema.projectMemories.projectId, projectId));
 
   return attached.map((row) => row.memoryId);

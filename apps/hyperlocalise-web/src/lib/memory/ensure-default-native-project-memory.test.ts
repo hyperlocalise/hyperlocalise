@@ -122,4 +122,29 @@ describe("ensureDefaultNativeProjectMemory", () => {
     expect(memoryIds).toEqual([]);
     expect(await listAttachedProjectMemoryIds(project.id)).toEqual([]);
   });
+
+  it("recreates a default memory when attachments point at deleted memories", async () => {
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    const danglingMemoryId = randomUUID();
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      memoryId: danglingMemoryId,
+      priority: 0,
+    });
+
+    expect(await listAttachedProjectMemoryIds(project.id)).toEqual([]);
+
+    const memoryIds = await ensureDefaultNativeProjectMemory({
+      organizationId: organization.id,
+      projectId: project.id,
+      projectName: project.name,
+      createdByUserId: user.id,
+    });
+
+    expect(memoryIds).toHaveLength(1);
+    expect(memoryIds[0]).not.toBe(danglingMemoryId);
+    expect(await listAttachedProjectMemoryIds(project.id)).toEqual(memoryIds);
+  });
 });

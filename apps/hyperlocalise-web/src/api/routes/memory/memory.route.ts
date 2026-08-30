@@ -170,12 +170,21 @@ const memoryStore: MemoryStore = {
     return memory ?? null;
   },
   async delete(auth, memoryId) {
-    const deletedMemories = await db
-      .delete(schema.memories)
-      .where(await ownedMemoryWhere(auth, memoryId))
-      .returning({ id: schema.memories.id });
+    const memoryWhere = await ownedMemoryWhere(auth, memoryId);
+    return db.transaction(async (tx) => {
+      const deletedMemories = await tx
+        .delete(schema.memories)
+        .where(memoryWhere)
+        .returning({ id: schema.memories.id });
 
-    return deletedMemories.length > 0;
+      if (deletedMemories.length === 0) {
+        return false;
+      }
+
+      await tx.delete(schema.projectMemories).where(eq(schema.projectMemories.memoryId, memoryId));
+
+      return true;
+    });
   },
 };
 

@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -282,5 +283,52 @@ describe("memoryRoutes", () => {
     };
     expect(body.total).toBe(1);
     expect(body.memories).toEqual([expect.objectContaining({ id: matchingMemory.id })]);
+  });
+
+  it("removes project attachments when deleting a translation memory", async () => {
+    const { identity, organization, user, memory } = await fixture.createStoredMemoryFixture();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const [project] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
+        organizationId: organization.id,
+        teamId: team.id,
+        createdByUserId: user.id,
+        name: "Attached",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    await db.insert(schema.projectMemories).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      memoryId: memory.id,
+      priority: 0,
+    });
+
+    const headers = await fixture.authHeadersFor(identity);
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    const attachments = await db
+      .select({ memoryId: schema.projectMemories.memoryId })
+      .from(schema.projectMemories)
+      .where(eq(schema.projectMemories.memoryId, memory.id));
+    expect(attachments).toEqual([]);
   });
 });
