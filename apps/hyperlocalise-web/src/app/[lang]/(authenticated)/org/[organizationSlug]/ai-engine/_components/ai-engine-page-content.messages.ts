@@ -25,19 +25,14 @@ export const aiEnginePageContentMessages = defineMessages({
     id: "vd5foq/6mc",
     description: "AI Engine page description",
   },
-  workspaceLevelBadge: {
-    defaultMessage: "Workspace level",
-    id: "Mbl8Jg/bPv",
-    description: "Badge indicating AI Engine settings apply to the whole workspace",
-  },
   noAccess: {
     defaultMessage: "You do not have permission to manage AI providers in this workspace.",
     id: "rpzNVqnjuM",
     description: "Shown when the current role cannot view AI Engine provider settings",
   },
   hyperlocaliseGoLabel: {
-    defaultMessage: "Hyperlocalise GO",
-    id: "Qkra2VNwUo",
+    defaultMessage: "Included models",
+    id: "MUcqH6QBF5",
     description: "Managed Hyperlocalise model provider name",
   },
   hyperlocaliseGoDescription: {

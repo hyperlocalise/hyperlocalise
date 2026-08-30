@@ -45,4 +45,9 @@ export const integrationRowMessages = defineMessages({
     id: "PLauAF+cPB",
     description: "Badge shown when the user can view but not manage a connected integration",
   },
+  included: {
+    defaultMessage: "Included",
+    id: "xsZbCQ/A1V",
+    description: "Badge for workspace capabilities included without a separate connection",
+  },
 });

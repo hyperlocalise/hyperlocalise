@@ -34,6 +34,7 @@
     "@formatjs/icu-messageformat-parser": "^3.5.12",
     "@formatjs/intl": "^4.1.14",
     "@formatjs/intl-localematcher": "^0.8.10",
+    "@formkit/auto-animate": "^0.10.0",
     "@hookform/resolvers": "5.9.1",
     "@hugeicons/core-free-icons": "4.3.0",
     "@hugeicons/react": "1.1.10",

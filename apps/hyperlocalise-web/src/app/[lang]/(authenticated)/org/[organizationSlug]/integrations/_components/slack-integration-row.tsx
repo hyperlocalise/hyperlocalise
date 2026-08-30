@@ -14,14 +14,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlackIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { getSlackAgentViewModel } from "./slack-agent-view-model";
 import { slackIntegrationRowMessages } from "./slack-integration-row.messages";
+import { IntegrationLogo } from "./integration-logo";
 import { IntegrationRow } from "./integration-row";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,7 +126,7 @@ export function SlackIntegrationRow({
   const viewModel = getSlackAgentViewModel(slackAgent, intl);
 
   useEffect(() => {
-    if (searchParams.get("slack_connected") !== "1" || handledSlackConnectedRef.current) {
+    if (searchParams?.get("slack_connected") !== "1" || handledSlackConnectedRef.current) {
       return;
     }
 
@@ -169,7 +168,7 @@ export function SlackIntegrationRow({
             ? viewModel.statusDescription
             : intl.formatMessage(slackIntegrationRowMessages.disconnectedDescription)
       }
-      icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5 text-current" />}
+      icon={<IntegrationLogo src="/images/slack-logo.svg" />}
       iconMuted={!viewModel.enabled}
       action={action}
       expanded={expanded}

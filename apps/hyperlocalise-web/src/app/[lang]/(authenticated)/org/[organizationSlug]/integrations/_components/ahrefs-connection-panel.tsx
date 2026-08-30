@@ -27,6 +27,8 @@ import type { AhrefsConnectionSummary } from "@/lib/ahrefs/types";
 import { createApiClient } from "@/lib/api-client";
 
 import { ahrefsConnectionPanelMessages } from "./ahrefs-connection-panel.messages";
+import { IntegrationLogo } from "./integration-logo";
+import { CollapsibleIntegrationRow } from "./integration-row";
 
 const api = createApiClient();
 
@@ -61,13 +63,16 @@ export function useAhrefsConnections(organizationSlug: string) {
 export function AhrefsConnectionPanel({
   organizationSlug,
   disabled,
+  isLast = false,
 }: {
   organizationSlug: string;
   disabled?: boolean;
+  isLast?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const connectionsQuery = useAhrefsConnections(organizationSlug);
+  const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<AhrefsConnectionForm>(emptyForm);
 
@@ -147,128 +152,142 @@ export function AhrefsConnectionPanel({
   });
 
   const connections = connectionsQuery.data ?? [];
+  const isConnected = connections.length > 0;
+  const showForm = adding || connections.length === 0;
+
+  function handleExpandedChange(nextExpanded: boolean) {
+    setExpanded(nextExpanded);
+    if (!nextExpanded) {
+      setAdding(false);
+      setForm(emptyForm());
+      return;
+    }
+    if (connections.length === 0) {
+      setAdding(true);
+    }
+  }
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] font-semibold text-muted-foreground">
-            Ah
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-foreground">
-              <FormattedMessage {...ahrefsConnectionPanelMessages.rowName} />
-            </div>
-            <p className="mt-1 text-xs text-pretty text-muted-foreground">
-              <FormattedMessage {...ahrefsConnectionPanelMessages.rowDescription} />
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={disabled || adding}
-          onClick={() => setAdding(true)}
-        >
-          <FormattedMessage {...ahrefsConnectionPanelMessages.addConnection} />
-        </Button>
-      </div>
+    <CollapsibleIntegrationRow
+      name={intl.formatMessage(ahrefsConnectionPanelMessages.rowName)}
+      description={intl.formatMessage(ahrefsConnectionPanelMessages.rowDescription)}
+      icon={<IntegrationLogo src="/images/ahrefs-logo.svg" />}
+      isConnected={isConnected}
+      userIsAdmin={!disabled}
+      expanded={expanded}
+      onExpandedChange={handleExpandedChange}
+      isLoading={connectionsQuery.isLoading}
+      isLast={isLast}
+    >
+      <div className="flex flex-col gap-5">
+        {connections.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {connections.map((connection) => (
+              <li
+                key={connection.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm text-foreground">{connection.displayName}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(ahrefsConnectionPanelMessages.tokenConfigured, {
+                      suffix: connection.maskedApiKeySuffix,
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {connection.enabled ? (
+                    <Badge variant="secondary">
+                      <FormattedMessage {...ahrefsConnectionPanelMessages.enabled} />
+                    </Badge>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={disabled || deleteMutation.isPending}
+                    aria-label={intl.formatMessage(ahrefsConnectionPanelMessages.delete)}
+                    onClick={() => deleteMutation.mutate(connection.id)}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
-      {connections.length === 0 && !adding ? (
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...ahrefsConnectionPanelMessages.emptyState} />
-        </p>
-      ) : null}
+        {isConnected && !adding ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => setAdding(true)}
+            >
+              <FormattedMessage {...ahrefsConnectionPanelMessages.addConnection} />
+            </Button>
+          </div>
+        ) : null}
 
-      <ul className="flex flex-col gap-2">
-        {connections.map((connection) => (
-          <li
-            key={connection.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-          >
-            <div className="min-w-0">
-              <div className="truncate text-sm text-foreground">{connection.displayName}</div>
+        {showForm ? (
+          <div className="grid gap-3">
+            <Field>
+              <FieldLabel>
+                <FormattedMessage {...ahrefsConnectionPanelMessages.displayNameLabel} />
+              </FieldLabel>
+              <Input
+                value={form.displayName}
+                disabled={disabled || saveMutation.isPending}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, displayName: event.target.value }))
+                }
+              />
+            </Field>
+            <Field>
+              <FieldLabel>
+                <FormattedMessage {...ahrefsConnectionPanelMessages.apiKeyLabel} />
+              </FieldLabel>
+              <Input
+                type="password"
+                autoComplete="off"
+                value={form.apiKey}
+                disabled={disabled || saveMutation.isPending}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, apiKey: event.target.value }))
+                }
+              />
               <p className="text-xs text-muted-foreground">
-                {intl.formatMessage(ahrefsConnectionPanelMessages.tokenConfigured, {
-                  suffix: connection.maskedApiKeySuffix,
-                })}
+                <FormattedMessage {...ahrefsConnectionPanelMessages.apiKeyHelp} />
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {connection.enabled ? (
-                <Badge variant="secondary">
-                  <FormattedMessage {...ahrefsConnectionPanelMessages.enabled} />
-                </Badge>
+            </Field>
+            <div className="flex justify-end gap-2">
+              {isConnected ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saveMutation.isPending}
+                  onClick={() => {
+                    setAdding(false);
+                    setForm(emptyForm());
+                  }}
+                >
+                  <FormattedMessage {...ahrefsConnectionPanelMessages.cancel} />
+                </Button>
               ) : null}
               <Button
                 type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={disabled || deleteMutation.isPending}
-                aria-label={intl.formatMessage(ahrefsConnectionPanelMessages.delete)}
-                onClick={() => deleteMutation.mutate(connection.id)}
+                disabled={disabled || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(form)}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-4" />
+                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                <FormattedMessage {...ahrefsConnectionPanelMessages.save} />
               </Button>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {adding ? (
-        <div className="grid gap-3 rounded-lg border border-border p-3">
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...ahrefsConnectionPanelMessages.displayNameLabel} />
-            </FieldLabel>
-            <Input
-              value={form.displayName}
-              disabled={disabled || saveMutation.isPending}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, displayName: event.target.value }))
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...ahrefsConnectionPanelMessages.apiKeyLabel} />
-            </FieldLabel>
-            <Input
-              type="password"
-              autoComplete="off"
-              value={form.apiKey}
-              disabled={disabled || saveMutation.isPending}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, apiKey: event.target.value }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              <FormattedMessage {...ahrefsConnectionPanelMessages.apiKeyHelp} />
-            </p>
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={saveMutation.isPending}
-              onClick={() => {
-                setAdding(false);
-                setForm(emptyForm());
-              }}
-            >
-              <FormattedMessage {...ahrefsConnectionPanelMessages.cancel} />
-            </Button>
-            <Button
-              type="button"
-              disabled={disabled || saveMutation.isPending}
-              onClick={() => saveMutation.mutate(form)}
-            >
-              <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...ahrefsConnectionPanelMessages.save} />
-            </Button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </CollapsibleIntegrationRow>
   );
 }

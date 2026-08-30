@@ -12,20 +12,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { MicrosoftIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siGitlab, siLinear } from "simple-icons";
-import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
+import {
+  siGitlab,
+  siHubspot,
+  siJira,
+  siLinear,
+  siLoops,
+  siMailchimp,
+  siResend,
+} from "simple-icons";
+import { useIntl, type MessageDescriptor } from "react-intl";
 
 import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
-import {
-  IntegrationCategoryCard,
-  IntegrationCategoryLabel,
-  IntegrationRow,
-} from "./integration-row";
+import { IntercomConnectionPanel } from "./intercom-connection-panel";
+import { IntegrationLogo } from "./integration-logo";
+import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { SlackIntegrationRow } from "./slack-integration-row";
 
@@ -38,14 +42,19 @@ type ComingSoonAgent = {
   nameMessage: MessageDescriptor;
   descriptionMessage: MessageDescriptor;
   icon?: SimpleIcon;
-  fallbackIcon?: typeof MicrosoftIcon;
+  logoSrc?: string;
 };
 
 const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
   {
     nameMessage: agentIntegrationsSectionMessages.microsoftTeamsName,
     descriptionMessage: agentIntegrationsSectionMessages.microsoftTeamsDescription,
-    fallbackIcon: MicrosoftIcon,
+    logoSrc: "/images/microsoft-teams-logo.svg",
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.jiraName,
+    descriptionMessage: agentIntegrationsSectionMessages.jiraDescription,
+    icon: siJira,
   },
   {
     nameMessage: agentIntegrationsSectionMessages.linearName,
@@ -54,17 +63,59 @@ const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
   },
 ] as const;
 
+const comingSoonCustomerEngagementAgents: readonly ComingSoonAgent[] = [
+  {
+    nameMessage: agentIntegrationsSectionMessages.brazeName,
+    descriptionMessage: agentIntegrationsSectionMessages.brazeDescription,
+    logoSrc: "/images/braze-logo.svg",
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.iterableName,
+    descriptionMessage: agentIntegrationsSectionMessages.iterableDescription,
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.customerIoName,
+    descriptionMessage: agentIntegrationsSectionMessages.customerIoDescription,
+    logoSrc: "/images/customerio-logo.svg",
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.hubspotName,
+    descriptionMessage: agentIntegrationsSectionMessages.hubspotDescription,
+    icon: siHubspot,
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.mailchimpName,
+    descriptionMessage: agentIntegrationsSectionMessages.mailchimpDescription,
+    icon: siMailchimp,
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.loopsName,
+    descriptionMessage: agentIntegrationsSectionMessages.loopsDescription,
+    icon: siLoops,
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.sendgridName,
+    descriptionMessage: agentIntegrationsSectionMessages.sendgridDescription,
+    logoSrc: "/images/sendgrid-logo.svg",
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.resendName,
+    descriptionMessage: agentIntegrationsSectionMessages.resendDescription,
+    icon: siResend,
+  },
+] as const;
+
 function ComingSoonIntegrationRow({
   nameMessage,
   descriptionMessage,
   icon,
-  fallbackIcon,
+  logoSrc,
   isLast,
 }: {
   nameMessage: MessageDescriptor;
   descriptionMessage: MessageDescriptor;
   icon?: SimpleIcon;
-  fallbackIcon?: typeof MicrosoftIcon;
+  logoSrc?: string;
   isLast?: boolean;
 }) {
   const intl = useIntl();
@@ -74,10 +125,10 @@ function ComingSoonIntegrationRow({
       name={intl.formatMessage(nameMessage)}
       description={intl.formatMessage(descriptionMessage)}
       icon={
-        icon ? (
+        logoSrc ? (
+          <IntegrationLogo src={logoSrc} />
+        ) : icon ? (
           <SimpleBrandIcon icon={icon} colored={false} />
-        ) : fallbackIcon ? (
-          <HugeiconsIcon icon={fallbackIcon} strokeWidth={1.8} className="size-5" />
         ) : null
       }
       iconMuted
@@ -92,20 +143,15 @@ export function SourceControlIntegrationsSection({
   userCanManage,
 }: AgentIntegrationsSectionProps) {
   return (
-    <section className="flex flex-col gap-3">
-      <IntegrationCategoryLabel>
-        <FormattedMessage {...agentIntegrationsSectionMessages.sourceControlCategory} />
-      </IntegrationCategoryLabel>
-      <IntegrationCategoryCard>
-        <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-        <ComingSoonIntegrationRow
-          nameMessage={agentIntegrationsSectionMessages.gitlabName}
-          descriptionMessage={agentIntegrationsSectionMessages.gitlabDescription}
-          icon={siGitlab}
-          isLast
-        />
-      </IntegrationCategoryCard>
-    </section>
+    <>
+      <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+      <ComingSoonIntegrationRow
+        nameMessage={agentIntegrationsSectionMessages.gitlabName}
+        descriptionMessage={agentIntegrationsSectionMessages.gitlabDescription}
+        icon={siGitlab}
+        isLast
+      />
+    </>
   );
 }
 
@@ -114,24 +160,51 @@ export function CollaborationIntegrationsSection({
   userCanManage,
 }: AgentIntegrationsSectionProps) {
   return (
-    <section className="flex flex-col gap-3">
-      <IntegrationCategoryLabel>
-        <FormattedMessage {...agentIntegrationsSectionMessages.collaborationCategory} />
-      </IntegrationCategoryLabel>
-      <IntegrationCategoryCard>
-        <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-        <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-        {comingSoonCollaborationAgents.map((agent, index) => (
-          <ComingSoonIntegrationRow
-            key={index}
-            nameMessage={agent.nameMessage}
-            descriptionMessage={agent.descriptionMessage}
-            icon={agent.icon}
-            fallbackIcon={agent.fallbackIcon}
-            isLast={index === comingSoonCollaborationAgents.length - 1}
-          />
-        ))}
-      </IntegrationCategoryCard>
-    </section>
+    <>
+      <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+      <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+      {comingSoonCollaborationAgents.map((agent, index) => (
+        <ComingSoonIntegrationRow
+          key={agent.nameMessage.id}
+          nameMessage={agent.nameMessage}
+          descriptionMessage={agent.descriptionMessage}
+          icon={agent.icon}
+          logoSrc={agent.logoSrc}
+          isLast={index === comingSoonCollaborationAgents.length - 1}
+        />
+      ))}
+    </>
+  );
+}
+
+export function CustomerEngagementIntegrationsSection({
+  organizationSlug,
+  userIsAdmin,
+  showIntercom = false,
+}: {
+  organizationSlug: string;
+  userIsAdmin: boolean;
+  showIntercom?: boolean;
+}) {
+  return (
+    <>
+      {showIntercom ? (
+        <IntercomConnectionPanel
+          organizationSlug={organizationSlug}
+          disabled={!userIsAdmin}
+          isLast={comingSoonCustomerEngagementAgents.length === 0}
+        />
+      ) : null}
+      {comingSoonCustomerEngagementAgents.map((agent, index) => (
+        <ComingSoonIntegrationRow
+          key={agent.nameMessage.id}
+          nameMessage={agent.nameMessage}
+          descriptionMessage={agent.descriptionMessage}
+          icon={agent.icon}
+          logoSrc={agent.logoSrc}
+          isLast={index === comingSoonCustomerEngagementAgents.length - 1}
+        />
+      ))}
+    </>
   );
 }

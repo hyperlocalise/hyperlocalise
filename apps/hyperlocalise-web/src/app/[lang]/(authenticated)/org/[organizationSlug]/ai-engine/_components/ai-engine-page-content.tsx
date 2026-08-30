@@ -33,7 +33,6 @@ import {
   llmProviderContentEditoralog,
 } from "@/lib/providers/shared/catalog";
 import { createApiClient } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -274,18 +273,13 @@ export function AiEnginePageContent({
 
   return (
     <main className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-1.5">
-          <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-            <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
-          </TypographyH1>
-          <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
-          </TypographyP>
-        </div>
-        <Badge variant="outline" className="rounded-full lg:self-start">
-          <FormattedMessage {...aiEnginePageContentMessages.workspaceLevelBadge} />
-        </Badge>
+      <div className="flex flex-col gap-1.5">
+        <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+          <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
+        </TypographyH1>
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
+        </TypographyP>
       </div>
 
       {canManageAiEngine ? (

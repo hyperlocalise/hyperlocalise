@@ -39,6 +39,7 @@ import {
 } from "@/lib/intercom/constants";
 import type { IntercomConnectionSummary } from "@/lib/intercom/types";
 
+import { CollapsibleIntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { intercomConnectionPanelMessages } from "./intercom-connection-panel.messages";
 
@@ -77,13 +78,16 @@ export function useIntercomConnections(organizationSlug: string) {
 export function IntercomConnectionPanel({
   organizationSlug,
   disabled,
+  isLast = false,
 }: {
   organizationSlug: string;
   disabled?: boolean;
+  isLast?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const connectionsQuery = useIntercomConnections(organizationSlug);
+  const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<IntercomConnectionForm>(emptyForm);
 
@@ -165,6 +169,20 @@ export function IntercomConnectionPanel({
   });
 
   const connections = connectionsQuery.data ?? [];
+  const isConnected = connections.length > 0;
+  const showForm = adding || connections.length === 0;
+
+  function handleExpandedChange(nextExpanded: boolean) {
+    setExpanded(nextExpanded);
+    if (!nextExpanded) {
+      setAdding(false);
+      setForm(emptyForm());
+      return;
+    }
+    if (connections.length === 0) {
+      setAdding(true);
+    }
+  }
 
   const endpointLabelMessage = (endpoint: IntercomRestEndpoint) => {
     switch (endpoint) {
@@ -178,159 +196,161 @@ export function IntercomConnectionPanel({
   };
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <SimpleBrandIcon icon={siIntercom} colored={false} className="mt-0.5 size-5 shrink-0" />
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-foreground">
-              <FormattedMessage {...intercomConnectionPanelMessages.rowName} />
-            </div>
-            <p className="mt-1 text-xs text-pretty text-muted-foreground">
-              <FormattedMessage {...intercomConnectionPanelMessages.rowDescription} />
-            </p>
+    <CollapsibleIntegrationRow
+      name={intl.formatMessage(intercomConnectionPanelMessages.rowName)}
+      description={intl.formatMessage(intercomConnectionPanelMessages.rowDescription)}
+      icon={<SimpleBrandIcon icon={siIntercom} colored={isConnected} />}
+      isConnected={isConnected}
+      userIsAdmin={!disabled}
+      expanded={expanded}
+      onExpandedChange={handleExpandedChange}
+      isLoading={connectionsQuery.isLoading}
+      isLast={isLast}
+    >
+      <div className="flex flex-col gap-5">
+        {connections.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {connections.map((connection) => (
+              <li
+                key={connection.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm text-foreground">{connection.displayName}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(intercomConnectionPanelMessages.tokenConfigured, {
+                      region: intercomRestEndpointLabel(connection.restEndpoint),
+                      suffix: connection.maskedAccessTokenSuffix,
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {connection.enabled ? (
+                    <Badge variant="secondary">
+                      <FormattedMessage {...intercomConnectionPanelMessages.enabled} />
+                    </Badge>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={disabled || deleteMutation.isPending}
+                    aria-label={intl.formatMessage(intercomConnectionPanelMessages.delete)}
+                    onClick={() => deleteMutation.mutate(connection.id)}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {isConnected && !adding ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => setAdding(true)}
+            >
+              <FormattedMessage {...intercomConnectionPanelMessages.addConnection} />
+            </Button>
           </div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={disabled || adding}
-          onClick={() => setAdding(true)}
-        >
-          <FormattedMessage {...intercomConnectionPanelMessages.addConnection} />
-        </Button>
-      </div>
+        ) : null}
 
-      {connections.length === 0 && !adding ? (
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...intercomConnectionPanelMessages.emptyState} />
-        </p>
-      ) : null}
-
-      <ul className="flex flex-col gap-2">
-        {connections.map((connection) => (
-          <li
-            key={connection.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-          >
-            <div className="min-w-0">
-              <div className="truncate text-sm text-foreground">{connection.displayName}</div>
+        {showForm ? (
+          <div className="grid gap-3">
+            <Field>
+              <FieldLabel>
+                <FormattedMessage {...intercomConnectionPanelMessages.displayNameLabel} />
+              </FieldLabel>
+              <Input
+                value={form.displayName}
+                disabled={disabled || saveMutation.isPending}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, displayName: event.target.value }))
+                }
+              />
+            </Field>
+            <Field>
+              <FieldLabel>
+                <FormattedMessage {...intercomConnectionPanelMessages.accessTokenLabel} />
+              </FieldLabel>
+              <Input
+                type="password"
+                autoComplete="off"
+                value={form.accessToken}
+                disabled={disabled || saveMutation.isPending}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, accessToken: event.target.value }))
+                }
+              />
               <p className="text-xs text-muted-foreground">
-                {intl.formatMessage(intercomConnectionPanelMessages.tokenConfigured, {
-                  region: intercomRestEndpointLabel(connection.restEndpoint),
-                  suffix: connection.maskedAccessTokenSuffix,
-                })}
+                <FormattedMessage {...intercomConnectionPanelMessages.accessTokenHelp} />
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {connection.enabled ? (
-                <Badge variant="secondary">
-                  <FormattedMessage {...intercomConnectionPanelMessages.enabled} />
-                </Badge>
+            </Field>
+            <Field>
+              <FieldLabel>
+                <FormattedMessage {...intercomConnectionPanelMessages.restEndpointLabel} />
+              </FieldLabel>
+              <Select
+                value={form.restEndpoint}
+                disabled={disabled || saveMutation.isPending}
+                onValueChange={(value) => {
+                  if (
+                    typeof value === "string" &&
+                    (INTERCOM_REST_ENDPOINTS as readonly string[]).includes(value)
+                  ) {
+                    setForm((current) => ({
+                      ...current,
+                      restEndpoint: value as IntercomRestEndpoint,
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INTERCOM_REST_ENDPOINTS.map((endpoint) => (
+                    <SelectItem key={endpoint} value={endpoint}>
+                      <FormattedMessage {...endpointLabelMessage(endpoint)} />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                <FormattedMessage {...intercomConnectionPanelMessages.restEndpointHelp} />
+              </p>
+            </Field>
+            <div className="flex justify-end gap-2">
+              {isConnected ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saveMutation.isPending}
+                  onClick={() => {
+                    setAdding(false);
+                    setForm(emptyForm());
+                  }}
+                >
+                  <FormattedMessage {...intercomConnectionPanelMessages.cancel} />
+                </Button>
               ) : null}
               <Button
                 type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={disabled || deleteMutation.isPending}
-                aria-label={intl.formatMessage(intercomConnectionPanelMessages.delete)}
-                onClick={() => deleteMutation.mutate(connection.id)}
+                disabled={disabled || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(form)}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-4" />
+                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                <FormattedMessage {...intercomConnectionPanelMessages.save} />
               </Button>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {adding ? (
-        <div className="grid gap-3 rounded-lg border border-border p-3">
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...intercomConnectionPanelMessages.displayNameLabel} />
-            </FieldLabel>
-            <Input
-              value={form.displayName}
-              disabled={disabled || saveMutation.isPending}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, displayName: event.target.value }))
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...intercomConnectionPanelMessages.accessTokenLabel} />
-            </FieldLabel>
-            <Input
-              type="password"
-              autoComplete="off"
-              value={form.accessToken}
-              disabled={disabled || saveMutation.isPending}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, accessToken: event.target.value }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              <FormattedMessage {...intercomConnectionPanelMessages.accessTokenHelp} />
-            </p>
-          </Field>
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...intercomConnectionPanelMessages.restEndpointLabel} />
-            </FieldLabel>
-            <Select
-              value={form.restEndpoint}
-              disabled={disabled || saveMutation.isPending}
-              onValueChange={(value) => {
-                if (
-                  typeof value === "string" &&
-                  (INTERCOM_REST_ENDPOINTS as readonly string[]).includes(value)
-                ) {
-                  setForm((current) => ({
-                    ...current,
-                    restEndpoint: value as IntercomRestEndpoint,
-                  }));
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INTERCOM_REST_ENDPOINTS.map((endpoint) => (
-                  <SelectItem key={endpoint} value={endpoint}>
-                    <FormattedMessage {...endpointLabelMessage(endpoint)} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              <FormattedMessage {...intercomConnectionPanelMessages.restEndpointHelp} />
-            </p>
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={saveMutation.isPending}
-              onClick={() => {
-                setAdding(false);
-                setForm(emptyForm());
-              }}
-            >
-              <FormattedMessage {...intercomConnectionPanelMessages.cancel} />
-            </Button>
-            <Button
-              type="button"
-              disabled={disabled || saveMutation.isPending}
-              onClick={() => saveMutation.mutate(form)}
-            >
-              <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...intercomConnectionPanelMessages.save} />
-            </Button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </CollapsibleIntegrationRow>
   );
 }

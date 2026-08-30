@@ -230,7 +230,7 @@ export function GitHubIntegrationRow({
   const handledGithubErrorRef = useRef(false);
 
   useEffect(() => {
-    const errorCode = searchParams.get("error");
+    const errorCode = searchParams?.get("error");
     if (!errorCode || handledGithubErrorRef.current) {
       return;
     }
@@ -245,7 +245,7 @@ export function GitHubIntegrationRow({
   }, [intl, searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
+    if (searchParams?.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
       return;
     }
 

@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Delete02Icon, SaveIcon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, SaveIcon, SourceCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -39,6 +39,7 @@ import type {
 } from "@/lib/mcp-server-connections/types";
 
 import { mcpServerConnectionPanelMessages } from "./mcp-server-connection-panel.messages";
+import { CollapsibleIntegrationRow } from "./integration-row";
 
 const api = createApiClient();
 
@@ -107,13 +108,16 @@ export function useMcpServerConnections(organizationSlug: string) {
 export function McpServerConnectionPanel({
   organizationSlug,
   disabled,
+  isLast = true,
 }: {
   organizationSlug: string;
   disabled?: boolean;
+  isLast?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const connectionsQuery = useMcpServerConnections(organizationSlug);
+  const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<McpServerConnectionForm>(emptyForm);
 
@@ -179,217 +183,233 @@ export function McpServerConnectionPanel({
   });
 
   const connections = connectionsQuery.data ?? [];
+  const isConnected = connections.length > 0;
+  const showForm = adding || connections.length === 0;
+
+  function handleExpandedChange(nextExpanded: boolean) {
+    setExpanded(nextExpanded);
+    if (!nextExpanded) {
+      setAdding(false);
+      setForm(emptyForm());
+      return;
+    }
+    if (connections.length === 0) {
+      setAdding(true);
+    }
+  }
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            <FormattedMessage {...mcpServerConnectionPanelMessages.rowName} />
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <FormattedMessage {...mcpServerConnectionPanelMessages.rowDescription} />
-          </p>
-        </div>
-        {!adding ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            disabled={disabled}
-            onClick={() => setAdding(true)}
-          >
-            <FormattedMessage {...mcpServerConnectionPanelMessages.addServer} />
-          </Button>
+    <CollapsibleIntegrationRow
+      name={intl.formatMessage(mcpServerConnectionPanelMessages.rowName)}
+      description={intl.formatMessage(mcpServerConnectionPanelMessages.rowDescription)}
+      icon={<HugeiconsIcon icon={SourceCodeIcon} strokeWidth={1.8} className="size-5" />}
+      isConnected={isConnected}
+      userIsAdmin={!disabled}
+      expanded={expanded}
+      onExpandedChange={handleExpandedChange}
+      isLoading={connectionsQuery.isLoading}
+      isLast={isLast}
+    >
+      <div className="flex flex-col gap-5">
+        {connections.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {connections.map((connection) => (
+              <li
+                key={connection.id}
+                className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {connection.displayName}
+                    </p>
+                    <Badge variant="outline">{connection.transport.toUpperCase()}</Badge>
+                    <Badge variant="outline">{connection.authKind}</Badge>
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">{connection.serverUrl}</p>
+                  {connection.authKind !== "none" ? (
+                    <p className="text-xs text-muted-foreground">
+                      {intl.formatMessage(mcpServerConnectionPanelMessages.tokenConfigured, {
+                        suffix: connection.maskedTokenSuffix,
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={disabled || deleteMutation.isPending}
+                  aria-label={intl.formatMessage(mcpServerConnectionPanelMessages.delete)}
+                  onClick={() => deleteMutation.mutate(connection.id)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                </Button>
+              </li>
+            ))}
+          </ul>
         ) : null}
-      </div>
 
-      {connections.length === 0 && !adding ? (
-        <p className="text-xs text-muted-foreground">
-          <FormattedMessage {...mcpServerConnectionPanelMessages.emptyState} />
-        </p>
-      ) : null}
-
-      <ul className="flex flex-col gap-2">
-        {connections.map((connection) => (
-          <li
-            key={connection.id}
-            className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2"
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {connection.displayName}
-                </p>
-                <Badge variant="outline">{connection.transport.toUpperCase()}</Badge>
-                <Badge variant="outline">{connection.authKind}</Badge>
-              </div>
-              <p className="truncate text-xs text-muted-foreground">{connection.serverUrl}</p>
-              {connection.authKind !== "none" ? (
-                <p className="text-xs text-muted-foreground">
-                  {intl.formatMessage(mcpServerConnectionPanelMessages.tokenConfigured, {
-                    suffix: connection.maskedTokenSuffix,
-                  })}
-                </p>
-              ) : null}
-            </div>
+        {isConnected && !adding ? (
+          <div className="flex justify-end">
             <Button
               type="button"
-              size="icon-sm"
-              variant="ghost"
-              disabled={disabled || deleteMutation.isPending}
-              aria-label={intl.formatMessage(mcpServerConnectionPanelMessages.delete)}
-              onClick={() => deleteMutation.mutate(connection.id)}
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => setAdding(true)}
             >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...mcpServerConnectionPanelMessages.addServer} />
             </Button>
-          </li>
-        ))}
-      </ul>
-
-      {adding ? (
-        <div className="grid gap-3 rounded-lg border border-border p-3">
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...mcpServerConnectionPanelMessages.displayNameLabel} />
-            </FieldLabel>
-            <Input
-              value={form.displayName}
-              disabled={disabled || saveMutation.isPending}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, displayName: event.target.value }))
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...mcpServerConnectionPanelMessages.serverUrlLabel} />
-            </FieldLabel>
-            <Input
-              value={form.serverUrl}
-              disabled={disabled || saveMutation.isPending}
-              placeholder="https://example.com/mcp"
-              onChange={(event) =>
-                setForm((current) => ({ ...current, serverUrl: event.target.value }))
-              }
-            />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field>
-              <FieldLabel>
-                <FormattedMessage {...mcpServerConnectionPanelMessages.transportLabel} />
-              </FieldLabel>
-              <Select
-                value={form.transport}
-                disabled={disabled || saveMutation.isPending}
-                onValueChange={(value) => {
-                  if (value !== "http" && value !== "sse") {
-                    return;
-                  }
-                  setForm((current) => ({ ...current, transport: value }));
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="http">
-                    <FormattedMessage {...mcpServerConnectionPanelMessages.transportHttp} />
-                  </SelectItem>
-                  <SelectItem value="sse">
-                    <FormattedMessage {...mcpServerConnectionPanelMessages.transportSse} />
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>
-                <FormattedMessage {...mcpServerConnectionPanelMessages.authKindLabel} />
-              </FieldLabel>
-              <Select
-                value={form.authKind}
-                disabled={disabled || saveMutation.isPending}
-                onValueChange={(value) => {
-                  if (value !== "none" && value !== "bearer" && value !== "headers") {
-                    return;
-                  }
-                  setForm((current) => ({ ...current, authKind: value }));
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    <FormattedMessage {...mcpServerConnectionPanelMessages.authNone} />
-                  </SelectItem>
-                  <SelectItem value="bearer">
-                    <FormattedMessage {...mcpServerConnectionPanelMessages.authBearer} />
-                  </SelectItem>
-                  <SelectItem value="headers">
-                    <FormattedMessage {...mcpServerConnectionPanelMessages.authHeaders} />
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
           </div>
-          {form.authKind === "bearer" ? (
+        ) : null}
+
+        {showForm ? (
+          <div className="grid gap-3">
             <Field>
               <FieldLabel>
-                <FormattedMessage {...mcpServerConnectionPanelMessages.bearerTokenLabel} />
+                <FormattedMessage {...mcpServerConnectionPanelMessages.displayNameLabel} />
               </FieldLabel>
               <Input
-                type="password"
-                value={form.bearerToken}
+                value={form.displayName}
                 disabled={disabled || saveMutation.isPending}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, bearerToken: event.target.value }))
+                  setForm((current) => ({ ...current, displayName: event.target.value }))
                 }
               />
             </Field>
-          ) : null}
-          {form.authKind === "headers" ? (
             <Field>
               <FieldLabel>
-                <FormattedMessage {...mcpServerConnectionPanelMessages.headersLabel} />
+                <FormattedMessage {...mcpServerConnectionPanelMessages.serverUrlLabel} />
               </FieldLabel>
-              <Textarea
-                value={form.headersJson}
+              <Input
+                value={form.serverUrl}
                 disabled={disabled || saveMutation.isPending}
-                placeholder={intl.formatMessage(
-                  mcpServerConnectionPanelMessages.headersPlaceholder,
-                )}
+                placeholder="https://example.com/mcp"
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, headersJson: event.target.value }))
+                  setForm((current) => ({ ...current, serverUrl: event.target.value }))
                 }
               />
             </Field>
-          ) : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={saveMutation.isPending}
-              onClick={() => {
-                setAdding(false);
-                setForm(emptyForm());
-              }}
-            >
-              <FormattedMessage {...mcpServerConnectionPanelMessages.cancel} />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled || saveMutation.isPending}
-              onClick={() => saveMutation.mutate(form)}
-            >
-              <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...mcpServerConnectionPanelMessages.save} />
-            </Button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...mcpServerConnectionPanelMessages.transportLabel} />
+                </FieldLabel>
+                <Select
+                  value={form.transport}
+                  disabled={disabled || saveMutation.isPending}
+                  onValueChange={(value) => {
+                    if (value !== "http" && value !== "sse") {
+                      return;
+                    }
+                    setForm((current) => ({ ...current, transport: value }));
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="http">
+                      <FormattedMessage {...mcpServerConnectionPanelMessages.transportHttp} />
+                    </SelectItem>
+                    <SelectItem value="sse">
+                      <FormattedMessage {...mcpServerConnectionPanelMessages.transportSse} />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...mcpServerConnectionPanelMessages.authKindLabel} />
+                </FieldLabel>
+                <Select
+                  value={form.authKind}
+                  disabled={disabled || saveMutation.isPending}
+                  onValueChange={(value) => {
+                    if (value !== "none" && value !== "bearer" && value !== "headers") {
+                      return;
+                    }
+                    setForm((current) => ({ ...current, authKind: value }));
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      <FormattedMessage {...mcpServerConnectionPanelMessages.authNone} />
+                    </SelectItem>
+                    <SelectItem value="bearer">
+                      <FormattedMessage {...mcpServerConnectionPanelMessages.authBearer} />
+                    </SelectItem>
+                    <SelectItem value="headers">
+                      <FormattedMessage {...mcpServerConnectionPanelMessages.authHeaders} />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            {form.authKind === "bearer" ? (
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...mcpServerConnectionPanelMessages.bearerTokenLabel} />
+                </FieldLabel>
+                <Input
+                  type="password"
+                  value={form.bearerToken}
+                  disabled={disabled || saveMutation.isPending}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, bearerToken: event.target.value }))
+                  }
+                />
+              </Field>
+            ) : null}
+            {form.authKind === "headers" ? (
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...mcpServerConnectionPanelMessages.headersLabel} />
+                </FieldLabel>
+                <Textarea
+                  value={form.headersJson}
+                  disabled={disabled || saveMutation.isPending}
+                  placeholder={intl.formatMessage(
+                    mcpServerConnectionPanelMessages.headersPlaceholder,
+                  )}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, headersJson: event.target.value }))
+                  }
+                />
+              </Field>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              {isConnected ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={saveMutation.isPending}
+                  onClick={() => {
+                    setAdding(false);
+                    setForm(emptyForm());
+                  }}
+                >
+                  <FormattedMessage {...mcpServerConnectionPanelMessages.cancel} />
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                disabled={disabled || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(form)}
+              >
+                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                <FormattedMessage {...mcpServerConnectionPanelMessages.save} />
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </CollapsibleIntegrationRow>
   );
 }

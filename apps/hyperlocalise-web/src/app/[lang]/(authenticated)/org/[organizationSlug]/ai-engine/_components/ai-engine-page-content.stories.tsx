@@ -50,9 +50,8 @@ export const Default: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "AI Engine" })).toBeInTheDocument();
-    await expect(canvas.getByText("Workspace level")).toBeInTheDocument();
     await expect(canvas.getByText("Open AI")).toBeInTheDocument();
-    await expect(canvas.getByText("Hyperlocalise GO")).toBeInTheDocument();
+    await expect(canvas.getByText("Included models")).toBeInTheDocument();
     await expect(canvas.getByText("Configure")).toBeInTheDocument();
   },
 };
@@ -65,7 +64,7 @@ export const Disconnected: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "AI Engine" })).toBeInTheDocument();
-    await expect(canvas.getByText("Hyperlocalise GO")).toBeInTheDocument();
+    await expect(canvas.getByText("Included models")).toBeInTheDocument();
     await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
   },
 };
@@ -77,7 +76,7 @@ export const ManagedProviderOnly: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Hyperlocalise GO")).toBeInTheDocument();
+    await expect(canvas.getByText("Included models")).toBeInTheDocument();
     await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByText("Configure")).toBeInTheDocument();
   },
