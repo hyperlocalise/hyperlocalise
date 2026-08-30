@@ -157,12 +157,14 @@ describe("isAllowedBashCommand", () => {
     expect(isAllowedBashCommand(command)).toBe(false);
   });
 
-  it.each(["find -L . -type f", "find -H . -type f", "find -LH . -type f", "find . -follow -type f"])(
-    "blocks find symlink-follow flag in %s",
-    (command) => {
-      expect(isAllowedBashCommand(command)).toBe(false);
-    },
-  );
+  it.each([
+    "find -L . -type f",
+    "find -H . -type f",
+    "find -LH . -type f",
+    "find . -follow -type f",
+  ])("blocks find symlink-follow flag in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
 });
 
 describe("createBashTool", () => {

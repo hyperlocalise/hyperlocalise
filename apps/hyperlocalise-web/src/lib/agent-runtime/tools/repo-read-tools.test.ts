@@ -1764,10 +1764,7 @@ describe("createRunHyperlocaliseCliTool", () => {
       );
 
       const t = createRunHyperlocaliseCliTool(ctx);
-      const result = await t.execute!(
-        { subcommand: "check", flags: { config } },
-        toolCallInfo,
-      );
+      const result = await t.execute!({ subcommand: "check", flags: { config } }, toolCallInfo);
       expect(result).toMatchObject({
         success: false,
         error: expect.stringContaining("workspace"),
