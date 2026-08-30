@@ -10,28 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
-import { FIGMA_OAUTH_MESSAGE_TYPE, postFigmaOAuthResult } from "./origins";
+import { DEFAULT_FIGMA_PLUGIN_ORIGINS } from "./origins";
 
-describe("figma oauth postMessage origins", () => {
-  it("posts the auth result only to Figma plugin origins", () => {
-    const postMessage = vi.fn();
-    const payload = {
-      type: FIGMA_OAUTH_MESSAGE_TYPE,
-      code: "oauth-code",
-      state: "oauth-state",
-      error: null,
-      errorDescription: null,
-    } as const;
-
-    postFigmaOAuthResult({ postMessage }, payload);
-
-    expect(postMessage.mock.calls).toEqual([
-      [payload, "https://www.figma.com"],
-      [payload, "https://figma.com"],
-      [payload, "null"],
+describe("figma plugin origins", () => {
+  it("allows only the Figma plugin origin allowlist", () => {
+    expect(DEFAULT_FIGMA_PLUGIN_ORIGINS).toEqual([
+      "https://www.figma.com",
+      "https://figma.com",
+      "null",
     ]);
-    expect(postMessage.mock.calls.some(([, origin]) => origin === "*")).toBe(false);
   });
 });

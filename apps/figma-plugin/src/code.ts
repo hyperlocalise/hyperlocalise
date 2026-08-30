@@ -7,7 +7,7 @@ import {
   type FigmaPageJobBinding,
 } from "./page-binding";
 import { createFigmaSegment } from "./segment-file";
-import { mergeSettings } from "./settings";
+import { hadLegacyFigmaSession, mergeSettings } from "./settings";
 
 figma.showUI(__html__, { themeColors: true, width: 360, height: 720 });
 
@@ -23,8 +23,19 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
     }
 
     if (msg.type === "boot") {
-      const settings = mergeSettings(await figma.clientStorage.getAsync(SETTINGS_STORAGE_KEY));
-      postToUi({ type: "ready", settings, file: currentFileInfo(), binding: readPageBinding() });
+      const stored = await figma.clientStorage.getAsync(SETTINGS_STORAGE_KEY);
+      const legacySessionCleared = hadLegacyFigmaSession(stored);
+      const settings = mergeSettings(stored);
+      if (legacySessionCleared) {
+        await figma.clientStorage.setAsync(SETTINGS_STORAGE_KEY, settings);
+      }
+      postToUi({
+        type: "ready",
+        settings,
+        file: currentFileInfo(),
+        binding: readPageBinding(),
+        legacySessionCleared,
+      });
       return;
     }
 

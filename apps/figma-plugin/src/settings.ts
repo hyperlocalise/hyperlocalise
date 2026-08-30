@@ -9,9 +9,10 @@ export const DEFAULT_APP_URL =
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   appUrl: DEFAULT_APP_URL,
-  sealedSession: null,
+  personalAccessToken: null,
   userEmail: null,
   organizationSlug: "",
+  organizationName: null,
   projectId: "",
   sourceLocale: "en",
   targetLocales: ["es"],
@@ -32,21 +33,51 @@ export function resolvePersistedProjectId(
     : "";
 }
 
+function readPersonalAccessToken(candidate: Partial<PluginSettings> & { sealedSession?: unknown }) {
+  if (typeof candidate.personalAccessToken === "string" && candidate.personalAccessToken.trim()) {
+    return candidate.personalAccessToken.trim();
+  }
+
+  return null;
+}
+
+/** True when stored plugin settings still hold a WorkOS sealed session. */
+export function hadLegacyFigmaSession(value: unknown): boolean {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as { sealedSession?: unknown; personalAccessToken?: unknown };
+  const hasLegacySession =
+    typeof candidate.sealedSession === "string" && candidate.sealedSession.trim().length > 0;
+  const hasPat =
+    typeof candidate.personalAccessToken === "string" &&
+    candidate.personalAccessToken.trim().length > 0;
+
+  return hasLegacySession && !hasPat;
+}
+
 export function mergeSettings(value: unknown): PluginSettings {
   if (!value || typeof value !== "object") {
     return { ...DEFAULT_SETTINGS };
   }
 
-  const candidate = value as Partial<PluginSettings>;
+  const candidate = value as Partial<PluginSettings> & { sealedSession?: unknown };
   return {
-    ...DEFAULT_SETTINGS,
-    ...candidate,
     appUrl: normalizeAppUrl(candidate.appUrl ?? DEFAULT_SETTINGS.appUrl),
+    personalAccessToken: readPersonalAccessToken(candidate),
+    userEmail: candidate.userEmail ?? null,
+    organizationSlug: candidate.organizationSlug ?? DEFAULT_SETTINGS.organizationSlug,
+    organizationName: candidate.organizationName ?? null,
+    projectId: candidate.projectId ?? DEFAULT_SETTINGS.projectId,
+    sourceLocale: candidate.sourceLocale ?? DEFAULT_SETTINGS.sourceLocale,
     targetLocales: Array.isArray(candidate.targetLocales)
       ? candidate.targetLocales.filter((locale) => typeof locale === "string" && locale.trim())
       : DEFAULT_SETTINGS.targetLocales,
-    sealedSession: candidate.sealedSession ?? null,
-    userEmail: candidate.userEmail ?? null,
+    preserveFormatting:
+      typeof candidate.preserveFormatting === "boolean"
+        ? candidate.preserveFormatting
+        : DEFAULT_SETTINGS.preserveFormatting,
     lastJobId: candidate.lastJobId ?? null,
   };
 }

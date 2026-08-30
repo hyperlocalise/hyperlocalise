@@ -16,9 +16,10 @@ export type FigmaFileInfo = {
 
 export type PluginSettings = {
   appUrl: string;
-  sealedSession: string | null;
+  personalAccessToken: string | null;
   userEmail: string | null;
   organizationSlug: string;
+  organizationName: string | null;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -51,6 +52,7 @@ export type SandboxToUiMessage =
       settings: PluginSettings;
       file: FigmaFileInfo;
       binding: FigmaPageJobBinding | null;
+      legacySessionCleared?: boolean;
     }
   | { type: "page-changed"; file: FigmaFileInfo; binding: FigmaPageJobBinding | null }
   | { type: "extracted"; segments: FigmaSegment[]; file: FigmaFileInfo }
@@ -58,4 +60,3 @@ export type SandboxToUiMessage =
   | { type: "error"; message: string };
 
 export const SETTINGS_STORAGE_KEY = "hyperlocalise:figma-plugin:settings:v1";
-export const FIGMA_OAUTH_MESSAGE_TYPE = "hyperlocalise-figma-oauth";

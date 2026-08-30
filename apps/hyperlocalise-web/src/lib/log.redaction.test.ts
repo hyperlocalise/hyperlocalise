@@ -71,6 +71,20 @@ describe("Logger Redaction", () => {
     expect(event?.apiKeyId).toBe("3f1b7c2a-0000-4000-8000-000000000000");
   });
 
+  it("should redact a raw personal access token field", () => {
+    const logger = createLogger();
+
+    logger.info({
+      personalAccessToken: "hl_raw_secret_token",
+      settings: { personalAccessToken: "hl_nested_secret_token" },
+    });
+
+    const [event] = drainedEvents;
+    const settings = event?.settings as Record<string, unknown>;
+    expect(event?.personalAccessToken).toBe("[REDACTED]");
+    expect(settings.personalAccessToken).toBe("[REDACTED]");
+  });
+
   it("should redact sensitive headers", () => {
     const logger = createLogger();
 

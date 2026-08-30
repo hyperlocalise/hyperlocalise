@@ -13,11 +13,13 @@
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import {
+  apiKeyAuthMiddleware,
+  requireApiKeyPermission,
+  type ApiKeyAuthVariables,
+} from "@/api/auth/api-key";
 import { figmaCorsMiddleware } from "@/api/auth/figma-cors";
-import { figmaSessionAuthMiddleware } from "@/api/auth/figma-session";
-import { hasCapability } from "@/api/auth/policy";
-import type { AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import {
   generateFigmaLocalization,
   getCurrentFigmaPageJob,
@@ -32,6 +34,10 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import {
   createFigmaJobBodySchema,
   currentFigmaJobQuerySchema,
+  FIGMA_JOB_READ_PERMISSION,
+  FIGMA_JOB_WRITE_PERMISSION,
+  FIGMA_PROJECTS_PERMISSION,
+  FIGMA_TRANSLATIONS_PERMISSION,
   figmaJobIdParamSchema,
   pullFigmaTranslationsQuerySchema,
 } from "./figma-integration.schema";
@@ -125,13 +131,13 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
 }
 
 export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRoutesOptions = {}) {
-  return new Hono<{ Variables: AuthVariables }>()
+  return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", figmaCorsMiddleware)
     .get("/health", async (c) => {
       return c.json({ ok: true }, 200);
     })
-    .get("/session", figmaSessionAuthMiddleware, async (c) => {
-      const auth = c.var.auth;
+    .get("/session", apiKeyAuthMiddleware, async (c) => {
+      const auth = c.var.auth.teamAccess;
       return c.json(
         {
           session: {
@@ -144,130 +150,140 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
               name: auth.organization.name,
               id: auth.organization.localOrganizationId,
             },
-            organizations: auth.organizations
-              .filter((organization) => Boolean(organization.slug))
-              .map((organization) => ({
-                slug: organization.slug,
-                name: organization.name,
-                id: organization.localOrganizationId,
-              })),
           },
         },
         200,
       );
     })
-    .get("/projects", figmaSessionAuthMiddleware, async (c) => {
-      const projects = await listOrganizationProjects(c.var.auth);
-      return c.json(
-        {
-          projects: projects.map((project) => ({
-            id: project.id,
-            name: project.name,
-            sourceLocale: project.sourceLocale ?? "en",
-            targetLocales: project.targetLocales ?? [],
-          })),
-        },
-        200,
-      );
-    })
-    .post("/jobs", figmaSessionAuthMiddleware, validateCreateJobBody, async (c) => {
-      const auth = c.var.auth;
-      if (!hasCapability(auth.membership.role, "jobs:create")) {
-        return forbiddenResponse(
-          c,
-          "figma_jobs_create_forbidden",
-          "You do not have permission to create translation jobs.",
+    .get(
+      "/projects",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_PROJECTS_PERMISSION),
+      async (c) => {
+        const projects = await listOrganizationProjects(c.var.auth.teamAccess);
+        return c.json(
+          {
+            projects: projects.map((project) => ({
+              id: project.id,
+              name: project.name,
+              sourceLocale: project.sourceLocale ?? "en",
+              targetLocales: project.targetLocales ?? [],
+            })),
+          },
+          200,
         );
-      }
+      },
+    )
+    .post(
+      "/jobs",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_JOB_WRITE_PERMISSION),
+      validateCreateJobBody,
+      async (c) => {
+        if (!options.jobQueue) {
+          return c.json({ error: "translation_job_queue_unavailable" }, 503);
+        }
 
-      if (!options.jobQueue) {
-        return c.json({ error: "translation_job_queue_unavailable" }, 503);
-      }
+        const payload = c.req.valid("json");
+        try {
+          const result = await startFigmaLocalization({
+            auth: c.var.auth.teamAccess,
+            projectId: payload.projectId,
+            fileKey: payload.fileKey,
+            pageId: payload.pageId,
+            fileName: payload.fileName,
+            sourceLocale: payload.sourceLocale,
+            targetLocales: payload.targetLocales,
+            segments: payload.segments,
+            generate: payload.generate,
+            jobQueue: options.jobQueue,
+            fileStorageAdapter: options.fileStorageAdapter,
+          });
+          return c.json({ job: result }, 201);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/jobs/current",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
+      validateCurrentJobQuery,
+      async (c) => {
+        const query = c.req.valid("query");
+        try {
+          const result = await getCurrentFigmaPageJob({
+            auth: c.var.auth.teamAccess,
+            fileKey: query.fileKey,
+            pageId: query.pageId,
+            projectId: query.projectId,
+          });
+          return c.json(result, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/jobs/:jobId",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
+      validateJobIdParams,
+      async (c) => {
+        const { jobId } = c.req.valid("param");
+        try {
+          const status = await getFigmaLocalizationStatus({
+            auth: c.var.auth.teamAccess,
+            jobId,
+          });
+          return c.json({ job: status }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/jobs/:jobId/generate",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_JOB_WRITE_PERMISSION),
+      validateJobIdParams,
+      async (c) => {
+        if (!options.jobQueue) {
+          return c.json({ error: "translation_job_queue_unavailable" }, 503);
+        }
 
-      const payload = c.req.valid("json");
-      try {
-        const result = await startFigmaLocalization({
-          auth,
-          projectId: payload.projectId,
-          fileKey: payload.fileKey,
-          pageId: payload.pageId,
-          fileName: payload.fileName,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
-          segments: payload.segments,
-          generate: payload.generate,
-          jobQueue: options.jobQueue,
-          fileStorageAdapter: options.fileStorageAdapter,
-        });
-        return c.json({ job: result }, 201);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
-    .get("/jobs/current", figmaSessionAuthMiddleware, validateCurrentJobQuery, async (c) => {
-      const query = c.req.valid("query");
-      try {
-        const result = await getCurrentFigmaPageJob({
-          auth: c.var.auth,
-          fileKey: query.fileKey,
-          pageId: query.pageId,
-          projectId: query.projectId,
-        });
-        return c.json(result, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
-    .get("/jobs/:jobId", figmaSessionAuthMiddleware, validateJobIdParams, async (c) => {
-      const { jobId } = c.req.valid("param");
-      try {
-        const status = await getFigmaLocalizationStatus({
-          auth: c.var.auth,
-          jobId,
-        });
-        return c.json({ job: status }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
-    .post("/jobs/:jobId/generate", figmaSessionAuthMiddleware, validateJobIdParams, async (c) => {
-      const auth = c.var.auth;
-      if (!hasCapability(auth.membership.role, "jobs:create")) {
-        return forbiddenResponse(
-          c,
-          "figma_jobs_create_forbidden",
-          "You do not have permission to generate translations.",
-        );
-      }
-
-      if (!options.jobQueue) {
-        return c.json({ error: "translation_job_queue_unavailable" }, 503);
-      }
-
-      const { jobId } = c.req.valid("param");
-      try {
-        const result = await generateFigmaLocalization({
-          auth,
-          jobId,
-          jobQueue: options.jobQueue,
-        });
-        return c.json({ job: { jobId: result.jobId, generated: true } }, 202);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
-    .get("/translations", figmaSessionAuthMiddleware, validatePullQuery, async (c) => {
-      const query = c.req.valid("query");
-      try {
-        const translations = await pullLatestFigmaTranslations({
-          auth: c.var.auth,
-          projectId: query.projectId,
-          fileKey: query.fileKey,
-          pageId: query.pageId,
-        });
-        return c.json({ translations }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    });
+        const { jobId } = c.req.valid("param");
+        try {
+          const result = await generateFigmaLocalization({
+            auth: c.var.auth.teamAccess,
+            jobId,
+            jobQueue: options.jobQueue,
+          });
+          return c.json({ job: { jobId: result.jobId, generated: true } }, 202);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/translations",
+      apiKeyAuthMiddleware,
+      requireApiKeyPermission(FIGMA_TRANSLATIONS_PERMISSION),
+      validatePullQuery,
+      async (c) => {
+        const query = c.req.valid("query");
+        try {
+          const translations = await pullLatestFigmaTranslations({
+            auth: c.var.auth.teamAccess,
+            projectId: query.projectId,
+            fileKey: query.fileKey,
+            pageId: query.pageId,
+          });
+          return c.json({ translations }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    );
 }

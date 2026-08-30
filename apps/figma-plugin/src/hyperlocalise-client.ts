@@ -1,9 +1,7 @@
-import { FIGMA_OAUTH_MESSAGE_TYPE, type FigmaPageJob, type FigmaSegment } from "./plugin-messages";
-import { createPkcePair } from "./pkce";
+import type { FigmaPageJob, FigmaSegment } from "./plugin-messages";
 import { normalizeAppUrl } from "./settings";
 
-const FIGMA_SESSION_HEADER = "X-Hyperlocalise-Figma-Session";
-const ORGANIZATION_SLUG_HEADER = "X-Hyperlocalise-Organization-Slug";
+const API_KEY_HEADER = "x-api-key";
 export const FIGMA_JOB_POLL_INTERVAL_MS = 1_500;
 
 export class HyperlocaliseClientError extends Error {
@@ -19,7 +17,6 @@ export class HyperlocaliseClientError extends Error {
 export type FigmaSession = {
   user: { email: string; localUserId: string };
   organization: { slug: string | null; name: string; id: string };
-  organizations: Array<{ slug: string | null; name: string; id: string }>;
 };
 
 export type FigmaProject = {
@@ -37,11 +34,10 @@ function apiUrl(appUrl: string, path: string) {
   return `${normalizeAppUrl(appUrl)}${path}`;
 }
 
-function sessionHeaders(input: { sealedSession: string; organizationSlug?: string }) {
+function apiKeyHeaders(personalAccessToken: string) {
   return {
     "Content-Type": "application/json",
-    [FIGMA_SESSION_HEADER]: input.sealedSession,
-    ...(input.organizationSlug ? { [ORGANIZATION_SLUG_HEADER]: input.organizationSlug } : {}),
+    [API_KEY_HEADER]: personalAccessToken,
   };
 }
 
@@ -49,134 +45,12 @@ async function readError(response: Response): Promise<ErrorPayload> {
   return ((await response.json().catch(() => null)) as ErrorPayload | null) ?? {};
 }
 
-export async function signInWithOAuth(appUrl: string): Promise<{
-  sealedSession: string;
-  email: string;
-}> {
-  const pkce = await createPkcePair();
-  const authorizeResponse = await fetch(
-    apiUrl(
-      appUrl,
-      `/api/auth/figma/authorize?codeChallenge=${encodeURIComponent(pkce.codeChallenge)}&codeChallengeMethod=S256&state=${encodeURIComponent(pkce.state)}`,
-    ),
-  );
-  const authorizePayload = (await authorizeResponse.json().catch(() => null)) as {
-    authorization?: { url?: string };
-    error?: string;
-    message?: string;
-  } | null;
-
-  if (!authorizeResponse.ok || !authorizePayload?.authorization?.url) {
-    throw new HyperlocaliseClientError(
-      authorizePayload?.error ?? "figma_authorize_failed",
-      authorizePayload?.message ?? "Unable to start Hyperlocalise sign-in.",
-    );
-  }
-
-  const authorizationCode = await openOAuthPopup(
-    authorizePayload.authorization.url,
-    pkce.state,
-    normalizeAppUrl(appUrl),
-  );
-
-  const tokenResponse = await fetch(apiUrl(appUrl, "/api/auth/figma/token"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      code: authorizationCode,
-      codeVerifier: pkce.codeVerifier,
-    }),
-  });
-  const tokenPayload = (await tokenResponse.json().catch(() => null)) as {
-    session?: { sealedSession?: string };
-    user?: { email?: string };
-    error?: string;
-    message?: string;
-  } | null;
-
-  if (!tokenResponse.ok || !tokenPayload?.session?.sealedSession) {
-    throw new HyperlocaliseClientError(
-      tokenPayload?.error ?? "figma_token_exchange_failed",
-      tokenPayload?.message ?? "Unable to finish Hyperlocalise sign-in.",
-    );
-  }
-
-  return {
-    sealedSession: tokenPayload.session.sealedSession,
-    email: tokenPayload.user?.email ?? "",
-  };
-}
-
-function openOAuthPopup(url: string, state: string, appUrl: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const popup = window.open(url, "hyperlocalise-figma-oauth", "width=480,height=720");
-    if (!popup) {
-      reject(
-        new HyperlocaliseClientError("popup_blocked", "Allow popups to sign in to Hyperlocalise."),
-      );
-      return;
-    }
-
-    const timeout = window.setTimeout(
-      () => {
-        cleanup();
-        reject(new HyperlocaliseClientError("oauth_timeout", "Sign-in timed out. Try again."));
-      },
-      5 * 60 * 1000,
-    );
-
-    const handleMessage = (event: MessageEvent) => {
-      const origin = typeof event.origin === "string" ? event.origin : "";
-      if (origin && origin !== new URL(appUrl).origin) {
-        return;
-      }
-
-      const data = event.data as {
-        type?: string;
-        code?: string | null;
-        state?: string | null;
-        error?: string | null;
-        errorDescription?: string | null;
-      };
-      if (data?.type !== FIGMA_OAUTH_MESSAGE_TYPE) {
-        return;
-      }
-      if (data.state && data.state !== state) {
-        return;
-      }
-
-      cleanup();
-      popup.close();
-
-      if (data.error || !data.code) {
-        reject(
-          new HyperlocaliseClientError(
-            data.error ?? "oauth_denied",
-            data.errorDescription ?? "Sign-in was cancelled.",
-          ),
-        );
-        return;
-      }
-
-      resolve(data.code);
-    };
-
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("message", handleMessage);
-    };
-
-    window.addEventListener("message", handleMessage);
-  });
-}
-
 export async function fetchFigmaSession(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug?: string;
+  personalAccessToken: string;
 }): Promise<FigmaSession> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/session"), {
-    headers: sessionHeaders(input),
+    headers: apiKeyHeaders(input.personalAccessToken),
   });
   const payload = (await response.json().catch(() => null)) as
     | ({
@@ -194,11 +68,10 @@ export async function fetchFigmaSession(input: {
 
 export async function fetchFigmaProjects(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
 }): Promise<FigmaProject[]> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/projects"), {
-    headers: sessionHeaders(input),
+    headers: apiKeyHeaders(input.personalAccessToken),
   });
   const payload = (await response.json().catch(() => null)) as
     | ({
@@ -216,8 +89,7 @@ export async function fetchFigmaProjects(input: {
 
 export async function createFigmaJob(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
   projectId: string;
   fileKey: string;
   pageId: string;
@@ -234,7 +106,7 @@ export async function createFigmaJob(input: {
 }> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/jobs"), {
     method: "POST",
-    headers: sessionHeaders(input),
+    headers: apiKeyHeaders(input.personalAccessToken),
     body: JSON.stringify({
       projectId: input.projectId,
       fileKey: input.fileKey,
@@ -272,8 +144,7 @@ export async function createFigmaJob(input: {
 
 export async function generateFigmaJob(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
   jobId: string;
 }): Promise<void> {
   const response = await fetch(
@@ -283,7 +154,7 @@ export async function generateFigmaJob(input: {
     ),
     {
       method: "POST",
-      headers: sessionHeaders(input),
+      headers: apiKeyHeaders(input.personalAccessToken),
     },
   );
   if (!response.ok) {
@@ -297,13 +168,12 @@ export async function generateFigmaJob(input: {
 
 export async function getFigmaJob(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
   jobId: string;
 }): Promise<FigmaJobStatus> {
   const response = await fetch(
     apiUrl(input.appUrl, `/api/integrations/figma/jobs/${encodeURIComponent(input.jobId)}`),
-    { headers: sessionHeaders(input) },
+    { headers: apiKeyHeaders(input.personalAccessToken) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({
@@ -323,8 +193,7 @@ export async function getFigmaJob(input: {
 
 export async function fetchCurrentFigmaJob(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
   fileKey: string;
   pageId: string;
   projectId?: string;
@@ -339,7 +208,7 @@ export async function fetchCurrentFigmaJob(input: {
 
   const response = await fetch(
     apiUrl(input.appUrl, `/api/integrations/figma/jobs/current?${params.toString()}`),
-    { headers: sessionHeaders(input) },
+    { headers: apiKeyHeaders(input.personalAccessToken) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({
@@ -359,8 +228,7 @@ export async function fetchCurrentFigmaJob(input: {
 
 export async function pullFigmaTranslations(input: {
   appUrl: string;
-  sealedSession: string;
-  organizationSlug: string;
+  personalAccessToken: string;
   projectId: string;
   fileKey: string;
   pageId: string;
@@ -370,7 +238,7 @@ export async function pullFigmaTranslations(input: {
       input.appUrl,
       `/api/integrations/figma/translations?projectId=${encodeURIComponent(input.projectId)}&fileKey=${encodeURIComponent(input.fileKey)}&pageId=${encodeURIComponent(input.pageId)}`,
     ),
-    { headers: sessionHeaders(input) },
+    { headers: apiKeyHeaders(input.personalAccessToken) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({

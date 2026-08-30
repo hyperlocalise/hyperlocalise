@@ -83,6 +83,8 @@ export const REDACTION_PATHS = [
   "*.keyHash",
   "key_hash",
   "*.key_hash",
+  "personalAccessToken",
+  "*.personalAccessToken",
   '["x-api-key"]',
   '*.["x-api-key"]',
   "x-api-key",

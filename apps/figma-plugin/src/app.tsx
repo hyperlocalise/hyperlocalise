@@ -10,7 +10,6 @@ import {
   getFigmaJob,
   HyperlocaliseClientError,
   pullFigmaTranslations,
-  signInWithOAuth,
   type FigmaProject,
 } from "./hyperlocalise-client";
 import { buildFigmaJobUrl, type FigmaPageJobBinding } from "./page-binding";
@@ -24,6 +23,7 @@ import type {
 } from "./plugin-messages";
 import {
   DEFAULT_SETTINGS,
+  hadLegacyFigmaSession,
   mergeSettings,
   normalizeAppUrl,
   resolvePersistedProjectId,
@@ -43,6 +43,9 @@ const LOCALE_OPTIONS = [
   { value: "zh-CN", label: "Chinese Simplified (zh-CN)" },
   { value: "vi-VN", label: "Vietnamese (vi-VN)" },
 ];
+
+const LEGACY_SESSION_MESSAGE =
+  "Your previous Hyperlocalise sign-in is no longer supported. Connect with a personal access token.";
 
 type BusyAction = "login" | "extract" | "create" | "generate" | "pull" | null;
 
@@ -134,11 +137,23 @@ function pageJobFromCreate(input: {
   };
 }
 
+function isReconnectError(error: unknown) {
+  if (!(error instanceof HyperlocaliseClientError)) {
+    return false;
+  }
+
+  return (
+    error.code === "unauthorized" ||
+    error.code === "forbidden" ||
+    error.code === "workspace_archived"
+  );
+}
+
 export function App() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
+  const [tokenDraft, setTokenDraft] = useState("");
   const [file, setFile] = useState<FigmaFileInfo | null>(null);
   const [projects, setProjects] = useState<FigmaProject[]>([]);
-  const [organizations, setOrganizations] = useState<Array<{ slug: string; name: string }>>([]);
   const [segments, setSegments] = useState<FigmaSegment[]>([]);
   const [pageBinding, setPageBinding] = useState<FigmaPageJobBinding | null>(null);
   const [pageJob, setPageJob] = useState<FigmaPageJob | null>(null);
@@ -149,29 +164,35 @@ export function App() {
   const [booted, setBooted] = useState(false);
   const pageIdRef = useRef<string | null>(null);
 
-  const signedIn = Boolean(settings.sealedSession);
+  const connected = Boolean(settings.personalAccessToken);
   const selectedProject = projects.find((project) => project.id === settings.projectId);
   const canCreateJob =
-    signedIn &&
-    Boolean(settings.organizationSlug) &&
+    connected &&
     Boolean(settings.projectId) &&
     settings.targetLocales.length > 0 &&
     segments.length > 0 &&
     busy == null;
   const canPull =
-    signedIn &&
-    Boolean(settings.organizationSlug) &&
+    connected &&
     Boolean(pageJob?.projectId || settings.projectId) &&
     busy == null &&
     pageJob != null &&
     (pageJob.status === "succeeded" || pageJob.status === "waiting_for_review");
   const canGeneratePageJob =
-    signedIn && pageJob != null && pageJob.status === "queued" && busy == null;
+    connected && pageJob != null && pageJob.status === "queued" && busy == null;
 
   const persistSettings = (next: PluginSettings) => {
     setSettings(next);
     postPluginMessage({ type: "storage-set", settings: next });
   };
+
+  const clearConnection = (current: PluginSettings) => ({
+    ...current,
+    personalAccessToken: null,
+    userEmail: null,
+    organizationSlug: "",
+    organizationName: null,
+  });
 
   const persistBinding = (binding: FigmaPageJobBinding | null, pageId: string) => {
     if (pageIdRef.current === pageId) {
@@ -212,7 +233,11 @@ export function App() {
     const handleMessage = (event: MessageEvent<{ pluginMessage?: SandboxToUiMessage }>) => {
       const payload = event.data.pluginMessage;
       if (payload?.type === "ready") {
-        setSettings(mergeSettings(payload.settings));
+        const merged = mergeSettings(payload.settings);
+        setSettings(merged);
+        if (payload.legacySessionCleared || hadLegacyFigmaSession(payload.settings)) {
+          setErrorMessage(LEGACY_SESSION_MESSAGE);
+        }
         setFile(payload.file);
         pageIdRef.current = payload.file.pageId;
         setPageBinding(payload.binding);
@@ -234,7 +259,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!settings.sealedSession) {
+    if (!settings.personalAccessToken) {
       return;
     }
 
@@ -244,41 +269,28 @@ export function App() {
       try {
         const session = await fetchFigmaSession({
           appUrl: settings.appUrl,
-          sealedSession: settings.sealedSession!,
-          organizationSlug: settings.organizationSlug || undefined,
+          personalAccessToken: settings.personalAccessToken!,
         });
         if (cancelled) {
           return;
         }
 
-        const nextSlug =
-          settings.organizationSlug ||
-          session.organization.slug ||
-          session.organizations[0]?.slug ||
-          "";
-        const loadedProjects = nextSlug
-          ? await fetchFigmaProjects({
-              appUrl: settings.appUrl,
-              sealedSession: settings.sealedSession!,
-              organizationSlug: nextSlug,
-            })
-          : [];
+        const loadedProjects = await fetchFigmaProjects({
+          appUrl: settings.appUrl,
+          personalAccessToken: settings.personalAccessToken!,
+        });
         if (cancelled) {
           return;
         }
 
-        setOrganizations(
-          session.organizations.flatMap((organization) =>
-            organization.slug ? [{ slug: organization.slug, name: organization.name }] : [],
-          ),
-        );
         setProjects(loadedProjects);
         const nextProjectId = resolvePersistedProjectId(settings.projectId, loadedProjects);
         const nextProject = loadedProjects.find((project) => project.id === nextProjectId);
         persistSettings({
           ...settings,
           userEmail: session.user.email,
-          organizationSlug: nextSlug,
+          organizationSlug: session.organization.slug ?? "",
+          organizationName: session.organization.name,
           projectId: nextProjectId,
           sourceLocale: settings.sourceLocale || nextProject?.sourceLocale || "en",
           targetLocales:
@@ -290,12 +302,8 @@ export function App() {
         if (cancelled) {
           return;
         }
-        if (error instanceof HyperlocaliseClientError && error.code === "unauthorized") {
-          persistSettings({
-            ...settings,
-            sealedSession: null,
-            userEmail: null,
-          });
+        if (isReconnectError(error)) {
+          persistSettings(clearConnection(settings));
         }
         setErrorMessage(error instanceof Error ? error.message : "Unable to load workspace.");
       }
@@ -305,10 +313,10 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [booted, settings.sealedSession, settings.organizationSlug]);
+  }, [booted, settings.personalAccessToken]);
 
   useEffect(() => {
-    if (!booted || !settings.sealedSession || !file || !settings.organizationSlug) {
+    if (!booted || !settings.personalAccessToken || !file) {
       return;
     }
 
@@ -319,8 +327,7 @@ export function App() {
       try {
         const job = await fetchCurrentFigmaJob({
           appUrl: settings.appUrl,
-          sealedSession: settings.sealedSession!,
-          organizationSlug: settings.organizationSlug,
+          personalAccessToken: settings.personalAccessToken!,
           fileKey: file!.fileKey,
           pageId: originatedPageId,
           projectId: pageBinding?.projectId || settings.projectId || undefined,
@@ -344,8 +351,7 @@ export function App() {
           try {
             const job = await getFigmaJob({
               appUrl: settings.appUrl,
-              sealedSession: settings.sealedSession!,
-              organizationSlug: settings.organizationSlug,
+              personalAccessToken: settings.personalAccessToken!,
               jobId: pageBinding.jobId,
             });
             rememberPageJob(job, originatedPageId);
@@ -364,10 +370,10 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [booted, settings.sealedSession, settings.organizationSlug, file?.fileKey, file?.pageId]);
+  }, [booted, settings.personalAccessToken, file?.fileKey, file?.pageId]);
 
   useEffect(() => {
-    if (!pageJob || !isInFlightStatus(pageJob.status) || !settings.sealedSession) {
+    if (!pageJob || !isInFlightStatus(pageJob.status) || !settings.personalAccessToken) {
       return;
     }
 
@@ -379,8 +385,7 @@ export function App() {
       try {
         const job = await getFigmaJob({
           appUrl: settings.appUrl,
-          sealedSession: settings.sealedSession!,
-          organizationSlug: settings.organizationSlug,
+          personalAccessToken: settings.personalAccessToken!,
           jobId,
         });
         if (cancelled || !originatedPageId) {
@@ -424,7 +429,7 @@ export function App() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [pageJob?.jobId, pageJob?.status, settings.sealedSession, settings.organizationSlug]);
+  }, [pageJob?.jobId, pageJob?.status, settings.personalAccessToken]);
 
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
@@ -439,27 +444,37 @@ export function App() {
     }
   };
 
-  const handleSignIn = () =>
+  const handleConnect = () =>
     runAction("login", async () => {
-      const session = await signInWithOAuth(settings.appUrl);
+      const personalAccessToken = tokenDraft.trim();
+      if (!personalAccessToken) {
+        throw new Error("Paste a personal access token to connect.");
+      }
+
+      const session = await fetchFigmaSession({
+        appUrl: settings.appUrl,
+        personalAccessToken,
+      });
       persistSettings({
         ...settings,
-        sealedSession: session.sealedSession,
-        userEmail: session.email,
+        personalAccessToken,
+        userEmail: session.user.email,
+        organizationSlug: session.organization.slug ?? "",
+        organizationName: session.organization.name,
       });
-      setStatusMessage("Signed in.");
+      setTokenDraft("");
+      setStatusMessage("Connected.");
     });
 
-  const handleSignOut = () => {
+  const handleDisconnect = () => {
     persistSettings({
-      ...settings,
-      sealedSession: null,
-      userEmail: null,
+      ...clearConnection(settings),
       lastJobId: null,
     });
+    setTokenDraft("");
     setProjects([]);
     setPageJob(null);
-    setStatusMessage("Signed out.");
+    setStatusMessage("Disconnected.");
   };
 
   const handleExtract = () =>
@@ -480,8 +495,8 @@ export function App() {
 
   const handleCreateJob = (generate: boolean) =>
     runAction(generate ? "generate" : "create", async () => {
-      if (!settings.sealedSession || !file) {
-        throw new Error("Sign in and extract text first.");
+      if (!settings.personalAccessToken || !file) {
+        throw new Error("Connect and extract text first.");
       }
       if (!settings.projectId) {
         throw new Error("Select a project to upload to.");
@@ -490,8 +505,7 @@ export function App() {
       const originatedPageId = file.pageId;
       const created = await createFigmaJob({
         appUrl: settings.appUrl,
-        sealedSession: settings.sealedSession,
-        organizationSlug: settings.organizationSlug,
+        personalAccessToken: settings.personalAccessToken,
         projectId: settings.projectId,
         fileKey: file.fileKey,
         pageId: originatedPageId,
@@ -521,15 +535,14 @@ export function App() {
 
   const handleGenerateExisting = () =>
     runAction("generate", async () => {
-      if (!settings.sealedSession || !pageJob) {
+      if (!settings.personalAccessToken || !pageJob) {
         throw new Error("Create a job first.");
       }
 
       const originatedPageId = pageIdRef.current;
       await generateFigmaJob({
         appUrl: settings.appUrl,
-        sealedSession: settings.sealedSession,
-        organizationSlug: settings.organizationSlug,
+        personalAccessToken: settings.personalAccessToken,
         jobId: pageJob.jobId,
       });
       if (!originatedPageId || pageIdRef.current !== originatedPageId) {
@@ -541,8 +554,8 @@ export function App() {
 
   const handlePull = () =>
     runAction("pull", async () => {
-      if (!settings.sealedSession || !file) {
-        throw new Error("Sign in first.");
+      if (!settings.personalAccessToken || !file) {
+        throw new Error("Connect first.");
       }
       const projectId = pageJob?.projectId || settings.projectId;
       if (!projectId) {
@@ -552,8 +565,7 @@ export function App() {
       const originatedPageId = file.pageId;
       const pulled = await pullFigmaTranslations({
         appUrl: settings.appUrl,
-        sealedSession: settings.sealedSession,
-        organizationSlug: settings.organizationSlug,
+        personalAccessToken: settings.personalAccessToken,
         projectId,
         fileKey: file.fileKey,
         pageId: originatedPageId,
@@ -597,8 +609,8 @@ export function App() {
       <header className="header">
         <h1>Hyperlocalise</h1>
         <p className="description">
-          Sign in, choose a project, extract text, then create a job and pull translations back onto
-          the page.
+          Connect with a personal access token, choose a project, extract text, then create a job
+          and pull translations back onto the page.
         </p>
       </header>
 
@@ -613,49 +625,52 @@ export function App() {
         />
       </label>
 
-      {signedIn ? (
+      {connected ? (
         <div className="session">
-          <p>{settings.userEmail ?? "Signed in"}</p>
-          <button type="button" className="button" onClick={handleSignOut} disabled={busy != null}>
-            Sign out
+          <p>
+            {settings.userEmail ?? "Connected"}
+            {settings.organizationName ? ` · ${settings.organizationName}` : ""}
+          </p>
+          <button
+            type="button"
+            className="button"
+            onClick={handleDisconnect}
+            disabled={busy != null}
+          >
+            Disconnect
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          className="button buttonPrimary"
-          onClick={() => void handleSignIn()}
-          disabled={busy != null}
-        >
-          {busy === "login" ? "Signing in…" : "Sign in with Hyperlocalise"}
-        </button>
+        <>
+          <label className="field">
+            <span>Personal access token</span>
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)}
+              disabled={busy != null}
+              placeholder="hl_…"
+            />
+            <p className="hint">
+              Create a token in Hyperlocalise under Settings → Personal access tokens. Include
+              files:read and jobs:read, plus jobs:write to create jobs.
+            </p>
+          </label>
+          <button
+            type="button"
+            className="button buttonPrimary"
+            onClick={() => void handleConnect()}
+            disabled={busy != null || tokenDraft.trim().length === 0}
+          >
+            {busy === "login" ? "Connecting…" : "Connect"}
+          </button>
+        </>
       )}
 
-      {signedIn ? (
+      {connected ? (
         <>
-          {organizations.length > 0 ? (
-            <label className="field">
-              <span>Organization</span>
-              <select
-                value={settings.organizationSlug}
-                onChange={(event) =>
-                  persistSettings({
-                    ...settings,
-                    organizationSlug: event.target.value,
-                    projectId: "",
-                  })
-                }
-                disabled={busy != null}
-              >
-                {organizations.map((organization) => (
-                  <option key={organization.slug} value={organization.slug}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
           <label className="field">
             <span>Project</span>
             <select

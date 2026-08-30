@@ -76,8 +76,9 @@ function bindSessionUser(input: {
 
 /**
  * Verify a sealed WorkOS `wos-session` value from a client that cannot send
- * cookies (Figma plugin). This is the same sealed session AuthKit issues for
- * web and Mac — not a separate identity token.
+ * cookies. This is the same sealed session AuthKit issues for web and Mac —
+ * not a separate identity token. Figma plugin requests use personal access
+ * tokens via `x-api-key` instead.
  */
 export async function authenticateSealedWorkosSession(
   sealedSession: string,

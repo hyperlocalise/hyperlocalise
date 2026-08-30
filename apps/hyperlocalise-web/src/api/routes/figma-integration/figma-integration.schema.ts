@@ -12,7 +12,14 @@
  */
 import { z } from "zod";
 
+import type { ApiKeyPermission } from "@/api/routes/api-key/api-key.schema";
 import { projectIdSchema, optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+
+/** Least-required PAT scopes for Figma plugin routes. */
+export const FIGMA_PROJECTS_PERMISSION = "files:read" satisfies ApiKeyPermission;
+export const FIGMA_JOB_READ_PERMISSION = "jobs:read" satisfies ApiKeyPermission;
+export const FIGMA_JOB_WRITE_PERMISSION = "jobs:write" satisfies ApiKeyPermission;
+export const FIGMA_TRANSLATIONS_PERMISSION = "files:read" satisfies ApiKeyPermission;
 
 export const figmaSegmentSchema = z.object({
   key: z.string().min(1).max(256),

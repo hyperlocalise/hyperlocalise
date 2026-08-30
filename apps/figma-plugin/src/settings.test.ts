@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   DEFAULT_APP_URL,
+  hadLegacyFigmaSession,
   mergeSettings,
   normalizeAppUrl,
   resolvePersistedProjectId,
@@ -15,7 +16,7 @@ describe("figma plugin settings", () => {
         appUrl: "https://example.test",
         sourceLocale: "en",
         targetLocales: ["fr"],
-        sealedSession: null,
+        personalAccessToken: null,
       },
     );
     expect(mergeSettings(null).appUrl).toBe(DEFAULT_APP_URL);
@@ -27,5 +28,29 @@ describe("figma plugin settings", () => {
     expect(resolvePersistedProjectId("project-b", projects)).toBe("project-b");
     expect(resolvePersistedProjectId("missing", projects)).toBe("");
     expect(resolvePersistedProjectId("", projects)).toBe("");
+  });
+
+  it("clears a legacy sealed session and keeps a PAT", () => {
+    const legacy = {
+      appUrl: "https://app.hyperlocalise.com",
+      sealedSession: "sealed.session.value",
+      userEmail: "dev@example.com",
+      organizationSlug: "acme",
+    };
+
+    expect(hadLegacyFigmaSession(legacy)).toBe(true);
+    expect(mergeSettings(legacy)).toMatchObject({
+      personalAccessToken: null,
+      userEmail: "dev@example.com",
+      organizationSlug: "acme",
+    });
+    expect(mergeSettings(legacy)).not.toHaveProperty("sealedSession");
+
+    const connected = {
+      ...legacy,
+      personalAccessToken: "hl_example_token",
+    };
+    expect(hadLegacyFigmaSession(connected)).toBe(false);
+    expect(mergeSettings(connected).personalAccessToken).toBe("hl_example_token");
   });
 });

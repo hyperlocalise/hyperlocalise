@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   fetchCurrentFigmaJob,
+  fetchFigmaSession,
   HyperlocaliseClientError,
   pullFigmaTranslations,
 } from "./hyperlocalise-client";
@@ -17,6 +18,10 @@ function requestUrl(input: RequestInfo | URL) {
   return input.url;
 }
 
+function requestHeaders(_input: RequestInfo | URL, init?: RequestInit) {
+  return new Headers(init?.headers);
+}
+
 const pageJob: FigmaPageJob = {
   jobId: "job_figma",
   status: "waiting_for_review",
@@ -27,6 +32,8 @@ const pageJob: FigmaPageJob = {
   translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
 };
 
+const personalAccessToken = "hl_test_token";
+
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(body), {
@@ -36,17 +43,48 @@ function jsonResponse(body: unknown, status = 200) {
   );
 }
 
+function expectApiKeyOnly(headers: Headers) {
+  expect(headers.get("x-api-key")).toBe(personalAccessToken);
+  expect(headers.get("authorization")).toBeNull();
+  expect(headers.get("x-hyperlocalise-figma-session")).toBeNull();
+  expect(headers.get("x-hyperlocalise-organization-slug")).toBeNull();
+}
+
 describe("figma hyperlocalise client", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
+  it("sends the PAT only as x-api-key when loading the session", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expectApiKeyOnly(requestHeaders(input, init));
+      return jsonResponse({
+        session: {
+          user: { email: "dev@example.com", localUserId: "user_1" },
+          organization: { slug: "acme", name: "Acme", id: "org_1" },
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchFigmaSession({
+        appUrl: "https://app.hyperlocalise.com",
+        personalAccessToken,
+      }),
+    ).resolves.toMatchObject({
+      user: { email: "dev@example.com" },
+      organization: { slug: "acme" },
+    });
+  });
+
   it("loads the current page job and omits an empty projectId", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(requestUrl(input)).toBe(
         "https://app.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1",
       );
+      expectApiKeyOnly(requestHeaders(input, init));
       return jsonResponse({ job: pageJob });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -54,8 +92,7 @@ describe("figma hyperlocalise client", () => {
     await expect(
       fetchCurrentFigmaJob({
         appUrl: "https://app.hyperlocalise.com",
-        sealedSession: "sealed.session",
-        organizationSlug: "acme",
+        personalAccessToken,
         fileKey: "file-1",
         pageId: "page-1",
       }),
@@ -72,8 +109,7 @@ describe("figma hyperlocalise client", () => {
     await expect(
       fetchCurrentFigmaJob({
         appUrl: "https://app.hyperlocalise.com",
-        sealedSession: "sealed.session",
-        organizationSlug: "acme",
+        personalAccessToken,
         fileKey: "file-1",
         pageId: "page-1",
         projectId: "proj_1",
@@ -88,8 +124,7 @@ describe("figma hyperlocalise client", () => {
     await expect(
       pullFigmaTranslations({
         appUrl: "https://app.hyperlocalise.com",
-        sealedSession: "sealed.session",
-        organizationSlug: "acme",
+        personalAccessToken,
         projectId: "proj_1",
         fileKey: "file-1",
         pageId: "page-1",
@@ -105,12 +140,38 @@ describe("figma hyperlocalise client", () => {
     await expect(
       pullFigmaTranslations({
         appUrl: "https://app.hyperlocalise.com",
-        sealedSession: "sealed.session",
-        organizationSlug: "acme",
+        personalAccessToken,
         projectId: "proj_1",
         fileKey: "file-1",
         pageId: "page-1",
       }),
     ).rejects.toBeInstanceOf(HyperlocaliseClientError);
+  });
+
+  it("does not include the PAT in client error messages", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ error: "unauthorized", message: "Invalid or revoked API key" }, 401),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchFigmaSession({
+        appUrl: "https://app.hyperlocalise.com",
+        personalAccessToken,
+      }),
+    ).rejects.toMatchObject({
+      code: "unauthorized",
+      message: "Invalid or revoked API key",
+    });
+
+    try {
+      await fetchFigmaSession({
+        appUrl: "https://app.hyperlocalise.com",
+        personalAccessToken,
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(HyperlocaliseClientError);
+      expect(String(error)).not.toContain(personalAccessToken);
+    }
   });
 });

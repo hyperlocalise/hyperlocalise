@@ -27,9 +27,10 @@ const succeededJob: FigmaPageJob = {
 
 const signedInSettings: PluginSettings = {
   appUrl: "https://app.hyperlocalise.com",
-  sealedSession: "sealed.session",
+  personalAccessToken: "hl_test_token",
   userEmail: "dev@example.com",
   organizationSlug: "acme",
+  organizationName: "Acme",
   projectId: "proj_1",
   sourceLocale: "en",
   targetLocales: ["es"],
@@ -53,7 +54,6 @@ function workspaceResponse(input: RequestInfo | URL) {
       session: {
         user: { email: "dev@example.com", localUserId: "user_1" },
         organization: { slug: "acme", name: "Acme", id: "org_1" },
-        organizations: [{ slug: "acme", name: "Acme", id: "org_1" }],
       },
     });
   }
@@ -107,12 +107,41 @@ describe("Figma plugin UI", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders OAuth sign-in before a session exists", () => {
+  it("renders PAT connect before a token is stored", () => {
     const result = render(<App />);
 
-    expect(result.getByRole("button", { name: "Sign in with Hyperlocalise" })).toBeTruthy();
+    expect(result.getByRole("button", { name: "Connect" })).toBeTruthy();
+    expect(result.getByText("Personal access token")).toBeTruthy();
     expect(result.getByText("Hyperlocalise URL")).toBeTruthy();
     expect(result.queryByRole("button", { name: "Create job and generate" })).toBeNull();
+  });
+
+  it("clears a legacy sealed session and prompts to reconnect with a PAT", async () => {
+    const result = render(<App />);
+    postToUi({
+      type: "ready",
+      settings: {
+        ...signedInSettings,
+        personalAccessToken: null,
+        userEmail: null,
+      },
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+      binding: null,
+      legacySessionCleared: true,
+    });
+
+    await waitFor(() => {
+      expect(
+        result.getByText(
+          "Your previous Hyperlocalise sign-in is no longer supported. Connect with a personal access token.",
+        ),
+      ).toBeTruthy();
+    });
   });
 
   it("hydrates the page job card and keeps Close enabled", async () => {
@@ -123,7 +152,6 @@ describe("Figma plugin UI", () => {
           session: {
             user: { email: "dev@example.com", localUserId: "user_1" },
             organization: { slug: "acme", name: "Acme", id: "org_1" },
-            organizations: [{ slug: "acme", name: "Acme", id: "org_1" }],
           },
         });
       }
@@ -186,7 +214,6 @@ describe("Figma plugin UI", () => {
           session: {
             user: { email: "dev@example.com", localUserId: "user_1" },
             organization: { slug: "acme", name: "Acme", id: "org_1" },
-            organizations: [{ slug: "acme", name: "Acme", id: "org_1" }],
           },
         });
       }
@@ -237,7 +264,6 @@ describe("Figma plugin UI", () => {
           session: {
             user: { email: "dev@example.com", localUserId: "user_1" },
             organization: { slug: "acme", name: "Acme", id: "org_1" },
-            organizations: [{ slug: "acme", name: "Acme", id: "org_1" }],
           },
         });
       }

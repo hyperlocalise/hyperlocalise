@@ -12,8 +12,9 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   startFigmaLocalizationMock: vi.fn(),
@@ -21,18 +22,8 @@ const mocks = vi.hoisted(() => ({
   getCurrentFigmaPageJobMock: vi.fn(),
   generateFigmaLocalizationMock: vi.fn(),
   pullLatestFigmaTranslationsMock: vi.fn(),
-  listOrganizationProjectsMock: vi.fn(),
-  resolveApiAuthContextFromSessionMock: vi.fn(),
-  authenticateSealedWorkosSessionMock: vi.fn(),
+  reconcileWorkosMembershipsForUserMock: vi.fn(),
 }));
-
-vi.mock("@/api/auth/workos-session", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
-  return {
-    ...actual,
-    resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
-  };
-});
 
 vi.mock("@/lib/figma/localize-file", () => ({
   startFigmaLocalization: mocks.startFigmaLocalizationMock,
@@ -42,203 +33,142 @@ vi.mock("@/lib/figma/localize-file", () => ({
   pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
 }));
 
-vi.mock("@/lib/projects/organization/organization-project-service", () => ({
-  listOrganizationProjects: mocks.listOrganizationProjectsMock,
-}));
+vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-membership-reconcile")>();
 
-vi.mock("@/lib/workos/sealed-session", () => ({
-  authenticateSealedWorkosSession: mocks.authenticateSealedWorkosSessionMock,
-}));
+  return {
+    ...actual,
+    reconcileWorkosMembershipsForUser: mocks.reconcileWorkosMembershipsForUserMock,
+  };
+});
 
 import { createApp } from "@/api/app";
-import type { ApiAuthContext } from "@/api/auth/workos";
+import { INVALID_OR_REVOKED_API_KEY_MESSAGE } from "@/api/auth/api-key";
+import { FIGMA_API_KEY_HEADER } from "@/api/auth/figma-cors";
 import {
-  OrganizationSlugUnresolvableError,
-  StaleOrganizationSlugError,
-} from "@/api/auth/workos-session";
+  cleanupPublicApiFixture,
+  createPublicApiFixture,
+} from "@/api/routes/public-jobs/public-jobs.fixture";
+import { db, schema } from "@/lib/database/client";
 
 const client = testClient(createApp());
 
-const authContext = {
-  user: {
-    workosUserId: "user_workos",
-    localUserId: "user_local",
-    email: "dev@example.com",
-  },
-  organizations: [
-    {
-      workosOrganizationId: "org_workos",
-      localOrganizationId: "org_local",
-      name: "Acme",
-      slug: "acme",
-      membership: {
-        workosMembershipId: "mem_1",
-        role: "admin",
-        accessSource: "workos_authoritative",
-      },
-    },
-  ],
-  organization: {
-    workosOrganizationId: "org_workos",
-    localOrganizationId: "org_local",
-    name: "Acme",
-    slug: "acme",
-    membership: {
-      workosMembershipId: "mem_1",
-      role: "admin",
-      accessSource: "workos_authoritative",
-    },
-  },
-  activeOrganization: {
-    workosOrganizationId: "org_workos",
-    localOrganizationId: "org_local",
-    name: "Acme",
-    slug: "acme",
-    membership: {
-      workosMembershipId: "mem_1",
-      role: "admin",
-      accessSource: "workos_authoritative",
-    },
-  },
-  membership: { workosMembershipId: "mem_1", role: "admin", accessSource: "workos_authoritative" },
-  activeTeam: null,
-  capabilities: [],
-} as unknown as ApiAuthContext;
+const FIGMA_PERMISSIONS = ["files:read", "jobs:read", "jobs:write"];
 
-const sessionHeaders = {
-  headers: {
-    "X-Hyperlocalise-Figma-Session": "sealed.session.value",
-    "X-Hyperlocalise-Organization-Slug": "acme",
-  },
-};
+function apiKeyHeaders(apiKey: string) {
+  return {
+    headers: {
+      [FIGMA_API_KEY_HEADER]: apiKey,
+    },
+  };
+}
 
-const verifiedSession = {
-  user: {
-    id: "user_workos",
-    email: "dev@example.com",
-    firstName: null,
-    lastName: null,
-    profilePictureUrl: null,
-  },
-  organizationId: "org_workos",
-};
+beforeAll(async () => {
+  await db.$client.query("select 1");
+});
+
+beforeEach(() => {
+  mocks.reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
+});
+
+afterEach(async () => {
+  vi.clearAllMocks();
+  await cleanupPublicApiFixture();
+});
 
 describe("figmaIntegrationRoutes", () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("returns health without auth", async () => {
     const response = await client.api.integrations.figma.health.$get();
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
-  it("rejects session requests without a Figma session header", async () => {
+  it("rejects session requests without an API key", async () => {
     const response = await client.api.integrations.figma.session.$get();
     expect(response.status).toBe(401);
-    expect(mocks.authenticateSealedWorkosSessionMock).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "unauthorized" });
   });
 
-  it("rejects a sealed session that WorkOS cannot verify", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(null);
-
-    const response = await client.api.integrations.figma.session.$get(undefined, sessionHeaders);
-    expect(response.status).toBe(401);
-    expect(mocks.resolveApiAuthContextFromSessionMock).not.toHaveBeenCalled();
-  });
-
-  it("accepts a sealed session from the Authorization Bearer header", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
-    mocks.listOrganizationProjectsMock.mockResolvedValue([]);
-
-    const response = await client.api.integrations.figma.session.$get(undefined, {
-      headers: {
-        Authorization: "Bearer sealed.session.from.bearer",
-        "X-Hyperlocalise-Organization-Slug": "acme",
-      },
-    });
-
-    expect(response.status).toBe(200);
-    expect(mocks.authenticateSealedWorkosSessionMock).toHaveBeenCalledWith(
-      "sealed.session.from.bearer",
-    );
-  });
-
-  it("does not treat hlce_ API keys as Figma sealed sessions", async () => {
-    const response = await client.api.integrations.figma.session.$get(undefined, {
-      headers: {
-        Authorization: "Bearer hlce_test_api_key",
-        "X-Hyperlocalise-Organization-Slug": "acme",
-      },
-    });
-
-    expect(response.status).toBe(401);
-    expect(mocks.authenticateSealedWorkosSessionMock).not.toHaveBeenCalled();
-  });
-
-  it("maps stale and unresolvable organization slug errors", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
-      new StaleOrganizationSlugError("acme", "acme-renamed"),
-    );
-
-    const staleResponse = await client.api.integrations.figma.session.$get(
-      undefined,
-      sessionHeaders,
-    );
-    expect(staleResponse.status).toBe(403);
-    await expect(staleResponse.json()).resolves.toMatchObject({
-      error: "stale_organization_slug",
-      details: {
-        requestedSlug: "acme",
-        currentSlug: "acme-renamed",
-      },
-    });
-
-    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
-      new OrganizationSlugUnresolvableError("missing-org"),
-    );
-    const unresolvableResponse = await client.api.integrations.figma.session.$get(undefined, {
+  it("rejects legacy sealed-session and bearer authentication", async () => {
+    const sealed = await client.api.integrations.figma.session.$get(undefined, {
       headers: {
         "X-Hyperlocalise-Figma-Session": "sealed.session.value",
-        "X-Hyperlocalise-Organization-Slug": "missing-org",
+        "X-Hyperlocalise-Organization-Slug": "acme",
       },
     });
-    expect(unresolvableResponse.status).toBe(403);
-    await expect(unresolvableResponse.json()).resolves.toMatchObject({
-      error: "organization_slug_unresolvable",
+    expect(sealed.status).toBe(401);
+
+    const bearer = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        Authorization: "Bearer sealed.session.from.bearer",
+      },
     });
+    expect(bearer.status).toBe(401);
   });
 
-  it("maps archived and denied organization access to forbidden", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
-      new Error("archived_organization_access"),
-    );
+  it("returns the same 401 for unknown, malformed, and revoked tokens", async () => {
+    const { apiKey, apiKeyId } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
 
-    const archivedResponse = await client.api.integrations.figma.session.$get(
+    const unknown = await client.api.integrations.figma.session.$get(
       undefined,
-      sessionHeaders,
+      apiKeyHeaders("hl_unknown_token"),
     );
-    expect(archivedResponse.status).toBe(403);
-    await expect(archivedResponse.json()).resolves.toMatchObject({
+    expect(unknown.status).toBe(401);
+    const unknownBody = await unknown.json();
+    expect(unknownBody).toEqual({
+      error: "unauthorized",
+      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
+    });
+    expect(JSON.stringify(unknownBody)).not.toContain("hl_unknown_token");
+
+    const malformed = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders("not-a-pat"),
+    );
+    expect(malformed.status).toBe(401);
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(schema.organizationApiKeys.id, apiKeyId));
+
+    const revoked = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders(apiKey),
+    );
+    expect(revoked.status).toBe(401);
+    const revokedBody = await revoked.json();
+    expect(revokedBody).toMatchObject({
+      error: "unauthorized",
+      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
+    });
+    expect(JSON.stringify(revokedBody)).not.toContain(apiKey);
+  });
+
+  it("rejects API keys for archived workspaces", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
+
+    await db
+      .update(schema.organizations)
+      .set({ lifecycleStatus: "archived", archivedAt: new Date() })
+      .where(eq(schema.organizations.id, project.organizationId));
+
+    const response = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders(apiKey),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
       error: "workspace_archived",
     });
-
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValueOnce(null);
-    const deniedResponse = await client.api.integrations.figma.session.$get(
-      undefined,
-      sessionHeaders,
-    );
-    expect(deniedResponse.status).toBe(403);
-    await expect(deniedResponse.json()).resolves.toMatchObject({
-      error: "organization_access_denied",
-    });
   });
 
-  it("allows Figma plugin origins on OPTIONS and omits Allow-Origin for unknown origins", async () => {
+  it("allows Figma plugin origins and x-api-key on OPTIONS", async () => {
     const allowed = await createApp().request("http://localhost/api/integrations/figma/health", {
       method: "OPTIONS",
       headers: { Origin: "https://www.figma.com" },
@@ -246,6 +176,12 @@ describe("figmaIntegrationRoutes", () => {
     expect(allowed.status).toBe(204);
     expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe("https://www.figma.com");
     expect(allowed.headers.get("Access-Control-Allow-Methods")).toContain("POST");
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "x-api-key",
+    );
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).not.toContain(
+      "authorization",
+    );
 
     const denied = await createApp().request("http://localhost/api/integrations/figma/health", {
       method: "GET",
@@ -255,66 +191,83 @@ describe("figmaIntegrationRoutes", () => {
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
-  it("returns the signed-in session and projects", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
-    mocks.listOrganizationProjectsMock.mockResolvedValue([
-      {
-        id: "proj_1",
-        name: "Marketing",
-        sourceLocale: "en",
-        targetLocales: ["es", "fr"],
-      },
-    ]);
+  it("returns the PAT owner session and accessible projects", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
 
     const sessionResponse = await client.api.integrations.figma.session.$get(
       undefined,
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
     expect(sessionResponse.status).toBe(200);
-    await expect(sessionResponse.json()).resolves.toMatchObject({
+    const sessionBody = await sessionResponse.json();
+    expect(sessionBody).toMatchObject({
       session: {
-        user: { email: "dev@example.com" },
-        organization: { slug: "acme" },
+        user: { email: user.email, localUserId: user.id },
+        organization: { id: project.organizationId },
       },
     });
-    expect(mocks.authenticateSealedWorkosSessionMock).toHaveBeenCalledWith("sealed.session.value");
-    expect(mocks.resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
-      session: verifiedSession,
-      organizationSlug: "acme",
-    });
+    expect(sessionBody).not.toHaveProperty("session.organizations");
+    expect(JSON.stringify(sessionBody)).not.toContain(apiKey);
 
     const projectsResponse = await client.api.integrations.figma.projects.$get(
       undefined,
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
     expect(projectsResponse.status).toBe(200);
     await expect(projectsResponse.json()).resolves.toEqual({
       projects: [
         {
-          id: "proj_1",
-          name: "Marketing",
-          sourceLocale: "en",
-          targetLocales: ["es", "fr"],
+          id: project.id,
+          name: project.name,
+          sourceLocale: project.sourceLocale ?? "en",
+          targetLocales: project.targetLocales ?? [],
         },
       ],
     });
   });
 
-  it("creates a job from extracted Figma segments", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+  it("isolates projects to the PAT owner's organization and team access", async () => {
+    const owner = await createPublicApiFixture({ permissions: FIGMA_PERMISSIONS });
+    const other = await createPublicApiFixture({ permissions: FIGMA_PERMISSIONS });
+
+    const response = await client.api.integrations.figma.projects.$get(
+      undefined,
+      apiKeyHeaders(owner.apiKey),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { projects: Array<{ id: string }> };
+    expect(body.projects.map((project) => project.id)).toEqual([owner.project.id]);
+    expect(body.projects.map((project) => project.id)).not.toContain(other.project.id);
+  });
+
+  it("enforces least-required PAT permissions", async () => {
+    const readOnly = await createPublicApiFixture({
+      permissions: ["files:read", "jobs:read"],
+    });
+    const jobsOnly = await createPublicApiFixture({
+      permissions: ["jobs:read", "jobs:write"],
+    });
+
+    const projectsDenied = await client.api.integrations.figma.projects.$get(
+      undefined,
+      apiKeyHeaders(jobsOnly.apiKey),
+    );
+    expect(projectsDenied.status).toBe(403);
+    await expect(projectsDenied.json()).resolves.toMatchObject({ error: "forbidden" });
+
     mocks.startFigmaLocalizationMock.mockResolvedValue({
       jobId: "job_figma",
       generated: true,
-      projectId: "proj_1",
+      projectId: readOnly.project.id,
       sourcePath: "figma/files/fileKey123/pages/12:34.json",
     });
 
-    const response = await client.api.integrations.figma.jobs.$post(
+    const createDenied = await client.api.integrations.figma.jobs.$post(
       {
         json: {
-          projectId: "proj_1",
+          projectId: readOnly.project.id,
           fileKey: "fileKey123",
           pageId: "12:34",
           sourceLocale: "en",
@@ -330,7 +283,93 @@ describe("figmaIntegrationRoutes", () => {
           ],
         },
       },
-      sessionHeaders,
+      apiKeyHeaders(readOnly.apiKey),
+    );
+    expect(createDenied.status).toBe(403);
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+
+    const translationsDenied = await client.api.integrations.figma.translations.$get(
+      { query: { projectId: jobsOnly.project.id, fileKey: "fileKey123", pageId: "12:34" } },
+      apiKeyHeaders(jobsOnly.apiKey),
+    );
+    expect(translationsDenied.status).toBe(403);
+  });
+
+  it("intersects token scopes with the owner's current role", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+      role: "member",
+    });
+
+    const projectsAllowed = await client.api.integrations.figma.projects.$get(
+      undefined,
+      apiKeyHeaders(apiKey),
+    );
+    expect(projectsAllowed.status).toBe(200);
+
+    mocks.startFigmaLocalizationMock.mockResolvedValue({
+      jobId: "job_figma",
+      generated: true,
+      projectId: project.id,
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+    });
+
+    const createDenied = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          projectId: project.id,
+          fileKey: "fileKey123",
+          pageId: "12:34",
+          sourceLocale: "en",
+          targetLocales: ["es"],
+          generate: true,
+          segments: [
+            {
+              key: "figma.segment.1:1.0",
+              nodeId: "1:1",
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      apiKeyHeaders(apiKey),
+    );
+    expect(createDenied.status).toBe(403);
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a job from extracted Figma segments", async () => {
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
+    mocks.startFigmaLocalizationMock.mockResolvedValue({
+      jobId: "job_figma",
+      generated: true,
+      projectId: project.id,
+      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+    });
+
+    const response = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          projectId: project.id,
+          fileKey: "fileKey123",
+          pageId: "12:34",
+          sourceLocale: "en",
+          targetLocales: ["es"],
+          generate: true,
+          segments: [
+            {
+              key: "figma.segment.1:1.0",
+              nodeId: "1:1",
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      apiKeyHeaders(apiKey),
     );
 
     expect(response.status).toBe(201);
@@ -338,27 +377,32 @@ describe("figmaIntegrationRoutes", () => {
       job: {
         jobId: "job_figma",
         generated: true,
-        projectId: "proj_1",
+        projectId: project.id,
         sourcePath: "figma/files/fileKey123/pages/12:34.json",
       },
     });
     expect(mocks.startFigmaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "proj_1",
+        projectId: project.id,
         fileKey: "fileKey123",
         pageId: "12:34",
         generate: true,
+        auth: expect.objectContaining({
+          user: expect.objectContaining({ localUserId: expect.any(String) }),
+          organization: expect.objectContaining({ localOrganizationId: project.organizationId }),
+        }),
       }),
     );
   });
 
   it("polls job status and pulls latest translations", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
     mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
       jobId: "job_figma",
       status: "succeeded",
-      projectId: "proj_1",
+      projectId: project.id,
       sourcePath: "figma/files/fileKey123/pages/12:34.json",
       targetLocales: ["es"],
       lastError: null,
@@ -368,7 +412,7 @@ describe("figmaIntegrationRoutes", () => {
     mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
       jobId: "job_figma",
       status: "waiting_for_review",
-      projectId: "proj_1",
+      projectId: project.id,
       sourcePath: "figma/files/fileKey123/pages/12:34.json",
       targetLocales: ["es"],
       lastError: null,
@@ -377,7 +421,7 @@ describe("figmaIntegrationRoutes", () => {
 
     const statusResponse = await client.api.integrations.figma.jobs[":jobId"].$get(
       { param: { jobId: "job_figma" } },
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
     expect(statusResponse.status).toBe(200);
     await expect(statusResponse.json()).resolves.toMatchObject({
@@ -386,13 +430,13 @@ describe("figmaIntegrationRoutes", () => {
 
     const generateResponse = await client.api.integrations.figma.jobs[":jobId"].generate.$post(
       { param: { jobId: "job_figma" } },
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
     expect(generateResponse.status).toBe(202);
 
     const pullResponse = await client.api.integrations.figma.translations.$get(
-      { query: { projectId: "proj_1", fileKey: "fileKey123", pageId: "12:34" } },
-      sessionHeaders,
+      { query: { projectId: project.id, fileKey: "fileKey123", pageId: "12:34" } },
+      apiKeyHeaders(apiKey),
     );
     expect(pullResponse.status).toBe(200);
     await expect(pullResponse.json()).resolves.toMatchObject({
@@ -400,7 +444,7 @@ describe("figmaIntegrationRoutes", () => {
     });
     expect(mocks.pullLatestFigmaTranslationsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "proj_1",
+        projectId: project.id,
         fileKey: "fileKey123",
         pageId: "12:34",
       }),
@@ -408,13 +452,14 @@ describe("figmaIntegrationRoutes", () => {
   });
 
   it("returns the current page job for a Figma file and page", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
     mocks.getCurrentFigmaPageJobMock.mockResolvedValue({
       job: {
         jobId: "job_figma",
         status: "queued",
-        projectId: "proj_1",
+        projectId: project.id,
         sourcePath: "figma/files/fileKey123/pages/12:34.json",
         targetLocales: ["es"],
         lastError: null,
@@ -423,8 +468,8 @@ describe("figmaIntegrationRoutes", () => {
     });
 
     const response = await client.api.integrations.figma.jobs.current.$get(
-      { query: { projectId: "proj_1", fileKey: "fileKey123", pageId: "12:34" } },
-      sessionHeaders,
+      { query: { projectId: project.id, fileKey: "fileKey123", pageId: "12:34" } },
+      apiKeyHeaders(apiKey),
     );
 
     expect(response.status).toBe(200);
@@ -433,7 +478,7 @@ describe("figmaIntegrationRoutes", () => {
     });
     expect(mocks.getCurrentFigmaPageJobMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "proj_1",
+        projectId: project.id,
         fileKey: "fileKey123",
         pageId: "12:34",
       }),
@@ -441,13 +486,14 @@ describe("figmaIntegrationRoutes", () => {
   });
 
   it("looks up the current page job across the org when projectId is omitted", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    const { apiKey } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
     mocks.getCurrentFigmaPageJobMock.mockResolvedValue({ job: null });
 
     const response = await client.api.integrations.figma.jobs.current.$get(
       { query: { fileKey: "fileKey123", pageId: "12:34" } },
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
 
     expect(response.status).toBe(200);
@@ -462,12 +508,13 @@ describe("figmaIntegrationRoutes", () => {
   });
 
   it("returns failed Figma jobs as a 200 status body", async () => {
-    mocks.authenticateSealedWorkosSessionMock.mockResolvedValue(verifiedSession);
-    mocks.resolveApiAuthContextFromSessionMock.mockResolvedValue(authContext);
+    const { apiKey, project } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
     mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
       jobId: "job_figma",
       status: "failed",
-      projectId: "proj_1",
+      projectId: project.id,
       sourcePath: "figma/files/fileKey123/pages/12:34.json",
       targetLocales: ["es"],
       lastError: "provider_timeout",
@@ -476,12 +523,51 @@ describe("figmaIntegrationRoutes", () => {
 
     const response = await client.api.integrations.figma.jobs[":jobId"].$get(
       { param: { jobId: "job_figma" } },
-      sessionHeaders,
+      apiKeyHeaders(apiKey),
     );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       job: { status: "failed", lastError: "provider_timeout" },
     });
+  });
+
+  it("updates lastUsedAt after a successful Figma request", async () => {
+    const { apiKey, apiKeyId } = await createPublicApiFixture({
+      permissions: FIGMA_PERMISSIONS,
+    });
+
+    const rejected = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders("hl_unknown_token_does_not_exist"),
+    );
+    expect(rejected.status).toBe(401);
+
+    const [untouched] = await db
+      .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
+      .from(schema.organizationApiKeys)
+      .where(eq(schema.organizationApiKeys.id, apiKeyId))
+      .limit(1);
+    expect(untouched?.lastUsedAt).toBeNull();
+
+    const allowed = await client.api.integrations.figma.session.$get(
+      undefined,
+      apiKeyHeaders(apiKey),
+    );
+    expect(allowed.status).toBe(200);
+
+    await vi.waitFor(async () => {
+      const [touched] = await db
+        .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
+        .from(schema.organizationApiKeys)
+        .where(eq(schema.organizationApiKeys.id, apiKeyId))
+        .limit(1);
+      expect(touched?.lastUsedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  it("does not expose the Figma OAuth callback path", async () => {
+    const response = await createApp().request("http://localhost/api/auth/figma/authorize");
+    expect(response.status).toBe(404);
   });
 });
