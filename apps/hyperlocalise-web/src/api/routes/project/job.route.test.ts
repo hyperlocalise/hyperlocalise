@@ -682,9 +682,9 @@ describe("project job create", () => {
     const created = (await createResponse.json()) as { job: { id: string; status: string } };
     expect(created.job.status).toBe("waiting_for_review");
 
-    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[
-      ":jobId"
-    ]["mark-failed"].$post(
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-failed"
+    ].$post(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -747,9 +747,9 @@ describe("project job create", () => {
       error: "job_action_unavailable",
     });
 
-    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[
-      ":jobId"
-    ]["mark-failed"].$post(
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-failed"
+    ].$post(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
