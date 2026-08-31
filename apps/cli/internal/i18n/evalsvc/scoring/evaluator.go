@@ -338,6 +338,8 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	hasHTML := strings.Contains(s, "<")
 	hasMD := strings.ContainsAny(s, "*_~`[#")
 
+	// BOLT OPTIMIZATION: Pre-allocate tokens map capacity based on signal character counts
+	// to eliminate dynamic map rehashing/resizing allocations.
 	capEstimate := 0
 	if hasHTML {
 		capEstimate += strings.Count(s, "<")
@@ -349,6 +351,8 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	tokens := make(map[string]int, capEstimate)
 	total := 0
 
+	// BOLT OPTIMIZATION: Use FindAllStringIndex instead of FindAllString to slice s directly,
+	// avoiding match slice string heap allocations.
 	if hasHTML {
 		matches := htmlTagPattern.FindAllStringIndex(s, -1)
 		for _, loc := range matches {
