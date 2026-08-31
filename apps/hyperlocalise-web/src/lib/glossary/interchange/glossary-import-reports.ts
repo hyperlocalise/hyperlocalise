@@ -47,10 +47,12 @@ export function reportCountsFromDiagnostics(
     else if (entry.counted) continue;
     else if (entry.outcome === "skipped") {
       counts.skipped++;
-      counts[entry.termId ? "termsSkipped" : "conceptsSkipped"]++;
+      if (entry.termId) counts.termsSkipped++;
+      else if (entry.conceptId) counts.conceptsSkipped++;
     } else {
       counts.failed++;
-      counts[entry.termId ? "termsFailed" : "conceptsFailed"]++;
+      if (entry.termId) counts.termsFailed++;
+      else if (entry.conceptId) counts.conceptsFailed++;
     }
   }
   return counts;

@@ -926,17 +926,14 @@ export function GlossaryDetailPageContent({
     );
   if (!conceptPageMode && conceptsQuery.isLoading) return <ConceptListSkeleton />;
 
+  const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
+  const matchesLanguageFilter = (term: GlossaryConceptTermRecord) =>
+    !normalizedLanguageFilter ||
+    term.locale.toLowerCase().includes(normalizedLanguageFilter) ||
+    getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter);
   const filteredConcepts = concepts
     .filter((concept) => {
-      const search = languageFilter.trim().toLowerCase();
-      return (
-        !search ||
-        concept.terms.some(
-          (term) =>
-            term.locale.toLowerCase().includes(search) ||
-            getLocaleLabel(term.locale).toLowerCase().includes(search),
-        )
-      );
+      return concept.terms.some(matchesLanguageFilter);
     })
     .sort(
       (left, right) =>
@@ -946,9 +943,12 @@ export function GlossaryDetailPageContent({
   const allSelected =
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
-  const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
   const filteredExportLocales = [
-    ...new Set(filteredConcepts.flatMap((concept) => concept.terms.map((term) => term.locale))),
+    ...new Set(
+      filteredConcepts.flatMap((concept) =>
+        concept.terms.filter(matchesLanguageFilter).map((term) => term.locale),
+      ),
+    ),
   ];
   const hasFilteredExport = normalizedLanguageFilter.length > 0 && filteredExportLocales.length > 0;
   const availableTermLocales = availableConceptTermLocales();

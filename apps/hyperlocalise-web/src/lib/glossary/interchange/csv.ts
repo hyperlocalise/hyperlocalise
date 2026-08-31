@@ -296,6 +296,7 @@ export function parseCsv(content: string): GlossaryImportDocument {
     header.trim().toLowerCase(),
   );
   const concepts = new Map<string, GlossaryImportDocument["concepts"][number]>();
+  const termIds = new Set<string>();
   for (const [index, cells] of (hasHeader ? rest : rows).entries()) {
     const rowNumber = hasHeader ? index + 2 : index + 1;
     const row = new Map(
@@ -320,6 +321,19 @@ export function parseCsv(content: string): GlossaryImportDocument {
       );
       continue;
     }
+    if (termIds.has(termId)) {
+      diagnostics.push(
+        diagnostic({
+          sourceRow: rowNumber,
+          conceptId,
+          termId,
+          code: "duplicate_term_id",
+          message: "Term ID appears more than once in the CSV file.",
+        }),
+      );
+      continue;
+    }
+    termIds.add(termId);
     const concept =
       concepts.get(conceptId) ??
       ({

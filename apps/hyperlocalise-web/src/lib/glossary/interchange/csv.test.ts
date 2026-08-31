@@ -211,4 +211,25 @@ describe("CSV glossary interchange", () => {
       new Map(reordered.concepts[0]!.terms.map((term) => [term.term, term.id])),
     );
   });
+
+  it("rejects term IDs reused across concepts", () => {
+    const parsed = parseCsv(
+      [
+        "conceptId,termId,locale,term",
+        "concept-1,term-1,en,Alpha",
+        "concept-2,term-1,en,Beta",
+      ].join("\n"),
+    );
+
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "duplicate_term_id",
+        conceptId: "concept-2",
+        termId: "term-1",
+        sourceRow: 3,
+      }),
+    ]);
+    expect(parsed.concepts).toHaveLength(1);
+    expect(parsed.concepts[0]?.id).toBe("concept-1");
+  });
 });

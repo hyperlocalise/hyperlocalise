@@ -41,6 +41,31 @@ describe("glossary import reports", () => {
     expect(counts).toMatchObject({ failed: 1, termsFailed: 1, conceptsFailed: 0 });
   });
 
+  it("does not count file-level diagnostics as concept failures", () => {
+    const counts = reportCountsFromDiagnostics(emptyImportReportCounts(), [
+      {
+        severity: "error",
+        code: "invalid_xml",
+        message: "The document is not XML.",
+      },
+    ]);
+
+    expect(counts).toMatchObject({ failed: 1, conceptsFailed: 0, termsFailed: 0 });
+  });
+
+  it("counts concept-level diagnostics without a term ID as concept failures", () => {
+    const counts = reportCountsFromDiagnostics(emptyImportReportCounts(), [
+      {
+        severity: "error",
+        code: "missing_source_locale",
+        message: "Concept has no source locale term.",
+        conceptId: "concept-1",
+      },
+    ]);
+
+    expect(counts).toMatchObject({ failed: 1, conceptsFailed: 1, termsFailed: 0 });
+  });
+
   it("persists large diagnostic collections in bounded batches", async () => {
     const { organization, user, glossary } = await fixture.createStoredGlossaryFixture();
     const diagnostics = Array.from({ length: 1_201 }, (_, index) => ({
