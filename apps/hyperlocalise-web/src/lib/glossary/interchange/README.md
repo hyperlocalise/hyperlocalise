@@ -4,10 +4,11 @@ Hyperlocalise exports TBX 3 using the ISO 30042 namespace, `TBX-Basic`, and
 DCA style. Concepts are `conceptEntry` elements, locales are `langSec`
 elements, and every term is a separate `termSec` under its concept and locale.
 
-The interchange model is shared by the TBX and XLSX codecs. XLSX uses a
+The interchange model is shared by the TBX, XLSX, and CSV codecs. XLSX uses a
 `Concepts` sheet and a `Terms` sheet: one row represents one concept or term,
-so synonyms never overwrite one another. JSON columns retain language-specific
-details and namespaced custom metadata.
+so synonyms never overwrite one another. CSV uses one row per term with
+repeated concept columns. JSON columns retain language-specific details and
+namespaced custom metadata.
 
 Supported mappings include subject, definitions, notes, URLs, part of speech,
 gender, term type, status, lemma, case sensitivity, forbidden status,

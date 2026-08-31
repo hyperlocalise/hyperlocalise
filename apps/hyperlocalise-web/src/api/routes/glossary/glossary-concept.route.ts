@@ -342,78 +342,6 @@ function reportCountsFromDiagnostics(
   return counts;
 }
 
-function entriesToImportDocument(
-  entries: ConceptImportEntry[],
-  diagnostics: ReturnType<typeof parseConceptImport>["diagnostics"],
-) {
-  const concepts = new Map<
-    string,
-    {
-      id: string;
-      primaryTerm: string;
-      subject?: string;
-      definition?: string;
-      translatable?: boolean;
-      note?: string;
-      url?: string;
-      terms: Array<{
-        id: string;
-        locale: string;
-        term: string;
-        description: string;
-        note: string;
-        partOfSpeech: string;
-        gender: string | null;
-        termType: string | null;
-        url: string | null;
-        lemma: string | null;
-        status: string;
-        caseSensitive: boolean;
-        forbidden: boolean;
-        provenance: string;
-        reviewStatus: string;
-        metadata: Record<string, unknown>;
-        createdAt: string;
-        updatedAt: string;
-      }>;
-    }
-  >();
-  for (const entry of entries) {
-    const concept = concepts.get(entry.conceptKey) ?? {
-      id: entry.conceptKey,
-      primaryTerm: entry.term,
-      subject: entry.subject,
-      definition: entry.definition,
-      translatable: entry.translatable,
-      note: entry.note,
-      url: entry.url,
-      terms: [],
-    };
-    concept.terms.push({
-      id: `${entry.conceptKey}:${entry.locale}:${concept.terms.length + 1}`,
-      locale: entry.locale,
-      term: entry.term,
-      description: "",
-      note: "",
-      partOfSpeech: entry.partOfSpeech ?? "",
-      gender: entry.gender ?? null,
-      termType: entry.termType ?? null,
-      url: entry.url ?? null,
-      lemma: null,
-      status: entry.status ?? "draft",
-      caseSensitive: false,
-      forbidden: false,
-      provenance: "manual",
-      reviewStatus: "approved",
-      metadata: {},
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
-    });
-    concepts.set(entry.conceptKey, concept);
-  }
-  return { concepts: [...concepts.values()], diagnostics };
-}
-
 export function createGlossaryConceptRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -486,10 +414,7 @@ export function createGlossaryConceptRoutes() {
           },
         );
         const entries = parsed.entries;
-        const importDocument =
-          payload.format === "xlsx" || payload.format === "tbx"
-            ? parsed.document
-            : entriesToImportDocument(entries, parsed.diagnostics);
+        const importDocument = parsed.document;
         if (payload.strictLocale) {
           const knownLocales = new Set([glossary.sourceLocale, ...glossary.localeCoverage]);
           for (const concept of importDocument.concepts) {

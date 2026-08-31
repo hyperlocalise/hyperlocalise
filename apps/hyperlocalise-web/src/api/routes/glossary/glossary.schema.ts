@@ -114,7 +114,7 @@ export const importGlossaryTermsBodySchema = z.object({
 });
 
 export const glossaryExportQuerySchema = z.object({
-  format: z.enum(["tbx", "xlsx"]).default("tbx"),
+  format: z.enum(["csv", "tbx", "xlsx"]).default("tbx"),
   scope: z.enum(["complete", "filtered"]).default("complete"),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),

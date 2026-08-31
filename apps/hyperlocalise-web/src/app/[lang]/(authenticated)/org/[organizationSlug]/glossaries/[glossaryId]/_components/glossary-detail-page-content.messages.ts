@@ -65,6 +65,21 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "ujii3FwBE5",
     description: "Fallback error when importing glossary terms fails",
   },
+  importGlossary: {
+    defaultMessage: "Import glossary",
+    id: "xhz41Pr74m",
+    description: "Button to import a glossary file",
+  },
+  importingGlossary: {
+    defaultMessage: "Importing glossary…",
+    id: "JkMnd1m3E/",
+    description: "Loading label shown while importing a glossary file",
+  },
+  importFormats: {
+    defaultMessage: "TBX, XLSX, or CSV",
+    id: "GEtF0nELl/",
+    description: "Accepted glossary import file formats",
+  },
   glossaryActions: {
     defaultMessage: "Glossary actions",
     id: "OU8ZFDP47O",
@@ -75,6 +90,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "Jh6eXznG+8",
     description: "Glossary action to export all concepts as TBX",
   },
+  exportAsCsv: {
+    defaultMessage: "Export as CSV",
+    id: "j3NSWZrB6O",
+    description: "Glossary action to export all concepts as CSV",
+  },
   exportAsXlsx: {
     defaultMessage: "Export as XLSX",
     id: "duzSZb/s6p",
@@ -84,6 +104,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "Export filtered as TBX",
     id: "ksdqzG4/Xq",
     description: "Glossary action to export the current language filter as TBX",
+  },
+  exportFilteredAsCsv: {
+    defaultMessage: "Export filtered as CSV",
+    id: "erXgCbsSqH",
+    description: "Glossary action to export the current language filter as CSV",
   },
   exportFilteredAsXlsx: {
     defaultMessage: "Export filtered as XLSX",

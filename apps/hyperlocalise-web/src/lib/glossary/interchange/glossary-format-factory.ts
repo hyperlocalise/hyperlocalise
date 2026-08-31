@@ -15,7 +15,7 @@ import {
   type GlossaryInterchangeDocument,
   type SerializationResult,
 } from "./glossary-interchange";
-import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
+import { CSV_MIME_TYPE, parseCsv, serializeCsv } from "./csv";
 import { parseTbx, serializeTbx } from "./tbx";
 import { parseXlsx, serializeXlsx, XLSX_MIME_TYPE } from "./xlsx";
 
@@ -31,88 +31,17 @@ export abstract class GlossaryFormatCodec {
   abstract serialize(document: GlossaryInterchangeDocument): SerializationResult;
 }
 
-function parseCsv(content: string): GlossaryImportDocument {
-  const rows = parseCsvRows(content);
-  const [first, ...rest] = rows;
-  const hasHeader = first?.some((cell) => /concept|locale|term|definition/i.test(cell)) ?? false;
-  const headers = (
-    hasHeader
-      ? first
-      : [
-          "conceptId",
-          "locale",
-          "term",
-          "subject",
-          "definition",
-          "translatable",
-          "note",
-          "url",
-          "partOfSpeech",
-          "gender",
-          "termType",
-          "status",
-        ]
-  ).map((header) => header.trim().toLowerCase());
-  const concepts = new Map<string, GlossaryImportDocument["concepts"][number]>();
-  for (const row of hasHeader ? rest : rows) {
-    const values = new Map(headers.map((header, index) => [header, row[index]?.trim() ?? ""]));
-    const term = values.get("term") ?? "";
-    const locale = values.get("locale") ?? "";
-    if (!term || !locale) continue;
-    const id = values.get("conceptid") || term;
-    const concept = concepts.get(id) ?? { id, primaryTerm: "", terms: [] };
-    concept.primaryTerm ||= term;
-    concept.subject ||= values.get("subject") || undefined;
-    concept.definition ||= values.get("definition") || undefined;
-    concept.note ||= values.get("note") || undefined;
-    concept.url ||= values.get("url") || undefined;
-    concept.terms.push({
-      id: `${id}:${locale}:${concept.terms.length + 1}`,
-      conceptId: id,
-      locale,
-      term,
-      description: "",
-      note: "",
-      partOfSpeech: values.get("partofspeech") || "",
-      gender: values.get("gender") || null,
-      termType: values.get("termtype") || null,
-      url: null,
-      lemma: null,
-      status: values.get("status") || "draft",
-      caseSensitive: false,
-      forbidden: false,
-      provenance: "manual",
-      reviewStatus: "approved",
-      metadata: {},
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
-    });
-    concepts.set(id, concept);
-  }
-  return { concepts: [...concepts.values()], diagnostics: [] };
-}
-
 class CsvGlossaryFormatCodec extends GlossaryFormatCodec {
   readonly format = "csv" as const;
   readonly extension = "csv";
-  readonly mimeType = "text/csv; charset=utf-8";
+  readonly mimeType = CSV_MIME_TYPE;
 
   parse(input: string | Uint8Array) {
     return parseCsv(typeof input === "string" ? input : new TextDecoder().decode(input));
   }
 
-  serialize() {
-    return {
-      content: new Uint8Array(),
-      warnings: [],
-      errors: [
-        {
-          severity: "error",
-          code: "format_not_exportable",
-          message: "CSV export is not supported by this codec.",
-        },
-      ],
-    } satisfies SerializationResult;
+  serialize(document: GlossaryInterchangeDocument) {
+    return serializeCsv(document);
   }
 }
 

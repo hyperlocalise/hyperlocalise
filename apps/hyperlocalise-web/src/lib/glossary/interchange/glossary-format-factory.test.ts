@@ -18,10 +18,13 @@ describe("GlossaryFormatFactory", () => {
   it("creates class-based codecs for each supported format", () => {
     const tbxCodec = GlossaryFormatFactory.create("tbx");
     const xlsxCodec = GlossaryFormatFactory.create("xlsx");
+    const csvCodec = GlossaryFormatFactory.create("csv");
 
     expect(tbxCodec).toBeInstanceOf(GlossaryFormatCodec);
     expect(xlsxCodec).toBeInstanceOf(GlossaryFormatCodec);
+    expect(csvCodec).toBeInstanceOf(GlossaryFormatCodec);
     expect(tbxCodec.format).toBe("tbx");
     expect(xlsxCodec.extension).toBe("xlsx");
+    expect(csvCodec.mimeType).toBe("text/csv; charset=utf-8");
   });
 });
