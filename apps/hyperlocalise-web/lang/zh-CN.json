@@ -497,6 +497,9 @@
   "/d8vf0Z+2x": {
     "defaultMessage": "仓库"
   },
+  "/e6ibZCuf5": {
+    "defaultMessage": "创建包含上下文、文件、区域设置和受派人员的任务。"
+  },
   "/enSUmEMs6": {
     "defaultMessage": "手动添加对齐的源语言和目标语言示例，或导入 CSV/TMX 文件。"
   },
@@ -2207,6 +2210,9 @@
   "5jY+nVchEw": {
     "defaultMessage": "已完成 {value}%"
   },
+  "5jk6z2ASrH": {
+    "defaultMessage": "取消"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "申请演示"
   },
@@ -3545,6 +3551,9 @@
   "AIFi7wN5lY": {
     "defaultMessage": "Slack"
   },
+  "AIsMxGkzgi": {
+    "defaultMessage": "任务类型"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "需要注意（{count}）"
   },
@@ -3700,6 +3709,9 @@
   },
   "B17gDUeMj6": {
     "defaultMessage": "适用于起草第二季度全球发布活动期间"
+  },
+  "B1NsXVl3wA": {
+    "defaultMessage": "导入 CSV 或 TMX 文件"
   },
   "B3vlmNRWNz": {
     "defaultMessage": "同步推送文档"
@@ -4724,6 +4736,9 @@
   "EY7508Falv": {
     "defaultMessage": "Saving…"
   },
+  "EYRqZtZx0G": {
+    "defaultMessage": "翻译"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "重置设置"
   },
@@ -4912,6 +4927,9 @@
   },
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
+  },
+  "F9qtJj6l6D": {
+    "defaultMessage": "将一个对齐的源文本和目标文本示例保存到此记忆中。"
   },
   "F9y826AvJs": {
     "defaultMessage": "排序队列"
@@ -9671,6 +9689,9 @@
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise 正在处理…"
   },
+  "XiZ3CdNBSX": {
+    "defaultMessage": "项目"
+  },
   "XifoTZH6H7": {
     "defaultMessage": "发布门控依赖于手动 TMS 检查，这些检查会不可预测地阻止部署。"
   },
@@ -9769,6 +9790,9 @@
   },
   "Y89oWQA4Iq": {
     "defaultMessage": "运行 QA"
+  },
+  "Y9WqHw/9nv": {
+    "defaultMessage": "添加条目"
   },
   "Y9q11GovtH": {
     "defaultMessage": "营销团队行动迅速。当品牌细微差别和地区意图始终无法传达给译者时，本地化就会成为瓶颈。"
@@ -10027,6 +10051,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "电子邮件代理已启用"
+  },
+  "Z3fCUPrSEf": {
+    "defaultMessage": "导入"
   },
   "Z4DRhv/lJb": {
     "defaultMessage": "查看所有职位"
@@ -13243,6 +13270,9 @@
   },
   "kUu0YJ4PK9": {
     "defaultMessage": "问题已关联"
+  },
+  "kV6HE87ScC": {
+    "defaultMessage": "校对"
   },
   "kWeceyqgt+": {
     "defaultMessage": "与 LLM 无关"
@@ -16474,6 +16504,9 @@
   },
   "wJduDnIsm8": {
     "defaultMessage": "已创建"
+  },
+  "wJpMrv20rr": {
+    "defaultMessage": "导出"
   },
   "wLreqnuDf7": {
     "defaultMessage": "无法加载源文件"

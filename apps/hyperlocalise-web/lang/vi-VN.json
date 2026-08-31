@@ -497,6 +497,9 @@
   "/d8vf0Z+2x": {
     "defaultMessage": "Kho lưu trữ"
   },
+  "/e6ibZCuf5": {
+    "defaultMessage": "Tạo một công việc với ngữ cảnh, tệp, ngôn ngữ và người được giao."
+  },
   "/enSUmEMs6": {
     "defaultMessage": "Thêm các ví dụ nguồn và đích được căn chỉnh theo cách thủ công hoặc nhập tệp CSV/TMX."
   },
@@ -2207,6 +2210,9 @@
   "5jY+nVchEw": {
     "defaultMessage": "Hoàn tất {value}%"
   },
+  "5jk6z2ASrH": {
+    "defaultMessage": "Hủy bỏ"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "Yêu cầu bản demo"
   },
@@ -3545,6 +3551,9 @@
   "AIFi7wN5lY": {
     "defaultMessage": "Slack"
   },
+  "AIsMxGkzgi": {
+    "defaultMessage": "Loại tác vụ"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "Cần chú ý ({count})"
   },
@@ -3696,10 +3705,13 @@
     "defaultMessage": "Đã thành công"
   },
   "B+FxSZUvzp": {
-    "defaultMessage": "{locales} +{count}"
+    "defaultMessage": "{locales} +{count} lang nữa"
   },
   "B17gDUeMj6": {
     "defaultMessage": "Được áp dụng trong quá trình soạn thảo chiến dịch ra mắt toàn cầu quý 2"
+  },
+  "B1NsXVl3wA": {
+    "defaultMessage": "Nhập tệp CSV hoặc TMX"
   },
   "B3vlmNRWNz": {
     "defaultMessage": "Tài liệu đồng bộ hóa push"
@@ -4724,6 +4736,9 @@
   "EY7508Falv": {
     "defaultMessage": "Saving…"
   },
+  "EYRqZtZx0G": {
+    "defaultMessage": "Bản dịch"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "Đặt lại cài đặt"
   },
@@ -4912,6 +4927,9 @@
   },
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
+  },
+  "F9qtJj6l6D": {
+    "defaultMessage": "Lưu một ví dụ nguồn và bản dịch tương ứng vào bộ nhớ này."
   },
   "F9y826AvJs": {
     "defaultMessage": "Sắp xếp hàng đợi"
@@ -9671,6 +9689,9 @@
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise đang xử lý…"
   },
+  "XiZ3CdNBSX": {
+    "defaultMessage": "Dự án"
+  },
   "XifoTZH6H7": {
     "defaultMessage": "Các cổng phát hành phụ thuộc vào các kiểm tra TMS thủ công, khiến việc triển khai bị chặn một cách khó đoán."
   },
@@ -9769,6 +9790,9 @@
   },
   "Y89oWQA4Iq": {
     "defaultMessage": "Chạy QA"
+  },
+  "Y9WqHw/9nv": {
+    "defaultMessage": "Thêm mục rugose"
   },
   "Y9q11GovtH": {
     "defaultMessage": "Các nhóm marketing di chuyển nhanh. Bản địa hóa trở thành một nút thắt cổ chai khi sắc thái thương hiệu và mục đích theo vùng không bao giờ đến được với người dịch."
@@ -10027,6 +10051,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Tác nhân email đã được bật"
+  },
+  "Z3fCUPrSEf": {
+    "defaultMessage": "Nhập khẩu"
   },
   "Z4DRhv/lJb": {
     "defaultMessage": "Xem tất cả việc làm"
@@ -13243,6 +13270,9 @@
   },
   "kUu0YJ4PK9": {
     "defaultMessage": "Đã liên kết vấn đề"
+  },
+  "kV6HE87ScC": {
+    "defaultMessage": "Hiệu đính"
   },
   "kWeceyqgt+": {
     "defaultMessage": "Không phụ thuộc LLM"
@@ -16474,6 +16504,9 @@
   },
   "wJduDnIsm8": {
     "defaultMessage": "Đã tạo"
+  },
+  "wJpMrv20rr": {
+    "defaultMessage": "Xuất biên soạn"
   },
   "wLreqnuDf7": {
     "defaultMessage": "Không thể tải tệp nguồn"
