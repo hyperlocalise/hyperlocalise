@@ -950,6 +950,7 @@ export function GlossaryDetailPageContent({
   const filteredExportLocales = [
     ...new Set(filteredConcepts.flatMap((concept) => concept.terms.map((term) => term.locale))),
   ];
+  const hasFilteredExport = normalizedLanguageFilter.length > 0 && filteredExportLocales.length > 0;
   const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selected?.terms ?? [])
     .filter((term) => !deletedTermIds.has(term.id))
@@ -1197,7 +1198,7 @@ export function GlossaryDetailPageContent({
                               <FormattedMessage {...messages.exportAsXlsx} />
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
-                          {normalizedLanguageFilter ? (
+                          {hasFilteredExport ? (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuGroup>

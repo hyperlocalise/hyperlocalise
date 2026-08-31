@@ -295,6 +295,7 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
     );
   }
   const concepts = new Map<string, GlossaryImportDocument["concepts"][number]>();
+  const termIds = new Set<string>();
   for (const [index, row] of conceptRows.entries()) {
     const rowNumber = index + 2;
     const id = cell(row, "conceptId");
@@ -357,6 +358,19 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
       );
       continue;
     }
+    if (termIds.has(termId)) {
+      diagnostics.push(
+        diagnostic({
+          sourceRow: rowNumber,
+          conceptId,
+          termId,
+          code: "duplicate_term_id",
+          message: "Term ID appears more than once in the workbook.",
+        }),
+      );
+      continue;
+    }
+    termIds.add(termId);
     const concept = concepts.get(conceptId);
     if (!concept) {
       diagnostics.push(
@@ -366,18 +380,6 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
           termId,
           code: "orphan_term",
           message: "Term references a concept that is not present in the Concepts sheet.",
-        }),
-      );
-      continue;
-    }
-    if (concept.terms.some((candidate) => candidate.id === termId)) {
-      diagnostics.push(
-        diagnostic({
-          sourceRow: rowNumber,
-          conceptId,
-          termId,
-          code: "duplicate_term_id",
-          message: "Term ID appears more than once for a concept.",
         }),
       );
       continue;

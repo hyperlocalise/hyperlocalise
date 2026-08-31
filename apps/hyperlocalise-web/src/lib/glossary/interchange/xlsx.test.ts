@@ -115,6 +115,36 @@ describe("XLSX glossary interchange", () => {
     ).toBe(true);
   });
 
+  it("rejects term IDs reused across different concepts", () => {
+    const workbook = XLSX.utils.book_new();
+    const concepts = XLSX.utils.json_to_sheet(
+      [{ conceptId: "concept-1" }, { conceptId: "concept-2" }],
+      { header: ["conceptId"] },
+    );
+    const terms = XLSX.utils.json_to_sheet(
+      [
+        { termId: "term-1", conceptId: "concept-1", locale: "en-US", term: "Checkout" },
+        { termId: "term-1", conceptId: "concept-2", locale: "fr-FR", term: "Caisse" },
+      ],
+      { header: ["termId", "conceptId", "locale", "term"] },
+    );
+    XLSX.utils.book_append_sheet(workbook, concepts, "Concepts");
+    XLSX.utils.book_append_sheet(workbook, terms, "Terms");
+
+    const parsed = parseXlsx(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "duplicate_term_id",
+          conceptId: "concept-2",
+          termId: "term-1",
+          sourceRow: 3,
+        }),
+      ]),
+    );
+    expect(parsed.concepts[1]?.terms).toEqual([]);
+  });
+
   it("keeps omitted fields undefined for merge semantics", () => {
     const workbook = XLSX.utils.book_new();
     const concepts = XLSX.utils.json_to_sheet([{ conceptId: "concept-1" }], {

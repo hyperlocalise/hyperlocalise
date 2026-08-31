@@ -13,7 +13,11 @@
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { emptyImportReportCounts } from "./glossary-interchange";
-import { createGlossaryImportReport, getGlossaryImportReport } from "./glossary-import-reports";
+import {
+  createGlossaryImportReport,
+  getGlossaryImportReport,
+  reportCountsFromDiagnostics,
+} from "./glossary-import-reports";
 import { createGlossaryTestFixture } from "@/api/routes/glossary/glossary.fixture";
 
 const fixture = createGlossaryTestFixture();
@@ -23,6 +27,20 @@ afterEach(async () => {
 });
 
 describe("glossary import reports", () => {
+  it("counts uncounted failures at the entity level", () => {
+    const counts = reportCountsFromDiagnostics(emptyImportReportCounts(), [
+      {
+        severity: "error",
+        code: "invalid_boolean",
+        message: "Boolean value is invalid.",
+        conceptId: "concept-1",
+        termId: "term-1",
+      },
+    ]);
+
+    expect(counts).toMatchObject({ failed: 1, termsFailed: 1, conceptsFailed: 0 });
+  });
+
   it("persists large diagnostic collections in bounded batches", async () => {
     const { organization, user, glossary } = await fixture.createStoredGlossaryFixture();
     const diagnostics = Array.from({ length: 1_201 }, (_, index) => ({
