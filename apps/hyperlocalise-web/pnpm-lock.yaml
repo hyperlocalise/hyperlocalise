@@ -23,7 +23,7 @@ overrides:
   dompurify: 3.4.14
   js-yaml@^3.0.0: 3.15.2
   js-yaml@^4.0.0: 4.3.2
-  nanoid@^3.0.0: 3.3.18
+  nanoid@^3.0.0: 6.0.1
   nanoid@^5.0.0: 6.0.1
   brace-expansion@^2.0.0: 2.1.4
   brace-expansion@^5.0.0: 5.0.9
@@ -8840,11 +8840,6 @@ packages:
   n-gram@2.0.2:
     resolution: {integrity: sha512-S24aGsn+HLBxUGVAUFOwGpKs7LBcG4RudKU//eWzt/mQ97/NMKQxDWHyHx63UNWk/OOdihgmzoETn1tf5nQDzQ==}
 
-  nanoid@3.3.18:
-    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@6.0.1:
     resolution: {integrity: sha512-3wVS3i51pE2pi1k5FFL/95BGfVS0kSsvDVuGXHOtxox/TywUmtgq+3qiTOTbs9J7KfHaXPiN171k/A6dBnaXFw==}
     engines: {node: ^22 || ^24 || >=26}
@@ -11910,7 +11905,7 @@ snapshots:
       '@univerjs/core': 0.25.1(react@19.2.8)(rxjs@7.8.2)
       '@zwight/exceljs': 4.4.2
       dayjs: 1.11.20
-      nanoid: 3.3.18
+      nanoid: 6.0.1
       papaparse: 5.5.4
       xml2js: 0.6.2
 
@@ -19993,8 +19988,6 @@ snapshots:
 
   n-gram@2.0.2: {}
 
-  nanoid@3.3.18: {}
-
   nanoid@6.0.1: {}
 
   napi-build-utils@2.0.0:
@@ -20517,7 +20510,7 @@ snapshots:
 
   postcss@8.5.26:
     dependencies:
-      nanoid: 3.3.18
+      nanoid: 6.0.1
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
