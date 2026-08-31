@@ -27,6 +27,14 @@ import {
 } from "./glossary-import-reports";
 
 const IMPORT_BATCH_SIZE = 250;
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type CreateGlossaryImportBackup = (input: {
+  tx: DatabaseTransaction;
+  glossary: typeof schema.glossaries.$inferSelect;
+}) => Promise<{
+  fileId: string;
+  cleanup?: () => Promise<void>;
+}>;
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -188,7 +196,7 @@ export async function planNativeGlossaryImport(input: {
     }
     for (const term of concept.terms) {
       const existingTerm = findExistingTerm(term.id, termsById, termsByStableKey);
-      if (existingTerm && existingConcept && existingTerm.conceptId !== existingConcept.id) {
+      if (existingTerm && (!existingConcept || existingTerm.conceptId !== existingConcept.id)) {
         diagnostics.push(
           diagnostic({
             conceptId: concept.id,
@@ -220,6 +228,7 @@ export async function applyNativeGlossaryImport(input: {
   mode: Exclude<GlossaryImportMode, "preview">;
   document: GlossaryImportDocument;
   report?: Omit<GlossaryImportReportInput, "counts" | "diagnostics">;
+  createBackup?: CreateGlossaryImportBackup;
 }) {
   const diagnostics = [...input.document.diagnostics];
   const counts = emptyImportReportCounts();
@@ -231,9 +240,10 @@ export async function applyNativeGlossaryImport(input: {
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
 
-  const result = await db.transaction(async (tx) => {
+  let backupCleanup: (() => Promise<void>) | undefined;
+  const transaction = db.transaction(async (tx) => {
     const [glossary] = await tx
-      .select({ id: schema.glossaries.id })
+      .select()
       .from(schema.glossaries)
       .where(eq(schema.glossaries.id, input.glossaryId))
       .limit(1)
@@ -266,6 +276,53 @@ export async function applyNativeGlossaryImport(input: {
         return key ? [[key, term] as const] : [];
       }),
     );
+    if (input.mode === "replace") {
+      const conflicts = input.document.concepts.flatMap((incoming) => {
+        const existing = findExistingConcept(
+          incoming.id,
+          conceptById,
+          conceptByStableKey,
+          conceptByExternalKey,
+        );
+        return incoming.terms.flatMap((incomingTerm) => {
+          const existingTerm = findExistingTerm(incomingTerm.id, termById, termByStableKey);
+          return existingTerm && (!existing || existingTerm.conceptId !== existing.id)
+            ? [{ conceptId: incoming.id, termId: incomingTerm.id }]
+            : [];
+        });
+      });
+      if (conflicts.length > 0) {
+        for (const conflict of conflicts) {
+          diagnostics.push(
+            diagnostic({
+              ...conflict,
+              counted: true,
+              code: "term_id_conflict",
+              message: "Term ID belongs to another concept and cannot be replaced.",
+            }),
+          );
+          bump(counts, "failed", "term");
+        }
+        const reportCounts = reportCountsFromDiagnostics(counts, diagnostics);
+        const report = input.report
+          ? await insertGlossaryImportReport(tx, {
+              ...input.report,
+              counts: reportCounts,
+              diagnostics,
+              status: "failed",
+            })
+          : undefined;
+        return {
+          counts: reportCounts,
+          reportId: report?.id,
+          backupFileId: undefined,
+          aborted: true,
+        };
+      }
+    }
+    const backup = input.createBackup ? await input.createBackup({ tx, glossary }) : undefined;
+    backupCleanup = backup?.cleanup;
+    const backupFileId = backup?.fileId;
     for (let offset = 0; offset < input.document.concepts.length; offset += IMPORT_BATCH_SIZE) {
       const batch = input.document.concepts.slice(offset, offset + IMPORT_BATCH_SIZE);
       for (const incoming of batch) {
@@ -602,9 +659,24 @@ export async function applyNativeGlossaryImport(input: {
           ...input.report,
           counts: reportCounts,
           diagnostics,
+          backupFileId,
         })
       : undefined;
-    return { counts: reportCounts, reportId: report?.id };
+    return { counts: reportCounts, reportId: report?.id, backupFileId, aborted: false };
   });
-  return { diagnostics, counts: result.counts, reportId: result.reportId };
+  const result = await transaction.catch(async (error) => {
+    try {
+      await backupCleanup?.();
+    } catch {
+      // Preserve the original transaction failure; cleanup is best effort.
+    }
+    throw error;
+  });
+  return {
+    diagnostics,
+    counts: result.counts,
+    reportId: result.reportId,
+    backupFileId: result.backupFileId,
+    aborted: result.aborted,
+  };
 }

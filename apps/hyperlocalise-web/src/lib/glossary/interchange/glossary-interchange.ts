@@ -168,13 +168,15 @@ export async function loadGlossaryInterchangeDocument(input: {
   >;
   search?: string;
   locale?: string | readonly string[];
+  db?: Pick<typeof db, "select">;
 }): Promise<GlossaryInterchangeDocument> {
   const search = input.search?.trim();
-  const conceptRows = await db
+  const dbClient = input.db ?? db;
+  const conceptRows = await dbClient
     .select()
     .from(schema.glossaryConcepts)
     .where(eq(schema.glossaryConcepts.glossaryId, input.glossary.id));
-  const termRows = await db
+  const termRows = await dbClient
     .select()
     .from(schema.glossaryTerms)
     .where(eq(schema.glossaryTerms.glossaryId, input.glossary.id));

@@ -172,7 +172,7 @@ function addTerm(
   }
   const status = mapStatusToTbx(term.status, warnings, term.id);
   if (status) termSec.ele("termNote", { type: "administrativeStatus" }).txt(status);
-  if (term.note.trim()) notes.push(term.note.trim());
+  if (term.note.trim()) notes.push(encodeTbxUserNote(term.note.trim()));
   if (status === null) addTermNote("Hyperlocalise::status", term.status);
   if (term.caseSensitive) addTermNote("Hyperlocalise::caseSensitive", true);
   if (term.forbidden) addTermNote("Hyperlocalise::forbidden", true);
@@ -197,7 +197,7 @@ function languageDetailNoteLines(
   languageDetail: GlossaryInterchangeConcept["languageDetails"][number],
 ) {
   return [
-    languageDetail.note.trim(),
+    encodeTbxUserNote(languageDetail.note.trim()),
     languageDetail.userId === null
       ? ""
       : `[Hyperlocalise::languageUserId]::${JSON.stringify(languageDetail.userId)}`,
@@ -232,7 +232,7 @@ function addConcept(
   if (concept.definition)
     conceptEntry.ele("descrip", { type: "definition" }).txt(concept.definition);
   const conceptNotes = [
-    concept.note.trim(),
+    encodeTbxUserNote(concept.note.trim()),
     `[Hyperlocalise::translatable]::${JSON.stringify(concept.translatable)}`,
     concept.createdAt ? `[Hyperlocalise::createdAt]::${concept.createdAt}` : "",
     concept.updatedAt ? `[Hyperlocalise::updatedAt]::${concept.updatedAt}` : "",
@@ -296,6 +296,19 @@ function parseLabeledNote(value: string) {
   }
 }
 
+function encodeTbxUserNote(value: string) {
+  return value
+    .split("\n")
+    .map((line) => (parseLabeledNote(line) ? `\\${line}` : line))
+    .join("\n");
+}
+
+function decodeTbxUserNoteLine(value: string) {
+  return value.startsWith("\\") && parseLabeledNote(value.slice(1))
+    ? { value: value.slice(1), escaped: true }
+    : { value, escaped: false };
+}
+
 function mergeLanguageDetailNote(
   concept: GlossaryImportDocument["concepts"][number],
   locale: string,
@@ -315,7 +328,12 @@ function mergeLanguageDetailNote(
     .split("\n")
     .map((item) => item.trim())
     .filter(Boolean)) {
-    const labeled = parseLabeledNote(line);
+    const decoded = decodeTbxUserNoteLine(line);
+    if (decoded.escaped) {
+      plainNotes.push(decoded.value);
+      continue;
+    }
+    const labeled = parseLabeledNote(decoded.value);
     if (!labeled) {
       plainNotes.push(line);
       continue;
@@ -613,46 +631,54 @@ export function parseTbx(content: string): GlossaryImportDocument {
         .map((line) => line.trim())
         .filter(Boolean);
       if (currentTerm) {
-        const plainNotes = noteLines.filter((line) => {
-          const labeled = parseLabeledNote(line);
-          return !labeled || !applyTermLabeledNote(currentTerm!, labeled);
-        });
+        const plainNotes = noteLines
+          .filter((line) => {
+            const decoded = decodeTbxUserNoteLine(line);
+            if (decoded.escaped) return true;
+            const labeled = parseLabeledNote(decoded.value);
+            return !labeled || !applyTermLabeledNote(currentTerm!, labeled);
+          })
+          .map((line) => decodeTbxUserNoteLine(line).value);
         if (plainNotes.length > 0)
           currentTerm.note = [currentTerm.note, ...plainNotes].filter(Boolean).join("\n");
       } else if (!currentLocale) {
-        const plainNotes = noteLines.filter((line) => {
-          const labeled = parseLabeledNote(line);
-          if (!labeled) return true;
-          if (labeled.key === "translatable" && typeof labeled.value === "boolean") {
-            concept.translatable = labeled.value;
-            return false;
-          }
-          if (/^external(?:Key|UserId|CreatedAt|UpdatedAt)$/u.test(labeled.key)) {
-            diagnostics.push(
-              diagnostic({
-                severity: "warning",
-                code: "unsupported_sync_metadata",
-                message: "Provider sync metadata was ignored for native glossary import.",
-                conceptId: concept.id,
-                field: labeled.key,
-              }),
-            );
-            return false;
-          }
-          if (labeled.key === "createdAt" && typeof labeled.value === "string") {
-            concept.createdAt = labeled.value;
-            return false;
-          }
-          if (labeled.key === "updatedAt" && typeof labeled.value === "string") {
-            concept.updatedAt = labeled.value;
-            return false;
-          }
-          if (labeled.key === "metadata" && labeled.value && typeof labeled.value === "object") {
-            concept.metadata = labeled.value as Record<string, unknown>;
-            return false;
-          }
-          return true;
-        });
+        const plainNotes = noteLines
+          .filter((line) => {
+            const decoded = decodeTbxUserNoteLine(line);
+            if (decoded.escaped) return true;
+            const labeled = parseLabeledNote(decoded.value);
+            if (!labeled) return true;
+            if (labeled.key === "translatable" && typeof labeled.value === "boolean") {
+              concept.translatable = labeled.value;
+              return false;
+            }
+            if (/^external(?:Key|UserId|CreatedAt|UpdatedAt)$/u.test(labeled.key)) {
+              diagnostics.push(
+                diagnostic({
+                  severity: "warning",
+                  code: "unsupported_sync_metadata",
+                  message: "Provider sync metadata was ignored for native glossary import.",
+                  conceptId: concept.id,
+                  field: labeled.key,
+                }),
+              );
+              return false;
+            }
+            if (labeled.key === "createdAt" && typeof labeled.value === "string") {
+              concept.createdAt = labeled.value;
+              return false;
+            }
+            if (labeled.key === "updatedAt" && typeof labeled.value === "string") {
+              concept.updatedAt = labeled.value;
+              return false;
+            }
+            if (labeled.key === "metadata" && labeled.value && typeof labeled.value === "object") {
+              concept.metadata = labeled.value as Record<string, unknown>;
+              return false;
+            }
+            return true;
+          })
+          .map((line) => decodeTbxUserNoteLine(line).value);
         if (plainNotes.length > 0)
           concept.note = [concept.note, ...plainNotes].filter(Boolean).join("\n");
       } else if (currentLocale) {

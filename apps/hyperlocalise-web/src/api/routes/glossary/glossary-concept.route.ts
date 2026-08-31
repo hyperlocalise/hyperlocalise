@@ -28,7 +28,6 @@ import {
   planNativeGlossaryImport,
 } from "@/lib/glossary/interchange/native-glossary-import";
 import {
-  attachGlossaryImportBackup,
   createGlossaryImportReport,
   reportCountsFromDiagnostics,
 } from "@/lib/glossary/interchange/glossary-import-reports";
@@ -540,6 +539,7 @@ export function createGlossaryConceptRoutes() {
             sourceTotals,
             counts,
             diagnostics: importDocument.diagnostics,
+            status: "failed",
           });
           return badRequestResponse(
             c,
@@ -573,6 +573,7 @@ export function createGlossaryConceptRoutes() {
               sourceTotals,
               counts,
               diagnostics: importDocument.diagnostics,
+              status: "failed",
             });
             return badRequestResponse(
               c,
@@ -580,31 +581,6 @@ export function createGlossaryConceptRoutes() {
               "Replace was not applied because the source contains validation errors.",
               { reportId: report.id, diagnostics: importDocument.diagnostics },
             );
-          }
-          let backupFileId: string | null = null;
-          if (payload.mode !== "create") {
-            const backupDocument = await loadGlossaryInterchangeDocument({ glossary });
-            const backup = serializeXlsx(backupDocument);
-            if (backup.errors.length > 0) {
-              return badRequestResponse(
-                c,
-                "glossary_backup_failed",
-                "Could not create a backup before import.",
-                { diagnostics: backup.errors },
-              );
-            }
-            const backupFile = await createStoredFile({
-              organizationId: c.var.auth.organization.localOrganizationId,
-              createdByUserId: c.var.auth.user.localUserId,
-              role: "reference",
-              sourceKind: "tms_file",
-              filename: `${glossary.name.replace(/[^a-zA-Z0-9._-]+/g, "-")}-backup.xlsx`,
-              contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              content: backup.content,
-              metadata: { glossaryId, purpose: "glossary_import_backup" },
-              adapter: getFileStorageAdapter(),
-            });
-            backupFileId = backupFile.id;
           }
           let applied;
           try {
@@ -626,6 +602,37 @@ export function createGlossaryConceptRoutes() {
                 },
                 sourceTotals,
               },
+              createBackup:
+                payload.mode === "create"
+                  ? undefined
+                  : async ({ tx, glossary: lockedGlossary }) => {
+                      const backupDocument = await loadGlossaryInterchangeDocument({
+                        glossary: lockedGlossary,
+                        db: tx,
+                      });
+                      const backup = serializeXlsx(backupDocument);
+                      if (backup.errors.length > 0) throw new Error("glossary_backup_failed");
+                      const backupAdapter = getFileStorageAdapter();
+                      const backupFile = await createStoredFile({
+                        organizationId: c.var.auth.organization.localOrganizationId,
+                        createdByUserId: c.var.auth.user.localUserId,
+                        role: "reference",
+                        sourceKind: "tms_file",
+                        filename: `${lockedGlossary.name.replace(/[^a-zA-Z0-9._-]+/g, "-")}-backup.xlsx`,
+                        contentType:
+                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        content: backup.content,
+                        metadata: { glossaryId, purpose: "glossary_import_backup" },
+                        adapter: backupAdapter,
+                        db: tx,
+                      });
+                      return {
+                        fileId: backupFile.id,
+                        cleanup: async () => {
+                          await backupAdapter.delete({ keyOrUrl: backupFile.storageKey });
+                        },
+                      };
+                    },
             });
           } catch {
             const failureDiagnostic = diagnostic({
@@ -654,7 +661,6 @@ export function createGlossaryConceptRoutes() {
               diagnostics: [failureDiagnostic],
               status: "failed",
             });
-            if (backupFileId) await attachGlossaryImportBackup(report.id, backupFileId);
             return c.json(
               {
                 error: "glossary_import_failed",
@@ -667,7 +673,14 @@ export function createGlossaryConceptRoutes() {
           const counts = applied.counts;
           const reportId = applied.reportId;
           if (!reportId) throw new Error("glossary_import_report_create_failed");
-          if (backupFileId) await attachGlossaryImportBackup(reportId, backupFileId);
+          if (applied.aborted) {
+            return badRequestResponse(
+              c,
+              "replace_requires_valid_input",
+              "Replace was not applied because a stable term ID belongs to another concept.",
+              { reportId, diagnostics: applied.diagnostics },
+            );
+          }
           const importedConcepts = await product.listConcepts();
           return c.json(
             {
@@ -680,7 +693,7 @@ export function createGlossaryConceptRoutes() {
               merged: counts.merged,
               skipped: counts.skipped,
               diagnostics: applied.diagnostics,
-              backupFileId,
+              backupFileId: applied.backupFileId ?? null,
             },
             201,
           );

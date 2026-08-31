@@ -33,6 +33,7 @@ export type GlossaryImportReportInput = {
   sourceTotals: Record<string, number>;
   counts: GlossaryImportReportCounts;
   diagnostics: InterchangeDiagnostic[];
+  backupFileId?: string;
   status?: "preview" | "completed" | "failed";
 };
 
@@ -74,6 +75,7 @@ export async function insertGlossaryImportReport(
       status,
       sourceSha256: input.sourceSha256 ?? null,
       sourceFilename: input.sourceFilename ?? null,
+      backupFileId: input.backupFileId ?? null,
       options: input.options,
       sourceTotals: input.sourceTotals,
       counts: input.counts,

@@ -259,6 +259,34 @@ describe("TBX-Basic DCA interchange", () => {
     expect(parsed.concepts[0]?.terms[0]?.term).toBe("foo bar baz");
   });
 
+  it("preserves user notes that resemble Hyperlocalise metadata", () => {
+    const document = makeDocument();
+    const term = document.concepts[0]?.terms[0];
+    if (!term) throw new Error("fixture term missing");
+    term.note = '[Hyperlocalise::status]::"obsolete"';
+
+    const serialized = serializeTbx(document);
+    expect(serialized.errors).toEqual([]);
+    const parsed = parseTbx(new TextDecoder().decode(serialized.content));
+
+    expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(parsed.concepts[0]?.terms[0]?.status).toBe("preferred");
+    expect(parsed.concepts[0]?.terms[0]?.note).toContain('[Hyperlocalise::status]::"obsolete"');
+  });
+
+  it("preserves ordinary notes that start with a backslash", () => {
+    const document = makeDocument();
+    const term = document.concepts[0]?.terms[0];
+    if (!term) throw new Error("fixture term missing");
+    term.note = "\\literal note";
+
+    const serialized = serializeTbx(document);
+    expect(serialized.errors).toEqual([]);
+    const parsed = parseTbx(new TextDecoder().decode(serialized.content));
+
+    expect(parsed.concepts[0]?.terms[0]?.note).toContain("\\literal note");
+  });
+
   it("rejects malformed XML without truncating valid preceding concepts", () => {
     const parsed = parseTbx(
       '<?xml version="1.0"?><tbx><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>ok</term></termSec></langSec></conceptEntry><conceptEntry',

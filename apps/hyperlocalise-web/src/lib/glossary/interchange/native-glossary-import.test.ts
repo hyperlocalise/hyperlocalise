@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database/client";
 import { createGlossaryTestFixture } from "@/api/routes/glossary/glossary.fixture";
@@ -93,6 +93,7 @@ describe("native glossary import concurrency", () => {
 
   it("rolls back glossary changes when the atomic report cannot be persisted", async () => {
     const { glossary } = await fixture.createStoredGlossaryFixture();
+    const cleanupBackup = vi.fn(async () => undefined);
     await expect(
       applyNativeGlossaryImport({
         glossaryId: glossary.id,
@@ -116,8 +117,10 @@ describe("native glossary import concurrency", () => {
           options: {},
           sourceTotals: { concepts: 1, terms: 1 },
         },
+        createBackup: async () => ({ fileId: "file_backup", cleanup: cleanupBackup }),
       }),
     ).rejects.toThrow();
+    expect(cleanupBackup).toHaveBeenCalledOnce();
 
     const concepts = await db
       .select()

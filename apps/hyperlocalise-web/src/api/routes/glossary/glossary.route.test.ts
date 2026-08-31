@@ -288,11 +288,80 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ error: "invalid_glossary_import" });
+    const responseBody = (await response.json()) as { details?: { reportId?: string } };
+    expect(responseBody).toMatchObject({ error: "invalid_glossary_import" });
+    const [report] = await db
+      .select({ status: schema.glossaryImportRuns.status })
+      .from(schema.glossaryImportRuns)
+      .where(eq(schema.glossaryImportRuns.id, responseBody.details?.reportId ?? ""));
+    expect(report?.status).toBe("failed");
     const conceptsResponse = await client.api.orgs[":organizationSlug"].glossaries[
       ":glossaryId"
     ].concepts.$get({ param: { organizationSlug, glossaryId } }, { headers });
     await expect(conceptsResponse.json()).resolves.toMatchObject({ concepts: [], total: 0 });
+  });
+
+  it("rejects replacement when a stable term ID changes concepts", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    const created = (await conceptResponse.json()) as {
+      concept: { id: string; terms: Array<{ id: string }> };
+    };
+    const existingTermId = created.concept.terms[0]!.id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].concepts[
+      "import"
+    ].$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          format: "csv",
+          content: `conceptId,termId,locale,term\nnew-concept,${existingTermId},en,Reassigned`,
+          mode: "replace",
+          previewForMode: "replace",
+          strictLocale: true,
+          localeMapping: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "replace_requires_valid_input",
+    });
+    const conceptsResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$get({ param: { organizationSlug, glossaryId } }, { headers });
+    await expect(conceptsResponse.json()).resolves.toMatchObject({
+      concepts: [expect.objectContaining({ id: created.concept.id })],
+      total: 1,
+    });
   });
 
   it("preserves omitted metadata and timestamps during merge import", async () => {
