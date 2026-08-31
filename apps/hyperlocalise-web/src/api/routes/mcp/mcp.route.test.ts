@@ -1567,7 +1567,7 @@ describe("mcpRoutes", () => {
     }
 
     const createSpy = vi.spyOn(IssueSheetService.prototype, "createIssue").mockResolvedValueOnce({
-      id: "issue-id",
+      id: "00000000-0000-4000-8000-000000000123",
       identifier: "HL-123",
       number: 123,
       title: "Incorrect French translation",
@@ -1633,6 +1633,10 @@ describe("mcpRoutes", () => {
         organizationId: auth.organization.localOrganizationId,
         projectId: stored.project.id,
         actorUserId: auth.user.localUserId,
+        deduplicateLinkedIssues: false,
+        metadata: {
+          mcpCreateIssueFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
         body: {
           title: "Incorrect French translation",
           description: "The CTA is mistranslated",
@@ -1658,7 +1662,7 @@ describe("mcpRoutes", () => {
       const text = body.result?.content?.[0]?.text;
       expect(text).toBeDefined();
       expect(JSON.parse(text!)).toMatchObject({
-        id: "issue-id",
+        id: "00000000-0000-4000-8000-000000000123",
         projectId: stored.project.id,
         title: "Incorrect French translation",
         priority: "P1",
@@ -1666,6 +1670,78 @@ describe("mcpRoutes", () => {
     } finally {
       createSpy.mockRestore();
     }
+  });
+
+  it("does not deduplicate new MCP issues by segment and locale", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+    const existing = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Existing linked issue",
+        targetLocale: "fr-FR",
+        segmentId: "shared-segment",
+        linkKind: "manual",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "create_issue",
+          arguments: {
+            projectId: stored.project.id,
+            title: "New MCP issue",
+            targetLocale: "fr-FR",
+            segmentId: "shared-segment",
+            idempotencyKey: "new-segment-issue",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const responseBody = (await response.json()) as {
+      result?: { content?: Array<{ text?: string }> };
+    };
+    const text = responseBody.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const created = JSON.parse(text!) as { id: string; title: string };
+    expect(created).toMatchObject({ title: "New MCP issue" });
+    expect(created.id).not.toBe(existing.id);
+
+    const rows = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.projectId, stored.project.id),
+          eq(schema.issueSheetIssues.segmentId, "shared-segment"),
+          eq(schema.issueSheetIssues.targetLocale, "fr-FR"),
+        ),
+      );
+
+    expect(rows).toHaveLength(2);
   });
 
   it("reuses an issue for an equivalent retry and rejects a conflicting payload", async () => {
@@ -1723,6 +1799,11 @@ describe("mcpRoutes", () => {
     };
 
     const first = await readToolResult(await callCreateIssue("Retry-safe issue"));
+
+    await db
+      .update(schema.issueSheetIssues)
+      .set({ title: "Edited after the original request", status: "in_progress" })
+      .where(eq(schema.issueSheetIssues.id, first.output.id));
 
     const retry = await readToolResult(await callCreateIssue("Retry-safe issue"));
 

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
@@ -416,24 +416,25 @@ const mcpCreateIssueInputSchema = z.object({
 
 type McpCreateIssueInput = z.infer<typeof mcpCreateIssueInputSchema>;
 
-function isEquivalentMcpCreateIssue(
-  issue: Awaited<ReturnType<IssueSheetService["createIssue"]>>,
+const MCP_CREATE_ISSUE_FINGERPRINT_KEY = "mcpCreateIssueFingerprint";
+
+function mcpCreateIssueFingerprint(
   input: Omit<McpCreateIssueInput, "projectId" | "idempotencyKey">,
 ) {
-  const priority = typeof issue.values.priority === "string" ? issue.values.priority : null;
+  const canonicalPayload = {
+    title: input.title,
+    description: input.description ?? "",
+    issueType: input.issueType ?? "general_question",
+    status: input.status ?? "open",
+    targetLocale: input.targetLocale ?? null,
+    sourcePath: input.sourcePath ?? null,
+    segmentId: input.segmentId ?? null,
+    translationKeyId: input.translationKeyId ?? null,
+    assigneeUserId: input.assigneeUserId ?? null,
+    priority: input.priority ?? null,
+  };
 
-  return (
-    issue.title === input.title &&
-    issue.description === (input.description ?? "") &&
-    issue.issueType === (input.issueType ?? "general_question") &&
-    issue.status === (input.status ?? "open") &&
-    issue.targetLocale === (input.targetLocale ?? null) &&
-    issue.sourcePath === (input.sourcePath ?? null) &&
-    issue.segmentId === (input.segmentId ?? null) &&
-    issue.translationKeyId === (input.translationKeyId ?? null) &&
-    issue.assigneeUserId === (input.assigneeUserId ?? null) &&
-    priority === (input.priority ?? null)
-  );
+  return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
 }
 
 function mcpToolError(code: string, message: string) {
@@ -596,52 +597,105 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         return mcpToolError("project_not_found", "Project not found or inaccessible");
       }
 
-      let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>>;
+      let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>> | null = null;
+      const externalRef = idempotencyKey ? `mcp:${idempotencyKey}` : undefined;
+      const fingerprint = idempotencyKey ? mcpCreateIssueFingerprint(body) : undefined;
 
-      try {
-        issue = await issueSheetService.createIssue({
-          organizationId: apiAuth.organization.localOrganizationId,
-          projectId,
-          actorUserId: apiAuth.user.localUserId,
-          body: {
-            ...body,
-            linkKind: "manual",
-            linkLabel: "MCP",
-            ...(idempotencyKey ? { externalRef: `mcp:${idempotencyKey}` } : {}),
-          },
-        });
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message === "assignee_not_assignable") {
-            return mcpToolError(
-              "assignee_not_assignable",
-              "Assignee is not assignable to this project",
-            );
-          }
+      if (externalRef && fingerprint) {
+        const [existing] = await db
+          .select({
+            id: schema.issueSheetIssues.id,
+            metadata: schema.issueSheetIssues.metadata,
+          })
+          .from(schema.issueSheetIssues)
+          .where(
+            and(
+              eq(schema.issueSheetIssues.organizationId, apiAuth.organization.localOrganizationId),
+              eq(schema.issueSheetIssues.projectId, projectId),
+              eq(schema.issueSheetIssues.externalRef, externalRef),
+            ),
+          )
+          .limit(1);
 
-          if (error.message === "translation_key_not_found") {
-            return mcpToolError(
-              "translation_key_not_found",
-              "Translation key was not found in this project",
-            );
-          }
-
-          if (error.message.includes("duplicate")) {
+        if (existing) {
+          if (existing.metadata[MCP_CREATE_ISSUE_FINGERPRINT_KEY] !== fingerprint) {
             return mcpToolError(
               "issue_already_exists",
-              "An issue already exists for this reference",
+              "The idempotency key is already associated with a different issue payload",
             );
           }
-        }
 
-        throw error;
+          issue = await issueSheetService.getIssue({
+            organizationId: apiAuth.organization.localOrganizationId,
+            projectId,
+            issueId: existing.id,
+            actorUserId: apiAuth.user.localUserId,
+          });
+        }
       }
 
-      if (idempotencyKey && !isEquivalentMcpCreateIssue(issue, body)) {
-        return mcpToolError(
-          "issue_already_exists",
-          "The idempotency key is already associated with a different issue payload",
-        );
+      if (!issue) {
+        try {
+          issue = await issueSheetService.createIssue({
+            organizationId: apiAuth.organization.localOrganizationId,
+            projectId,
+            actorUserId: apiAuth.user.localUserId,
+            deduplicateLinkedIssues: false,
+            ...(fingerprint
+              ? { metadata: { [MCP_CREATE_ISSUE_FINGERPRINT_KEY]: fingerprint } }
+              : {}),
+            body: {
+              ...body,
+              linkKind: "manual",
+              linkLabel: "MCP",
+              ...(externalRef ? { externalRef } : {}),
+            },
+          });
+        } catch (error) {
+          if (error instanceof Error) {
+            if (error.message === "assignee_not_assignable") {
+              return mcpToolError(
+                "assignee_not_assignable",
+                "Assignee is not assignable to this project",
+              );
+            }
+
+            if (error.message === "translation_key_not_found") {
+              return mcpToolError(
+                "translation_key_not_found",
+                "Translation key was not found in this project",
+              );
+            }
+
+            if (error.message.includes("duplicate")) {
+              return mcpToolError(
+                "issue_already_exists",
+                "An issue already exists for this reference",
+              );
+            }
+          }
+
+          throw error;
+        }
+      }
+
+      if (!issue) {
+        throw new Error("issue_sheet_issue_load_failed");
+      }
+
+      if (fingerprint) {
+        const [persisted] = await db
+          .select({ metadata: schema.issueSheetIssues.metadata })
+          .from(schema.issueSheetIssues)
+          .where(eq(schema.issueSheetIssues.id, issue.id))
+          .limit(1);
+
+        if (persisted && persisted.metadata[MCP_CREATE_ISSUE_FINGERPRINT_KEY] !== fingerprint) {
+          return mcpToolError(
+            "issue_already_exists",
+            "The idempotency key is already associated with a different issue payload",
+          );
+        }
       }
 
       return {

@@ -1264,6 +1264,8 @@ export class IssueSheetService {
     projectId: string;
     actorUserId: string;
     body: IssueSheetCreateIssueBody;
+    deduplicateLinkedIssues?: boolean;
+    metadata?: Record<string, unknown>;
   }): Promise<IssueSheetIssue> {
     await this.ensureStarterColumns(input);
     if (input.body.translationKeyId) {
@@ -1319,6 +1321,7 @@ export class IssueSheetService {
           linkUrl: input.body.linkUrl ?? null,
           externalRef: input.body.externalRef ?? null,
           templateKey: input.body.templateKey ?? null,
+          metadata: input.metadata ?? {},
           reporterUserId: input.actorUserId,
           assigneeUserId,
           resolvedAt:
@@ -2002,6 +2005,7 @@ export class IssueSheetService {
     projectId: string;
     actorUserId: string;
     body: IssueSheetCreateIssueBody;
+    deduplicateLinkedIssues?: boolean;
   }) {
     const baseConditions: SQL[] = [
       eq(schema.issueSheetIssues.organizationId, input.organizationId),
@@ -2016,6 +2020,10 @@ export class IssueSheetService {
       if (existingByExternalRef) {
         return existingByExternalRef;
       }
+    }
+
+    if (input.deduplicateLinkedIssues === false) {
+      return null;
     }
 
     const linkConditions: SQL[] = [];
