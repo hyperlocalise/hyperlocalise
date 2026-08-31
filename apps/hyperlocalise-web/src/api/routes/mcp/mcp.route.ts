@@ -27,6 +27,7 @@ import {
   organizationIssueService,
   type OrganizationIssueListItem,
 } from "@/lib/projects/issue-sheet/organization-issue-service";
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
@@ -376,7 +377,9 @@ const mcpGetIssueInputSchema = z.object({
     .min(1)
     .max(128)
     .describe("ID of the accessible Hyperlocalise project containing the issue."),
-  issueId: z.uuid().describe("UUID of the Hyperlocalise issue to retrieve."),
+  issueId: issueIdSchema.describe(
+    "Canonical issue identifier such as HL-123, or a legacy issue UUID.",
+  ),
 });
 
 const issueSheetService = new IssueSheetService();

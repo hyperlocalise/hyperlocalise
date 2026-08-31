@@ -992,6 +992,7 @@ describe("mcpRoutes", () => {
         id: string;
         projectId: string;
         title: string;
+        identifier: string;
       };
 
       expect(createdIssue).toMatchObject({
@@ -1003,7 +1004,7 @@ describe("mcpRoutes", () => {
         name: "get_issue",
         arguments: {
           projectId: stored.project.id,
-          issueId: createdIssue.id,
+          issueId: createdIssue.identifier,
         },
       });
 
@@ -1391,7 +1392,7 @@ describe("mcpRoutes", () => {
     expect(text).toContain("invalid_issue_query");
   });
 
-  it("advertises the get_issue tool with UUID input validation", async () => {
+  it("advertises the get_issue tool with issue identifier validation", async () => {
     const headers = await authenticatedMcpHeaders();
 
     const response = await app.request("http://localhost/mcp/sse", {
@@ -1437,7 +1438,6 @@ describe("mcpRoutes", () => {
       },
       issueId: {
         type: "string",
-        format: "uuid",
       },
     });
   });
