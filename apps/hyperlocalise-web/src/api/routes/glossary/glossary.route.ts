@@ -444,7 +444,7 @@ export function createGlossaryRoutes() {
       const document = await loadGlossaryInterchangeDocument({
         glossary,
         search: query.scope === "filtered" ? query.search : undefined,
-        locale: query.scope === "filtered" ? query.locale : undefined,
+        locale: query.scope === "filtered" ? (query.locales ?? query.locale) : undefined,
       });
       const serialized = GlossaryFormatFactory.create(query.format).serialize(document);
       if (serialized.errors.length > 0) {

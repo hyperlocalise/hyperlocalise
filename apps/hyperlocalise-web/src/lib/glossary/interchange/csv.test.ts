@@ -103,4 +103,17 @@ describe("CSV glossary interchange", () => {
     expect(parsed.concepts[0]?.terms[0]?.metadata).toEqual({ "provider:stable": "term-1" });
     expect(parsed.concepts[0]?.terms[0]?.caseSensitive).toBe(true);
   });
+
+  it("keeps omitted fields undefined for merge semantics", () => {
+    const parsed = parseCsv(
+      ["conceptId,termId,locale,term", "concept-1,term-1,en-US,Checkout"].join("\n"),
+    );
+
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.concepts[0]?.primaryTerm).toBeUndefined();
+    expect(parsed.concepts[0]?.subject).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.createdAt).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.updatedAt).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.status).toBeUndefined();
+  });
 });

@@ -16,7 +16,6 @@ import {
   diagnostic,
   type GlossaryImportDocument,
   type GlossaryInterchangeDocument,
-  type GlossaryInterchangeTerm,
   type InterchangeDiagnostic,
   type SerializationResult,
 } from "./glossary-interchange";
@@ -310,15 +309,19 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
     }
     concepts.set(id, {
       id,
-      primaryTerm: cell(row, "primaryTerm"),
+      primaryTerm: cell(row, "primaryTerm") || undefined,
       subject: cell(row, "subject"),
       definition: cell(row, "definition"),
       translatable: booleanCell(row, "translatable", diagnostics, rowNumber),
       note: cell(row, "note"),
       url: optionalCell(row, "url"),
       figure: optionalCell(row, "figure"),
-      metadata: jsonCell(row, "metadata", diagnostics, rowNumber),
-      languageDetails: parseLanguageDetails(row, diagnostics, rowNumber),
+      metadata: cell(row, "metadata")
+        ? jsonCell(row, "metadata", diagnostics, rowNumber)
+        : undefined,
+      languageDetails: cell(row, "languageDetails")
+        ? parseLanguageDetails(row, diagnostics, rowNumber)
+        : undefined,
       createdAt: optionalCell(row, "createdAt") ?? undefined,
       updatedAt: optionalCell(row, "updatedAt") ?? undefined,
       terms: [],
@@ -367,26 +370,28 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
       );
       continue;
     }
-    const term: GlossaryInterchangeTerm = {
+    const term: GlossaryImportDocument["concepts"][number]["terms"][number] = {
       id: termId,
       conceptId,
       locale,
       term: termText,
-      description: cell(row, "description"),
-      note: cell(row, "note"),
-      partOfSpeech: cell(row, "partOfSpeech"),
+      description: cell(row, "description") || undefined,
+      note: cell(row, "note") || undefined,
+      partOfSpeech: cell(row, "partOfSpeech") || undefined,
       gender: optionalCell(row, "gender"),
       termType: optionalCell(row, "termType"),
       url: optionalCell(row, "url"),
       lemma: optionalCell(row, "lemma"),
-      status: cell(row, "status") || "draft",
-      caseSensitive: booleanCell(row, "caseSensitive", diagnostics, rowNumber) ?? false,
-      forbidden: booleanCell(row, "forbidden", diagnostics, rowNumber) ?? false,
-      provenance: cell(row, "provenance") || "manual",
-      reviewStatus: cell(row, "reviewStatus") || "approved",
-      metadata: jsonCell(row, "metadata", diagnostics, rowNumber),
-      createdAt: cell(row, "createdAt") || new Date(0).toISOString(),
-      updatedAt: cell(row, "updatedAt") || new Date(0).toISOString(),
+      status: cell(row, "status") || undefined,
+      caseSensitive: booleanCell(row, "caseSensitive", diagnostics, rowNumber),
+      forbidden: booleanCell(row, "forbidden", diagnostics, rowNumber),
+      provenance: cell(row, "provenance") || undefined,
+      reviewStatus: cell(row, "reviewStatus") || undefined,
+      metadata: cell(row, "metadata")
+        ? jsonCell(row, "metadata", diagnostics, rowNumber)
+        : undefined,
+      createdAt: cell(row, "createdAt") || undefined,
+      updatedAt: cell(row, "updatedAt") || undefined,
     };
     concept.terms.push(term);
   }
@@ -399,7 +404,6 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
           message: "Concept has no valid term rows.",
         }),
       );
-    if (!concept.primaryTerm) concept.primaryTerm = concept.terms[0]?.term ?? "";
   }
   return { concepts: [...concepts.values()], diagnostics };
 }

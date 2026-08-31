@@ -778,10 +778,11 @@ export function GlossaryDetailPageContent({
     mutationFn: async (input: {
       format: "csv" | "tbx" | "xlsx";
       scope: "complete" | "filtered";
+      locales?: string[];
     }) => {
       const params = new URLSearchParams({ format: input.format, scope: input.scope });
-      if (input.scope === "filtered" && normalizedLanguageFilter) {
-        params.set("locale", normalizedLanguageFilter);
+      if (input.scope === "filtered") {
+        for (const locale of input.locales ?? []) params.append("locales", locale);
       }
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
@@ -946,6 +947,9 @@ export function GlossaryDetailPageContent({
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
+  const filteredExportLocales = [
+    ...new Set(filteredConcepts.flatMap((concept) => concept.terms.map((term) => term.locale))),
+  ];
   const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selected?.terms ?? [])
     .filter((term) => !deletedTermIds.has(term.id))
@@ -1203,7 +1207,11 @@ export function GlossaryDetailPageContent({
                                 <DropdownMenuItem
                                   disabled={exportGlossary.isPending || importConcepts.isPending}
                                   onClick={() =>
-                                    exportGlossary.mutate({ format: "tbx", scope: "filtered" })
+                                    exportGlossary.mutate({
+                                      format: "tbx",
+                                      scope: "filtered",
+                                      locales: filteredExportLocales,
+                                    })
                                   }
                                 >
                                   <FormattedMessage {...messages.exportFilteredAsTbx} />
@@ -1211,7 +1219,11 @@ export function GlossaryDetailPageContent({
                                 <DropdownMenuItem
                                   disabled={exportGlossary.isPending || importConcepts.isPending}
                                   onClick={() =>
-                                    exportGlossary.mutate({ format: "csv", scope: "filtered" })
+                                    exportGlossary.mutate({
+                                      format: "csv",
+                                      scope: "filtered",
+                                      locales: filteredExportLocales,
+                                    })
                                   }
                                 >
                                   <FormattedMessage {...messages.exportFilteredAsCsv} />
@@ -1219,7 +1231,11 @@ export function GlossaryDetailPageContent({
                                 <DropdownMenuItem
                                   disabled={exportGlossary.isPending || importConcepts.isPending}
                                   onClick={() =>
-                                    exportGlossary.mutate({ format: "xlsx", scope: "filtered" })
+                                    exportGlossary.mutate({
+                                      format: "xlsx",
+                                      scope: "filtered",
+                                      locales: filteredExportLocales,
+                                    })
                                   }
                                 >
                                   <FormattedMessage {...messages.exportFilteredAsXlsx} />

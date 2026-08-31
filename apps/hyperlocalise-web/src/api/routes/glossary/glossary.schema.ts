@@ -118,6 +118,7 @@ export const glossaryExportQuerySchema = z.object({
   scope: z.enum(["complete", "filtered"]).default("complete"),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
+  locales: z.array(localeInputSchema).max(100).optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({

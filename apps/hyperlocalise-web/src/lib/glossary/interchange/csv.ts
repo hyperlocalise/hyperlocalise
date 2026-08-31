@@ -285,15 +285,19 @@ export function parseCsv(content: string): GlossaryImportDocument {
       concepts.get(conceptId) ??
       ({
         id: conceptId,
-        primaryTerm: value(row, "primaryTerm") || termText,
+        primaryTerm: value(row, "primaryTerm") || undefined,
         subject: value(row, "subject") || undefined,
         definition: value(row, "definition") || undefined,
         translatable: booleanValue(row, diagnostics, rowNumber, "translatable"),
         note: value(row, "conceptNote", "note") || undefined,
         url: optionalValue(row, "conceptUrl", "url"),
         figure: optionalValue(row, "figure"),
-        languageDetails: languageDetailsValue(row, diagnostics, rowNumber),
-        metadata: jsonObjectValue(row, diagnostics, rowNumber, "conceptMetadata"),
+        languageDetails: value(row, "languageDetails")
+          ? languageDetailsValue(row, diagnostics, rowNumber)
+          : undefined,
+        metadata: value(row, "conceptMetadata")
+          ? jsonObjectValue(row, diagnostics, rowNumber, "conceptMetadata")
+          : undefined,
         createdAt: optionalValue(row, "conceptCreatedAt") ?? undefined,
         updatedAt: optionalValue(row, "conceptUpdatedAt") ?? undefined,
         terms: [],
@@ -318,21 +322,23 @@ export function parseCsv(content: string): GlossaryImportDocument {
       conceptId,
       locale,
       term: termText,
-      description: value(row, "description"),
-      note: value(row, "termNote", "note"),
-      partOfSpeech: value(row, "partOfSpeech"),
+      description: value(row, "description") || undefined,
+      note: value(row, "termNote", "note") || undefined,
+      partOfSpeech: value(row, "partOfSpeech") || undefined,
       gender: optionalValue(row, "gender"),
       termType: optionalValue(row, "termType"),
       url: optionalValue(row, "termUrl", "url"),
       lemma: optionalValue(row, "lemma"),
-      status: value(row, "status") || "draft",
-      caseSensitive: booleanValue(row, diagnostics, rowNumber, "caseSensitive") ?? false,
-      forbidden: booleanValue(row, diagnostics, rowNumber, "forbidden") ?? false,
-      provenance: value(row, "provenance") || "manual",
-      reviewStatus: value(row, "reviewStatus") || "approved",
-      metadata: jsonObjectValue(row, diagnostics, rowNumber, "termMetadata"),
-      createdAt: value(row, "createdAt") || new Date(0).toISOString(),
-      updatedAt: value(row, "updatedAt") || new Date(0).toISOString(),
+      status: value(row, "status") || undefined,
+      caseSensitive: booleanValue(row, diagnostics, rowNumber, "caseSensitive"),
+      forbidden: booleanValue(row, diagnostics, rowNumber, "forbidden"),
+      provenance: value(row, "provenance") || undefined,
+      reviewStatus: value(row, "reviewStatus") || undefined,
+      metadata: value(row, "termMetadata")
+        ? jsonObjectValue(row, diagnostics, rowNumber, "termMetadata")
+        : undefined,
+      createdAt: value(row, "createdAt") || undefined,
+      updatedAt: value(row, "updatedAt") || undefined,
     });
     concepts.set(conceptId, concept);
   }

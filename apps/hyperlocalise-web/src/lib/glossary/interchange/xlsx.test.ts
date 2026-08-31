@@ -114,4 +114,24 @@ describe("XLSX glossary interchange", () => {
       ),
     ).toBe(true);
   });
+
+  it("keeps omitted fields undefined for merge semantics", () => {
+    const workbook = XLSX.utils.book_new();
+    const concepts = XLSX.utils.json_to_sheet([{ conceptId: "concept-1" }], {
+      header: ["conceptId"],
+    });
+    const terms = XLSX.utils.json_to_sheet(
+      [{ termId: "term-1", conceptId: "concept-1", locale: "en-US", term: "Checkout" }],
+      { header: ["termId", "conceptId", "locale", "term"] },
+    );
+    XLSX.utils.book_append_sheet(workbook, concepts, "Concepts");
+    XLSX.utils.book_append_sheet(workbook, terms, "Terms");
+
+    const parsed = parseXlsx(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.concepts[0]?.primaryTerm).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.createdAt).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.updatedAt).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.caseSensitive).toBeUndefined();
+  });
 });

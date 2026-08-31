@@ -31,7 +31,9 @@ export async function createGlossaryImportReport(input: {
   sourceTotals: Record<string, number>;
   counts: GlossaryImportReportCounts;
   diagnostics: InterchangeDiagnostic[];
+  status?: "preview" | "completed" | "failed";
 }) {
+  const status = input.status ?? (input.mode === "preview" ? "preview" : "completed");
   const [run] = await db
     .insert(schema.glossaryImportRuns)
     .values({
@@ -40,13 +42,13 @@ export async function createGlossaryImportReport(input: {
       createdByUserId: input.createdByUserId,
       format: input.format,
       mode: input.mode,
-      status: input.mode === "preview" ? "preview" : "completed",
+      status,
       sourceSha256: input.sourceSha256 ?? null,
       sourceFilename: input.sourceFilename ?? null,
       options: input.options,
       sourceTotals: input.sourceTotals,
       counts: input.counts,
-      completedAt: input.mode === "preview" ? null : new Date(),
+      completedAt: status === "preview" ? null : new Date(),
     })
     .returning();
   if (!run) throw new Error("glossary_import_report_create_failed");

@@ -19,6 +19,7 @@ export type InterchangeSeverity = "warning" | "error";
 
 export type InterchangeDiagnostic = {
   severity: InterchangeSeverity;
+  outcome?: "skipped" | "failed";
   code: string;
   message: string;
   sourceRow?: number;
@@ -132,7 +133,7 @@ export const emptyImportReportCounts = (): GlossaryImportReportCounts => ({
 export type GlossaryImportDocument = {
   concepts: Array<{
     id: string;
-    primaryTerm: string;
+    primaryTerm?: string;
     subject?: string;
     definition?: string;
     translatable?: boolean;
@@ -143,7 +144,12 @@ export type GlossaryImportDocument = {
     metadata?: Record<string, unknown>;
     createdAt?: string;
     updatedAt?: string;
-    terms: Array<Omit<GlossaryInterchangeTerm, "conceptId"> & { conceptId?: string }>;
+    terms: Array<
+      Pick<GlossaryInterchangeTerm, "id" | "locale" | "term"> &
+        Partial<Omit<GlossaryInterchangeTerm, "id" | "conceptId" | "locale" | "term">> & {
+          conceptId?: string;
+        }
+    >;
   }>;
   diagnostics: InterchangeDiagnostic[];
 };
@@ -160,7 +166,7 @@ export async function loadGlossaryInterchangeDocument(input: {
     "id" | "name" | "description" | "sourceLocale" | "source" | "termCapabilities"
   >;
   search?: string;
-  locale?: string;
+  locale?: string | readonly string[];
 }): Promise<GlossaryInterchangeDocument> {
   const search = input.search?.trim();
   const conceptRows = await db
@@ -172,10 +178,13 @@ export async function loadGlossaryInterchangeDocument(input: {
     .from(schema.glossaryTerms)
     .where(eq(schema.glossaryTerms.glossaryId, input.glossary.id));
 
+  const locales = input.locale
+    ? new Set(typeof input.locale === "string" ? [input.locale] : input.locale)
+    : null;
   const termsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
   for (const term of termRows) {
     if (!term.conceptId || !term.locale || !term.term) continue;
-    if (input.locale && term.locale !== input.locale) continue;
+    if (locales && !locales.has(term.locale)) continue;
     const mapped: GlossaryInterchangeTerm = {
       id: term.id,
       conceptId: term.conceptId,
@@ -205,7 +214,7 @@ export async function loadGlossaryInterchangeDocument(input: {
     concepts: conceptRows
       .filter((concept) => {
         const conceptTerms = termsByConcept.get(concept.id) ?? [];
-        if (input.locale && conceptTerms.length === 0) return false;
+        if (locales && conceptTerms.length === 0) return false;
         if (!search) return true;
         const needle = search.toLocaleLowerCase();
         return [

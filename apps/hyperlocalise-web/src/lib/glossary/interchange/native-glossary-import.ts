@@ -232,16 +232,16 @@ export async function applyNativeGlossaryImport(input: {
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
 
-  for (let offset = 0; offset < input.document.concepts.length; offset += IMPORT_BATCH_SIZE) {
-    const batch = input.document.concepts.slice(offset, offset + IMPORT_BATCH_SIZE);
-    await db.transaction(async (tx) => {
-      const [glossary] = await tx
-        .select({ id: schema.glossaries.id })
-        .from(schema.glossaries)
-        .where(eq(schema.glossaries.id, input.glossaryId))
-        .limit(1)
-        .for("update");
-      if (!glossary) throw new Error("glossary_not_found");
+  await db.transaction(async (tx) => {
+    const [glossary] = await tx
+      .select({ id: schema.glossaries.id })
+      .from(schema.glossaries)
+      .where(eq(schema.glossaries.id, input.glossaryId))
+      .limit(1)
+      .for("update");
+    if (!glossary) throw new Error("glossary_not_found");
+    for (let offset = 0; offset < input.document.concepts.length; offset += IMPORT_BATCH_SIZE) {
+      const batch = input.document.concepts.slice(offset, offset + IMPORT_BATCH_SIZE);
       for (const incoming of batch) {
         if (incoming.terms.length === 0) {
           diagnostics.push(
@@ -282,7 +282,8 @@ export async function applyNativeGlossaryImport(input: {
           bump(counts, "failed", "concept");
           continue;
         }
-        const primaryTerm = incoming.primaryTerm || incoming.terms[0]?.term || "";
+        const primaryTerm =
+          incoming.primaryTerm ?? existing?.primaryTerm ?? incoming.terms[0]?.term ?? "";
         if (!primaryTerm) {
           diagnostics.push(
             diagnostic({
@@ -306,23 +307,53 @@ export async function applyNativeGlossaryImport(input: {
           bump(counts, "failed", "concept");
           continue;
         }
+        const conceptValues = {
+          primaryTerm,
+          subject: incoming.subject ?? existing?.subject ?? "",
+          definition: incoming.definition ?? existing?.definition ?? "",
+          translatable: incoming.translatable ?? existing?.translatable ?? true,
+          note: incoming.note ?? existing?.note ?? "",
+          url: incoming.url !== undefined ? incoming.url : (existing?.url ?? null),
+          figure: incoming.figure !== undefined ? incoming.figure : (existing?.figure ?? null),
+          languageDetails:
+            incoming.languageDetails !== undefined
+              ? incoming.languageDetails
+              : (existing?.languageDetails ?? []),
+          metadata: {
+            ...(incoming.metadata !== undefined ? incoming.metadata : (existing?.metadata ?? {})),
+            "hyperlocalise:stableId": incoming.id,
+          },
+        };
+        const conceptUpdateValues = {
+          ...(incoming.primaryTerm !== undefined ? { primaryTerm } : {}),
+          ...(incoming.subject !== undefined ? { subject: conceptValues.subject } : {}),
+          ...(incoming.definition !== undefined ? { definition: conceptValues.definition } : {}),
+          ...(incoming.translatable !== undefined
+            ? { translatable: conceptValues.translatable }
+            : {}),
+          ...(incoming.note !== undefined ? { note: conceptValues.note } : {}),
+          ...(incoming.url !== undefined ? { url: conceptValues.url } : {}),
+          ...(incoming.figure !== undefined ? { figure: conceptValues.figure } : {}),
+          ...(incoming.languageDetails !== undefined
+            ? { languageDetails: conceptValues.languageDetails }
+            : {}),
+          ...(incoming.metadata !== undefined ? { metadata: conceptValues.metadata } : {}),
+          ...(conceptCreatedAt !== undefined
+            ? { createdAt: conceptCreatedAt }
+            : existing
+              ? { createdAt: existing.createdAt }
+              : {}),
+          ...(conceptUpdatedAt !== undefined
+            ? { updatedAt: conceptUpdatedAt }
+            : existing
+              ? { updatedAt: existing.updatedAt }
+              : {}),
+        };
         let concept = existing;
         if (concept) {
           await tx
             .update(schema.glossaryConcepts)
-            .set({
-              primaryTerm,
-              subject: incoming.subject ?? "",
-              definition: incoming.definition ?? "",
-              translatable: incoming.translatable ?? true,
-              note: incoming.note ?? "",
-              url: incoming.url ?? null,
-              figure: incoming.figure ?? null,
-              languageDetails: incoming.languageDetails ?? [],
-              metadata: { ...incoming.metadata, "hyperlocalise:stableId": incoming.id },
-              createdAt: conceptCreatedAt,
-              updatedAt: conceptUpdatedAt,
-            })
+            .set(conceptUpdateValues)
             .where(eq(schema.glossaryConcepts.id, concept.id));
           retainedConceptIds.add(concept.id);
           bump(counts, input.mode === "merge" ? "merged" : "updated", "concept");
@@ -331,17 +362,9 @@ export async function applyNativeGlossaryImport(input: {
             .insert(schema.glossaryConcepts)
             .values({
               glossaryId: input.glossaryId,
-              primaryTerm,
-              subject: incoming.subject ?? "",
-              definition: incoming.definition ?? "",
-              translatable: incoming.translatable ?? true,
-              note: incoming.note ?? "",
-              url: incoming.url ?? null,
-              figure: incoming.figure ?? null,
-              languageDetails: incoming.languageDetails ?? [],
-              metadata: { ...incoming.metadata, "hyperlocalise:stableId": incoming.id },
-              createdAt: conceptCreatedAt,
-              updatedAt: conceptUpdatedAt,
+              ...conceptValues,
+              ...(conceptCreatedAt !== undefined ? { createdAt: conceptCreatedAt } : {}),
+              ...(conceptUpdatedAt !== undefined ? { updatedAt: conceptUpdatedAt } : {}),
             })
             .returning();
           if (!created) throw new Error("glossary_concept_create_failed");
@@ -403,10 +426,23 @@ export async function applyNativeGlossaryImport(input: {
             bump(counts, "failed", "term");
             continue;
           }
-          const metadata = { ...incomingTerm.metadata, "hyperlocalise:stableId": incomingTerm.id };
+          const metadata = {
+            ...(incomingTerm.metadata !== undefined
+              ? incomingTerm.metadata
+              : (existingTerm?.metadata ?? {})),
+            "hyperlocalise:stableId": incomingTerm.id,
+          };
           const provenance: "manual" | "sync" =
-            incomingTerm.provenance === "sync" ? "sync" : "manual";
-          if (incomingTerm.provenance !== "manual" && incomingTerm.provenance !== "sync") {
+            incomingTerm.provenance === "sync"
+              ? "sync"
+              : incomingTerm.provenance === "manual"
+                ? "manual"
+                : (existingTerm?.provenance ?? "manual");
+          if (
+            incomingTerm.provenance !== undefined &&
+            incomingTerm.provenance !== "manual" &&
+            incomingTerm.provenance !== "sync"
+          ) {
             diagnostics.push(
               diagnostic({
                 severity: "warning",
@@ -424,25 +460,65 @@ export async function applyNativeGlossaryImport(input: {
             term: incomingTerm.term,
             sourceTerm: incomingTerm.term,
             targetTerm: incomingTerm.term,
-            description: incomingTerm.description,
-            note: incomingTerm.note,
-            partOfSpeech: incomingTerm.partOfSpeech,
-            gender: incomingTerm.gender,
-            termType: incomingTerm.termType,
-            url: incomingTerm.url,
-            lemma: incomingTerm.lemma,
-            status: incomingTerm.status || "draft",
-            caseSensitive: incomingTerm.caseSensitive,
-            forbidden: incomingTerm.forbidden,
+            description: incomingTerm.description ?? existingTerm?.description ?? "",
+            note: incomingTerm.note ?? existingTerm?.note ?? "",
+            partOfSpeech: incomingTerm.partOfSpeech ?? existingTerm?.partOfSpeech ?? "",
+            gender:
+              incomingTerm.gender !== undefined
+                ? incomingTerm.gender
+                : (existingTerm?.gender ?? null),
+            termType:
+              incomingTerm.termType !== undefined
+                ? incomingTerm.termType
+                : (existingTerm?.termType ?? null),
+            url: incomingTerm.url !== undefined ? incomingTerm.url : (existingTerm?.url ?? null),
+            lemma:
+              incomingTerm.lemma !== undefined ? incomingTerm.lemma : (existingTerm?.lemma ?? null),
+            status: incomingTerm.status ?? existingTerm?.status ?? "draft",
+            caseSensitive: incomingTerm.caseSensitive ?? existingTerm?.caseSensitive ?? false,
+            forbidden: incomingTerm.forbidden ?? existingTerm?.forbidden ?? false,
             provenance,
             metadata,
-            createdAt: termCreatedAt,
-            updatedAt: termUpdatedAt,
+          };
+          const termUpdateValues = {
+            conceptId: concept.id,
+            locale: incomingTerm.locale,
+            term: incomingTerm.term,
+            sourceTerm: incomingTerm.term,
+            targetTerm: incomingTerm.term,
+            ...(incomingTerm.description !== undefined
+              ? { description: incomingTerm.description }
+              : {}),
+            ...(incomingTerm.note !== undefined ? { note: incomingTerm.note } : {}),
+            ...(incomingTerm.partOfSpeech !== undefined
+              ? { partOfSpeech: incomingTerm.partOfSpeech }
+              : {}),
+            ...(incomingTerm.gender !== undefined ? { gender: incomingTerm.gender } : {}),
+            ...(incomingTerm.termType !== undefined ? { termType: incomingTerm.termType } : {}),
+            ...(incomingTerm.url !== undefined ? { url: incomingTerm.url } : {}),
+            ...(incomingTerm.lemma !== undefined ? { lemma: incomingTerm.lemma } : {}),
+            ...(incomingTerm.status !== undefined ? { status: incomingTerm.status } : {}),
+            ...(incomingTerm.caseSensitive !== undefined
+              ? { caseSensitive: incomingTerm.caseSensitive }
+              : {}),
+            ...(incomingTerm.forbidden !== undefined ? { forbidden: incomingTerm.forbidden } : {}),
+            ...(incomingTerm.provenance !== undefined ? { provenance } : {}),
+            ...(incomingTerm.metadata !== undefined ? { metadata } : {}),
+            ...(termCreatedAt !== undefined
+              ? { createdAt: termCreatedAt }
+              : existingTerm
+                ? { createdAt: existingTerm.createdAt }
+                : {}),
+            ...(termUpdatedAt !== undefined
+              ? { updatedAt: termUpdatedAt }
+              : existingTerm
+                ? { updatedAt: existingTerm.updatedAt }
+                : {}),
           };
           if (existingTerm) {
             await tx
               .update(schema.glossaryTerms)
-              .set(values)
+              .set(termUpdateValues)
               .where(eq(schema.glossaryTerms.id, existingTerm.id));
             retainedTermIds.add(existingTerm.id);
             termByStableKey.set(incomingTerm.id, existingTerm);
@@ -450,7 +526,12 @@ export async function applyNativeGlossaryImport(input: {
           } else {
             const [created] = await tx
               .insert(schema.glossaryTerms)
-              .values({ glossaryId: input.glossaryId, ...values })
+              .values({
+                glossaryId: input.glossaryId,
+                ...values,
+                ...(termCreatedAt !== undefined ? { createdAt: termCreatedAt } : {}),
+                ...(termUpdatedAt !== undefined ? { updatedAt: termUpdatedAt } : {}),
+              })
               .returning();
             if (!created) throw new Error("glossary_term_create_failed");
             termById.set(created.id, created);
@@ -460,11 +541,8 @@ export async function applyNativeGlossaryImport(input: {
           }
         }
       }
-    });
-  }
-
-  if (input.mode === "replace") {
-    await db.transaction(async (tx) => {
+    }
+    if (input.mode === "replace") {
       const termScope = eq(schema.glossaryTerms.glossaryId, input.glossaryId);
       if (retainedTermIds.size > 0) {
         await tx
@@ -484,7 +562,7 @@ export async function applyNativeGlossaryImport(input: {
       } else {
         await tx.delete(schema.glossaryConcepts).where(conceptScope);
       }
-    });
-  }
+    }
+  });
   return { diagnostics, counts };
 }
