@@ -22,10 +22,10 @@ importers:
     devDependencies:
       '@figma/plugin-typings':
         specifier: ^1.123.0
-        version: 1.135.0
+        version: 1.136.0
       '@testing-library/react':
-        specifier: 16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -378,8 +378,8 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@figma/plugin-typings@1.135.0':
-    resolution: {integrity: sha512-vP9ftEPH2uKaDAiFr8e6ZHYe2yaK+sYuZgVS8okOT51cdQjg/LK7w7rLPSge0vN/zcKsQX6kel4LQi1z14nM0A==}
+  '@figma/plugin-typings@1.136.0':
+    resolution: {integrity: sha512-a+SbYX1SN8LYMSQ9PsmUtec6NMAbTcOq8O1vdBOVtYf+xhDD6o2GHUgeygOZ64TUKD6fKNm2SpHLFfHoDzxsXA==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -805,8 +805,8 @@ packages:
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
     engines: {node: '>=18'}
 
-  '@testing-library/react@16.3.2':
-    resolution: {integrity: sha512-XU5/SytQM+ykqMnAnvB2umaJNIOsLF3PVv//1Ew4CTcpz0/BRyy/af40qqrt7SjKpDdT1saBMc42CUok5gaw+g==}
+  '@testing-library/react@16.3.3':
+    resolution: {integrity: sha512-Uo193NgQbPMz6lrrhtRQQFcMC6Re/ELLFbbuVL30WDlZxlpZf9/lMHTAVxPRLw1q1iu9OJmR1c2BLiENRstdBg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@testing-library/dom': ^10.0.0
@@ -2129,7 +2129,7 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@figma/plugin-typings@1.135.0': {}
+  '@figma/plugin-typings@1.136.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -2371,7 +2371,7 @@ snapshots:
       picocolors: 1.1.1
       pretty-format: 27.5.1
 
-  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@testing-library/react@16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@testing-library/dom': 10.4.1
