@@ -177,6 +177,17 @@ describe("isAllowedBashCommand", () => {
   });
 
   it.each([
+    "find -files0-from paths.txt -type f",
+    "find . -files0-from paths.txt -type f",
+    "find -files0-from=paths.txt -type f",
+    "find . -files0-from=paths.txt -type f",
+    `find . "-files0-from" paths.txt -type f`,
+    `find . "-files0-from=paths.txt" -type f`,
+  ])("blocks find -files0-from indirect path escape in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
+
+  it.each([
     "ls /",
     "ls / ",
     "find / -type f",
@@ -401,6 +412,22 @@ describe("createBashTool", () => {
       },
     });
     const result = await tool.execute!({ command: "ls /" }, toolCallInfo);
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects find -files0-from before execution", async () => {
+    const tool = createBashTool({
+      bash: {
+        exec: async () => {
+          throw new Error("bash.exec must not run for find -files0-from");
+        },
+        readFile: async () => "",
+      },
+    });
+    const result = await tool.execute!(
+      { command: "find -files0-from paths.txt -type f" },
+      toolCallInfo,
+    );
     expect(result).toMatchObject({ success: false });
   });
 

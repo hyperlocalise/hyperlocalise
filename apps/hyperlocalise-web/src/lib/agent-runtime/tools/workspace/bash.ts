@@ -27,6 +27,8 @@ const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", 
 // GNU find file-writing actions plus other mutating flags. Tokenized so
 // quoted forms like `"-fprintf"` cannot bypass the deny list. `-fprint`
 // is not a prefix match for `-fprintf`/`-fprint0`; each is listed.
+// `-files0-from` reads starting-points from a file, so absolute/`..`
+// paths never appear in the command string and skip ABSOLUTE_PATH_PATTERN.
 const DISALLOWED_FLAG_NAMES = new Set([
   "no-index",
   "in-place",
@@ -36,6 +38,7 @@ const DISALLOWED_FLAG_NAMES = new Set([
   "fprintf",
   "printf",
   "fls",
+  "files0-from",
   "exec",
   "execdir",
   "okdir",
