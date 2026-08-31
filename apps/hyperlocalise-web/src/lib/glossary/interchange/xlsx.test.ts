@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import * as XLSX from "xlsx";
 import { describe, expect, it } from "vite-plus/test";
 
 import { parseXlsx, serializeXlsx } from "./xlsx";
@@ -35,10 +36,6 @@ const document: GlossaryInterchangeDocument = {
       url: null,
       figure: null,
       languageDetails: [],
-      externalKey: "provider-concept-1",
-      externalUserId: null,
-      externalCreatedAt: null,
-      externalUpdatedAt: null,
       metadata: { "provider:domain": "food" },
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-02T00:00:00.000Z",
@@ -94,11 +91,14 @@ describe("XLSX glossary interchange", () => {
   it("round-trips concepts, synonyms, IDs, Unicode, and metadata", () => {
     const serialized = serializeXlsx(document);
     expect(serialized.errors).toEqual([]);
+    const workbook = XLSX.read(serialized.content, { type: "array" });
+    expect(XLSX.utils.sheet_to_json(workbook.Sheets.Concepts, { header: 1 })[0]).not.toContain(
+      "externalKey",
+    );
     const parsed = parseXlsx(serialized.content);
     expect(parsed.diagnostics).toEqual([]);
     expect(parsed.concepts).toHaveLength(1);
     expect(parsed.concepts[0]?.id).toBe("concept-1");
-    expect(parsed.concepts[0]?.externalKey).toBe("provider-concept-1");
     expect(parsed.concepts[0]?.metadata).toEqual({ "provider:domain": "food" });
     expect(parsed.concepts[0]?.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(parsed.concepts[0]?.terms.map((term) => term.term)).toEqual(["café", "coffee shop"]);

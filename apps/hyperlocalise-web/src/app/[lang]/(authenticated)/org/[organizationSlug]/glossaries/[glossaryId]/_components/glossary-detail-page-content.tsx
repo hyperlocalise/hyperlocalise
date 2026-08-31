@@ -1373,9 +1373,42 @@ export function GlossaryDetailPageContent({
                   </tbody>
                 </table>
                 {conceptsQuery.isSuccess && filteredConcepts.length === 0 ? (
-                  <TypographyP className="px-4 py-8 text-sm text-muted-foreground">
-                    <FormattedMessage {...messages.noConcepts} />
-                  </TypographyP>
+                  <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
+                    <TypographyP className="text-sm text-muted-foreground">
+                      <FormattedMessage {...messages.noConcepts} />
+                    </TypographyP>
+                    {canContribute || canManage ? (
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        {canContribute ? (
+                          <Button
+                            type="button"
+                            onClick={() => router.push(`${glossaryHref}/concepts/new`)}
+                          >
+                            <HugeiconsIcon
+                              icon={Add01Icon}
+                              strokeWidth={1.8}
+                              data-icon="inline-start"
+                            />
+                            <FormattedMessage {...messages.addConcept} />
+                          </Button>
+                        ) : null}
+                        {canManage ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setImportDialogOpen(true)}
+                          >
+                            <HugeiconsIcon
+                              icon={Upload01Icon}
+                              strokeWidth={1.8}
+                              data-icon="inline-start"
+                            />
+                            <FormattedMessage {...messages.importGlossary} />
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </section>

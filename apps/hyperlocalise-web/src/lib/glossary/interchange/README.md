@@ -16,6 +16,8 @@ provenance, review status, timestamps, and stable IDs. TBX DCA values are
 mapped explicitly. Values without a valid DCA value are retained as labeled
 Hyperlocalise notes and reported as warnings; invalid XML characters, invalid
 URLs, duplicate IDs, incomplete concepts, and limit violations are errors.
+Provider sync fields are intentionally excluded from native glossary payloads;
+stable concept and term IDs use the concept/term ID columns and TBX XML IDs.
 
 Imports support preview, create, update, merge, and replace modes. Native
 imports are processed in bounded batches. Replace and update-capable imports

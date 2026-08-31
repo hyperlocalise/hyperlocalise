@@ -234,14 +234,6 @@ function addConcept(
   const conceptNotes = [
     concept.note.trim(),
     `[Hyperlocalise::translatable]::${JSON.stringify(concept.translatable)}`,
-    concept.externalKey ? `[Hyperlocalise::externalKey]::${concept.externalKey}` : "",
-    concept.externalUserId ? `[Hyperlocalise::externalUserId]::${concept.externalUserId}` : "",
-    concept.externalCreatedAt
-      ? `[Hyperlocalise::externalCreatedAt]::${concept.externalCreatedAt}`
-      : "",
-    concept.externalUpdatedAt
-      ? `[Hyperlocalise::externalUpdatedAt]::${concept.externalUpdatedAt}`
-      : "",
     concept.createdAt ? `[Hyperlocalise::createdAt]::${concept.createdAt}` : "",
     concept.updatedAt ? `[Hyperlocalise::updatedAt]::${concept.updatedAt}` : "",
     Object.keys(concept.metadata).length > 0
@@ -633,20 +625,16 @@ export function parseTbx(content: string): GlossaryImportDocument {
             concept.translatable = labeled.value;
             return false;
           }
-          if (labeled.key === "externalKey" && typeof labeled.value === "string") {
-            concept.externalKey = labeled.value;
-            return false;
-          }
-          if (labeled.key === "externalUserId" && typeof labeled.value === "string") {
-            concept.externalUserId = labeled.value;
-            return false;
-          }
-          if (labeled.key === "externalCreatedAt" && typeof labeled.value === "string") {
-            concept.externalCreatedAt = labeled.value;
-            return false;
-          }
-          if (labeled.key === "externalUpdatedAt" && typeof labeled.value === "string") {
-            concept.externalUpdatedAt = labeled.value;
+          if (/^external(?:Key|UserId|CreatedAt|UpdatedAt)$/u.test(labeled.key)) {
+            diagnostics.push(
+              diagnostic({
+                severity: "warning",
+                code: "unsupported_sync_metadata",
+                message: "Provider sync metadata was ignored for native glossary import.",
+                conceptId: concept.id,
+                field: labeled.key,
+              }),
+            );
             return false;
           }
           if (labeled.key === "createdAt" && typeof labeled.value === "string") {

@@ -35,10 +35,6 @@ const document: GlossaryInterchangeDocument = {
       url: "https://example.com/concept",
       figure: null,
       languageDetails: [],
-      externalKey: "external-1",
-      externalUserId: null,
-      externalCreatedAt: null,
-      externalUpdatedAt: null,
       metadata: { "provider:domain": "pets" },
       terms: [
         {
@@ -95,6 +91,8 @@ describe("CSV glossary interchange", () => {
     const csv = new TextDecoder().decode(serialized.content);
     expect(csv).toContain("conceptId");
     expect(csv).toContain('"cat, house"');
+    expect(csv).not.toContain("externalKey");
+    expect(csv).not.toContain("externalCreatedAt");
 
     const parsed = parseCsv(csv);
     expect(parsed.diagnostics).toEqual([]);

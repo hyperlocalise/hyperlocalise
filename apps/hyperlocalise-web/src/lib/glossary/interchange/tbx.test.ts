@@ -52,10 +52,6 @@ function makeDocument(): GlossaryInterchangeDocument {
             updatedAt: "2026-01-04T00:00:00.000Z",
           },
         ],
-        externalKey: "source-1",
-        externalUserId: null,
-        externalCreatedAt: null,
-        externalUpdatedAt: null,
         metadata: {},
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
@@ -135,10 +131,6 @@ function makeDocument(): GlossaryInterchangeDocument {
         url: null,
         figure: null,
         languageDetails: [],
-        externalKey: "source-2",
-        externalUserId: null,
-        externalCreatedAt: null,
-        externalUpdatedAt: null,
         metadata: {},
         terms: [
           {
@@ -189,6 +181,8 @@ describe("TBX-Basic DCA interchange", () => {
     expect(xml).toContain('type="TBX-Basic"');
     expect(xml).toContain('style="dca"');
     expect(xml).toContain("<conceptEntry");
+    expect(xml).not.toContain("externalKey");
+    expect(xml).not.toContain("externalCreatedAt");
     expect(xml.match(/<conceptEntry\b/g)).toHaveLength(2);
     expect(xml.match(/<termSec\b/g)).toHaveLength(4);
     expect(xml).toContain("Product &lt;Terms&gt;");

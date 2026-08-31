@@ -32,6 +32,11 @@ function stableTermKey(metadata: Record<string, unknown>) {
   return typeof value === "string" ? value : null;
 }
 
+function stableConceptKey(metadata: Record<string, unknown>) {
+  const value = metadata["hyperlocalise:stableId"];
+  return typeof value === "string" ? value : null;
+}
+
 function parseTimestamp(
   value: string | null | undefined,
   diagnostics: ReturnType<typeof diagnostic>[],
@@ -62,10 +67,12 @@ function bump(
 function findExistingConcept(
   incomingId: string,
   conceptsById: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
+  conceptsByStableKey: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
   conceptsByExternalKey: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
 ) {
   return (
     (isUuid(incomingId) ? conceptsById.get(incomingId) : undefined) ??
+    conceptsByStableKey.get(incomingId) ??
     conceptsByExternalKey.get(incomingId)
   );
 }
@@ -101,6 +108,12 @@ export async function planNativeGlossaryImport(input: {
     .from(schema.glossaryTerms)
     .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
   const conceptsById = new Map(existingConcepts.map((concept) => [concept.id, concept]));
+  const conceptsByStableKey = new Map(
+    existingConcepts.flatMap((concept) => {
+      const key = stableConceptKey(concept.metadata);
+      return key ? [[key, concept] as const] : [];
+    }),
+  );
   const conceptsByExternalKey = new Map(
     existingConcepts.flatMap((concept) =>
       concept.externalKey ? [[concept.externalKey, concept] as const] : [],
@@ -118,7 +131,12 @@ export async function planNativeGlossaryImport(input: {
       bump(counts, "skipped", "concept");
       continue;
     }
-    const existingConcept = findExistingConcept(concept.id, conceptsById, conceptsByExternalKey);
+    const existingConcept = findExistingConcept(
+      concept.id,
+      conceptsById,
+      conceptsByStableKey,
+      conceptsByExternalKey,
+    );
     if (input.mode === "create" && existingConcept) {
       diagnostics.push(
         diagnostic({
@@ -193,6 +211,12 @@ export async function applyNativeGlossaryImport(input: {
     .from(schema.glossaryTerms)
     .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
   const conceptById = new Map(existingConcepts.map((concept) => [concept.id, concept]));
+  const conceptByStableKey = new Map(
+    existingConcepts.flatMap((concept) => {
+      const key = stableConceptKey(concept.metadata);
+      return key ? [[key, concept] as const] : [];
+    }),
+  );
   const conceptByExternalKey = new Map(
     existingConcepts.flatMap((concept) =>
       concept.externalKey ? [[concept.externalKey, concept] as const] : [],
@@ -230,7 +254,12 @@ export async function applyNativeGlossaryImport(input: {
           bump(counts, "skipped", "concept");
           continue;
         }
-        const existing = findExistingConcept(incoming.id, conceptById, conceptByExternalKey);
+        const existing = findExistingConcept(
+          incoming.id,
+          conceptById,
+          conceptByStableKey,
+          conceptByExternalKey,
+        );
         if (input.mode === "create" && existing) {
           diagnostics.push(
             diagnostic({
@@ -273,20 +302,7 @@ export async function applyNativeGlossaryImport(input: {
           conceptId: incoming.id,
           field: "updatedAt",
         });
-        const externalCreatedAt = parseTimestamp(incoming.externalCreatedAt, diagnostics, {
-          conceptId: incoming.id,
-          field: "externalCreatedAt",
-        });
-        const externalUpdatedAt = parseTimestamp(incoming.externalUpdatedAt, diagnostics, {
-          conceptId: incoming.id,
-          field: "externalUpdatedAt",
-        });
-        if (
-          conceptCreatedAt === null ||
-          conceptUpdatedAt === null ||
-          externalCreatedAt === null ||
-          externalUpdatedAt === null
-        ) {
+        if (conceptCreatedAt === null || conceptUpdatedAt === null) {
           bump(counts, "failed", "concept");
           continue;
         }
@@ -303,11 +319,7 @@ export async function applyNativeGlossaryImport(input: {
               url: incoming.url ?? null,
               figure: incoming.figure ?? null,
               languageDetails: incoming.languageDetails ?? [],
-              metadata: incoming.metadata ?? {},
-              externalKey: incoming.externalKey ?? incoming.id,
-              externalUserId: incoming.externalUserId ?? null,
-              externalCreatedAt: externalCreatedAt ?? null,
-              externalUpdatedAt: externalUpdatedAt ?? null,
+              metadata: { ...incoming.metadata, "hyperlocalise:stableId": incoming.id },
               createdAt: conceptCreatedAt,
               updatedAt: conceptUpdatedAt,
             })
@@ -319,7 +331,6 @@ export async function applyNativeGlossaryImport(input: {
             .insert(schema.glossaryConcepts)
             .values({
               glossaryId: input.glossaryId,
-              externalKey: incoming.externalKey ?? incoming.id,
               primaryTerm,
               subject: incoming.subject ?? "",
               definition: incoming.definition ?? "",
@@ -328,10 +339,7 @@ export async function applyNativeGlossaryImport(input: {
               url: incoming.url ?? null,
               figure: incoming.figure ?? null,
               languageDetails: incoming.languageDetails ?? [],
-              metadata: incoming.metadata ?? {},
-              externalUserId: incoming.externalUserId ?? null,
-              externalCreatedAt: externalCreatedAt ?? null,
-              externalUpdatedAt: externalUpdatedAt ?? null,
+              metadata: { ...incoming.metadata, "hyperlocalise:stableId": incoming.id },
               createdAt: conceptCreatedAt,
               updatedAt: conceptUpdatedAt,
             })
@@ -339,7 +347,7 @@ export async function applyNativeGlossaryImport(input: {
           if (!created) throw new Error("glossary_concept_create_failed");
           concept = created;
           conceptById.set(created.id, created);
-          conceptByExternalKey.set(incoming.id, created);
+          conceptByStableKey.set(incoming.id, created);
           retainedConceptIds.add(created.id);
           bump(counts, "created", "concept");
         }

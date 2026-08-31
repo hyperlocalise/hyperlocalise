@@ -143,6 +143,7 @@ describe("glossaryRoutes", () => {
       };
     };
     expect(body.concept).toMatchObject({ primaryTerm: "Checkout" });
+    expect(body.concept).not.toHaveProperty("externalKey");
     expect(body.concept.terms).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ locale: "en", term: "Checkout", status: "preferred" }),
@@ -151,6 +152,7 @@ describe("glossaryRoutes", () => {
         expect.objectContaining({ locale: "en-US", term: "Check-out", status: "draft" }),
       ]),
     );
+    expect(body.concept.terms[0]).not.toHaveProperty("externalKey");
   });
 
   it("preserves omitted concept fields during a sparse patch", async () => {

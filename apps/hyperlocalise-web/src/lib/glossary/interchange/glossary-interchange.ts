@@ -66,10 +66,6 @@ export type GlossaryInterchangeConcept = {
     createdAt: string | null;
     updatedAt: string | null;
   }>;
-  externalKey: string | null;
-  externalUserId: string | null;
-  externalCreatedAt: string | null;
-  externalUpdatedAt: string | null;
   metadata: Record<string, unknown>;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -144,10 +140,6 @@ export type GlossaryImportDocument = {
     url?: string | null;
     figure?: string | null;
     languageDetails?: GlossaryInterchangeConcept["languageDetails"];
-    externalKey?: string | null;
-    externalUserId?: string | null;
-    externalCreatedAt?: string | null;
-    externalUpdatedAt?: string | null;
     metadata?: Record<string, unknown>;
     createdAt?: string;
     updatedAt?: string;
@@ -247,10 +239,6 @@ export async function loadGlossaryInterchangeDocument(input: {
           createdAt: detail.createdAt,
           updatedAt: detail.updatedAt,
         })),
-        externalKey: concept.externalKey,
-        externalUserId: concept.externalUserId,
-        externalCreatedAt: concept.externalCreatedAt?.toISOString() ?? null,
-        externalUpdatedAt: concept.externalUpdatedAt?.toISOString() ?? null,
         metadata: concept.metadata,
         createdAt: concept.createdAt.toISOString(),
         updatedAt: concept.updatedAt.toISOString(),

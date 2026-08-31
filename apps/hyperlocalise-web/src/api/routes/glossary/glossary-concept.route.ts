@@ -235,6 +235,38 @@ function toCrowdinConceptRecord(
   };
 }
 
+function stripProviderMetadata<T extends Record<string, unknown>>(value: T) {
+  const {
+    externalKey: _externalKey,
+    externalUserId: _externalUserId,
+    externalCreatedAt: _externalCreatedAt,
+    externalUpdatedAt: _externalUpdatedAt,
+    ...nativeValue
+  } = value;
+  return nativeValue;
+}
+
+function toGlossaryConceptRecord(
+  glossary: NativeGlossary,
+  value: Parameters<typeof toCrowdinConceptRecord>[1],
+) {
+  const record = toCrowdinConceptRecord(glossary, value);
+  if (glossary.source !== "native") return record;
+  return {
+    ...stripProviderMetadata(record),
+    terms: record.terms.map((term) => stripProviderMetadata(term)),
+  };
+}
+
+function toGlossaryTermRecord(
+  glossary: NativeGlossary,
+  conceptId: string,
+  term: Parameters<typeof toCrowdinTermRecord>[2],
+) {
+  const record = toCrowdinTermRecord(glossary, conceptId, term);
+  return glossary.source === "native" ? stripProviderMetadata(record) : record;
+}
+
 function validateConceptParams(value: unknown, c: Parameters<typeof glossaryNotFoundResponse>[0]) {
   const parsed = glossaryConceptIdParamsSchema.safeParse(value);
   return parsed.success ? parsed.data : glossaryNotFoundResponse(c);
@@ -354,7 +386,7 @@ export function createGlossaryConceptRoutes() {
       const concepts = await product.listConcepts();
       return c.json(
         {
-          concepts: concepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
+          concepts: concepts.map((concept) => toGlossaryConceptRecord(glossary, concept)),
           total: concepts.length,
         },
         200,
@@ -389,7 +421,7 @@ export function createGlossaryConceptRoutes() {
           status: "created",
           source: "glossary_concept",
         });
-        return c.json({ concept: toCrowdinConceptRecord(glossary, created) }, 201);
+        return c.json({ concept: toGlossaryConceptRecord(glossary, created) }, 201);
       },
     )
     .post(
@@ -574,7 +606,7 @@ export function createGlossaryConceptRoutes() {
             {
               reportId: report.id,
               concepts: importedConcepts.map((concept) =>
-                toCrowdinConceptRecord(glossary, concept),
+                toGlossaryConceptRecord(glossary, concept),
               ),
               imported: counts.created,
               updated: counts.updated,
@@ -620,7 +652,7 @@ export function createGlossaryConceptRoutes() {
         return c.json(
           {
             reportId: externalReport.id,
-            concepts: importedConcepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
+            concepts: importedConcepts.map((concept) => toGlossaryConceptRecord(glossary, concept)),
             imported: importedConcepts.length,
             skipped: skipped + parsed.diagnostics.length,
             diagnostics: parsed.diagnostics,
@@ -637,7 +669,7 @@ export function createGlossaryConceptRoutes() {
       if (!product) return nativeGlossaryConceptsOnlyResponse(c);
       const concept = await product.getConcept(conceptId);
       if (!concept) return glossaryNotFoundResponse(c);
-      return c.json({ concept: toCrowdinConceptRecord(glossary, concept) }, 200);
+      return c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200);
     })
     .patch(
       "/:conceptId",
@@ -692,7 +724,7 @@ export function createGlossaryConceptRoutes() {
           throw error;
         }
         if (!updated) return glossaryNotFoundResponse(c);
-        return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);
+        return c.json({ concept: toGlossaryConceptRecord(glossary, updated) }, 200);
       },
     )
     .delete("/:conceptId", validator("param", validateConceptParams), async (c) => {
@@ -718,7 +750,7 @@ export function createGlossaryConceptRoutes() {
       if (!product) return nativeGlossaryConceptsOnlyResponse(c);
       const concept = await product.getConcept(conceptId);
       if (!concept) return glossaryNotFoundResponse(c);
-      const terms = toCrowdinConceptRecord(glossary, concept).terms;
+      const terms = toGlossaryConceptRecord(glossary, concept).terms;
       return c.json({ terms, total: terms.length }, 200);
     })
     .post(
@@ -765,7 +797,7 @@ export function createGlossaryConceptRoutes() {
             "duplicate_glossary_concept_term",
             "A term with this locale and text already exists",
           );
-        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 201);
+        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, term) }, 201);
       },
     )
     .patch(
@@ -819,7 +851,7 @@ export function createGlossaryConceptRoutes() {
         }
         if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
         if (!updatedTerm) return glossaryNotFoundResponse(c);
-        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, updatedTerm) }, 200);
+        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, updatedTerm) }, 200);
       },
     )
     .delete(

@@ -256,7 +256,7 @@ export const glossaryConceptTermRecordSchema = z.object({
   caseSensitive: z.boolean(),
   forbidden: z.boolean(),
   provenance: z.string(),
-  externalKey: z.string().nullable(),
+  externalKey: z.string().nullable().optional(),
   reviewStatus: z.string(),
   externalUserId: z.string().nullable().optional(),
   externalCreatedAt: z.string().datetime().nullable().optional(),
