@@ -999,6 +999,45 @@ describe("mcpRoutes", () => {
         title: "Created through the MCP SDK",
       });
 
+      const getIssueResult = await client.callTool({
+        name: "get_issue",
+        arguments: {
+          projectId: stored.project.id,
+          issueId: createdIssue.id,
+        },
+      });
+
+      const getIssueContent = (
+        getIssueResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
+
+      if (!getIssueContent?.text) {
+        throw new Error("expected get_issue text content");
+      }
+
+      const getIssueOutput = JSON.parse(getIssueContent.text) as {
+        issue: {
+          id: string;
+          title: string;
+          description: string;
+          values: Record<string, unknown>;
+        };
+      };
+
+      expect(getIssueOutput.issue).toMatchObject({
+        id: createdIssue.id,
+        title: "Created through the MCP SDK",
+        description: "SDK integration coverage",
+        values: {
+          priority: "P1",
+        },
+      });
+
       const issuesResult = await client.callTool({
         name: "list_issues",
         arguments: {
@@ -1055,7 +1094,7 @@ describe("mcpRoutes", () => {
       });
 
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(6);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(7);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -1352,6 +1391,57 @@ describe("mcpRoutes", () => {
     expect(text).toContain("invalid_issue_query");
   });
 
+  it("advertises the get_issue tool with UUID input validation", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_issue");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("issue");
+    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId", "issueId"]));
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+      issueId: {
+        type: "string",
+        format: "uuid",
+      },
+    });
+  });
+
   it("advertises the create_issue tool with a bounded input schema", async () => {
     const headers = await authenticatedMcpHeaders();
 
@@ -1469,6 +1559,182 @@ describe("mcpRoutes", () => {
         description: expect.stringContaining("retry key"),
       },
     });
+  });
+
+  it("rejects get_issue calls with a non-UUID issue ID", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const getIssueSpy = vi.spyOn(IssueSheetService.prototype, "getIssue");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "get_issue",
+            arguments: {
+              projectId: "project-id",
+              issueId: "not-a-uuid",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+      expect(getIssueSpy).not.toHaveBeenCalled();
+    } finally {
+      getIssueSpy.mockRestore();
+    }
+  });
+
+  it("returns the complete accessible issue detail", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+
+    const [translationKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        key: "home.title",
+        sourceText: "Welcome",
+        normalizedSourceText: "Welcome",
+      })
+      .returning({
+        id: schema.projectTranslationKeys.id,
+      });
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    const created = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Detailed MCP issue",
+        description: "Full issue description",
+        issueType: "translation_mistake",
+        status: "open",
+        targetLocale: "fr-FR",
+        sourcePath: "src/messages.json",
+        segmentId: "homepage.title",
+        priority: "P1",
+        translationKeyId: translationKey.id,
+      },
+    });
+
+    await service.setValue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: created.id,
+      body: {
+        columnKey: "owner_note",
+        value: "Needs linguistic review",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_issue",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: created.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const text = body.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const output = JSON.parse(text!) as {
+      issue: Record<string, unknown>;
+    };
+
+    expect(output.issue).toMatchObject({
+      id: created.id,
+      identifier: created.identifier,
+      title: "Detailed MCP issue",
+      description: "Full issue description",
+      issueType: "translation_mistake",
+      status: "open",
+      targetLocale: "fr-FR",
+      sourcePath: "src/messages.json",
+      segmentId: "homepage.title",
+      translationKeyId: translationKey.id,
+      linkedTranslationKey: {
+        id: translationKey.id,
+        key: "home.title",
+        sourceText: "Welcome",
+      },
+      assigneeUserId: null,
+      resolvedAt: null,
+      isWatching: true,
+      values: {
+        priority: "P1",
+        owner_note: "Needs linguistic review",
+      },
+      number: created.number,
+      reporter: created.reporter,
+      assignee: null,
+      linkedCommentId: null,
+      linkedAgentRunId: null,
+      linkKind: null,
+      linkLabel: null,
+      linkUrl: null,
+      externalRef: null,
+      templateKey: null,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    });
+
+    expect(output.issue).not.toHaveProperty("key");
+    expect(output.issue).not.toHaveProperty("sourceText");
   });
 
   it.each([

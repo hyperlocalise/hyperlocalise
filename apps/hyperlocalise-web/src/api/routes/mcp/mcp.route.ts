@@ -369,6 +369,16 @@ const mcpListIssuesInputSchema = z
     }
   });
 
+const mcpGetIssueInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project containing the issue."),
+  issueId: z.uuid().describe("UUID of the Hyperlocalise issue to retrieve."),
+});
+
 const issueSheetService = new IssueSheetService();
 const createIssueShape = issueSheetCreateIssueBodySchema.shape;
 
@@ -570,6 +580,58 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           {
             type: "text",
             text: JSON.stringify(output),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_issue",
+    {
+      description: "Get the complete details of one accessible Hyperlocalise issue.",
+      inputSchema: mcpGetIssueInputSchema,
+    },
+    async ({ projectId, issueId }) => {
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const issue = await issueSheetService.getIssue({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId,
+        actorUserId: apiAuth.user.localUserId,
+      });
+
+      if (!issue) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const { key, sourceText, ...issueDetails } = issue;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              issue: {
+                ...issueDetails,
+                linkedTranslationKey: issue.translationKeyId
+                  ? {
+                      id: issue.translationKeyId,
+                      key,
+                      sourceText,
+                    }
+                  : null,
+              },
+            }),
           },
         ],
       };

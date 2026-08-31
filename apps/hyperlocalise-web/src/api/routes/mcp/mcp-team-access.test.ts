@@ -318,6 +318,65 @@ describe("MCP team-scoped access", () => {
     ]);
     expect(issuesBody.issues.map((issue) => issue.id)).not.toContain(betaIssue.id);
 
+    const accessibleIssueResponse = await callMcpTool(accessToken, "get_issue", {
+      projectId: alphaProjectBody.project.id,
+      issueId: alphaIssue.id,
+    });
+
+    expect(accessibleIssueResponse.status).toBe(200);
+
+    const accessibleIssueResponseBody = await accessibleIssueResponse.json();
+
+    expect(parseToolResultText(accessibleIssueResponseBody)).toMatchObject({
+      issue: {
+        id: alphaIssue.id,
+        title: "Accessible team issue",
+      },
+    });
+
+    const inaccessibleLookups = [
+      {
+        label: "missing issue",
+        projectId: alphaProjectBody.project.id,
+        issueId: "00000000-0000-4000-8000-000000000999",
+      },
+      {
+        label: "wrong project",
+        projectId: alphaProjectBody.project.id,
+        issueId: betaIssue.id,
+      },
+      {
+        label: "wrong team",
+        projectId: betaProjectBody.project.id,
+        issueId: betaIssue.id,
+      },
+      {
+        label: "wrong organization",
+        projectId: externalProject.id,
+        issueId: externalIssue.id,
+      },
+    ];
+
+    for (const lookup of inaccessibleLookups) {
+      const response = await callMcpTool(accessToken, "get_issue", {
+        projectId: lookup.projectId,
+        issueId: lookup.issueId,
+      });
+
+      expect(response.status, lookup.label).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(
+        (responseBody as { result?: { isError?: boolean } }).result?.isError,
+        lookup.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(responseBody), lookup.label).toMatchObject({
+        error: "issue_not_found",
+      });
+    }
+
     expect(getDeniedResponse.status).toBe(200);
     const getDeniedBody = parseToolResultText(await getDeniedResponse.json()) as {
       project: { id: string } | null;
