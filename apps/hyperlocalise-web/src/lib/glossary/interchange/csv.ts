@@ -23,6 +23,8 @@ import {
 export const CSV_MIME_TYPE = "text/csv; charset=utf-8";
 const MAX_CSV_BYTES = 10_000_000;
 const MAX_CSV_ROWS = 250_000;
+const CSV_FORMULA_ESCAPE_PREFIX = "'";
+const spreadsheetFormulaPattern = /^[\t ]*[=+\-@]/u;
 
 const csvHeaders = [
   "conceptId",
@@ -63,7 +65,15 @@ function csvCell(value: unknown) {
   else if (typeof value === "number") text = value.toString();
   else if (typeof value === "boolean") text = value ? "true" : "false";
   else if (value !== null && value !== undefined) text = JSON.stringify(value) ?? "";
+  if (spreadsheetFormulaPattern.test(text)) text = `${CSV_FORMULA_ESCAPE_PREFIX}${text}`;
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+function unescapeSpreadsheetFormula(value: string) {
+  const escaped = value.slice(CSV_FORMULA_ESCAPE_PREFIX.length);
+  return value.startsWith(CSV_FORMULA_ESCAPE_PREFIX) && spreadsheetFormulaPattern.test(escaped)
+    ? escaped
+    : value;
 }
 
 function jsonValue(value: unknown) {
@@ -273,7 +283,10 @@ export function parseCsv(content: string): GlossaryImportDocument {
   for (const [index, cells] of (hasHeader ? rest : rows).entries()) {
     const rowNumber = hasHeader ? index + 2 : index + 1;
     const row = new Map(
-      headers.map((header, cellIndex) => [header, cells[cellIndex]?.trim() ?? ""]),
+      headers.map((header, cellIndex) => [
+        header,
+        unescapeSpreadsheetFormula(cells[cellIndex]?.trim() ?? ""),
+      ]),
     );
     const locale = value(row, "locale");
     const termText = value(row, "term");

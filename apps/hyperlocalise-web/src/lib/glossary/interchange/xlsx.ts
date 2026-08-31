@@ -77,6 +77,11 @@ function optionalCell(row: Record<string, unknown>, key: string) {
   return value || null;
 }
 
+function optionalTextCell(row: Record<string, unknown>, key: string) {
+  if (!Object.prototype.hasOwnProperty.call(row, key)) return undefined;
+  return cell(row, key);
+}
+
 function booleanCell(
   row: Record<string, unknown>,
   key: string,
@@ -317,10 +322,10 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
     concepts.set(id, {
       id,
       primaryTerm: cell(row, "primaryTerm") || undefined,
-      subject: cell(row, "subject"),
-      definition: cell(row, "definition"),
+      subject: optionalTextCell(row, "subject"),
+      definition: optionalTextCell(row, "definition"),
       translatable: booleanCell(row, "translatable", diagnostics, rowNumber, { conceptId: id }),
-      note: cell(row, "note"),
+      note: optionalTextCell(row, "note"),
       url: optionalCell(row, "url"),
       figure: optionalCell(row, "figure"),
       metadata: cell(row, "metadata")

@@ -21,7 +21,6 @@ import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-forma
 import {
   diagnostic,
   emptyImportReportCounts,
-  type GlossaryImportReportCounts,
 } from "@/lib/glossary/interchange/glossary-interchange";
 import { validateGlossaryImportDocument } from "@/lib/glossary/interchange/glossary-import-validation";
 import {
@@ -31,6 +30,7 @@ import {
 import {
   attachGlossaryImportBackup,
   createGlossaryImportReport,
+  reportCountsFromDiagnostics,
 } from "@/lib/glossary/interchange/glossary-import-reports";
 import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
 import { serializeXlsx } from "@/lib/glossary/interchange/xlsx";
@@ -371,27 +371,6 @@ function parseConceptImport(
   return { entries, diagnostics: parsed.diagnostics, document: parsed };
 }
 
-function reportCountsFromDiagnostics(
-  counts: GlossaryImportReportCounts,
-  diagnostics: Array<{
-    severity: string;
-    outcome?: "skipped" | "failed";
-    counted?: boolean;
-    conceptId?: string;
-    termId?: string;
-  }>,
-) {
-  for (const entry of diagnostics) {
-    if (entry.severity === "warning") counts.warned++;
-    else if (entry.counted) continue;
-    else if (entry.outcome === "skipped") {
-      counts.skipped++;
-      counts[entry.termId ? "termsSkipped" : "conceptsSkipped"]++;
-    } else counts.failed++;
-  }
-  return counts;
-}
-
 export function createGlossaryConceptRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -633,6 +612,20 @@ export function createGlossaryConceptRoutes() {
               glossaryId,
               mode: payload.mode,
               document: importDocument,
+              report: {
+                organizationId: c.var.auth.organization.localOrganizationId,
+                glossaryId,
+                createdByUserId: c.var.auth.user.localUserId,
+                format: payload.format,
+                mode: payload.mode,
+                sourceFilename: payload.sourceFilename,
+                sourceSha256: await sha256Hex(sourceBytes),
+                options: {
+                  strictLocale: payload.strictLocale,
+                  localeMapping: payload.localeMapping,
+                },
+                sourceTotals,
+              },
             });
           } catch {
             const failureDiagnostic = diagnostic({
@@ -671,25 +664,14 @@ export function createGlossaryConceptRoutes() {
               500,
             );
           }
-          const counts = reportCountsFromDiagnostics(applied.counts, applied.diagnostics);
-          const report = await createGlossaryImportReport({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            glossaryId,
-            createdByUserId: c.var.auth.user.localUserId,
-            format: payload.format,
-            mode: payload.mode,
-            sourceFilename: payload.sourceFilename,
-            sourceSha256: await sha256Hex(sourceBytes),
-            options: { strictLocale: payload.strictLocale, localeMapping: payload.localeMapping },
-            sourceTotals,
-            counts,
-            diagnostics: applied.diagnostics,
-          });
-          if (backupFileId) await attachGlossaryImportBackup(report.id, backupFileId);
+          const counts = applied.counts;
+          const reportId = applied.reportId;
+          if (!reportId) throw new Error("glossary_import_report_create_failed");
+          if (backupFileId) await attachGlossaryImportBackup(reportId, backupFileId);
           const importedConcepts = await product.listConcepts();
           return c.json(
             {
-              reportId: report.id,
+              reportId,
               concepts: importedConcepts.map((concept) =>
                 toGlossaryConceptRecord(glossary, concept),
               ),
@@ -715,25 +697,42 @@ export function createGlossaryConceptRoutes() {
           },
           importDocument.diagnostics,
         );
-        const externalReport = await createGlossaryImportReport({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          glossaryId,
-          createdByUserId: c.var.auth.user.localUserId,
-          format: payload.format,
-          mode: payload.mode,
-          sourceFilename: payload.sourceFilename,
-          sourceSha256: await sha256Hex(sourceBytes),
-          options: {
-            strictLocale: payload.strictLocale,
-            localeMapping: payload.localeMapping,
-          },
-          sourceTotals: {
-            concepts: sourceTotals.concepts,
-            terms: sourceTotals.terms,
-          },
-          counts: externalCounts,
-          diagnostics: importDocument.diagnostics,
-        });
+        let externalReport;
+        try {
+          externalReport = await createGlossaryImportReport({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            glossaryId,
+            createdByUserId: c.var.auth.user.localUserId,
+            format: payload.format,
+            mode: payload.mode,
+            sourceFilename: payload.sourceFilename,
+            sourceSha256: await sha256Hex(sourceBytes),
+            options: {
+              strictLocale: payload.strictLocale,
+              localeMapping: payload.localeMapping,
+            },
+            sourceTotals: {
+              concepts: sourceTotals.concepts,
+              terms: sourceTotals.terms,
+            },
+            counts: externalCounts,
+            diagnostics: importDocument.diagnostics,
+          });
+        } catch {
+          return c.json(
+            {
+              error: "glossary_import_committed_without_report",
+              message:
+                "The provider accepted the import, but Hyperlocalise could not persist the import report. Do not retry automatically.",
+              details: {
+                committed: true,
+                imported: importedConcepts.length,
+                skipped: externalCounts.skipped,
+              },
+            },
+            500,
+          );
+        }
         return c.json(
           {
             reportId: externalReport.id,

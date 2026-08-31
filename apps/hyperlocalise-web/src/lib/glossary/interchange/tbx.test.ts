@@ -239,6 +239,14 @@ describe("TBX-Basic DCA interchange", () => {
     );
   });
 
+  it("preserves text nested in TBX inline elements", () => {
+    const parsed = parseTbx(
+      `<?xml version="1.0"?><tbx xmlns="${TBX_NAMESPACE}" type="TBX-Basic" style="dca"><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>foo <hi type="bold">bar</hi> baz</term></termSec></langSec></conceptEntry></body></text></tbx>`,
+    );
+    expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(parsed.concepts[0]?.terms[0]?.term).toBe("foo bar baz");
+  });
+
   it("rejects malformed XML without truncating valid preceding concepts", () => {
     const parsed = parseTbx(
       '<?xml version="1.0"?><tbx><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>ok</term></termSec></langSec></conceptEntry><conceptEntry',

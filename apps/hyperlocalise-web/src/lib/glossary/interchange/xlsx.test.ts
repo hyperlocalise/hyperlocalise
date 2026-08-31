@@ -130,6 +130,9 @@ describe("XLSX glossary interchange", () => {
     const parsed = parseXlsx(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
     expect(parsed.diagnostics).toEqual([]);
     expect(parsed.concepts[0]?.primaryTerm).toBeUndefined();
+    expect(parsed.concepts[0]?.subject).toBeUndefined();
+    expect(parsed.concepts[0]?.definition).toBeUndefined();
+    expect(parsed.concepts[0]?.note).toBeUndefined();
     expect(parsed.concepts[0]?.url).toBeUndefined();
     expect(parsed.concepts[0]?.figure).toBeUndefined();
     expect(parsed.concepts[0]?.terms[0]?.createdAt).toBeUndefined();

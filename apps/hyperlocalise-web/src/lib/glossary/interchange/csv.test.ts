@@ -146,4 +146,47 @@ describe("CSV glossary interchange", () => {
       }),
     ]);
   });
+
+  it("escapes spreadsheet formulas while preserving them on import", () => {
+    const formulaDocument = {
+      ...document,
+      concepts: [
+        {
+          ...document.concepts[0]!,
+          terms: [
+            {
+              ...document.concepts[0]!.terms[0]!,
+              term: " =SUM(A1:A2)",
+            },
+            {
+              ...document.concepts[0]!.terms[1]!,
+              id: "term-3",
+              term: "+provider-command",
+            },
+            {
+              ...document.concepts[0]!.terms[1]!,
+              id: "term-4",
+              term: "-provider-command",
+            },
+            {
+              ...document.concepts[0]!.terms[1]!,
+              id: "term-5",
+              term: "@provider-command",
+            },
+          ],
+        },
+      ],
+    } satisfies GlossaryInterchangeDocument;
+    const csv = new TextDecoder().decode(serializeCsv(formulaDocument).content);
+    expect(csv).toContain(`"' =SUM(A1:A2)"`);
+    expect(csv).toContain(`"'+provider-command"`);
+    expect(csv).toContain(`"'-provider-command"`);
+    expect(csv).toContain(`"'@provider-command"`);
+    expect(parseCsv(csv).concepts[0]?.terms.map((term) => term.term)).toEqual([
+      " =SUM(A1:A2)",
+      "+provider-command",
+      "-provider-command",
+      "@provider-command",
+    ]);
+  });
 });

@@ -20,6 +20,11 @@ import {
   type GlossaryImportMode,
   type GlossaryImportReportCounts,
 } from "./glossary-interchange";
+import {
+  insertGlossaryImportReport,
+  reportCountsFromDiagnostics,
+  type GlossaryImportReportInput,
+} from "./glossary-import-reports";
 
 const IMPORT_BATCH_SIZE = 250;
 
@@ -62,7 +67,23 @@ function bump(
   entity: "concept" | "term",
 ) {
   counts[kind]++;
-  counts[`${entity}${kind[0].toUpperCase()}${kind.slice(1)}` as keyof GlossaryImportReportCounts]++;
+  const countKey = {
+    concept: {
+      created: "conceptsCreated",
+      updated: "conceptsUpdated",
+      merged: "conceptsMerged",
+      skipped: "conceptsSkipped",
+      failed: "conceptsFailed",
+    },
+    term: {
+      created: "termsCreated",
+      updated: "termsUpdated",
+      merged: "termsMerged",
+      skipped: "termsSkipped",
+      failed: "termsFailed",
+    },
+  }[entity][kind] as keyof GlossaryImportReportCounts;
+  counts[countKey]++;
 }
 
 function findExistingConcept(
@@ -198,6 +219,7 @@ export async function applyNativeGlossaryImport(input: {
   glossaryId: string;
   mode: Exclude<GlossaryImportMode, "preview">;
   document: GlossaryImportDocument;
+  report?: Omit<GlossaryImportReportInput, "counts" | "diagnostics">;
 }) {
   const diagnostics = [...input.document.diagnostics];
   const counts = emptyImportReportCounts();
@@ -209,7 +231,7 @@ export async function applyNativeGlossaryImport(input: {
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
 
-  await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [glossary] = await tx
       .select({ id: schema.glossaries.id })
       .from(schema.glossaries)
@@ -574,6 +596,15 @@ export async function applyNativeGlossaryImport(input: {
         await tx.delete(schema.glossaryConcepts).where(conceptScope);
       }
     }
+    const reportCounts = reportCountsFromDiagnostics(counts, diagnostics);
+    const report = input.report
+      ? await insertGlossaryImportReport(tx, {
+          ...input.report,
+          counts: reportCounts,
+          diagnostics,
+        })
+      : undefined;
+    return { counts: reportCounts, reportId: report?.id };
   });
-  return { diagnostics, counts };
+  return { diagnostics, counts: result.counts, reportId: result.reportId };
 }

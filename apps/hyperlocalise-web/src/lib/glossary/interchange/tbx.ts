@@ -579,6 +579,8 @@ export function parseTbx(content: string): GlossaryImportDocument {
   parser.on("closetag", () => {
     const frame = stack.pop();
     if (!frame) return;
+    const parent = stack.at(-1);
+    if (parent) parent.value += frame.value;
     const value = textValue(frame.value);
     if (!currentConcept) return;
     const concept = currentConcept;

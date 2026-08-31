@@ -21,7 +21,7 @@ import type {
 
 const REPORT_ENTRY_BATCH_SIZE = 500;
 
-export async function createGlossaryImportReport(input: {
+export type GlossaryImportReportInput = {
   organizationId: string;
   glossaryId: string;
   createdByUserId: string;
@@ -34,44 +34,68 @@ export async function createGlossaryImportReport(input: {
   counts: GlossaryImportReportCounts;
   diagnostics: InterchangeDiagnostic[];
   status?: "preview" | "completed" | "failed";
-}) {
+};
+
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export function reportCountsFromDiagnostics(
+  counts: GlossaryImportReportCounts,
+  diagnostics: InterchangeDiagnostic[],
+) {
+  for (const entry of diagnostics) {
+    if (entry.severity === "warning") counts.warned++;
+    else if (entry.counted) continue;
+    else if (entry.outcome === "skipped") {
+      counts.skipped++;
+      counts[entry.termId ? "termsSkipped" : "conceptsSkipped"]++;
+    } else counts.failed++;
+  }
+  return counts;
+}
+
+export async function insertGlossaryImportReport(
+  tx: DatabaseTransaction,
+  input: GlossaryImportReportInput,
+) {
   const status = input.status ?? (input.mode === "preview" ? "preview" : "completed");
-  return db.transaction(async (tx) => {
-    const [run] = await tx
-      .insert(schema.glossaryImportRuns)
-      .values({
-        organizationId: input.organizationId,
-        glossaryId: input.glossaryId,
-        createdByUserId: input.createdByUserId,
-        format: input.format,
-        mode: input.mode,
-        status,
-        sourceSha256: input.sourceSha256 ?? null,
-        sourceFilename: input.sourceFilename ?? null,
-        options: input.options,
-        sourceTotals: input.sourceTotals,
-        counts: input.counts,
-        completedAt: status === "preview" ? null : new Date(),
-      })
-      .returning();
-    if (!run) throw new Error("glossary_import_report_create_failed");
-    for (let offset = 0; offset < input.diagnostics.length; offset += REPORT_ENTRY_BATCH_SIZE) {
-      const entries = input.diagnostics.slice(offset, offset + REPORT_ENTRY_BATCH_SIZE);
-      await tx.insert(schema.glossaryImportReportEntries).values(
-        entries.map((entry) => ({
-          runId: run.id,
-          severity: entry.severity,
-          code: entry.code,
-          message: entry.message,
-          sourceRow: entry.sourceRow ?? null,
-          conceptId: entry.conceptId ?? null,
-          termId: entry.termId ?? null,
-          field: entry.field ?? null,
-        })),
-      );
-    }
-    return run;
-  });
+  const [run] = await tx
+    .insert(schema.glossaryImportRuns)
+    .values({
+      organizationId: input.organizationId,
+      glossaryId: input.glossaryId,
+      createdByUserId: input.createdByUserId,
+      format: input.format,
+      mode: input.mode,
+      status,
+      sourceSha256: input.sourceSha256 ?? null,
+      sourceFilename: input.sourceFilename ?? null,
+      options: input.options,
+      sourceTotals: input.sourceTotals,
+      counts: input.counts,
+      completedAt: status === "preview" ? null : new Date(),
+    })
+    .returning();
+  if (!run) throw new Error("glossary_import_report_create_failed");
+  for (let offset = 0; offset < input.diagnostics.length; offset += REPORT_ENTRY_BATCH_SIZE) {
+    const entries = input.diagnostics.slice(offset, offset + REPORT_ENTRY_BATCH_SIZE);
+    await tx.insert(schema.glossaryImportReportEntries).values(
+      entries.map((entry) => ({
+        runId: run.id,
+        severity: entry.severity,
+        code: entry.code,
+        message: entry.message,
+        sourceRow: entry.sourceRow ?? null,
+        conceptId: entry.conceptId ?? null,
+        termId: entry.termId ?? null,
+        field: entry.field ?? null,
+      })),
+    );
+  }
+  return run;
+}
+
+export async function createGlossaryImportReport(input: GlossaryImportReportInput) {
+  return db.transaction((tx) => insertGlossaryImportReport(tx, input));
 }
 
 export async function getGlossaryImportReport(input: {
