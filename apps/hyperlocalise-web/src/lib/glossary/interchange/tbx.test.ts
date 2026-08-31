@@ -171,6 +171,18 @@ function makeDocumentTerm(id: string, conceptId: string) {
 }
 
 describe("TBX-Basic DCA interchange", () => {
+  it("keeps omitted nullable term fields absent for merge semantics", () => {
+    const parsed = parseTbx(
+      `<?xml version="1.0"?><tbx xmlns="${TBX_NAMESPACE}" type="TBX-Basic" style="dca"><text><body><conceptEntry id="concept-1"><langSec xml:lang="en"><termSec id="term-1"><term>Checkout</term></termSec></langSec></conceptEntry></body></text></tbx>`,
+    );
+
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.concepts[0]?.terms[0]?.gender).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.termType).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.url).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.lemma).toBeUndefined();
+  });
+
   it("preserves concepts, locales, synonyms, metadata mappings, and XML escaping", () => {
     const serialized = serializeTbx(makeDocument());
     expect(serialized.errors).toEqual([]);

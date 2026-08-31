@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import {
   diagnostic,
@@ -23,7 +25,7 @@ import {
 export const CSV_MIME_TYPE = "text/csv; charset=utf-8";
 const MAX_CSV_BYTES = 10_000_000;
 const MAX_CSV_ROWS = 250_000;
-const CSV_FORMULA_ESCAPE_PREFIX = "'";
+const CSV_FORMULA_ESCAPE_PREFIX = "__HYPERLOCALISE_CSV_FORMULA__";
 const spreadsheetFormulaPattern = /^[\t ]*[=+\-@]/u;
 
 const csvHeaders = [
@@ -65,15 +67,29 @@ function csvCell(value: unknown) {
   else if (typeof value === "number") text = value.toString();
   else if (typeof value === "boolean") text = value ? "true" : "false";
   else if (value !== null && value !== undefined) text = JSON.stringify(value) ?? "";
-  if (spreadsheetFormulaPattern.test(text)) text = `${CSV_FORMULA_ESCAPE_PREFIX}${text}`;
+  text = escapeSpreadsheetFormula(text);
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+function escapeSpreadsheetFormula(value: string) {
+  if (value.startsWith(CSV_FORMULA_ESCAPE_PREFIX)) return `${CSV_FORMULA_ESCAPE_PREFIX}${value}`;
+  return spreadsheetFormulaPattern.test(value) ? `${CSV_FORMULA_ESCAPE_PREFIX}${value}` : value;
 }
 
 function unescapeSpreadsheetFormula(value: string) {
   const escaped = value.slice(CSV_FORMULA_ESCAPE_PREFIX.length);
+  if (value.startsWith(CSV_FORMULA_ESCAPE_PREFIX.repeat(2))) return escaped;
   return value.startsWith(CSV_FORMULA_ESCAPE_PREFIX) && spreadsheetFormulaPattern.test(escaped)
     ? escaped
     : value;
+}
+
+function stableLegacyTermId(conceptId: string, locale: string, term: string) {
+  const digest = createHash("sha256")
+    .update([conceptId, locale, term].join("\u0000"))
+    .digest("hex")
+    .slice(0, 24);
+  return `legacy-term-${digest}`;
 }
 
 function jsonValue(value: unknown) {
@@ -291,7 +307,7 @@ export function parseCsv(content: string): GlossaryImportDocument {
     const locale = value(row, "locale");
     const termText = value(row, "term");
     const conceptId = value(row, "conceptId", "conceptKey") || termText;
-    const termId = value(row, "termId") || `${conceptId}:${locale}:${index + 1}`;
+    const termId = value(row, "termId") || stableLegacyTermId(conceptId, locale, termText);
     if (!conceptId || !locale || !termText) {
       diagnostics.push(
         diagnostic({

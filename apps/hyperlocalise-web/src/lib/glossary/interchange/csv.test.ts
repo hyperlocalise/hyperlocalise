@@ -173,20 +173,42 @@ describe("CSV glossary interchange", () => {
               id: "term-5",
               term: "@provider-command",
             },
+            {
+              ...document.concepts[0]!.terms[1]!,
+              id: "term-6",
+              term: "'=SUM(A1:A2)",
+            },
           ],
         },
       ],
     } satisfies GlossaryInterchangeDocument;
     const csv = new TextDecoder().decode(serializeCsv(formulaDocument).content);
-    expect(csv).toContain(`"' =SUM(A1:A2)"`);
-    expect(csv).toContain(`"'+provider-command"`);
-    expect(csv).toContain(`"'-provider-command"`);
-    expect(csv).toContain(`"'@provider-command"`);
+    expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__ =SUM(A1:A2)"`);
+    expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__+provider-command"`);
+    expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__-provider-command"`);
+    expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__@provider-command"`);
+    expect(csv).toContain(`"'=SUM(A1:A2)"`);
     expect(parseCsv(csv).concepts[0]?.terms.map((term) => term.term)).toEqual([
       " =SUM(A1:A2)",
       "+provider-command",
       "-provider-command",
       "@provider-command",
+      "'=SUM(A1:A2)",
     ]);
+  });
+
+  it("derives legacy term IDs independently of row order", () => {
+    const first = parseCsv(
+      ["conceptId,locale,term", "concept-1,en,Alpha", "concept-1,en,Beta"].join("\n"),
+    );
+    const reordered = parseCsv(
+      ["conceptId,locale,term", "concept-1,en,Beta", "concept-1,en,Alpha"].join("\n"),
+    );
+
+    expect(first.diagnostics).toEqual([]);
+    expect(reordered.diagnostics).toEqual([]);
+    expect(new Map(first.concepts[0]!.terms.map((term) => [term.term, term.id]))).toEqual(
+      new Map(reordered.concepts[0]!.terms.map((term) => [term.term, term.id])),
+    );
   });
 });
