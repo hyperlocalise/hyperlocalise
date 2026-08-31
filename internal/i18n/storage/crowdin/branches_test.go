@@ -64,3 +64,37 @@ func TestAddBranchRejectsBlankName(t *testing.T) {
 		}
 	}
 }
+
+func TestListBranchesPaginates(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/branches", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{"id": i, "name": "branch"},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 501, "name": "feature/page-two"}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected branches query %q", r.URL.RawQuery)
+		}
+	})
+
+	got, err := client.ListBranches(context.Background(), "123")
+	if err != nil {
+		t.Fatalf("list branches: %v", err)
+	}
+	if len(got) != pageLimit+1 || got[pageLimit] != (Branch{ID: 501, Name: "feature/page-two"}) {
+		t.Fatalf("branches len=%d last=%#v", len(got), got[len(got)-1])
+	}
+}

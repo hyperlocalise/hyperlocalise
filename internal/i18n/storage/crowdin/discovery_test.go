@@ -287,6 +287,67 @@ func TestAssignedToCrowdinProject(t *testing.T) {
 	}
 }
 
+func TestListGlossariesAndTranslationMemoriesPaginates(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/glossaries", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{"id": i, "name": "glossary", "projectIds": []int{123}},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 501, "name": "page-two", "projectIds": []int{123}}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected glossaries query %q", r.URL.RawQuery)
+		}
+	})
+	mux.HandleFunc("/api/v2/tms", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{"id": i, "name": "tm", "defaultProjectIds": []int{123}},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 501, "name": "tm-page-two", "defaultProjectIds": []int{123}}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected tms query %q", r.URL.RawQuery)
+		}
+	})
+
+	glossaries, err := client.ListGlossaries(context.Background(), "123")
+	if err != nil {
+		t.Fatalf("list glossaries: %v", err)
+	}
+	if len(glossaries) != pageLimit+1 || glossaries[pageLimit].ID != 501 || glossaries[pageLimit].Name != "page-two" {
+		t.Fatalf("glossaries len=%d last=%#v", len(glossaries), glossaries[len(glossaries)-1])
+	}
+	memories, err := client.ListTranslationMemories(context.Background(), "123")
+	if err != nil {
+		t.Fatalf("list translation memories: %v", err)
+	}
+	if len(memories) != pageLimit+1 || memories[pageLimit].ID != 501 || memories[pageLimit].Name != "tm-page-two" {
+		t.Fatalf("memories len=%d last=%#v", len(memories), memories[len(memories)-1])
+	}
+}
+
 func TestListProjectFilesDedupesNestedDuplicates(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()

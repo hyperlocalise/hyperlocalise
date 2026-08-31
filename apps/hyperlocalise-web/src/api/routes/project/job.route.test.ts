@@ -585,6 +585,98 @@ describe("project job create", () => {
         description: "Check product names stay untranslated.",
       },
     });
+
+    // Proofread skips AI enqueue and usage reservation; only translation jobs bill.
+    const usageEvents = await db
+      .select({ id: schema.usageEvents.id })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.jobId, body.job.id));
+    expect(usageEvents).toEqual([]);
+  });
+
+  it("reserves usage for native translation create but not proofread", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const translationResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Translate homepage",
+          kind: "translation",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(translationResponse.status).toBe(201);
+    const translationBody = (await translationResponse.json()) as { job: { id: string } };
+    expect(enqueueJob).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: translationBody.job.id, kind: "translation" }),
+    );
+    const translationUsage = await db
+      .select({
+        jobId: schema.usageEvents.jobId,
+        source: schema.usageEvents.source,
+        featureId: schema.usageEvents.featureId,
+      })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.jobId, translationBody.job.id));
+    expect(translationUsage).toEqual([
+      expect.objectContaining({
+        jobId: translationBody.job.id,
+        source: "translation_job_create",
+      }),
+    ]);
+
+    enqueueJob.mockClear();
+    const proofreadResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Proofread homepage",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(proofreadResponse.status).toBe(201);
+    const proofreadBody = (await proofreadResponse.json()) as { job: { id: string } };
+    expect(enqueueJob).not.toHaveBeenCalled();
+    const proofreadUsage = await db
+      .select({ id: schema.usageEvents.id })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.jobId, proofreadBody.job.id));
+    expect(proofreadUsage).toEqual([]);
   });
 
   it("cancels native proofread jobs stuck in waiting_for_review", async () => {

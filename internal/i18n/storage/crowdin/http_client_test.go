@@ -565,6 +565,39 @@ func TestHTTPClientResolveLocalesWithExplicitLocalesUsesSupportedLocale(t *testi
 	}
 }
 
+func TestHTTPClientResolveLocalesMatchesProjectLocaleCaseInsensitively(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		writeJSON(t, w, map[string]any{
+			"data": map[string]any{
+				"id":                123,
+				"targetLanguageIds": []string{"fr"},
+				"targetLanguages": []any{
+					map[string]any{"id": "fr", "name": "French", "locale": "fr-FR"},
+				},
+			},
+		})
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		// Account language list is still loaded; EqualFold on project TargetLanguages
+		// must win for the mismatched-case folder locale token.
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		writeJSON(t, w, map[string]any{"data": []any{}})
+	})
+
+	locales, err := client.ResolveLocales(context.Background(), "123", []string{"FR-fr"})
+	if err != nil {
+		t.Fatalf("resolve locales: %v", err)
+	}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}}
+	if !reflect.DeepEqual(locales, want) {
+		t.Fatalf("locales = %#v, want %#v", locales, want)
+	}
+}
+
 func TestHTTPClientResolveLocalesDedupesLanguageIDAndFolderLocaleAliases(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()
