@@ -13,7 +13,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { evalModel } from "./harness";
+import { evalModel } from "./eval-model";
 
 export type EvalReportRow = {
   case: string;

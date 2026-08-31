@@ -26,16 +26,11 @@ import {
 } from "@/lib/agent-runtime/skills/conversation-skill-registry";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import {
-  getAgentProviderOptions,
-  hyperlocaliseManagedGatewayModelId,
-} from "@/lib/providers/language-model";
+import { getAgentProviderOptions } from "@/lib/providers/language-model";
 
-/**
- * Model under evaluation. A Vercel AI Gateway model id so the eval lane can
- * matrix over candidates: `EVAL_MODEL=anthropic/claude-sonnet-4.5 vp run test:eval`.
- */
-export const evalModel = process.env.EVAL_MODEL ?? hyperlocaliseManagedGatewayModelId;
+import { evalModel } from "./eval-model";
+
+export { evalModel } from "./eval-model";
 
 /** Skip live suites gracefully when no gateway credential is configured. */
 export const hasEvalCredentials = Boolean(

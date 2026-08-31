@@ -50,10 +50,17 @@ jobs:
       - name: Run agent evals
         env:
           AI_GATEWAY_API_KEY: ${{ secrets.EVAL_AI_GATEWAY_API_KEY }}
-          EVAL_MODEL: ${{ inputs.eval_model }}
+          # workflow_dispatch only; blank on schedule/label runs. Exported as
+          # EVAL_MODEL below only when set — an empty env var would override
+          # the harness default.
+          EVAL_MODEL_INPUT: ${{ inputs.eval_model }}
           # Placeholder env so app modules that read config at import time load.
           DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
-        run: vp run test:eval
+        run: |
+          if [ -n "${EVAL_MODEL_INPUT}" ]; then
+            export EVAL_MODEL="${EVAL_MODEL_INPUT}"
+          fi
+          vp run test:eval
 
       - name: Upload eval reports
         if: always()
