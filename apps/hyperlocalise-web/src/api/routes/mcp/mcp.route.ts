@@ -62,6 +62,9 @@ import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
 import { isErr } from "@/lib/primitives/result/results";
+import { issueSheetCreateIssueBodySchema } from "@/api/routes/project/issue-sheet.schema";
+import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -366,6 +369,85 @@ const mcpListIssuesInputSchema = z
     }
   });
 
+const issueSheetService = new IssueSheetService();
+const createIssueShape = issueSheetCreateIssueBodySchema.shape;
+
+const mcpCreateIssueInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project in which to create the issue."),
+  title: createIssueShape.title.describe(
+    "Short issue title describing the problem or requested work.",
+  ),
+  description: createIssueShape.description.describe("Optional detailed issue description."),
+  issueType: createIssueShape.issueType.describe(
+    "Optional issue classification. Defaults to general_question.",
+  ),
+  status: createIssueShape.status.describe("Optional initial issue status. Defaults to open."),
+  targetLocale: createIssueShape.targetLocale.describe(
+    "Optional target locale associated with the issue.",
+  ),
+  sourcePath: createIssueShape.sourcePath.describe(
+    "Optional source file or content path associated with the issue.",
+  ),
+  segmentId: createIssueShape.segmentId.describe(
+    "Optional source segment identifier associated with the issue.",
+  ),
+  translationKeyId: createIssueShape.translationKeyId.describe(
+    "Optional UUID of a translation key in the target project.",
+  ),
+  assigneeUserId: createIssueShape.assigneeUserId.describe(
+    "Optional UUID of an assignable project member.",
+  ),
+  priority: createIssueShape.priority.describe("Optional issue priority: P0, P1, or P2."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(512)
+    .optional()
+    .describe(
+      "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
+    ),
+});
+
+type McpCreateIssueInput = z.infer<typeof mcpCreateIssueInputSchema>;
+
+function isEquivalentMcpCreateIssue(
+  issue: Awaited<ReturnType<IssueSheetService["createIssue"]>>,
+  input: Omit<McpCreateIssueInput, "projectId" | "idempotencyKey">,
+) {
+  const priority = typeof issue.values.priority === "string" ? issue.values.priority : null;
+
+  return (
+    issue.title === input.title &&
+    issue.description === (input.description ?? "") &&
+    issue.issueType === (input.issueType ?? "general_question") &&
+    issue.status === (input.status ?? "open") &&
+    issue.targetLocale === (input.targetLocale ?? null) &&
+    issue.sourcePath === (input.sourcePath ?? null) &&
+    issue.segmentId === (input.segmentId ?? null) &&
+    issue.translationKeyId === (input.translationKeyId ?? null) &&
+    issue.assigneeUserId === (input.assigneeUserId ?? null) &&
+    priority === (input.priority ?? null)
+  );
+}
+
+function mcpToolError(code: string, message: string) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({ error: code, message }),
+      },
+    ],
+    isError: true,
+  };
+}
+
 function compactMcpIssue(issue: OrganizationIssueListItem) {
   return {
     id: issue.id,
@@ -487,6 +569,103 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           {
             type: "text",
             text: JSON.stringify(output),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "create_issue",
+    {
+      description: "Create one issue in an accessible Hyperlocalise project.",
+      inputSchema: mcpCreateIssueInputSchema,
+    },
+    async ({ projectId, idempotencyKey, ...body }) => {
+      if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to create issues");
+      }
+
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>>;
+
+      try {
+        issue = await issueSheetService.createIssue({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId,
+          actorUserId: apiAuth.user.localUserId,
+          body: {
+            ...body,
+            linkKind: "manual",
+            linkLabel: "MCP",
+            ...(idempotencyKey ? { externalRef: `mcp:${idempotencyKey}` } : {}),
+          },
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === "assignee_not_assignable") {
+            return mcpToolError(
+              "assignee_not_assignable",
+              "Assignee is not assignable to this project",
+            );
+          }
+
+          if (error.message === "translation_key_not_found") {
+            return mcpToolError(
+              "translation_key_not_found",
+              "Translation key was not found in this project",
+            );
+          }
+
+          if (error.message.includes("duplicate")) {
+            return mcpToolError(
+              "issue_already_exists",
+              "An issue already exists for this reference",
+            );
+          }
+        }
+
+        throw error;
+      }
+
+      if (idempotencyKey && !isEquivalentMcpCreateIssue(issue, body)) {
+        return mcpToolError(
+          "issue_already_exists",
+          "The idempotency key is already associated with a different issue payload",
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              id: issue.id,
+              projectId,
+              identifier: issue.identifier,
+              title: issue.title,
+              description: issue.description,
+              issueType: issue.issueType,
+              status: issue.status,
+              priority: typeof issue.values.priority === "string" ? issue.values.priority : null,
+              targetLocale: issue.targetLocale,
+              sourcePath: issue.sourcePath,
+              segmentId: issue.segmentId,
+              translationKeyId: issue.translationKeyId,
+              assignee: issue.assignee,
+              assigneeUserId: issue.assigneeUserId,
+              createdAt: issue.createdAt,
+              updatedAt: issue.updatedAt,
+            }),
           },
         ],
       };

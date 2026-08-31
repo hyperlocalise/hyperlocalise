@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { OAuthProtectedResourceMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -22,6 +22,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
+import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import {
   createAuthorizationCode,
@@ -121,8 +122,7 @@ async function refreshToken(refreshToken: string) {
   });
 }
 
-async function authenticatedMcpHeaders() {
-  const identity = fixture.createWorkosIdentity();
+async function authenticatedMcpHeaders(identity = fixture.createWorkosIdentity()) {
   const headers = await fixture.authHeadersFor(identity);
 
   const accessToken = generateMcpToken();
@@ -917,7 +917,8 @@ describe("mcpRoutes", () => {
   });
 
   it("works with a real Streamable HTTP MCP client without GET reconnects or errors", async () => {
-    const headers = await authenticatedMcpHeaders();
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
 
     const requestMethods: string[] = [];
     const transportErrors: Error[] = [];
@@ -963,10 +964,46 @@ describe("mcpRoutes", () => {
         },
       });
 
+      const createResult = await client.callTool({
+        name: "create_issue",
+        arguments: {
+          projectId: stored.project.id,
+          title: "Created through the MCP SDK",
+          description: "SDK integration coverage",
+          priority: "P1",
+          idempotencyKey: "sdk-create-read-back",
+        },
+      });
+
+      const createContent = (
+        createResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
+
+      if (!createContent?.text) {
+        throw new Error("expected create_issue text content");
+      }
+
+      const createdIssue = JSON.parse(createContent.text) as {
+        id: string;
+        projectId: string;
+        title: string;
+      };
+
+      expect(createdIssue).toMatchObject({
+        projectId: stored.project.id,
+        title: "Created through the MCP SDK",
+      });
+
       const issuesResult = await client.callTool({
         name: "list_issues",
         arguments: {
-          limit: 1,
+          projectId: stored.project.id,
+          limit: 10,
           offset: 0,
         },
       });
@@ -995,26 +1032,30 @@ describe("mcpRoutes", () => {
         issues: unknown[];
       };
 
-      expect(issuesOutput).toEqual({
-        total: 0,
+      expect(issuesOutput).toMatchObject({
+        total: 1,
         summary: {
-          total: 0,
-          open: 0,
-          inProgress: 0,
-          resolved: 0,
-          wontFix: 0,
+          total: 1,
+          open: 1,
         },
         pagination: {
-          limit: 1,
+          limit: 10,
           offset: 0,
           hasMore: false,
           nextOffset: null,
         },
-        issues: [],
+        issues: [
+          expect.objectContaining({
+            id: createdIssue.id,
+            projectId: stored.project.id,
+            title: "Created through the MCP SDK",
+            priority: "P1",
+          }),
+        ],
       });
 
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(5);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(6);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -1309,5 +1350,490 @@ describe("mcpRoutes", () => {
     const text = body.result?.content?.[0]?.text;
     expect(text).toBeDefined();
     expect(text).toContain("invalid_issue_query");
+  });
+
+  it("advertises the create_issue tool with a bounded input schema", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "create_issue");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("issue");
+    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId", "title"]));
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: expect.any(Object),
+      title: {
+        type: "string",
+        minLength: 1,
+        maxLength: 300,
+      },
+      description: {
+        type: "string",
+        maxLength: 20_000,
+      },
+      issueType: expect.any(Object),
+      status: expect.any(Object),
+      targetLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32,
+      },
+      sourcePath: {
+        type: "string",
+        minLength: 1,
+        maxLength: 2048,
+      },
+      segmentId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 512,
+      },
+      translationKeyId: expect.any(Object),
+      assigneeUserId: expect.any(Object),
+      priority: expect.any(Object),
+      idempotencyKey: {
+        type: "string",
+        minLength: 1,
+        maxLength: 512,
+      },
+    });
+
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("externalRef");
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        description: expect.stringContaining("accessible Hyperlocalise project"),
+      },
+      title: {
+        description: expect.stringContaining("issue title"),
+      },
+      description: {
+        description: expect.stringContaining("detailed issue description"),
+      },
+      issueType: {
+        description: expect.stringContaining("classification"),
+      },
+      status: {
+        description: expect.stringContaining("initial issue status"),
+      },
+      targetLocale: {
+        description: expect.stringContaining("target locale"),
+      },
+      sourcePath: {
+        description: expect.stringContaining("source file"),
+      },
+      segmentId: {
+        description: expect.stringContaining("segment identifier"),
+      },
+      translationKeyId: {
+        description: expect.stringContaining("translation key"),
+      },
+      assigneeUserId: {
+        description: expect.stringContaining("project member"),
+      },
+      priority: {
+        description: expect.stringContaining("priority"),
+      },
+      idempotencyKey: {
+        description: expect.stringContaining("retry key"),
+      },
+    });
+  });
+
+  it.each([
+    ["title length", { title: "x".repeat(301) }],
+    [
+      "description length",
+      {
+        title: "Valid title",
+        description: "x".repeat(20_001),
+      },
+    ],
+    [
+      "locale length",
+      {
+        title: "Valid title",
+        targetLocale: "x".repeat(33),
+      },
+    ],
+    [
+      "invalid priority",
+      {
+        title: "Valid title",
+        priority: "P3",
+      },
+    ],
+    [
+      "invalid assignee UUID",
+      {
+        title: "Valid title",
+        assigneeUserId: "not-a-uuid",
+      },
+    ],
+    [
+      "invalid translation key UUID",
+      {
+        title: "Valid title",
+        translationKeyId: "not-a-uuid",
+      },
+    ],
+    [
+      "idempotency key length",
+      {
+        title: "Valid title",
+        idempotencyKey: "x".repeat(513),
+      },
+    ],
+  ])("rejects create_issue input with invalid %s", async (_label, invalidInput) => {
+    const headers = await authenticatedMcpHeaders();
+
+    const createSpy = vi.spyOn(IssueSheetService.prototype, "createIssue");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue",
+            arguments: {
+              projectId: "project-id",
+              ...invalidInput,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+      expect(createSpy).not.toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+    }
+  });
+
+  it("creates an issue as the MCP-authenticated user", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const createSpy = vi.spyOn(IssueSheetService.prototype, "createIssue").mockResolvedValueOnce({
+      id: "issue-id",
+      identifier: "HL-123",
+      number: 123,
+      title: "Incorrect French translation",
+      description: "The CTA is mistranslated",
+      issueType: "translation_mistake",
+      status: "open",
+      targetLocale: "fr-FR",
+      sourcePath: "src/messages.json",
+      segmentId: null,
+      translationKeyId: null,
+      linkedCommentId: null,
+      linkedAgentRunId: null,
+      linkKind: "manual",
+      linkLabel: "MCP",
+      linkUrl: null,
+      externalRef: "mcp:request-123",
+      templateKey: null,
+      assigneeUserId: null,
+      reporter: "Thomas",
+      assignee: null,
+      key: null,
+      sourceText: null,
+      createdAt: "2026-08-31T00:00:00.000Z",
+      updatedAt: "2026-08-31T00:00:00.000Z",
+      resolvedAt: null,
+      values: {
+        priority: "P1",
+      },
+      isWatching: true,
+    });
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue",
+            arguments: {
+              projectId: stored.project.id,
+              title: "Incorrect French translation",
+              description: "The CTA is mistranslated",
+              issueType: "translation_mistake",
+              targetLocale: "fr-FR",
+              sourcePath: "src/messages.json",
+              priority: "P1",
+              idempotencyKey: "request-123",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      expect(createSpy).toHaveBeenCalledWith({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        actorUserId: auth.user.localUserId,
+        body: {
+          title: "Incorrect French translation",
+          description: "The CTA is mistranslated",
+          issueType: "translation_mistake",
+          targetLocale: "fr-FR",
+          sourcePath: "src/messages.json",
+          priority: "P1",
+          linkKind: "manual",
+          linkLabel: "MCP",
+          externalRef: "mcp:request-123",
+        },
+      });
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ type: string; text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).not.toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+      expect(JSON.parse(text!)).toMatchObject({
+        id: "issue-id",
+        projectId: stored.project.id,
+        title: "Incorrect French translation",
+        priority: "P1",
+      });
+    } finally {
+      createSpy.mockRestore();
+    }
+  });
+
+  it("reuses an issue for an equivalent retry and rejects a conflicting payload", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const callCreateIssue = async (title: string) =>
+      app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue",
+            arguments: {
+              projectId: stored.project.id,
+              title,
+              description: "Retry-safe description",
+              issueType: "general_question",
+              priority: "P1",
+              idempotencyKey: "retry-123",
+            },
+          },
+        }),
+      });
+
+    const readToolResult = async (response: Response) => {
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ type: string; text?: string }>;
+        };
+      };
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      return {
+        isError: body.result?.isError === true,
+        output: JSON.parse(text!),
+      };
+    };
+
+    const first = await readToolResult(await callCreateIssue("Retry-safe issue"));
+
+    const retry = await readToolResult(await callCreateIssue("Retry-safe issue"));
+
+    expect(first.isError).toBe(false);
+    expect(retry.isError).toBe(false);
+    expect(retry.output.id).toBe(first.output.id);
+
+    const rows = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.projectId, stored.project.id),
+          eq(schema.issueSheetIssues.externalRef, "mcp:retry-123"),
+        ),
+      );
+
+    expect(rows).toHaveLength(1);
+
+    const [persistedIssue] = await db
+      .select({
+        reporterUserId: schema.issueSheetIssues.reporterUserId,
+      })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.id, first.output.id))
+      .limit(1);
+
+    expect(persistedIssue).toEqual({
+      reporterUserId: auth.user.localUserId,
+    });
+
+    const createdActivities = await db
+      .select({
+        actorUserId: schema.issueSheetActivities.actorUserId,
+        type: schema.issueSheetActivities.type,
+      })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.issueId, first.output.id),
+          eq(schema.issueSheetActivities.type, "issue_created"),
+        ),
+      );
+
+    expect(createdActivities).toEqual([
+      {
+        actorUserId: auth.user.localUserId,
+        type: "issue_created",
+      },
+    ]);
+
+    const conflict = await readToolResult(await callCreateIssue("Different retry payload"));
+
+    expect(conflict.isError).toBe(true);
+    expect(conflict.output).toMatchObject({
+      error: "issue_already_exists",
+    });
+  });
+
+  it.each([
+    ["assignee_not_assignable", "assignee_not_assignable"],
+    ["translation_key_not_found", "translation_key_not_found"],
+    ["duplicate external reference", "issue_already_exists"],
+  ])("maps create issue failure %s to %s", async (serviceError, expectedCode) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const createSpy = vi
+      .spyOn(IssueSheetService.prototype, "createIssue")
+      .mockRejectedValueOnce(new Error(serviceError));
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue",
+            arguments: {
+              projectId: stored.project.id,
+              title: "Example issue",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ type: string; text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+      expect(JSON.parse(text!)).toMatchObject({
+        error: expectedCode,
+      });
+    } finally {
+      createSpy.mockRestore();
+    }
   });
 });

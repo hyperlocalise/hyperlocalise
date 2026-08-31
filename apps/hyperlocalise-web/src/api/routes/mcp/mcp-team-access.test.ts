@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
@@ -323,5 +323,111 @@ describe("MCP team-scoped access", () => {
       project: { id: string } | null;
     };
     expect(getDeniedBody.project).toBeNull();
+
+    const createDeniedResponse = await callMcpTool(accessToken, "create_issue", {
+      projectId: alphaProjectBody.project.id,
+      title: "Member must not create this issue",
+      idempotencyKey: "member-denied",
+    });
+
+    expect(createDeniedResponse.status).toBe(200);
+
+    const createDeniedBody = parseToolResultText(await createDeniedResponse.json()) as {
+      error: string;
+    };
+
+    expect(createDeniedBody).toMatchObject({
+      error: "forbidden",
+    });
+
+    const deniedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.projectId, alphaProjectBody.project.id),
+          eq(schema.issueSheetIssues.externalRef, "mcp:member-denied"),
+        ),
+      );
+
+    expect(deniedIssues).toHaveLength(0);
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "translator" })
+      .where(
+        and(
+          eq(
+            schema.organizationMemberships.organizationId,
+            memberAuth.organization.localOrganizationId,
+          ),
+          eq(schema.organizationMemberships.userId, memberAuth.user.localUserId),
+        ),
+      );
+
+    const createAllowedResponse = await callMcpTool(accessToken, "create_issue", {
+      projectId: alphaProjectBody.project.id,
+      title: "Translator can create in Team Alpha",
+      idempotencyKey: "translator-alpha",
+    });
+
+    expect(createAllowedResponse.status).toBe(200);
+
+    const createAllowedBody = parseToolResultText(await createAllowedResponse.json()) as {
+      id: string;
+      projectId: string;
+    };
+
+    expect(createAllowedBody).toMatchObject({
+      projectId: alphaProjectBody.project.id,
+    });
+
+    const crossTeamResponse = await callMcpTool(accessToken, "create_issue", {
+      projectId: betaProjectBody.project.id,
+      title: "Must not create in Team Beta",
+      idempotencyKey: "translator-beta",
+    });
+
+    expect(crossTeamResponse.status).toBe(200);
+
+    expect(parseToolResultText(await crossTeamResponse.json())).toMatchObject({
+      error: "project_not_found",
+    });
+
+    const crossOrganizationResponse = await callMcpTool(accessToken, "create_issue", {
+      projectId: externalProject.id,
+      title: "Must not create in another organization",
+      idempotencyKey: "translator-external",
+    });
+
+    expect(crossOrganizationResponse.status).toBe(200);
+
+    expect(parseToolResultText(await crossOrganizationResponse.json())).toMatchObject({
+      error: "project_not_found",
+    });
+
+    const createdMcpIssues = await db
+      .select({
+        projectId: schema.issueSheetIssues.projectId,
+        externalRef: schema.issueSheetIssues.externalRef,
+      })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, memberAuth.organization.localOrganizationId),
+          inArray(schema.issueSheetIssues.externalRef, [
+            "mcp:translator-alpha",
+            "mcp:translator-beta",
+            "mcp:translator-external",
+          ]),
+        ),
+      );
+
+    expect(createdMcpIssues).toEqual([
+      {
+        projectId: alphaProjectBody.project.id,
+        externalRef: "mcp:translator-alpha",
+      },
+    ]);
   });
 });
