@@ -76,8 +76,8 @@ export const glossaryDetailPageContentMessages = defineMessages({
     description: "Loading label shown while importing a glossary file",
   },
   importFormats: {
-    defaultMessage: "TBX, XLSX, or CSV",
-    id: "GEtF0nELl/",
+    defaultMessage: "Choose a TBX, XLSX, or CSV file",
+    id: "tOAFgS8YTm",
     description: "Accepted glossary import file formats",
   },
   glossaryActions: {
@@ -95,6 +95,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "j3NSWZrB6O",
     description: "Glossary action to export all concepts as CSV",
   },
+  exportCompleteLabel: {
+    defaultMessage: "Export complete glossary",
+    id: "IrK/1/o8Ej",
+    description: "Label for complete glossary export choices",
+  },
   exportAsXlsx: {
     defaultMessage: "Export as XLSX",
     id: "duzSZb/s6p",
@@ -109,6 +114,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "Export filtered as CSV",
     id: "erXgCbsSqH",
     description: "Glossary action to export the current language filter as CSV",
+  },
+  exportFilteredLabel: {
+    defaultMessage: "Export filtered glossary",
+    id: "svMnxMDrsO",
+    description: "Label for filtered glossary export choices",
   },
   exportFilteredAsXlsx: {
     defaultMessage: "Export filtered as XLSX",

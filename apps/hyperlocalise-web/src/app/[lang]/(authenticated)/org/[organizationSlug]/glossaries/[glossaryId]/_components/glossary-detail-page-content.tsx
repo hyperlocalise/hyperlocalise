@@ -64,6 +64,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -1142,19 +1144,23 @@ export function GlossaryDetailPageContent({
                             <Button
                               type="button"
                               variant="outline"
+                              size="icon"
                               disabled={exportGlossary.isPending || importConcepts.isPending}
                               aria-label={intl.formatMessage(messages.glossaryActions)}
+                              title={intl.formatMessage(messages.glossaryActions)}
                             >
-                              {exportGlossary.isPending ? (
+                              {exportGlossary.isPending || importConcepts.isPending ? (
                                 <Spinner />
                               ) : (
                                 <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.8} />
                               )}
-                              <FormattedMessage {...messages.glossaryActions} />
                             </Button>
                           }
                         />
                         <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>
+                            <FormattedMessage {...messages.exportCompleteLabel} />
+                          </DropdownMenuLabel>
                           <DropdownMenuItem
                             disabled={exportGlossary.isPending || importConcepts.isPending}
                             onClick={() =>
@@ -1181,6 +1187,10 @@ export function GlossaryDetailPageContent({
                           </DropdownMenuItem>
                           {normalizedLanguageFilter ? (
                             <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel>
+                                <FormattedMessage {...messages.exportFilteredLabel} />
+                              </DropdownMenuLabel>
                               <DropdownMenuItem
                                 disabled={exportGlossary.isPending || importConcepts.isPending}
                                 onClick={() =>
