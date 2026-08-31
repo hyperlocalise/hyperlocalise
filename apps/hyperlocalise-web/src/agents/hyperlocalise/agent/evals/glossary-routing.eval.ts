@@ -17,6 +17,8 @@ import type { SearchNativeGlossaryToolOutput } from "@/agents/_runtime/shared-to
 import { hasEvalCredentials, runEvalTurn } from "./harness";
 import { createEvalReport } from "./report";
 
+const MAX_GLOSSARY_LOOKUP_STEPS = 6;
+
 const nativeGlossaryHit: SearchNativeGlossaryToolOutput = {
   success: true,
   terms: [
@@ -53,14 +55,15 @@ describe.skipIf(!hasEvalCredentials)("glossary routing trajectory", () => {
 
     const pass =
       turn.toolNames.includes("search_native_glossary") &&
-      turn.text.toLowerCase().includes("paiement");
+      turn.text.toLowerCase().includes("paiement") &&
+      turn.steps <= MAX_GLOSSARY_LOOKUP_STEPS;
     report.record({ case: "native-glossary-lookup", pass, detail: turn.toolCalls });
 
     expect(turn.toolNames, `tool calls: ${turn.toolNames.join(", ")}`).toContain(
       "search_native_glossary",
     );
     expect(turn.text.toLowerCase()).toContain("paiement");
-    expect(turn.steps).toBeLessThanOrEqual(6);
+    expect(turn.steps).toBeLessThanOrEqual(MAX_GLOSSARY_LOOKUP_STEPS);
   });
 
   it("answers a capability question without calling tools", async () => {
@@ -69,9 +72,10 @@ describe.skipIf(!hasEvalCredentials)("glossary routing trajectory", () => {
       "Hi! What can you help me with?",
     );
 
+    const pass = turn.toolCalls.length === 0 && turn.text.length > 0;
     report.record({
       case: "no-tools-for-capability-question",
-      pass: turn.toolCalls.length === 0,
+      pass,
       detail: turn.toolCalls,
     });
 
