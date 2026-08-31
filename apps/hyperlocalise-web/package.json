@@ -140,6 +140,7 @@
     "remark-rehype": "^11.1.2",
     "resend": "6.24.0",
     "rxjs": "7.8.2",
+    "saxes": "^6.0.0",
     "shadcn": "4.19.0",
     "shiki": "^4.3.0",
     "simple-icons": "^16.24.1",
@@ -154,6 +155,7 @@
     "workflow": "4.8.5",
     "workos": "0.22.0",
     "xlsx": "npm:@e965/xlsx@0.20.3",
+    "xmlbuilder2": "^4.0.3",
     "yaml": "^2.9.0",
     "zod": "4.4.3"
   },

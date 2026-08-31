@@ -29,6 +29,10 @@ import {
   queryNativeGlossaryTermCounts,
 } from "@/lib/glossary/query-glossary-term-counts";
 import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
+import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
+import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-format-factory";
+import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
+import { getStoredFileContent } from "@/lib/file-storage/records";
 import {
   queryNativeGlossaryLanguages,
   queryNativeGlossaryLanguagesForGlossary,
@@ -52,6 +56,7 @@ import {
   glossaryIdParamsSchema,
   glossaryProjectParamsSchema,
   listGlossaryQuerySchema,
+  glossaryExportQuerySchema,
   updateGlossaryBodySchema,
   type AttachGlossaryProjectBody,
   type CreateGlossaryBody,
@@ -351,6 +356,22 @@ const validateListGlossaryQuery = validator("query", (value, _c) => {
   return parsed.data;
 });
 
+const validateGlossaryExportQuery = validator("query", (value, c) => {
+  const parsed = glossaryExportQuerySchema.safeParse(value);
+  if (!parsed.success) return badRequestResponse(c, "invalid_glossary_export_payload");
+  return parsed.data;
+});
+
+function glossaryDownloadFilename(name: string, extension: string, scope: "complete" | "filtered") {
+  const sanitized =
+    name
+      .normalize("NFKC")
+      .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "glossary";
+  return `${sanitized}${scope === "filtered" ? "-filtered" : ""}.${extension}`;
+}
+
 export function createGlossaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -405,6 +426,84 @@ export function createGlossaryRoutes() {
         },
         200,
       );
+    })
+    .get("/:glossaryId/export", validateGlossaryParams, validateGlossaryExportQuery, async (c) => {
+      const { glossaryId } = c.req.valid("param");
+      const query = c.req.valid("query");
+      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+      if (!glossary) return glossaryNotFoundResponse(c);
+
+      if (glossary.source !== "native") {
+        return badRequestResponse(
+          c,
+          "glossary_export_unsupported",
+          "This provider-backed glossary does not expose a supported export capability.",
+        );
+      }
+
+      const document = await loadGlossaryInterchangeDocument({
+        glossary,
+        search: query.scope === "filtered" ? query.search : undefined,
+        locale: query.scope === "filtered" ? query.locale : undefined,
+      });
+      const serialized = GlossaryFormatFactory.create(query.format).serialize(document);
+      if (serialized.errors.length > 0) {
+        return badRequestResponse(
+          c,
+          serialized.errors[0]?.code ?? "glossary_export_failed",
+          serialized.errors[0]?.message,
+          { diagnostics: serialized.errors },
+        );
+      }
+
+      c.header("Content-Type", GlossaryFormatFactory.create(query.format).mimeType);
+      c.header(
+        "Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(glossaryDownloadFilename(glossary.name, query.format, query.scope))}`,
+      );
+      c.header("Cache-Control", "no-store");
+      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
+      c.header("X-Content-Type-Options", "nosniff");
+      c.header("X-Download-Options", "noopen");
+      c.header("X-Hyperlocalise-Export-Warning-Count", String(serialized.warnings.length));
+      return c.body(Buffer.from(serialized.content));
+    })
+    .get("/:glossaryId/import-reports/:reportId", validateGlossaryParams, async (c) => {
+      const { glossaryId } = c.req.valid("param");
+      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+      if (!glossary) return glossaryNotFoundResponse(c);
+      const report = await getGlossaryImportReport({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        glossaryId,
+        reportId: c.req.param("reportId"),
+      });
+      if (!report) return glossaryNotFoundResponse(c);
+      return c.json({ report: report.run, entries: report.entries }, 200);
+    })
+    .get("/:glossaryId/import-reports/:reportId/backup", validateGlossaryParams, async (c) => {
+      const { glossaryId } = c.req.valid("param");
+      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
+      if (!glossary) return glossaryNotFoundResponse(c);
+      const report = await getGlossaryImportReport({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        glossaryId,
+        reportId: c.req.param("reportId"),
+      });
+      if (!report?.run.backupFileId) return glossaryNotFoundResponse(c);
+      const stored = await getStoredFileContent({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        fileId: report.run.backupFileId,
+      });
+      c.header("Content-Type", stored.file.contentType);
+      c.header(
+        "Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(stored.file.filename)}`,
+      );
+      c.header("Cache-Control", "no-store");
+      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
+      c.header("X-Content-Type-Options", "nosniff");
+      c.header("X-Download-Options", "noopen");
+      return c.body(stored.content);
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       const payload = c.req.valid("json");

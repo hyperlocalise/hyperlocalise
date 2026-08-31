@@ -23,6 +23,7 @@ import {
   Delete02Icon,
   FilterIcon,
   Link01Icon,
+  MoreHorizontalIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +59,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -144,6 +151,16 @@ const emptyTermDraft: TermDraft = {
 
 function createCreatingTermDraft(locale: string, id: string): CreatingTermDraft {
   return { ...emptyTermDraft, id, locale };
+}
+
+function arrayBufferToBase64(value: ArrayBuffer) {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
 }
 
 function conceptDraftFromRecord(concept: GlossaryConceptRecord): ConceptDraft {
@@ -716,13 +733,24 @@ export function GlossaryDetailPageContent({
   });
   const importConcepts = useMutation({
     mutationFn: async (file: File) => {
-      const content = await file.text();
-      const format = file.name.toLowerCase().endsWith(".tbx") ? "tbx" : "csv";
+      const filename = file.name.toLowerCase();
+      const isXlsx = filename.endsWith(".xlsx");
+      const format = filename.endsWith(".tbx") ? "tbx" : isXlsx ? "xlsx" : "csv";
+      const content = isXlsx ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text();
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].concepts["import"].$post({
         param: { organizationSlug, glossaryId },
-        json: { format, content },
+        json: {
+          format,
+          content,
+          sourceFilename: file.name,
+          contentEncoding: isXlsx ? "base64" : "utf8",
+          mode: "merge",
+          previewForMode: "merge",
+          strictLocale: true,
+          localeMapping: {},
+        },
       });
       if (!response.ok)
         throw new Error(
@@ -733,6 +761,42 @@ export function GlossaryDetailPageContent({
     onSuccess: async (body) => {
       await invalidateConcepts();
       toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const exportGlossary = useMutation({
+    mutationFn: async (input: { format: "tbx" | "xlsx"; scope: "complete" | "filtered" }) => {
+      const params = new URLSearchParams({ format: input.format, scope: input.scope });
+      if (input.scope === "filtered" && normalizedLanguageFilter) {
+        params.set("locale", normalizedLanguageFilter);
+      }
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/glossaries/${encodeURIComponent(glossaryId)}/export?${params.toString()}`,
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.exportFailed)));
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const filename = encodedFilename
+        ? decodeURIComponent(encodedFilename)
+        : `glossary.${input.format}`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      return Number(response.headers.get("x-hyperlocalise-export-warning-count") ?? 0);
+    },
+    onSuccess: (warningCount) => {
+      if (warningCount > 0) {
+        toast.warning(intl.formatMessage(messages.exportWarnings, { count: warningCount }));
+      } else {
+        toast.success(intl.formatMessage(messages.exportComplete));
+      }
     },
     onError: (error) => toast.error(error.message),
   });
@@ -1064,12 +1128,71 @@ export function GlossaryDetailPageContent({
                     <FormattedMessage {...messages.conceptsDescription} />
                   </TypographyP>
                 </div>
-                {canManage || canContribute ? (
-                  <div className="flex flex-wrap gap-2">
+                {canManage || canContribute || isNative ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {isNative ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={exportGlossary.isPending}
+                              aria-label={intl.formatMessage(messages.glossaryActions)}
+                            >
+                              {exportGlossary.isPending ? (
+                                <Spinner />
+                              ) : (
+                                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.8} />
+                              )}
+                              <FormattedMessage {...messages.glossaryActions} />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={exportGlossary.isPending}
+                            onClick={() =>
+                              exportGlossary.mutate({ format: "tbx", scope: "complete" })
+                            }
+                          >
+                            <FormattedMessage {...messages.exportAsTbx} />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={exportGlossary.isPending}
+                            onClick={() =>
+                              exportGlossary.mutate({ format: "xlsx", scope: "complete" })
+                            }
+                          >
+                            <FormattedMessage {...messages.exportAsXlsx} />
+                          </DropdownMenuItem>
+                          {normalizedLanguageFilter ? (
+                            <>
+                              <DropdownMenuItem
+                                disabled={exportGlossary.isPending}
+                                onClick={() =>
+                                  exportGlossary.mutate({ format: "tbx", scope: "filtered" })
+                                }
+                              >
+                                <FormattedMessage {...messages.exportFilteredAsTbx} />
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={exportGlossary.isPending}
+                                onClick={() =>
+                                  exportGlossary.mutate({ format: "xlsx", scope: "filtered" })
+                                }
+                              >
+                                <FormattedMessage {...messages.exportFilteredAsXlsx} />
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
                     {canManage ? (
                       <Input
                         type="file"
-                        accept=".csv,.tbx,text/csv"
+                        accept=".csv,.tbx,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         className="max-w-xs"
                         onChange={(event) => {
                           const file = event.target.files?.[0];

@@ -50,10 +50,16 @@ import type {
   interactionMessages,
   connectors,
   tmsLinks,
+  glossaryImportRuns,
+  glossaryImportReportEntries,
 } from "@/lib/database/schema";
 
 export type Glossary = typeof glossaries.$inferSelect;
 export type NewGlossary = typeof glossaries.$inferInsert;
+export type GlossaryImportRun = typeof glossaryImportRuns.$inferSelect;
+export type NewGlossaryImportRun = typeof glossaryImportRuns.$inferInsert;
+export type GlossaryImportReportEntry = typeof glossaryImportReportEntries.$inferSelect;
+export type NewGlossaryImportReportEntry = typeof glossaryImportReportEntries.$inferInsert;
 
 export type Memory = typeof memories.$inferSelect;
 export type NewMemory = typeof memories.$inferInsert;
