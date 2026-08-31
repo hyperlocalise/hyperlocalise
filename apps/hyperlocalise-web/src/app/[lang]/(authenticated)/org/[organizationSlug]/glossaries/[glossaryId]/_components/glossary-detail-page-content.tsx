@@ -57,12 +57,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -401,6 +403,8 @@ export function GlossaryDetailPageContent({
   const [nameDraft, setNameDraft] = useState("");
   const skipNameBlurSave = useRef(false);
   const glossaryFileInputRef = useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
@@ -764,6 +768,8 @@ export function GlossaryDetailPageContent({
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
+      setImportDialogOpen(false);
+      setImportFile(null);
       toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
     },
     onError: (error) => toast.error(error.message),
@@ -1158,110 +1164,87 @@ export function GlossaryDetailPageContent({
                           }
                         />
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>
-                            <FormattedMessage {...messages.exportCompleteLabel} />
-                          </DropdownMenuLabel>
-                          <DropdownMenuItem
-                            disabled={exportGlossary.isPending || importConcepts.isPending}
-                            onClick={() =>
-                              exportGlossary.mutate({ format: "tbx", scope: "complete" })
-                            }
-                          >
-                            <FormattedMessage {...messages.exportAsTbx} />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={exportGlossary.isPending || importConcepts.isPending}
-                            onClick={() =>
-                              exportGlossary.mutate({ format: "csv", scope: "complete" })
-                            }
-                          >
-                            <FormattedMessage {...messages.exportAsCsv} />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={exportGlossary.isPending || importConcepts.isPending}
-                            onClick={() =>
-                              exportGlossary.mutate({ format: "xlsx", scope: "complete" })
-                            }
-                          >
-                            <FormattedMessage {...messages.exportAsXlsx} />
-                          </DropdownMenuItem>
+                          <DropdownMenuGroup>
+                            <DropdownMenuLabel>
+                              <FormattedMessage {...messages.exportCompleteLabel} />
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              disabled={exportGlossary.isPending || importConcepts.isPending}
+                              onClick={() =>
+                                exportGlossary.mutate({ format: "tbx", scope: "complete" })
+                              }
+                            >
+                              <FormattedMessage {...messages.exportAsTbx} />
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={exportGlossary.isPending || importConcepts.isPending}
+                              onClick={() =>
+                                exportGlossary.mutate({ format: "csv", scope: "complete" })
+                              }
+                            >
+                              <FormattedMessage {...messages.exportAsCsv} />
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={exportGlossary.isPending || importConcepts.isPending}
+                              onClick={() =>
+                                exportGlossary.mutate({ format: "xlsx", scope: "complete" })
+                              }
+                            >
+                              <FormattedMessage {...messages.exportAsXlsx} />
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
                           {normalizedLanguageFilter ? (
                             <>
                               <DropdownMenuSeparator />
-                              <DropdownMenuLabel>
-                                <FormattedMessage {...messages.exportFilteredLabel} />
-                              </DropdownMenuLabel>
-                              <DropdownMenuItem
-                                disabled={exportGlossary.isPending || importConcepts.isPending}
-                                onClick={() =>
-                                  exportGlossary.mutate({ format: "tbx", scope: "filtered" })
-                                }
-                              >
-                                <FormattedMessage {...messages.exportFilteredAsTbx} />
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                disabled={exportGlossary.isPending || importConcepts.isPending}
-                                onClick={() =>
-                                  exportGlossary.mutate({ format: "csv", scope: "filtered" })
-                                }
-                              >
-                                <FormattedMessage {...messages.exportFilteredAsCsv} />
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                disabled={exportGlossary.isPending || importConcepts.isPending}
-                                onClick={() =>
-                                  exportGlossary.mutate({ format: "xlsx", scope: "filtered" })
-                                }
-                              >
-                                <FormattedMessage {...messages.exportFilteredAsXlsx} />
-                              </DropdownMenuItem>
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>
+                                  <FormattedMessage {...messages.exportFilteredLabel} />
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  disabled={exportGlossary.isPending || importConcepts.isPending}
+                                  onClick={() =>
+                                    exportGlossary.mutate({ format: "tbx", scope: "filtered" })
+                                  }
+                                >
+                                  <FormattedMessage {...messages.exportFilteredAsTbx} />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={exportGlossary.isPending || importConcepts.isPending}
+                                  onClick={() =>
+                                    exportGlossary.mutate({ format: "csv", scope: "filtered" })
+                                  }
+                                >
+                                  <FormattedMessage {...messages.exportFilteredAsCsv} />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={exportGlossary.isPending || importConcepts.isPending}
+                                  onClick={() =>
+                                    exportGlossary.mutate({ format: "xlsx", scope: "filtered" })
+                                  }
+                                >
+                                  <FormattedMessage {...messages.exportFilteredAsXlsx} />
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            </>
+                          ) : null}
+                          {canManage ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>
+                                  <FormattedMessage {...messages.importGlossary} />
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  disabled={exportGlossary.isPending || importConcepts.isPending}
+                                  onClick={() => setImportDialogOpen(true)}
+                                >
+                                  <FormattedMessage {...messages.selectGlossaryFile} />
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
                             </>
                           ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : null}
-                    {canManage ? (
-                      <div className="flex flex-col items-end gap-1">
-                        <input
-                          ref={glossaryFileInputRef}
-                          id="glossary-file-import"
-                          type="file"
-                          accept=".csv,.tbx,.xlsx,text/csv,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                          className="sr-only"
-                          aria-label={intl.formatMessage(messages.importGlossary)}
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) importConcepts.mutate(file);
-                            event.currentTarget.value = "";
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={importConcepts.isPending || exportGlossary.isPending}
-                          aria-controls="glossary-file-import"
-                          aria-busy={importConcepts.isPending}
-                          onClick={() => glossaryFileInputRef.current?.click()}
-                        >
-                          {importConcepts.isPending ? (
-                            <Spinner />
-                          ) : (
-                            <HugeiconsIcon
-                              icon={Upload01Icon}
-                              strokeWidth={1.8}
-                              data-icon="inline-start"
-                            />
-                          )}
-                          <FormattedMessage
-                            {...(importConcepts.isPending
-                              ? messages.importingGlossary
-                              : messages.importGlossary)}
-                          />
-                        </Button>
-                        <span className="text-xs text-muted-foreground">
-                          <FormattedMessage {...messages.importFormats} />
-                        </span>
-                      </div>
                     ) : null}
                     {canContribute ? (
                       <Button
@@ -2595,6 +2578,84 @@ export function GlossaryDetailPageContent({
           </div>
         </section>
       ) : null}
+
+      <Dialog
+        open={canManage && importDialogOpen}
+        onOpenChange={(open) => {
+          if (importConcepts.isPending) return;
+          setImportDialogOpen(open);
+          if (!open) {
+            setImportFile(null);
+            if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...messages.importGlossary} />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage {...messages.importGlossaryDescription} />
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <input
+              ref={glossaryFileInputRef}
+              id="glossary-file-import"
+              type="file"
+              accept=".csv,.tbx,.xlsx,text/csv,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="sr-only"
+              aria-label={intl.formatMessage(messages.selectGlossaryFile)}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setImportFile(file);
+                importConcepts.mutate(file);
+              }}
+            />
+            <label
+              htmlFor="glossary-file-import"
+              className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8 text-center transition-colors hover:bg-muted/40 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
+              aria-busy={importConcepts.isPending}
+            >
+              {importConcepts.isPending ? (
+                <Spinner className="size-5" />
+              ) : (
+                <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+              )}
+              <span className="text-sm font-medium text-foreground">
+                {importFile?.name ?? <FormattedMessage {...messages.selectGlossaryFile} />}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.importFormats} />
+              </span>
+            </label>
+            {importConcepts.isPending ? (
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                <FormattedMessage {...messages.importingGlossary} />
+              </p>
+            ) : null}
+            {importConcepts.isError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {importConcepts.error instanceof Error
+                  ? importConcepts.error.message
+                  : intl.formatMessage(messages.importTermsFailed)}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={importConcepts.isPending}
+              onClick={() => setImportDialogOpen(false)}
+            >
+              <FormattedMessage {...messages.cancelEdit} />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={deleteGlossaryDialogOpen}

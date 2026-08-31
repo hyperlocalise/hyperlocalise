@@ -80,6 +80,16 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "tOAFgS8YTm",
     description: "Accepted glossary import file formats",
   },
+  importGlossaryDescription: {
+    defaultMessage: "Upload a glossary file to merge its concepts and terms into this glossary.",
+    id: "wkeCz4YE6S",
+    description: "Description for the glossary import dialog",
+  },
+  selectGlossaryFile: {
+    defaultMessage: "Select a glossary file",
+    id: "zaVQwg8luK",
+    description: "Prompt inside the glossary file upload area",
+  },
   glossaryActions: {
     defaultMessage: "Glossary actions",
     id: "OU8ZFDP47O",
