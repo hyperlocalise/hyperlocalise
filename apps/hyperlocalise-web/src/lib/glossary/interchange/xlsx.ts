@@ -72,6 +72,7 @@ function cell(row: Record<string, unknown>, key: string) {
 }
 
 function optionalCell(row: Record<string, unknown>, key: string) {
+  if (!Object.prototype.hasOwnProperty.call(row, key)) return undefined;
   const value = cell(row, key);
   return value || null;
 }
@@ -81,6 +82,7 @@ function booleanCell(
   key: string,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string; termId?: string },
 ) {
   const value = cell(row, key);
   if (!value) return undefined;
@@ -88,6 +90,7 @@ function booleanCell(
   if (/^(false|0|no)$/i.test(value)) return false;
   diagnostics.push(
     diagnostic({
+      ...ids,
       sourceRow: rowNumber,
       field: key,
       code: "invalid_boolean",
@@ -102,6 +105,7 @@ function jsonCell(
   key: string,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string; termId?: string },
 ) {
   const value = cell(row, key);
   if (!value) return {};
@@ -113,6 +117,7 @@ function jsonCell(
   } catch {
     diagnostics.push(
       diagnostic({
+        ...ids,
         sourceRow: rowNumber,
         field: key,
         code: "invalid_json_metadata",
@@ -127,6 +132,7 @@ function parseLanguageDetails(
   row: Record<string, unknown>,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string },
 ) {
   const value = cell(row, "languageDetails");
   if (!value) return [];
@@ -150,6 +156,7 @@ function parseLanguageDetails(
   } catch {
     diagnostics.push(
       diagnostic({
+        ...ids,
         sourceRow: rowNumber,
         field: "languageDetails",
         code: "invalid_language_details",
@@ -312,15 +319,15 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
       primaryTerm: cell(row, "primaryTerm") || undefined,
       subject: cell(row, "subject"),
       definition: cell(row, "definition"),
-      translatable: booleanCell(row, "translatable", diagnostics, rowNumber),
+      translatable: booleanCell(row, "translatable", diagnostics, rowNumber, { conceptId: id }),
       note: cell(row, "note"),
       url: optionalCell(row, "url"),
       figure: optionalCell(row, "figure"),
       metadata: cell(row, "metadata")
-        ? jsonCell(row, "metadata", diagnostics, rowNumber)
+        ? jsonCell(row, "metadata", diagnostics, rowNumber, { conceptId: id })
         : undefined,
       languageDetails: cell(row, "languageDetails")
-        ? parseLanguageDetails(row, diagnostics, rowNumber)
+        ? parseLanguageDetails(row, diagnostics, rowNumber, { conceptId: id })
         : undefined,
       createdAt: optionalCell(row, "createdAt") ?? undefined,
       updatedAt: optionalCell(row, "updatedAt") ?? undefined,
@@ -383,12 +390,15 @@ export function parseXlsx(content: Uint8Array): GlossaryImportDocument {
       url: optionalCell(row, "url"),
       lemma: optionalCell(row, "lemma"),
       status: cell(row, "status") || undefined,
-      caseSensitive: booleanCell(row, "caseSensitive", diagnostics, rowNumber),
-      forbidden: booleanCell(row, "forbidden", diagnostics, rowNumber),
+      caseSensitive: booleanCell(row, "caseSensitive", diagnostics, rowNumber, {
+        conceptId,
+        termId,
+      }),
+      forbidden: booleanCell(row, "forbidden", diagnostics, rowNumber, { conceptId, termId }),
       provenance: cell(row, "provenance") || undefined,
       reviewStatus: cell(row, "reviewStatus") || undefined,
       metadata: cell(row, "metadata")
-        ? jsonCell(row, "metadata", diagnostics, rowNumber)
+        ? jsonCell(row, "metadata", diagnostics, rowNumber, { conceptId, termId })
         : undefined,
       createdAt: cell(row, "createdAt") || undefined,
       updatedAt: cell(row, "updatedAt") || undefined,

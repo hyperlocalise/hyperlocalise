@@ -680,8 +680,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
           ...currentTerm.metadata,
           [`tbx:${frame.type ?? "termNote"}`]: value,
         };
-    } else if ((frame.local === "ref" || frame.local === "xref") && currentTerm && frame.target) {
-      currentTerm.url = frame.target;
+    } else if ((frame.local === "ref" || frame.local === "xref") && frame.target) {
+      if (currentTerm) currentTerm.url = frame.target;
+      else if (frame.type === "externalCrossReference") currentConcept.url = frame.target;
+      else if (frame.type === "xGraphic") currentConcept.figure = frame.target;
     } else if ((frame.local === "termSec" || frame.local === "tig") && currentTerm) {
       if (!currentTerm.term || !currentTerm.locale) {
         diagnostics.push(

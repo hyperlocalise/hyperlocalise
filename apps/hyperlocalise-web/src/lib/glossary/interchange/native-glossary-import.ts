@@ -48,6 +48,7 @@ function parseTimestamp(
   diagnostics.push(
     diagnostic({
       ...input,
+      counted: true,
       code: "invalid_timestamp",
       message: "Timestamp must be a valid ISO-8601 date.",
     }),
@@ -141,6 +142,7 @@ export async function planNativeGlossaryImport(input: {
       diagnostics.push(
         diagnostic({
           conceptId: concept.id,
+          counted: true,
           code: "concept_already_exists",
           message: "Create mode does not update an existing concept.",
         }),
@@ -150,6 +152,7 @@ export async function planNativeGlossaryImport(input: {
       diagnostics.push(
         diagnostic({
           conceptId: concept.id,
+          counted: true,
           code: "concept_not_found",
           message: "Update mode requires an existing concept ID.",
         }),
@@ -169,6 +172,7 @@ export async function planNativeGlossaryImport(input: {
           diagnostic({
             conceptId: concept.id,
             termId: term.id,
+            counted: true,
             code: "term_id_conflict",
             message: "Term ID belongs to another concept.",
           }),
@@ -202,33 +206,6 @@ export async function applyNativeGlossaryImport(input: {
     (total, concept) => total + concept.terms.length,
     0,
   );
-  const existingConcepts = await db
-    .select()
-    .from(schema.glossaryConcepts)
-    .where(eq(schema.glossaryConcepts.glossaryId, input.glossaryId));
-  const existingTerms = await db
-    .select()
-    .from(schema.glossaryTerms)
-    .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
-  const conceptById = new Map(existingConcepts.map((concept) => [concept.id, concept]));
-  const conceptByStableKey = new Map(
-    existingConcepts.flatMap((concept) => {
-      const key = stableConceptKey(concept.metadata);
-      return key ? [[key, concept] as const] : [];
-    }),
-  );
-  const conceptByExternalKey = new Map(
-    existingConcepts.flatMap((concept) =>
-      concept.externalKey ? [[concept.externalKey, concept] as const] : [],
-    ),
-  );
-  const termById = new Map(existingTerms.map((term) => [term.id, term]));
-  const termByStableKey = new Map(
-    existingTerms.flatMap((term) => {
-      const key = stableTermKey(term.metadata);
-      return key ? [[key, term] as const] : [];
-    }),
-  );
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
 
@@ -240,6 +217,33 @@ export async function applyNativeGlossaryImport(input: {
       .limit(1)
       .for("update");
     if (!glossary) throw new Error("glossary_not_found");
+    const existingConcepts = await tx
+      .select()
+      .from(schema.glossaryConcepts)
+      .where(eq(schema.glossaryConcepts.glossaryId, input.glossaryId));
+    const existingTerms = await tx
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
+    const conceptById = new Map(existingConcepts.map((concept) => [concept.id, concept]));
+    const conceptByStableKey = new Map(
+      existingConcepts.flatMap((concept) => {
+        const key = stableConceptKey(concept.metadata);
+        return key ? [[key, concept] as const] : [];
+      }),
+    );
+    const conceptByExternalKey = new Map(
+      existingConcepts.flatMap((concept) =>
+        concept.externalKey ? [[concept.externalKey, concept] as const] : [],
+      ),
+    );
+    const termById = new Map(existingTerms.map((term) => [term.id, term]));
+    const termByStableKey = new Map(
+      existingTerms.flatMap((term) => {
+        const key = stableTermKey(term.metadata);
+        return key ? [[key, term] as const] : [];
+      }),
+    );
     for (let offset = 0; offset < input.document.concepts.length; offset += IMPORT_BATCH_SIZE) {
       const batch = input.document.concepts.slice(offset, offset + IMPORT_BATCH_SIZE);
       for (const incoming of batch) {
@@ -247,6 +251,7 @@ export async function applyNativeGlossaryImport(input: {
           diagnostics.push(
             diagnostic({
               conceptId: incoming.id,
+              counted: true,
               code: "concept_has_no_terms",
               message: "Concept has no valid terms and was not imported.",
             }),
@@ -264,6 +269,7 @@ export async function applyNativeGlossaryImport(input: {
           diagnostics.push(
             diagnostic({
               conceptId: incoming.id,
+              counted: true,
               code: "concept_already_exists",
               message: "Create mode does not update an existing concept.",
             }),
@@ -275,6 +281,7 @@ export async function applyNativeGlossaryImport(input: {
           diagnostics.push(
             diagnostic({
               conceptId: incoming.id,
+              counted: true,
               code: "concept_not_found",
               message: "Update mode requires an existing concept ID.",
             }),
@@ -288,6 +295,7 @@ export async function applyNativeGlossaryImport(input: {
           diagnostics.push(
             diagnostic({
               conceptId: incoming.id,
+              counted: true,
               code: "concept_missing_primary_term",
               message: "Concept has no primary term.",
             }),
@@ -381,6 +389,7 @@ export async function applyNativeGlossaryImport(input: {
               diagnostic({
                 conceptId: incoming.id,
                 termId: incomingTerm.id,
+                counted: true,
                 code: "term_id_conflict",
                 message: "Term ID belongs to another concept.",
               }),
@@ -393,6 +402,7 @@ export async function applyNativeGlossaryImport(input: {
               diagnostic({
                 conceptId: incoming.id,
                 termId: incomingTerm.id,
+                counted: true,
                 code: "term_already_exists",
                 message: "Create mode does not update an existing term.",
               }),
@@ -405,6 +415,7 @@ export async function applyNativeGlossaryImport(input: {
               diagnostic({
                 conceptId: incoming.id,
                 termId: incomingTerm.id,
+                counted: true,
                 code: "term_not_found",
                 message: "Update mode requires an existing term ID.",
               }),

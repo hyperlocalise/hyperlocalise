@@ -104,4 +104,36 @@ describe("glossary import validation", () => {
       ]),
     );
   });
+
+  it("filters entities referenced by row-level parse diagnostics", () => {
+    const result = validateGlossaryImportDocument(
+      makeDocument(
+        [
+          {
+            id: "concept-1",
+            terms: [
+              { id: "term-invalid", locale: "en", term: "Invalid" },
+              { id: "term-valid", locale: "en", term: "Valid" },
+            ],
+          },
+        ],
+        [
+          {
+            severity: "error",
+            code: "invalid_boolean",
+            message: "Column caseSensitive must contain a true or false value.",
+            sourceRow: 2,
+            conceptId: "concept-1",
+            termId: "term-invalid",
+            field: "caseSensitive",
+          },
+        ],
+      ),
+      { sourceLocale: "en", knownLocales: new Set(["en"]), strictLocale: true },
+    );
+
+    expect(result.document.concepts[0]?.terms).toEqual([
+      { id: "term-valid", locale: "en", term: "Valid" },
+    ]);
+  });
 });

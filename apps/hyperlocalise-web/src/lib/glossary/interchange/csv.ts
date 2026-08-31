@@ -142,13 +142,18 @@ function value(row: Map<string, string>, ...keys: string[]) {
 }
 
 function optionalValue(row: Map<string, string>, ...keys: string[]) {
-  return value(row, ...keys) || null;
+  const key = keys
+    .map((candidate) => candidate.toLowerCase())
+    .find((candidate) => row.has(candidate));
+  if (!key) return undefined;
+  return row.get(key) || null;
 }
 
 function booleanValue(
   row: Map<string, string>,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string; termId?: string },
   ...keys: string[]
 ) {
   const raw = value(row, ...keys);
@@ -157,6 +162,7 @@ function booleanValue(
   if (/^(false|0|no)$/iu.test(raw)) return false;
   diagnostics.push(
     diagnostic({
+      ...ids,
       sourceRow: rowNumber,
       field: keys[0],
       code: "invalid_boolean",
@@ -170,6 +176,7 @@ function jsonObjectValue(
   row: Map<string, string>,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string; termId?: string },
   key: string,
 ) {
   const raw = value(row, key);
@@ -182,6 +189,7 @@ function jsonObjectValue(
   } catch {
     diagnostics.push(
       diagnostic({
+        ...ids,
         sourceRow: rowNumber,
         field: key,
         code: "invalid_json_metadata",
@@ -196,6 +204,7 @@ function languageDetailsValue(
   row: Map<string, string>,
   diagnostics: InterchangeDiagnostic[],
   rowNumber: number,
+  ids: { conceptId?: string },
 ) {
   const raw = value(row, "languageDetails");
   if (!raw) return [];
@@ -221,6 +230,7 @@ function languageDetailsValue(
   } catch {
     diagnostics.push(
       diagnostic({
+        ...ids,
         sourceRow: rowNumber,
         field: "languageDetails",
         code: "invalid_language_details",
@@ -288,15 +298,15 @@ export function parseCsv(content: string): GlossaryImportDocument {
         primaryTerm: value(row, "primaryTerm") || undefined,
         subject: value(row, "subject") || undefined,
         definition: value(row, "definition") || undefined,
-        translatable: booleanValue(row, diagnostics, rowNumber, "translatable"),
+        translatable: booleanValue(row, diagnostics, rowNumber, { conceptId }, "translatable"),
         note: value(row, "conceptNote", "note") || undefined,
         url: optionalValue(row, "conceptUrl", "url"),
         figure: optionalValue(row, "figure"),
         languageDetails: value(row, "languageDetails")
-          ? languageDetailsValue(row, diagnostics, rowNumber)
+          ? languageDetailsValue(row, diagnostics, rowNumber, { conceptId })
           : undefined,
         metadata: value(row, "conceptMetadata")
-          ? jsonObjectValue(row, diagnostics, rowNumber, "conceptMetadata")
+          ? jsonObjectValue(row, diagnostics, rowNumber, { conceptId }, "conceptMetadata")
           : undefined,
         createdAt: optionalValue(row, "conceptCreatedAt") ?? undefined,
         updatedAt: optionalValue(row, "conceptUpdatedAt") ?? undefined,
@@ -330,12 +340,18 @@ export function parseCsv(content: string): GlossaryImportDocument {
       url: optionalValue(row, "termUrl", "url"),
       lemma: optionalValue(row, "lemma"),
       status: value(row, "status") || undefined,
-      caseSensitive: booleanValue(row, diagnostics, rowNumber, "caseSensitive"),
-      forbidden: booleanValue(row, diagnostics, rowNumber, "forbidden"),
+      caseSensitive: booleanValue(
+        row,
+        diagnostics,
+        rowNumber,
+        { conceptId, termId },
+        "caseSensitive",
+      ),
+      forbidden: booleanValue(row, diagnostics, rowNumber, { conceptId, termId }, "forbidden"),
       provenance: value(row, "provenance") || undefined,
       reviewStatus: value(row, "reviewStatus") || undefined,
       metadata: value(row, "termMetadata")
-        ? jsonObjectValue(row, diagnostics, rowNumber, "termMetadata")
+        ? jsonObjectValue(row, diagnostics, rowNumber, { conceptId, termId }, "termMetadata")
         : undefined,
       createdAt: value(row, "createdAt") || undefined,
       updatedAt: value(row, "updatedAt") || undefined,

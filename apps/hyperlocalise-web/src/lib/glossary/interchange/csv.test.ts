@@ -112,8 +112,38 @@ describe("CSV glossary interchange", () => {
     expect(parsed.diagnostics).toEqual([]);
     expect(parsed.concepts[0]?.primaryTerm).toBeUndefined();
     expect(parsed.concepts[0]?.subject).toBeUndefined();
+    expect(parsed.concepts[0]?.url).toBeUndefined();
+    expect(parsed.concepts[0]?.figure).toBeUndefined();
     expect(parsed.concepts[0]?.terms[0]?.createdAt).toBeUndefined();
     expect(parsed.concepts[0]?.terms[0]?.updatedAt).toBeUndefined();
     expect(parsed.concepts[0]?.terms[0]?.status).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.gender).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.termType).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.url).toBeUndefined();
+    expect(parsed.concepts[0]?.terms[0]?.lemma).toBeUndefined();
+  });
+
+  it("distinguishes explicit empty nullable fields and identifies row errors", () => {
+    const parsed = parseCsv(
+      [
+        "conceptId,termId,locale,term,conceptUrl,figure,gender,termType,termUrl,lemma,caseSensitive",
+        "concept-1,term-1,en-US,Checkout,,,,,,,maybe",
+      ].join("\n"),
+    );
+
+    expect(parsed.concepts[0]?.url).toBe(null);
+    expect(parsed.concepts[0]?.figure).toBe(null);
+    expect(parsed.concepts[0]?.terms[0]?.gender).toBe(null);
+    expect(parsed.concepts[0]?.terms[0]?.termType).toBe(null);
+    expect(parsed.concepts[0]?.terms[0]?.url).toBe(null);
+    expect(parsed.concepts[0]?.terms[0]?.lemma).toBe(null);
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "invalid_boolean",
+        conceptId: "concept-1",
+        termId: "term-1",
+        sourceRow: 2,
+      }),
+    ]);
   });
 });

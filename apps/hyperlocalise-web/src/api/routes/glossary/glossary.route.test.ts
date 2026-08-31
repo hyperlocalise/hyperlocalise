@@ -386,6 +386,64 @@ describe("glossaryRoutes", () => {
     });
   });
 
+  it("does not count operation diagnostics twice", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    const created = (await createResponse.json()) as {
+      concept: { id: string; terms: Array<{ id: string }> };
+    };
+
+    const importResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts["import"].$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          format: "csv",
+          content: `conceptId,termId,locale,term\n${created.concept.id},${created.concept.terms[0]!.id},en,Checkout`,
+          mode: "create",
+          previewForMode: "create",
+          strictLocale: true,
+          localeMapping: {},
+        },
+      },
+      { headers },
+    );
+    expect(importResponse.status).toBe(201);
+    const importBody = (await importResponse.json()) as { reportId: string };
+
+    const [report] = await db
+      .select({ counts: schema.glossaryImportRuns.counts })
+      .from(schema.glossaryImportRuns)
+      .where(eq(schema.glossaryImportRuns.id, importBody.reportId));
+    expect(report?.counts).toMatchObject({ skipped: 1, failed: 0 });
+  });
+
   it("rolls back earlier batches when a later batch fails", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

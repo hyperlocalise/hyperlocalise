@@ -20,6 +20,7 @@ export type InterchangeSeverity = "warning" | "error";
 export type InterchangeDiagnostic = {
   severity: InterchangeSeverity;
   outcome?: "skipped" | "failed";
+  counted?: boolean;
   code: string;
   message: string;
   sourceRow?: number;

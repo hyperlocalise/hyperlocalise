@@ -41,7 +41,7 @@ function makeDocument(): GlossaryInterchangeDocument {
         translatable: true,
         note: "Keep <angle brackets> escaped.",
         url: "https://example.com/concept",
-        figure: null,
+        figure: "https://example.com/cat.png",
         languageDetails: [
           {
             locale: "fr-FR",
@@ -200,6 +200,8 @@ describe("TBX-Basic DCA interchange", () => {
     expect(parsed.concepts[0]?.terms[0]?.status).toBe("preferred");
     expect(parsed.concepts[0]?.terms[0]?.caseSensitive).toBe(true);
     expect(parsed.concepts[0]?.terms[0]?.url).toBe("https://example.com/term");
+    expect(parsed.concepts[0]?.url).toBe("https://example.com/concept");
+    expect(parsed.concepts[0]?.figure).toBe("https://example.com/cat.png");
     expect(parsed.concepts[0]?.languageDetails?.[0]?.userId).toBe(null);
     expect(parsed.concepts[0]?.languageDetails?.[0]?.createdAt).toBe("2026-01-03T00:00:00.000Z");
     expect(parsed.concepts[0]?.createdAt).toBe("2026-01-01T00:00:00.000Z");

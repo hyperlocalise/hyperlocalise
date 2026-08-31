@@ -376,12 +376,14 @@ function reportCountsFromDiagnostics(
   diagnostics: Array<{
     severity: string;
     outcome?: "skipped" | "failed";
+    counted?: boolean;
     conceptId?: string;
     termId?: string;
   }>,
 ) {
   for (const entry of diagnostics) {
     if (entry.severity === "warning") counts.warned++;
+    else if (entry.counted) continue;
     else if (entry.outcome === "skipped") {
       counts.skipped++;
       counts[entry.termId ? "termsSkipped" : "conceptsSkipped"]++;

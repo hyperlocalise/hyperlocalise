@@ -19,6 +19,8 @@ import type {
   InterchangeDiagnostic,
 } from "./glossary-interchange";
 
+const REPORT_ENTRY_BATCH_SIZE = 500;
+
 export async function createGlossaryImportReport(input: {
   organizationId: string;
   glossaryId: string;
@@ -34,39 +36,42 @@ export async function createGlossaryImportReport(input: {
   status?: "preview" | "completed" | "failed";
 }) {
   const status = input.status ?? (input.mode === "preview" ? "preview" : "completed");
-  const [run] = await db
-    .insert(schema.glossaryImportRuns)
-    .values({
-      organizationId: input.organizationId,
-      glossaryId: input.glossaryId,
-      createdByUserId: input.createdByUserId,
-      format: input.format,
-      mode: input.mode,
-      status,
-      sourceSha256: input.sourceSha256 ?? null,
-      sourceFilename: input.sourceFilename ?? null,
-      options: input.options,
-      sourceTotals: input.sourceTotals,
-      counts: input.counts,
-      completedAt: status === "preview" ? null : new Date(),
-    })
-    .returning();
-  if (!run) throw new Error("glossary_import_report_create_failed");
-  if (input.diagnostics.length > 0) {
-    await db.insert(schema.glossaryImportReportEntries).values(
-      input.diagnostics.map((entry) => ({
-        runId: run.id,
-        severity: entry.severity,
-        code: entry.code,
-        message: entry.message,
-        sourceRow: entry.sourceRow ?? null,
-        conceptId: entry.conceptId ?? null,
-        termId: entry.termId ?? null,
-        field: entry.field ?? null,
-      })),
-    );
-  }
-  return run;
+  return db.transaction(async (tx) => {
+    const [run] = await tx
+      .insert(schema.glossaryImportRuns)
+      .values({
+        organizationId: input.organizationId,
+        glossaryId: input.glossaryId,
+        createdByUserId: input.createdByUserId,
+        format: input.format,
+        mode: input.mode,
+        status,
+        sourceSha256: input.sourceSha256 ?? null,
+        sourceFilename: input.sourceFilename ?? null,
+        options: input.options,
+        sourceTotals: input.sourceTotals,
+        counts: input.counts,
+        completedAt: status === "preview" ? null : new Date(),
+      })
+      .returning();
+    if (!run) throw new Error("glossary_import_report_create_failed");
+    for (let offset = 0; offset < input.diagnostics.length; offset += REPORT_ENTRY_BATCH_SIZE) {
+      const entries = input.diagnostics.slice(offset, offset + REPORT_ENTRY_BATCH_SIZE);
+      await tx.insert(schema.glossaryImportReportEntries).values(
+        entries.map((entry) => ({
+          runId: run.id,
+          severity: entry.severity,
+          code: entry.code,
+          message: entry.message,
+          sourceRow: entry.sourceRow ?? null,
+          conceptId: entry.conceptId ?? null,
+          termId: entry.termId ?? null,
+          field: entry.field ?? null,
+        })),
+      );
+    }
+    return run;
+  });
 }
 
 export async function getGlossaryImportReport(input: {
