@@ -3,22 +3,22 @@ package dataforseo
 import "context"
 
 const (
-	pathRelatedKeywords   = "/v3/dataforseo_labs/google/related_keywords/live"
+	pathRelatedKeywords    = "/v3/dataforseo_labs/google/related_keywords/live"
 	pathKeywordSuggestions = "/v3/dataforseo_labs/google/keyword_suggestions/live"
-	pathKeywordIdeas      = "/v3/dataforseo_labs/google/keyword_ideas/live"
+	pathKeywordIdeas       = "/v3/dataforseo_labs/google/keyword_ideas/live"
 	pathDomainRankOverview = "/v3/dataforseo_labs/google/domain_rank_overview/live"
-	pathRankedKeywords    = "/v3/dataforseo_labs/google/ranked_keywords/live"
-	pathRelevantPages     = "/v3/dataforseo_labs/google/relevant_pages/live"
-	pathKeywordOverview   = "/v3/dataforseo_labs/google/keyword_overview/live"
+	pathRankedKeywords     = "/v3/dataforseo_labs/google/ranked_keywords/live"
+	pathRelevantPages      = "/v3/dataforseo_labs/google/relevant_pages/live"
+	pathKeywordOverview    = "/v3/dataforseo_labs/google/keyword_overview/live"
 )
 
 // RelatedKeywordsInput expands a seed keyword into related terms.
 type RelatedKeywordsInput struct {
-	Keyword                 string
-	Market                  MarketScope
-	Limit                   int
-	Depth                   int
-	IncludeClickstreamData  bool
+	Keyword                string
+	Market                 MarketScope
+	Limit                  int
+	Depth                  int
+	IncludeClickstreamData bool
 }
 
 // KeywordSuggestionsInput expands a seed keyword into suggestions.
@@ -176,10 +176,10 @@ func (l *Labs) DomainRankOverview(
 	}
 
 	task, err := l.client.post(ctx, pathDomainRankOverview, []map[string]any{{
-		"target":         target,
-		"location_code":  input.Market.LocationCode,
-		"language_code":  input.Market.LanguageCode,
-		"limit":          1,
+		"target":        target,
+		"location_code": input.Market.LocationCode,
+		"language_code": input.Market.LanguageCode,
+		"limit":         1,
 	}}, postOptions{})
 	if err != nil {
 		return TaskResponse[[]DomainRankOverviewItem]{}, err

@@ -34,10 +34,10 @@ const (
 
 // LlmDomainTarget scopes LLM mentions to a domain.
 type LlmDomainTarget struct {
-	Domain             string `json:"domain"`
-	IncludeSubdomains  *bool  `json:"include_subdomains,omitempty"`
-	SearchFilter       string `json:"search_filter,omitempty"`
-	SearchScope        []string `json:"search_scope,omitempty"`
+	Domain            string   `json:"domain"`
+	IncludeSubdomains *bool    `json:"include_subdomains,omitempty"`
+	SearchFilter      string   `json:"search_filter,omitempty"`
+	SearchScope       []string `json:"search_scope,omitempty"`
 }
 
 // LlmKeywordTarget scopes LLM mentions to a keyword.

@@ -6,10 +6,10 @@ const OAuthProviderID = "google-search-console"
 
 // OAuth scopes requested when connecting Search Console.
 const (
-	ScopeOpenID              = "openid"
-	ScopeEmail               = "email"
-	ScopeProfile             = "profile"
-	ScopeWebmastersReadonly  = "https://www.googleapis.com/auth/webmasters.readonly"
+	ScopeOpenID             = "openid"
+	ScopeEmail              = "email"
+	ScopeProfile            = "profile"
+	ScopeWebmastersReadonly = "https://www.googleapis.com/auth/webmasters.readonly"
 )
 
 // OAuthScopes is the full scope set for a Search Console connection.

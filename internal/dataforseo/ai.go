@@ -6,7 +6,7 @@ const (
 	pathLlmMentionsSearch                 = "/v3/ai_optimization/llm_mentions/search/live"
 	pathLlmMentionsAggregatedMetrics      = "/v3/ai_optimization/llm_mentions/aggregated_metrics/live"
 	pathLlmMentionsTopPages               = "/v3/ai_optimization/llm_mentions/top_pages/live"
-	pathLlmMentionsCrossAggregatedMetrics   = "/v3/ai_optimization/llm_mentions/cross_aggregated_metrics/live"
+	pathLlmMentionsCrossAggregatedMetrics = "/v3/ai_optimization/llm_mentions/cross_aggregated_metrics/live"
 	pathChatGPTLlmResponsesLive           = "/v3/ai_optimization/chat_gpt/llm_responses/live"
 	pathClaudeLlmResponsesLive            = "/v3/ai_optimization/claude/llm_responses/live"
 	pathGeminiLlmResponsesLive            = "/v3/ai_optimization/gemini/llm_responses/live"
@@ -53,12 +53,12 @@ type LlmCrossAggregatedMetricsInput struct {
 
 // LlmResponseInput runs one prompt through one LLM provider.
 type LlmResponseInput struct {
-	UserPrompt            string
-	Model                 LlmResponseModel
-	ModelName             string
-	WebSearch             bool
-	MaxOutputTokens       int
-	WebSearchCountryCode  string
+	UserPrompt           string
+	Model                LlmResponseModel
+	ModelName            string
+	WebSearch            bool
+	MaxOutputTokens      int
+	WebSearchCountryCode string
 }
 
 func (a *AI) MentionsSearch(
@@ -70,11 +70,11 @@ func (a *AI) MentionsSearch(
 	}
 
 	task, err := a.client.client.post(ctx, pathLlmMentionsSearch, []map[string]any{{
-		"target":          []LlmTarget{input.Target},
-		"platform":        input.Platform,
-		"location_code":   input.Market.LocationCode,
-		"language_code":   input.Market.LanguageCode,
-		"limit":           clampLimit(input.Limit, 1, 1000),
+		"target":        []LlmTarget{input.Target},
+		"platform":      input.Platform,
+		"location_code": input.Market.LocationCode,
+		"language_code": input.Market.LanguageCode,
+		"limit":         clampLimit(input.Limit, 1, 1000),
 	}}, postOptions{})
 	if err != nil {
 		return TaskResponse[[]LlmMentionItem]{}, err

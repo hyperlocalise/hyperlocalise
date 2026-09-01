@@ -2,8 +2,8 @@ package gsc
 
 // Site is a verified Search Console property on the connected grant.
 type Site struct {
-	SiteURL          string `json:"siteUrl"`
-	PermissionLevel  string `json:"permissionLevel"`
+	SiteURL         string `json:"siteUrl"`
+	PermissionLevel string `json:"permissionLevel"`
 }
 
 // PermissionSiteUnverifiedUser is returned for properties the grant can see but
@@ -52,17 +52,17 @@ type SearchAnalyticsResponse struct {
 
 // InspectURLRequest is the body for urlInspection.index.inspect.
 type InspectURLRequest struct {
-	SiteURL        string `json:"siteUrl"`
-	InspectionURL  string `json:"inspectionUrl"`
-	LanguageCode   string `json:"languageCode,omitempty"`
+	SiteURL       string `json:"siteUrl"`
+	InspectionURL string `json:"inspectionUrl"`
+	LanguageCode  string `json:"languageCode,omitempty"`
 }
 
 // URLInspectionResult is the subset of the inspection API result we surface.
 type URLInspectionResult struct {
-	IndexStatusResult      *IndexStatusResult      `json:"indexStatusResult,omitempty"`
-	MobileUsabilityResult  *VerdictResult          `json:"mobileUsabilityResult,omitempty"`
-	RichResultsResult      *VerdictResult          `json:"richResultsResult,omitempty"`
-	InspectionResultLink   string                  `json:"inspectionResultLink,omitempty"`
+	IndexStatusResult     *IndexStatusResult `json:"indexStatusResult,omitempty"`
+	MobileUsabilityResult *VerdictResult     `json:"mobileUsabilityResult,omitempty"`
+	RichResultsResult     *VerdictResult     `json:"richResultsResult,omitempty"`
+	InspectionResultLink  string             `json:"inspectionResultLink,omitempty"`
 }
 
 // IndexStatusResult captures index coverage details for an inspected URL.

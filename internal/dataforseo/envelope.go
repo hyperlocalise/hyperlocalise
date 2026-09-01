@@ -39,7 +39,7 @@ type TaskResponse[T any] struct {
 }
 
 type assertTaskOptions struct {
-	okTaskStatusCode     int
+	okTaskStatusCode      int
 	treatNoResultsAsEmpty bool
 }
 

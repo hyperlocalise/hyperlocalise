@@ -16,10 +16,10 @@ const (
 
 // LiveSerpInput fetches a live organic SERP snapshot.
 type LiveSerpInput struct {
-	Keyword  string
-	Market   MarketScope
-	Device   string
-	Depth    int
+	Keyword string
+	Market  MarketScope
+	Device  string
+	Depth   int
 }
 
 // RankCheckSerpInput performs a live rank check for one keyword.
@@ -66,12 +66,12 @@ func (s *SERP) LiveAdvanced(
 
 	device := defaultDevice(input.Device)
 	task, err := s.client.post(ctx, pathOrganicLiveAdvanced, []map[string]any{{
-		"keyword":        keyword,
-		"location_code":  input.Market.LocationCode,
-		"language_code":  input.Market.LanguageCode,
-		"device":         device,
-		"os":             serpOS(device),
-		"depth":          clampSerpDepth(input.Depth),
+		"keyword":       keyword,
+		"location_code": input.Market.LocationCode,
+		"language_code": input.Market.LanguageCode,
+		"device":        device,
+		"os":            serpOS(device),
+		"depth":         clampSerpDepth(input.Depth),
 	}}, postOptions{})
 	if err != nil {
 		return TaskResponse[[]SerpItem]{}, err
