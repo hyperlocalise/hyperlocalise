@@ -368,7 +368,7 @@ function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefi
     totalTokens,
     ...(typeof usage.modelId === "string" ? { modelId: usage.modelId } : {}),
     ...(usage.credentialSource === "gateway" || usage.credentialSource === "byok"
-      ? { credentialSource: usage.credentialSource }
+      ? { credentialSource: usage.credentialSource as "gateway" | "byok" }
       : {}),
   };
 }

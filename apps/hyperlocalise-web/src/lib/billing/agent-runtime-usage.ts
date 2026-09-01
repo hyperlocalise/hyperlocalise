@@ -234,7 +234,8 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   const pricingConfig = getManagedAiPricingConfig();
   const tokenMeteringEnabled = input.extractTokenUsage && pricingConfig.mode !== "legacy";
   const aiCreditModelId =
-    input.aiCreditModelId ?? (tokenMeteringEnabled ? hyperlocaliseManagedGatewayModelId : undefined);
+    input.aiCreditModelId ??
+    (tokenMeteringEnabled ? hyperlocaliseManagedGatewayModelId : undefined);
   const aiCreditCredentialSource =
     input.aiCreditCredentialSource ?? (tokenMeteringEnabled ? "gateway" : undefined);
   const aiCreditEstimatedAmountUsd =

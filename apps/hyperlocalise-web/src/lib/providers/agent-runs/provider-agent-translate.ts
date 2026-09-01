@@ -302,8 +302,7 @@ async function translateProviderUnits(input: {
           outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
           totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
           modelId: tokenUsage.modelId ?? result.tokenUsage.modelId,
-          credentialSource:
-            tokenUsage.credentialSource ?? result.tokenUsage.credentialSource,
+          credentialSource: tokenUsage.credentialSource ?? result.tokenUsage.credentialSource,
         };
       }
 

@@ -270,7 +270,7 @@ describe("managed AI credit", () => {
       dependencies: { check: allowedCheck() },
     });
     if (!reservation.ok) throw new Error(reservation.error.code);
-    const deferred = createDeferred({ value: 0.1 });
+    const deferred = createDeferred<{ value: number }>();
     const trackTokens = vi.fn(() => deferred.promise);
     const settlementInput = {
       reservation: reservation.value,
