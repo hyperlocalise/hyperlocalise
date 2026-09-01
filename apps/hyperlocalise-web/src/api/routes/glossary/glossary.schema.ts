@@ -102,8 +102,23 @@ export const updateGlossaryBodySchema = z
   );
 
 export const importGlossaryTermsBodySchema = z.object({
-  format: z.enum(["csv", "tbx"]),
-  content: z.string().min(1).max(5_000_000),
+  format: z.enum(["csv", "tbx", "xlsx"]),
+  content: z.string().min(1).max(14_000_000),
+  sourceFilename: z.string().trim().max(255).optional(),
+  contentEncoding: z.enum(["utf8", "base64"]).optional(),
+  mode: z.enum(["preview", "create", "update", "merge", "replace"]).default("merge"),
+  previewForMode: z.enum(["create", "update", "merge", "replace"]).default("merge"),
+  strictLocale: z.boolean().default(true),
+  localeMapping: z.record(z.string(), localeInputSchema).default({}),
+  previewReportId: z.string().uuid().optional(),
+});
+
+export const glossaryExportQuerySchema = z.object({
+  format: z.enum(["csv", "tbx", "xlsx"]).default("tbx"),
+  scope: z.enum(["complete", "filtered"]).default("complete"),
+  search: z.string().trim().max(200).optional(),
+  locale: localeInputSchema.optional(),
+  locales: z.array(localeInputSchema).max(100).optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({
@@ -242,7 +257,7 @@ export const glossaryConceptTermRecordSchema = z.object({
   caseSensitive: z.boolean(),
   forbidden: z.boolean(),
   provenance: z.string(),
-  externalKey: z.string().nullable(),
+  externalKey: z.string().nullable().optional(),
   reviewStatus: z.string(),
   externalUserId: z.string().nullable().optional(),
   externalCreatedAt: z.string().datetime().nullable().optional(),
@@ -331,6 +346,7 @@ export type ListGlossaryQuery = z.infer<typeof listGlossaryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
 export type ImportGlossaryTermsBody = z.infer<typeof importGlossaryTermsBodySchema>;
+export type GlossaryExportQuery = z.infer<typeof glossaryExportQuerySchema>;
 export type AttachGlossaryProjectBody = z.infer<typeof attachGlossaryProjectBodySchema>;
 export type CreateGlossaryConceptBody = z.infer<typeof createGlossaryConceptBodySchema>;
 export type UpdateGlossaryConceptBody = z.infer<typeof updateGlossaryConceptBodySchema>;

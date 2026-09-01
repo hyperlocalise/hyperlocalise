@@ -176,6 +176,30 @@ describe("isAllowedBashCommand", () => {
     expect(isAllowedBashCommand(command)).toBe(false);
   });
 
+  it.each([
+    "find -files0-from paths.txt -type f",
+    "find . -files0-from paths.txt -type f",
+    "find -files0-from=paths.txt -type f",
+    "find . -files0-from=paths.txt -type f",
+    `find . "-files0-from" paths.txt -type f`,
+    `find . "-files0-from=paths.txt" -type f`,
+  ])("blocks find -files0-from indirect path escape in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
+
+  it.each([
+    "ls /",
+    "ls / ",
+    "find / -type f",
+    "find . -type f -path /",
+    "hl check --config /",
+    "hl check --config=/",
+    `ls "/"`,
+    `find '/' -type f`,
+  ])("blocks bare absolute root path in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
+
   it.each(["ls ./src", "find ./foo -type f", "git log HEAD..main"])(
     "still allows relative paths and git ranges in %s",
     (command) => {
@@ -376,5 +400,56 @@ describe("createBashTool", () => {
     });
     const result = await tool.execute!({ command: "find -L . -type f" }, toolCallInfo);
     expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects bare absolute root before execution", async () => {
+    const tool = createBashTool({
+      bash: {
+        exec: async () => {
+          throw new Error("bash.exec must not run for ls /");
+        },
+        readFile: async () => "",
+      },
+    });
+    const result = await tool.execute!({ command: "ls /" }, toolCallInfo);
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects find -files0-from before execution", async () => {
+    const tool = createBashTool({
+      bash: {
+        exec: async () => {
+          throw new Error("bash.exec must not run for find -files0-from");
+        },
+        readFile: async () => "",
+      },
+    });
+    const result = await tool.execute!(
+      { command: "find -files0-from paths.txt -type f" },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects absolute and parent cwd before execution", async () => {
+    const tool = createBashTool({
+      bash: {
+        exec: async () => {
+          throw new Error("bash.exec must not run for escaped cwd");
+        },
+        readFile: async () => "",
+      },
+    });
+
+    await expect(tool.execute!({ command: "ls", cwd: "/" }, toolCallInfo)).resolves.toMatchObject({
+      success: false,
+      error: "Working directory must stay within the workspace.",
+    });
+    await expect(
+      tool.execute!({ command: "ls", cwd: "../outside" }, toolCallInfo),
+    ).resolves.toMatchObject({
+      success: false,
+      error: "Working directory must stay within the workspace.",
+    });
   });
 });

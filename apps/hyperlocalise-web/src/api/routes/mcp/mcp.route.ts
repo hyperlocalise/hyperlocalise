@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
@@ -27,6 +27,7 @@ import {
   organizationIssueService,
   type OrganizationIssueListItem,
 } from "@/lib/projects/issue-sheet/organization-issue-service";
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
@@ -62,6 +63,9 @@ import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
 import { isErr } from "@/lib/primitives/result/results";
+import { issueSheetCreateIssueBodySchema } from "@/api/routes/project/issue-sheet.schema";
+import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -366,6 +370,98 @@ const mcpListIssuesInputSchema = z
     }
   });
 
+const mcpGetIssueInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project containing the issue."),
+  issueId: issueIdSchema.describe(
+    "Canonical issue identifier such as HL-123, or a legacy issue UUID.",
+  ),
+});
+
+const issueSheetService = new IssueSheetService();
+const createIssueShape = issueSheetCreateIssueBodySchema.shape;
+
+const mcpCreateIssueInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project in which to create the issue."),
+  title: createIssueShape.title.describe(
+    "Short issue title describing the problem or requested work.",
+  ),
+  description: createIssueShape.description.describe("Optional detailed issue description."),
+  issueType: createIssueShape.issueType.describe(
+    "Optional issue classification. Defaults to general_question.",
+  ),
+  status: createIssueShape.status.describe("Optional initial issue status. Defaults to open."),
+  targetLocale: createIssueShape.targetLocale.describe(
+    "Optional target locale associated with the issue.",
+  ),
+  sourcePath: createIssueShape.sourcePath.describe(
+    "Optional source file or content path associated with the issue.",
+  ),
+  segmentId: createIssueShape.segmentId.describe(
+    "Optional source segment identifier associated with the issue.",
+  ),
+  translationKeyId: createIssueShape.translationKeyId.describe(
+    "Optional UUID of a translation key in the target project.",
+  ),
+  assigneeUserId: createIssueShape.assigneeUserId.describe(
+    "Optional UUID of an assignable project member.",
+  ),
+  priority: createIssueShape.priority.describe("Optional issue priority: P0, P1, or P2."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(512)
+    .optional()
+    .describe(
+      "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
+    ),
+});
+
+type McpCreateIssueInput = z.infer<typeof mcpCreateIssueInputSchema>;
+
+const MCP_CREATE_ISSUE_FINGERPRINT_KEY = "mcpCreateIssueFingerprint";
+
+function mcpCreateIssueFingerprint(
+  input: Omit<McpCreateIssueInput, "projectId" | "idempotencyKey">,
+) {
+  const canonicalPayload = {
+    title: input.title,
+    description: input.description ?? "",
+    issueType: input.issueType ?? "general_question",
+    status: input.status ?? "open",
+    targetLocale: input.targetLocale ?? null,
+    sourcePath: input.sourcePath ?? null,
+    segmentId: input.segmentId ?? null,
+    translationKeyId: input.translationKeyId ?? null,
+    assigneeUserId: input.assigneeUserId ?? null,
+    priority: input.priority ?? null,
+  };
+
+  return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
+}
+
+function mcpToolError(code: string, message: string) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({ error: code, message }),
+      },
+    ],
+    isError: true,
+  };
+}
+
 function compactMcpIssue(issue: OrganizationIssueListItem) {
   return {
     id: issue.id,
@@ -487,6 +583,208 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           {
             type: "text",
             text: JSON.stringify(output),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_issue",
+    {
+      description: "Get the complete details of one accessible Hyperlocalise issue.",
+      inputSchema: mcpGetIssueInputSchema,
+    },
+    async ({ projectId, issueId }) => {
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const issue = await issueSheetService.getIssue({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId,
+        actorUserId: apiAuth.user.localUserId,
+      });
+
+      if (!issue) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const { key, sourceText, ...issueDetails } = issue;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              issue: {
+                ...issueDetails,
+                linkedTranslationKey: issue.translationKeyId
+                  ? {
+                      id: issue.translationKeyId,
+                      key,
+                      sourceText,
+                    }
+                  : null,
+              },
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "create_issue",
+    {
+      description: "Create one issue in an accessible Hyperlocalise project.",
+      inputSchema: mcpCreateIssueInputSchema,
+    },
+    async ({ projectId, idempotencyKey, ...body }) => {
+      if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to create issues");
+      }
+
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>> | null = null;
+      const externalRef = idempotencyKey ? `mcp:${idempotencyKey}` : undefined;
+      const fingerprint = idempotencyKey ? mcpCreateIssueFingerprint(body) : undefined;
+
+      if (externalRef && fingerprint) {
+        const [existing] = await db
+          .select({
+            id: schema.issueSheetIssues.id,
+            metadata: schema.issueSheetIssues.metadata,
+          })
+          .from(schema.issueSheetIssues)
+          .where(
+            and(
+              eq(schema.issueSheetIssues.organizationId, apiAuth.organization.localOrganizationId),
+              eq(schema.issueSheetIssues.projectId, projectId),
+              eq(schema.issueSheetIssues.externalRef, externalRef),
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          if (existing.metadata[MCP_CREATE_ISSUE_FINGERPRINT_KEY] !== fingerprint) {
+            return mcpToolError(
+              "issue_already_exists",
+              "The idempotency key is already associated with a different issue payload",
+            );
+          }
+
+          issue = await issueSheetService.getIssue({
+            organizationId: apiAuth.organization.localOrganizationId,
+            projectId,
+            issueId: existing.id,
+            actorUserId: apiAuth.user.localUserId,
+          });
+        }
+      }
+
+      if (!issue) {
+        try {
+          issue = await issueSheetService.createIssue({
+            organizationId: apiAuth.organization.localOrganizationId,
+            projectId,
+            actorUserId: apiAuth.user.localUserId,
+            deduplicateLinkedIssues: false,
+            ...(fingerprint
+              ? { metadata: { [MCP_CREATE_ISSUE_FINGERPRINT_KEY]: fingerprint } }
+              : {}),
+            body: {
+              ...body,
+              linkKind: "manual",
+              linkLabel: "MCP",
+              ...(externalRef ? { externalRef } : {}),
+            },
+          });
+        } catch (error) {
+          if (error instanceof Error) {
+            if (error.message === "assignee_not_assignable") {
+              return mcpToolError(
+                "assignee_not_assignable",
+                "Assignee is not assignable to this project",
+              );
+            }
+
+            if (error.message === "translation_key_not_found") {
+              return mcpToolError(
+                "translation_key_not_found",
+                "Translation key was not found in this project",
+              );
+            }
+
+            if (error.message.includes("duplicate")) {
+              return mcpToolError(
+                "issue_already_exists",
+                "An issue already exists for this reference",
+              );
+            }
+          }
+
+          throw error;
+        }
+      }
+
+      if (!issue) {
+        throw new Error("issue_sheet_issue_load_failed");
+      }
+
+      if (fingerprint) {
+        const [persisted] = await db
+          .select({ metadata: schema.issueSheetIssues.metadata })
+          .from(schema.issueSheetIssues)
+          .where(eq(schema.issueSheetIssues.id, issue.id))
+          .limit(1);
+
+        if (persisted && persisted.metadata[MCP_CREATE_ISSUE_FINGERPRINT_KEY] !== fingerprint) {
+          return mcpToolError(
+            "issue_already_exists",
+            "The idempotency key is already associated with a different issue payload",
+          );
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              id: issue.id,
+              projectId,
+              identifier: issue.identifier,
+              title: issue.title,
+              description: issue.description,
+              issueType: issue.issueType,
+              status: issue.status,
+              priority: typeof issue.values.priority === "string" ? issue.values.priority : null,
+              targetLocale: issue.targetLocale,
+              sourcePath: issue.sourcePath,
+              segmentId: issue.segmentId,
+              translationKeyId: issue.translationKeyId,
+              assignee: issue.assignee,
+              assigneeUserId: issue.assigneeUserId,
+              createdAt: issue.createdAt,
+              updatedAt: issue.updatedAt,
+            }),
           },
         ],
       };

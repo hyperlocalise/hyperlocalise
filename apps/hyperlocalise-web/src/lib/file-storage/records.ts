@@ -46,6 +46,7 @@ type StoredFileScopeInput = {
   projectId?: string | null;
   fileId: string;
   db?: DbSelectClient;
+  adapter?: FileStorageAdapter;
 };
 
 type RepositorySourceFileVersionInput = {
@@ -209,7 +210,7 @@ export async function getStoredFileContent(input: StoredFileScopeInput) {
     throw new Error(`Stored file ${input.fileId} not found`);
   }
 
-  const adapter = getFileStorageAdapter();
+  const adapter = input.adapter ?? getFileStorageAdapter();
   const storedObject = await adapter.get({ keyOrUrl: file.storageKey });
   if (!storedObject) {
     throw new Error(`Stored file content for ${input.fileId} not found`);

@@ -72,6 +72,31 @@ base_url: https://api.crowdin.test
 	if cfg.APIBaseURL != "https://api.crowdin.test" {
 		t.Fatalf("api base url = %q, want https://api.crowdin.test", cfg.APIBaseURL)
 	}
+	if cfg.Branch != "" {
+		t.Fatalf("branch = %q, want empty", cfg.Branch)
+	}
+}
+
+func TestLoadClientConfigReadsYAMLBranch(t *testing.T) {
+	t.Setenv(defaultProjectIDEnvName, "123")
+	t.Setenv(defaultAPITokenEnvName, "secret")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	if err := os.WriteFile(configPath, []byte(`
+branch: feature/login
+base_url: https://api.crowdin.test
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, _, err := LoadClientConfig(configPath, "")
+	if err != nil {
+		t.Fatalf("load client config: %v", err)
+	}
+	if cfg.Branch != "feature/login" {
+		t.Fatalf("branch = %q, want feature/login", cfg.Branch)
+	}
 }
 
 func TestLoadFileWorkflowConfigRejectsUnsupportedPlaceholder(t *testing.T) {

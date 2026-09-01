@@ -483,6 +483,57 @@ func TestHTTPClientFindDirectoryAndFileUseBranchForRootLookups(t *testing.T) {
 	}
 }
 
+func TestHTTPClientFindFileSkipsBranchOwnedWhenUnscoped(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/files?filter=messages.json&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":18,"projectId":123,"branchId":42,"name":"messages.json"}},{"data":{"id":17,"projectId":123,"name":"messages.json"}}]}`)
+	})
+
+	fileID, err := client.FindFile(context.Background(), "123", 0, 0, "messages.json")
+	if err != nil {
+		t.Fatalf("find file: %v", err)
+	}
+	if fileID != 17 {
+		t.Fatalf("file id = %d, want default-branch 17", fileID)
+	}
+}
+
+func TestHTTPClientFindFileDoesNotReuseOnlyBranchOwnedMatch(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/files?filter=messages.json&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":18,"projectId":123,"branchId":42,"name":"messages.json"}}]}`)
+	})
+
+	_, err := client.FindFile(context.Background(), "123", 0, 0, "messages.json")
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestHTTPClientFindDirectorySkipsBranchOwnedWhenUnscoped(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/directories?filter=src&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":11,"projectId":123,"branchId":42,"name":"src"}},{"data":{"id":8,"projectId":123,"name":"src"}}]}`)
+	})
+
+	dirID, err := client.FindDirectory(context.Background(), "123", 0, "src")
+	if err != nil {
+		t.Fatalf("find directory: %v", err)
+	}
+	if dirID != 8 {
+		t.Fatalf("directory id = %d, want default-branch 8", dirID)
+	}
+}
+
 func TestHTTPClientUpsertSourceFileAddsRootFileToBranch(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()
@@ -512,6 +563,41 @@ func TestHTTPClientUpsertSourceFileAddsRootFileToBranch(t *testing.T) {
 	})
 
 	id, err := client.UpsertSourceFile(context.Background(), "123", 42, 0, "messages.json", localPath, storage.FileGroupSpec{})
+	if err != nil {
+		t.Fatalf("upsert source file: %v", err)
+	}
+	if id != 17 {
+		t.Fatalf("file id = %d, want 17", id)
+	}
+}
+
+func TestHTTPClientUpsertSourceFileSkipsExclusionPatchWhenUnspecified(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	localPath := writeHTTPClientFixture(t, "messages.json", `{"hello":"Hello"}`)
+
+	mux.HandleFunc("/api/v2/storages", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("storage method = %s, want POST", r.Method)
+		}
+		_, _ = io.WriteString(w, `{"data":{"id":61,"fileName":"messages.json"}}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/files?filter=messages.json&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":17,"projectId":123,"name":"messages.json","excludedTargetLanguages":["fr"]}}]}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123/files/17", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			t.Fatal("content-only upload should not patch excludedTargetLanguages")
+		}
+		if r.Method != http.MethodPut {
+			t.Fatalf("method = %s, want PUT", r.Method)
+		}
+		_, _ = io.WriteString(w, `{"data":{"id":17,"projectId":123,"name":"messages.json","excludedTargetLanguages":["fr"]}}`)
+	})
+
+	id, err := client.UpsertSourceFile(context.Background(), "123", 0, 0, "messages.json", localPath, storage.FileGroupSpec{})
 	if err != nil {
 		t.Fatalf("upsert source file: %v", err)
 	}
@@ -560,6 +646,39 @@ func TestHTTPClientResolveLocalesWithExplicitLocalesUsesSupportedLocale(t *testi
 		t.Fatalf("resolve locales: %v", err)
 	}
 	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de-DE"}}
+	if !reflect.DeepEqual(locales, want) {
+		t.Fatalf("locales = %#v, want %#v", locales, want)
+	}
+}
+
+func TestHTTPClientResolveLocalesMatchesProjectLocaleCaseInsensitively(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		writeJSON(t, w, map[string]any{
+			"data": map[string]any{
+				"id":                123,
+				"targetLanguageIds": []string{"fr"},
+				"targetLanguages": []any{
+					map[string]any{"id": "fr", "name": "French", "locale": "fr-FR"},
+				},
+			},
+		})
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		// Account language list is still loaded; EqualFold on project TargetLanguages
+		// must win for the mismatched-case folder locale token.
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		writeJSON(t, w, map[string]any{"data": []any{}})
+	})
+
+	locales, err := client.ResolveLocales(context.Background(), "123", []string{"FR-fr"})
+	if err != nil {
+		t.Fatalf("resolve locales: %v", err)
+	}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}}
 	if !reflect.DeepEqual(locales, want) {
 		t.Fatalf("locales = %#v, want %#v", locales, want)
 	}

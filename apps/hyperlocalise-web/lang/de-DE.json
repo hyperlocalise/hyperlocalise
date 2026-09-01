@@ -497,6 +497,9 @@
   "/d8vf0Z+2x": {
     "defaultMessage": "Repositories"
   },
+  "/e6ibZCuf5": {
+    "defaultMessage": "Erstellen Sie einen Auftrag mit Kontext, Dateien, Gebietsschemata und Zuständigen."
+  },
   "/enSUmEMs6": {
     "defaultMessage": "Fügen Sie ausgerichtete Quell- und Zielbeispiele manuell hinzu oder importieren Sie CSV-/TMX-Dateien."
   },
@@ -2207,6 +2210,9 @@
   "5jY+nVchEw": {
     "defaultMessage": "{value}% abgeschlossen"
   },
+  "5jk6z2ASrH": {
+    "defaultMessage": "Abbrechen"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "Demo anfordern"
   },
@@ -3545,6 +3551,9 @@
   "AIFi7wN5lY": {
     "defaultMessage": "Slack"
   },
+  "AIsMxGkzgi": {
+    "defaultMessage": "Aufgabentyp"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "Erfordert Aufmerksamkeit ({count})"
   },
@@ -3700,6 +3709,9 @@
   },
   "B17gDUeMj6": {
     "defaultMessage": "Bei der Ausarbeitung der globalen Q2-Launchkampagne angewendet"
+  },
+  "B1NsXVl3wA": {
+    "defaultMessage": "CSV- oder TMX-Datei importieren"
   },
   "B3vlmNRWNz": {
     "defaultMessage": "Dokumentation zum Synchronisierungs-Push"
@@ -4724,6 +4736,9 @@
   "EY7508Falv": {
     "defaultMessage": "Wird gespeichert …"
   },
+  "EYRqZtZx0G": {
+    "defaultMessage": "Übersetzung"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "Einstellungen zurücksetzen"
   },
@@ -4912,6 +4927,9 @@
   },
   "F8EegdWpYQ": {
     "defaultMessage": "Kontext"
+  },
+  "F9qtJj6l6D": {
+    "defaultMessage": "Speichern Sie ein ausgerichtetes Quell- und Zielbeispiel in diesem Übersetzungsspeicher."
   },
   "F9y826AvJs": {
     "defaultMessage": "Warteschlange sortieren"
@@ -9671,6 +9689,9 @@
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise arbeitet …"
   },
+  "XiZ3CdNBSX": {
+    "defaultMessage": "Projekte"
+  },
   "XifoTZH6H7": {
     "defaultMessage": "Release-Freigaben hängen von manuellen TMS-Prüfungen ab, die Deployments unvorhersehbar blockieren."
   },
@@ -9769,6 +9790,9 @@
   },
   "Y89oWQA4Iq": {
     "defaultMessage": "QA ausführen"
+  },
+  "Y9WqHw/9nv": {
+    "defaultMessage": "Eintrag hinzufügen"
   },
   "Y9q11GovtH": {
     "defaultMessage": "Marketingteams arbeiten schnell. Die Lokalisierung wird zum Engpass, wenn Markenfeinheiten und regionale Absichten nie beim Übersetzer ankommen."
@@ -10027,6 +10051,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "E-Mail-Agent aktiviert"
+  },
+  "Z3fCUPrSEf": {
+    "defaultMessage": "Importieren"
   },
   "Z4DRhv/lJb": {
     "defaultMessage": "Alle Stellenangebote anzeigen"
@@ -13243,6 +13270,9 @@
   },
   "kUu0YJ4PK9": {
     "defaultMessage": "Problem verknüpft"
+  },
+  "kV6HE87ScC": {
+    "defaultMessage": "Korrekturlesen"
   },
   "kWeceyqgt+": {
     "defaultMessage": "LLM-agnostisch"
@@ -16474,6 +16504,9 @@
   },
   "wJduDnIsm8": {
     "defaultMessage": "Erstellt"
+  },
+  "wJpMrv20rr": {
+    "defaultMessage": "Exportieren"
   },
   "wLreqnuDf7": {
     "defaultMessage": "Quelldateien konnten nicht geladen werden"

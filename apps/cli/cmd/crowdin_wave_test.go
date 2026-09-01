@@ -148,6 +148,253 @@ func TestCrowdinFileAndLanguageList(t *testing.T) {
 	}
 }
 
+func TestCrowdinStringList(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+
+	old := newCrowdinSourceStringLister
+	t.Cleanup(func() { newCrowdinSourceStringLister = old })
+	newCrowdinSourceStringLister = func(crowdinstorage.Config) (crowdinSourceStringLister, error) {
+		return fakeCrowdinSourceStringLister{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "string", "list", "--file", "messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("string list: %v", err)
+	}
+	if got, want := out.String(), "id=9 identifier=hello text=Hello context=home\n"; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+func TestCrowdinFileUploadDownloadDelete(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+	inputPath := filepath.Join(dir, "local.json")
+	if err := os.WriteFile(inputPath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	old := newCrowdinFileOpsClient
+	t.Cleanup(func() { newCrowdinFileOpsClient = old })
+	client := &fakeCrowdinFileOpsClient{content: []byte(`{"hello":"Hello"}`)}
+	newCrowdinFileOpsClient = func(crowdinstorage.Config) (crowdinFileOpsClient, error) {
+		return client, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "file", "upload", inputPath, "--dest", "/messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("file upload: %v", err)
+	}
+	if !strings.Contains(out.String(), "file_id=17") {
+		t.Fatalf("upload output = %q", out.String())
+	}
+
+	dest := filepath.Join(dir, "out.json")
+	cmd = newRootCmd("")
+	out = bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "file", "download", "messages.json", "--dest", dest})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("file download: %v", err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read dest: %v", err)
+	}
+	if string(got) != `{"hello":"Hello"}` {
+		t.Fatalf("downloaded = %q", got)
+	}
+
+	cmd = newRootCmd("")
+	out = bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "file", "delete", "messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("file delete: %v", err)
+	}
+	if got, want := out.String(), "deleted path=messages.json\n"; got != want {
+		t.Fatalf("delete output = %q, want %q", got, want)
+	}
+}
+
+func TestCrowdinFileUploadUsesYAMLBranchUnlessFlagOverrides(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+branch: feature/login
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+	inputPath := filepath.Join(dir, "local.json")
+	if err := os.WriteFile(inputPath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	old := newCrowdinFileOpsClient
+	t.Cleanup(func() { newCrowdinFileOpsClient = old })
+	client := &fakeCrowdinFileOpsClient{}
+	newCrowdinFileOpsClient = func(crowdinstorage.Config) (crowdinFileOpsClient, error) {
+		return client, nil
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"crowdin", "file", "upload", inputPath, "--dest", "/messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("file upload: %v", err)
+	}
+	if client.branch != "feature/login" {
+		t.Fatalf("branch = %q, want feature/login", client.branch)
+	}
+
+	cmd = newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"crowdin", "file", "upload", inputPath, "--dest", "/messages.json", "--branch", "hotfix"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("file upload override: %v", err)
+	}
+	if client.branch != "hotfix" {
+		t.Fatalf("branch = %q, want hotfix", client.branch)
+	}
+}
+
+func TestCrowdinAutoTranslateDirectoryIDIgnoresYAMLBranch(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+branch: feature/login
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	old := newCrowdinAutoTranslator
+	t.Cleanup(func() { newCrowdinAutoTranslator = old })
+	client := &fakeCrowdinAutoTranslator{}
+	newCrowdinAutoTranslator = func(crowdinstorage.Config) (crowdinAutoTranslator, error) {
+		return client, nil
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"crowdin", "auto-translate", "--language", "fr", "--directory-id", "9"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("auto-translate directory: %v", err)
+	}
+	if client.in.DirectoryID != 9 {
+		t.Fatalf("directory id = %d, want 9", client.in.DirectoryID)
+	}
+	if client.in.Branch != "" {
+		t.Fatalf("branch = %q, want empty when --directory-id is the scope", client.in.Branch)
+	}
+
+	cmd = newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"crowdin", "auto-translate", "--language", "fr", "--file", "messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("auto-translate file: %v", err)
+	}
+	if client.in.Branch != "feature/login" {
+		t.Fatalf("branch = %q, want feature/login for file resolve", client.in.Branch)
+	}
+}
+
+func TestCrowdinAutoTranslate(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+
+	old := newCrowdinAutoTranslator
+	t.Cleanup(func() { newCrowdinAutoTranslator = old })
+	newCrowdinAutoTranslator = func(crowdinstorage.Config) (crowdinAutoTranslator, error) {
+		return &fakeCrowdinAutoTranslator{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "auto-translate", "--language", "fr", "--file", "messages.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("auto-translate: %v", err)
+	}
+	if !strings.Contains(out.String(), "status=finished") {
+		t.Fatalf("output = %q", out.String())
+	}
+
+	cmd = newRootCmd("")
+	out = bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "pre-translate", "--language", "fr", "--branch", "feature/login"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("pre-translate alias: %v", err)
+	}
+}
+
+func TestCrowdinAutoTranslateRejectsMT(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"crowdin", "auto-translate", "--language", "fr", "--file", "messages.json", "--method", "mt"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "tm only") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestCrowdinAutoTranslateRejectsBlankLanguage(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"crowdin", "auto-translate", "--language", " ", "--file", "messages.json"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "at least one language is required") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestCrowdinFileDownloadRejectsBlankLanguage(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeMinimalCrowdinConfig(t, dir)
+
+	old := newCrowdinFileOpsClient
+	t.Cleanup(func() { newCrowdinFileOpsClient = old })
+	newCrowdinFileOpsClient = func(crowdinstorage.Config) (crowdinFileOpsClient, error) {
+		return &fakeCrowdinFileOpsClient{content: []byte(`{"hello":"Hello"}`)}, nil
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"crowdin", "file", "download", "messages.json", "--language", " "})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "language is required") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestCrowdinGlossaryAndTMUpload(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -248,4 +495,45 @@ func (fakeCrowdinImporter) ImportTranslationMemoryFile(context.Context, int, str
 
 func (fakeCrowdinImporter) ImportGlossaryFile(context.Context, int, string) (crowdinstorage.ImportResult, error) {
 	return crowdinstorage.ImportResult{Identifier: "g-1", Status: "finished", Progress: 100}, nil
+}
+
+type fakeCrowdinSourceStringLister struct{}
+
+func (fakeCrowdinSourceStringLister) ListProjectSourceStrings(_ context.Context, _ crowdinstorage.ListSourceStringsInput) ([]crowdinstorage.SourceStringRow, error) {
+	return []crowdinstorage.SourceStringRow{{
+		ID:         9,
+		Identifier: "hello",
+		Text:       "Hello",
+		Context:    "home",
+		FileID:     17,
+	}}, nil
+}
+
+type fakeCrowdinFileOpsClient struct {
+	content []byte
+	branch  string
+}
+
+func (f *fakeCrowdinFileOpsClient) UploadProjectFile(_ context.Context, _, branch, _, _ string) (int, error) {
+	f.branch = branch
+	return 17, nil
+}
+
+func (f *fakeCrowdinFileOpsClient) DownloadProjectFile(_ context.Context, _, branch, _, _ string) ([]byte, error) {
+	f.branch = branch
+	return f.content, nil
+}
+
+func (f *fakeCrowdinFileOpsClient) DeleteProjectFile(_ context.Context, _, branch, _ string) error {
+	f.branch = branch
+	return nil
+}
+
+type fakeCrowdinAutoTranslator struct {
+	in crowdinstorage.PreTranslationInput
+}
+
+func (f *fakeCrowdinAutoTranslator) ApplyPreTranslationAndWait(_ context.Context, in crowdinstorage.PreTranslationInput) (crowdinstorage.PreTranslationResult, error) {
+	f.in = in
+	return crowdinstorage.PreTranslationResult{Identifier: "pre-1", Status: "finished", Progress: 100}, nil
 }

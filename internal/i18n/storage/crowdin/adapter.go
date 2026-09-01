@@ -23,6 +23,7 @@ type Config struct {
 	APIToken        string   `json:"-"`
 	APITokenEnv     string   `json:"apiTokenEnv,omitempty"`
 	APIBaseURL      string   `json:"apiBaseURL,omitempty"`
+	Branch          string   `json:"branch,omitempty"`
 	SourceLanguage  string   `json:"sourceLanguage,omitempty"`
 	TargetLanguages []string `json:"targetLanguages,omitempty"`
 	TimeoutSeconds  int      `json:"timeoutSeconds,omitempty"`

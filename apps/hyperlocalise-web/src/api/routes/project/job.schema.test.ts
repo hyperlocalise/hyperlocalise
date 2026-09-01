@@ -13,9 +13,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  createJobBodySchema,
   isWithinOverviewTriageLookback,
+  openJobStatusValues,
   overviewTriageLookbackCutoff,
   overviewTriageLookbackDays,
+  updateJobBodySchema,
 } from "./job.schema";
 
 describe("overview triage lookback", () => {
@@ -31,5 +34,58 @@ describe("overview triage lookback", () => {
     expect(isWithinOverviewTriageLookback("2026-08-21T12:00:00.000Z", nowMs)).toBe(true);
     expect(isWithinOverviewTriageLookback("2026-08-21T11:59:59.999Z", nowMs)).toBe(false);
     expect(isWithinOverviewTriageLookback("not-a-date", nowMs)).toBe(false);
+  });
+});
+
+describe("createJobBodySchema kind and description", () => {
+  const fileBase = {
+    type: "file" as const,
+    fileInput: {
+      sourceFileId: "file_abc",
+      fileFormat: "json" as const,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    },
+  };
+
+  it("accepts proofread kind and optional description", () => {
+    const parsed = createJobBodySchema.safeParse({
+      ...fileBase,
+      kind: "proofread",
+      description: "Keep brand names.",
+      title: "Proofread UI",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.kind).toBe("proofread");
+      expect(parsed.data.description).toBe("Keep brand names.");
+    }
+  });
+
+  it("rejects unknown kind and oversized description", () => {
+    expect(
+      createJobBodySchema.safeParse({
+        ...fileBase,
+        kind: "review",
+      }).success,
+    ).toBe(false);
+    expect(
+      createJobBodySchema.safeParse({
+        ...fileBase,
+        description: "x".repeat(2_049),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("counts waiting_for_review as an open job status", () => {
+    expect(openJobStatusValues).toContain("waiting_for_review");
+  });
+});
+
+describe("updateJobBodySchema", () => {
+  it("requires at least one mutable field", () => {
+    expect(updateJobBodySchema.safeParse({}).success).toBe(false);
+    expect(updateJobBodySchema.safeParse({ description: null }).success).toBe(true);
+    expect(updateJobBodySchema.safeParse({ title: "Retitled" }).success).toBe(true);
   });
 });

@@ -111,9 +111,11 @@ export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
     );
 }
 
-export function createOrgKnowledgeRoutes() {
+export function createOrgKnowledgeRoutes(
+  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter"> = {},
+) {
   return new Hono()
-    .route("/glossaries", createGlossaryRoutes())
+    .route("/glossaries", createGlossaryRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes());
 }
@@ -183,7 +185,7 @@ export function createOrgWorkspaceRoutes() {
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {
   return new Hono()
     .route("/", createOrgInboxRoutes(options))
-    .route("/", createOrgKnowledgeRoutes())
+    .route("/", createOrgKnowledgeRoutes(options))
     .route("/", createOrgProjectsRoutes(options))
     .route("/", createOrgTmsRoutes(options))
     .route("/", createOrgIntegrationsRoutes())

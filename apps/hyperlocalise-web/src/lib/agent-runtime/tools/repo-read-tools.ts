@@ -1230,7 +1230,11 @@ export function buildHlArgs(input: {
     if (isErr(valueResult)) {
       return err(valueResult.error);
     }
-    args.push(a);
+    const confined = confinePossibleWorkspacePath(a, "arg");
+    if (isErr(confined)) {
+      return err(confined.error);
+    }
+    args.push(confined.value);
   }
 
   for (const f of input.boolFlags ?? []) {
@@ -1252,18 +1256,50 @@ export function buildHlArgs(input: {
     if (isErr(valueResult)) {
       return err(valueResult.error);
     }
-    let flagValue = v;
-    if (isConfigFlagName(k)) {
-      const normalizedConfig = normalizeWorkspacePath(v);
-      if (!normalizedConfig) {
-        return err({ code: "flag_value_escapes_workspace", name: k });
-      }
-      flagValue = normalizedConfig;
+    // --config always; other flags when the value looks like a filesystem path
+    // (--ignore=../x, --ignore=/tmp/x). Non-path values like format=json stay as-is.
+    const confined = isConfigFlagName(k)
+      ? confineWorkspacePathValue(v, k)
+      : confinePossibleWorkspacePath(v, k);
+    if (isErr(confined)) {
+      return err(confined.error);
     }
-    args.push("--" + k + "=" + flagValue);
+    args.push("--" + k + "=" + confined.value);
   }
 
   return ok(args);
+}
+
+/** Require a workspace-relative path (used for --config and path-shaped values). */
+function confineWorkspacePathValue(
+  value: string,
+  name: string,
+): Result<string, HyperlocaliseCliArgsError> {
+  const normalized = normalizeWorkspacePath(value);
+  if (!normalized) {
+    return err({ code: "flag_value_escapes_workspace", name });
+  }
+  return ok(normalized);
+}
+
+/**
+ * Confine values that look like filesystem paths. Leaves opaque tokens
+ * (format names, enums) unchanged so check/status flags keep working.
+ */
+function confinePossibleWorkspacePath(
+  value: string,
+  name: string,
+): Result<string, HyperlocaliseCliArgsError> {
+  const normalizedSlashes = value.replace(/\\/g, "/");
+  const isPathShaped =
+    normalizedSlashes.startsWith("/") ||
+    normalizedSlashes.includes("/") ||
+    normalizedSlashes === ".." ||
+    normalizedSlashes.startsWith("./");
+  if (!isPathShaped) {
+    return ok(value);
+  }
+  return confineWorkspacePathValue(value, name);
 }
 
 function validateFlag(name: string): Result<void, HyperlocaliseCliArgsError> {

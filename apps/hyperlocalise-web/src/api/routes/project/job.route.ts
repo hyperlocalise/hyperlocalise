@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, notExists, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -206,7 +206,23 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
   return and(
     eq(schema.jobs.id, jobId),
     await buildAccessibleJobsWhere(auth),
-    or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+    // Include waiting_for_review so native proofread jobs (and review-gated
+    // translation jobs) can be cancelled or marked failed — they count toward
+    // the open-job budget and otherwise have no completion path.
+    or(
+      eq(schema.jobs.status, "queued"),
+      eq(schema.jobs.status, "running"),
+      eq(schema.jobs.status, "waiting_for_review"),
+    ),
+    // Provider mirrors stay in sync with the remote TMS. Local cancel /
+    // mark-failed would leave the remote task active until the next sync
+    // overwrites the local status.
+    notExists(
+      db
+        .select({ jobId: schema.externalJobDetails.jobId })
+        .from(schema.externalJobDetails)
+        .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
+    ),
   );
 }
 
@@ -512,14 +528,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       let job;
       try {
         [job] = await db.transaction(async (tx) => {
-          if (!isProofreadJob) {
-            const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-              tx,
-              c.var.auth.organization.localOrganizationId,
-            );
-            if (isErr(jobBudget)) {
-              throw new OrganizationJobBudgetExceededError(jobBudget.error);
-            }
+          // Proofread jobs skip AI enqueue/usage but still occupy open slots
+          // (waiting_for_review). Always enforce the org open-job / rate budget.
+          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+            tx,
+            c.var.auth.organization.localOrganizationId,
+          );
+          if (isErr(jobBudget)) {
+            throw new OrganizationJobBudgetExceededError(jobBudget.error);
           }
 
           const sourceFileVersion =

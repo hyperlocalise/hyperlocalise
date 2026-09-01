@@ -497,6 +497,9 @@
   "/d8vf0Z+2x": {
     "defaultMessage": "Dépôts"
   },
+  "/e6ibZCuf5": {
+    "defaultMessage": "Créer une tâche avec un contexte, des fichiers, des paramètres régionaux et des personnes assignées."
+  },
   "/enSUmEMs6": {
     "defaultMessage": "Ajoutez manuellement des exemples de source et de cible alignés, ou importez des fichiers CSV/TMX."
   },
@@ -2207,6 +2210,9 @@
   "5jY+nVchEw": {
     "defaultMessage": "{value}% terminé"
   },
+  "5jk6z2ASrH": {
+    "defaultMessage": "Annuler"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "Demander une démo"
   },
@@ -3545,6 +3551,9 @@
   "AIFi7wN5lY": {
     "defaultMessage": "Slack"
   },
+  "AIsMxGkzgi": {
+    "defaultMessage": "Type de tâche"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "À examiner ({count})"
   },
@@ -3700,6 +3709,9 @@
   },
   "B17gDUeMj6": {
     "defaultMessage": "Appliqué lors de la préparation de la campagne mondiale de lancement du T2"
+  },
+  "B1NsXVl3wA": {
+    "defaultMessage": "Importer un fichier CSV ou TMX"
   },
   "B3vlmNRWNz": {
     "defaultMessage": "Documentation sur la synchronisation des poussées"
@@ -4724,6 +4736,9 @@
   "EY7508Falv": {
     "defaultMessage": "Enregistrement…"
   },
+  "EYRqZtZx0G": {
+    "defaultMessage": "Traduction"
+  },
   "EZ0iYWNVvs": {
     "defaultMessage": "Réinitialiser les paramètres"
   },
@@ -4912,6 +4927,9 @@
   },
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
+  },
+  "F9qtJj6l6D": {
+    "defaultMessage": "Enregistrez un exemple aligné de la source et de la cible dans cette mémoire."
   },
   "F9y826AvJs": {
     "defaultMessage": "Trier la file d’attente"
@@ -7179,7 +7197,7 @@
     "defaultMessage": "Détectez les modifications de chaînes, recueillez le contexte des PR, rédigez les traductions et bloquez les versions — afin que les équipes d’ingénierie détectent les problèmes de localisation avant la fusion, et non après le lancement."
   },
   "O8WdOBz8MN": {
-    "defaultMessage": "Acme · Workflows"
+    "defaultMessage": "Acme · Flux de travail"
   },
   "O9HkCEOzPy": {
     "defaultMessage": "Jobs"
@@ -9671,6 +9689,9 @@
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise est en cours…"
   },
+  "XiZ3CdNBSX": {
+    "defaultMessage": "Projets"
+  },
   "XifoTZH6H7": {
     "defaultMessage": "Les étapes de validation des mises en production dépendent de vérifications manuelles du TMS qui bloquent les déploiements de manière imprévisible."
   },
@@ -9769,6 +9790,9 @@
   },
   "Y89oWQA4Iq": {
     "defaultMessage": "Exécuter l’AQ"
+  },
+  "Y9WqHw/9nv": {
+    "defaultMessage": "Ajouter une entrée"
   },
   "Y9q11GovtH": {
     "defaultMessage": "Les équipes marketing avancent vite. La localisation devient un goulot d’étranglement lorsque les subtilités de la marque et l’intention régionale n’atteignent jamais le traducteur."
@@ -10027,6 +10051,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Agent de messagerie activé"
+  },
+  "Z3fCUPrSEf": {
+    "defaultMessage": "Importer"
   },
   "Z4DRhv/lJb": {
     "defaultMessage": "Voir tous les emplois"
@@ -13243,6 +13270,9 @@
   },
   "kUu0YJ4PK9": {
     "defaultMessage": "Problème lié"
+  },
+  "kV6HE87ScC": {
+    "defaultMessage": "Relire"
   },
   "kWeceyqgt+": {
     "defaultMessage": "Agnostique au LLM"
@@ -16474,6 +16504,9 @@
   },
   "wJduDnIsm8": {
     "defaultMessage": "Créé"
+  },
+  "wJpMrv20rr": {
+    "defaultMessage": "Exporter"
   },
   "wLreqnuDf7": {
     "defaultMessage": "Impossible de charger les fichiers source"

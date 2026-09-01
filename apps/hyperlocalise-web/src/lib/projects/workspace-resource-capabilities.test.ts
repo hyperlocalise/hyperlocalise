@@ -59,7 +59,7 @@ describe("getProjectWorkspaceCapabilities", () => {
 });
 
 describe("canOpenProviderJobContentEditor", () => {
-  it("allows provider translation and review jobs only", () => {
+  it("allows provider translation, review, and proofread jobs only", () => {
     expect(
       canOpenProviderJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
@@ -71,6 +71,13 @@ describe("canOpenProviderJobContentEditor", () => {
       canOpenProviderJobContentEditor({
         id: "ext:crowdin:project-1:job-1",
         kind: "review",
+        externalProviderKind: "crowdin",
+      }),
+    ).toBe(true);
+    expect(
+      canOpenProviderJobContentEditor({
+        id: "ext:crowdin:project-1:job-1",
+        kind: "proofread",
         externalProviderKind: "crowdin",
       }),
     ).toBe(true);

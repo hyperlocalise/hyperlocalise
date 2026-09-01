@@ -11,15 +11,33 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
-import { DomUtils, parseDocument } from "htmlparser2";
 import { validator } from "hono/validator";
 
 import { conflictResponse, badRequestResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
+import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-format-factory";
+import {
+  diagnostic,
+  emptyImportReportCounts,
+} from "@/lib/glossary/interchange/glossary-interchange";
+import { validateGlossaryImportDocument } from "@/lib/glossary/interchange/glossary-import-validation";
+import {
+  applyNativeGlossaryImport,
+  planNativeGlossaryImport,
+} from "@/lib/glossary/interchange/native-glossary-import";
+import {
+  createGlossaryImportReport,
+  reportCountsFromDiagnostics,
+} from "@/lib/glossary/interchange/glossary-import-reports";
+import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
+import { serializeXlsx } from "@/lib/glossary/interchange/xlsx";
+import { createStoredFile, sha256Hex } from "@/lib/file-storage/records";
+import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import {
   GlossaryValidationError,
   selectGlossaryPrimaryTerm,
@@ -219,6 +237,38 @@ function toCrowdinConceptRecord(
   };
 }
 
+function stripProviderMetadata<T extends Record<string, unknown>>(value: T) {
+  const {
+    externalKey: _externalKey,
+    externalUserId: _externalUserId,
+    externalCreatedAt: _externalCreatedAt,
+    externalUpdatedAt: _externalUpdatedAt,
+    ...nativeValue
+  } = value;
+  return nativeValue;
+}
+
+function toGlossaryConceptRecord(
+  glossary: NativeGlossary,
+  value: Parameters<typeof toCrowdinConceptRecord>[1],
+) {
+  const record = toCrowdinConceptRecord(glossary, value);
+  if (glossary.source !== "native") return record;
+  return {
+    ...stripProviderMetadata(record),
+    terms: record.terms.map((term) => stripProviderMetadata(term)),
+  };
+}
+
+function toGlossaryTermRecord(
+  glossary: NativeGlossary,
+  conceptId: string,
+  term: Parameters<typeof toCrowdinTermRecord>[2],
+) {
+  const record = toCrowdinTermRecord(glossary, conceptId, term);
+  return glossary.source === "native" ? stripProviderMetadata(record) : record;
+}
+
 function validateConceptParams(value: unknown, c: Parameters<typeof glossaryNotFoundResponse>[0]) {
   const parsed = glossaryConceptIdParamsSchema.safeParse(value);
   return parsed.success ? parsed.data : glossaryNotFoundResponse(c);
@@ -258,106 +308,74 @@ type ConceptImportEntry = {
   partOfSpeech?: string;
   gender?: string | null;
   termType?: string | null;
-  status?: "preferred" | "draft" | "not_recommended";
+  status?: "preferred" | "admitted" | "draft" | "not_recommended" | "obsolete";
 };
 
-function decodeXml(value: string) {
-  return DomUtils.textContent(
-    parseDocument(value, {
-      decodeEntities: true,
-      xmlMode: true,
-    }),
-  ).trim();
-}
-
-function parseConceptImport(content: string, format: "csv" | "tbx"): ConceptImportEntry[] {
-  if (format === "csv") {
-    const rows = parseCsvRows(content);
-    const [first, ...rest] = rows;
-    const hasHeader = first?.some((cell) => /concept|locale|term|definition/i.test(cell)) ?? false;
-    const headers = (
-      hasHeader
-        ? first
-        : [
-            "conceptKey",
-            "locale",
-            "term",
-            "subject",
-            "definition",
-            "translatable",
-            "note",
-            "url",
-            "partOfSpeech",
-            "gender",
-            "termType",
-            "status",
-          ]
-    ).map((header) => header.trim().toLowerCase());
-    const dataRows = hasHeader ? rest : rows;
-
-    return dataRows.flatMap((row) => {
-      const values = new Map(headers.map((header, index) => [header, row[index]?.trim() ?? ""]));
-      const locale = values.get("locale") ?? "";
-      const term = values.get("term") ?? "";
-      if (!locale || !term) return [];
-      const status = values.get("status");
-      return [
-        {
-          conceptKey: values.get("conceptkey") || term,
-          locale,
-          term,
-          subject: values.get("subject"),
-          definition: values.get("definition"),
-          translatable: values.get("translatable")
-            ? values.get("translatable") !== "false"
-            : undefined,
-          note: values.get("note"),
-          url: values.get("url"),
-          partOfSpeech: values.get("partofspeech"),
-          gender: values.get("gender") || null,
-          termType: values.get("termtype") || null,
-          status:
-            status === "preferred" || status === "not_recommended" || status === "draft"
-              ? status
-              : undefined,
-        } satisfies ConceptImportEntry,
-      ];
-    });
-  }
-
-  return [...content.matchAll(/<termEntry\b([^>]*)>([\s\S]*?)<\/termEntry>/gi)].flatMap(
-    ([, attributes, body]) => {
-      const conceptKey = attributes?.match(/(?:id|key)=["']([^"']+)["']/i)?.[1] ?? "";
-      const subject = body?.match(
-        /<descrip\b[^>]*type=["']subject[^"']*["'][^>]*>([\s\S]*?)<\/descrip>/i,
-      )?.[1];
-      const definition = body?.match(
-        /<descrip\b[^>]*type=["']definition[^"']*["'][^>]*>([\s\S]*?)<\/descrip>/i,
-      )?.[1];
-      const terms = [
-        ...(body ?? "").matchAll(
-          /<langSet\b[^>]*(?:xml:lang|lang)=["']([^"']+)["'][^>]*>[\s\S]*?<term[^>]*>([\s\S]*?)<\/term>[\s\S]*?<\/langSet>/gi,
-        ),
-      ];
-      return terms.flatMap(([, locale, term]) => {
-        const decodedTerm = decodeXml(term ?? "");
-        return decodedTerm && locale
-          ? [
-              {
-                conceptKey: conceptKey || decodedTerm,
-                locale: decodeXml(locale),
-                term: decodedTerm,
-                subject: subject ? decodeXml(subject) : undefined,
-                definition: definition ? decodeXml(definition) : undefined,
-              } satisfies ConceptImportEntry,
-            ]
-          : [];
-      });
-    },
+function entriesFromImportDocument(
+  document: ReturnType<typeof validateGlossaryImportDocument>["document"],
+): ConceptImportEntry[] {
+  return document.concepts.flatMap((concept) =>
+    concept.terms.map(
+      (term) =>
+        ({
+          conceptKey: concept.id,
+          locale: term.locale,
+          term: term.term,
+          subject: concept.subject,
+          definition: concept.definition,
+          translatable: concept.translatable,
+          note: concept.note,
+          url: concept.url ?? undefined,
+          partOfSpeech: term.partOfSpeech,
+          gender: term.gender,
+          termType: term.termType,
+          status: term.status as ConceptImportEntry["status"],
+        }) satisfies ConceptImportEntry,
+    ),
   );
 }
 
-export function createGlossaryConceptRoutes() {
+function parseConceptImport(
+  content: string,
+  format: "csv" | "tbx" | "xlsx",
+  contentEncoding?: "utf8" | "base64",
+  options: { strictLocale: boolean; localeMapping: Record<string, string> } = {
+    strictLocale: true,
+    localeMapping: {},
+  },
+) {
+  const parsed = GlossaryFormatFactory.create(format).parse(
+    format === "xlsx" || contentEncoding === "base64"
+      ? Uint8Array.from(Buffer.from(content, "base64"))
+      : content,
+  );
+  for (const concept of parsed.concepts) {
+    for (const term of concept.terms) {
+      const mapped = options.localeMapping[term.locale] ?? term.locale;
+      const canonical = canonicalizeLocale(mapped);
+      if (!canonical) {
+        parsed.diagnostics.push({
+          severity: "error",
+          code: "invalid_locale",
+          message: "Term locale is not a valid BCP 47 language tag.",
+          conceptId: concept.id,
+          termId: term.id,
+          field: "locale",
+        });
+      } else {
+        term.locale = canonical;
+      }
+    }
+  }
+  const entries = entriesFromImportDocument(parsed);
+  return { entries, diagnostics: parsed.diagnostics, document: parsed };
+}
+
+export function createGlossaryConceptRoutes(
+  options: {
+    fileStorageAdapter?: FileStorageAdapter;
+  } = {},
+) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", validator("param", validateGlossaryParams), async (c) => {
@@ -369,7 +387,7 @@ export function createGlossaryConceptRoutes() {
       const concepts = await product.listConcepts();
       return c.json(
         {
-          concepts: concepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
+          concepts: concepts.map((concept) => toGlossaryConceptRecord(glossary, concept)),
           total: concepts.length,
         },
         200,
@@ -404,7 +422,7 @@ export function createGlossaryConceptRoutes() {
           status: "created",
           source: "glossary_concept",
         });
-        return c.json({ concept: toCrowdinConceptRecord(glossary, created) }, 201);
+        return c.json({ concept: toGlossaryConceptRecord(glossary, created) }, 201);
       },
     )
     .post(
@@ -419,13 +437,327 @@ export function createGlossaryConceptRoutes() {
         if (!glossary) return glossaryNotFoundResponse(c);
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const entries = parseConceptImport(payload.content, payload.format).slice(0, 10_000);
+        const parsed = parseConceptImport(
+          payload.content,
+          payload.format,
+          payload.contentEncoding,
+          {
+            strictLocale: payload.strictLocale,
+            localeMapping: payload.localeMapping,
+          },
+        );
+        const sourceTotals = {
+          concepts: parsed.document.concepts.length,
+          terms: parsed.document.concepts.reduce(
+            (total, concept) => total + concept.terms.length,
+            0,
+          ),
+        };
+        const validated = validateGlossaryImportDocument(parsed.document, {
+          sourceLocale: glossary.sourceLocale,
+          knownLocales: new Set([glossary.sourceLocale, ...glossary.localeCoverage]),
+          strictLocale: payload.strictLocale,
+        });
+        const importDocument = validated.document;
+        const entries = entriesFromImportDocument(importDocument);
+        if (payload.mode === "preview") {
+          const planned =
+            validated.hasFileFatalError ||
+            (payload.previewForMode === "replace" && validated.hasErrors)
+              ? {
+                  diagnostics: importDocument.diagnostics,
+                  counts: {
+                    ...emptyImportReportCounts(),
+                    conceptsRead: sourceTotals.concepts,
+                    termsRead: sourceTotals.terms,
+                  },
+                }
+              : glossary.source === "native"
+                ? await planNativeGlossaryImport({
+                    glossaryId,
+                    mode: payload.previewForMode,
+                    document: importDocument,
+                  })
+                : {
+                    diagnostics: importDocument.diagnostics,
+                    counts: {
+                      ...emptyImportReportCounts(),
+                      conceptsRead: new Set(entries.map((entry) => entry.conceptKey)).size,
+                      termsRead: entries.length,
+                      created: entries.length,
+                    },
+                  };
+          const counts = reportCountsFromDiagnostics(planned.counts, planned.diagnostics);
+          const report = await createGlossaryImportReport({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            glossaryId,
+            createdByUserId: c.var.auth.user.localUserId,
+            format: payload.format,
+            mode: payload.mode,
+            sourceFilename: payload.sourceFilename,
+            options: {
+              strictLocale: payload.strictLocale,
+              localeMapping: payload.localeMapping,
+              previewForMode: payload.previewForMode,
+            },
+            sourceTotals,
+            counts,
+            diagnostics: planned.diagnostics,
+          });
+          return c.json(
+            {
+              reportId: report.id,
+              imported: 0,
+              skipped: counts.skipped,
+              diagnostics: planned.diagnostics,
+              planned: {
+                concepts: counts.conceptsCreated + counts.conceptsUpdated + counts.conceptsMerged,
+                terms: counts.termsCreated + counts.termsUpdated + counts.termsMerged,
+                counts,
+              },
+            },
+            200,
+          );
+        }
+        const sourceBytes =
+          payload.contentEncoding === "base64"
+            ? Buffer.from(payload.content, "base64")
+            : Buffer.from(payload.content, "utf8");
+        if (validated.hasFileFatalError) {
+          const counts = reportCountsFromDiagnostics(
+            {
+              ...emptyImportReportCounts(),
+              conceptsRead: sourceTotals.concepts,
+              termsRead: sourceTotals.terms,
+            },
+            importDocument.diagnostics,
+          );
+          const report = await createGlossaryImportReport({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            glossaryId,
+            createdByUserId: c.var.auth.user.localUserId,
+            format: payload.format,
+            mode: payload.mode,
+            sourceFilename: payload.sourceFilename,
+            sourceSha256: await sha256Hex(sourceBytes),
+            options: { strictLocale: payload.strictLocale, localeMapping: payload.localeMapping },
+            sourceTotals,
+            counts,
+            diagnostics: importDocument.diagnostics,
+            status: "failed",
+          });
+          return badRequestResponse(
+            c,
+            "invalid_glossary_import",
+            "The import source contains file-level validation errors.",
+            { reportId: report.id, diagnostics: importDocument.diagnostics },
+          );
+        }
+        if (glossary.source === "native") {
+          if (payload.mode === "replace" && validated.hasErrors) {
+            const counts = reportCountsFromDiagnostics(
+              {
+                ...emptyImportReportCounts(),
+                conceptsRead: sourceTotals.concepts,
+                termsRead: sourceTotals.terms,
+              },
+              parsed.diagnostics,
+            );
+            const report = await createGlossaryImportReport({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              glossaryId,
+              createdByUserId: c.var.auth.user.localUserId,
+              format: payload.format,
+              mode: payload.mode,
+              sourceFilename: payload.sourceFilename,
+              sourceSha256: await sha256Hex(sourceBytes),
+              options: {
+                strictLocale: payload.strictLocale,
+                localeMapping: payload.localeMapping,
+              },
+              sourceTotals,
+              counts,
+              diagnostics: importDocument.diagnostics,
+              status: "failed",
+            });
+            return badRequestResponse(
+              c,
+              "replace_requires_valid_input",
+              "Replace was not applied because the source contains validation errors.",
+              { reportId: report.id, diagnostics: importDocument.diagnostics },
+            );
+          }
+          let applied;
+          try {
+            applied = await applyNativeGlossaryImport({
+              glossaryId,
+              mode: payload.mode,
+              document: importDocument,
+              report: {
+                organizationId: c.var.auth.organization.localOrganizationId,
+                glossaryId,
+                createdByUserId: c.var.auth.user.localUserId,
+                format: payload.format,
+                mode: payload.mode,
+                sourceFilename: payload.sourceFilename,
+                sourceSha256: await sha256Hex(sourceBytes),
+                options: {
+                  strictLocale: payload.strictLocale,
+                  localeMapping: payload.localeMapping,
+                },
+                sourceTotals,
+              },
+              createBackup:
+                payload.mode === "create"
+                  ? undefined
+                  : async ({ tx, glossary: lockedGlossary }) => {
+                      const backupDocument = await loadGlossaryInterchangeDocument({
+                        glossary: lockedGlossary,
+                        db: tx,
+                      });
+                      const backup = serializeXlsx(backupDocument);
+                      if (backup.errors.length > 0) throw new Error("glossary_backup_failed");
+                      const backupAdapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+                      const backupFile = await createStoredFile({
+                        organizationId: c.var.auth.organization.localOrganizationId,
+                        createdByUserId: c.var.auth.user.localUserId,
+                        role: "reference",
+                        sourceKind: "tms_file",
+                        filename: `${lockedGlossary.name.replace(/[^a-zA-Z0-9._-]+/g, "-")}-backup.xlsx`,
+                        contentType:
+                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        content: backup.content,
+                        metadata: { glossaryId, purpose: "glossary_import_backup" },
+                        adapter: backupAdapter,
+                        db: tx,
+                      });
+                      return {
+                        fileId: backupFile.id,
+                        cleanup: async () => {
+                          await backupAdapter.delete({ keyOrUrl: backupFile.storageKey });
+                        },
+                      };
+                    },
+            });
+          } catch {
+            const failureDiagnostic = diagnostic({
+              code: "glossary_import_failed",
+              message: "The import failed and all glossary changes were rolled back.",
+            });
+            const counts = reportCountsFromDiagnostics(
+              {
+                ...emptyImportReportCounts(),
+                conceptsRead: sourceTotals.concepts,
+                termsRead: sourceTotals.terms,
+              },
+              [failureDiagnostic],
+            );
+            const report = await createGlossaryImportReport({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              glossaryId,
+              createdByUserId: c.var.auth.user.localUserId,
+              format: payload.format,
+              mode: payload.mode,
+              sourceFilename: payload.sourceFilename,
+              sourceSha256: await sha256Hex(sourceBytes),
+              options: { strictLocale: payload.strictLocale, localeMapping: payload.localeMapping },
+              sourceTotals,
+              counts,
+              diagnostics: [failureDiagnostic],
+              status: "failed",
+            });
+            return c.json(
+              {
+                error: "glossary_import_failed",
+                message: "The import failed and all glossary changes were rolled back.",
+                details: { reportId: report.id },
+              },
+              500,
+            );
+          }
+          const counts = applied.counts;
+          const reportId = applied.reportId;
+          if (!reportId) throw new Error("glossary_import_report_create_failed");
+          if (applied.aborted) {
+            return badRequestResponse(
+              c,
+              "replace_requires_valid_input",
+              "Replace was not applied because a stable term ID belongs to another concept.",
+              { reportId, diagnostics: applied.diagnostics },
+            );
+          }
+          const importedConcepts = await product.listConcepts();
+          return c.json(
+            {
+              reportId,
+              concepts: importedConcepts.map((concept) =>
+                toGlossaryConceptRecord(glossary, concept),
+              ),
+              imported: counts.created,
+              updated: counts.updated,
+              merged: counts.merged,
+              skipped: counts.skipped,
+              diagnostics: applied.diagnostics,
+              backupFileId: applied.backupFileId ?? null,
+            },
+            201,
+          );
+        }
         const { concepts: importedConcepts, skipped } = await product.importConcepts(entries);
+        const externalCounts = reportCountsFromDiagnostics(
+          {
+            ...emptyImportReportCounts(),
+            conceptsRead: sourceTotals.concepts,
+            termsRead: sourceTotals.terms,
+            conceptsCreated: importedConcepts.length,
+            created: importedConcepts.length,
+            skipped,
+          },
+          importDocument.diagnostics,
+        );
+        let externalReport;
+        try {
+          externalReport = await createGlossaryImportReport({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            glossaryId,
+            createdByUserId: c.var.auth.user.localUserId,
+            format: payload.format,
+            mode: payload.mode,
+            sourceFilename: payload.sourceFilename,
+            sourceSha256: await sha256Hex(sourceBytes),
+            options: {
+              strictLocale: payload.strictLocale,
+              localeMapping: payload.localeMapping,
+            },
+            sourceTotals: {
+              concepts: sourceTotals.concepts,
+              terms: sourceTotals.terms,
+            },
+            counts: externalCounts,
+            diagnostics: importDocument.diagnostics,
+          });
+        } catch {
+          return c.json(
+            {
+              error: "glossary_import_committed_without_report",
+              message:
+                "The provider accepted the import, but Hyperlocalise could not persist the import report. Do not retry automatically.",
+              details: {
+                committed: true,
+                imported: importedConcepts.length,
+                skipped: externalCounts.skipped,
+              },
+            },
+            500,
+          );
+        }
         return c.json(
           {
-            concepts: importedConcepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
+            reportId: externalReport.id,
+            concepts: importedConcepts.map((concept) => toGlossaryConceptRecord(glossary, concept)),
             imported: importedConcepts.length,
-            skipped,
+            skipped: externalCounts.skipped,
+            diagnostics: importDocument.diagnostics,
           },
           201,
         );
@@ -439,7 +771,7 @@ export function createGlossaryConceptRoutes() {
       if (!product) return nativeGlossaryConceptsOnlyResponse(c);
       const concept = await product.getConcept(conceptId);
       if (!concept) return glossaryNotFoundResponse(c);
-      return c.json({ concept: toCrowdinConceptRecord(glossary, concept) }, 200);
+      return c.json({ concept: toGlossaryConceptRecord(glossary, concept) }, 200);
     })
     .patch(
       "/:conceptId",
@@ -494,7 +826,7 @@ export function createGlossaryConceptRoutes() {
           throw error;
         }
         if (!updated) return glossaryNotFoundResponse(c);
-        return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);
+        return c.json({ concept: toGlossaryConceptRecord(glossary, updated) }, 200);
       },
     )
     .delete("/:conceptId", validator("param", validateConceptParams), async (c) => {
@@ -520,7 +852,7 @@ export function createGlossaryConceptRoutes() {
       if (!product) return nativeGlossaryConceptsOnlyResponse(c);
       const concept = await product.getConcept(conceptId);
       if (!concept) return glossaryNotFoundResponse(c);
-      const terms = toCrowdinConceptRecord(glossary, concept).terms;
+      const terms = toGlossaryConceptRecord(glossary, concept).terms;
       return c.json({ terms, total: terms.length }, 200);
     })
     .post(
@@ -567,7 +899,7 @@ export function createGlossaryConceptRoutes() {
             "duplicate_glossary_concept_term",
             "A term with this locale and text already exists",
           );
-        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 201);
+        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, term) }, 201);
       },
     )
     .patch(
@@ -621,7 +953,7 @@ export function createGlossaryConceptRoutes() {
         }
         if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
         if (!updatedTerm) return glossaryNotFoundResponse(c);
-        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, updatedTerm) }, 200);
+        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, updatedTerm) }, 200);
       },
     )
     .delete(

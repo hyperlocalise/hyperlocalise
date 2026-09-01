@@ -16,6 +16,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestApplyCrowdinBranchFlag(t *testing.T) {
+	cfg := crowdinstorage.Config{Branch: "feature/login"}
+	got := applyCrowdinBranchFlag(cfg, "")
+	if got.Branch != "feature/login" {
+		t.Fatalf("empty flag = %q, want feature/login", got.Branch)
+	}
+	got = applyCrowdinBranchFlag(cfg, "  hotfix  ")
+	if got.Branch != "hotfix" {
+		t.Fatalf("flag override = %q, want hotfix", got.Branch)
+	}
+}
+
 func TestCrowdinInitWritesTemplate(t *testing.T) {
 	t.Chdir(t.TempDir())
 

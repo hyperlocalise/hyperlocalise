@@ -335,21 +335,74 @@ func tagTokenCounts(s string) (map[string]int, int) {
 		return nil, 0
 	}
 
-	tokens := make(map[string]int)
+	hasHTML := strings.Contains(s, "<")
+	hasMD := strings.ContainsAny(s, "*_~`[#")
+
+	// BOLT OPTIMIZATION: Pre-allocate tokens map capacity based on signal character counts
+	// to eliminate dynamic map rehashing/resizing allocations.
+	capEstimate := 0
+	if hasHTML {
+		capEstimate += strings.Count(s, "<")
+	}
+	if hasMD {
+		capEstimate += strings.Count(s, "`") + strings.Count(s, "*") + strings.Count(s, "_") + strings.Count(s, "[")
+	}
+
+	tokens := make(map[string]int, capEstimate)
 	total := 0
-	if strings.Contains(s, "<") {
-		for _, match := range htmlTagPattern.FindAllString(s, -1) {
-			tokens["html:"+strings.ToLower(strings.TrimSpace(match))]++
+
+	// BOLT OPTIMIZATION: Use FindAllStringIndex instead of FindAllString to slice s directly,
+	// avoiding match slice string heap allocations.
+	if hasHTML {
+		matches := htmlTagPattern.FindAllStringIndex(s, -1)
+		for _, loc := range matches {
+			sub := strings.TrimSpace(s[loc[0]:loc[1]])
+			tokens[formatHTMLToken(sub)]++
 			total++
 		}
 	}
-	if strings.ContainsAny(s, "*_~`[#") {
-		for _, match := range markdownTokenPattern.FindAllString(s, -1) {
-			tokens["md:"+strings.TrimSpace(match)]++
+
+	if hasMD {
+		matches := markdownTokenPattern.FindAllStringIndex(s, -1)
+		for _, loc := range matches {
+			sub := strings.TrimSpace(s[loc[0]:loc[1]])
+			tokens["md:"+sub]++
 			total++
 		}
 	}
+
 	return tokens, total
+}
+
+func formatHTMLToken(raw string) string {
+	hasUpperOrNonASCII := false
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		if c >= 0x80 || (c >= 'A' && c <= 'Z') {
+			hasUpperOrNonASCII = true
+			break
+		}
+	}
+	if !hasUpperOrNonASCII {
+		return "html:" + raw
+	}
+	for i := 0; i < len(raw); i++ {
+		if raw[i] >= 0x80 {
+			return "html:" + strings.ToLower(raw)
+		}
+	}
+	var b strings.Builder
+	b.Grow(5 + len(raw))
+	b.WriteString("html:")
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		if c >= 'A' && c <= 'Z' {
+			b.WriteByte(c + 32)
+		} else {
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 func unicodeRangeTableForScript(script string) *unicode.RangeTable {

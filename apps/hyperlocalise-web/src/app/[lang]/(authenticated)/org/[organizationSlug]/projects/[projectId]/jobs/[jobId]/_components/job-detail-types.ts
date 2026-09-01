@@ -170,12 +170,19 @@ export function canRetryJob(job: JobDetailRecord) {
   return job.kind === "translation" && (job.status === "queued" || job.status === "failed");
 }
 
+function isNativeActiveJob(job: JobDetailRecord) {
+  return (
+    !isProviderBackedJob(job) &&
+    (job.status === "queued" || job.status === "running" || job.status === "waiting_for_review")
+  );
+}
+
 export function canMarkJobFailed(job: JobDetailRecord) {
-  return job.status === "queued" || job.status === "running";
+  return isNativeActiveJob(job);
 }
 
 export function canCancelJob(job: JobDetailRecord) {
-  return !isProviderBackedJob(job) && (job.status === "queued" || job.status === "running");
+  return isNativeActiveJob(job);
 }
 
 export function buildJobsListHref(organizationSlug: string, projectId: string) {

@@ -10,9 +10,10 @@ import (
 
 // ProjectFile is a source file in a Crowdin project.
 type ProjectFile struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Path string `json:"path"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	branchID int
 }
 
 // ProjectLanguage is a language available to the project or account.
@@ -64,6 +65,7 @@ func (c *HTTPClient) ListProjectFiles(ctx context.Context, projectID, branch str
 	if err != nil {
 		return nil, err
 	}
+	out = filterDefaultBranchFiles(out)
 	seen := make(map[int]struct{}, len(out))
 	for _, file := range out {
 		seen[file.ID] = struct{}{}
@@ -76,6 +78,9 @@ func (c *HTTPClient) ListProjectFiles(ctx context.Context, projectID, branch str
 		if directory == nil || directory.ID <= 0 {
 			continue
 		}
+		if directory.BranchID != nil && *directory.BranchID > 0 {
+			continue
+		}
 		nested, err := c.listProjectFilesPaged(ctx, projectInt, &model.FileListOptions{
 			DirectoryID: directory.ID,
 			Recursion:   true,
@@ -83,7 +88,7 @@ func (c *HTTPClient) ListProjectFiles(ctx context.Context, projectID, branch str
 		if err != nil {
 			return nil, err
 		}
-		for _, file := range nested {
+		for _, file := range filterDefaultBranchFiles(nested) {
 			if _, ok := seen[file.ID]; ok {
 				continue
 			}
@@ -114,7 +119,7 @@ func (c *HTTPClient) listProjectFilesPaged(ctx context.Context, projectID int, o
 			if file == nil {
 				continue
 			}
-			out = append(out, ProjectFile{ID: file.ID, Name: file.Name, Path: file.Path})
+			out = append(out, projectFileFromModel(file))
 		}
 		if len(files) < pageLimit {
 			break
@@ -122,6 +127,25 @@ func (c *HTTPClient) listProjectFilesPaged(ctx context.Context, projectID int, o
 		offset += pageLimit
 	}
 	return out, nil
+}
+
+func projectFileFromModel(file *model.File) ProjectFile {
+	out := ProjectFile{ID: file.ID, Name: file.Name, Path: file.Path}
+	if file.BranchID != nil {
+		out.branchID = *file.BranchID
+	}
+	return out
+}
+
+func filterDefaultBranchFiles(files []ProjectFile) []ProjectFile {
+	out := make([]ProjectFile, 0, len(files))
+	for _, file := range files {
+		if file.branchID > 0 {
+			continue
+		}
+		out = append(out, file)
+	}
+	return out
 }
 
 func (c *HTTPClient) listProjectDirectoriesPaged(ctx context.Context, projectID int, opts *model.DirectoryListOptions) ([]*model.Directory, error) {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strconv"
@@ -31,6 +32,34 @@ type SourceString struct {
 	FileID         *int    `json:"fileId,omitempty"`
 	DirectoryID    *int    `json:"directoryId,omitempty"`
 	Revision       *int    `json:"revision,omitempty"`
+}
+
+// UnmarshalJSON accepts Crowdin's string-or-plural-object `text` field.
+func (s *SourceString) UnmarshalJSON(data []byte) error {
+	type sourceStringJSON SourceString
+	aux := struct {
+		Text json.RawMessage `json:"text"`
+		*sourceStringJSON
+	}{sourceStringJSON: (*sourceStringJSON)(s)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	s.Text = decodeSourceStringText(aux.Text)
+	return nil
+}
+
+func decodeSourceStringText(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	if raw[0] == '"' {
+		var text string
+		if err := json.Unmarshal(raw, &text); err != nil {
+			return string(raw)
+		}
+		return text
+	}
+	return string(raw)
 }
 
 // SourceStringsGetResponse describes the response when getting

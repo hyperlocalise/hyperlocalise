@@ -101,6 +101,10 @@ hyperlocalise crowdin config translations --language fr
 hyperlocalise crowdin status --language es
 hyperlocalise crowdin branch list
 hyperlocalise crowdin file list
+hyperlocalise crowdin file upload ./src/messages.json --dest /messages.json
+hyperlocalise crowdin file download /messages.json --dest /tmp/messages.json --force
+hyperlocalise crowdin string list --file messages.json
+hyperlocalise crowdin auto-translate --language fr --file messages.json
 hyperlocalise crowdin language list
 hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
@@ -115,6 +119,12 @@ hyperlocalise crowdin tm upload --tm-id 4 --input memory.tmx
 
 `download sources` writes Crowdin source files into `files[].source` paths from `crowdin.yml`, or into a single `--output` file when you pass `--file-id`.
 
+Low-level `file upload` / `file download` / `file delete` operate on one Crowdin project path. They do not expand `files[]` globs. Use them for a single file; use `upload sources` / `download translations` for the configured batch workflow.
+
+`string list` lists **source strings** from Crowdin (`SourceStrings.List`), not translated entries.
+
+`auto-translate` (alias `pre-translate`) runs TM pre-translation and waits until Crowdin reports `finished`. Machine translation and AI methods are not supported in this v1.
+
 `download translations --merge-approved` merges approved JSON object keys into existing local translation files and preserves local keys omitted from Crowdin's approved export.
 When Crowdin includes source-language fallback values in that export, Hyperlocalise skips values that still match the source JSON so previously translated local strings are preserved.
 
@@ -122,7 +132,7 @@ When Crowdin includes source-language fallback values in that export, Hyperlocal
 
 Use `download sources` when you only need source files. It avoids translation export work and is the preferred command for source-only automation.
 
-Use root `branch:` in `crowdin.yml` or pass `--branch <name>` to upload and download files from a Crowdin branch. The flag overrides the config value for that command.
+Use root `branch:` in `crowdin.yml` or pass `--branch <name>` to scope file, string, status, and auto-translate commands to a Crowdin branch. The flag overrides the config value for that command. Path-based `file upload` / `file download` / `file delete` follow the same rule.
 
 Validation fails closed on unsupported Crowdin fields or commands.
 

@@ -14,7 +14,12 @@ hyperlocalise crowdin status [--config <path>] [--identity <path>] [--branch <na
 hyperlocalise crowdin branch list [--config <path>] [--identity <path>] [--output text|json]
 hyperlocalise crowdin branch add --name <name> [--config <path>] [--identity <path>]
 hyperlocalise crowdin file list [--config <path>] [--identity <path>] [--branch <name>] [--output text|json]
+hyperlocalise crowdin file upload <file> --dest <crowdin-path> [--config <path>] [--identity <path>] [--branch <name>]
+hyperlocalise crowdin file download <crowdin-path> [--dest <path>] [--language <id>] [--config <path>] [--identity <path>] [--branch <name>] [--force]
+hyperlocalise crowdin file delete <crowdin-path> [--config <path>] [--identity <path>] [--branch <name>]
+hyperlocalise crowdin string list [--config <path>] [--identity <path>] [--branch <name>] [--file <crowdin-path>] [--filter <text>] [--output text|json]
 hyperlocalise crowdin language list [--config <path>] [--identity <path>] [--all] [--output text|json]
+hyperlocalise crowdin auto-translate --language <id> [--file <crowdin-path> | --branch <name> | --directory-id <id>] [--method tm] [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
 hyperlocalise crowdin download sources [--config <path>] [--identity <path>] [--branch <name>] [--file-id <id>] [--source <path>] [--output <path>] [--force]
@@ -40,9 +45,12 @@ Use them when you want Crowdin-compatible file mode:
 - source download into `files[].source` or a single output file
 - translation download/export back into your repo
 - optional source download alongside translations with `download translations --include-sources`
-- branch-scoped upload and download with root `branch:` or `--branch`
+- branch-scoped commands with root `branch:` or `--branch` (the flag overrides YAML for that command)
 - translation and approval progress with `status`
 - branch list/add, file list, language list, and configured source/translation listing
+- path-based `file upload` / `file download` / `file delete` (distinct from batch `crowdin.yml` upload/download)
+- source string listing with `string list`
+- TM auto-translate (`auto-translate`, alias `pre-translate`)
 - glossary and translation-memory list, download, and upload
 - strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
@@ -84,7 +92,9 @@ This v1 file-mode implementation does not support:
 - screenshot, comment, task, distribution, or app commands
 - glossary CSV/TBX scheme mapping (upload accepts Crowdin-native TBX only)
 - TM CSV import (upload accepts Crowdin-native TMX only)
-- low-level `file upload` / `file download` / `file delete`, `string list`, or `pre-translate`
+- CroQL, labels, and directory filters on `string list`
+- MT/AI auto-translate (`--method mt` / `ai`)
+- niche `file upload` flags (`--xliff`, parser version, cleanup mode)
 - permissive "warn and ignore" compatibility mode
 - interactive Crowdin project bootstrap
 
@@ -200,3 +210,27 @@ hyperlocalise crowdin tm upload --tm-id 4 --input memory.tmx
 `glossary upload` accepts TBX only. The CSV from `glossary download` is a Hyperlocalise export format and is not import-compatible.
 
 `tm upload` accepts TMX only. The CSV from `tm download` is not import-compatible. Re-importing TMX produced by `tm download --format tmx` is best-effort.
+
+List source strings (not translated values):
+
+```bash
+hyperlocalise crowdin string list --file messages.json --filter hello
+```
+
+Upload, download, or delete one file by Crowdin project path. Paths are branch-relative; do not prefix them with the branch name.
+
+```bash
+hyperlocalise crowdin file upload ./src/messages.json --dest /messages.json
+hyperlocalise crowdin file download /messages.json --dest /tmp/messages.json --force
+hyperlocalise crowdin file download /messages.json --language fr --dest /tmp/messages.fr.json --force
+hyperlocalise crowdin file delete /messages.json --branch feature/login
+```
+
+`file download` without `--language` downloads the **source** file. Pass `--language` to build and download that file's translations. For a numeric file ID, keep using `download sources --file-id`.
+
+Pre-translate with translation memory (v1 is TM only). `pre-translate` is an alias of `auto-translate`. Provide exactly one of `--file`, `--branch`, or `--directory-id`. `--branch` may accompany `--file` to resolve a branch-relative path. Root `branch:` in `crowdin.yml` also scopes `--file` and branch-only runs; `--directory-id` ignores that config value unless you also pass `--branch`.
+
+```bash
+hyperlocalise crowdin auto-translate --language fr --file messages.json
+hyperlocalise crowdin pre-translate --language fr --branch feature/login
+```

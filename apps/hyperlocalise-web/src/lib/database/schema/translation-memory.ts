@@ -198,6 +198,11 @@ export const glossaryConcepts = pgTable(
       .$type<GlossaryConceptLanguageDetails[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    // Namespaced provider/custom metadata retained for interchange round-trips.
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // Provider timestamps retained independently from local audit timestamps.
     externalCreatedAt: timestamp("external_created_at", { withTimezone: true }),
     externalUpdatedAt: timestamp("external_updated_at", { withTimezone: true }),

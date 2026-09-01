@@ -715,6 +715,13 @@
       "when": 1788005789914,
       "tag": "0101_famous_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1788165753176,
+      "tag": "0102_smiling_miss_america",
+      "breakpoints": true
     }
   ]
 }

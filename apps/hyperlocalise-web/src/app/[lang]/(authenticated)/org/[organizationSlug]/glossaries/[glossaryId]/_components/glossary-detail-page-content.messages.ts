@@ -65,6 +65,91 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "ujii3FwBE5",
     description: "Fallback error when importing glossary terms fails",
   },
+  importGlossary: {
+    defaultMessage: "Import glossary",
+    id: "xhz41Pr74m",
+    description: "Button to import a glossary file",
+  },
+  importingGlossary: {
+    defaultMessage: "Importing glossary…",
+    id: "JkMnd1m3E/",
+    description: "Loading label shown while importing a glossary file",
+  },
+  importFormats: {
+    defaultMessage: "Choose a TBX, XLSX, or CSV file",
+    id: "tOAFgS8YTm",
+    description: "Accepted glossary import file formats",
+  },
+  importGlossaryDescription: {
+    defaultMessage: "Upload a glossary file to merge its concepts and terms into this glossary.",
+    id: "wkeCz4YE6S",
+    description: "Description for the glossary import dialog",
+  },
+  selectGlossaryFile: {
+    defaultMessage: "Select a glossary file",
+    id: "zaVQwg8luK",
+    description: "Prompt inside the glossary file upload area",
+  },
+  glossaryActions: {
+    defaultMessage: "Glossary actions",
+    id: "OU8ZFDP47O",
+    description: "Accessible label for the glossary actions menu",
+  },
+  exportAsTbx: {
+    defaultMessage: "Export as TBX",
+    id: "Jh6eXznG+8",
+    description: "Glossary action to export all concepts as TBX",
+  },
+  exportAsCsv: {
+    defaultMessage: "Export as CSV",
+    id: "j3NSWZrB6O",
+    description: "Glossary action to export all concepts as CSV",
+  },
+  exportCompleteLabel: {
+    defaultMessage: "Export complete glossary",
+    id: "IrK/1/o8Ej",
+    description: "Label for complete glossary export choices",
+  },
+  exportAsXlsx: {
+    defaultMessage: "Export as XLSX",
+    id: "duzSZb/s6p",
+    description: "Glossary action to export all concepts as XLSX",
+  },
+  exportFilteredAsTbx: {
+    defaultMessage: "Export filtered as TBX",
+    id: "ksdqzG4/Xq",
+    description: "Glossary action to export the current language filter as TBX",
+  },
+  exportFilteredAsCsv: {
+    defaultMessage: "Export filtered as CSV",
+    id: "erXgCbsSqH",
+    description: "Glossary action to export the current language filter as CSV",
+  },
+  exportFilteredLabel: {
+    defaultMessage: "Export filtered glossary",
+    id: "svMnxMDrsO",
+    description: "Label for filtered glossary export choices",
+  },
+  exportFilteredAsXlsx: {
+    defaultMessage: "Export filtered as XLSX",
+    id: "d9+py8mf04",
+    description: "Glossary action to export the current language filter as XLSX",
+  },
+  exportComplete: {
+    defaultMessage: "Glossary exported",
+    id: "A/WlUY8Nlp",
+    description: "Toast after a glossary export downloads successfully",
+  },
+  exportWarnings: {
+    defaultMessage: "Glossary exported with {count} metadata warnings",
+    id: "VzEu1cp3Je",
+    description: "Toast after an export with representational warnings",
+  },
+  exportFailed: {
+    defaultMessage: "Unable to export glossary",
+    id: "TWs2x7bzrZ",
+    description: "Fallback error when glossary export fails",
+  },
   assignProjectFailed: {
     defaultMessage: "Unable to assign project",
     id: "TiFchnoh6y",

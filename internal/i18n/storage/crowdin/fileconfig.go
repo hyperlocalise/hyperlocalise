@@ -166,6 +166,7 @@ func LoadClientConfig(path, identityPath string) (Config, string, error) {
 		ProjectID:  projectID,
 		APIToken:   apiToken,
 		APIBaseURL: baseURL,
+		Branch:     strings.TrimSpace(projectCfg.Branch),
 	}, resolvedPath, nil
 }
 

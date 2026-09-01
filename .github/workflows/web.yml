@@ -110,6 +110,9 @@ jobs:
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
       - name: Migrate hyperlocalise-web database
         run: vp run db:migrate
 

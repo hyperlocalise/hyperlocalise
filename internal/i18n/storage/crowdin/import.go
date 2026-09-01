@@ -111,23 +111,36 @@ func (c *HTTPClient) pollImport(
 	progress int,
 	check func(context.Context) (string, string, int, error),
 ) (ImportResult, error) {
-	deadline := time.Now().Add(importPollTimeout)
+	return c.pollAsyncStatus(ctx, identifier, status, progress, importPollTimeout, "import", check)
+}
+
+func (c *HTTPClient) pollAsyncStatus(
+	ctx context.Context,
+	identifier, status string,
+	progress int,
+	timeout time.Duration,
+	op string,
+	check func(context.Context) (string, string, int, error),
+) (ImportResult, error) {
+	deadline := time.Now().Add(timeout)
 	for {
-		if err := importStatusError(status); err != nil {
-			return ImportResult{}, err
+		normalized := strings.ToLower(strings.TrimSpace(status))
+		switch normalized {
+		case "failed", "canceled", "cancelled", "error":
+			return ImportResult{}, fmt.Errorf("%s %s", op, normalized)
 		}
 		if importStatusFinished(status) {
 			return ImportResult{Identifier: identifier, Status: status, Progress: progress}, nil
 		}
 		if time.Now().After(deadline) {
-			return ImportResult{}, fmt.Errorf("import timed out with status %s", status)
+			return ImportResult{}, fmt.Errorf("%s timed out with status %s", op, status)
 		}
 		if err := waitForRetry(ctx, importPollInterval); err != nil {
 			return ImportResult{}, err
 		}
 		nextID, nextStatus, nextProgress, err := check(ctx)
 		if err != nil {
-			return ImportResult{}, fmt.Errorf("check import status: %w", err)
+			return ImportResult{}, fmt.Errorf("check %s status: %w", op, err)
 		}
 		if strings.TrimSpace(nextID) != "" {
 			identifier = nextID

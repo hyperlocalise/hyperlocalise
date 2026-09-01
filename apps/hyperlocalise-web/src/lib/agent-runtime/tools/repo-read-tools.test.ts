@@ -1983,6 +1983,37 @@ describe("buildHlArgs", () => {
     },
   );
 
+  it.each(["/tmp/secret.ts", "../secret.ts", "foo/../../outside.ts"])(
+    "rejects extract positional path that escapes the workspace: %s",
+    (path) => {
+      expect(buildHlArgs({ subcommand: "extract", args: [path] })).toMatchObject({
+        ok: false,
+        error: { code: "flag_value_escapes_workspace", name: "arg" },
+      });
+    },
+  );
+
+  it.each(["/tmp/ignore", "../ignore", "foo/../../ignore"])(
+    "rejects path-shaped --ignore that escapes the workspace: %s",
+    (ignore) => {
+      expect(buildHlArgs({ subcommand: "extract", flags: { ignore } })).toMatchObject({
+        ok: false,
+        error: { code: "flag_value_escapes_workspace", name: "ignore" },
+      });
+    },
+  );
+
+  it("allows extract of a workspace-relative file path", () => {
+    const result = buildHlArgs({
+      subcommand: "extract",
+      args: ["./src/messages.ts"],
+      flags: { ignore: "src/vendor" },
+    });
+    expect(isOk(result)).toBe(true);
+    if (isErr(result)) throw new Error("expected valid hl args");
+    expect(result.value).toEqual(["extract", "src/messages.ts", "--ignore=src/vendor"]);
+  });
+
   it("normalizes a relative --config path", () => {
     const result = buildHlArgs({ subcommand: "check", flags: { config: "./custom/i18n.yml" } });
     expect(isOk(result)).toBe(true);
