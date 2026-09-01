@@ -9,7 +9,7 @@ overrides:
   undici@^8.0.0: 8.10.0
   brace-expansion@^5.0.0: 5.0.9
   fast-uri@^3.0.0: 3.1.6
-  ip-address@^10.0.0: 10.5.0
+  ip-address@^10.0.0: 10.5.1
   hono: 4.13.5
   '@hono/node-server': 2.1.1
 
@@ -862,8 +862,8 @@ packages:
       react-devtools-core:
         optional: true
 
-  ip-address@10.5.0:
-    resolution: {integrity: sha512-R5SnVLJmgYYvf2F2ZgwSBnelz5G4q5AxIC277GDfUaNbrZKNANcBC7RHqYYePlszf4kBolVkJauG0ZjHHFh55g==}
+  ip-address@10.5.1:
+    resolution: {integrity: sha512-EXujUp9jyOI/chPgtqk6uy7fDq8AeCB/WlfEuPg9LN0fN9lzKAKfuDYi60SMhHwgUiEhZvVYsbGZN+RUU1INiA==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -2137,7 +2137,7 @@ snapshots:
   express-rate-limit@8.5.2(express@5.2.1):
     dependencies:
       express: 5.2.1
-      ip-address: 10.5.0
+      ip-address: 10.5.1
 
   express@5.2.1:
     dependencies:
@@ -2351,7 +2351,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  ip-address@10.5.0: {}
+  ip-address@10.5.1: {}
 
   ipaddr.js@1.9.1: {}
 

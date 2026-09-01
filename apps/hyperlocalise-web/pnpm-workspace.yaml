@@ -32,7 +32,7 @@ overrides:
   "@anthropic-ai/sdk": "0.122.0"
   postcss: "8.5.26"
   esbuild: "0.28.2"
-  "ip-address": "10.5.0"
+  "ip-address": "10.5.1"
   hono: "4.13.5"
   "@hono/node-server": "2.1.1"
   form-data: "4.0.6"

@@ -21,9 +21,9 @@
     "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "4.0.44",
+    "@ai-sdk/anthropic": "4.0.45",
     "@ai-sdk/mcp": "^2.0.16",
-    "@ai-sdk/openai": "4.0.50",
+    "@ai-sdk/openai": "4.0.51",
     "@ai-sdk/react": "^4.0.40",
     "@base-ui/react": "1.7.0",
     "@chat-adapter/github": "4.35.0",
@@ -82,11 +82,11 @@
     "@univerjs/ui": "0.25.1",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.5.0",
-    "@vercel/sandbox": "3.2.0",
+    "@vercel/sandbox": "3.2.1",
     "@workos-inc/authkit-nextjs": "4.3.1",
     "@workos-inc/node": "^10.7.0",
     "@xyflow/react": "^12.11.1",
-    "ai": "7.0.83",
+    "ai": "7.0.84",
     "ansi-to-react": "^6.2.6",
     "autumn-js": "^1.2.34",
     "botid": "^1.5.11",
@@ -139,7 +139,7 @@
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "remark-rehype": "^11.1.2",
-    "resend": "6.24.0",
+    "resend": "6.25.0",
     "rxjs": "7.8.2",
     "saxes": "^6.0.0",
     "shadcn": "4.19.0",
@@ -158,7 +158,7 @@
     "xlsx": "npm:@e965/xlsx@0.20.3",
     "xmlbuilder2": "^4.0.3",
     "yaml": "^2.9.0",
-    "zod": "4.4.3"
+    "zod": "4.5.2"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^10.4.6",
