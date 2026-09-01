@@ -10,7 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash, createHmac, randomBytes, timingSafeEqual, webcrypto } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+  webcrypto,
+} from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -24,6 +31,13 @@ const DEFAULT_CANVA_REDIRECT_URI = "https://www.canva.com/apps/oauth/authorized"
 const ACCESS_TOKEN_LIFETIME_SECONDS = 60 * 60;
 const REFRESH_TOKEN_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 const AUTHORIZATION_CODE_LIFETIME_MS = 10 * 60 * 1000;
+const TOKEN_LOOKUP_DIGEST_BYTES = 32;
+const TOKEN_LOOKUP_SCRYPT_OPTIONS = {
+  N: 16,
+  r: 8,
+  p: 1,
+  maxmem: 32 * 1024 * 1024,
+} as const;
 
 export const CANVA_OAUTH_REQUEST_COOKIE = "hl_canva_oauth_req";
 export const CANVA_OAUTH_SCOPE = "canva";
@@ -95,12 +109,12 @@ function randomCredentialBytes(size: number): string {
 
 /** Keyed lookup digest for 256-bit random OAuth codes and tokens, not user passwords. */
 export function digestCanvaOauthToken(value: string): string {
-  const hmac = createHmac("sha256", getOauthSecret());
-  // HMAC-SHA256 is the correct primitive for high-entropy token lookup, not a password KDF.
-  // lgtm[js/insufficient-password-hash]
-  // codeql[js/insufficient-password-hash]
-  hmac.update(value);
-  return hmac.digest("hex");
+  return scryptSync(
+    value,
+    getOauthSecret(),
+    TOKEN_LOOKUP_DIGEST_BYTES,
+    TOKEN_LOOKUP_SCRYPT_OPTIONS,
+  ).toString("hex");
 }
 
 export function generateCanvaOauthAccessToken(): string {
