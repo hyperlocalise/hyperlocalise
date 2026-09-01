@@ -386,7 +386,7 @@ class TranslationJobExecutor {
         };
       }
       const reservation = await reserveManagedAiCredit({
-        organizationId: project.organizationId,
+        organizationId: organizationGenerator.organizationId,
         operationKey: `job:${claimedJob.id}:translation_jobs:ai_tokens`,
         source: "translation_job_complete",
         modelId: organizationGenerator.modelId,
