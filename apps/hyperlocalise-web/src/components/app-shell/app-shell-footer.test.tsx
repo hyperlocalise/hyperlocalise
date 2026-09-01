@@ -118,7 +118,7 @@ describe("AppShellFooter", () => {
 
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText("Your workspace is on the Growth plan")).toBeTruthy();
-    expect(screen.getByText("25 / 100 AI credits used")).toBeTruthy();
+    expect(screen.getByText("$25.00 / $100.00 AI credit used")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Open billing" }).getAttribute("href")).toBe(
       "/org/acme/settings/billing#plan-usage",
     );
