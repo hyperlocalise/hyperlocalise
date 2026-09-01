@@ -100,9 +100,7 @@ describe("slack connect invites", () => {
     expect(result.value.invited).toBe(true);
     expect(result.value.dismissed).toBe(false);
     expect(result.value.invitedEmailMasked?.endsWith(`@${user.email.split("@")[1]}`)).toBe(true);
-    expect(api.createChannel).toHaveBeenCalledWith(
-      expect.stringMatching(/^ext-/),
-    );
+    expect(api.createChannel).toHaveBeenCalledWith(expect.stringMatching(/^ext-/));
     expect(api.inviteUsers).toHaveBeenCalledWith("C123", ["UHOST1"]);
     expect(api.inviteShared).toHaveBeenCalledWith("C123", user.email, false);
   });

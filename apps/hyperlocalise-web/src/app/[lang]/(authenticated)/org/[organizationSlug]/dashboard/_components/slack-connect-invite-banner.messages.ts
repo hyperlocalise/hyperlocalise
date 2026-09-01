@@ -17,63 +17,63 @@ import { defineMessages } from "react-intl";
 export const slackConnectInviteBannerMessages = defineMessages({
   createTitle: {
     defaultMessage: "Create a shared Slack channel",
-    id: "k2sC1nQv7a",
+    id: "+t1jpGe0aj",
     description: "Dashboard Slack Connect banner title before the first invite",
   },
   createDescription: {
     defaultMessage:
       "Talk with Hyperlocalise in Slack. We'll email you an invitation to a shared channel.",
-    id: "p9Lm2wXe4b",
+    id: "rUZsunvsmU",
     description: "Dashboard Slack Connect banner description before the first invite",
   },
   invitedTitle: {
     defaultMessage: "We've invited your team to a shared Slack channel",
-    id: "r4Td8yBn0c",
+    id: "kNbIVbtAlh",
     description: "Dashboard Slack Connect banner title after an invite was sent",
   },
   invitedDescription: {
     defaultMessage: "Check your email for an invitation to the channel or request a new invite.",
-    id: "s7Uf1zCo3d",
+    id: "BbhzPipEsh",
     description: "Dashboard Slack Connect banner description after an invite was sent",
   },
   dismiss: {
     defaultMessage: "Dismiss",
-    id: "t0Vg2ADp6e",
+    id: "p1EBLiYRON",
     description: "Dashboard Slack Connect banner dismiss action",
   },
   requestInvite: {
     defaultMessage: "Request Slack invite",
-    id: "u3Wh5BEq9f",
+    id: "WwBtcmgwYn",
     description: "Dashboard Slack Connect banner primary action",
   },
   requesting: {
     defaultMessage: "Sending…",
-    id: "v6Xi8CFr2g",
+    id: "BrzNDtGGWt",
     description: "Dashboard Slack Connect banner primary action while sending",
   },
   requestSuccess: {
     defaultMessage: "Check your email for the Slack channel invite.",
-    id: "w9Yj0DGs5h",
+    id: "rDKQx99X0Z",
     description: "Toast after a Slack Connect invite is sent",
   },
   requestFailed: {
     defaultMessage: "Unable to send a Slack invite right now. Try again shortly.",
-    id: "x2Zk3EHt8i",
+    id: "AAASbBGB98",
     description: "Toast when a Slack Connect invite request fails",
   },
   rateLimited: {
     defaultMessage: "An invite was just sent. Try again in a couple of minutes.",
-    id: "y5Al4FIu1j",
+    id: "akBS4XwW21",
     description: "Toast when Slack Connect invite is rate limited",
   },
   dismissFailed: {
     defaultMessage: "Unable to dismiss this invite right now.",
-    id: "z8Bm5GJv4k",
+    id: "dOsXIMNL7P",
     description: "Toast when dismissing the Slack Connect banner fails",
   },
   loadingLabel: {
     defaultMessage: "Loading Slack channel invite",
-    id: "a1Cn6HKw7l",
+    id: "TqRYXSejeY",
     description: "Accessible label while the Slack Connect banner loads",
   },
 });

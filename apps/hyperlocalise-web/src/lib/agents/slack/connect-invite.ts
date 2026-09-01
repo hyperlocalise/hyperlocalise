@@ -51,9 +51,7 @@ export type SlackConnectApiError =
 export type SlackConnectChannel = { id: string; name: string };
 
 export type SlackConnectApi = {
-  createChannel: (
-    name: string,
-  ) => Promise<Result<SlackConnectChannel, SlackConnectApiError>>;
+  createChannel: (name: string) => Promise<Result<SlackConnectChannel, SlackConnectApiError>>;
   findPrivateChannelByName: (
     name: string,
   ) => Promise<Result<SlackConnectChannel | null, SlackConnectApiError>>;
@@ -294,10 +292,7 @@ async function resolveConnectChannel(input: {
     });
   }
 
-  const name = slackConnectChannelName(
-    input.organizationSlug,
-    env.SLACK_CONNECT_CHANNEL_PREFIX,
-  );
+  const name = slackConnectChannelName(input.organizationSlug, env.SLACK_CONNECT_CHANNEL_PREFIX);
   const created = await input.api.createChannel(name);
   if (isOk(created)) {
     await inviteHostUsers(input.api, created.value.id);
@@ -413,7 +408,9 @@ function isIgnorableInviteError(error: SlackConnectApiError) {
   );
 }
 
-function toChannel(channel: { id?: string; name?: string } | undefined): SlackConnectChannel | null {
+function toChannel(
+  channel: { id?: string; name?: string } | undefined,
+): SlackConnectChannel | null {
   if (!channel?.id || !channel.name) {
     return null;
   }
@@ -426,11 +423,11 @@ type SlackMethodBody = {
   error?: string;
 };
 
-async function slackMethod<T extends SlackMethodBody>(
+async function slackMethod<T extends object>(
   botToken: string,
   method: string,
   body: Record<string, string | number | boolean | string[]>,
-): Promise<Result<T, SlackConnectApiError>> {
+): Promise<Result<T & SlackMethodBody, SlackConnectApiError>> {
   const responseResult = await fromThrowableAsync(
     fetch(`https://slack.com/api/${method}`, {
       method: "POST",
@@ -450,7 +447,9 @@ async function slackMethod<T extends SlackMethodBody>(
     return err({ code: "slack_http_error", status: responseResult.value.status });
   }
 
-  const jsonResult = await fromThrowableAsync(responseResult.value.json() as Promise<T>);
+  const jsonResult = await fromThrowableAsync(
+    responseResult.value.json() as Promise<T & SlackMethodBody>,
+  );
   if (isErr(jsonResult)) {
     return err({ code: "bot_unavailable", cause: jsonResult.error });
   }
