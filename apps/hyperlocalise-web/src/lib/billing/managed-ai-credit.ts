@@ -569,6 +569,17 @@ export async function releaseManagedAiCredit(input: {
   reason?: string;
 }): Promise<Result<void, ManagedAiCreditError>> {
   const database = input.db ?? db;
+  const current = await findUsageEvent(database, input.reservation.operationKey);
+  if (!current) {
+    return err({
+      code: "ai_credit_usage_not_found",
+      operationKey: input.reservation.operationKey,
+    });
+  }
+  if (current.status !== "reserved") {
+    return ok(undefined);
+  }
+
   const [event] = await database
     .update(schema.usageEvents)
     .set({
@@ -576,14 +587,16 @@ export async function releaseManagedAiCredit(input: {
       amountUsd: normalizeUsdAmount(0),
       autumnTrackError: input.reason?.slice(0, 500) ?? null,
     })
-    .where(eq(schema.usageEvents.operationKey, input.reservation.operationKey))
+    .where(
+      and(
+        eq(schema.usageEvents.operationKey, input.reservation.operationKey),
+        eq(schema.usageEvents.status, "reserved"),
+      ),
+    )
     .returning({ id: schema.usageEvents.id });
 
   if (!event) {
-    return err({
-      code: "ai_credit_usage_not_found",
-      operationKey: input.reservation.operationKey,
-    });
+    return ok(undefined);
   }
 
   return ok(undefined);

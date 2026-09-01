@@ -25,13 +25,11 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import { addCliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
-  captureFileAnalysisStep,
-  captureFileCompletionsStep,
   claimTranslationJobStep,
   completeFileTranslationJobStep,
-  ensureAiFeaturesAllowedStep,
   failTranslationJobStep,
   getProjectOrganizationStep,
   getStoredFileContentStep,
@@ -41,9 +39,10 @@ import {
   localizeImageVariantForJobStep,
   localizeVideoVariantForJobStep,
   persistFileProjectTranslationsStep,
-  persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
-  resolveWorkspaceReportsFlagStep,
+  persistFileTranslationMemoryEntriesStep,
+  releaseSandboxTranslationCreditStep,
+  reserveSandboxTranslationCreditStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
@@ -52,12 +51,8 @@ import {
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
+  parseDeferredByLimit,
 } from "./file-translation-pagination";
-
-import {
-  collectFileTranslationPageStep,
-  fileTranslationReportSchema,
-} from "./file-translation-progress";
 
 function shellSingleQuote(value: string) {
   return value.replaceAll("'", "'\\''");
@@ -235,21 +230,6 @@ function isSandboxDisconnectMessage(message: string): boolean {
   );
 }
 
-function isSandboxTimeoutError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-  const err = error as { name?: unknown; code?: unknown };
-  return err.name === "SandboxCommandTimeoutError" || err.code === "sandbox_timeout";
-}
-
-function rematerializeSandboxTimeoutError(error: unknown): Error {
-  const rematerialized = new Error(error instanceof Error ? error.message : "sandbox_timeout");
-  rematerialized.name = "SandboxCommandTimeoutError";
-  (rematerialized as Error & { code: string }).code = "sandbox_timeout";
-  return rematerialized;
-}
-
 function userFacingFailureReason(
   error: unknown,
   detection?: {
@@ -287,7 +267,7 @@ function userFacingFailureReason(
     return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
 
-  if (isSandboxTimeoutError(error)) {
+  if (message.includes("sandbox_timeout")) {
     return "the translation took too long to finish. Try the job again.";
   }
 
@@ -351,14 +331,7 @@ async function runTranslationStep(
   instructions: string | null,
   context: SandboxTranslationContext,
   prefilledByLocale: Record<string, Record<string, string>>,
-  options?: {
-    force?: boolean;
-    maxTranslations?: number;
-    organizationId?: string;
-    projectId?: string;
-    jobId?: string;
-    reportsEnabled?: boolean;
-  },
+  options?: { force?: boolean; maxTranslations?: number; organizationId?: string },
 ) {
   "use step";
 
@@ -367,20 +340,19 @@ async function runTranslationStep(
     getSandboxTranslationEnv,
     isSandboxDisconnectError,
     recoverTranslationSandboxSession,
+    readSandboxCliTokenUsage,
     runSandboxCommand,
     sandboxI18nConfigPath,
     sandboxTranslationCommandTimeoutMs,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { appendHlRunReportOutput } = await import("@/lib/translation/cli-token-usage");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const byok = options?.organizationId
     ? await loadSandboxByokCredential(options.organizationId)
     : null;
 
-  const { randomUUID } = await import("node:crypto");
-  const invocationId = randomUUID();
-  const reportPath = `/tmp/report-${invocationId}.json`;
   const config = buildMultiLocaleTempConfig(
     inputFile,
     outputPattern,
@@ -420,43 +392,25 @@ async function runTranslationStep(
     typeof maxTranslations === "number" && maxTranslations > 0
       ? ` --max-translations ${maxTranslations}`
       : "";
+  const reportPath = `/tmp/hl-run-report-${crypto.randomUUID()}.json`;
   try {
     const result = await runSandboxCommand(
       sandboxId,
       "bash",
       [
         "-lc",
-        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --workers 4 --progress off --output '${reportPath}'${prefilledFlags}`,
+        appendHlRunReportOutput(
+          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --progress off${prefilledFlags}`,
+          reportPath,
+        ),
       ],
       {
         env: getSandboxTranslationEnv(byok),
         timeoutMs: sandboxTranslationCommandTimeoutMs,
       },
     );
-    const { readTranslatedFile } = await import("@/lib/translation/sandbox");
-    const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
-    const progress = fileTranslationReportSchema.parse(JSON.parse(report));
-    if (options?.reportsEnabled && options.organizationId && options.projectId && options.jobId) {
-      try {
-        const { captureSandboxUsage } = await import("@/lib/reporting/sandbox-usage");
-        const { resolveSandboxLlmProfile } = await import("@/lib/translation/sandbox-llm");
-        const { env } = await import("@/lib/env");
-        await captureSandboxUsage({
-          organizationId: options.organizationId,
-          projectId: options.projectId,
-          jobId: options.jobId,
-          invocationId,
-          ...resolveSandboxLlmProfile(env, byok),
-          report,
-        });
-      } catch (error) {
-        console.warn("[file-translation-workflow] usage capture failed", {
-          jobId: options.jobId,
-          error,
-        });
-      }
-    }
-    return { ...result, progress };
+    const tokenUsage = await readSandboxCliTokenUsage(sandboxId, reportPath);
+    return { ...result, tokenUsage };
   } catch (error) {
     // Surface a stable marker so the workflow can recreate the sandbox when
     // session recovery inside runSandboxCommand is not enough.
@@ -469,9 +423,6 @@ async function runTranslationStep(
       throw new Error(
         `sandbox_disconnect: Sandbox stream was closed and is not accepting commands.`,
       );
-    }
-    if (isSandboxTimeoutError(error)) {
-      throw rematerializeSandboxTimeoutError(error);
     }
     throw error;
   }
@@ -630,7 +581,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceLocale: string;
           targetLocales: string[];
           metadata?: Record<string, string>;
-          ignoreTranslationMemory?: boolean;
         })
       : null;
 
@@ -657,18 +607,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `project ${claim.job.projectId} not found`,
     });
     throw new Error("project not found");
-  }
-
-  const aiFeatures = await ensureAiFeaturesAllowedStep({ organizationId });
-  if (!aiFeatures.ok) {
-    await failTranslationJobStep({
-      jobId: claim.job.id,
-      projectId: claim.job.projectId,
-      workflowRunId: claim.job.workflowRunId,
-      code: aiFeatures.error.code,
-      message: aiFeatures.error.message,
-    });
-    return { status: "failed" as const, reason: aiFeatures.error.code };
   }
 
   if (isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
@@ -835,10 +773,29 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw error;
   }
 
-  let sandboxId = "";
+  const creditReservation = await reserveSandboxTranslationCreditStep({
+    organizationId,
+    jobId: claim.job.id,
+    source: "translation_job_complete",
+    surface: "file_translation",
+  });
+  if (creditReservation && !creditReservation.ok) {
+    await failTranslationJobStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: creditReservation.error.code,
+      message: creditReservation.error.code,
+    });
+    throw new Error(creditReservation.error.code);
+  }
+
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
+  let sandboxId = "";
+
   try {
+    ({ sandboxId } = await createSandboxStep());
     const context = await assembleFileTranslationContextStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
@@ -847,8 +804,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sourceContent,
       metadata: parsedInput.metadata,
     });
-
-    ({ sandboxId } = await createSandboxStep());
     await prepareSandboxStep(sandboxId);
     await writeSourceFileStep(sandboxId, inputFilename, sourceContent);
 
@@ -866,120 +821,104 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     });
 
     const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
-    const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
-    let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(
-      Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
-    );
-    await updateSandboxTimeoutStep(sandboxId, translationSandboxTimeoutMs);
-    let translationMaxPages = calculateFileTranslationMaxPages(
-      Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
-    );
+    let sourceEntries: Record<string, string> | null = null;
+    let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(0);
+    let translationMaxPages = calculateFileTranslationMaxPages(0);
+
+    try {
+      sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
+      console.info("[file-translation-workflow] source entries extracted", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        storedFileId: parsedInput.sourceFileId,
+        fileFormat: parsedInput.fileFormat,
+        sourceEntryCount: Object.keys(sourceEntries).length,
+      });
+    } catch (error) {
+      console.warn("[file-translation-workflow] source TM extraction failed", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        storedFileId: parsedInput.sourceFileId,
+        fileFormat: parsedInput.fileFormat,
+        hasRepositorySourcePath: Boolean(repositorySourcePath),
+        userFacingError: userFacingFailureReason(error, {
+          fileFormat: parsedInput.fileFormat,
+          sourceExtension: fileExtension(sourceFile.filename),
+          sandboxInputExtension: fileExtension(inputFilename),
+        }),
+      });
+    }
+
+    const sourceText = sourceContent.toString("utf8");
     const outputPattern = getSandboxOutputFilenamePattern(sourceFile.filename);
     const prefilledByLocale: Record<string, Record<string, string>> = {};
-    const reportsEnabled = sourceEntries
-      ? await resolveWorkspaceReportsFlagStep(organizationId)
-      : false;
 
-    const PREPARATION_CONCURRENCY = 4;
-    for (
-      let offset = 0;
-      offset < parsedInput.targetLocales.length;
-      offset += PREPARATION_CONCURRENCY
-    ) {
-      await Promise.all(
-        parsedInput.targetLocales
-          .slice(offset, offset + PREPARATION_CONCURRENCY)
-          .map(async (targetLocale) => {
-            let tmPrefilled: Record<string, string> = {};
-            if (sourceEntries) {
-              if (reportsEnabled) {
-                await captureFileAnalysisStep({
-                  organizationId,
-                  projectId: claim.job.projectId,
-                  jobId: claim.job.id,
-                  sourceLocale: parsedInput.sourceLocale,
-                  targetLocale,
-                  sourceEntries,
-                });
-              }
-              if (!parsedInput.ignoreTranslationMemory) {
-                const tmReuse = await reuseFileTranslationMemoryEntriesStep({
-                  projectId: claim.job.projectId,
-                  sourceLocale: parsedInput.sourceLocale,
-                  targetLocale,
-                  sourceEntries,
-                });
-                tmPrefilled = tmReuse.prefilled;
-                if (Object.keys(tmPrefilled).length > 0) {
-                  console.info(
-                    "[file-translation-workflow] matched reusable translation memory entries",
-                    {
-                      jobId: claim.job.id,
-                      projectId: claim.job.projectId,
-                      targetLocale,
-                      reusedEntryCount: Object.keys(tmPrefilled).length,
-                      sourceEntryCount: Object.keys(sourceEntries).length,
-                    },
-                  );
-                }
-              } else {
-                console.info("[file-translation-workflow] skipping translation memory reuse", {
-                  jobId: claim.job.id,
-                  projectId: claim.job.projectId,
-                  targetLocale,
-                  sourceEntryCount: Object.keys(sourceEntries).length,
-                });
-              }
-            }
+    for (const targetLocale of parsedInput.targetLocales) {
+      let tmPrefilled: Record<string, string> = {};
+      if (sourceEntries) {
+        tmPrefilled = await reuseFileTranslationMemoryEntriesStep({
+          projectId: claim.job.projectId,
+          sourceLocale: parsedInput.sourceLocale,
+          targetLocale,
+          sourceEntries,
+        });
+        if (Object.keys(tmPrefilled).length > 0) {
+          console.info("[file-translation-workflow] matched reusable translation memory entries", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            reusedEntryCount: Object.keys(tmPrefilled).length,
+            sourceEntryCount: Object.keys(sourceEntries).length,
+          });
+        }
+      }
 
-            let existingPrefilled: Record<string, string> = {};
-            let retryKeys: string[] = [];
-            if (repositorySourcePath) {
-              const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
-                organizationId,
-                projectId: claim.job.projectId,
-                sourcePath: repositorySourcePath,
-                targetLocale,
-              });
-              existingPrefilled = projectPrefill.prefilled;
-              retryKeys = projectPrefill.retryKeys;
-              if (projectPrefill.truncated) {
-                console.warn("[file-translation-workflow] project translation prefill truncated", {
-                  jobId: claim.job.id,
-                  projectId: claim.job.projectId,
-                  targetLocale,
-                  loadedKeyCount: projectPrefill.loadedKeyCount,
-                  maxKeyCount: projectPrefill.maxKeyCount,
-                });
-              }
-              if (Object.keys(existingPrefilled).length > 0) {
-                console.info("[file-translation-workflow] loaded existing project translations", {
-                  jobId: claim.job.id,
-                  projectId: claim.job.projectId,
-                  targetLocale,
-                  prefilledEntryCount: Object.keys(existingPrefilled).length,
-                });
-              }
-              if (retryKeys.length > 0) {
-                console.info("[file-translation-workflow] omitted same-as-source review prefills", {
-                  jobId: claim.job.id,
-                  projectId: claim.job.projectId,
-                  targetLocale,
-                  omittedKeyCount: retryKeys.length,
-                });
-              }
-            }
+      let existingPrefilled: Record<string, string> = {};
+      let retryKeys: string[] = [];
+      if (repositorySourcePath) {
+        const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+        });
+        existingPrefilled = projectPrefill.prefilled;
+        retryKeys = projectPrefill.retryKeys;
+        if (projectPrefill.truncated) {
+          console.warn("[file-translation-workflow] project translation prefill truncated", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            loadedKeyCount: projectPrefill.loadedKeyCount,
+            maxKeyCount: projectPrefill.maxKeyCount,
+          });
+        }
+        if (Object.keys(existingPrefilled).length > 0) {
+          console.info("[file-translation-workflow] loaded existing project translations", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            prefilledEntryCount: Object.keys(existingPrefilled).length,
+          });
+        }
+        if (retryKeys.length > 0) {
+          console.info("[file-translation-workflow] omitted same-as-source review prefills", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            omittedKeyCount: retryKeys.length,
+          });
+        }
+      }
 
-            const merged = mergeTranslationPrefills({
-              tmPrefilled,
-              projectPrefilled: existingPrefilled,
-              retryKeys,
-            });
-            if (Object.keys(merged).length > 0) {
-              prefilledByLocale[targetLocale] = merged;
-            }
-          }),
-      );
+      const merged = mergeTranslationPrefills({
+        tmPrefilled,
+        projectPrefilled: existingPrefilled,
+        retryKeys,
+      });
+      if (Object.keys(merged).length > 0) {
+        prefilledByLocale[targetLocale] = merged;
+      }
     }
 
     if (sourceEntries) {
@@ -1024,8 +963,66 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
     });
 
-    const confirmedByLocale: Record<string, Record<string, string>> = {};
-    const retryFeedbackByLocale: Record<string, string> = {};
+    type LocaleGlossaryFailure = {
+      targetLocale: string;
+      failures: ReturnType<typeof validateGlossaryTermsInTranslation>;
+    };
+
+    const translatedByLocale = new Map<string, Buffer>();
+    const runFailures: Array<{ locale: string; kind: string; exitCode: number }> = [];
+
+    const persistReadableLocales = async (locales: string[], attempt: 1 | 2) => {
+      if (!sourceEntries || !repositorySourcePath) {
+        return;
+      }
+      for (const targetLocale of locales) {
+        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+        try {
+          const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
+            sourcePath: inputFilename,
+          });
+          await persistFileTranslationMemoryEntriesStep({
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourcePath: repositorySourcePath,
+            sourceFileHash: sourceFile.sha256,
+            sourceEntries,
+            targetEntries,
+          });
+          if (
+            !isDocumentTranslationFileFormat(
+              parsedInput.fileFormat as SupportedTranslationFileFormat,
+            )
+          ) {
+            await persistFileProjectTranslationsStep({
+              organizationId,
+              projectId: claim.job.projectId,
+              jobId: claim.job.id,
+              sourcePath: repositorySourcePath,
+              sourceLocale: parsedInput.sourceLocale,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
+        } catch (error) {
+          console.warn("[file-translation-workflow] incremental translation persistence failed", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            attempt,
+            userFacingError: userFacingFailureReason(error, {
+              fileFormat: parsedInput.fileFormat,
+              sourceExtension: fileExtension(sourceFile.filename),
+              sandboxInputExtension: fileExtension(inputFilename),
+            }),
+          });
+        }
+      }
+    };
+
     const runHlForLocales = async (
       locales: string[],
       attempt: 1 | 2,
@@ -1060,14 +1057,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               .filter((locale) => prefilledByLocale[locale])
               .map((locale) => [locale, prefilledByLocale[locale]]),
           ),
-          {
-            force: runForce,
-            maxTranslations,
-            organizationId,
-            projectId: claim.job.projectId,
-            jobId: claim.job.id,
-            reportsEnabled,
-          },
+          { force: runForce, maxTranslations, organizationId },
         );
 
       let translation: Awaited<ReturnType<typeof runTranslationStep>>;
@@ -1075,7 +1065,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         translation = await runOnce(force);
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
-        if (!isSandboxDisconnectMessage(message) && !isSandboxTimeoutError(error)) {
+        if (!isSandboxDisconnectMessage(message)) {
           throw error;
         }
 
@@ -1117,8 +1107,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         }
       }
 
-      const deferredByLimit = translation.progress.deferredByLimit;
-      if (translation.exitCode !== 0 || translation.progress.failed > 0) {
+      const deferredByLimit = parseDeferredByLimit(translation.output);
+      if (translation.exitCode !== 0) {
         const cliFailureKind = classifyCliFailureKind(translation.output);
         console.error("[file-translation-workflow] hl run failed", {
           jobId: claim.job.id,
@@ -1143,6 +1133,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           cliFailureKind,
           exitCode: translation.exitCode,
           deferredByLimit,
+          tokenUsage: translation.tokenUsage,
         };
       }
 
@@ -1157,137 +1148,301 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         deferredByLimit,
         exitCode: translation.exitCode,
       });
-      return { ok: true as const, deferredByLimit, succeeded: translation.progress.succeeded };
+      return { ok: true as const, deferredByLimit, tokenUsage: translation.tokenUsage };
     };
 
-    const runPages = async (locales: string[], attempt: 1 | 2) => {
-      for (let page = 0; page < translationMaxPages; page += 1) {
-        const result = await runHlForLocales(locales, attempt, {
-          force: page === 0,
-          retryFeedback: locales.length === 1 ? retryFeedbackByLocale[locales[0]!] : undefined,
-        });
-        const delta = await collectFileTranslationPageStep({
-          sandboxId,
-          inputFilename,
-          outputFilenames: Object.fromEntries(
-            locales.map((locale) => [
-              locale,
-              getSandboxOutputFilename(sourceFile.filename, locale),
-            ]),
-          ),
-          sourceEntries,
-          prefills: prefilledByLocale,
-          confirmed: confirmedByLocale,
-        });
-        let acceptedCount = 0;
-        let invalidCount = 0;
-        for (const [targetLocale, entries] of Object.entries(delta)) {
-          const accepted: Record<string, string> = {};
-          const feedback: string[] = [];
-          const terms = (context.glossaryTerms ?? []).filter(
-            (term) => term.targetLocale === targetLocale,
-          );
-          for (const [key, translatedText] of Object.entries(entries)) {
-            const failures = validateGlossaryTermsInTranslation({
-              sourceText: sourceEntries[key]!,
-              translatedText,
-              terms,
-            });
-            if (failures.length > 0) {
-              invalidCount += 1;
-              delete prefilledByLocale[targetLocale]?.[key];
-              feedback.push(
-                ...failures.map((failure) =>
-                  failure.forbidden
-                    ? `Do not use "${failure.targetTerm}" for "${failure.sourceTerm}".`
-                    : `Use "${failure.targetTerm}" for "${failure.sourceTerm}".`,
-                ),
-              );
-            } else {
-              accepted[key] = translatedText;
-            }
-          }
-          if (feedback.length > 0)
-            retryFeedbackByLocale[targetLocale] = [...new Set(feedback)].join("\n");
-          if (Object.keys(accepted).length === 0) continue;
-          const deltaSource = Object.fromEntries(
-            Object.keys(accepted).map((key) => [key, sourceEntries[key]!]),
-          );
-          if (repositorySourcePath) {
-            await persistFileTranslationMemoryEntriesStep({
-              projectId: claim.job.projectId,
-              jobId: claim.job.id,
-              sourceLocale: parsedInput.sourceLocale,
-              targetLocale,
-              sourcePath: repositorySourcePath,
-              sourceFileHash: sourceFile.sha256,
-              sourceEntries: deltaSource,
-              targetEntries: accepted,
-            });
-            if (
-              !isDocumentTranslationFileFormat(
-                parsedInput.fileFormat as SupportedTranslationFileFormat,
-              )
-            ) {
-              await persistFileProjectTranslationsStep({
-                organizationId,
-                projectId: claim.job.projectId,
-                jobId: claim.job.id,
-                sourcePath: repositorySourcePath,
-                sourceLocale: parsedInput.sourceLocale,
-                targetLocale,
-                sourceEntries: deltaSource,
-                targetEntries: accepted,
-              });
-            }
-          }
-          if (reportsEnabled)
-            await captureFileCompletionsStep({
-              organizationId,
-              jobId: claim.job.id,
-              targetLocale,
-              sourceEntries: deltaSource,
-              targetEntries: accepted,
-            });
-          confirmedByLocale[targetLocale] = { ...confirmedByLocale[targetLocale], ...accepted };
-          prefilledByLocale[targetLocale] = { ...prefilledByLocale[targetLocale], ...accepted };
-          acceptedCount += Object.keys(accepted).length;
+    const tryReadLocaleOutputs = async (locales: string[], attempt: 1 | 2) => {
+      const readable: string[] = [];
+      const missing: string[] = [];
+      for (const targetLocale of locales) {
+        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+        try {
+          const translatedContent = await readOutputStep(sandboxId, outputFilename, attempt);
+          translatedByLocale.set(targetLocale, translatedContent);
+          readable.push(targetLocale);
+        } catch {
+          missing.push(targetLocale);
         }
-        if (!result.ok || invalidCount > 0) return false;
-        if (result.deferredByLimit === 0)
-          return countPendingFileTranslations(sourceEntries, locales, confirmedByLocale) === 0;
-        if (acceptedCount === 0) throw new Error("translation pagination made no progress");
       }
-      throw new Error("translation pagination exhausted");
+      return { readable, missing };
     };
 
-    const batchSucceeded = await runPages(parsedInput.targetLocales, 1);
-    const failedLocales: string[] = [];
-    if (!batchSucceeded) {
-      for (const targetLocale of parsedInput.targetLocales) {
-        // Even a readable output may contain pending source fallbacks. A retry
-        // uses only validated prefills, including work saved before recreation.
-        if (!(await runPages([targetLocale], 2))) failedLocales.push(targetLocale);
+    // Paginate hl run so large files stay under sandbox/workflow timeouts and
+    // project translations populate after each page.
+    let deferredByLimit = 0;
+    let page = 0;
+    let localesNeedingWork = [...parsedInput.targetLocales];
+    let batchFailed = false;
+    let cliTokenUsage: Awaited<ReturnType<typeof runTranslationStep>>["tokenUsage"] = null;
+
+    while (page < translationMaxPages) {
+      // Page 0 may use --force for a clean slate. Later pages omit it so the
+      // lockfile skips completed tasks and advances through deferred work.
+      const batchResult = await runHlForLocales(parsedInput.targetLocales, 1, {
+        force: page === 0,
+        maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+      });
+      deferredByLimit = batchResult.deferredByLimit;
+      cliTokenUsage = addCliTokenUsage(cliTokenUsage, batchResult.tokenUsage);
+
+      if (batchResult.ok) {
+        const { readable, missing } = await tryReadLocaleOutputs(parsedInput.targetLocales, 1);
+        localesNeedingWork = missing;
+        if (readable.length > 0) {
+          await persistReadableLocales(readable, 1);
+        }
+        console.info("[file-translation-workflow] hl run page completed", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          page,
+          deferredByLimit,
+          readableLocaleCount: readable.length,
+          missingLocaleCount: missing.length,
+        });
+        if (deferredByLimit <= 0) {
+          break;
+        }
+        page += 1;
+        continue;
       }
+
+      const { readable, missing } = await tryReadLocaleOutputs(parsedInput.targetLocales, 1);
+      console.warn("[file-translation-workflow] batch hl run failed; salvaging readable outputs", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        page,
+        readableLocales: readable,
+        missingLocales: missing,
+        cliFailureKind: batchResult.cliFailureKind,
+        exitCode: batchResult.exitCode,
+        deferredByLimit,
+      });
+      if (readable.length > 0) {
+        await persistReadableLocales(readable, 1);
+      }
+      localesNeedingWork = missing;
+      for (const locale of missing) {
+        runFailures.push({
+          locale,
+          kind: batchResult.cliFailureKind,
+          exitCode: batchResult.exitCode,
+        });
+      }
+      batchFailed = true;
+      break;
     }
 
-    // A recreated sandbox may have lost outputs for locales completed earlier.
-    // Reassemble them from validated prefills without asking AI to translate again.
-    if (!batchSucceeded) {
-      const successfulLocales = parsedInput.targetLocales.filter(
-        (locale) => !failedLocales.includes(locale),
+    if (!batchFailed && deferredByLimit > 0) {
+      throw new Error(
+        `translation pagination exceeded ${translationMaxPages} pages with deferred_by_limit=${deferredByLimit}`,
       );
-      if (successfulLocales.length > 0) {
-        const assembled = await runHlForLocales(successfulLocales, 2, { force: true });
-        if (!assembled.ok || assembled.deferredByLimit !== 0)
-          throw new Error("translation output assembly failed");
+    }
+
+    // Retry missing locales individually so one bad locale cannot block the rest.
+    // Page 0 uses --force; later pages omit it so deferred work advances.
+    if (localesNeedingWork.length > 0) {
+      const stillMissing: string[] = [];
+      for (const targetLocale of localesNeedingWork) {
+        let localeFailed = false;
+        for (let localePage = 0; localePage < translationMaxPages; localePage += 1) {
+          const localeResult = await runHlForLocales([targetLocale], 1, {
+            force: localePage === 0,
+            maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+          });
+          if (!localeResult.ok) {
+            stillMissing.push(targetLocale);
+            const idx = runFailures.findIndex((f) => f.locale === targetLocale);
+            const failure = {
+              locale: targetLocale,
+              kind: localeResult.cliFailureKind,
+              exitCode: localeResult.exitCode,
+            };
+            if (idx >= 0) {
+              runFailures[idx] = failure;
+            } else {
+              runFailures.push(failure);
+            }
+            localeFailed = true;
+            break;
+          }
+
+          const { readable, missing } = await tryReadLocaleOutputs([targetLocale], 1);
+          if (missing.length > 0) {
+            stillMissing.push(targetLocale);
+            runFailures.push({
+              locale: targetLocale,
+              kind: "missing_output",
+              exitCode: 0,
+            });
+            localeFailed = true;
+            break;
+          }
+          if (readable.length > 0) {
+            await persistReadableLocales(readable, 1);
+          }
+          if (localeResult.deferredByLimit <= 0) {
+            break;
+          }
+          if (localePage === translationMaxPages - 1) {
+            stillMissing.push(targetLocale);
+            runFailures.push({
+              locale: targetLocale,
+              kind: "pagination_exhausted",
+              exitCode: 0,
+            });
+            localeFailed = true;
+          }
+        }
+        if (!localeFailed) {
+          const idx = runFailures.findIndex((f) => f.locale === targetLocale);
+          if (idx >= 0) {
+            runFailures.splice(idx, 1);
+          }
+        }
+      }
+      localesNeedingWork = stillMissing;
+    }
+
+    const glossaryFailuresByLocale: LocaleGlossaryFailure[] = [];
+    for (const targetLocale of parsedInput.targetLocales) {
+      const translatedContent = translatedByLocale.get(targetLocale);
+      if (!translatedContent) {
+        continue;
+      }
+
+      const localeTerms = (context.glossaryTerms ?? []).filter(
+        (term) => term.targetLocale === targetLocale,
+      );
+      const glossaryFailures = validateGlossaryTermsInTranslation({
+        sourceText,
+        translatedText: translatedContent.toString("utf8"),
+        terms: localeTerms.map((term) => ({
+          sourceTerm: term.sourceTerm,
+          targetTerm: term.targetTerm,
+          targetLocale: term.targetLocale,
+          forbidden: term.forbidden,
+          caseSensitive: term.caseSensitive,
+        })),
+      });
+      if (glossaryFailures.length > 0) {
+        glossaryFailuresByLocale.push({ targetLocale, failures: glossaryFailures });
       }
     }
 
+    if (glossaryFailuresByLocale.length > 0) {
+      console.warn("[file-translation-workflow] glossary validation failed; retrying", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        failedLocales: glossaryFailuresByLocale.map((item) => item.targetLocale),
+        failedTermCount: glossaryFailuresByLocale.reduce(
+          (sum, item) => sum + item.failures.length,
+          0,
+        ),
+        attempt: 1,
+      });
+
+      // Retry each failed locale individually with locale-specific feedback so
+      // one locale's glossary constraints cannot contaminate another.
+      // Page through --max-translations so a successful retry cannot leave
+      // deferred keys untranslated.
+      const stillFailing: LocaleGlossaryFailure[] = [];
+      for (const { targetLocale, failures } of glossaryFailuresByLocale) {
+        const feedback = [
+          `Glossary validation failed for locale ${targetLocale}. Fix these term constraints exactly and regenerate:`,
+          ...failures.map((failure) =>
+            failure.forbidden
+              ? `- Forbidden term violation for source "${failure.sourceTerm}": do not use "${failure.targetTerm}"`
+              : `- Missing preferred term for source "${failure.sourceTerm}": must include "${failure.targetTerm}"`,
+          ),
+        ].join("\n");
+
+        let retryFailed = false;
+        for (let retryPage = 0; retryPage < translationMaxPages; retryPage += 1) {
+          const retryResult = await runHlForLocales([targetLocale], 2, {
+            retryFeedback: feedback,
+            // Page 0 forces a clean rewrite; later pages omit --force so the
+            // lockfile advances through deferred work.
+            force: retryPage === 0,
+            maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+          });
+          if (!retryResult.ok) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+
+          const { readable, missing } = await tryReadLocaleOutputs([targetLocale], 2);
+          if (missing.length > 0) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+            break;
+          }
+          if (readable.length > 0) {
+            await persistReadableLocales(readable, 2);
+          }
+          if (retryResult.deferredByLimit <= 0) {
+            break;
+          }
+          if (retryPage === translationMaxPages - 1) {
+            translatedByLocale.delete(targetLocale);
+            stillFailing.push({ targetLocale, failures });
+            retryFailed = true;
+          }
+        }
+        if (retryFailed) {
+          continue;
+        }
+
+        const translatedContent = translatedByLocale.get(targetLocale);
+        if (!translatedContent) {
+          stillFailing.push({ targetLocale, failures });
+          continue;
+        }
+
+        const localeTerms = (context.glossaryTerms ?? []).filter(
+          (term) => term.targetLocale === targetLocale,
+        );
+        const glossaryFailures = validateGlossaryTermsInTranslation({
+          sourceText,
+          translatedText: translatedContent.toString("utf8"),
+          terms: localeTerms.map((term) => ({
+            sourceTerm: term.sourceTerm,
+            targetTerm: term.targetTerm,
+            targetLocale: term.targetLocale,
+            forbidden: term.forbidden,
+            caseSensitive: term.caseSensitive,
+          })),
+        });
+        if (glossaryFailures.length > 0) {
+          translatedByLocale.delete(targetLocale);
+          stillFailing.push({ targetLocale, failures: glossaryFailures });
+        }
+      }
+
+      if (stillFailing.length > 0) {
+        runFailures.push(
+          ...stillFailing.map(({ targetLocale }) => ({
+            locale: targetLocale,
+            kind: "glossary_validation",
+            exitCode: 0,
+          })),
+        );
+      }
+    }
+
+    // Persist every locale we successfully translated. If any locale is still
+    // missing after salvage/retry, persist the good ones then fail the job.
+    const missingLocales: string[] = [];
     for (const targetLocale of parsedInput.targetLocales) {
-      if (failedLocales.includes(targetLocale)) continue;
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-      const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+      const translatedContent = translatedByLocale.get(targetLocale);
+      if (!translatedContent) {
+        missingLocales.push(targetLocale);
+        continue;
+      }
+
       await logDiagnosticsStep(
         claim.job.id,
         sourceFile.filename,
@@ -1295,6 +1450,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         translatedContent,
         outputFilename,
       );
+
       const storedOutput = await storeOutputFileStep({
         organizationId,
         projectId: claim.job.projectId,
@@ -1303,6 +1459,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         contentType: sourceFile.contentType,
         content: translatedContent,
       });
+
       if (
         isDocumentTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat) &&
         repositorySourcePath
@@ -1318,16 +1475,80 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceJobId: claim.job.id,
         });
       }
-      outputFiles.push({ fileId: storedOutput.id, locale: targetLocale, filename: outputFilename });
+
+      if (sourceEntries && repositorySourcePath) {
+        try {
+          const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
+            sourcePath: inputFilename,
+          });
+          await persistFileTranslationMemoryEntriesStep({
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourcePath: repositorySourcePath,
+            sourceFileHash: sourceFile.sha256,
+            sourceEntries,
+            targetEntries,
+          });
+          if (
+            !isDocumentTranslationFileFormat(
+              parsedInput.fileFormat as SupportedTranslationFileFormat,
+            )
+          ) {
+            await persistFileProjectTranslationsStep({
+              organizationId,
+              projectId: claim.job.projectId,
+              jobId: claim.job.id,
+              sourcePath: repositorySourcePath,
+              sourceLocale: parsedInput.sourceLocale,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
+        } catch (error) {
+          console.warn("[file-translation-workflow] target TM persistence failed", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            userFacingError: userFacingFailureReason(error, {
+              fileFormat: parsedInput.fileFormat,
+              sourceExtension: fileExtension(sourceFile.filename),
+              sandboxInputExtension: fileExtension(inputFilename),
+            }),
+          });
+        }
+      } else if (sourceEntries && !repositorySourcePath) {
+        console.warn("[file-translation-workflow] skipped native translation persistence", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          storedFileId: parsedInput.sourceFileId,
+        });
+      }
+
+      outputFiles.push({
+        fileId: storedOutput.id,
+        locale: targetLocale,
+        filename: outputFilename,
+      });
     }
-    if (failedLocales.length > 0)
-      throw new Error(`translation failed for locales: ${failedLocales.join(",")}`);
+
+    if (missingLocales.length > 0) {
+      const failedKinds = new Map(runFailures.map((f) => [f.locale, f.kind]));
+      throw new Error(
+        `translation failed for locales: ${missingLocales
+          .map((locale) => `${locale}(${failedKinds.get(locale) ?? "missing_output"})`)
+          .join(",")}`,
+      );
+    }
 
     await completeFileTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       outputFiles,
+      tokenUsage: cliTokenUsage,
     });
 
     return outputFiles;
@@ -1350,6 +1571,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
       error: reason,
     });
+    await releaseSandboxTranslationCreditStep({
+      jobId: claim.job.id,
+      reason: "file_translation_failed",
+    });
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
@@ -1359,10 +1584,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     });
     throw error;
   } finally {
-    try {
-      if (sandboxId) await stopSandboxStep(sandboxId);
-    } catch {
-      console.warn("[file-translation-workflow] sandbox cleanup failed", { jobId: claim.job.id });
+    if (sandboxId) {
+      await stopSandboxStep(sandboxId);
     }
   }
 }
