@@ -291,7 +291,10 @@ export async function trackAiCreditUsageInAutumn(input: {
       input.credentialSource === "byok"
         ? 0
         : (input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd);
-    if (estimatedAmountUsd == null || (input.credentialSource === "gateway" && estimatedAmountUsd <= 0)) {
+    if (
+      estimatedAmountUsd == null ||
+      (input.credentialSource === "gateway" && estimatedAmountUsd <= 0)
+    ) {
       return err({
         code: "ai_credit_pricing_not_configured",
         surface: input.source,
@@ -302,21 +305,21 @@ export async function trackAiCreditUsageInAutumn(input: {
     let reservation = existingReservation;
     if (!reservation) {
       const reservationResult = await reserveManagedAiCredit({
-          organizationId: input.organizationId,
-          operationKey,
-          source: input.source,
-          modelId: input.modelId,
-          credentialSource: input.credentialSource,
-          estimatedAmountUsd,
-          jobId: input.jobId,
-          interactionId: input.interactionId,
-          mode: pricingConfig.mode,
-          autumnApiKey: input.autumnApiKey,
-          dimensions: {
-            autumn_event_name: "ai_tokens.consumed",
-            parent_operation_key: input.parentOperationKey,
-          },
-        });
+        organizationId: input.organizationId,
+        operationKey,
+        source: input.source,
+        modelId: input.modelId,
+        credentialSource: input.credentialSource,
+        estimatedAmountUsd,
+        jobId: input.jobId,
+        interactionId: input.interactionId,
+        mode: pricingConfig.mode,
+        autumnApiKey: input.autumnApiKey,
+        dimensions: {
+          autumn_event_name: "ai_tokens.consumed",
+          parent_operation_key: input.parentOperationKey,
+        },
+      });
       if (!reservationResult.ok) return reservationResult;
       reservation = reservationResult.value;
     }
