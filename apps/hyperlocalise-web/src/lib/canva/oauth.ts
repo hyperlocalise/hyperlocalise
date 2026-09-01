@@ -89,8 +89,9 @@ function constantTimeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+/** Keyed digest for 256-bit random OAuth codes and tokens, not user passwords. */
 export function hashCanvaOauthSecret(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return createHmac("sha256", getOauthSecret()).update(value).digest("hex");
 }
 
 export function generateCanvaOauthAccessToken(): string {
