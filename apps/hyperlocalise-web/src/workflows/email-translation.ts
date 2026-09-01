@@ -17,11 +17,14 @@ import {
   resolveSandboxTranslationEnv,
   type SandboxByokCredential,
 } from "@/lib/translation/sandbox-llm";
+import type { CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
   markEmailTranslationJobRunning,
   markEmailTranslationJobSucceeded,
+  releaseSandboxTranslationCreditStep,
+  reserveSandboxTranslationCreditStep,
 } from "./steps/translation-job";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -148,10 +151,12 @@ async function runTranslationCommand(
   targetLocale: string,
   instructions: string | null,
   jobId: string,
-): Promise<{ exitCode: number; output: string }> {
+): Promise<{ exitCode: number; output: string; tokenUsage: CliTokenUsage | null }> {
   "use step";
 
-  const { sandboxI18nConfigPath } = await import("@/lib/translation/sandbox");
+  const { readSandboxCliTokenUsage, sandboxI18nConfigPath } =
+    await import("@/lib/translation/sandbox");
+  const { appendHlRunReportOutput } = await import("@/lib/translation/cli-token-usage");
   const { loadSandboxByokCredentialForJob } = await import("@/lib/translation/sandbox-byok");
   const byok = await loadSandboxByokCredentialForJob(jobId);
   const config = buildTempConfig(
@@ -164,17 +169,23 @@ async function runTranslationCommand(
   );
   await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
-  return runSandboxCommand(
+  const reportPath = `/tmp/hl-run-report-${crypto.randomUUID()}.json`;
+  const result = await runSandboxCommand(
     sandboxId,
     "bash",
     [
       "-lc",
-      `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+      appendHlRunReportOutput(
+        `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+        reportPath,
+      ),
     ],
     {
       env: getSandboxTranslationEnv(byok),
     },
   );
+  const tokenUsage = await readSandboxCliTokenUsage(sandboxId, reportPath);
+  return { ...result, tokenUsage };
 }
 
 async function readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
@@ -379,6 +390,20 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
   const { workflowRunId } = getWorkflowMetadata();
   const attachment = firstTaskAttachment(task);
   const { sourceLocale, targetLocale, instructions } = task.parameters.translate;
+  const creditReservation = await reserveSandboxTranslationCreditStep({
+    jobId: task.jobId,
+    source: "email_translation_job_complete",
+    surface: "email_translation",
+  });
+  if (creditReservation && !creditReservation.ok) {
+    await markEmailTranslationJobFailed({
+      jobId: task.jobId,
+      workflowRunId,
+      reason: creditReservation.error.code,
+    });
+    throw new Error(creditReservation.error.code);
+  }
+
   const { sandboxId } = await createTranslationSandbox();
   const inputFile = getSandboxInputFilename(attachment.filename);
   const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
@@ -411,6 +436,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
       sourceFilename: attachment.filename,
       outputFilename: outputFile,
       targetLocale,
+      tokenUsage: translation.tokenUsage,
     });
   } catch (error) {
     const reason = userFacingFailureReason(error);
@@ -419,6 +445,10 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     } catch {
       // Best-effort notification; keep the original workflow error.
     }
+    await releaseSandboxTranslationCreditStep({
+      jobId: task.jobId,
+      reason: "email_translation_failed",
+    });
     await markEmailTranslationJobFailed({ jobId: task.jobId, workflowRunId, reason });
     throw error;
   } finally {

@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
+import type { CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -88,12 +89,64 @@ export async function markEmailTranslationJobRunning(input: {
   }
 }
 
+export async function reserveSandboxTranslationCreditStep(input: {
+  organizationId?: string;
+  jobId: string;
+  source: string;
+  surface: string;
+}) {
+  "use step";
+  const { eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database/client");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const { sandboxTranslationBillingMetadata } = await import("@/lib/translation/cli-token-usage");
+  const { reserveSandboxTranslationAiCredit } = await import(
+    "@/lib/billing/sandbox-translation-credit"
+  );
+
+  let organizationId = input.organizationId;
+  if (!organizationId) {
+    const [job] = await db
+      .select({ organizationId: schema.jobs.organizationId })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, input.jobId))
+      .limit(1);
+    organizationId = job?.organizationId;
+  }
+  if (!organizationId) {
+    throw new Error(`translation job ${input.jobId} has no organization for AI credit reservation`);
+  }
+
+  const byok = await loadSandboxByokCredential(organizationId);
+  const billing = sandboxTranslationBillingMetadata(byok);
+  return reserveSandboxTranslationAiCredit({
+    organizationId,
+    jobId: input.jobId,
+    source: input.source,
+    surface: input.surface,
+    modelId: billing.modelId,
+    credentialSource: billing.credentialSource,
+  });
+}
+
+export async function releaseSandboxTranslationCreditStep(input: {
+  jobId: string;
+  reason: string;
+}) {
+  "use step";
+  const { releaseSandboxTranslationAiCredit } = await import(
+    "@/lib/billing/sandbox-translation-credit"
+  );
+  await releaseSandboxTranslationAiCredit(input);
+}
+
 export async function markEmailTranslationJobSucceeded(input: {
   jobId: string;
   workflowRunId: string;
   sourceFilename: string;
   outputFilename: string;
   targetLocale: string;
+  tokenUsage?: CliTokenUsage | null;
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
@@ -138,16 +191,32 @@ export async function markEmailTranslationJobSucceeded(input: {
 
   const { completeAndTrackBillableUsage, formatUsageControlError } =
     await import("@/lib/billing/usage-control");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
+  const { releaseSandboxTranslationAiCredit } = await import(
+    "@/lib/billing/sandbox-translation-credit"
+  );
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
+  const byok = await loadSandboxByokCredential(succeededJob.organizationId);
+  const billedTokenUsage = withCliBillingMetadata(input.tokenUsage, byok);
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: succeededJob.organizationId,
     operationKey,
     autumnEventName: "translation_job.completed",
     unit: "job",
+    tokenUsage: billedTokenUsage,
+    aiCreditModelId: billedTokenUsage?.modelId,
+    aiCreditCredentialSource: billedTokenUsage?.credentialSource,
     jobId: input.jobId,
     aiCreditSource: "email_translation_job_complete",
   });
+  if (!billedTokenUsage) {
+    await releaseSandboxTranslationAiCredit({
+      jobId: input.jobId,
+      reason: "no_cli_token_usage",
+    });
+  }
 
   if (isErr(trackUsageResult)) {
     console.error("[email-translation-job] Autumn usage tracking failed after job succeeded", {
@@ -459,6 +528,7 @@ export async function completeFileTranslationJobStep(input: {
   projectId: string;
   workflowRunId: string;
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
+  tokenUsage?: CliTokenUsage | null;
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
@@ -505,6 +575,11 @@ export async function completeFileTranslationJobStep(input: {
 
   const { completeAndTrackBillableUsage, formatUsageControlError } =
     await import("@/lib/billing/usage-control");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
+  const { releaseSandboxTranslationAiCredit } = await import(
+    "@/lib/billing/sandbox-translation-credit"
+  );
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const [jobForUsage] = await db
@@ -516,14 +591,25 @@ export async function completeFileTranslationJobStep(input: {
     throw new Error(`translation job ${input.jobId} has no organization for usage tracking`);
   }
 
+  const byok = await loadSandboxByokCredential(jobForUsage.organizationId);
+  const billedTokenUsage = withCliBillingMetadata(input.tokenUsage, byok);
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: jobForUsage.organizationId,
     operationKey,
     autumnEventName: "translation_job.completed",
     unit: "job",
+    tokenUsage: billedTokenUsage,
+    aiCreditModelId: billedTokenUsage?.modelId,
+    aiCreditCredentialSource: billedTokenUsage?.credentialSource,
     jobId: input.jobId,
     aiCreditSource: "translation_job_complete",
   });
+  if (!billedTokenUsage) {
+    await releaseSandboxTranslationAiCredit({
+      jobId: input.jobId,
+      reason: "no_cli_token_usage",
+    });
+  }
 
   if (isErr(trackUsageResult)) {
     console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {

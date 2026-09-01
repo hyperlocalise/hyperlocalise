@@ -324,6 +324,9 @@ async function trackCompletedAgentRunUsage(input: {
           inputTokens: tokenUsage.inputTokens,
           outputTokens: tokenUsage.outputTokens,
           totalTokens: tokenUsage.totalTokens,
+          cacheReadTokens: tokenUsage.cacheReadTokens,
+          cacheWriteTokens: tokenUsage.cacheWriteTokens,
+          reasoningTokens: tokenUsage.reasoningTokens,
         }
       : null,
     aiCreditModelId: tokenUsage?.modelId,
@@ -353,19 +356,30 @@ function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefi
     inputTokens?: unknown;
     outputTokens?: unknown;
     totalTokens?: unknown;
+    cacheReadTokens?: unknown;
+    cacheWriteTokens?: unknown;
+    reasoningTokens?: unknown;
     modelId?: unknown;
     credentialSource?: unknown;
   };
   const inputTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
   const outputTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
+  const cacheReadTokens = typeof usage.cacheReadTokens === "number" ? usage.cacheReadTokens : 0;
+  const cacheWriteTokens = typeof usage.cacheWriteTokens === "number" ? usage.cacheWriteTokens : 0;
+  const reasoningTokens = typeof usage.reasoningTokens === "number" ? usage.reasoningTokens : 0;
   const totalTokens =
-    typeof usage.totalTokens === "number" ? usage.totalTokens : inputTokens + outputTokens;
+    typeof usage.totalTokens === "number"
+      ? usage.totalTokens
+      : inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens + reasoningTokens;
 
   if (totalTokens <= 0) return null;
   return {
     inputTokens,
     outputTokens,
     totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
     ...(typeof usage.modelId === "string" ? { modelId: usage.modelId } : {}),
     ...(usage.credentialSource === "gateway" || usage.credentialSource === "byok"
       ? { credentialSource: usage.credentialSource as "gateway" | "byok" }

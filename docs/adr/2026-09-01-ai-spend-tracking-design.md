@@ -72,3 +72,21 @@ reservations:
 before dispatch. A timeout or process interruption must not be retried automatically.
 Reconcile the event using its operation key and provider generation reference before
 resubmission.
+
+## CLI and sandbox translation
+
+Local `hl run` on a user's machine stays display-only. The CLI writes token totals to
+`--output` JSON; those totals are not sent to Autumn.
+
+Managed cloud sandbox translation bills the same `ai_tokens` credit as web chat:
+
+1. File, email, and provider-agent file workflows append `--output` / `--output-detail summary`
+   to `hl run` and parse the report after the process exits.
+2. Shadow and enforced modes reserve `job:{id}:translation_jobs:ai_tokens` before the sandbox
+   starts. Failure or a missing report releases the reservation.
+3. Completion still meters `translation_jobs` (one job). When the CLI report has tokens,
+   `completeAndTrackBillableUsage` also settles `ai_tokens` through `trackTokens`.
+4. Organization-provided sandbox credentials (BYOK) record `$0` and skip the Autumn debit.
+
+Image and video file jobs do not use CLI token reports. They keep the existing media
+credit paths.

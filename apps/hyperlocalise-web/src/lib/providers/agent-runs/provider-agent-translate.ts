@@ -650,6 +650,9 @@ export async function executeProviderAgentTranslation(input: {
         translationMode: "file",
         targetLocales: filteredContent.targetLocales,
         sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
+        ...(fileTranslationResult.tokenUsage
+          ? { tokenUsage: fileTranslationResult.tokenUsage }
+          : {}),
         ...pullDiagnosticsSummary,
       },
       changedItems: fileTranslationResult.changedItems,

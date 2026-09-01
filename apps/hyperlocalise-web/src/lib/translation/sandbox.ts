@@ -27,6 +27,11 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { translationPromptPolicy } from "@/lib/translation/generation";
+import {
+  appendHlRunReportOutput,
+  parseCliTokenUsage,
+  type CliTokenUsage,
+} from "@/lib/translation/cli-token-usage";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import {
   hlEntriesPayloadToStringMap,
@@ -41,6 +46,7 @@ export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
  *  Reserved name so a user source named i18n.yml is not overwritten. */
 export const sandboxI18nConfigPath = ".hl-sandbox-i18n.yml";
 export const sandboxFileBucketName = "file";
+export const sandboxCliReportPath = "/tmp/hl-run-report.json";
 
 export type { SandboxTranslationContext };
 
@@ -822,7 +828,7 @@ export class HyperlocaliseCliRunner {
     sourceLocale: string | null,
     targetLocale: string,
     instructions: string | null,
-  ): Promise<{ exitCode: number; output: string }> {
+  ): Promise<{ exitCode: number; output: string; tokenUsage: CliTokenUsage | null }> {
     const config = this.configBuilder.build(
       inputFile,
       outputFile,
@@ -832,15 +838,29 @@ export class HyperlocaliseCliRunner {
     );
     await this.writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
-    return this.lifecycle.runCommand(
+    const result = await this.lifecycle.runCommand(
       sandboxId,
       "bash",
       [
         "-lc",
-        `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+        appendHlRunReportOutput(
+          `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+          sandboxCliReportPath,
+        ),
       ],
       { env: getSandboxTranslationEnv() },
     );
+    const tokenUsage = await this.readCliTokenUsage(sandboxId, sandboxCliReportPath);
+    return { ...result, tokenUsage };
+  }
+
+  async readCliTokenUsage(sandboxId: string, reportPath: string): Promise<CliTokenUsage | null> {
+    try {
+      const content = await this.lifecycle.readFile(sandboxId, reportPath);
+      return parseCliTokenUsage(JSON.parse(content.toString("utf8")));
+    } catch {
+      return null;
+    }
   }
 
   async readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
@@ -1070,6 +1090,10 @@ export async function runTranslationCommand(
     targetLocale,
     instructions,
   );
+}
+
+export async function readSandboxCliTokenUsage(sandboxId: string, reportPath: string) {
+  return defaultRunner.readCliTokenUsage(sandboxId, reportPath);
 }
 
 export async function readTranslatedFile(sandboxId: string, outputFile: string) {
