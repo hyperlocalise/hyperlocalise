@@ -31,10 +31,20 @@ import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-i
 import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
+import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
+import { healthRoutes } from "./routes/health";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
+import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
+import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
 import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
+import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
+import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
+import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
+import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
+import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
@@ -45,7 +55,6 @@ import {
 } from "@/workflows/adapters";
 import type { LocalisationAuditQueue } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
-import { createInternalRoutes, createWebhookRoutes } from "./app-shared-routes";
 
 export type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
@@ -70,48 +79,78 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
 
-  let app: Hono<EvlogVariables> = new Hono<EvlogVariables>();
-  app = app.use("*", secureHeaders());
-  app = app.use("*", evlog());
-  app = app.basePath("/api");
-  app = app.onError(handleUnexpectedError);
-  app = app.notFound(notFoundHandler);
-  app = app.route("/", createInternalRoutes());
-  app = app.route("/auth", createAuthRoutes());
-  app = app.route("/autumn", createAutumnRoutes());
-  app = app.route("/blog", createBlogOgImageRoutes());
-  app = app.route(
-    "/localisation-audit",
-    createLocalisationAuditRoutes({
-      localisationAuditQueue: options.localisationAuditQueue ?? createLocalisationAuditQueue(),
-    }),
-  );
-  app = app.route(
-    "/orgs/:organizationSlug",
-    createOrgScopedAppRoutes({
-      ...options,
-      jobQueue,
-      providerAgentTranslationQueue,
-      providerAgentQaQueue,
-      providerAgentCommentQueue,
-      providerAgentWritebackQueue,
-    }),
-  );
-  app = app.route("/v1", createPublicApiRoutes({ ...options, jobQueue }));
-  app = app.route(
-    "/public/media",
-    createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-  );
-  app = app.route(
-    "/public/web-chat",
-    createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-  );
-  app = app.route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }));
-  app = app.route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }));
-  app = app.route("/crowdin-app", createCrowdinAppRoutes());
-  app = app.route("/webhooks", createWebhookRoutes(options));
-  app = app.route("/oauth/canva", createCanvaOauthRoutes());
-  return app;
+  return new Hono<EvlogVariables>()
+    .use("*", secureHeaders())
+    .use("*", evlog())
+    .basePath("/api")
+    .onError(handleUnexpectedError)
+    .notFound(notFoundHandler)
+    .route("/", createInternalRoutes())
+    .route("/auth", createAuthRoutes())
+    .route("/autumn", createAutumnRoutes())
+    .route("/blog", createBlogOgImageRoutes())
+    .route(
+      "/localisation-audit",
+      createLocalisationAuditRoutes({
+        localisationAuditQueue: options.localisationAuditQueue ?? createLocalisationAuditQueue(),
+      }),
+    )
+    .route(
+      "/orgs/:organizationSlug",
+      createOrgScopedAppRoutes({
+        ...options,
+        jobQueue,
+        providerAgentTranslationQueue,
+        providerAgentQaQueue,
+        providerAgentCommentQueue,
+        providerAgentWritebackQueue,
+      }),
+    )
+    .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route(
+      "/public/media",
+      createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
+    .route(
+      "/public/web-chat",
+      createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
+    .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/crowdin-app", createCrowdinAppRoutes())
+    .route("/webhooks", createWebhookRoutes(options))
+    .route("/oauth/canva", createCanvaOauthRoutes());
 }
 
 export const app = createApp();
+
+function createInternalRoutes() {
+  return new Hono()
+    .route("/health", healthRoutes)
+    .route(
+      "/cron/github-repository-automation-dispatch",
+      createGithubRepositoryAutomationDispatchRoutes(),
+    )
+    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
+    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
+}
+
+function createWebhookRoutes(options: CreateAppOptions) {
+  return new Hono()
+    .route(
+      "/github",
+      createGithubWebhookRoutes({
+        githubWebhookHandler: options.githubWebhookHandler,
+      }),
+    )
+    .route("/workos", workosWebhookRoutes)
+    .route(
+      "/resend",
+      createResendWebhookRoutes({
+        emailAgentTaskQueue: options.emailAgentTaskQueue,
+      }),
+    )
+    .route("/contentful", createContentfulWebhookRoutes())
+    .route("/slack", createSlackWebhookRoutes());
+}

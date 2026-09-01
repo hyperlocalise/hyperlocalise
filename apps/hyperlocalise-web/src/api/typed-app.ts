@@ -34,7 +34,16 @@ import {
 } from "@/workflows/adapters";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 import type { CreateAppOptions } from "./app";
-import { createInternalRoutes, createWebhookRoutes } from "./app-shared-routes";
+import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
+import { healthRoutes } from "./routes/health";
+import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
+import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
+import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
+import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
+import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
+import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
+import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
 
 /**
  * Chained Hono schema for `testClient`. Keep this out of Next's typecheck
@@ -95,3 +104,34 @@ export function createTypedApp(options: CreateAppOptions = {}) {
 }
 
 export type AppType = ReturnType<typeof createTypedApp>;
+
+function createInternalRoutes() {
+  return new Hono()
+    .route("/health", healthRoutes)
+    .route(
+      "/cron/github-repository-automation-dispatch",
+      createGithubRepositoryAutomationDispatchRoutes(),
+    )
+    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
+    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
+}
+
+function createWebhookRoutes(options: CreateAppOptions) {
+  return new Hono()
+    .route(
+      "/github",
+      createGithubWebhookRoutes({
+        githubWebhookHandler: options.githubWebhookHandler,
+      }),
+    )
+    .route("/workos", workosWebhookRoutes)
+    .route(
+      "/resend",
+      createResendWebhookRoutes({
+        emailAgentTaskQueue: options.emailAgentTaskQueue,
+      }),
+    )
+    .route("/contentful", createContentfulWebhookRoutes())
+    .route("/slack", createSlackWebhookRoutes());
+}
