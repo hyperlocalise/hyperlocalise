@@ -154,37 +154,37 @@ export const agentIntegrationsSectionMessages = defineMessages({
   },
   guidelinesCategory: {
     defaultMessage: "Guidelines",
-    id: "kG7nQw2pLm",
+    id: "kg1/W3O+Sr",
     description: "Integrations page section heading for guideline source connectors",
   },
   googleDriveName: {
     defaultMessage: "Google Drive",
-    id: "rT4vBn8xCq",
+    id: "EQ48eGG7/X",
     description: "Google Drive integration name on the integrations page",
   },
   googleDriveDescription: {
     defaultMessage: "Import brand guidelines and style docs from Google Drive.",
-    id: "wP9sHj3kLm",
+    id: "EgJBlBjf3r",
     description: "Google Drive integration description on the integrations page",
   },
   sharepointName: {
     defaultMessage: "SharePoint",
-    id: "nF2cYd7uVa",
+    id: "LxzxKCrG8Q",
     description: "SharePoint integration name on the integrations page",
   },
   sharepointDescription: {
     defaultMessage: "Import localization guidance from SharePoint.",
-    id: "qL6mXt1zRe",
+    id: "YgXBEI+WDA",
     description: "SharePoint integration description on the integrations page",
   },
   notionName: {
     defaultMessage: "Notion",
-    id: "bH8pKw5sNd",
+    id: "geRgaRor6g",
     description: "Notion integration name on the integrations page",
   },
   notionDescription: {
     defaultMessage: "Import style guides and market notes from Notion.",
-    id: "cV3jRa0yTf",
+    id: "m9ESiA+Ppw",
     description: "Notion integration description on the integrations page",
   },
 });
