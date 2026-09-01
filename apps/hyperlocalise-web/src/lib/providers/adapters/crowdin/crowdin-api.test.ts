@@ -632,6 +632,147 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("lists directories with pagination across offset pages", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (path.includes("offset=0")) {
+        return new Response(
+          JSON.stringify({
+            data: Array.from({ length: 500 }, (_, index) => ({
+              data: {
+                id: index + 1,
+                branchId: 10,
+                directoryId: null,
+                name: `dir-${index + 1}`,
+                title: null,
+                exportPattern: null,
+                path: `/dir-${index + 1}`,
+              },
+            })),
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("offset=500")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 501,
+                  branchId: 10,
+                  directoryId: null,
+                  name: "page-two",
+                  title: "Page Two",
+                  exportPattern: null,
+                  path: "/page-two",
+                },
+              },
+            ],
+            pagination: { offset: 500, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`unexpected directories url ${path}`);
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const directories = await client.listDirectories(1, 10);
+
+    expect(directories).toHaveLength(501);
+    expect(directories[500]).toMatchObject({ id: 501, name: "page-two", path: "/page-two" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.crowdin.test/api/v2/projects/1/directories?limit=500&offset=0&branchId=10",
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.crowdin.test/api/v2/projects/1/directories?limit=500&offset=500&branchId=10",
+      expect.anything(),
+    );
+  });
+
+  it("lists files with pagination across offset pages", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (path.includes("offset=0")) {
+        return new Response(
+          JSON.stringify({
+            data: Array.from({ length: 500 }, (_, index) => ({
+              data: {
+                id: index + 1,
+                branchId: 10,
+                directoryId: 2,
+                name: `file-${index + 1}.json`,
+                title: null,
+                type: "json",
+                path: `/locales/en/file-${index + 1}.json`,
+                status: "active",
+                revisionId: 1,
+              },
+            })),
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("offset=500")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 501,
+                  branchId: 10,
+                  directoryId: 2,
+                  name: "page-two.json",
+                  title: "Page Two",
+                  type: "json",
+                  path: "/locales/en/page-two.json",
+                  status: "active",
+                  revisionId: 2,
+                },
+              },
+            ],
+            pagination: { offset: 500, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`unexpected files url ${path}`);
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const files = await client.listFiles(1, 10, 2);
+
+    expect(files).toHaveLength(501);
+    expect(files[500]).toMatchObject({
+      id: 501,
+      name: "page-two.json",
+      path: "/locales/en/page-two.json",
+      revisionId: 2,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/\/projects\/1\/files\?.*offset=0.*branchId=10.*directoryId=2/),
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/\/projects\/1\/files\?.*offset=500/),
+      expect.anything(),
+    );
+  });
+
   it("lists file revisions", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

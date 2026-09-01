@@ -108,6 +108,92 @@ func TestListProjectSourceStringsFiltersByFilePath(t *testing.T) {
 	}
 }
 
+func TestListProjectSourceStringsPaginates(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/strings", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{
+						"id":         i,
+						"identifier": "key",
+						"text":       "Hello",
+					},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{
+						"id":         501,
+						"identifier": "page-two",
+						"text":       "Page two",
+						"fileId":     17,
+						"branchId":   42,
+					}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected strings query %q", r.URL.RawQuery)
+		}
+	})
+
+	got, err := client.ListProjectSourceStrings(context.Background(), ListSourceStringsInput{ProjectID: "123"})
+	if err != nil {
+		t.Fatalf("list source strings: %v", err)
+	}
+	if len(got) != pageLimit+1 {
+		t.Fatalf("strings len=%d, want %d", len(got), pageLimit+1)
+	}
+	last := got[pageLimit]
+	if last.ID != 501 || last.Identifier != "page-two" || last.Text != "Page two" || last.FileID != 17 || last.BranchID != 42 {
+		t.Fatalf("last string = %#v", last)
+	}
+}
+
+func TestListProjectSourceStringsFiltersByBranch(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/branches", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/branches?limit=500&name=feature%2Flogin")
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{"id": 42, "name": "feature/login"}},
+			},
+		})
+	})
+	mux.HandleFunc("/api/v2/projects/123/strings", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/strings?branchId=42&limit=500")
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{
+					"id":         9,
+					"identifier": "hello",
+					"text":       "Hello",
+					"branchId":   42,
+				}},
+			},
+		})
+	})
+
+	got, err := client.ListProjectSourceStrings(context.Background(), ListSourceStringsInput{
+		ProjectID: "123",
+		Branch:    "feature/login",
+	})
+	if err != nil {
+		t.Fatalf("list source strings: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != 9 || got[0].BranchID != 42 {
+		t.Fatalf("strings = %#v", got)
+	}
+}
+
 func TestResolveProjectFileMatchesNormalizedPath(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()

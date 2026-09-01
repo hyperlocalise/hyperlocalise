@@ -459,3 +459,181 @@ func TestListProjectFilesDedupesNestedDuplicates(t *testing.T) {
 		t.Fatalf("files = %#v, want %#v", got, want)
 	}
 }
+
+func TestListProjectFilesPaginatesRootFiles(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{
+						"id":   i,
+						"name": "file.json",
+						"path": "/file.json",
+					},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{
+						"id":   501,
+						"name": "page-two.json",
+						"path": "/page-two.json",
+					}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected files query %q", r.URL.RawQuery)
+		}
+	})
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery != "limit=500" {
+			t.Fatalf("unexpected directories query %q", r.URL.RawQuery)
+		}
+		writeJSON(t, w, map[string]any{"data": []any{}})
+	})
+
+	got, err := client.ListProjectFiles(context.Background(), "123", "")
+	if err != nil {
+		t.Fatalf("list files: %v", err)
+	}
+	if len(got) != pageLimit+1 {
+		t.Fatalf("files len=%d, want %d", len(got), pageLimit+1)
+	}
+	if got[pageLimit] != (ProjectFile{ID: 501, Name: "page-two.json", Path: "/page-two.json"}) {
+		t.Fatalf("last file = %#v", got[pageLimit])
+	}
+}
+
+func TestListProjectFilesPaginatesDirectoriesAndNestedFiles(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			writeJSON(t, w, map[string]any{"data": []any{}})
+		case "directoryId=501&limit=500&recursion=true":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{
+						"id":   1000 + i,
+						"name": "nested.json",
+						"path": "/page-two/nested.json",
+					},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "directoryId=501&limit=500&offset=500&recursion=true":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{
+						"id":   2001,
+						"name": "deep-page-two.json",
+						"path": "/page-two/deep-page-two.json",
+					}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected files query %q", r.URL.RawQuery)
+		}
+	})
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "limit=500":
+			// Branch directories are skipped by ListProjectFiles; fill page 1 so
+			// pagination must continue without nested file lookups.
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{
+						"id":       i,
+						"name":     "branch-dir",
+						"path":     "/branch-dir",
+						"branchId": 99,
+					},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "limit=500&offset=500":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{"id": 501, "name": "page-two", "path": "/page-two"}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected directories query %q", r.URL.RawQuery)
+		}
+	})
+
+	got, err := client.ListProjectFiles(context.Background(), "123", "")
+	if err != nil {
+		t.Fatalf("list files: %v", err)
+	}
+	if len(got) != pageLimit+1 {
+		t.Fatalf("files len=%d, want %d", len(got), pageLimit+1)
+	}
+	if got[pageLimit] != (ProjectFile{ID: 2001, Name: "deep-page-two.json", Path: "/page-two/deep-page-two.json"}) {
+		t.Fatalf("last nested file = %#v", got[pageLimit])
+	}
+}
+
+func TestListProjectFilesPaginatesBranchFiles(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/branches", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/branches?limit=500&name=feature%2Flogin")
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{"id": 42, "name": "feature/login"}},
+			},
+		})
+	})
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.RawQuery {
+		case "branchId=42&limit=500&recursion=true":
+			rows := make([]any, 0, pageLimit)
+			for i := 1; i <= pageLimit; i++ {
+				rows = append(rows, map[string]any{
+					"data": map[string]any{
+						"id":   i,
+						"name": "branch.json",
+						"path": "/branch.json",
+					},
+				})
+			}
+			writeJSON(t, w, map[string]any{"data": rows})
+		case "branchId=42&limit=500&offset=500&recursion=true":
+			writeJSON(t, w, map[string]any{
+				"data": []any{
+					map[string]any{"data": map[string]any{
+						"id":   501,
+						"name": "branch-page-two.json",
+						"path": "/branch-page-two.json",
+					}},
+				},
+			})
+		default:
+			t.Fatalf("unexpected files query %q", r.URL.RawQuery)
+		}
+	})
+
+	got, err := client.ListProjectFiles(context.Background(), "123", "feature/login")
+	if err != nil {
+		t.Fatalf("list files: %v", err)
+	}
+	if len(got) != pageLimit+1 {
+		t.Fatalf("files len=%d, want %d", len(got), pageLimit+1)
+	}
+	if got[pageLimit] != (ProjectFile{ID: 501, Name: "branch-page-two.json", Path: "/branch-page-two.json"}) {
+		t.Fatalf("last branch file = %#v", got[pageLimit])
+	}
+}
