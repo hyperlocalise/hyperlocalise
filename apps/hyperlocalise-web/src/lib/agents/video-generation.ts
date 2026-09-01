@@ -13,9 +13,21 @@
 import { experimental_generateVideo as generateVideo } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
+import {
+  ManagedAiCreditAccessError,
+  releaseManagedAiCredit,
+  reserveManagedAiCredit,
+  settleManagedAiCredit,
+} from "@/lib/billing/managed-ai-credit";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
 import { getManagedVideoModel, hyperlocaliseVideoModelId } from "@/lib/providers/language-model";
 
 export { hyperlocaliseVideoModelId };
+
+const DEFAULT_VIDEO_DURATION_SECONDS = 5;
 
 export type VideoGenerationResult = {
   video: Buffer;
@@ -77,8 +89,13 @@ function wrapVideoGenerationError(error: unknown): VideoLocalizationError {
 async function generateVideoFromPrompt(
   videoBuffer: Buffer,
   prompt: string,
-  durationSeconds?: number,
-): Promise<{ video: Buffer; mimeType: string }> {
+  durationSeconds: number,
+): Promise<{
+  video: Buffer;
+  mimeType: string;
+  durationSeconds: number;
+  providerGenerationId?: string;
+}> {
   const model = getVideoModel();
   const result = await generateVideo({
     model,
@@ -86,7 +103,7 @@ async function generateVideoFromPrompt(
     inputReferences: [{ data: videoBuffer, mediaType: "video/mp4" }],
     aspectRatio: "adaptive",
     generateAudio: true,
-    ...(durationSeconds != null ? { duration: durationSeconds } : {}),
+    duration: durationSeconds,
     providerOptions: {
       bytedance: {
         pollTimeoutMs: 600_000,
@@ -102,6 +119,11 @@ async function generateVideoFromPrompt(
   return {
     video: Buffer.from(generatedVideo.uint8Array),
     mimeType: generatedVideo.mediaType || "video/mp4",
+    durationSeconds,
+    providerGenerationId:
+      typeof result.providerMetadata?.gateway?.asyncJob?.jobId === "string"
+        ? result.providerMetadata.gateway.asyncJob.jobId
+        : undefined,
   };
 }
 
@@ -125,29 +147,105 @@ export async function regenerateVideoFromAttachment(
     );
   }
 
+  const normalizedDurationSeconds = durationSeconds ?? DEFAULT_VIDEO_DURATION_SECONDS;
   const run = async () => {
     try {
-      const generated = await generateVideoFromPrompt(videoBuffer, prompt, durationSeconds);
-      return { ...generated, prompt };
+      const generated = await generateVideoFromPrompt(
+        videoBuffer,
+        prompt,
+        normalizedDurationSeconds,
+      );
+      return {
+        video: generated.video,
+        mimeType: generated.mimeType,
+        prompt,
+        billing: {
+          durationSeconds: generated.durationSeconds,
+          providerGenerationId: generated.providerGenerationId,
+        },
+      };
     } catch (error) {
       throw wrapVideoGenerationError(error);
     }
   };
 
   if (!billing) {
-    return run();
+    const result = await run();
+    return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
   }
 
-  return withAgentRuntimeUsageMetering({
-    organizationId: billing.organizationId,
-    operationKey: billing.operationKey,
-    source: billing.source ?? "video_localization",
-    interactionId: billing.interactionId,
-    dimensions: {
-      surface: "video",
-      agent_surface: "video_localization",
-      ...billing.dimensions,
-    },
-    run,
+  const source = billing.source ?? "video_localization";
+  const dimensions = {
+    surface: "video",
+    agent_surface: "video_localization",
+    ...billing.dimensions,
+  };
+  const execute = () =>
+    withAgentRuntimeUsageMetering({
+      organizationId: billing.organizationId,
+      operationKey: billing.operationKey,
+      source,
+      interactionId: billing.interactionId,
+      dimensions,
+      run,
+    });
+  const pricingConfig = getManagedAiPricingConfig();
+  if (pricingConfig.mode === "legacy") {
+    const result = await execute();
+    return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
+  }
+
+  const estimatedAmountUsd = managedAiReservationAmountUsd(pricingConfig, {
+    surface: "video",
+    durationSeconds: normalizedDurationSeconds,
   });
+  if (estimatedAmountUsd == null) {
+    throw new ManagedAiCreditAccessError({
+      code: "ai_credit_pricing_not_configured",
+      surface: "video",
+    });
+  }
+  const reservationResult = await reserveManagedAiCredit({
+    organizationId: billing.organizationId,
+    operationKey: `${billing.operationKey}:ai_tokens`,
+    source,
+    modelId: pricingConfig.videoModelId,
+    credentialSource: "gateway",
+    estimatedAmountUsd,
+    interactionId: billing.interactionId ?? undefined,
+    mode: pricingConfig.mode,
+    dimensions: {
+      ...dimensions,
+      provider_model_id: hyperlocaliseVideoModelId,
+      synthetic_unit: "video_second",
+      requested_duration_seconds: normalizedDurationSeconds,
+    },
+  });
+  if (!reservationResult.ok) {
+    throw new ManagedAiCreditAccessError(reservationResult.error);
+  }
+
+  try {
+    const result = await execute();
+    await settleManagedAiCredit({
+      reservation: reservationResult.value,
+      modelId: pricingConfig.videoModelId,
+      tokenUsage: {
+        inputTokens: 0,
+        outputTokens: result.billing.durationSeconds,
+        totalTokens: result.billing.durationSeconds,
+      },
+      providerGenerationId: result.billing.providerGenerationId,
+      shadowAmountUsd: pricingConfig.videoPriceUsdPerSecond
+        ? pricingConfig.videoPriceUsdPerSecond * result.billing.durationSeconds
+        : undefined,
+    });
+    return { video: result.video, mimeType: result.mimeType, prompt: result.prompt };
+  } catch (error) {
+    await releaseManagedAiCredit({
+      reservation: reservationResult.value,
+      reason: "video_generation_failed",
+    });
+    throw error;
+  }
 }

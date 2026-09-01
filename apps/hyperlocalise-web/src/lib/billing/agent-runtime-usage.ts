@@ -17,6 +17,7 @@ import {
   usageFeatureIds,
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
+import type { AiCreditCredentialSource } from "@/lib/billing/managed-ai-credit";
 import { serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -33,27 +34,84 @@ export function extractAiSdkTokenUsage(usage: unknown): AiTokenUsage | null {
 
   const raw = usage as {
     inputTokens?: unknown;
+    inputTokenDetails?: {
+      noCacheTokens?: unknown;
+      cacheReadTokens?: unknown;
+      cacheWriteTokens?: unknown;
+    };
     outputTokens?: unknown;
+    outputTokenDetails?: {
+      textTokens?: unknown;
+      reasoningTokens?: unknown;
+    };
     totalTokens?: unknown;
   };
-  const inputTokens = typeof raw.inputTokens === "number" ? raw.inputTokens : 0;
-  const outputTokens = typeof raw.outputTokens === "number" ? raw.outputTokens : 0;
+  const totalInputTokens = typeof raw.inputTokens === "number" ? raw.inputTokens : 0;
+  const cacheReadTokens =
+    typeof raw.inputTokenDetails?.cacheReadTokens === "number"
+      ? raw.inputTokenDetails.cacheReadTokens
+      : 0;
+  const cacheWriteTokens =
+    typeof raw.inputTokenDetails?.cacheWriteTokens === "number"
+      ? raw.inputTokenDetails.cacheWriteTokens
+      : 0;
+  const inputTokens =
+    typeof raw.inputTokenDetails?.noCacheTokens === "number"
+      ? raw.inputTokenDetails.noCacheTokens
+      : Math.max(0, totalInputTokens - cacheReadTokens - cacheWriteTokens);
+  const reasoningTokens =
+    typeof raw.outputTokenDetails?.reasoningTokens === "number"
+      ? raw.outputTokenDetails.reasoningTokens
+      : 0;
+  const totalOutputTokens = typeof raw.outputTokens === "number" ? raw.outputTokens : 0;
+  const outputTokens =
+    typeof raw.outputTokenDetails?.textTokens === "number"
+      ? raw.outputTokenDetails.textTokens
+      : Math.max(0, totalOutputTokens - reasoningTokens);
   const totalTokens =
-    typeof raw.totalTokens === "number" ? raw.totalTokens : inputTokens + outputTokens;
+    typeof raw.totalTokens === "number"
+      ? raw.totalTokens
+      : inputTokens + cacheReadTokens + cacheWriteTokens + outputTokens + reasoningTokens;
 
   if (totalTokens <= 0) {
     return null;
   }
 
-  return { inputTokens, outputTokens, totalTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+  };
 }
 
-/** Prefer totalUsage from multi-step ToolLoopAgent results, then usage. */
+/** Prefer AI SDK 7 `usage`, then its deprecated `totalUsage` alias. */
 export function extractGenerateResultTokenUsage(result: {
   totalUsage?: unknown;
   usage?: unknown;
 }): AiTokenUsage | null {
-  return extractAiSdkTokenUsage(result.totalUsage) ?? extractAiSdkTokenUsage(result.usage);
+  return extractAiSdkTokenUsage(result.usage) ?? extractAiSdkTokenUsage(result.totalUsage);
+}
+
+export function addAiTokenUsage(
+  first: AiTokenUsage | null | undefined,
+  second: AiTokenUsage | null | undefined,
+): AiTokenUsage | null {
+  if (!first) return second ?? null;
+  if (!second) return first;
+
+  return {
+    inputTokens: first.inputTokens + second.inputTokens,
+    outputTokens: first.outputTokens + second.outputTokens,
+    totalTokens: first.totalTokens + second.totalTokens,
+    cacheReadTokens: (first.cacheReadTokens ?? 0) + (second.cacheReadTokens ?? 0),
+    cacheWriteTokens: (first.cacheWriteTokens ?? 0) + (second.cacheWriteTokens ?? 0),
+    reasoningTokens: (first.reasoningTokens ?? 0) + (second.reasoningTokens ?? 0),
+    audioInputTokens: (first.audioInputTokens ?? 0) + (second.audioInputTokens ?? 0),
+    audioOutputTokens: (first.audioOutputTokens ?? 0) + (second.audioOutputTokens ?? 0),
+  };
 }
 
 export async function reserveAgentRuntimeUsage(input: {
@@ -101,6 +159,9 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   operationKey: string;
   dimensions?: AgentRuntimeUsageDimensions;
   tokenUsage?: AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditEstimatedAmountUsd?: number;
   interactionId?: string | null;
 }) {
   try {
@@ -111,6 +172,9 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       unit: "run",
       dimensions: input.dimensions,
       tokenUsage: input.tokenUsage ?? null,
+      aiCreditModelId: input.aiCreditModelId,
+      aiCreditCredentialSource: input.aiCreditCredentialSource,
+      aiCreditEstimatedAmountUsd: input.aiCreditEstimatedAmountUsd,
       interactionId: input.interactionId ?? undefined,
       aiCreditSource: "agent_runtime_complete",
     });
@@ -144,6 +208,9 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   dimensions?: AgentRuntimeUsageDimensions;
   run: () => Promise<T>;
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditEstimatedAmountUsd?: number;
 }): Promise<T> {
   await reserveAgentRuntimeUsage({
     organizationId: input.organizationId,
@@ -161,6 +228,9 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
     dimensions: input.dimensions,
     interactionId: input.interactionId,
     tokenUsage: input.extractTokenUsage?.(result) ?? null,
+    aiCreditModelId: input.aiCreditModelId,
+    aiCreditCredentialSource: input.aiCreditCredentialSource,
+    aiCreditEstimatedAmountUsd: input.aiCreditEstimatedAmountUsd,
   });
 
   return result;

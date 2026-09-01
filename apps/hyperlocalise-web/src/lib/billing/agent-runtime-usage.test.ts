@@ -55,6 +55,35 @@ describe("agent-runtime-usage", () => {
     });
   });
 
+  it("normalizes AI SDK 7 token details into exclusive Autumn pools", () => {
+    expect(
+      extractGenerateResultTokenUsage({
+        usage: {
+          inputTokens: 150,
+          inputTokenDetails: {
+            noCacheTokens: 100,
+            cacheReadTokens: 40,
+            cacheWriteTokens: 10,
+          },
+          outputTokens: 25,
+          outputTokenDetails: {
+            textTokens: 20,
+            reasoningTokens: 5,
+          },
+          totalTokens: 175,
+        },
+        totalUsage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      }),
+    ).toEqual({
+      inputTokens: 100,
+      outputTokens: 20,
+      cacheReadTokens: 40,
+      cacheWriteTokens: 10,
+      reasoningTokens: 5,
+      totalTokens: 175,
+    });
+  });
+
   it("fails open when reserving usage throws", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     reserveUsageEventMock.mockRejectedValue(new Error("database unavailable"));

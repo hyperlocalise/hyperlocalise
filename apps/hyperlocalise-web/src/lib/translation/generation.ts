@@ -19,6 +19,7 @@ import { db, schema } from "@/lib/database/client";
 import type { LlmProvider } from "@/lib/database/types";
 import {
   getManagedLanguageModel,
+  hyperlocaliseManagedGatewayModelId,
   resolveProviderLanguageModel,
 } from "@/lib/providers/language-model";
 import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
@@ -55,6 +56,11 @@ const tokenUsageSchema = z.object({
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative().optional(),
+  cacheWriteTokens: z.number().int().nonnegative().optional(),
+  reasoningTokens: z.number().int().nonnegative().optional(),
+  modelId: z.string().min(1).optional(),
+  credentialSource: z.enum(["gateway", "byok"]).optional(),
 });
 
 const contentEditorAiRecommendationOutputSchema = z.object({
@@ -305,19 +311,47 @@ function normalizeTranslations(
 
 function normalizeAiSdkTokenUsage(
   usage: unknown,
+  metadata?: {
+    modelId: string;
+    credentialSource: "gateway" | "byok";
+  },
 ): StringTranslationJobResult["tokenUsage"] | undefined {
   const rawUsage = usage as
     | {
         inputTokens?: number;
+        inputTokenDetails?: {
+          noCacheTokens?: number;
+          cacheReadTokens?: number;
+          cacheWriteTokens?: number;
+        };
         outputTokens?: number;
+        outputTokenDetails?: {
+          textTokens?: number;
+          reasoningTokens?: number;
+        };
         totalTokens?: number;
       }
     | undefined;
 
-  const inputTokens = rawUsage?.inputTokens ?? 0;
-  const outputTokens = rawUsage?.outputTokens ?? 0;
+  const cacheReadTokens = rawUsage?.inputTokenDetails?.cacheReadTokens ?? 0;
+  const cacheWriteTokens = rawUsage?.inputTokenDetails?.cacheWriteTokens ?? 0;
+  const inputTokens =
+    rawUsage?.inputTokenDetails?.noCacheTokens ??
+    Math.max(0, (rawUsage?.inputTokens ?? 0) - cacheReadTokens - cacheWriteTokens);
+  const reasoningTokens = rawUsage?.outputTokenDetails?.reasoningTokens ?? 0;
+  const outputTokens =
+    rawUsage?.outputTokenDetails?.textTokens ??
+    Math.max(0, (rawUsage?.outputTokens ?? 0) - reasoningTokens);
   const totalTokens = rawUsage?.totalTokens ?? inputTokens + outputTokens;
-  const parsedUsage = tokenUsageSchema.safeParse({ inputTokens, outputTokens, totalTokens });
+  const parsedUsage = tokenUsageSchema.safeParse({
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+    ...metadata,
+  });
 
   return parsedUsage.success ? parsedUsage.data : undefined;
 }
@@ -369,7 +403,11 @@ export class OrganizationModelResolver {
         ok: true as const,
         project: projectContext,
         model,
-        translateStringJob: createStringTranslationGenerator({ model }),
+        translateStringJob: createStringTranslationGenerator({
+          model,
+          modelId: loadedCredential.credential.model,
+          credentialSource: "byok",
+        }),
       };
     }
 
@@ -400,6 +438,10 @@ export class StringTranslationEngine {
   constructor(
     private readonly model: LanguageModel,
     private readonly promptPolicy = new TranslationPromptPolicy(),
+    private readonly billingMetadata?: {
+      modelId: string;
+      credentialSource: "gateway" | "byok";
+    },
   ) {}
 
   async translate(input: StringTranslationGeneratorInput): Promise<StringTranslationJobResult> {
@@ -430,7 +472,11 @@ export class StringTranslationEngine {
       ),
     });
 
-    return normalizeTranslations(input.jobInput, output, normalizeAiSdkTokenUsage(usage));
+    return normalizeTranslations(
+      input.jobInput,
+      output,
+      normalizeAiSdkTokenUsage(usage, this.billingMetadata),
+    );
   }
 }
 
@@ -498,8 +544,18 @@ export class ContentEditorRecommendationEngine {
 
 export function createStringTranslationGenerator(input: {
   model: LanguageModel;
+  modelId?: string;
+  credentialSource?: "gateway" | "byok";
 }): StringTranslationGenerator {
-  const engine = new StringTranslationEngine(input.model);
+  const billingMetadata =
+    input.modelId && input.credentialSource
+      ? { modelId: input.modelId, credentialSource: input.credentialSource }
+      : undefined;
+  const engine = new StringTranslationEngine(
+    input.model,
+    new TranslationPromptPolicy(),
+    billingMetadata,
+  );
   return (generatorInput) => engine.translate(generatorInput);
 }
 
@@ -510,6 +566,8 @@ export function createProviderStringTranslationGenerator(input: {
 }): StringTranslationGenerator {
   return createStringTranslationGenerator({
     model: resolveProviderLanguageModel(input),
+    modelId: input.model,
+    credentialSource: "byok",
   });
 }
 
@@ -529,11 +587,15 @@ export function getManagedTranslationLanguageModel(): LanguageModel {
 }
 
 export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
-  return createStringTranslationGenerator({ model: getManagedTranslationLanguageModel() });
+  return createStringTranslationGenerator({
+    model: getManagedTranslationLanguageModel(),
+    modelId: hyperlocaliseManagedGatewayModelId,
+    credentialSource: "gateway",
+  });
 }
 
 export const translateStringJobWithOpenAI: StringTranslationGenerator = async (input) => {
-  return createStringTranslationGenerator({ model: getManagedLanguageModel() })(input);
+  return createManagedStringTranslationGenerator()(input);
 };
 
 const defaultModelResolver = new OrganizationModelResolver();

@@ -22,9 +22,17 @@ import {
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import {
+  addAiTokenUsage,
+  extractAiSdkTokenUsage,
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
+import {
+  releaseManagedAiCredit,
+  settleManagedAiCredit,
+  type ManagedAiCreditReservation,
+} from "@/lib/billing/managed-ai-credit";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 import {
   acquireWebRepositorySandboxLease,
@@ -36,6 +44,7 @@ import {
   type PrepareConversationAgentTurnInput,
   type PrepareConversationAgentTurnResult,
 } from "@/lib/agent-runtime/loops/conversation-turn";
+import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 function textFromParts(parts: UIMessage["parts"]) {
   return parts
@@ -68,15 +77,20 @@ async function prepareAndCommitWebConversationTurn(
   prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
 ): Promise<PrepareConversationAgentTurnResult> {
   let repositorySessionState = await getWebConversationRepositorySession(conversationId);
+  let classificationTokenUsage: AiTokenUsage | null = null;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const prepared = await prepareConversationAgentTurn({
       ...prepareInput,
       repositorySession: repositorySessionState?.session ?? null,
     });
+    classificationTokenUsage = addAiTokenUsage(
+      classificationTokenUsage,
+      prepared.classificationTokenUsage,
+    );
 
     if (!prepared.updatedRepositorySession) {
-      return prepared;
+      return { ...prepared, classificationTokenUsage };
     }
 
     const committed = await setWebConversationRepositorySession(conversationId, {
@@ -86,18 +100,25 @@ async function prepareAndCommitWebConversationTurn(
     });
 
     if (committed) {
-      return prepared;
+      return { ...prepared, classificationTokenUsage };
     }
 
     repositorySessionState = await getWebConversationRepositorySession(conversationId);
   }
 
   const fallbackSession = await getWebConversationRepositorySession(conversationId);
-  return prepareConversationAgentTurn({
+  const prepared = await prepareConversationAgentTurn({
     ...prepareInput,
     repositorySession: fallbackSession?.session ?? null,
     reuseCommittedRepositorySandboxOnly: true,
   });
+  return {
+    ...prepared,
+    classificationTokenUsage: addAiTokenUsage(
+      classificationTokenUsage,
+      prepared.classificationTokenUsage,
+    ),
+  };
 }
 
 export function createWebChatAgentUIStreamResponse(input: {
@@ -106,6 +127,8 @@ export function createWebChatAgentUIStreamResponse(input: {
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
   usageOperationKey?: string;
+  languageModel?: ResolvedAgentLanguageModel;
+  aiCreditReservation?: ManagedAiCreditReservation;
   abortSignal?: AbortSignal;
 }) {
   let persistedDuringExecute = false;
@@ -118,6 +141,8 @@ export function createWebChatAgentUIStreamResponse(input: {
     repository_tools: false,
   };
   let shouldTrackUsage = false;
+  let classificationTokenUsage: AiTokenUsage | null = null;
+  let agentTokenUsagePromise: Promise<AiTokenUsage | null> | null = null;
 
   const stream = createUIMessageStream<InboxChatUIMessage>({
     execute: async ({ writer }) => {
@@ -147,7 +172,9 @@ export function createWebChatAgentUIStreamResponse(input: {
             data: { toolCallId, message },
           });
         },
+        languageModel: input.languageModel,
       });
+      classificationTokenUsage = prepared.classificationTokenUsage;
 
       if (prepared.clarificationFollowUp) {
         await writeAssistantText(writer, prepared.clarificationFollowUp);
@@ -190,6 +217,9 @@ export function createWebChatAgentUIStreamResponse(input: {
           messages: prepared.chatMessages,
           abortSignal: input.abortSignal,
         });
+        if (input.aiCreditReservation) {
+          agentTokenUsagePromise = result.usage.then(extractAiSdkTokenUsage);
+        }
 
         writer.merge(
           result.toUIMessageStream({
@@ -224,6 +254,25 @@ export function createWebChatAgentUIStreamResponse(input: {
             operationKey: usageOperationKey,
             dimensions: usageDimensions,
           });
+        }
+
+        if (input.aiCreditReservation) {
+          const agentTokenUsage = agentTokenUsagePromise
+            ? await agentTokenUsagePromise.catch(() => null)
+            : null;
+          const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
+          if (tokenUsage) {
+            await settleManagedAiCredit({
+              reservation: input.aiCreditReservation,
+              modelId: input.languageModel?.modelId ?? "unknown",
+              tokenUsage,
+            });
+          } else {
+            await releaseManagedAiCredit({
+              reservation: input.aiCreditReservation,
+              reason: isAborted ? "chat_aborted_without_usage" : "chat_completed_without_usage",
+            });
+          }
         }
       } finally {
         releaseSandboxLease?.();

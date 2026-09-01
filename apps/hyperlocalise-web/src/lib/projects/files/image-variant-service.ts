@@ -19,6 +19,7 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   MAX_PUBLIC_HTTP_RESPONSE_BYTES,
@@ -38,6 +39,12 @@ export type ImageVariantError =
   | { code: "approved_locked" }
   | { code: "fetch_failed"; message: string }
   | { code: "unsupported_image_response" }
+  | {
+      code: "ai_credit_insufficient";
+      requiredAmountUsd: number;
+      remainingAmountUsd: number;
+    }
+  | { code: "ai_credit_unavailable"; message: string }
   | { code: "localization_failed"; message: string };
 
 export function projectImageAssetPath(input: {
@@ -244,6 +251,15 @@ export async function fetchImageBytesFromUrl(
       },
     );
   } catch (error) {
+    if (error instanceof ManagedAiCreditAccessError) {
+      return error.billingError.code === "ai_credit_insufficient"
+        ? err({
+            code: "ai_credit_insufficient",
+            requiredAmountUsd: error.billingError.requiredAmountUsd,
+            remainingAmountUsd: error.billingError.remainingAmountUsd,
+          })
+        : err({ code: "ai_credit_unavailable", message: error.message });
+    }
     return err({
       code: "fetch_failed",
       message: error instanceof Error ? error.message : "image fetch failed",
