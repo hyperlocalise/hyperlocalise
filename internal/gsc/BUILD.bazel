@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gsc",
+    srcs = [
+        "client.go",
+        "config.go",
+        "daterange.go",
+        "doc.go",
+        "errors.go",
+        "scopes.go",
+        "searchanalytics.go",
+        "sites.go",
+        "types.go",
+        "urlinspection.go",
+        "userinfo.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/gsc",
+    visibility = ["//visibility:public"],
+    deps = ["@org_golang_x_oauth2//:oauth2"],
+)
+
+go_test(
+    name = "gsc_test",
+    srcs = ["client_test.go"],
+    embed = [":gsc"],
+    deps = [
+        "@com_github_stretchr_testify//require",
+        "@org_golang_x_oauth2//:oauth2",
+    ],
+)

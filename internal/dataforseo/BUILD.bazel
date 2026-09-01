@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "dataforseo",
+    srcs = [
+        "ai.go",
+        "client.go",
+        "config.go",
+        "doc.go",
+        "envelope.go",
+        "errors.go",
+        "labs.go",
+        "serp.go",
+        "types.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/dataforseo",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "dataforseo_test",
+    srcs = ["client_test.go"],
+    embed = [":dataforseo"],
+    deps = ["@com_github_stretchr_testify//require"],
+)
