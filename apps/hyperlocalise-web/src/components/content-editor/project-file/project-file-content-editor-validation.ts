@@ -70,6 +70,8 @@ export function isBcp47LanguageTag(value: string): boolean {
 }
 
 const CAT_SEGMENT_VALIDATION_ENABLED = true;
+// Allows spelling to be disabled without disabling all segment validation.
+const CAT_SEGMENT_SPELLING_ENABLED = true;
 
 export type ContentEditorSegmentValidationError =
   | { code: "aborted" }
@@ -97,9 +99,10 @@ export async function fetchCatSegmentValidation(
   );
   const targetLocale = input.targetLocale.trim();
   const canRequestSpelling = isBcp47LanguageTag(targetLocale);
-  const modes = canRequestSpelling
-    ? CAT_SEGMENT_QA_MODES
-    : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
+  const modes =
+    canRequestSpelling && CAT_SEGMENT_SPELLING_ENABLED
+      ? CAT_SEGMENT_QA_MODES
+      : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 
   const responseResult = await fromThrowableAsync(
     fetcher("/api/go-svc/v1/validate/segment", {
