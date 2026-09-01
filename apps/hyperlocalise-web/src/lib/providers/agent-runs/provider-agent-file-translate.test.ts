@@ -42,6 +42,7 @@ const buildCrowdinMultiFileSandboxConfigMock = vi.fn();
 const writeTempConfigMock = vi.fn();
 const writeFileToSandboxMock = vi.fn();
 const runSandboxCommandMock = vi.fn();
+const readSandboxCliTokenUsageMock = vi.fn();
 const getSandboxTranslationEnvMock = vi.fn();
 const getOutputFilenameMock = vi.fn();
 const getOutputFilenamePatternMock = vi.fn();
@@ -133,6 +134,7 @@ vi.mock("@/lib/translation/sandbox", async () => {
     writeTempConfig: (...args: unknown[]) => writeTempConfigMock(...args),
     writeFileToSandbox: (...args: unknown[]) => writeFileToSandboxMock(...args),
     runSandboxCommand: (...args: unknown[]) => runSandboxCommandMock(...args),
+    readSandboxCliTokenUsage: (...args: unknown[]) => readSandboxCliTokenUsageMock(...args),
     getSandboxTranslationEnv: (...args: unknown[]) => getSandboxTranslationEnvMock(...args),
     getOutputFilename: (...args: unknown[]) => getOutputFilenameMock(...args),
     getOutputFilenamePattern: (...args: unknown[]) => getOutputFilenamePatternMock(...args),
@@ -360,6 +362,11 @@ describe("translateProviderJobFiles", () => {
     writeFileToSandboxMock.mockResolvedValue(undefined);
     getSandboxTranslationEnvMock.mockReturnValue({});
     runSandboxCommandMock.mockResolvedValue({ exitCode: 0, output: "" });
+    readSandboxCliTokenUsageMock.mockResolvedValue({
+      inputTokens: 12,
+      outputTokens: 4,
+      totalTokens: 16,
+    });
     getOutputFilenamePatternMock.mockImplementation(
       (filename: string) => `${filename.replace(/\.json$/, "")}-{{target}}.json`,
     );
@@ -501,6 +508,19 @@ describe("translateProviderJobFiles", () => {
       null,
     );
     expect(runSandboxCommandMock).toHaveBeenCalledTimes(1);
+    expect(runSandboxCommandMock).toHaveBeenCalledWith(
+      "sandbox_shared",
+      "bash",
+      ["-lc", expect.stringMatching(/--output '.+' --output-detail summary$/)],
+      expect.any(Object),
+    );
+    expect(result.tokenUsage).toEqual({
+      inputTokens: 12,
+      outputTokens: 4,
+      totalTokens: 16,
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+    });
     expect(result.filesProcessed).toBe(2);
     expect(result.unitsProcessed).toBe(2);
     expect(result.changedItems).toEqual(

@@ -12,12 +12,17 @@
  */
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
+import { releaseAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -234,6 +239,10 @@ export async function failAgentRun(input: {
     status: "failed",
     source: run.kind,
   });
+  await releaseAgentRunAiCredit({
+    runId: input.runId,
+    reason: "agent_run_failed",
+  });
   return run;
 }
 
@@ -309,12 +318,34 @@ async function trackCompletedAgentRunUsage(input: {
 }) {
   const operationKey = `agent-run:${input.runId}:agent_runs`;
   const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
+  if (!tokenUsage) {
+    await releaseAgentRunAiCredit({
+      runId: input.runId,
+      reason: "no_token_usage",
+    });
+  }
+  const pricingConfig = getManagedAiPricingConfig();
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: input.organizationId,
     operationKey,
     autumnEventName: "agent_run.completed",
     unit: "run",
-    tokenUsage,
+    tokenUsage: tokenUsage
+      ? {
+          inputTokens: tokenUsage.inputTokens,
+          outputTokens: tokenUsage.outputTokens,
+          totalTokens: tokenUsage.totalTokens,
+          cacheReadTokens: tokenUsage.cacheReadTokens,
+          cacheWriteTokens: tokenUsage.cacheWriteTokens,
+          reasoningTokens: tokenUsage.reasoningTokens,
+        }
+      : null,
+    aiCreditModelId: tokenUsage?.modelId,
+    aiCreditCredentialSource: tokenUsage?.credentialSource,
+    aiCreditEstimatedAmountUsd:
+      tokenUsage?.credentialSource === "byok"
+        ? 0
+        : (managedAiReservationAmountUsd(pricingConfig, { surface: "chat" }) ?? undefined),
     aiCreditSource: "agent_run_complete",
   });
 
@@ -336,14 +367,35 @@ function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefi
     inputTokens?: unknown;
     outputTokens?: unknown;
     totalTokens?: unknown;
+    cacheReadTokens?: unknown;
+    cacheWriteTokens?: unknown;
+    reasoningTokens?: unknown;
+    modelId?: unknown;
+    credentialSource?: unknown;
   };
   const inputTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
   const outputTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
+  const cacheReadTokens = typeof usage.cacheReadTokens === "number" ? usage.cacheReadTokens : 0;
+  const cacheWriteTokens = typeof usage.cacheWriteTokens === "number" ? usage.cacheWriteTokens : 0;
+  const reasoningTokens = typeof usage.reasoningTokens === "number" ? usage.reasoningTokens : 0;
   const totalTokens =
-    typeof usage.totalTokens === "number" ? usage.totalTokens : inputTokens + outputTokens;
+    typeof usage.totalTokens === "number"
+      ? usage.totalTokens
+      : inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens + reasoningTokens;
 
   if (totalTokens <= 0) return null;
-  return { inputTokens, outputTokens, totalTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+    ...(typeof usage.modelId === "string" ? { modelId: usage.modelId } : {}),
+    ...(usage.credentialSource === "gateway" || usage.credentialSource === "byok"
+      ? { credentialSource: usage.credentialSource as "gateway" | "byok" }
+      : {}),
+  };
 }
 
 export async function updateAgentRun(input: {

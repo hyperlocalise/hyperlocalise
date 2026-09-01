@@ -736,6 +736,13 @@
       "when": 1788249546916,
       "tag": "0104_eminent_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1788254278041,
+      "tag": "0105_slimy_shiver_man",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,7 @@ export type AutumnPlanId = (typeof autumnPlanIds)[keyof typeof autumnPlanIds];
  * These include credit-system balances, non-consumable limits, and boolean gates.
  */
 export const autumnFeatureIds = {
+  /** USD-denominated AI credit system; token pricing is resolved by Autumn. */
   aiTokens: "ai_tokens",
   translationJobs: "translation_jobs",
   agentRuns: "agent_runs",

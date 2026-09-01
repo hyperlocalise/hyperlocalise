@@ -16,7 +16,7 @@ import { randomInt } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -37,6 +37,17 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
 const { createInteractionMock } = vi.hoisted(() => ({
   createInteractionMock: vi.fn(),
 }));
+const {
+  getManagedAiPricingConfigMock,
+  resolveHyperlocaliseAgentLanguageModelMock,
+  reserveManagedAiCreditMock,
+  createWebChatAgentUIStreamResponseMock,
+} = vi.hoisted(() => ({
+  getManagedAiPricingConfigMock: vi.fn(),
+  resolveHyperlocaliseAgentLanguageModelMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  createWebChatAgentUIStreamResponseMock: vi.fn(),
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -54,6 +65,30 @@ vi.mock("@/lib/conversations/interactions", async (importOriginal) => {
     createInteraction: createInteractionMock,
   };
 });
+
+vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
+  return {
+    ...actual,
+    getManagedAiPricingConfig: getManagedAiPricingConfigMock,
+  };
+});
+
+vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
+  return {
+    ...actual,
+    reserveManagedAiCredit: reserveManagedAiCreditMock,
+  };
+});
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
+}));
+
+vi.mock("@/agents/hyperlocalise/agent/channels/web", () => ({
+  createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
+}));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
 const client = testClient<AppType>(app);
@@ -102,6 +137,21 @@ beforeAll(async () => {
 afterEach(async () => {
   vi.clearAllMocks();
   await cleanup();
+});
+
+beforeEach(() => {
+  getManagedAiPricingConfigMock.mockReturnValue({
+    mode: "legacy",
+    pricingVersion: "test",
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  });
+  resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValue({
+    model: "openai/gpt-5.6-luna",
+    source: "gateway",
+    modelId: "openai/gpt-5.6-luna",
+  });
+  createWebChatAgentUIStreamResponseMock.mockReturnValue(new Response(null, { status: 200 }));
 });
 
 describe("conversation creation", () => {
@@ -517,5 +567,66 @@ describe("conversation creation", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "project_not_found" });
+  });
+});
+
+describe("conversation chat credit preflight", () => {
+  it("returns 402 before opening the stream when managed AI credit is insufficient", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveManagedAiCreditMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "ai_credit_insufficient",
+        requiredAmountUsd: 0.5,
+        remainingAmountUsd: 0.1,
+      },
+    });
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Help me localize this");
+    const createResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      { method: "POST", headers, body: formData },
+    );
+    const created = (await createResponse.json()) as {
+      conversation: { id: string };
+      message: { id: string };
+    };
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations/${created.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: created.message.id,
+              role: "user",
+              parts: [{ type: "text", text: "Help me localize this" }],
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      error: "ai_credit_insufficient",
+      message: "Insufficient AI credit for this request",
+      details: {
+        requiredAmountUsd: 0.5,
+        remainingAmountUsd: 0.1,
+        billingSection: "available-plans",
+      },
+    });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
   });
 });

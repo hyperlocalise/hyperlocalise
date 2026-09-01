@@ -38,6 +38,7 @@ import {
 } from "@/lib/glossary/query-glossary-terms";
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import { addCliTokenUsage, type CliBilledTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
 import { loadTranslationContextProject } from "@/lib/translation/context";
@@ -84,6 +85,7 @@ export type ProviderAgentFileTranslationResult = {
   unitsProcessed: number;
   skippedExistingLocales: number;
   filesProcessed: number;
+  tokenUsage: CliBilledTokenUsage | null;
 };
 
 function shellSingleQuote(value: string) {
@@ -250,15 +252,18 @@ async function runMultiFileTranslationInSandbox(input: {
   context: SandboxTranslationContext;
   prefilledByLocale: Record<string, Record<string, string>>;
   organizationId: string;
-}) {
+}): Promise<CliBilledTokenUsage | null> {
   const {
     buildMultiFileMultiLocaleTempConfig,
     getSandboxTranslationEnv,
+    readSandboxCliTokenUsage,
     runSandboxCommand,
     sandboxI18nConfigPath,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { appendHlRunReportOutput, withCliBillingMetadata } =
+    await import("@/lib/translation/cli-token-usage");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const byok = await loadSandboxByokCredential(input.organizationId);
 
@@ -294,12 +299,16 @@ async function runMultiFileTranslationInSandbox(input: {
     .map((locale) => `--locale '${shellSingleQuote(locale)}'`)
     .join(" ");
 
+  const reportPath = `/tmp/hl-run-report-${crypto.randomUUID()}.json`;
   const translation = await runSandboxCommand(
     input.sandboxId,
     "bash",
     [
       "-lc",
-      `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' ${localeFlags} --force --progress off${prefilledFlags}`,
+      appendHlRunReportOutput(
+        `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' ${localeFlags} --force --progress off${prefilledFlags}`,
+        reportPath,
+      ),
     ],
     { env: getSandboxTranslationEnv(byok) },
   );
@@ -307,6 +316,8 @@ async function runMultiFileTranslationInSandbox(input: {
   if (translation.exitCode !== 0) {
     throw new Error(`translation failed: ${translation.output}`);
   }
+
+  return withCliBillingMetadata(await readSandboxCliTokenUsage(input.sandboxId, reportPath), byok);
 }
 
 export function shouldUseProviderFileTranslation(input: { sourceFiles: ProviderSourceFileRef[] }) {
@@ -346,6 +357,7 @@ export async function translateProviderJobFiles(input: {
       unitsProcessed: 0,
       skippedExistingLocales: 0,
       filesProcessed: 0,
+      tokenUsage: null,
     };
   }
 
@@ -364,6 +376,7 @@ export async function translateProviderJobFiles(input: {
   let skippedNoMatchingUnitsCount = 0;
   let skippedFullyTranslatedCount = 0;
   let skippedDownloadFailureCount = 0;
+  let tokenUsage: CliBilledTokenUsage | null = null;
 
   logger.info(
     {
@@ -761,7 +774,7 @@ export async function translateProviderJobFiles(input: {
         );
 
         try {
-          await runMultiFileTranslationInSandbox({
+          const batchTokenUsage = await runMultiFileTranslationInSandbox({
             sandboxId,
             files: preparedFiles.map((file) => ({
               from: file.workFilename,
@@ -773,6 +786,15 @@ export async function translateProviderJobFiles(input: {
             prefilledByLocale,
             organizationId: input.organizationId,
           });
+          const combined = addCliTokenUsage(tokenUsage, batchTokenUsage);
+          tokenUsage =
+            combined?.modelId && combined.credentialSource
+              ? {
+                  ...combined,
+                  modelId: combined.modelId,
+                  credentialSource: combined.credentialSource,
+                }
+              : tokenUsage;
         } catch (error) {
           warnings.push(
             `Batch file translation failed: ${
@@ -894,6 +916,7 @@ export async function translateProviderJobFiles(input: {
     unitsProcessed,
     skippedExistingLocales,
     filesProcessed,
+    tokenUsage,
   };
 
   // Every source file being already fully translated is a healthy no-op, not a failed run.

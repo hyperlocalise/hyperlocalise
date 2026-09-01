@@ -12,9 +12,20 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { generateImageMock, getManagedImageModelMock } = vi.hoisted(() => ({
+const {
+  generateImageMock,
+  getManagedImageModelMock,
+  getManagedAiPricingConfigMock,
+  reserveManagedAiCreditMock,
+  settleManagedAiCreditMock,
+  releaseManagedAiCreditMock,
+} = vi.hoisted(() => ({
   generateImageMock: vi.fn(),
   getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2"),
+  getManagedAiPricingConfigMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  settleManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
 }));
 
 vi.mock("ai", async () => {
@@ -27,19 +38,61 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedImageModel: getManagedImageModelMock,
+  hyperlocaliseImageModelId: "openai/gpt-image-2",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   withAgentRuntimeUsageMetering: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
 }));
 
+vi.mock("@/lib/billing/managed-ai-pricing", () => ({
+  getManagedAiPricingConfig: getManagedAiPricingConfigMock,
+  managedAiReservationAmountUsd: vi.fn(
+    (config: { imagePriceUsd?: number }) => config.imagePriceUsd ?? null,
+  ),
+}));
+
+vi.mock("@/lib/billing/managed-ai-credit", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/billing/managed-ai-credit")>(
+    "@/lib/billing/managed-ai-credit",
+  );
+  return {
+    ...actual,
+    reserveManagedAiCredit: reserveManagedAiCreditMock,
+    settleManagedAiCredit: settleManagedAiCreditMock,
+    releaseManagedAiCredit: releaseManagedAiCreditMock,
+  };
+});
+
 import { regenerateImageFromAttachment } from "./image-generation";
 
 describe("image generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "legacy",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveManagedAiCreditMock.mockResolvedValue({
+      ok: true,
+      value: {
+        operationKey: "image:test:ai_tokens",
+        mode: "shadow",
+        credentialSource: "gateway",
+        estimatedAmountUsd: 0.25,
+      },
+    });
+    settleManagedAiCreditMock.mockResolvedValue({
+      ok: true,
+      value: { amountUsd: 0.25, status: "settled" },
+    });
+    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
     generateImageMock.mockResolvedValue({
       images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
+      providerMetadata: { gateway: { generationId: "gen_image" } },
     });
   });
 
@@ -65,5 +118,112 @@ describe("image generation", () => {
       mimeType: "image/png",
       prompt: "Localize this screenshot into Japanese",
     });
+  });
+
+  it("reserves and settles one synthetic image unit", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      {
+        organizationId: "org_123",
+        operationKey: "image:test",
+      },
+    );
+
+    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        operationKey: "image:test:ai_tokens",
+        modelId: "openai/gpt-image-2",
+        estimatedAmountUsd: 0.25,
+      }),
+    );
+    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "custom/image",
+        providerGenerationId: "gen_image",
+        shadowAmountUsd: 0.25,
+        tokenUsage: {
+          inputTokens: 0,
+          outputTokens: 1,
+          totalTokens: 1,
+        },
+      }),
+    );
+  });
+
+  it("uses Models.dev-priced token usage when the image provider reports it", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    generateImageMock.mockResolvedValueOnce({
+      images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
+      usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      providerMetadata: { gateway: { generationId: "gen_image" } },
+    });
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      {
+        organizationId: "org_123",
+        operationKey: "image:tokens",
+      },
+    );
+
+    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "openai/gpt-image-2",
+        tokenUsage: {
+          inputTokens: 120,
+          outputTokens: 80,
+          totalTokens: 200,
+        },
+      }),
+    );
+  });
+
+  it("releases the image reservation when generation fails", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    generateImageMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(
+      regenerateImageFromAttachment(
+        Buffer.from("source"),
+        "image/png",
+        "Localize this screenshot",
+        {
+          organizationId: "org_123",
+          operationKey: "image:test",
+        },
+      ),
+    ).rejects.toThrow("provider unavailable");
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "image_generation_failed",
+      }),
+    );
+    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

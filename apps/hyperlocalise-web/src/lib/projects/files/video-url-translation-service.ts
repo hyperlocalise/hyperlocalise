@@ -16,6 +16,8 @@ import {
   VideoLocalizationError,
   regenerateVideoFromAttachment,
 } from "@/lib/agents/video-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import {
   buildVideoLocalizationPrompt,
   localizedVideoOutputFilename,
@@ -41,6 +43,12 @@ export type VideoUrlContentKindError =
   | { code: "video_duration_unsupported" }
   | { code: "video_model_unavailable" }
   | { code: "video_edit_region_blocked" }
+  | {
+      code: "ai_credit_insufficient";
+      requiredAmountUsd: number;
+      remainingAmountUsd: number;
+    }
+  | { code: "ai_credit_unavailable"; message: string }
   | { code: "video_localization_failed"; message: string }
   | { code: "approved_locked" };
 
@@ -114,6 +122,15 @@ export async function setTranslationKeyTreatAsVideo(input: {
 }
 
 function mapGenerationError(error: unknown): VideoUrlContentKindError {
+  if (error instanceof ManagedAiCreditAccessError) {
+    return error.billingError.code === "ai_credit_insufficient"
+      ? {
+          code: "ai_credit_insufficient",
+          requiredAmountUsd: error.billingError.requiredAmountUsd,
+          remainingAmountUsd: error.billingError.remainingAmountUsd,
+        }
+      : { code: "ai_credit_unavailable", message: error.message };
+  }
   if (error instanceof VideoLocalizationError) {
     if (error.code === "video_localization_failed") {
       return { code: "video_localization_failed", message: error.message };
@@ -202,7 +219,9 @@ export async function localizeVideoUrlTranslation(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        ),
         source: "project_video_url_translation",
         dimensions: {
           channel: "project",

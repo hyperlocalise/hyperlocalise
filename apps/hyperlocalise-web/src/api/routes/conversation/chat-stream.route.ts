@@ -16,12 +16,22 @@ import { z } from "zod";
 
 import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
-import { forbiddenResponse } from "@/api/response.schema";
+import { apiErrorResponse, forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent/channels/web";
 import { db, schema } from "@/lib/database/client";
 import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
+import {
+  formatManagedAiCreditError,
+  reserveManagedAiCredit,
+  type ManagedAiCreditError,
+} from "@/lib/billing/managed-ai-credit";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 import { resolveChatGlossarySearchCapability } from "./chat-glossary-search-capability";
 import { resolveChatKnowledgeMemoryCapability } from "./chat-knowledge-memory-capability";
@@ -42,6 +52,24 @@ const chatRequestBodySchema = z.object({
   trigger: z.string().optional(),
   messageId: z.string().optional(),
 });
+
+function aiCreditErrorResponse(
+  c: Parameters<typeof apiErrorResponse>[0],
+  error: ManagedAiCreditError,
+) {
+  if (error.code === "ai_credit_insufficient") {
+    return apiErrorResponse(c, 402, error.code, formatManagedAiCreditError(error), {
+      requiredAmountUsd: error.requiredAmountUsd,
+      remainingAmountUsd: error.remainingAmountUsd,
+      billingSection: "available-plans",
+    });
+  }
+  if (error.code === "ai_credit_operation_already_exists") {
+    return apiErrorResponse(c, 409, error.code, formatManagedAiCreditError(error));
+  }
+
+  return apiErrorResponse(c, 503, error.code, formatManagedAiCreditError(error));
+}
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -114,12 +142,60 @@ export function createChatStreamRoutes() {
         return c.json({ error: "stale_user_message" }, 409);
       }
 
-      const [hasTranslationAttachments, knowledgeMemoryEnabled, glossarySearchEnabled] =
-        await Promise.all([
-          interactionHasTranslationAttachments(conversationId),
-          resolveChatKnowledgeMemoryCapability(c.var.auth),
-          resolveChatGlossarySearchCapability(c.var.auth),
-        ]);
+      const pricingConfig = getManagedAiPricingConfig();
+      const operationKey = `chat-agent-turn:${targetUserMessage.id}:agent_runs`;
+      const languageModelPromise = resolveHyperlocaliseAgentLanguageModel({
+        organizationId: orgId,
+      });
+      const [
+        hasTranslationAttachments,
+        knowledgeMemoryEnabled,
+        glossarySearchEnabled,
+        languageModel,
+      ] = await Promise.all([
+        interactionHasTranslationAttachments(conversationId),
+        resolveChatKnowledgeMemoryCapability(c.var.auth),
+        resolveChatGlossarySearchCapability(c.var.auth),
+        languageModelPromise,
+      ]);
+      const credentialSource = languageModel.source === "gateway" ? "gateway" : "byok";
+      const estimatedAmountUsd =
+        pricingConfig.mode === "legacy"
+          ? null
+          : credentialSource === "byok"
+            ? 0
+            : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
+      const aiCreditReservation =
+        pricingConfig.mode === "legacy" || estimatedAmountUsd == null
+          ? null
+          : await reserveManagedAiCredit({
+              organizationId: orgId,
+              operationKey: `${operationKey}:ai_tokens`,
+              source: "chat_agent_turn",
+              modelId: languageModel.modelId,
+              credentialSource,
+              estimatedAmountUsd,
+              interactionId: conversationId,
+              mode: pricingConfig.mode,
+              dimensions: {
+                surface: "web",
+                agent_surface: "chat",
+              },
+            });
+
+      if (
+        pricingConfig.mode !== "legacy" &&
+        credentialSource === "gateway" &&
+        estimatedAmountUsd == null
+      ) {
+        return aiCreditErrorResponse(c, {
+          code: "ai_credit_pricing_not_configured",
+          surface: "chat",
+        });
+      }
+      if (aiCreditReservation && !aiCreditReservation.ok) {
+        return aiCreditErrorResponse(c, aiCreditReservation.error);
+      }
 
       return createWebChatAgentUIStreamResponse({
         conversationId,
@@ -135,7 +211,9 @@ export function createChatStreamRoutes() {
           glossarySearchEnabled,
         },
         hasTranslationAttachments,
-        usageOperationKey: `chat-agent-turn:${targetUserMessage.id}:agent_runs`,
+        usageOperationKey: operationKey,
+        languageModel,
+        aiCreditReservation: aiCreditReservation?.ok ? aiCreditReservation.value : undefined,
         abortSignal: c.req.raw.signal,
       });
     });

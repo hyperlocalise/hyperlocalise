@@ -335,6 +335,38 @@ describe("usage-control", () => {
     });
   });
 
+  it("settles AI credit even when the parent feature meter fails", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("bad", { status: 500 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 })) as unknown as typeof fetch;
+
+    const trackResult = await completeAndTrackBillableUsage({
+      organizationId: organization.id,
+      operationKey,
+      autumnEventName: "translation_job.completed",
+      unit: "job",
+      tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: false,
+      error: {
+        code: "autumn_usage_tracking_failed",
+        operationKey,
+      },
+    });
+    await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
+      status: "tracking_failed",
+    });
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      status: "tracking_succeeded",
+    });
+  });
+
   it("returns AI credit tracking failure after the feature meter succeeds", async () => {
     const { operationKey, organization } = await reservedUsageEvent();
     const fetchFn = vi
