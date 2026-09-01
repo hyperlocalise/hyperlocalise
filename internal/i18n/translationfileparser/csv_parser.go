@@ -131,20 +131,31 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 		}
 	}
 
-	keys := make([]string, 0, len(values))
+	// BOLT OPTIMIZATION: Pre-allocate capacity for un-matched keys.
+	// Only allocate and sort keys if at least one key in values was not present in the template.
+	var keys []string
 	for key := range values {
 		if _, ok := seen[key]; ok {
 			continue
 		}
+		if keys == nil {
+			capHint := len(values) - len(seen)
+			if capHint < 1 {
+				capHint = 1
+			}
+			keys = make([]string, 0, capHint)
+		}
 		keys = append(keys, key)
 	}
-	slices.Sort(keys)
-	extraRow := make([]string, max(keyIdx, valueIdx)+1)
-	for _, key := range keys {
-		extraRow[keyIdx] = key
-		extraRow[valueIdx] = values[key]
-		if err := w.Write(extraRow); err != nil {
-			return nil, fmt.Errorf("csv write extra: %w", err)
+	if len(keys) > 0 {
+		slices.Sort(keys)
+		extraRow := make([]string, max(keyIdx, valueIdx)+1)
+		for _, key := range keys {
+			extraRow[keyIdx] = key
+			extraRow[valueIdx] = values[key]
+			if err := w.Write(extraRow); err != nil {
+				return nil, fmt.Errorf("csv write extra: %w", err)
+			}
 		}
 	}
 
