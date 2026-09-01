@@ -7,18 +7,19 @@
  * Change Date: Four years after publication of the applicable version.
  *
  * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
+    10| * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
 import { TestAppI18nProvider } from "@canva/app-i18n-kit";
 import { TestAppUiProvider } from "@canva/app-ui-kit";
 import { getDesignToken } from "@canva/design";
-import { render, waitFor } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { App } from "./app";
 import * as designContent from "./design-content";
+import { loadSettings } from "./settings";
 
 function renderInTestProvider(node: ReactNode) {
   return render(
@@ -37,6 +38,14 @@ vi.mock("./design-content", () => ({
   extractDesignContent: vi.fn(),
   applyTranslationsToDesign: vi.fn(),
 }));
+
+vi.mock("./settings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./settings")>();
+  return {
+    ...actual,
+    loadSettings: vi.fn(() => actual.loadSettings()),
+  };
+});
 
 vi.mock("./hyperlocalise-client", () => ({
   createCanvaClaim: vi.fn(),
@@ -60,11 +69,21 @@ describe("Hyperlocalise Canva app", () => {
       { index: 1, label: "Page 2", locked: false, editable: true },
     ]);
     vi.mocked(getDesignToken).mockResolvedValue({ token: "design-token" });
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "",
+      organizationSlug: "",
+      organizationName: "",
+      projectName: "",
+      sourceLocale: "en",
+      targetLocales: "es,fr,de",
+      preserveFormatting: true,
+      selectedPageIndices: [],
+      lastJobId: "",
+    });
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+    cleanup();
   });
 
   it("renders the disconnected connect flow", async () => {
@@ -78,25 +97,16 @@ describe("Hyperlocalise Canva app", () => {
   });
 
   it("loads design pages after connecting with a stored token", async () => {
-    const storage = new Map<string, string>([
-      [
-        "hyperlocalise:canva-app:settings:v4",
-        JSON.stringify({
-          connectionToken: "hl_canva_test",
-          organizationSlug: "acme",
-          organizationName: "Acme",
-          projectName: "Marketing",
-          sourceLocale: "en",
-          targetLocales: "es",
-          preserveFormatting: true,
-          selectedPageIndices: [0],
-          lastJobId: "",
-        }),
-      ],
-    ]);
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => storage.get(key) ?? null);
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
-      storage.set(key, value);
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectName: "Marketing",
+      sourceLocale: "en",
+      targetLocales: "es",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
     });
 
     const { fetchCanvaSession, fetchCurrentCanvaJob } = await import("./hyperlocalise-client");

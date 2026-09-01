@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   loadSettings,
@@ -21,6 +21,10 @@ import {
 } from "./settings";
 
 describe("settings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("parses target locales from comma-separated values", () => {
     expect(parseTargetLocales("es, fr , de")).toEqual(["es", "fr", "de"]);
   });
