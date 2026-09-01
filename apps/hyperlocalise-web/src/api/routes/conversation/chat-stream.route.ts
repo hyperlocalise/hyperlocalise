@@ -64,6 +64,9 @@ function aiCreditErrorResponse(
       billingSection: "available-plans",
     });
   }
+  if (error.code === "ai_credit_operation_already_exists") {
+    return apiErrorResponse(c, 409, error.code, formatManagedAiCreditError(error));
+  }
 
   return apiErrorResponse(c, 503, error.code, formatManagedAiCreditError(error));
 }

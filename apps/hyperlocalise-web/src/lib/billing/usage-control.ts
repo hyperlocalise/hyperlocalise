@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 import {
   formatManagedAiCreditError,
+  getManagedAiCreditReservation,
   reserveManagedAiCredit,
   settleManagedAiCredit,
   type AiCreditCredentialSource,
@@ -97,7 +98,9 @@ export function formatUsageControlError(error: UsageControlError): string {
     case "ai_credit_insufficient":
     case "ai_credit_check_failed":
     case "ai_credit_reservation_failed":
+    case "ai_credit_operation_already_exists":
     case "ai_credit_usage_not_found":
+    case "ai_credit_settlement_in_progress":
     case "ai_credit_tracking_failed":
       return formatManagedAiCreditError(error);
   }
@@ -292,22 +295,25 @@ export async function trackAiCreditUsageInAutumn(input: {
       });
     }
 
-    const reservationResult = await reserveManagedAiCredit({
-      organizationId: input.organizationId,
-      operationKey,
-      source: input.source,
-      modelId: input.modelId,
-      credentialSource: input.credentialSource,
-      estimatedAmountUsd,
-      jobId: input.jobId,
-      interactionId: input.interactionId,
-      mode: pricingConfig.mode,
-      autumnApiKey: input.autumnApiKey,
-      dimensions: {
-        autumn_event_name: "ai_tokens.consumed",
-        parent_operation_key: input.parentOperationKey,
-      },
-    });
+    const existingReservation = await getManagedAiCreditReservation({ operationKey });
+    const reservationResult = existingReservation
+      ? ok(existingReservation)
+      : await reserveManagedAiCredit({
+          organizationId: input.organizationId,
+          operationKey,
+          source: input.source,
+          modelId: input.modelId,
+          credentialSource: input.credentialSource,
+          estimatedAmountUsd,
+          jobId: input.jobId,
+          interactionId: input.interactionId,
+          mode: pricingConfig.mode,
+          autumnApiKey: input.autumnApiKey,
+          dimensions: {
+            autumn_event_name: "ai_tokens.consumed",
+            parent_operation_key: input.parentOperationKey,
+          },
+        });
     if (!reservationResult.ok) return reservationResult;
 
     const settlementResult = await settleManagedAiCredit({

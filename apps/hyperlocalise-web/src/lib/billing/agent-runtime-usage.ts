@@ -17,9 +17,20 @@ import {
   usageFeatureIds,
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
-import type { AiCreditCredentialSource } from "@/lib/billing/managed-ai-credit";
+import {
+  ManagedAiCreditAccessError,
+  releaseManagedAiCredit,
+  reserveManagedAiCredit,
+  type AiCreditCredentialSource,
+  type ManagedAiCreditReservation,
+} from "@/lib/billing/managed-ai-credit";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
 import { serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
 type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
 
@@ -220,17 +231,71 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
     dimensions: input.dimensions,
   });
 
-  const result = await input.run();
+  const pricingConfig = getManagedAiPricingConfig();
+  const tokenMeteringEnabled = input.extractTokenUsage && pricingConfig.mode !== "legacy";
+  const aiCreditModelId =
+    input.aiCreditModelId ?? (tokenMeteringEnabled ? hyperlocaliseManagedGatewayModelId : undefined);
+  const aiCreditCredentialSource =
+    input.aiCreditCredentialSource ?? (tokenMeteringEnabled ? "gateway" : undefined);
+  const aiCreditEstimatedAmountUsd =
+    aiCreditCredentialSource === "byok"
+      ? 0
+      : (input.aiCreditEstimatedAmountUsd ??
+        managedAiReservationAmountUsd(pricingConfig, { surface: "chat" }) ??
+        undefined);
+  let aiCreditReservation: ManagedAiCreditReservation | null = null;
+
+  if (
+    tokenMeteringEnabled &&
+    aiCreditModelId &&
+    aiCreditCredentialSource &&
+    aiCreditEstimatedAmountUsd != null
+  ) {
+    const reservation = await reserveManagedAiCredit({
+      organizationId: input.organizationId,
+      operationKey: `${input.operationKey}:ai_tokens`,
+      source: input.source,
+      modelId: aiCreditModelId,
+      credentialSource: aiCreditCredentialSource,
+      estimatedAmountUsd: aiCreditEstimatedAmountUsd,
+      interactionId: input.interactionId ?? undefined,
+      mode: pricingConfig.mode,
+      dimensions: input.dimensions,
+    });
+    if (!reservation.ok) {
+      throw new ManagedAiCreditAccessError(reservation.error);
+    }
+    aiCreditReservation = reservation.value;
+  } else if (tokenMeteringEnabled) {
+    throw new ManagedAiCreditAccessError({
+      code: "ai_credit_pricing_not_configured",
+      surface: input.source,
+    });
+  }
+
+  let result: T;
+  try {
+    result = await input.run();
+  } catch (error) {
+    if (aiCreditReservation) {
+      await releaseManagedAiCredit({
+        reservation: aiCreditReservation,
+        reason: "agent_runtime_failed",
+      });
+    }
+    throw error;
+  }
+  const tokenUsage = input.extractTokenUsage?.(result) ?? null;
 
   await trackSucceededAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     dimensions: input.dimensions,
     interactionId: input.interactionId,
-    tokenUsage: input.extractTokenUsage?.(result) ?? null,
-    aiCreditModelId: input.aiCreditModelId,
-    aiCreditCredentialSource: input.aiCreditCredentialSource,
-    aiCreditEstimatedAmountUsd: input.aiCreditEstimatedAmountUsd,
+    tokenUsage,
+    aiCreditModelId,
+    aiCreditCredentialSource,
+    aiCreditEstimatedAmountUsd,
   });
 
   return result;

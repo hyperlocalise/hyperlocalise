@@ -38,6 +38,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedImageModel: getManagedImageModelMock,
+  hyperlocaliseImageModelId: "openai/gpt-image-2",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
@@ -142,7 +143,7 @@ describe("image generation", () => {
       expect.objectContaining({
         organizationId: "org_123",
         operationKey: "image:test:ai_tokens",
-        modelId: "custom/image",
+        modelId: "openai/gpt-image-2",
         estimatedAmountUsd: 0.25,
       }),
     );
@@ -155,6 +156,42 @@ describe("image generation", () => {
           inputTokens: 0,
           outputTokens: 1,
           totalTokens: 1,
+        },
+      }),
+    );
+  });
+
+  it("uses Models.dev-priced token usage when the image provider reports it", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    generateImageMock.mockResolvedValueOnce({
+      images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
+      usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      providerMetadata: { gateway: { generationId: "gen_image" } },
+    });
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      {
+        organizationId: "org_123",
+        operationKey: "image:tokens",
+      },
+    );
+
+    expect(settleManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "openai/gpt-image-2",
+        tokenUsage: {
+          inputTokens: 120,
+          outputTokens: 80,
+          totalTokens: 200,
         },
       }),
     );

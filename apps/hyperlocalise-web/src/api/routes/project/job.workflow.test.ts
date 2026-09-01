@@ -15,7 +15,34 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const {
+  getManagedAiPricingConfigMock,
+  reserveManagedAiCreditMock,
+  releaseManagedAiCreditMock,
+} = vi.hoisted(() => ({
+  getManagedAiPricingConfigMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
+}));
+
+vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
+  return {
+    ...actual,
+    getManagedAiPricingConfig: getManagedAiPricingConfigMock,
+  };
+});
+
+vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
+  return {
+    ...actual,
+    reserveManagedAiCredit: reserveManagedAiCreditMock,
+    releaseManagedAiCredit: releaseManagedAiCreditMock,
+  };
+});
 
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
@@ -76,7 +103,19 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  getManagedAiPricingConfigMock.mockReturnValue({
+    mode: "legacy",
+    pricingVersion: "test",
+    chatReservationUsd: 0.5,
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  });
+  releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+});
+
 afterEach(async () => {
+  vi.clearAllMocks();
   await projectFixture.cleanup();
 });
 
@@ -573,5 +612,64 @@ describe("translation job workflow helpers", () => {
       }),
     );
     expect(translateStringJob).not.toHaveBeenCalled();
+  });
+
+  it("fails managed translation jobs before generation when AI credit is insufficient", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveManagedAiCreditMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "ai_credit_insufficient",
+        requiredAmountUsd: 0.5,
+        remainingAmountUsd: 0.1,
+      },
+    });
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    const result = await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: job.id,
+        status: "failed",
+        outcomePayload: {
+          code: "ai_credit_insufficient",
+          message: "Insufficient AI credit for this request",
+        },
+      }),
+    );
+    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+        credentialSource: "gateway",
+      }),
+    );
   });
 });

@@ -61,6 +61,14 @@ function allowedCheck(remaining = 10) {
   }));
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("managed AI credit", () => {
   it("reserves estimated USD and includes outstanding reservations in the next check", async () => {
     const organization = await createOrganization();
@@ -206,6 +214,88 @@ describe("managed AI credit", () => {
       credentialSource: "byok",
       status: "tracking_succeeded",
     });
+  });
+
+  it("rejects a duplicate operation after the original reservation has settled", async () => {
+    const organization = await createOrganization();
+    const operationKey = `ai-credit:${randomUUID()}`;
+    const first = await reserveManagedAiCredit({
+      organizationId: organization.id,
+      operationKey,
+      source: "chat_agent_turn",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+      mode: "shadow",
+    });
+    if (!first.ok) throw new Error(first.error.code);
+    await settleManagedAiCredit({
+      reservation: first.value,
+      modelId: "openai/gpt-5.6-luna",
+      tokenUsage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+      shadowAmountUsd: 0.1,
+    });
+
+    const duplicate = await reserveManagedAiCredit({
+      organizationId: organization.id,
+      operationKey,
+      source: "chat_agent_turn",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+      mode: "shadow",
+    });
+
+    expect(duplicate).toMatchObject({
+      ok: false,
+      error: {
+        code: "ai_credit_operation_already_exists",
+        operationKey,
+        status: "tracking_succeeded",
+      },
+    });
+  });
+
+  it("allows only one concurrent caller to dispatch an Autumn settlement", async () => {
+    const organization = await createOrganization();
+    const operationKey = `ai-credit:${randomUUID()}`;
+    const reservation = await reserveManagedAiCredit({
+      organizationId: organization.id,
+      operationKey,
+      source: "chat_agent_turn",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+      mode: "enforced",
+      dependencies: { check: allowedCheck() },
+    });
+    if (!reservation.ok) throw new Error(reservation.error.code);
+    const deferred = createDeferred({ value: 0.1 });
+    const trackTokens = vi.fn(() => deferred.promise);
+    const settlementInput = {
+      reservation: reservation.value,
+      modelId: "openai/gpt-5.6-luna",
+      tokenUsage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+      dependencies: { trackTokens },
+    };
+
+    const first = settleManagedAiCredit(settlementInput);
+    await vi.waitFor(() => expect(trackTokens).toHaveBeenCalledOnce());
+    const second = await settleManagedAiCredit(settlementInput);
+    deferred.resolve({ value: 0.1 });
+
+    await expect(first).resolves.toMatchObject({
+      ok: true,
+      value: { status: "settled" },
+    });
+    expect(second).toMatchObject({
+      ok: false,
+      error: {
+        code: "ai_credit_settlement_in_progress",
+        operationKey,
+      },
+    });
+    expect(trackTokens).toHaveBeenCalledOnce();
   });
 
   it("marks ambiguous Autumn failures without retrying", async () => {
