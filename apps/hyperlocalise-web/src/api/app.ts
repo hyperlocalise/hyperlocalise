@@ -79,7 +79,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
 
-  return new Hono<EvlogVariables>()
+  const app = new Hono<EvlogVariables>()
     .use("*", secureHeaders())
     .use("*", evlog())
     .basePath("/api")
@@ -116,10 +116,13 @@ export function createApp(options: CreateAppOptions = {}) {
       createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
-    .route("/oauth/canva", createCanvaOauthRoutes())
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
     .route("/crowdin-app", createCrowdinAppRoutes())
     .route("/webhooks", createWebhookRoutes(options));
+
+  // Mounted after the inferred chain so AppType stays under TypeScript's instantiation limit.
+  app.route("/oauth/canva", createCanvaOauthRoutes());
+  return app;
 }
 
 export const app = createApp();
