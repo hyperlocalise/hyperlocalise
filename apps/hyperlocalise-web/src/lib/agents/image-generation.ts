@@ -43,6 +43,14 @@ function getImageModel() {
   return getManagedImageModel();
 }
 
+function imageGenerationId(providerMetadata: unknown) {
+  if (!providerMetadata || typeof providerMetadata !== "object") return undefined;
+  const gateway = Reflect.get(providerMetadata, "gateway");
+  if (!gateway || typeof gateway !== "object") return undefined;
+  const generationId = Reflect.get(gateway, "generationId");
+  return typeof generationId === "string" ? generationId : undefined;
+}
+
 /**
  * Generates a new image from the uploaded source image and user intent.
  */
@@ -75,10 +83,7 @@ async function generateImageFromPrompt(
     image: Buffer.from(generatedImage.uint8Array),
     mimeType: generatedImage.mediaType,
     imageCount: result.images.length,
-    providerGenerationId:
-      typeof result.providerMetadata?.gateway?.generationId === "string"
-        ? result.providerMetadata.gateway.generationId
-        : undefined,
+    providerGenerationId: imageGenerationId(result.providerMetadata),
   };
 }
 

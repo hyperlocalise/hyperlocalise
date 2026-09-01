@@ -152,10 +152,9 @@ function createAutumnClient(apiKey: string) {
 
 async function lockManagedAiCredit(tx: DatabaseTransaction, organizationId: string) {
   await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${[
-      "managed_ai_credit",
-      organizationId,
-    ].join(":")}, 0))`,
+    sql`select pg_advisory_xact_lock(hashtextextended(${["managed_ai_credit", organizationId].join(
+      ":",
+    )}, 0))`,
   );
 }
 
@@ -242,8 +241,7 @@ export async function reserveManagedAiCredit(input: {
       return ok({
         operationKey: existing.operationKey,
         mode,
-        credentialSource:
-          existing.credentialSource === "byok" ? "byok" : input.credentialSource,
+        credentialSource: existing.credentialSource === "byok" ? "byok" : input.credentialSource,
         estimatedAmountUsd: positiveNumber(
           Number(existing.estimatedAmountUsd ?? input.estimatedAmountUsd),
         ),
@@ -268,11 +266,7 @@ export async function reserveManagedAiCredit(input: {
         const autumn = apiKey ? createAutumnClient(apiKey) : null;
         const check =
           input.dependencies?.check ??
-          (async (params: {
-            customerId: string;
-            featureId: string;
-            requiredBalance: number;
-          }) => {
+          (async (params: { customerId: string; featureId: string; requiredBalance: number }) => {
             if (!autumn) throw new Error("Autumn is not configured");
             return autumn.check({
               ...params,
@@ -363,7 +357,9 @@ export async function settleManagedAiCredit(input: {
   shadowAmountUsd?: number;
   autumnApiKey?: string;
   dependencies?: ManagedAiCreditDependencies;
-}): Promise<Result<{ amountUsd: number; status: "already_settled" | "settled" }, ManagedAiCreditError>> {
+}): Promise<
+  Result<{ amountUsd: number; status: "already_settled" | "settled" }, ManagedAiCreditError>
+> {
   const database = input.db ?? db;
   const event = await findUsageEvent(database, input.reservation.operationKey);
   if (!event) {
@@ -392,10 +388,7 @@ export async function settleManagedAiCredit(input: {
     total_tokens: input.tokenUsage.totalTokens,
   };
 
-  if (
-    input.reservation.credentialSource === "byok" ||
-    input.reservation.mode === "shadow"
-  ) {
+  if (input.reservation.credentialSource === "byok" || input.reservation.mode === "shadow") {
     const amountUsd =
       input.reservation.credentialSource === "byok"
         ? 0
@@ -434,7 +427,7 @@ export async function settleManagedAiCredit(input: {
       input.dependencies?.trackTokens ??
       (async (params: Parameters<NonNullable<ManagedAiCreditDependencies["trackTokens"]>>[0]) => {
         if (!autumn) throw new Error("Autumn is not configured");
-        return autumn.balances.trackTokens(params);
+        return autumn.trackTokens(params);
       });
     const tracked = await trackTokens({
       customerId: event.organizationId,

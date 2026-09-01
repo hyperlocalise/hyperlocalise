@@ -50,9 +50,7 @@ export function managedAiReservationAmountUsd(
     case "chat":
       return config.chatReservationUsd ?? null;
     case "image":
-      return config.imagePriceUsd == null
-        ? null
-        : config.imagePriceUsd * (input.imageCount ?? 1);
+      return config.imagePriceUsd == null ? null : config.imagePriceUsd * (input.imageCount ?? 1);
     case "video":
       return config.videoPriceUsdPerSecond == null
         ? null

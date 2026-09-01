@@ -284,8 +284,7 @@ export async function trackAiCreditUsageInAutumn(input: {
       });
     }
 
-    const estimatedAmountUsd =
-      input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd;
+    const estimatedAmountUsd = input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd;
     if (!estimatedAmountUsd) {
       return err({
         code: "ai_credit_pricing_not_configured",

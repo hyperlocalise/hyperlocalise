@@ -31,12 +31,10 @@ const config: ManagedAiPricingConfig = {
 describe("managed AI pricing", () => {
   it("calculates configured chat, image, and video reservations", () => {
     expect(managedAiReservationAmountUsd(config, { surface: "chat" })).toBe(0.5);
-    expect(
-      managedAiReservationAmountUsd(config, { surface: "image", imageCount: 2 }),
-    ).toBe(0.5);
-    expect(
-      managedAiReservationAmountUsd(config, { surface: "video", durationSeconds: 8 }),
-    ).toBe(3.2);
+    expect(managedAiReservationAmountUsd(config, { surface: "image", imageCount: 2 })).toBe(0.5);
+    expect(managedAiReservationAmountUsd(config, { surface: "video", durationSeconds: 8 })).toBe(
+      3.2,
+    );
   });
 
   it("stores USD amounts with fixed precision", () => {

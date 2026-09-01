@@ -54,19 +54,16 @@ const chatRequestBodySchema = z.object({
   messageId: z.string().optional(),
 });
 
-function aiCreditErrorResponse(c: Parameters<typeof apiErrorResponse>[0], error: ManagedAiCreditError) {
+function aiCreditErrorResponse(
+  c: Parameters<typeof apiErrorResponse>[0],
+  error: ManagedAiCreditError,
+) {
   if (error.code === "ai_credit_insufficient") {
-    return apiErrorResponse(
-      c,
-      402,
-      error.code,
-      formatManagedAiCreditError(error),
-      {
-        requiredAmountUsd: error.requiredAmountUsd,
-        remainingAmountUsd: error.remainingAmountUsd,
-        billingSection: "available-plans",
-      },
-    );
+    return apiErrorResponse(c, 402, error.code, formatManagedAiCreditError(error), {
+      requiredAmountUsd: error.requiredAmountUsd,
+      remainingAmountUsd: error.remainingAmountUsd,
+      billingSection: "available-plans",
+    });
   }
 
   return apiErrorResponse(c, 503, error.code, formatManagedAiCreditError(error));
@@ -156,13 +153,17 @@ export function createChatStreamRoutes() {
       const languageModelPromise = resolveHyperlocaliseAgentLanguageModel({
         organizationId: orgId,
       });
-      const [hasTranslationAttachments, knowledgeMemoryEnabled, glossarySearchEnabled, languageModel] =
-        await Promise.all([
-          interactionHasTranslationAttachments(conversationId),
-          resolveChatKnowledgeMemoryCapability(c.var.auth),
-          resolveChatGlossarySearchCapability(c.var.auth),
-          languageModelPromise,
-        ]);
+      const [
+        hasTranslationAttachments,
+        knowledgeMemoryEnabled,
+        glossarySearchEnabled,
+        languageModel,
+      ] = await Promise.all([
+        interactionHasTranslationAttachments(conversationId),
+        resolveChatKnowledgeMemoryCapability(c.var.auth),
+        resolveChatGlossarySearchCapability(c.var.auth),
+        languageModelPromise,
+      ]);
       const estimatedAmountUsd =
         pricingConfig.mode === "legacy"
           ? null
