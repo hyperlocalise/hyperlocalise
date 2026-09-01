@@ -82,8 +82,8 @@ func TestIntegrationSpellingAcrossLocaleFamiliesAndRegionalVariants(t *testing.T
 		name            string
 		locale          string
 		targetText      string
-		wantWarningWord string 
-		wantSuggestion  string 
+		wantWarningWord string
+		wantSuggestion  string
 	}{
 		{name: "en-US accepts its own spelling", locale: integrationLocaleEnUS, targetText: "please update color"},
 		{
