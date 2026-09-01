@@ -44,6 +44,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
@@ -284,5 +285,100 @@ describe("image variant approved locks", () => {
       status: "approved",
       storedFileId: null,
     });
+  });
+});
+
+describe("image variant generation billing", () => {
+  async function localizeFromFetchedUrl(input: { force?: boolean } = {}) {
+    const { organization, project } = await createStoredProjectFixture();
+    undiciMock.fetch.mockResolvedValue(
+      new Response(Buffer.from("source-image"), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }),
+    );
+
+    const result = await localizeAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      sourceUrl: "https://cdn.example.com/assets/hero.png",
+      provenance: "agent",
+      force: input.force,
+    });
+
+    return { organization, project, result };
+  }
+
+  it("maps generation credit errors instead of a generic localization failure", async () => {
+    regenerateImageFromAttachment.mockRejectedValue(
+      new ManagedAiCreditAccessError({
+        code: "ai_credit_insufficient",
+        requiredAmountUsd: 0.08,
+        remainingAmountUsd: 0.01,
+      }),
+    );
+
+    const { result } = await localizeFromFetchedUrl();
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected image generation to fail on insufficient credit");
+    }
+    expect(result.error).toEqual({
+      code: "ai_credit_insufficient",
+      requiredAmountUsd: 0.08,
+      remainingAmountUsd: 0.01,
+    });
+  });
+
+  it("maps generation availability errors to ai_credit_unavailable", async () => {
+    regenerateImageFromAttachment.mockRejectedValue(
+      new ManagedAiCreditAccessError({
+        code: "ai_credit_check_failed",
+        message: "Autumn check timed out",
+      }),
+    );
+
+    const { result } = await localizeFromFetchedUrl();
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected image generation to fail when credit is unavailable");
+    }
+    expect(result.error).toEqual({
+      code: "ai_credit_unavailable",
+      message: "Autumn check timed out",
+    });
+  });
+
+  it("uses a stable operation key for the first generation and a unique key when forced", async () => {
+    regenerateImageFromAttachment.mockRejectedValue(new Error("stop after key check"));
+
+    const first = await localizeFromFetchedUrl();
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      "image/png",
+      expect.any(String),
+      expect.objectContaining({
+        operationKey: `image-localization:variant:${first.project.id}:assets/hero.png:fr-FR`,
+      }),
+    );
+
+    regenerateImageFromAttachment.mockClear();
+    const forced = await localizeFromFetchedUrl({ force: true });
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      "image/png",
+      expect.any(String),
+      expect.objectContaining({
+        operationKey: expect.stringMatching(
+          new RegExp(
+            `^image-localization:variant:${forced.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
+          ),
+        ),
+      }),
+    );
   });
 });

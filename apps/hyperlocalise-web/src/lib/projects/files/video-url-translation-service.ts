@@ -16,6 +16,7 @@ import {
   VideoLocalizationError,
   regenerateVideoFromAttachment,
 } from "@/lib/agents/video-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import {
   buildVideoLocalizationPrompt,
@@ -218,7 +219,10 @@ export async function localizeVideoUrlTranslation(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+          input.force,
+        ),
         source: "project_video_url_translation",
         dimensions: {
           channel: "project",

@@ -10,6 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  formatManagedAiCreditError,
+  type ManagedAiCreditError,
+} from "@/lib/billing/managed-ai-credit";
+import { reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import { sandboxTranslationBillingMetadata } from "@/lib/translation/cli-token-usage";
+import { loadSandboxByokCredential } from "@/lib/translation/sandbox-byok";
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -54,6 +61,25 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organi
 import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
+
+async function reserveProviderAgentTranslationCredit(input: {
+  organizationId: string;
+  agentRunId: string;
+}): Promise<{ ok: true } | { ok: false; error: ManagedAiCreditError }> {
+  const byok = await loadSandboxByokCredential(input.organizationId);
+  const billing = sandboxTranslationBillingMetadata(byok);
+  const reserved = await reserveAgentRunAiCredit({
+    organizationId: input.organizationId,
+    runId: input.agentRunId,
+    source: "agent_run_complete",
+    modelId: billing.modelId,
+    credentialSource: billing.credentialSource,
+  });
+  if (!reserved.ok) {
+    return { ok: false, error: reserved.error };
+  }
+  return { ok: true };
+}
 
 export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
 
@@ -627,6 +653,29 @@ export async function executeProviderAgentTranslation(input: {
       "provider agent translation selected file mode",
     );
 
+    const creditReservation = await reserveProviderAgentTranslationCredit({
+      organizationId: input.organizationId,
+      agentRunId: input.agentRunId,
+    });
+    if (!creditReservation.ok) {
+      await failAgentRun({
+        runId: run.id,
+        organizationId: input.organizationId,
+        outputSummary: {
+          code: creditReservation.error.code,
+          pullRunId: pullResult.runId,
+          unitsDiscovered: pullResult.counts.unitsDiscovered,
+        },
+        warnings: [formatManagedAiCreditError(creditReservation.error)],
+      });
+      return {
+        ok: false,
+        agentRunId: input.agentRunId,
+        code: creditReservation.error.code,
+        message: formatManagedAiCreditError(creditReservation.error),
+      };
+    }
+
     const fileTranslationResult = await translateProviderJobFiles({
       agentRunId: input.agentRunId,
       organizationId: input.organizationId,
@@ -772,6 +821,29 @@ export async function executeProviderAgentTranslation(input: {
     },
     "provider agent translation selected string mode",
   );
+
+  const creditReservation = await reserveProviderAgentTranslationCredit({
+    organizationId: input.organizationId,
+    agentRunId: input.agentRunId,
+  });
+  if (!creditReservation.ok) {
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        code: creditReservation.error.code,
+        pullRunId: pullResult.runId,
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+      },
+      warnings: [formatManagedAiCreditError(creditReservation.error)],
+    });
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: creditReservation.error.code,
+      message: formatManagedAiCreditError(creditReservation.error),
+    };
+  }
 
   const translationResult = await translateProviderUnits({
     organizationId: input.organizationId,

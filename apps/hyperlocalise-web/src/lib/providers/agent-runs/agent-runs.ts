@@ -12,6 +12,7 @@
  */
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
+import { releaseAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
@@ -238,6 +239,10 @@ export async function failAgentRun(input: {
     status: "failed",
     source: run.kind,
   });
+  await releaseAgentRunAiCredit({
+    runId: input.runId,
+    reason: "agent_run_failed",
+  });
   return run;
 }
 
@@ -313,6 +318,12 @@ async function trackCompletedAgentRunUsage(input: {
 }) {
   const operationKey = `agent-run:${input.runId}:agent_runs`;
   const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
+  if (!tokenUsage) {
+    await releaseAgentRunAiCredit({
+      runId: input.runId,
+      reason: "no_token_usage",
+    });
+  }
   const pricingConfig = getManagedAiPricingConfig();
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: input.organizationId,

@@ -16,12 +16,14 @@ const {
   completeAndTrackBillableUsageMock,
   reserveUsageEventMock,
   getManagedAiPricingConfigMock,
+  getManagedAiCreditReservationMock,
   reserveManagedAiCreditMock,
   releaseManagedAiCreditMock,
 } = vi.hoisted(() => ({
   completeAndTrackBillableUsageMock: vi.fn(),
   reserveUsageEventMock: vi.fn(),
   getManagedAiPricingConfigMock: vi.fn(),
+  getManagedAiCreditReservationMock: vi.fn(),
   reserveManagedAiCreditMock: vi.fn(),
   releaseManagedAiCreditMock: vi.fn(),
 }));
@@ -47,14 +49,18 @@ vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
   return {
     ...actual,
+    getManagedAiCreditReservation: getManagedAiCreditReservationMock,
     reserveManagedAiCredit: reserveManagedAiCreditMock,
     releaseManagedAiCredit: releaseManagedAiCreditMock,
   };
 });
 
 import {
+  agentRunAiCreditOperationKey,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
+  releaseAgentRunAiCredit,
+  reserveAgentRunAiCredit,
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
@@ -70,6 +76,7 @@ describe("agent-runtime-usage", () => {
       imageModelId: "custom/image",
       videoModelId: "custom/video",
     });
+    getManagedAiCreditReservationMock.mockResolvedValue(null);
     reserveManagedAiCreditMock.mockResolvedValue({
       ok: true,
       value: {
@@ -322,5 +329,94 @@ describe("agent-runtime-usage", () => {
     ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("does not reserve provider-agent credit in legacy metering mode", async () => {
+    await expect(
+      reserveAgentRunAiCredit({
+        organizationId: "org_123",
+        runId: "run_1",
+        source: "agent_run_complete",
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+      }),
+    ).resolves.toEqual(ok(null));
+    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses an outstanding provider-agent reservation instead of creating a second one", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    const existing = {
+      operationKey: agentRunAiCreditOperationKey("run_1"),
+      status: "reserved",
+    };
+    getManagedAiCreditReservationMock.mockResolvedValue(existing);
+
+    await expect(
+      reserveAgentRunAiCredit({
+        organizationId: "org_123",
+        runId: "run_1",
+        source: "agent_run_complete",
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+      }),
+    ).resolves.toEqual(ok(existing));
+    expect(reserveManagedAiCreditMock).not.toHaveBeenCalled();
+  });
+
+  it("reserves estimated chat credit before a managed provider-agent run", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+
+    await reserveAgentRunAiCredit({
+      organizationId: "org_123",
+      runId: "run_1",
+      source: "agent_run_complete",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+    });
+
+    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      operationKey: "agent-run:run_1:agent_runs:ai_tokens",
+      source: "agent_run_complete",
+      modelId: "openai/gpt-5.6-luna",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+      mode: "enforced",
+      dimensions: {
+        surface: "provider_agent",
+      },
+    });
+  });
+
+  it("releases provider-agent credit only when a reservation exists", async () => {
+    await releaseAgentRunAiCredit({
+      runId: "run_1",
+      reason: "agent_run_failed",
+    });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
+
+    const reservation = { operationKey: "agent-run:run_1:agent_runs:ai_tokens" };
+    getManagedAiCreditReservationMock.mockResolvedValueOnce(reservation);
+    await releaseAgentRunAiCredit({
+      runId: "run_1",
+      reason: "agent_run_failed",
+    });
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation,
+      reason: "agent_run_failed",
+    });
   });
 });

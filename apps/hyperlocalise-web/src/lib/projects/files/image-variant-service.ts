@@ -19,6 +19,7 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -251,20 +252,28 @@ export async function fetchImageBytesFromUrl(
       },
     );
   } catch (error) {
-    if (error instanceof ManagedAiCreditAccessError) {
-      return error.billingError.code === "ai_credit_insufficient"
-        ? err({
-            code: "ai_credit_insufficient",
-            requiredAmountUsd: error.billingError.requiredAmountUsd,
-            remainingAmountUsd: error.billingError.remainingAmountUsd,
-          })
-        : err({ code: "ai_credit_unavailable", message: error.message });
-    }
     return err({
       code: "fetch_failed",
       message: error instanceof Error ? error.message : "image fetch failed",
     });
   }
+}
+
+function mapImageGenerationError(error: unknown): ImageVariantError {
+  if (error instanceof ManagedAiCreditAccessError) {
+    return error.billingError.code === "ai_credit_insufficient"
+      ? {
+          code: "ai_credit_insufficient",
+          requiredAmountUsd: error.billingError.requiredAmountUsd,
+          remainingAmountUsd: error.billingError.remainingAmountUsd,
+        }
+      : { code: "ai_credit_unavailable", message: error.message };
+  }
+
+  return {
+    code: "localization_failed",
+    message: error instanceof Error ? error.message : "image localization failed",
+  };
 }
 
 export async function localizeAndStoreImageVariant(input: {
@@ -334,7 +343,10 @@ export async function localizeAndStoreImageVariant(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+          input.force,
+        ),
         source: "project_image_variant",
         dimensions: {
           channel: "project",
@@ -345,10 +357,7 @@ export async function localizeAndStoreImageVariant(input: {
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
-    return err({
-      code: "localization_failed",
-      message: error instanceof Error ? error.message : "image localization failed",
-    });
+    return err(mapImageGenerationError(error));
   }
 
   const outputFilename = localizedImageOutputFilename(

@@ -18,10 +18,13 @@ import {
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
 import {
+  formatManagedAiCreditError,
+  getManagedAiCreditReservation,
   ManagedAiCreditAccessError,
   releaseManagedAiCredit,
   reserveManagedAiCredit,
   type AiCreditCredentialSource,
+  type ManagedAiCreditError,
   type ManagedAiCreditReservation,
 } from "@/lib/billing/managed-ai-credit";
 import {
@@ -29,7 +32,7 @@ import {
   managedAiReservationAmountUsd,
 } from "@/lib/billing/managed-ai-pricing";
 import { serializeErrorForLog } from "@/lib/log";
-import { isErr } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
 type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
@@ -123,6 +126,73 @@ export function addAiTokenUsage(
     audioInputTokens: (first.audioInputTokens ?? 0) + (second.audioInputTokens ?? 0),
     audioOutputTokens: (first.audioOutputTokens ?? 0) + (second.audioOutputTokens ?? 0),
   };
+}
+
+export function agentRunAiCreditOperationKey(runId: string) {
+  return `agent-run:${runId}:agent_runs:ai_tokens`;
+}
+
+export async function reserveAgentRunAiCredit(input: {
+  organizationId: string;
+  runId: string;
+  source?: string;
+  modelId: string;
+  credentialSource: AiCreditCredentialSource;
+}): Promise<Result<ManagedAiCreditReservation | null, ManagedAiCreditError>> {
+  const pricingConfig = getManagedAiPricingConfig();
+  if (pricingConfig.mode === "legacy") {
+    return ok(null);
+  }
+
+  const operationKey = agentRunAiCreditOperationKey(input.runId);
+  const existing = await getManagedAiCreditReservation({ operationKey });
+  if (existing) {
+    return ok(existing);
+  }
+
+  const estimatedAmountUsd =
+    input.credentialSource === "byok"
+      ? 0
+      : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
+  if (estimatedAmountUsd == null) {
+    return err({
+      code: "ai_credit_pricing_not_configured",
+      surface: input.source ?? "agent_run",
+    });
+  }
+
+  return reserveManagedAiCredit({
+    organizationId: input.organizationId,
+    operationKey,
+    source: input.source ?? "agent_run_create",
+    modelId: input.modelId,
+    credentialSource: input.credentialSource,
+    estimatedAmountUsd,
+    mode: pricingConfig.mode,
+    dimensions: {
+      surface: "provider_agent",
+    },
+  });
+}
+
+export async function releaseAgentRunAiCredit(input: { runId: string; reason: string }) {
+  const reservation = await getManagedAiCreditReservation({
+    operationKey: agentRunAiCreditOperationKey(input.runId),
+  });
+  if (!reservation) {
+    return;
+  }
+
+  const released = await releaseManagedAiCredit({
+    reservation,
+    reason: input.reason,
+  });
+  if (!released.ok) {
+    logAgentRuntimeUsageError("AI credit release failed", {
+      runId: input.runId,
+      error: formatManagedAiCreditError(released.error),
+    });
+  }
 }
 
 export async function reserveAgentRuntimeUsage(input: {
