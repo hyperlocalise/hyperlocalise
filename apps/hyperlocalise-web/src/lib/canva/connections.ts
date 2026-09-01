@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
 import {
   generateCanvaConnectionToken,
@@ -169,8 +169,10 @@ export async function listCanvaConnections(input: {
 export async function getCanvaConnection(input: {
   organizationId: string;
   connectionId: string;
+  database?: DatabaseClient;
 }): Promise<CanvaConnectionSummary | null> {
-  const [connection] = await db
+  const database = input.database ?? db;
+  const [connection] = await database
     .select()
     .from(schema.canvaConnections)
     .where(
@@ -307,17 +309,20 @@ export async function regenerateCanvaConnectionToken(input: {
   organizationId: string;
   userId: string;
   connectionId: string;
+  database?: DatabaseClient;
 }): Promise<CanvaConnectionSecretResult | null> {
+  const database = input.database ?? db;
   const existing = await getCanvaConnection({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
+    database,
   });
   if (!existing) {
     return null;
   }
 
   const connectionToken = generateCanvaConnectionToken();
-  const [connection] = await db
+  const [connection] = await database
     .update(schema.canvaConnections)
     .set({
       connectionTokenHash: hashCanvaConnectionToken(connectionToken),

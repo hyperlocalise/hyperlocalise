@@ -78,64 +78,72 @@ export async function completeCanvaConnectionClaim(input: {
   connectionId: string;
   claimId: string;
 }) {
-  const [claim] = await db
-    .select()
-    .from(schema.canvaConnectionClaims)
-    .where(eq(schema.canvaConnectionClaims.id, input.claimId))
-    .limit(1);
+  // Lock the claim before rotating the connection token. Concurrent
+  // complete-claim calls used to regenerate first, then lose the claim
+  // update — leaving the sealed claim token mismatched against the
+  // connection hash so Canva auth permanently failed for that connect.
+  return db.transaction(async (tx) => {
+    const [claim] = await tx
+      .select()
+      .from(schema.canvaConnectionClaims)
+      .where(eq(schema.canvaConnectionClaims.id, input.claimId))
+      .limit(1)
+      .for("update");
 
-  if (!claim) {
-    throw new Error("canva_claim_not_found");
-  }
+    if (!claim) {
+      throw new Error("canva_claim_not_found");
+    }
 
-  if (claim.consumedAt || claim.expiresAt.getTime() <= Date.now()) {
-    throw new Error("canva_claim_expired");
-  }
+    if (claim.consumedAt || claim.expiresAt.getTime() <= Date.now()) {
+      throw new Error("canva_claim_expired");
+    }
 
-  if (claim.completedAt || claim.ciphertext) {
-    throw new Error("canva_claim_already_completed");
-  }
+    if (claim.completedAt || claim.ciphertext) {
+      throw new Error("canva_claim_already_completed");
+    }
 
-  const regenerated = await regenerateCanvaConnectionToken({
-    organizationId: input.organizationId,
-    userId: input.userId,
-    connectionId: input.connectionId,
-  });
-  if (!regenerated) {
-    throw new Error("canva_connection_not_found");
-  }
-
-  const encrypted = encryptProviderCredential(regenerated.connectionToken);
-  if (isErr(encrypted)) {
-    throw new Error(encrypted.error.code);
-  }
-
-  const [updated] = await db
-    .update(schema.canvaConnectionClaims)
-    .set({
+    const regenerated = await regenerateCanvaConnectionToken({
       organizationId: input.organizationId,
+      userId: input.userId,
       connectionId: input.connectionId,
-      completedAt: new Date(),
-      encryptionAlgorithm: encrypted.value.algorithm,
-      ciphertext: encrypted.value.ciphertext,
-      iv: encrypted.value.iv,
-      authTag: encrypted.value.authTag,
-      keyVersion: encrypted.value.keyVersion,
-    })
-    .where(
-      and(
-        eq(schema.canvaConnectionClaims.id, input.claimId),
-        isNull(schema.canvaConnectionClaims.completedAt),
-        isNull(schema.canvaConnectionClaims.consumedAt),
-      ),
-    )
-    .returning({ id: schema.canvaConnectionClaims.id });
+      database: tx,
+    });
+    if (!regenerated) {
+      throw new Error("canva_connection_not_found");
+    }
 
-  if (!updated) {
-    throw new Error("canva_claim_already_completed");
-  }
+    const encrypted = encryptProviderCredential(regenerated.connectionToken);
+    if (isErr(encrypted)) {
+      throw new Error(encrypted.error.code);
+    }
 
-  return { claimId: updated.id, connection: regenerated.connection };
+    const [updated] = await tx
+      .update(schema.canvaConnectionClaims)
+      .set({
+        organizationId: input.organizationId,
+        connectionId: input.connectionId,
+        completedAt: new Date(),
+        encryptionAlgorithm: encrypted.value.algorithm,
+        ciphertext: encrypted.value.ciphertext,
+        iv: encrypted.value.iv,
+        authTag: encrypted.value.authTag,
+        keyVersion: encrypted.value.keyVersion,
+      })
+      .where(
+        and(
+          eq(schema.canvaConnectionClaims.id, input.claimId),
+          isNull(schema.canvaConnectionClaims.completedAt),
+          isNull(schema.canvaConnectionClaims.consumedAt),
+        ),
+      )
+      .returning({ id: schema.canvaConnectionClaims.id });
+
+    if (!updated) {
+      throw new Error("canva_claim_already_completed");
+    }
+
+    return { claimId: updated.id, connection: regenerated.connection };
+  });
 }
 
 export async function pollCanvaConnectionClaim(input: {
