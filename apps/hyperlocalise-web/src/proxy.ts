@@ -125,6 +125,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/trust-center",
   "/pricing",
   "/company",
+  "/contact",
   "/startups",
   "/localisation-audit",
 ]);

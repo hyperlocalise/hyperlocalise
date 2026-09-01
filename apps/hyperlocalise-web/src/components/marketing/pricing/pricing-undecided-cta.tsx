@@ -10,22 +10,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import Link from "next/link";
+
 import { contactUrl } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH2 } from "@/components/ui/typography";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
 type PricingUndecidedCtaProps = {
   heading: string;
   talkToSalesLabel: string;
   requestDemoLabel: string;
+  locale: string;
 };
 
 export function PricingUndecidedCta({
   heading,
   talkToSalesLabel,
   requestDemoLabel,
+  locale,
 }: PricingUndecidedCtaProps) {
+  const appLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+
   return (
     <section
       aria-labelledby="pricing-undecided-heading"
@@ -38,7 +46,11 @@ export function PricingUndecidedCta({
         {heading}
       </TypographyH2>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button variant="outline" nativeButton={false} render={<a href={contactUrl} />}>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={rewriteAppLocalePath(contactUrl, appLocale)} />}
+        >
           {talkToSalesLabel}
         </Button>
         <Button

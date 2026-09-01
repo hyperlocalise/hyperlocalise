@@ -92,8 +92,8 @@ export const navbarMessages = defineMessages({
   },
   navContact: {
     defaultMessage: "Contact",
-    id: "zstI+O20TZ",
-    description: "Marketing navbar link to contact email",
+    id: "IG9QdvGos0",
+    description: "Marketing navbar link to the contact page",
   },
   navTrustCenter: {
     defaultMessage: "Trust Center",

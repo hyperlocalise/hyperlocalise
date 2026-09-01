@@ -76,6 +76,7 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/privacy")).toBe(false);
     expect(isUnsupportedLocalePath("/pricing")).toBe(false);
     expect(isUnsupportedLocalePath("/company")).toBe(false);
+    expect(isUnsupportedLocalePath("/contact")).toBe(false);
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
@@ -187,6 +188,16 @@ describe("proxy", () => {
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/company");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects contact paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/contact"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/contact");
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 

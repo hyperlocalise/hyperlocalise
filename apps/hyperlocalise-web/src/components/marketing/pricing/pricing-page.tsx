@@ -87,6 +87,7 @@ export function PricingPage({ locale, faqItems }: PricingPageProps) {
               heading={copy.undecidedHeading}
               talkToSalesLabel={copy.talkToSales}
               requestDemoLabel={copy.requestDemo}
+              locale={locale}
             />
           </div>
         </section>
