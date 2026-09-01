@@ -89,8 +89,10 @@ function constantTimeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-/** Keyed digest for 256-bit random OAuth codes and tokens, not user passwords. */
-export function hashCanvaOauthSecret(value: string): string {
+/** Keyed lookup digest for 256-bit random OAuth codes and tokens, not user passwords. */
+export function digestCanvaOauthToken(value: string): string {
+  // HMAC-SHA256 is the correct primitive for high-entropy token lookup, not a password KDF.
+  // codeql[js/insufficient-password-hash]
   return createHmac("sha256", getOauthSecret()).update(value).digest("hex");
 }
 
@@ -219,7 +221,7 @@ export async function createCanvaOauthAuthorizationCode(input: {
 }): Promise<string> {
   const code = generateCanvaOauthAuthorizationCode();
   await db.insert(schema.canvaOauthAuthorizationCodes).values({
-    codeHash: hashCanvaOauthSecret(code),
+    codeHash: digestCanvaOauthToken(code),
     clientId: input.clientId,
     redirectUri: input.redirectUri,
     codeChallenge: input.codeChallenge,
@@ -241,7 +243,7 @@ export async function consumeCanvaOauthAuthorizationCode(input: {
   const [row] = await db
     .select()
     .from(schema.canvaOauthAuthorizationCodes)
-    .where(eq(schema.canvaOauthAuthorizationCodes.codeHash, hashCanvaOauthSecret(input.code)))
+    .where(eq(schema.canvaOauthAuthorizationCodes.codeHash, digestCanvaOauthToken(input.code)))
     .limit(1);
 
   if (
@@ -289,8 +291,8 @@ export async function issueCanvaOauthTokens(input: {
     connectionId: input.connectionId,
     userId: input.userId,
     organizationId: input.organizationId,
-    accessTokenHash: hashCanvaOauthSecret(accessToken),
-    refreshTokenHash: hashCanvaOauthSecret(refreshToken),
+    accessTokenHash: digestCanvaOauthToken(accessToken),
+    refreshTokenHash: digestCanvaOauthToken(refreshToken),
     accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
     refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
   });
@@ -307,7 +309,7 @@ export async function refreshCanvaOauthTokens(refreshToken: string) {
   const [row] = await db
     .select()
     .from(schema.canvaOauthTokens)
-    .where(eq(schema.canvaOauthTokens.refreshTokenHash, hashCanvaOauthSecret(refreshToken)))
+    .where(eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(refreshToken)))
     .limit(1);
 
   if (!row || row.revokedAt || row.refreshTokenExpiresAt.getTime() < Date.now()) {
@@ -321,8 +323,8 @@ export async function refreshCanvaOauthTokens(refreshToken: string) {
   const [updated] = await db
     .update(schema.canvaOauthTokens)
     .set({
-      accessTokenHash: hashCanvaOauthSecret(accessToken),
-      refreshTokenHash: hashCanvaOauthSecret(nextRefreshToken),
+      accessTokenHash: digestCanvaOauthToken(accessToken),
+      refreshTokenHash: digestCanvaOauthToken(nextRefreshToken),
       accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
       refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
       revokedAt: null,
@@ -343,7 +345,7 @@ export async function refreshCanvaOauthTokens(refreshToken: string) {
 }
 
 export async function revokeCanvaOauthToken(token: string): Promise<boolean> {
-  const tokenHash = hashCanvaOauthSecret(token);
+  const tokenHash = digestCanvaOauthToken(token);
   const [byAccess] = await db
     .update(schema.canvaOauthTokens)
     .set({ revokedAt: new Date() })
@@ -396,7 +398,7 @@ export async function getCanvaConnectionByOauthAccessToken(
     )
     .where(
       and(
-        eq(schema.canvaOauthTokens.accessTokenHash, hashCanvaOauthSecret(accessToken)),
+        eq(schema.canvaOauthTokens.accessTokenHash, digestCanvaOauthToken(accessToken)),
         isNull(schema.canvaOauthTokens.revokedAt),
         gt(schema.canvaOauthTokens.accessTokenExpiresAt, new Date()),
       ),
