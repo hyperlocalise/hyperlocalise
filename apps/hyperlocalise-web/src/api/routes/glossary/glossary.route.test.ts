@@ -472,8 +472,8 @@ describe("glossaryRoutes", () => {
         json: {
           format: "csv",
           content: "conceptId,termId,locale,term,reviewStatus\nconcept-1,term-1,en,Checkout,draft",
-          mode: "merge",
-          previewForMode: "merge",
+          mode: "create",
+          previewForMode: "create",
           strictLocale: true,
           localeMapping: {},
         },
@@ -489,7 +489,7 @@ describe("glossaryRoutes", () => {
     expect(term?.reviewStatus).toBe("draft");
   });
 
-  it("does not commit an empty concept when merge reassigns a term ID", async () => {
+  it("does not commit an empty concept when create reassigns a term ID", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -530,8 +530,8 @@ describe("glossaryRoutes", () => {
         json: {
           format: "csv",
           content: `conceptId,termId,locale,term\nnew-concept,${existingTermId},en,Reassigned`,
-          mode: "merge",
-          previewForMode: "merge",
+          mode: "create",
+          previewForMode: "create",
           strictLocale: true,
           localeMapping: {},
         },

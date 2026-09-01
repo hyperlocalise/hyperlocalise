@@ -121,7 +121,9 @@ function termBelongsToAnotherConcept(
   existingTerm: typeof schema.glossaryTerms.$inferSelect | undefined,
   existingConcept: typeof schema.glossaryConcepts.$inferSelect | undefined,
 ) {
-  return Boolean(existingTerm && (!existingConcept || existingTerm.conceptId !== existingConcept.id));
+  return Boolean(
+    existingTerm && (!existingConcept || existingTerm.conceptId !== existingConcept.id),
+  );
 }
 
 function collectTermOwnershipConflicts(
