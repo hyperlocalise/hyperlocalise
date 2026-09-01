@@ -17,18 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// This file proves production server assembly and lifecycle: the same
-// *http.Server construction main.go uses (newHTTPServer + registerRoutes +
-// requestLogMiddleware + withOptionalPrefix), listening on a real TCP
-// socket, handling concurrent requests, and shutting down gracefully. It
-// deliberately does not require the cgo_hunspell build tag or real
-// dictionaries — that is the job of the handler-to-Hunspell integration
-// tests, which exercise the spelling provider itself.
+// These tests exercise the production server assembly used by main.go over a
+// real TCP listener. Real Hunspell integration is covered separately by the
+// cgo_hunspell integration tests.
 
-// stubSpellChecker is a stateless SpellChecker safe for concurrent use
-// across goroutines (unlike fakeSpellChecker in spellcheck_test.go, which
-// records the last request into shared struct fields and is only meant for
-// single-goroutine unit tests).
+// stubSpellChecker is stateless and safe for concurrent tests, unlike the
+// stateful fakeSpellChecker used by single-goroutine unit tests.
 type stubSpellChecker struct{}
 
 func (stubSpellChecker) Check(_ context.Context, locale string, _ []string) ([]SpellingIssue, error) {
