@@ -56,12 +56,19 @@ export type SlackConnectApiError =
 
 export type SlackConnectChannel = { id: string; name: string };
 
+export type SlackConnectChannelInfo = SlackConnectChannel & {
+  purpose: string | null;
+  archived: boolean;
+};
+
 export type SlackConnectApi = {
   createChannel: (name: string) => Promise<Result<SlackConnectChannel, SlackConnectApiError>>;
   findPrivateChannelByName: (
     name: string,
   ) => Promise<Result<SlackConnectChannel | null, SlackConnectApiError>>;
-  getChannelPurpose: (channelId: string) => Promise<Result<string | null, SlackConnectApiError>>;
+  getChannel: (
+    channelId: string,
+  ) => Promise<Result<SlackConnectChannelInfo | null, SlackConnectApiError>>;
   setChannelPurpose: (
     channelId: string,
     purpose: string,
@@ -145,15 +152,34 @@ export function createSlackConnectApi(botToken: string): SlackConnectApi {
 
       return ok(null);
     },
-    getChannelPurpose: async (channelId) => {
+    getChannel: async (channelId) => {
       const result = await slackMethod<{
-        channel?: { purpose?: { value?: string } };
+        channel?: {
+          id?: string;
+          name?: string;
+          is_archived?: boolean;
+          purpose?: { value?: string };
+        };
       }>(botToken, "conversations.info", { channel: channelId });
       if (isErr(result)) {
+        if (isMissingChannelError(result.error)) {
+          return ok(null);
+        }
+
         return result;
       }
 
-      return ok(result.value.channel?.purpose?.value?.trim() || null);
+      const channel = result.value.channel;
+      if (!channel?.id || !channel.name) {
+        return ok(null);
+      }
+
+      return ok({
+        id: channel.id,
+        name: channel.name,
+        purpose: channel.purpose?.value?.trim() || null,
+        archived: Boolean(channel.is_archived),
+      });
     },
     setChannelPurpose: async (channelId, purpose) => {
       const result = await slackMethod(botToken, "conversations.setPurpose", {
@@ -237,16 +263,18 @@ export async function requestSlackConnectInvite(input: {
   const api = input.api ?? createSlackConnectApi(botToken);
   const channelResult = await resolveConnectChannel({
     api,
-    existing: reserved.value,
+    existing: reserved.value.row,
     organizationId: input.organizationId,
     organizationSlug: input.organizationSlug,
   });
   if (isErr(channelResult)) {
+    await restoreInviteReservation(input.organizationId, reserved.value.previousLastInvitedAt);
     return mapApiError(channelResult.error);
   }
 
   const inviteResult = await sendSharedInvite(api, channelResult.value.id, input.email);
   if (isErr(inviteResult)) {
+    await restoreInviteReservation(input.organizationId, reserved.value.previousLastInvitedAt);
     return mapApiError(inviteResult.error);
   }
 
@@ -274,7 +302,7 @@ export async function requestSlackConnectInvite(input: {
     "slack connect invite sent",
   );
 
-  return ok(toInviteView(saved ?? reserved.value));
+  return ok(toInviteView(saved ?? reserved.value.row));
 }
 
 export async function dismissSlackConnectInvite(
@@ -313,10 +341,15 @@ export async function dismissSlackConnectInvite(
   return toInviteView(updated ?? existing);
 }
 
+type ReservedInviteSlot = {
+  row: SlackConnectInviteRow;
+  previousLastInvitedAt: Date | null;
+};
+
 async function reserveInviteSlot(
   organizationId: string,
   now: Date,
-): Promise<Result<SlackConnectInviteRow, SlackConnectInviteError>> {
+): Promise<Result<ReservedInviteSlot, SlackConnectInviteError>> {
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select()
@@ -337,7 +370,10 @@ async function reserveInviteSlot(
         .where(eq(schema.slackConnectInvites.organizationId, organizationId))
         .returning();
 
-      return ok(updated ?? existing);
+      return ok({
+        row: updated ?? existing,
+        previousLastInvitedAt: existing.lastInvitedAt,
+      });
     }
 
     const [created] = await tx
@@ -352,7 +388,7 @@ async function reserveInviteSlot(
       .returning();
 
     if (created) {
-      return ok(created);
+      return ok({ row: created, previousLastInvitedAt: null });
     }
 
     const [raced] = await tx
@@ -377,8 +413,21 @@ async function reserveInviteSlot(
       .where(eq(schema.slackConnectInvites.organizationId, organizationId))
       .returning();
 
-    return ok(updated ?? raced);
+    return ok({
+      row: updated ?? raced,
+      previousLastInvitedAt: raced.lastInvitedAt,
+    });
   });
+}
+
+async function restoreInviteReservation(
+  organizationId: string,
+  previousLastInvitedAt: Date | null,
+) {
+  await db
+    .update(schema.slackConnectInvites)
+    .set({ lastInvitedAt: previousLastInvitedAt, updatedAt: new Date() })
+    .where(eq(schema.slackConnectInvites.organizationId, organizationId));
 }
 
 async function resolveConnectChannel(input: {
@@ -388,10 +437,16 @@ async function resolveConnectChannel(input: {
   organizationSlug: string;
 }): Promise<Result<SlackConnectChannel, SlackConnectApiError>> {
   if (input.existing && input.existing.slackChannelId !== "pending") {
-    return ok({
-      id: input.existing.slackChannelId,
-      name: input.existing.slackChannelName,
-    });
+    const current = await input.api.getChannel(input.existing.slackChannelId);
+    if (isErr(current)) {
+      return current;
+    }
+    if (current.value && !current.value.archived) {
+      return ok({
+        id: current.value.id,
+        name: current.value.name,
+      });
+    }
   }
 
   const name = slackConnectChannelName(
@@ -458,16 +513,19 @@ async function findOwnedChannelByName(
     return found;
   }
 
-  const purpose = await api.getChannelPurpose(found.value.id);
-  if (isErr(purpose)) {
-    return purpose;
+  const current = await api.getChannel(found.value.id);
+  if (isErr(current)) {
+    return current;
   }
-
-  if (slackConnectOrganizationIdFromPurpose(purpose.value) !== organizationId) {
+  if (!current.value || current.value.archived) {
     return ok(null);
   }
 
-  return ok(found.value);
+  if (slackConnectOrganizationIdFromPurpose(current.value.purpose) !== organizationId) {
+    return ok(null);
+  }
+
+  return ok({ id: current.value.id, name: current.value.name });
 }
 
 async function stampOwnedChannel(api: SlackConnectApi, channelId: string, organizationId: string) {
@@ -563,6 +621,13 @@ function mapApiError(error: SlackConnectApiError): Result<never, SlackConnectInv
 
 function isNameTakenError(error: SlackConnectApiError) {
   return error.code === "slack_api_error" && error.slackError === "name_taken";
+}
+
+function isMissingChannelError(error: SlackConnectApiError) {
+  return (
+    error.code === "slack_api_error" &&
+    (error.slackError === "channel_not_found" || error.slackError === "invalid_channel")
+  );
 }
 
 function isRestrictedInviteError(error: SlackConnectApiError) {

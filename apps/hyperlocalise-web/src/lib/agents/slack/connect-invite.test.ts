@@ -68,7 +68,14 @@ function createApi(overrides: Partial<SlackConnectApi> = {}): SlackConnectApi {
   return {
     createChannel: vi.fn().mockResolvedValue(ok({ id: "C123", name: "ext-acme-11111111" })),
     findPrivateChannelByName: vi.fn().mockResolvedValue(ok(null)),
-    getChannelPurpose: vi.fn().mockResolvedValue(ok(null)),
+    getChannel: vi.fn().mockResolvedValue(
+      ok({
+        id: "C123",
+        name: "ext-acme-11111111",
+        purpose: slackConnectChannelPurpose("11111111-2222-4333-8444-555555555555"),
+        archived: false,
+      }),
+    ),
     setChannelPurpose: vi.fn().mockResolvedValue(ok(undefined)),
     inviteUsers: vi.fn().mockResolvedValue(ok(undefined)),
     inviteShared: vi.fn().mockResolvedValue(ok({ inviteId: "I123" })),
@@ -168,9 +175,14 @@ describe("slack connect invites", () => {
     const api = createApi({
       createChannel,
       findPrivateChannelByName: vi.fn().mockResolvedValue(ok({ id: "COLD", name: "ext-acme" })),
-      getChannelPurpose: vi
-        .fn()
-        .mockResolvedValue(ok(slackConnectChannelPurpose("00000000-0000-4000-8000-000000000000"))),
+      getChannel: vi.fn().mockResolvedValue(
+        ok({
+          id: "COLD",
+          name: "ext-acme",
+          purpose: slackConnectChannelPurpose("00000000-0000-4000-8000-000000000000"),
+          archived: false,
+        }),
+      ),
     });
 
     const result = await requestSlackConnectInvite({
@@ -195,7 +207,14 @@ describe("slack connect invites", () => {
         .fn()
         .mockResolvedValue(err({ code: "slack_api_error", slackError: "name_taken" })),
       findPrivateChannelByName: vi.fn().mockResolvedValue(ok({ id: "COWN", name: expectedName })),
-      getChannelPurpose: vi.fn().mockResolvedValue(ok(slackConnectChannelPurpose(organization.id))),
+      getChannel: vi.fn().mockResolvedValue(
+        ok({
+          id: "COWN",
+          name: expectedName,
+          purpose: slackConnectChannelPurpose(organization.id),
+          archived: false,
+        }),
+      ),
     });
 
     const result = await requestSlackConnectInvite({
@@ -238,6 +257,66 @@ describe("slack connect invites", () => {
     }
     expect(result.error.code).toBe("slack_connect_rate_limited");
     expect(api.inviteShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not keep a failed Slack attempt in the invite cooldown", async () => {
+    const { organization, user, identity } = await authFixture.createLocalWorkosIdentity();
+    const inviteShared = vi
+      .fn()
+      .mockResolvedValueOnce(err({ code: "slack_api_error", slackError: "internal_error" }))
+      .mockResolvedValueOnce(ok({ inviteId: "I-RETRY" }));
+    const api = createApi({ inviteShared });
+
+    const failed = await requestSlackConnectInvite({
+      organizationId: organization.id,
+      organizationSlug: identity.organization.slug ?? "acme",
+      email: user.email,
+      userId: user.id,
+      now: () => new Date("2026-09-01T00:00:00.000Z"),
+      api,
+    });
+    const retried = await requestSlackConnectInvite({
+      organizationId: organization.id,
+      organizationSlug: identity.organization.slug ?? "acme",
+      email: user.email,
+      userId: user.id,
+      now: () => new Date("2026-09-01T00:00:10.000Z"),
+      api,
+    });
+
+    expect(failed.ok).toBe(false);
+    expect(retried.ok).toBe(true);
+    expect(inviteShared).toHaveBeenCalledTimes(2);
+  });
+
+  it("recreates the channel when the stored Slack channel is gone", async () => {
+    const { organization, user, identity } = await authFixture.createLocalWorkosIdentity();
+    const slug = identity.organization.slug ?? "acme";
+    await requestSlackConnectInvite({
+      organizationId: organization.id,
+      organizationSlug: slug,
+      email: user.email,
+      userId: user.id,
+      now: () => new Date("2026-09-01T00:00:00.000Z"),
+      api: createApi(),
+    });
+
+    const createChannel = vi.fn().mockResolvedValue(ok({ id: "CNEW", name: "ext-acme-recreated" }));
+    const result = await requestSlackConnectInvite({
+      organizationId: organization.id,
+      organizationSlug: slug,
+      email: user.email,
+      userId: user.id,
+      now: () => new Date("2026-09-01T00:05:00.000Z"),
+      api: createApi({
+        createChannel,
+        getChannel: vi.fn().mockResolvedValue(ok(null)),
+        inviteShared: vi.fn().mockResolvedValue(ok({ inviteId: "I-NEW" })),
+      }),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(createChannel).toHaveBeenCalled();
   });
 
   it("retries with a limited invite when Slack forbids full Connect permissions", async () => {

@@ -28,9 +28,12 @@ the team was invited, check email, dismiss, or request another invite.
    them a Slack Connect link. They accept and name the channel on their side.
 4. Retry with `external_limited=true` when Slack returns `restricted_action`.
 5. Rate-limit requests to once per workspace every two minutes. Reserve the
-   cooldown atomically in the database before calling Slack.
-6. Dismiss hides the banner for the workspace.
-7. GET is allowed with `workspace:read`. POST and PATCH require
+   cooldown atomically in the database before calling Slack, and restore the
+   previous `lastInvitedAt` if channel creation or `inviteShared` fails.
+6. If the stored Slack channel is missing or archived, create or remap a new
+   owned channel instead of sending invites to the stale id.
+7. Dismiss hides the banner for the workspace.
+8. GET is allowed with `workspace:read`. POST and PATCH require
    `workspace:update` (admin or localization manager).
 
 This path is independent of the per-org Slack agent OAuth install.
