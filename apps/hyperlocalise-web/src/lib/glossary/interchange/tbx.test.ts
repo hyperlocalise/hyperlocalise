@@ -13,7 +13,8 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vite-plus/test";
 
@@ -146,6 +147,21 @@ function makeDocument(): GlossaryInterchangeDocument {
   };
 }
 
+const XMLLINT_CANDIDATES = ["/usr/bin/xmllint", "xmllint"] as const;
+
+function resolveXmllint(): string | null {
+  for (const candidate of XMLLINT_CANDIDATES) {
+    try {
+      execFileSync(candidate, ["--version"], { stdio: "pipe" });
+      return candidate;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      return candidate;
+    }
+  }
+  return null;
+}
+
 function makeDocumentTerm(id: string, conceptId: string) {
   return {
     id,
@@ -221,22 +237,27 @@ describe("TBX-Basic DCA interchange", () => {
     expect(parsed.concepts[1]?.id).toBe("55555555-5555-4555-8555-555555555555");
   });
 
-  it("validates generated output against the pinned RELAX NG schema", () => {
-    const serialized = serializeTbx(makeDocument());
-    const directory = mkdtempSync(join(tmpdir(), "hyperlocalise-tbx-"));
-    const documentPath = join(directory, "export.tbx");
-    const schemaPath = join(
-      process.cwd(),
-      "src/lib/glossary/interchange/tbx-validation/TBXcoreStructV03_TBX-Basic_integrated.rng",
-    );
-    writeFileSync(documentPath, serialized.content);
-    expect(() =>
-      execFileSync("xmllint", ["--noout", "--relaxng", schemaPath, documentPath], {
-        stdio: "pipe",
-      }),
-    ).not.toThrow();
-    rmSync(directory, { recursive: true, force: true });
-  });
+  it.skipIf(!resolveXmllint())(
+    "validates generated output against the pinned RELAX NG schema",
+    () => {
+      const xmllint = resolveXmllint();
+      if (!xmllint) throw new Error("xmllint is required for this test");
+      const serialized = serializeTbx(makeDocument());
+      const directory = mkdtempSync(join(tmpdir(), "hyperlocalise-tbx-"));
+      const documentPath = join(directory, "export.tbx");
+      const schemaPath = join(
+        dirname(fileURLToPath(import.meta.url)),
+        "tbx-validation/TBXcoreStructV03_TBX-Basic_integrated.rng",
+      );
+      writeFileSync(documentPath, serialized.content);
+      expect(() =>
+        execFileSync(xmllint, ["--noout", "--relaxng", schemaPath, documentPath], {
+          stdio: "pipe",
+        }),
+      ).not.toThrow();
+      rmSync(directory, { recursive: true, force: true });
+    },
+  );
 
   it("reports invalid XML characters and unsupported statuses", () => {
     const document = makeDocument();

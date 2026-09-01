@@ -12,14 +12,22 @@
  */
 import { env } from "@/lib/env";
 
+import { createMemoryFileStorageAdapter } from "./memory";
 import { createVercelBlobFileStorage } from "./vercel-blob";
 
 import type { FileStorageAdapter } from "./types";
+
+const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 
 let adapter: FileStorageAdapter | null = null;
 
 export function getFileStorageAdapter(): FileStorageAdapter {
   if (adapter) {
+    return adapter;
+  }
+
+  if (isTestEnv) {
+    adapter = createMemoryFileStorageAdapter();
     return adapter;
   }
 

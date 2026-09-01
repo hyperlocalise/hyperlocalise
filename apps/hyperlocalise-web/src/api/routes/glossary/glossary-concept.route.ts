@@ -35,6 +35,7 @@ import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glos
 import { serializeXlsx } from "@/lib/glossary/interchange/xlsx";
 import { createStoredFile, sha256Hex } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import {
@@ -370,7 +371,9 @@ function parseConceptImport(
   return { entries, diagnostics: parsed.diagnostics, document: parsed };
 }
 
-export function createGlossaryConceptRoutes() {
+export function createGlossaryConceptRoutes(options: {
+  fileStorageAdapter?: FileStorageAdapter;
+} = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", validator("param", validateGlossaryParams), async (c) => {
@@ -612,7 +615,8 @@ export function createGlossaryConceptRoutes() {
                       });
                       const backup = serializeXlsx(backupDocument);
                       if (backup.errors.length > 0) throw new Error("glossary_backup_failed");
-                      const backupAdapter = getFileStorageAdapter();
+                      const backupAdapter =
+                        options.fileStorageAdapter ?? getFileStorageAdapter();
                       const backupFile = await createStoredFile({
                         organizationId: c.var.auth.organization.localOrganizationId,
                         createdByUserId: c.var.auth.user.localUserId,

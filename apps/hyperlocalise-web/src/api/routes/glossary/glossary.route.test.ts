@@ -42,12 +42,14 @@ import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
+import { createMemoryFileStorageAdapter } from "@/lib/file-storage/memory";
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
 import type { ProjectResponse } from "../project/project.schema";
 import { createGlossaryTestFixture } from "./glossary.fixture";
 
-const client = testClient(createApp());
+const fileStorageAdapter = createMemoryFileStorageAdapter();
+const client = testClient(createApp({ fileStorageAdapter }));
 const fixture = createGlossaryTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 
@@ -429,6 +431,9 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      backupFileId: expect.any(String),
+    });
     const afterConcept = (
       await db
         .select()

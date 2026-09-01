@@ -33,6 +33,7 @@ import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glos
 import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-format-factory";
 import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
 import { getStoredFileContent } from "@/lib/file-storage/records";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import {
   queryNativeGlossaryLanguages,
   queryNativeGlossaryLanguagesForGlossary,
@@ -372,10 +373,10 @@ function glossaryDownloadFilename(name: string, extension: string, scope: "compl
   return `${sanitized}${scope === "filtered" ? "-filtered" : ""}.${extension}`;
 }
 
-export function createGlossaryRoutes() {
+export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorageAdapter } = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
+    .route("/:glossaryId/concepts", createGlossaryConceptRoutes(options))
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
       const {
@@ -493,6 +494,7 @@ export function createGlossaryRoutes() {
       const stored = await getStoredFileContent({
         organizationId: c.var.auth.organization.localOrganizationId,
         fileId: report.run.backupFileId,
+        adapter: options.fileStorageAdapter,
       });
       c.header("Content-Type", stored.file.contentType);
       c.header(
