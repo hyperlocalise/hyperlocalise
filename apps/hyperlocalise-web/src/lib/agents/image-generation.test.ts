@@ -159,4 +159,34 @@ describe("image generation", () => {
       }),
     );
   });
+
+  it("releases the image reservation when generation fails", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      imagePriceUsd: 0.25,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    generateImageMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(
+      regenerateImageFromAttachment(
+        Buffer.from("source"),
+        "image/png",
+        "Localize this screenshot",
+        {
+          organizationId: "org_123",
+          operationKey: "image:test",
+        },
+      ),
+    ).rejects.toThrow("provider unavailable");
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "image_generation_failed",
+      }),
+    );
+    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
+  });
 });

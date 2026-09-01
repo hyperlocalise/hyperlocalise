@@ -223,7 +223,11 @@ export async function reserveManagedAiCredit(input: {
   autumnApiKey?: string;
   dependencies?: ManagedAiCreditDependencies;
 }): Promise<Result<ManagedAiCreditReservation, ManagedAiCreditError>> {
-  if (!Number.isFinite(input.estimatedAmountUsd) || input.estimatedAmountUsd <= 0) {
+  if (
+    !Number.isFinite(input.estimatedAmountUsd) ||
+    (input.credentialSource === "gateway" && input.estimatedAmountUsd <= 0) ||
+    input.estimatedAmountUsd < 0
+  ) {
     return err({
       code: "ai_credit_pricing_not_configured",
       surface: input.source,
@@ -375,6 +379,14 @@ export async function settleManagedAiCredit(input: {
       status: "already_settled",
     });
   }
+  if (event.status === "settlement_unknown") {
+    return err({
+      code: "ai_credit_tracking_failed",
+      operationKey: event.operationKey,
+      message: event.autumnTrackError ?? "AI credit settlement outcome is unknown",
+      settlementUnknown: true,
+    });
+  }
 
   const tokenDimensions = {
     ...event.dimensions,
@@ -414,7 +426,9 @@ export async function settleManagedAiCredit(input: {
   await database
     .update(schema.usageEvents)
     .set({
-      status: "tracking_pending",
+      // trackTokens has no documented idempotency key. Mark the dispatch as
+      // ambiguous before the network call so a process crash cannot trigger a blind retry.
+      status: "settlement_unknown",
       providerGenerationId: input.providerGenerationId,
       dimensions: tokenDimensions,
       autumnTrackError: null,

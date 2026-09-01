@@ -88,7 +88,15 @@ function BillingSettingsHeader() {
   );
 }
 
-function formatUsageValue(intl: IntlShape, value: number) {
+function formatUsageValue(intl: IntlShape, featureId: string, value: number) {
+  if (featureId === autumnFeatureIds.aiTokens) {
+    return intl.formatNumber(value, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  }
   return intl.formatNumber(value, { maximumFractionDigits: 0 });
 }
 
@@ -519,8 +527,8 @@ function ConfiguredBillingSettingsPanel({
                       <FormattedMessage
                         {...billingSettingsContentMessages.usageUsed}
                         values={{
-                          usage: formatUsageValue(intl, row.usage),
-                          granted: formatUsageValue(intl, row.granted),
+                          usage: formatUsageValue(intl, row.featureId, row.usage),
+                          granted: formatUsageValue(intl, row.featureId, row.granted),
                         }}
                       />
                     )}
@@ -529,14 +537,18 @@ function ConfiguredBillingSettingsPanel({
                     <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.usageRemaining}
-                        values={{ remaining: formatUsageValue(intl, row.remaining) }}
+                        values={{
+                          remaining: formatUsageValue(intl, row.featureId, row.remaining),
+                        }}
                       />
                     </TypographyP>
                   ) : row.usageUnavailable ? (
                     <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.planLimit}
-                        values={{ granted: formatUsageValue(intl, row.granted) }}
+                        values={{
+                          granted: formatUsageValue(intl, row.featureId, row.granted),
+                        }}
                       />
                     </TypographyP>
                   ) : null}

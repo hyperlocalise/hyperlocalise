@@ -164,10 +164,13 @@ export function createChatStreamRoutes() {
         resolveChatGlossarySearchCapability(c.var.auth),
         languageModelPromise,
       ]);
+      const credentialSource = languageModel.source === "gateway" ? "gateway" : "byok";
       const estimatedAmountUsd =
         pricingConfig.mode === "legacy"
           ? null
-          : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
+          : credentialSource === "byok"
+            ? 0
+            : managedAiReservationAmountUsd(pricingConfig, { surface: "chat" });
       const aiCreditReservation =
         pricingConfig.mode === "legacy" || estimatedAmountUsd == null
           ? null
@@ -176,7 +179,7 @@ export function createChatStreamRoutes() {
               operationKey: `${operationKey}:ai_tokens`,
               source: "chat_agent_turn",
               modelId: languageModel.modelId,
-              credentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
+              credentialSource,
               estimatedAmountUsd,
               interactionId: conversationId,
               mode: pricingConfig.mode,
@@ -186,7 +189,11 @@ export function createChatStreamRoutes() {
               },
             });
 
-      if (pricingConfig.mode !== "legacy" && estimatedAmountUsd == null) {
+      if (
+        pricingConfig.mode !== "legacy" &&
+        credentialSource === "gateway" &&
+        estimatedAmountUsd == null
+      ) {
         return aiCreditErrorResponse(c, {
           code: "ai_credit_pricing_not_configured",
           surface: "chat",
