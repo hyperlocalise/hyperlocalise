@@ -197,6 +197,25 @@ describe("CSV glossary interchange", () => {
     ]);
   });
 
+  it("imports a headerless first row whose term contains a header substring", () => {
+    const parsed = parseCsv("c1,en,terminology");
+
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.concepts).toHaveLength(1);
+    expect(parsed.concepts[0]).toMatchObject({
+      id: "c1",
+      terms: [expect.objectContaining({ locale: "en", term: "terminology" })],
+    });
+  });
+
+  it("still treats an exact header row as headers", () => {
+    const parsed = parseCsv(["conceptId,locale,term", "c1,en,Checkout"].join("\n"));
+
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.concepts[0]?.id).toBe("c1");
+    expect(parsed.concepts[0]?.terms[0]?.term).toBe("Checkout");
+  });
+
   it("derives legacy term IDs independently of row order", () => {
     const first = parseCsv(
       ["conceptId,locale,term", "concept-1,en,Alpha", "concept-1,en,Beta"].join("\n"),

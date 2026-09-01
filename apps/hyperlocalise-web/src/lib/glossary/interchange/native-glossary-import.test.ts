@@ -17,7 +17,7 @@ import { db, schema } from "@/lib/database/client";
 import { createGlossaryTestFixture } from "@/api/routes/glossary/glossary.fixture";
 import type { GlossaryImportDocument } from "./glossary-interchange";
 import { getGlossaryImportReport } from "./glossary-import-reports";
-import { applyNativeGlossaryImport } from "./native-glossary-import";
+import { applyNativeGlossaryImport, planNativeGlossaryImport } from "./native-glossary-import";
 
 const fixture = createGlossaryTestFixture();
 
@@ -132,5 +132,170 @@ describe("native glossary import concurrency", () => {
       .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
     expect(concepts).toHaveLength(0);
     expect(terms).toHaveLength(0);
+  });
+});
+
+describe("native glossary import review and ownership", () => {
+  it("applies imported review status on insert and presence-aware update", async () => {
+    const { glossary } = await fixture.createStoredGlossaryFixture();
+    const document = (reviewStatus?: string): GlossaryImportDocument => ({
+      concepts: [
+        {
+          id: "stable-concept",
+          primaryTerm: "Checkout",
+          terms: [
+            {
+              id: "stable-term",
+              locale: "en",
+              term: "Checkout",
+              ...(reviewStatus !== undefined ? { reviewStatus } : {}),
+            },
+          ],
+        },
+      ],
+      diagnostics: [],
+    });
+
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: document("draft"),
+    });
+    const [created] = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(created?.reviewStatus).toBe("draft");
+
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: document("pending"),
+    });
+    const [updated] = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(updated?.reviewStatus).toBe("pending");
+
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: document(),
+    });
+    const [preserved] = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(preserved?.reviewStatus).toBe("pending");
+  });
+
+  it("does not plan terms for concepts rejected by create or update mode", async () => {
+    const { glossary } = await fixture.createStoredGlossaryFixture();
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: {
+        concepts: [
+          {
+            id: "existing",
+            primaryTerm: "Checkout",
+            terms: [{ id: "existing-term", locale: "en", term: "Checkout" }],
+          },
+        ],
+        diagnostics: [],
+      },
+    });
+
+    const createPlan = await planNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "create",
+      document: {
+        concepts: [
+          {
+            id: "existing",
+            primaryTerm: "Checkout",
+            terms: [{ id: "existing-term", locale: "en", term: "Checkout" }],
+          },
+        ],
+        diagnostics: [],
+      },
+    });
+    expect(createPlan.counts.conceptsSkipped).toBe(1);
+    expect(createPlan.counts.termsCreated).toBe(0);
+    expect(createPlan.counts.termsUpdated).toBe(0);
+    expect(createPlan.counts.termsFailed).toBe(0);
+    expect(createPlan.counts.termsSkipped).toBe(0);
+
+    const updatePlan = await planNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "update",
+      document: {
+        concepts: [
+          {
+            id: "missing",
+            primaryTerm: "Invoice",
+            terms: [{ id: "missing-term", locale: "en", term: "Invoice" }],
+          },
+        ],
+        diagnostics: [],
+      },
+    });
+    expect(updatePlan.counts.conceptsFailed).toBe(1);
+    expect(updatePlan.counts.termsCreated).toBe(0);
+    expect(updatePlan.counts.termsFailed).toBe(0);
+  });
+
+  it("does not commit a new concept when all of its terms have ID conflicts", async () => {
+    const { glossary } = await fixture.createStoredGlossaryFixture();
+    await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: {
+        concepts: [
+          {
+            id: "owner",
+            primaryTerm: "Owner",
+            terms: [{ id: "shared-term", locale: "en", term: "Owner" }],
+          },
+        ],
+        diagnostics: [],
+      },
+    });
+
+    const result = await applyNativeGlossaryImport({
+      glossaryId: glossary.id,
+      mode: "merge",
+      document: {
+        concepts: [
+          {
+            id: "new-concept",
+            primaryTerm: "Reassigned",
+            terms: [{ id: "shared-term", locale: "en", term: "Reassigned" }],
+          },
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "term_id_conflict" })]),
+    );
+    expect(result.counts.conceptsCreated).toBe(0);
+    expect(result.counts.conceptsSkipped).toBe(1);
+    expect(result.counts.termsFailed).toBe(1);
+
+    const concepts = await db
+      .select()
+      .from(schema.glossaryConcepts)
+      .where(eq(schema.glossaryConcepts.glossaryId, glossary.id));
+    const terms = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(concepts).toHaveLength(1);
+    expect(concepts[0]?.primaryTerm).toBe("Owner");
+    expect(terms).toHaveLength(1);
+    expect(terms[0]?.term).toBe("Owner");
   });
 });

@@ -449,9 +449,103 @@ describe("glossaryRoutes", () => {
       description: beforeTerm.description,
       partOfSpeech: beforeTerm.partOfSpeech,
       status: beforeTerm.status,
+      reviewStatus: beforeTerm.reviewStatus,
       caseSensitive: beforeTerm.caseSensitive,
       createdAt: beforeTerm.createdAt,
       updatedAt: beforeTerm.updatedAt,
+    });
+  });
+
+  it("applies imported review status on native insert", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].concepts[
+      "import"
+    ].$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          format: "csv",
+          content: "conceptId,termId,locale,term,reviewStatus\nconcept-1,term-1,en,Checkout,draft",
+          mode: "merge",
+          previewForMode: "merge",
+          strictLocale: true,
+          localeMapping: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const [term] = await db
+      .select({ reviewStatus: schema.glossaryTerms.reviewStatus })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossaryId));
+    expect(term?.reviewStatus).toBe("draft");
+  });
+
+  it("does not commit an empty concept when merge reassigns a term ID", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    const created = (await conceptResponse.json()) as {
+      concept: { id: string; terms: Array<{ id: string }> };
+    };
+    const existingTermId = created.concept.terms[0]!.id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].concepts[
+      "import"
+    ].$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          format: "csv",
+          content: `conceptId,termId,locale,term\nnew-concept,${existingTermId},en,Reassigned`,
+          mode: "merge",
+          previewForMode: "merge",
+          strictLocale: true,
+          localeMapping: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const conceptsResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$get({ param: { organizationSlug, glossaryId } }, { headers });
+    await expect(conceptsResponse.json()).resolves.toMatchObject({
+      concepts: [expect.objectContaining({ id: created.concept.id })],
+      total: 1,
     });
   });
 

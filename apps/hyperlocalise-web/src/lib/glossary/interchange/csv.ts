@@ -291,7 +291,10 @@ export function parseCsv(content: string): GlossaryImportDocument {
   }
   const [first, ...rest] = rows;
   if (!first) return { concepts: [], diagnostics };
-  const hasHeader = first.some((cell) => /concept|locale|term|definition/iu.test(cell));
+  const recognizedHeaders = new Set(
+    [...csvHeaders, "conceptKey", "note", "url"].map((header) => header.toLowerCase()),
+  );
+  const hasHeader = first.some((cell) => recognizedHeaders.has(cell.trim().toLowerCase()));
   const headers = (hasHeader ? first : ["conceptId", "locale", "term"]).map((header) =>
     header.trim().toLowerCase(),
   );

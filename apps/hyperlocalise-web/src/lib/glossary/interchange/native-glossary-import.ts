@@ -117,6 +117,37 @@ function findExistingTerm(
   );
 }
 
+function termBelongsToAnotherConcept(
+  existingTerm: typeof schema.glossaryTerms.$inferSelect | undefined,
+  existingConcept: typeof schema.glossaryConcepts.$inferSelect | undefined,
+) {
+  return Boolean(existingTerm && (!existingConcept || existingTerm.conceptId !== existingConcept.id));
+}
+
+function collectTermOwnershipConflicts(
+  concepts: GlossaryImportDocument["concepts"],
+  conceptsById: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
+  conceptsByStableKey: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
+  conceptsByExternalKey: Map<string, typeof schema.glossaryConcepts.$inferSelect>,
+  termsById: Map<string, typeof schema.glossaryTerms.$inferSelect>,
+  termsByStableKey: Map<string, typeof schema.glossaryTerms.$inferSelect>,
+) {
+  return concepts.flatMap((incoming) => {
+    const existingConcept = findExistingConcept(
+      incoming.id,
+      conceptsById,
+      conceptsByStableKey,
+      conceptsByExternalKey,
+    );
+    return incoming.terms.flatMap((incomingTerm) => {
+      const existingTerm = findExistingTerm(incomingTerm.id, termsById, termsByStableKey);
+      return termBelongsToAnotherConcept(existingTerm, existingConcept)
+        ? [{ conceptId: incoming.id, termId: incomingTerm.id }]
+        : [];
+    });
+  });
+}
+
 export async function planNativeGlossaryImport(input: {
   glossaryId: string;
   mode: Exclude<GlossaryImportMode, "preview">;
@@ -177,7 +208,9 @@ export async function planNativeGlossaryImport(input: {
         }),
       );
       bump(counts, "skipped", "concept");
-    } else if (input.mode === "update" && !existingConcept) {
+      continue;
+    }
+    if (input.mode === "update" && !existingConcept) {
       diagnostics.push(
         diagnostic({
           conceptId: concept.id,
@@ -187,16 +220,38 @@ export async function planNativeGlossaryImport(input: {
         }),
       );
       bump(counts, "failed", "concept");
-    } else {
-      bump(
-        counts,
-        existingConcept ? (input.mode === "merge" ? "merged" : "updated") : "created",
-        "concept",
-      );
+      continue;
     }
+    const conflictingTerms = concept.terms.filter((term) =>
+      termBelongsToAnotherConcept(
+        findExistingTerm(term.id, termsById, termsByStableKey),
+        existingConcept,
+      ),
+    );
+    if (!existingConcept && conflictingTerms.length === concept.terms.length) {
+      for (const term of conflictingTerms) {
+        diagnostics.push(
+          diagnostic({
+            conceptId: concept.id,
+            termId: term.id,
+            counted: true,
+            code: "term_id_conflict",
+            message: "Term ID belongs to another concept.",
+          }),
+        );
+        bump(counts, "failed", "term");
+      }
+      bump(counts, "skipped", "concept");
+      continue;
+    }
+    bump(
+      counts,
+      existingConcept ? (input.mode === "merge" ? "merged" : "updated") : "created",
+      "concept",
+    );
     for (const term of concept.terms) {
       const existingTerm = findExistingTerm(term.id, termsById, termsByStableKey);
-      if (existingTerm && (!existingConcept || existingTerm.conceptId !== existingConcept.id)) {
+      if (termBelongsToAnotherConcept(existingTerm, existingConcept)) {
         diagnostics.push(
           diagnostic({
             conceptId: concept.id,
@@ -276,49 +331,41 @@ export async function applyNativeGlossaryImport(input: {
         return key ? [[key, term] as const] : [];
       }),
     );
-    if (input.mode === "replace") {
-      const conflicts = input.document.concepts.flatMap((incoming) => {
-        const existing = findExistingConcept(
-          incoming.id,
-          conceptById,
-          conceptByStableKey,
-          conceptByExternalKey,
+    const ownershipConflicts = collectTermOwnershipConflicts(
+      input.document.concepts,
+      conceptById,
+      conceptByStableKey,
+      conceptByExternalKey,
+      termById,
+      termByStableKey,
+    );
+    if (input.mode === "replace" && ownershipConflicts.length > 0) {
+      for (const conflict of ownershipConflicts) {
+        diagnostics.push(
+          diagnostic({
+            ...conflict,
+            counted: true,
+            code: "term_id_conflict",
+            message: "Term ID belongs to another concept and cannot be replaced.",
+          }),
         );
-        return incoming.terms.flatMap((incomingTerm) => {
-          const existingTerm = findExistingTerm(incomingTerm.id, termById, termByStableKey);
-          return existingTerm && (!existing || existingTerm.conceptId !== existing.id)
-            ? [{ conceptId: incoming.id, termId: incomingTerm.id }]
-            : [];
-        });
-      });
-      if (conflicts.length > 0) {
-        for (const conflict of conflicts) {
-          diagnostics.push(
-            diagnostic({
-              ...conflict,
-              counted: true,
-              code: "term_id_conflict",
-              message: "Term ID belongs to another concept and cannot be replaced.",
-            }),
-          );
-          bump(counts, "failed", "term");
-        }
-        const reportCounts = reportCountsFromDiagnostics(counts, diagnostics);
-        const report = input.report
-          ? await insertGlossaryImportReport(tx, {
-              ...input.report,
-              counts: reportCounts,
-              diagnostics,
-              status: "failed",
-            })
-          : undefined;
-        return {
-          counts: reportCounts,
-          reportId: report?.id,
-          backupFileId: undefined,
-          aborted: true,
-        };
+        bump(counts, "failed", "term");
       }
+      const reportCounts = reportCountsFromDiagnostics(counts, diagnostics);
+      const report = input.report
+        ? await insertGlossaryImportReport(tx, {
+            ...input.report,
+            counts: reportCounts,
+            diagnostics,
+            status: "failed",
+          })
+        : undefined;
+      return {
+        counts: reportCounts,
+        reportId: report?.id,
+        backupFileId: undefined,
+        aborted: true,
+      };
     }
     const backup = input.createBackup ? await input.createBackup({ tx, glossary }) : undefined;
     backupCleanup = backup?.cleanup;
@@ -394,6 +441,28 @@ export async function applyNativeGlossaryImport(input: {
           bump(counts, "failed", "concept");
           continue;
         }
+        const conflictingTerms = incoming.terms.filter((incomingTerm) =>
+          termBelongsToAnotherConcept(
+            findExistingTerm(incomingTerm.id, termById, termByStableKey),
+            existing,
+          ),
+        );
+        if (!existing && conflictingTerms.length === incoming.terms.length) {
+          for (const incomingTerm of conflictingTerms) {
+            diagnostics.push(
+              diagnostic({
+                conceptId: incoming.id,
+                termId: incomingTerm.id,
+                counted: true,
+                code: "term_id_conflict",
+                message: "Term ID belongs to another concept.",
+              }),
+            );
+            bump(counts, "failed", "term");
+          }
+          bump(counts, "skipped", "concept");
+          continue;
+        }
         const conceptValues = {
           primaryTerm,
           subject: incoming.subject ?? existing?.subject ?? "",
@@ -463,7 +532,7 @@ export async function applyNativeGlossaryImport(input: {
         }
         for (const incomingTerm of incoming.terms) {
           const existingTerm = findExistingTerm(incomingTerm.id, termById, termByStableKey);
-          if (existingTerm && existingTerm.conceptId !== concept.id) {
+          if (termBelongsToAnotherConcept(existingTerm, concept)) {
             diagnostics.push(
               diagnostic({
                 conceptId: incoming.id,
@@ -565,6 +634,7 @@ export async function applyNativeGlossaryImport(input: {
             lemma:
               incomingTerm.lemma !== undefined ? incomingTerm.lemma : (existingTerm?.lemma ?? null),
             status: incomingTerm.status ?? existingTerm?.status ?? "draft",
+            reviewStatus: incomingTerm.reviewStatus ?? existingTerm?.reviewStatus ?? "approved",
             caseSensitive: incomingTerm.caseSensitive ?? existingTerm?.caseSensitive ?? false,
             forbidden: incomingTerm.forbidden ?? existingTerm?.forbidden ?? false,
             provenance,
@@ -588,6 +658,9 @@ export async function applyNativeGlossaryImport(input: {
             ...(incomingTerm.url !== undefined ? { url: incomingTerm.url } : {}),
             ...(incomingTerm.lemma !== undefined ? { lemma: incomingTerm.lemma } : {}),
             ...(incomingTerm.status !== undefined ? { status: incomingTerm.status } : {}),
+            ...(incomingTerm.reviewStatus !== undefined
+              ? { reviewStatus: incomingTerm.reviewStatus }
+              : {}),
             ...(incomingTerm.caseSensitive !== undefined
               ? { caseSensitive: incomingTerm.caseSensitive }
               : {}),
