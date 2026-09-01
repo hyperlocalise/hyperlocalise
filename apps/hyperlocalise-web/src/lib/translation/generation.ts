@@ -402,6 +402,7 @@ export class OrganizationModelResolver {
       return {
         ok: true as const,
         project: projectContext,
+        organizationId: project.organizationId,
         model,
         modelId: loadedCredential.credential.model,
         credentialSource: "byok" as const,
@@ -417,6 +418,7 @@ export class OrganizationModelResolver {
     return {
       ok: true as const,
       project: projectContext,
+      organizationId: project.organizationId,
       model,
       modelId: hyperlocaliseManagedGatewayModelId,
       credentialSource: "gateway" as const,
