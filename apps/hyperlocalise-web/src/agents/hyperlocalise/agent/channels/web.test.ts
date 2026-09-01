@@ -18,6 +18,8 @@ const {
   setWebConversationRepositorySessionMock,
   reserveAgentRuntimeUsageMock,
   trackSucceededAgentRuntimeUsageMock,
+  settleManagedAiCreditMock,
+  releaseManagedAiCreditMock,
   addInteractionMessageMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
@@ -25,6 +27,8 @@ const {
   setWebConversationRepositorySessionMock: vi.fn(),
   reserveAgentRuntimeUsageMock: vi.fn(),
   trackSucceededAgentRuntimeUsageMock: vi.fn(),
+  settleManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
   addInteractionMessageMock: vi.fn(),
 }));
 
@@ -41,8 +45,26 @@ vi.mock("@/lib/agent-runtime/loops/conversation-repository-session", () => ({
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  addAiTokenUsage: (
+    first: Record<string, number> | null | undefined,
+    second: Record<string, number> | null | undefined,
+  ) => {
+    if (!first) return second ?? null;
+    if (!second) return first;
+    return {
+      inputTokens: first.inputTokens + second.inputTokens,
+      outputTokens: first.outputTokens + second.outputTokens,
+      totalTokens: first.totalTokens + second.totalTokens,
+    };
+  },
+  extractAiSdkTokenUsage: (usage: unknown) => usage,
   reserveAgentRuntimeUsage: reserveAgentRuntimeUsageMock,
   trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
+}));
+
+vi.mock("@/lib/billing/managed-ai-credit", () => ({
+  settleManagedAiCredit: settleManagedAiCreditMock,
+  releaseManagedAiCredit: releaseManagedAiCreditMock,
 }));
 
 vi.mock("@/lib/conversations/interactions", () => ({
@@ -115,6 +137,11 @@ describe("runWebChatAgentTurn", () => {
     setWebConversationRepositorySessionMock.mockResolvedValue(false);
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
+    settleManagedAiCreditMock.mockResolvedValue({
+      ok: true,
+      value: { amountUsd: 0.01, status: "settled" },
+    });
+    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
     prepareConversationAgentTurnMock.mockResolvedValue({
       classification: baseClassification,
@@ -278,6 +305,11 @@ describe("createWebChatAgentUIStreamResponse", () => {
     setWebConversationRepositorySessionMock.mockResolvedValue(true);
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
+    settleManagedAiCreditMock.mockResolvedValue({
+      ok: true,
+      value: { amountUsd: 0.01, status: "settled" },
+    });
+    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
   });
 
@@ -421,5 +453,82 @@ describe("createWebChatAgentUIStreamResponse", () => {
         operationKey: "chat-agent-turn:msg_123:agent_runs",
       }),
     );
+  });
+
+  it("settles classifier and multi-step agent usage against the reserved credit", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      languageModel: {
+        model: "openai/gpt-5.6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve({
+            inputTokens: 40,
+            outputTokens: 8,
+            totalTokens: 48,
+          }),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const reservation = {
+      operationKey: "chat-agent-turn:msg_123:agent_runs:ai_tokens",
+      mode: "shadow" as const,
+      credentialSource: "gateway" as const,
+      estimatedAmountUsd: 0.5,
+    };
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
+      languageModel: {
+        model: "openai/gpt-5.6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      },
+      aiCreditReservation: reservation,
+    });
+
+    await readSseText(response);
+
+    expect(settleManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation,
+      modelId: "openai/gpt-5.6-luna",
+      tokenUsage: {
+        inputTokens: 50,
+        outputTokens: 10,
+        totalTokens: 60,
+      },
+    });
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

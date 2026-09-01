@@ -13,6 +13,16 @@
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
+import {
+  ManagedAiCreditAccessError,
+  releaseManagedAiCredit,
+  reserveManagedAiCredit,
+  settleManagedAiCredit,
+} from "@/lib/billing/managed-ai-credit";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
 import { getManagedImageModel } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
@@ -39,7 +49,12 @@ function getImageModel() {
 async function generateImageFromPrompt(
   imageBuffer: Buffer,
   prompt: string,
-): Promise<{ image: Buffer; mimeType: string }> {
+): Promise<{
+  image: Buffer;
+  mimeType: string;
+  imageCount: number;
+  providerGenerationId?: string;
+}> {
   const model = getImageModel();
 
   const result = await generateImage({
@@ -59,6 +74,11 @@ async function generateImageFromPrompt(
   return {
     image: Buffer.from(generatedImage.uint8Array),
     mimeType: generatedImage.mediaType,
+    imageCount: result.images.length,
+    providerGenerationId:
+      typeof result.providerMetadata?.gateway?.generationId === "string"
+        ? result.providerMetadata.gateway.generationId
+        : undefined,
   };
 }
 
@@ -81,23 +101,93 @@ export async function regenerateImageFromAttachment(
 
   const run = async () => {
     const generated = await generateImageFromPrompt(imageBuffer, prompt);
-    return { ...generated, prompt };
+    return {
+      image: generated.image,
+      mimeType: generated.mimeType,
+      prompt,
+      billing: {
+        imageCount: generated.imageCount,
+        providerGenerationId: generated.providerGenerationId,
+      },
+    };
   };
 
   if (!billing) {
-    return run();
+    const result = await run();
+    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
   }
 
-  return withAgentRuntimeUsageMetering({
-    organizationId: billing.organizationId,
-    operationKey: billing.operationKey,
-    source: billing.source ?? "image_localization",
-    interactionId: billing.interactionId,
-    dimensions: {
-      surface: "image",
-      agent_surface: "image_localization",
-      ...billing.dimensions,
-    },
-    run,
+  const source = billing.source ?? "image_localization";
+  const dimensions = {
+    surface: "image",
+    agent_surface: "image_localization",
+    ...billing.dimensions,
+  };
+  const execute = () =>
+    withAgentRuntimeUsageMetering({
+      organizationId: billing.organizationId,
+      operationKey: billing.operationKey,
+      source,
+      interactionId: billing.interactionId,
+      dimensions,
+      run,
+    });
+  const pricingConfig = getManagedAiPricingConfig();
+  if (pricingConfig.mode === "legacy") {
+    const result = await execute();
+    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
+  }
+
+  const estimatedAmountUsd = managedAiReservationAmountUsd(pricingConfig, {
+    surface: "image",
+    imageCount: 1,
   });
+  if (estimatedAmountUsd == null) {
+    throw new ManagedAiCreditAccessError({
+      code: "ai_credit_pricing_not_configured",
+      surface: "image",
+    });
+  }
+  const reservationResult = await reserveManagedAiCredit({
+    organizationId: billing.organizationId,
+    operationKey: `${billing.operationKey}:ai_tokens`,
+    source,
+    modelId: pricingConfig.imageModelId,
+    credentialSource: "gateway",
+    estimatedAmountUsd,
+    interactionId: billing.interactionId ?? undefined,
+    mode: pricingConfig.mode,
+    dimensions: {
+      ...dimensions,
+      provider_model_id: "openai/gpt-image-2",
+      synthetic_unit: "image",
+    },
+  });
+  if (!reservationResult.ok) {
+    throw new ManagedAiCreditAccessError(reservationResult.error);
+  }
+
+  try {
+    const result = await execute();
+    await settleManagedAiCredit({
+      reservation: reservationResult.value,
+      modelId: pricingConfig.imageModelId,
+      tokenUsage: {
+        inputTokens: 0,
+        outputTokens: result.billing.imageCount,
+        totalTokens: result.billing.imageCount,
+      },
+      providerGenerationId: result.billing.providerGenerationId,
+      shadowAmountUsd: pricingConfig.imagePriceUsd
+        ? pricingConfig.imagePriceUsd * result.billing.imageCount
+        : undefined,
+    });
+    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
+  } catch (error) {
+    await releaseManagedAiCredit({
+      reservation: reservationResult.value,
+      reason: "image_generation_failed",
+    });
+    throw error;
+  }
 }

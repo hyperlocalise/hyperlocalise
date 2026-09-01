@@ -495,6 +495,8 @@ class TranslationJobCompletionService {
       autumnEventName: "translation_job.completed",
       unit: "job",
       tokenUsage: tokenUsage ?? null,
+      aiCreditModelId: tokenUsage?.modelId,
+      aiCreditCredentialSource: tokenUsage?.credentialSource,
       jobId: input.jobId,
       aiCreditSource: "translation_job_complete",
     });
