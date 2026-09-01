@@ -110,6 +110,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const SlackConnectCreate: Story = {
+  args: {
+    slackConnectBanner: (
+      <SlackConnectInviteBannerView
+        invited={false}
+        onDismiss={() => undefined}
+        onRequest={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Create a shared Slack channel")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request Slack invite" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  },
+};
+
 export const SlackConnectInvite: Story = {
   args: {
     slackConnectBanner: (
