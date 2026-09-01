@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -32,7 +33,7 @@ const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
   ids: [event.jobId],
 }));
 
-const client = testClient(
+const client = testClient<AppType>(
   createApp({
     jobQueue: {
       enqueue: enqueueJob,

@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
@@ -28,7 +29,7 @@ import {
 } from "../public-jobs/public-jobs.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const client = testClient(createApp({ fileStorageAdapter }));
+const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 
 beforeAll(async () => {
   await db.$client.query("select 1");

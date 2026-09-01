@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import {
   EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
@@ -43,7 +44,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const fixture = createProviderCredentialTestFixture(client);
 
 describe("externalTmsProviderCredentialRoutes", () => {

@@ -19,6 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
@@ -55,7 +56,7 @@ vi.mock("@/lib/conversations/interactions", async (importOriginal) => {
 });
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
   createProjectTestFixture(client);
 

@@ -70,6 +70,7 @@ vi.mock("@/lib/workos/server-client", () => ({
 }));
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
@@ -85,7 +86,7 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-const client = testClient(
+const client = testClient<AppType>(
   createApp({
     jobQueue: createInlineTestJobQueue(),
   }),

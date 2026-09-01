@@ -19,6 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -49,7 +50,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 
 function issueSheet() {

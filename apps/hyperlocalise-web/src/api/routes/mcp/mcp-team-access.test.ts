@@ -19,6 +19,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { testClient } from "hono/testing";
 
@@ -46,7 +47,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const apiApp = createApp();
 const mcpApp = createMcpTestApp();
-const client = testClient(apiApp);
+const client = testClient<AppType>(apiApp);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 

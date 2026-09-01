@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { verifySlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database/client";
@@ -61,7 +62,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const fixture = createProjectTestFixture(client);
 
 async function createStoredSlackConnector(input: {

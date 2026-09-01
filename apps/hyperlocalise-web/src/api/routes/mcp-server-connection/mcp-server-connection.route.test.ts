@@ -33,10 +33,11 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db } from "@/lib/database/client";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
 describe("mcpServerConnectionRoutes", () => {

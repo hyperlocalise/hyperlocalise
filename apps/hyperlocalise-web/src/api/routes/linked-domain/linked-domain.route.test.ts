@@ -52,12 +52,13 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { ok } from "@/lib/primitives/result/results";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
 async function insertSucceededAudit(domainKey: string) {

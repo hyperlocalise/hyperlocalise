@@ -35,6 +35,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db } from "@/lib/database/client";
 
 import { isOk } from "@/lib/primitives/result/results";
@@ -42,7 +43,7 @@ import { isOk } from "@/lib/primitives/result/results";
 import { decodeMemoryEntryCursor, encodeMemoryEntryCursor } from "./memory-entry-cursor";
 import { createMemoryTestFixture } from "./memory.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
 
 beforeAll(async () => {

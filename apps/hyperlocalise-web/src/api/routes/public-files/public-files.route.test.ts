@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { err, ok } from "@/lib/primitives/result/results";
 
@@ -42,7 +43,7 @@ vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal)
 });
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const client = testClient(createApp({ fileStorageAdapter }));
+const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 
 beforeAll(async () => {
   await db.$client.query("select 1");

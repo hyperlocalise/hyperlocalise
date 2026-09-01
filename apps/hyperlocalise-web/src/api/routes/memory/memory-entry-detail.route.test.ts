@@ -33,6 +33,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import type {
   MemoryEntryDetailResponse,
   MemoryEntryResponse,
@@ -41,7 +42,7 @@ import { db, schema } from "@/lib/database/client";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
 
 async function readDetail(response: Response): Promise<MemoryEntryDetailResponse> {

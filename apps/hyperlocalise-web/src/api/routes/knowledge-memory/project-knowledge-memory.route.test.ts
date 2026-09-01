@@ -57,6 +57,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 import { eq } from "drizzle-orm";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { db, schema } from "@/lib/database/client";
@@ -66,7 +67,7 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createProjectTestFixture();
 
 function knowledgeMemoryFromResponseBody(body: unknown): KnowledgeMemoryRecord {

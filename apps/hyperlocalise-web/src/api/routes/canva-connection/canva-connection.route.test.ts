@@ -33,12 +33,13 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createCanvaConnectionClaim } from "@/lib/canva/connection-claims";
 import { db } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture(client);
 const projectFixture = createProjectTestFixture(client);
 

@@ -37,11 +37,12 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
 const fixtureDir = dirname(fileURLToPath(import.meta.url));
 

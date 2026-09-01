@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createProjectTestFixture } from "../project/project.fixture";
@@ -46,7 +47,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 const {

@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import * as policy from "@/api/auth/policy";
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import {
   getActiveOrganizationExternalTmsProviderCredential,
@@ -72,7 +73,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const fixture = createProviderCredentialTestFixture(client);
 
 function createLiveProviderJob(overrides: Partial<TmsProviderLiveJob> = {}): TmsProviderLiveJob {

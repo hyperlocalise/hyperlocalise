@@ -19,6 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -50,7 +51,7 @@ vi.mock("workflow/api", () => ({
   start: vi.fn(async () => ({ runId: "wrun_provider_sync_test" })),
 }));
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 const {

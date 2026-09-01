@@ -43,6 +43,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { db, schema } from "@/lib/database/client";
@@ -51,7 +52,7 @@ import {
   KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH,
 } from "@/lib/knowledge-memory/knowledge-memory.shared";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
 function knowledgeMemoryFromResponseBody(body: unknown): KnowledgeMemoryRecord {

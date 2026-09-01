@@ -20,6 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { and, eq } from "drizzle-orm";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -140,7 +141,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 

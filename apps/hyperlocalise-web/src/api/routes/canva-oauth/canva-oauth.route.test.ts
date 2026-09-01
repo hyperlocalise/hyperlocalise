@@ -44,6 +44,7 @@ vi.mock("@/lib/canva/auth", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createCanvaConnection } from "@/lib/canva/connections";
 import {
   CANVA_OAUTH_REQUEST_COOKIE,
@@ -55,7 +56,7 @@ import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const app = createApp();
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const apiKeyFixture = createApiKeyTestFixture(client);
 const projectFixture = createProjectTestFixture(client);
 

@@ -10,18 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { handle } from "@/api/hono-vercel";
+import { testClient } from "hono/testing";
 
-import { app } from "@/api/app";
+import { createApp, type CreateAppOptions } from "./app";
+import type { AppType } from "./typed-app";
 
-const handler = handle(app);
+export type { AppType };
 
-export const GET = handler;
-export const POST = handler;
-export const PUT = handler;
-export const PATCH = handler;
-export const DELETE = handler;
-export const OPTIONS = handler;
-export const HEAD = handler;
-
-export const maxDuration = 300;
+export function createTestClient(options?: CreateAppOptions) {
+  return testClient<AppType>(createApp(options));
+}
