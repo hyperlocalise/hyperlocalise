@@ -11,13 +11,37 @@ Open **Members** in the **Workspace** sidebar to invite teammates and set roles.
 
 ## API Keys
 
-Open **Settings** → **API Keys**.
+Open **Settings** → **API Keys** for organization-scoped credentials used by CI and shared automation.
 
 1. Click **Create API key**.
 2. Enter a **Key name**.
 3. Click **Create key**, then **Copy**. You will not be able to see the secret again.
 
 Use that key with the [CLI](/platform/cli) (`HYPERLOCALISE_API_KEY`) or the [public API](/platform/api) (`x-api-key` header). Click **Revoke** when a key should immediately lose access.
+
+Creating and revoking organization keys requires an admin or localization manager role.
+
+## Personal access tokens
+
+Open **Settings** → **Personal access tokens** for credentials that act as **you** in the workspace.
+
+Every active member can create tokens. A token inherits your current role, team scope, and project access. It stops working when you leave the organization or revoke it.
+
+1. Click **Create token**.
+2. Name the token and choose permissions (defaults match what your role can grant).
+3. Click **Create**, then **Copy** immediately. You cannot view the secret again.
+
+Use personal access tokens for:
+
+- The [Figma plugin](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/figma-plugin/README.md) (`x-api-key`)
+- [Canva connections](/platform/integrations#canva) bound to your token
+- Local scripts when you should not share an organization key
+
+Administrators see all workspace tokens. Other members manage only their own.
+
+<Note>
+Coding agents connect through the hosted [MCP server](/platform/mcp) with OAuth, not personal access tokens.
+</Note>
 
 ## Project settings
 

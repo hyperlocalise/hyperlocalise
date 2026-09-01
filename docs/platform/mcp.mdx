@@ -1,0 +1,108 @@
+---
+title: "MCP server"
+description: "Connect coding agents to Hyperlocalise Cloud over the Model Context Protocol."
+---
+
+Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, glossaries, and Board items from your workspace.
+
+The server uses OAuth with PKCE. After you approve access, the agent receives a bearer token scoped to one organization and your current membership role.
+
+## Connect an agent
+
+Open your workspace **Overview**. The **Connect your agent** card shows setup snippets for Claude, Codex, and Cursor.
+
+| Client | Typical setup |
+| --- | --- |
+| **Claude Code** | `claude mcp add -t http hyperlocalise https://hyperlocalise.com/mcp` |
+| **Codex** | `codex mcp add hyperlocalise --url https://hyperlocalise.com/mcp` |
+| **Cursor** | Add an HTTP MCP server named `hyperlocalise` pointing at `https://hyperlocalise.com/mcp` |
+
+Replace the host with your Cloud origin when developing locally, for example `http://localhost:3000/mcp`.
+
+The first connection opens a browser sign-in and consent flow. Pick the organization the agent should use. Codex may also require `codex mcp login hyperlocalise` after adding the server.
+
+<Note>
+MCP auth is separate from organization [API keys](/platform/settings) and [personal access tokens](/platform/settings#personal-access-tokens). Agents authenticate through OAuth, not `x-api-key`.
+</Note>
+
+## Endpoint and discovery
+
+| Resource | Path |
+| --- | --- |
+| MCP transport (Streamable HTTP) | `POST /mcp` |
+| OAuth authorization server metadata | `GET /.well-known/oauth-authorization-server` |
+| Protected resource metadata (MCP) | `GET /.well-known/oauth-protected-resource/mcp` |
+| Dynamic client registration | `POST /mcp/register` (when enabled) |
+
+OAuth authorize, token, and consent flows live under `/mcp/authorize`, `/mcp/token`, and related paths.
+
+## Available tools
+
+Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<code>", "message": "..." }`.
+
+### Projects and glossaries
+
+| Tool | Description |
+| --- | --- |
+| `list_projects` | List accessible projects (`limit`, default 20, max 50) |
+| `get_project` | Project details by `projectId` |
+| `list_glossaries` | List glossaries linked to accessible projects |
+| `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100) |
+
+### Board (issues)
+
+| Tool | Description |
+| --- | --- |
+| `list_issues` | Filter, sort, and paginate workspace Board items |
+| `get_issue` | Full issue by `projectId` and `issueId` (`HL-123` or legacy UUID) |
+| `create_issue` | Create an issue in an accessible project |
+| `update_issue` | Update mutable fields on one issue |
+
+`create_issue` and `update_issue` require a role that can write translations back (admin or localization manager). Other roles receive `forbidden`.
+
+`create_issue` accepts optional `idempotencyKey`. When set, Hyperlocalise stores the issue under `mcp:<key>` and returns the same issue on retry unless the payload changes.
+
+`list_issues` supports the same filters as the workspace Board API, including `view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `search`, `sort`, `sortDir`, `limit` (max 50), and `offset`.
+
+### Reserved (not implemented)
+
+These tools are advertised but return `not_implemented` today:
+
+- `list_translations`
+- `upload_sources`
+- `download_translations`
+- `run_workflow`
+
+Use the [public API](/platform/api) or [CLI](/platform/cli) for file upload, download, and job orchestration until these tools are wired.
+
+## Outbound MCP in automations
+
+To let a **saved automation** call a **remote** MCP server (Semrush, Ahrefs, or your own), add an **MCP Server** connection under **Integrations**, then enable the MCP tool on the automation. That path is outbound from Hyperlocalise to a third-party server and is unrelated to the hosted `/api/mcp` server agents connect to.
+
+See [Integrations](/platform/integrations#mcp-server-connections).
+
+## Permissions and scope
+
+An MCP session inherits your live organization membership:
+
+- Project and glossary reads respect team and project access.
+- Issue writes follow the same rules as the Board UI.
+- Revoking your membership or disabling MCP auth ends the session on the next refresh.
+
+Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators can tune these with `MCP_TOKEN_LIFETIME_MINUTES` and `MCP_REFRESH_TOKEN_LIFETIME_DAYS`.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| Consent page loops or `invalid_request` | Stale OAuth cookies; sign out and retry, or use a private window |
+| `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs |
+| `forbidden` on issue tools | Your role is read-only for write-back operations |
+| `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
+| Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
+
+## Next
+
+- [Content Editor and Board](/platform/cat)
+- [Automations](/platform/automations)
+- [Public API](/platform/api)

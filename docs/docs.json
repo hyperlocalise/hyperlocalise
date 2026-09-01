@@ -143,6 +143,7 @@
                 "pages": [
                   "platform/cli",
                   "platform/integrations",
+                  "platform/mcp",
                   "platform/settings"
                 ]
               },
