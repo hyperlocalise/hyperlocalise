@@ -399,6 +399,22 @@ describe("MCP team-scoped access", () => {
       error: "forbidden",
     });
 
+    const updateDeniedResponse = await callMcpTool(accessToken, "update_issue", {
+      projectId: alphaProjectBody.project.id,
+      issueId: alphaIssue.id,
+      title: "Member must not update this issue",
+    });
+
+    expect(updateDeniedResponse.status).toBe(200);
+
+    const updateDeniedBody = await updateDeniedResponse.json();
+
+    expect((updateDeniedBody as { result?: { isError?: boolean } }).result?.isError).toBe(true);
+
+    expect(parseToolResultText(updateDeniedBody)).toMatchObject({
+      error: "forbidden",
+    });
+
     const deniedIssues = await db
       .select({ id: schema.issueSheetIssues.id })
       .from(schema.issueSheetIssues)
@@ -423,6 +439,56 @@ describe("MCP team-scoped access", () => {
           eq(schema.organizationMemberships.userId, memberAuth.user.localUserId),
         ),
       );
+
+    const updateAllowedResponse = await callMcpTool(accessToken, "update_issue", {
+      projectId: alphaProjectBody.project.id,
+      issueId: alphaIssue.id,
+      title: "Updated by Team Alpha translator",
+    });
+
+    expect(updateAllowedResponse.status).toBe(200);
+
+    expect(parseToolResultText(await updateAllowedResponse.json())).toMatchObject({
+      outcome: "updated",
+      issue: {
+        id: alphaIssue.id,
+        title: "Updated by Team Alpha translator",
+      },
+    });
+
+    const inaccessibleUpdates = [
+      {
+        label: "wrong team",
+        projectId: betaProjectBody.project.id,
+        issueId: betaIssue.id,
+      },
+      {
+        label: "wrong organization",
+        projectId: externalProject.id,
+        issueId: externalIssue.id,
+      },
+    ];
+
+    for (const update of inaccessibleUpdates) {
+      const response = await callMcpTool(accessToken, "update_issue", {
+        projectId: update.projectId,
+        issueId: update.issueId,
+        title: "Must not be updated",
+      });
+
+      expect(response.status, update.label).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(
+        (responseBody as { result?: { isError?: boolean } }).result?.isError,
+        update.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(responseBody), update.label).toMatchObject({
+        error: "issue_not_found",
+      });
+    }
 
     const createAllowedResponse = await callMcpTool(accessToken, "create_issue", {
       projectId: alphaProjectBody.project.id,

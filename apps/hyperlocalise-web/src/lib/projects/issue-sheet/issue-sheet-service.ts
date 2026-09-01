@@ -1479,8 +1479,17 @@ export class IssueSheetService {
       const [current] = await tx
         .select({
           id: schema.issueSheetIssues.id,
+          title: schema.issueSheetIssues.title,
+          description: schema.issueSheetIssues.description,
           status: schema.issueSheetIssues.status,
           issueType: schema.issueSheetIssues.issueType,
+          targetLocale: schema.issueSheetIssues.targetLocale,
+          sourcePath: schema.issueSheetIssues.sourcePath,
+          segmentId: schema.issueSheetIssues.segmentId,
+          translationKeyId: schema.issueSheetIssues.translationKeyId,
+          linkKind: schema.issueSheetIssues.linkKind,
+          linkLabel: schema.issueSheetIssues.linkLabel,
+          linkUrl: schema.issueSheetIssues.linkUrl,
           assigneeUserId: schema.issueSheetIssues.assigneeUserId,
         })
         .from(schema.issueSheetIssues)
@@ -1514,32 +1523,56 @@ export class IssueSheetService {
       const assigneeActuallyChanged =
         assigneeChanging && current.assigneeUserId !== nextAssigneeUserId;
 
-      await tx
-        .update(schema.issueSheetIssues)
-        .set({
-          title: input.body.title,
-          description: input.body.description,
-          issueType: input.body.issueType,
-          status: input.body.status,
-          targetLocale: input.body.targetLocale,
-          sourcePath: input.body.sourcePath,
-          segmentId: input.body.segmentId,
-          ...(translationKeyChanging
-            ? { translationKeyId: input.body.translationKeyId ?? null }
-            : {}),
-          linkKind: input.body.linkKind,
-          linkLabel: input.body.linkLabel,
-          linkUrl: input.body.linkUrl,
-          ...(assigneeChanging ? { assigneeUserId: nextAssigneeUserId } : {}),
-          ...(resolvedAt !== undefined ? { resolvedAt } : {}),
-        })
-        .where(
-          and(
-            eq(schema.issueSheetIssues.organizationId, input.organizationId),
-            eq(schema.issueSheetIssues.projectId, input.projectId),
-            issueIdOrIdentifierMatch(input.issueId),
-          ),
-        );
+      const coreActuallyChanged =
+        (Object.hasOwn(input.body, "title") && input.body.title !== current.title) ||
+        (Object.hasOwn(input.body, "description") &&
+          input.body.description !== current.description) ||
+        statusChanging ||
+        issueTypeChanging ||
+        (Object.hasOwn(input.body, "targetLocale") &&
+          (input.body.targetLocale ?? null) !== current.targetLocale) ||
+        (Object.hasOwn(input.body, "sourcePath") &&
+          (input.body.sourcePath ?? null) !== current.sourcePath) ||
+        (Object.hasOwn(input.body, "segmentId") &&
+          (input.body.segmentId ?? null) !== current.segmentId) ||
+        (translationKeyChanging &&
+          (input.body.translationKeyId ?? null) !== current.translationKeyId) ||
+        (Object.hasOwn(input.body, "linkKind") &&
+          (input.body.linkKind ?? null) !== current.linkKind) ||
+        (Object.hasOwn(input.body, "linkLabel") &&
+          (input.body.linkLabel ?? null) !== current.linkLabel) ||
+        (Object.hasOwn(input.body, "linkUrl") &&
+          (input.body.linkUrl ?? null) !== current.linkUrl) ||
+        assigneeActuallyChanged;
+
+      if (coreActuallyChanged) {
+        await tx
+          .update(schema.issueSheetIssues)
+          .set({
+            title: input.body.title,
+            description: input.body.description,
+            issueType: input.body.issueType,
+            status: input.body.status,
+            targetLocale: input.body.targetLocale,
+            sourcePath: input.body.sourcePath,
+            segmentId: input.body.segmentId,
+            ...(translationKeyChanging
+              ? { translationKeyId: input.body.translationKeyId ?? null }
+              : {}),
+            linkKind: input.body.linkKind,
+            linkLabel: input.body.linkLabel,
+            linkUrl: input.body.linkUrl,
+            ...(assigneeChanging ? { assigneeUserId: nextAssigneeUserId } : {}),
+            ...(statusChanging && resolvedAt !== undefined ? { resolvedAt } : {}),
+          })
+          .where(
+            and(
+              eq(schema.issueSheetIssues.organizationId, input.organizationId),
+              eq(schema.issueSheetIssues.projectId, input.projectId),
+              issueIdOrIdentifierMatch(input.issueId),
+            ),
+          );
+      }
 
       if (statusChanging) {
         await this.insertStatusChangedActivity({
@@ -1579,6 +1612,7 @@ export class IssueSheetService {
 
       return {
         issueId: current.id,
+        coreActuallyChanged,
         statusChanging,
         issueTypeChanging,
         previousStatus: current.status,
@@ -1634,10 +1668,8 @@ export class IssueSheetService {
     }
 
     if (input.returnOutcome) {
-      const changed =
-        found.assigneeActuallyChanged || found.statusChanging || found.issueTypeChanging;
       return {
-        outcome: changed ? "updated" : "unchanged",
+        outcome: found.coreActuallyChanged ? "updated" : "unchanged",
         issue,
       };
     }

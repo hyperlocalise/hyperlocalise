@@ -1000,6 +1000,52 @@ describe("mcpRoutes", () => {
         title: "Created through the MCP SDK",
       });
 
+      const updateResult = await client.callTool({
+        name: "update_issue",
+        arguments: {
+          projectId: stored.project.id,
+          issueId: createdIssue.identifier,
+          title: "Updated through the MCP SDK",
+          status: "in_progress",
+          priority: "P0",
+        },
+      });
+
+      const updateContent = (
+        updateResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
+
+      if (!updateContent?.text) {
+        throw new Error("expected update_issue text content");
+      }
+
+      const updatedIssue = JSON.parse(updateContent.text) as {
+        outcome: "updated" | "unchanged";
+        issue: {
+          id: string;
+          title: string;
+          status: string;
+          values: Record<string, unknown>;
+        };
+      };
+
+      expect(updatedIssue).toMatchObject({
+        outcome: "updated",
+        issue: {
+          id: createdIssue.id,
+          title: "Updated through the MCP SDK",
+          status: "in_progress",
+          values: {
+            priority: "P0",
+          },
+        },
+      });
+
       const getIssueResult = await client.callTool({
         name: "get_issue",
         arguments: {
@@ -1026,16 +1072,18 @@ describe("mcpRoutes", () => {
           id: string;
           title: string;
           description: string;
+          status: string;
           values: Record<string, unknown>;
         };
       };
 
       expect(getIssueOutput.issue).toMatchObject({
         id: createdIssue.id,
-        title: "Created through the MCP SDK",
+        title: "Updated through the MCP SDK",
         description: "SDK integration coverage",
+        status: "in_progress",
         values: {
-          priority: "P1",
+          priority: "P0",
         },
       });
 
@@ -1076,7 +1124,7 @@ describe("mcpRoutes", () => {
         total: 1,
         summary: {
           total: 1,
-          open: 1,
+          inProgress: 1,
         },
         pagination: {
           limit: 10,
@@ -1088,14 +1136,14 @@ describe("mcpRoutes", () => {
           expect.objectContaining({
             id: createdIssue.id,
             projectId: stored.project.id,
-            title: "Created through the MCP SDK",
-            priority: "P1",
+            title: "Updated through the MCP SDK",
+            priority: "P0",
           }),
         ],
       });
 
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(7);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(8);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -1429,7 +1477,7 @@ describe("mcpRoutes", () => {
 
     expect(tool).toBeDefined();
     expect(tool?.description).toContain("issue");
-    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId", "issueId"]));
+    expect(tool?.inputSchema?.required).toEqual(["projectId", "issueId"]);
     expect(tool?.inputSchema?.properties).toMatchObject({
       projectId: {
         type: "string",
@@ -1440,6 +1488,614 @@ describe("mcpRoutes", () => {
         type: "string",
       },
     });
+  });
+
+  it("advertises the update_issue tool with bounded mutable fields", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "update_issue");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("issue");
+    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId", "issueId"]));
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+      issueId: {
+        type: "string",
+      },
+      title: {
+        type: "string",
+        minLength: 1,
+        maxLength: 300,
+      },
+      description: {
+        type: "string",
+        maxLength: 20_000,
+      },
+      issueType: expect.any(Object),
+      status: expect.any(Object),
+      targetLocale: expect.any(Object),
+      sourcePath: expect.any(Object),
+      segmentId: expect.any(Object),
+      translationKeyId: expect.any(Object),
+      assigneeUserId: expect.any(Object),
+      priority: expect.any(Object),
+    });
+
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("values");
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("linkKind");
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("linkLabel");
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("linkUrl");
+  });
+
+  it("rejects an empty update_issue request", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const updateSpy = vi.spyOn(IssueSheetService.prototype, "updateIssue");
+    const prioritySpy = vi.spyOn(IssueSheetService.prototype, "setPriority");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_issue",
+            arguments: {
+              projectId: "project-id",
+              issueId: "HL-1",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+      expect(text).toContain("invalid_issue_update");
+
+      expect(updateSpy).not.toHaveBeenCalled();
+      expect(prioritySpy).not.toHaveBeenCalled();
+    } finally {
+      updateSpy.mockRestore();
+      prioritySpy.mockRestore();
+    }
+  });
+
+  it.each([
+    ["a type-invalid title", { title: 123 }],
+    ["an overlong title", { title: "x".repeat(301) }],
+    ["an invalid assignee UUID", { assigneeUserId: "not-a-uuid" }],
+    ["an invalid priority", { priority: "P3" }],
+  ])("returns invalid_issue_update for %s", async (_label, updates) => {
+    const headers = await authenticatedMcpHeaders();
+    const updateSpy = vi.spyOn(IssueSheetService.prototype, "updateIssue");
+    const prioritySpy = vi.spyOn(IssueSheetService.prototype, "setPriority");
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_issue",
+            arguments: {
+              projectId: "project-id",
+              issueId: "HL-1",
+              ...updates,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+      expect(text).toContain("invalid_issue_update");
+      expect(updateSpy).not.toHaveBeenCalled();
+      expect(prioritySpy).not.toHaveBeenCalled();
+    } finally {
+      updateSpy.mockRestore();
+      prioritySpy.mockRestore();
+    }
+  });
+
+  it("updates core issue fields as the MCP-authenticated user", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+
+    const created = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Original title",
+        description: "Original description",
+        issueType: "translation_mistake",
+        status: "open",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "update_issue",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: created.identifier,
+            title: "Updated through MCP",
+            description: "Updated description",
+            issueType: "qa_failure",
+            status: "in_progress",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const responseBody = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(responseBody.result?.isError).not.toBe(true);
+
+    const text = responseBody.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const output = JSON.parse(text!) as {
+      outcome: string;
+      issue: {
+        id: string;
+        title: string;
+        description: string;
+        issueType: string;
+        status: string;
+      };
+    };
+
+    expect(output).toMatchObject({
+      outcome: "updated",
+      issue: {
+        id: created.id,
+        title: "Updated through MCP",
+        description: "Updated description",
+        issueType: "qa_failure",
+        status: "in_progress",
+      },
+    });
+
+    const activities = await db
+      .select({
+        actorUserId: schema.issueSheetActivities.actorUserId,
+        type: schema.issueSheetActivities.type,
+      })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.issueId, created.id),
+          eq(schema.issueSheetActivities.type, "status_changed"),
+        ),
+      );
+
+    expect(activities).toEqual([
+      {
+        actorUserId: auth.user.localUserId,
+        type: "status_changed",
+      },
+    ]);
+
+    const issueTypeActivities = await db
+      .select({
+        actorUserId: schema.issueSheetActivities.actorUserId,
+        type: schema.issueSheetActivities.type,
+      })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.issueId, created.id),
+          eq(schema.issueSheetActivities.type, "issue_type_changed"),
+        ),
+      );
+
+    expect(issueTypeActivities).toEqual([
+      {
+        actorUserId: auth.user.localUserId,
+        type: "issue_type_changed",
+      },
+    ]);
+  });
+
+  it("reports title-only updates and repeated no-op updates correctly", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+    const created = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Original title",
+      },
+    });
+
+    const updateTitle = async () => {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_issue",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: created.identifier,
+              title: "Updated title",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).not.toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      return JSON.parse(text!) as {
+        outcome: "updated" | "unchanged";
+        issue: {
+          id: string;
+          title: string;
+        };
+      };
+    };
+
+    await expect(updateTitle()).resolves.toMatchObject({
+      outcome: "updated",
+      issue: {
+        id: created.id,
+        title: "Updated title",
+      },
+    });
+
+    await expect(updateTitle()).resolves.toMatchObject({
+      outcome: "unchanged",
+      issue: {
+        id: created.id,
+        title: "Updated title",
+      },
+    });
+  });
+
+  it("clears nullable update_issue fields and preserves omitted fields", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+
+    const [translationKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        key: "update.nullable",
+        sourceText: "Nullable source",
+        normalizedSourceText: "Nullable source",
+      })
+      .returning({
+        id: schema.projectTranslationKeys.id,
+      });
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    const created = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Nullable fields issue",
+        description: "Description must remain",
+        targetLocale: "fr-FR",
+        sourcePath: "src/messages.json",
+        segmentId: "nullable-segment",
+        translationKeyId: translationKey.id,
+        assigneeUserId: auth.user.localUserId,
+      },
+    });
+
+    const clearFields = async () => {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_issue",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: created.identifier,
+              targetLocale: null,
+              sourcePath: null,
+              segmentId: null,
+              translationKeyId: null,
+              assigneeUserId: null,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const responseBody = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ text?: string }>;
+        };
+      };
+
+      expect(responseBody.result?.isError).not.toBe(true);
+
+      const text = responseBody.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      return JSON.parse(text!) as {
+        outcome: "updated" | "unchanged";
+        issue: {
+          id: string;
+          description: string;
+          targetLocale: string | null;
+          sourcePath: string | null;
+          segmentId: string | null;
+          translationKeyId: string | null;
+          assigneeUserId: string | null;
+          linkedTranslationKey: {
+            id: string;
+            key: string;
+            sourceText: string;
+          } | null;
+        };
+      };
+    };
+
+    const first = await clearFields();
+
+    expect(first).toMatchObject({
+      outcome: "updated",
+      issue: {
+        id: created.id,
+        description: "Description must remain",
+        targetLocale: null,
+        sourcePath: null,
+        segmentId: null,
+        translationKeyId: null,
+        assigneeUserId: null,
+        linkedTranslationKey: null,
+      },
+    });
+
+    const retry = await clearFields();
+
+    expect(retry).toMatchObject({
+      outcome: "unchanged",
+      issue: {
+        id: created.id,
+        description: "Description must remain",
+        targetLocale: null,
+        sourcePath: null,
+        segmentId: null,
+        translationKeyId: null,
+        assigneeUserId: null,
+        linkedTranslationKey: null,
+      },
+    });
+
+    const activities = await db
+      .select({
+        actorUserId: schema.issueSheetActivities.actorUserId,
+        type: schema.issueSheetActivities.type,
+      })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.issueId, created.id),
+          eq(schema.issueSheetActivities.type, "assignee_changed"),
+        ),
+      );
+
+    expect(activities).toHaveLength(2);
+    expect(activities).toEqual(
+      expect.arrayContaining([
+        {
+          actorUserId: auth.user.localUserId,
+          type: "assignee_changed",
+        },
+      ]),
+    );
+    expect(
+      activities.every(
+        (activity) =>
+          activity.actorUserId === auth.user.localUserId && activity.type === "assignee_changed",
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["assignee_not_assignable", "assignee_not_assignable"],
+    ["translation_key_not_found", "translation_key_not_found"],
+    ["invalid_issue_transition", "invalid_issue_transition"],
+    ["invalid_issue_sheet_select_value", "invalid_issue_update"],
+    ["issue_sheet_column_not_found", "invalid_issue_update"],
+  ])("maps update issue failure %s to %s", async (serviceError, expectedCode) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const updateSpy = vi
+      .spyOn(IssueSheetService.prototype, "updateIssue")
+      .mockRejectedValueOnce(new Error(serviceError));
+
+    try {
+      const response = await app.request("http://localhost/mcp/sse", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_issue",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: "HL-1",
+              title: "Updated title",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ type: string; text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+      expect(JSON.parse(text!)).toMatchObject({
+        error: expectedCode,
+      });
+    } finally {
+      updateSpy.mockRestore();
+    }
   });
 
   it("advertises the create_issue tool with a bounded input schema", async () => {
