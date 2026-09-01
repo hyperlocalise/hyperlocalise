@@ -21,6 +21,9 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 loadDotenv({ path: path.join(rootDir, ".env") });
 
 export default defineConfig({
+  define: {
+    BACKEND_HOST: JSON.stringify(process.env.CANVA_BACKEND_HOST ?? "https://app.example.test"),
+  },
   fmt: {
     ignorePatterns: ["dist/**", "pnpm-lock.yaml"],
   },

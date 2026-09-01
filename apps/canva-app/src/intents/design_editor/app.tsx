@@ -18,7 +18,6 @@ import {
   CheckboxGroup,
   FormField,
   LinkButton,
-  ProgressBar,
   Rows,
   Select,
   Switch,
@@ -32,9 +31,18 @@ import { useEffect, useMemo, useState } from "react";
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
 import {
+  buildCanvaJobUrl,
+  CANVA_JOB_POLL_INTERVAL_MS,
+  createCanvaClaim,
+  createCanvaJob,
+  fetchCanvaSession,
+  fetchCurrentCanvaJob,
+  generateCanvaJob,
+  getCanvaJob,
   HyperlocaliseClientError,
-  pollLocalizeDesign,
-  startLocalizeDesign,
+  openExternalUrl,
+  pollCanvaClaim,
+  pullCanvaTranslations,
 } from "./hyperlocalise-client";
 import {
   loadSettings,
@@ -43,7 +51,7 @@ import {
   saveSettings,
   selectedPageValues,
 } from "./settings";
-import type { AppSettings, DesignPageInfo, WorkflowStep } from "./types";
+import type { AppSettings, CanvaDesignJob, DesignPageInfo, DesignSegment } from "./types";
 
 const LOCALE_OPTIONS = [
   { value: "en", label: "English (en)" },
@@ -58,33 +66,7 @@ const LOCALE_OPTIONS = [
   { value: "vi-VN", label: "Vietnamese (vi-VN)" },
 ];
 
-const WORKFLOW_STEPS: Array<{ id: WorkflowStep; label: string }> = [
-  { id: "extracting", label: "Extract text" },
-  { id: "uploading", label: "Upload file" },
-  { id: "translating", label: "Translate" },
-  { id: "applying", label: "Sync to design" },
-];
-
-function workflowProgress(step: WorkflowStep): number {
-  switch (step) {
-    case "extracting":
-      return 0.2;
-    case "uploading":
-      return 0.45;
-    case "translating":
-      return 0.7;
-    case "applying":
-      return 0.9;
-    case "done":
-      return 1;
-    default:
-      return 0;
-  }
-}
-
-function activeStepLabel(step: WorkflowStep): string {
-  return WORKFLOW_STEPS.find((workflowStep) => workflowStep.id === step)?.label ?? "Ready";
-}
+type BusyAction = "connect" | "extract" | "create" | "generate" | "pull" | null;
 
 function defaultSelectedPages(pages: DesignPageInfo[]): number[] {
   return pages.filter((page) => page.editable).map((page) => page.index);
@@ -98,14 +80,69 @@ function pageDescription(page: DesignPageInfo): string {
   return "Editable page";
 }
 
+function isInFlightStatus(status: CanvaDesignJob["status"]) {
+  return status === "queued" || status === "running";
+}
+
+function jobStatusLabel(status: CanvaDesignJob["status"]) {
+  switch (status) {
+    case "queued":
+      return "Queued";
+    case "running":
+      return "Translating";
+    case "waiting_for_review":
+      return "Needs review";
+    case "succeeded":
+      return "Ready";
+    case "failed":
+      return "Failed";
+    case "cancelled":
+      return "Cancelled";
+  }
+}
+
+function pageJobFromCreate(input: {
+  jobId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocales: string[];
+}): CanvaDesignJob {
+  return {
+    jobId: input.jobId,
+    status: "queued",
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocales: input.targetLocales,
+    lastError: null,
+    translationsByLocale: {},
+  };
+}
+
+function isReconnectError(error: unknown) {
+  if (!(error instanceof HyperlocaliseClientError)) {
+    return false;
+  }
+
+  return (
+    error.code === "unauthorized" ||
+    error.code === "canva_connection_token_required" ||
+    error.code === "canva_connection_not_found" ||
+    error.code === "canva_connection_disabled" ||
+    error.code === "canva_user_token_required" ||
+    error.code === "canva_user_token_invalid"
+  );
+}
+
 export const App = () => {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [tokenDraft, setTokenDraft] = useState("");
   const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
   const [pagesLoading, setPagesLoading] = useState(true);
   const [pagesError, setPagesError] = useState<string | null>(null);
-  const [workflowStep, setWorkflowStep] = useState<WorkflowStep>("idle");
-  const [segmentCount, setSegmentCount] = useState(0);
+  const [segments, setSegments] = useState<DesignSegment[]>([]);
+  const [pageJob, setPageJob] = useState<CanvaDesignJob | null>(null);
   const [selectedLocale, setSelectedLocale] = useState("");
+  const [busy, setBusy] = useState<BusyAction>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -123,14 +160,43 @@ export const App = () => {
 
     return defaultSelectedPages(designPages);
   }, [designPages, editablePages, settings.selectedPageIndices]);
-  const isBusy = workflowStep !== "idle" && workflowStep !== "done";
-  const canLocalize =
-    settings.connectionToken.trim().length > 0 &&
-    settings.sourceLocale.trim().length > 0 &&
+  const connected = settings.connectionToken.trim().length > 0;
+  const canCreateJob =
+    connected &&
     targetLocales.length > 0 &&
     selectedPageIndices.length > 0 &&
-    !pagesLoading &&
-    !isBusy;
+    segments.length > 0 &&
+    busy == null;
+  const canPull =
+    connected &&
+    busy == null &&
+    pageJob != null &&
+    (pageJob.status === "succeeded" || pageJob.status === "waiting_for_review");
+  const canGeneratePageJob =
+    connected && pageJob != null && pageJob.status === "queued" && busy == null;
+
+  const persistSettings = (next: AppSettings) => {
+    setSettings(next);
+    saveSettings(next);
+  };
+
+  const updateSettings = (patch: Partial<AppSettings>) => {
+    persistSettings({ ...settings, ...patch });
+  };
+
+  const disconnect = () => {
+    persistSettings({
+      ...settings,
+      connectionToken: "",
+      organizationSlug: "",
+      organizationName: "",
+      projectName: "",
+      lastJobId: "",
+    });
+    setPageJob(null);
+    setTokenDraft("");
+    setStatusMessage("Disconnected.");
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -146,7 +212,6 @@ export const App = () => {
         }
 
         setDesignPages(pages);
-
         setSettings((current) => {
           if (current.selectedPageIndices.length > 0) {
             return current;
@@ -188,84 +253,251 @@ export const App = () => {
     }
   }, [selectedLocale, targetLocales]);
 
-  const updateSettings = (patch: Partial<AppSettings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...patch };
-      saveSettings(next);
-      return next;
-    });
-  };
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
 
-  const selectAllEditablePages = () => {
-    updateSettings({ selectedPageIndices: defaultSelectedPages(designPages) });
-  };
+    let cancelled = false;
 
-  const clearPageSelection = () => {
-    updateSettings({ selectedPageIndices: [] });
-  };
+    async function hydrateSession() {
+      try {
+        const session = await fetchCanvaSession(settings.connectionToken.trim());
+        if (cancelled) {
+          return;
+        }
 
-  const localizeDesignFlow = async () => {
+        persistSettings({
+          ...settings,
+          organizationSlug: session.organization.slug ?? "",
+          organizationName: session.organization.name,
+          projectName: session.project.name,
+          sourceLocale: settings.sourceLocale || session.connection.sourceLocale,
+          targetLocales:
+            settings.targetLocales.trim().length > 0
+              ? settings.targetLocales
+              : session.connection.targetLocales.join(", "),
+        });
+
+        const { token } = await getDesignToken();
+        const current = await fetchCurrentCanvaJob({
+          connectionToken: settings.connectionToken.trim(),
+          designToken: token,
+        });
+        if (!cancelled && current) {
+          setPageJob(current);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        if (isReconnectError(error)) {
+          disconnect();
+          setErrorMessage("Reconnect Hyperlocalise to continue.");
+        }
+      }
+    }
+
+    void hydrateSession();
+
+    return () => {
+      cancelled = true;
+    };
+    // Session hydrate runs once after a token is present.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected]);
+
+  useEffect(() => {
+    if (!pageJob || !isInFlightStatus(pageJob.status) || !connected) {
+      return;
+    }
+
+    const jobId = pageJob.jobId;
+    let cancelled = false;
+
+    async function refreshJob() {
+      try {
+        const job = await getCanvaJob({
+          connectionToken: settings.connectionToken.trim(),
+          jobId,
+        });
+        if (cancelled) {
+          return;
+        }
+        setPageJob(job);
+        if (job.status === "succeeded") {
+          setStatusMessage("Translations are ready. Choose a locale and pull them into Canva.");
+        } else if (job.status === "waiting_for_review") {
+          setStatusMessage("Needs review. You can still pull the current translations.");
+        } else if (job.status === "failed") {
+          setErrorMessage(job.lastError || "Translation job failed.");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to check job status.");
+        }
+      }
+    }
+
+    void refreshJob();
+    const interval = window.setInterval(() => {
+      void refreshJob();
+    }, CANVA_JOB_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [connected, pageJob?.jobId, pageJob?.status, settings.connectionToken]);
+
+  const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
+    setBusy(action);
     setErrorMessage(null);
     setStatusMessage(null);
-
     try {
-      setWorkflowStep("extracting");
+      await work();
+    } catch (error) {
+      if (isReconnectError(error)) {
+        disconnect();
+        setErrorMessage("Reconnect Hyperlocalise to continue.");
+        return;
+      }
+      setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleConnectClaim = () =>
+    runAction("connect", async () => {
+      const claim = await createCanvaClaim();
+      await openExternalUrl(claim.authorizeUrl);
+      const connectionToken = await pollCanvaClaim({
+        claimId: claim.claimId,
+        pollToken: claim.pollToken,
+      });
+      const session = await fetchCanvaSession(connectionToken);
+      persistSettings({
+        ...settings,
+        connectionToken,
+        organizationSlug: session.organization.slug ?? "",
+        organizationName: session.organization.name,
+        projectName: session.project.name,
+        sourceLocale: session.connection.sourceLocale || settings.sourceLocale,
+        targetLocales: session.connection.targetLocales.join(", ") || settings.targetLocales,
+      });
+      setStatusMessage("Connected.");
+    });
+
+  const handleConnectToken = () =>
+    runAction("connect", async () => {
+      const connectionToken = tokenDraft.trim();
+      if (!connectionToken) {
+        throw new Error("Paste a connection token from Hyperlocalise.");
+      }
+      const session = await fetchCanvaSession(connectionToken);
+      persistSettings({
+        ...settings,
+        connectionToken,
+        organizationSlug: session.organization.slug ?? "",
+        organizationName: session.organization.name,
+        projectName: session.project.name,
+        sourceLocale: session.connection.sourceLocale || settings.sourceLocale,
+        targetLocales: session.connection.targetLocales.join(", ") || settings.targetLocales,
+      });
+      setTokenDraft("");
+      setStatusMessage("Connected.");
+    });
+
+  const handleExtract = () =>
+    runAction("extract", async () => {
+      if (selectedPageIndices.length === 0) {
+        throw new Error("Select at least one editable page.");
+      }
       const extracted = await extractDesignContent(
         selectedPageIndices,
         settings.preserveFormatting,
       );
-      setSegmentCount(extracted.segments.length);
-
+      setSegments(extracted.segments);
       if (extracted.segments.length === 0) {
         throw new Error("Add text to the selected pages before localizing.");
       }
+      setStatusMessage(
+        `Extracted ${extracted.segments.length} text segment${extracted.segments.length === 1 ? "" : "s"}.`,
+      );
+    });
 
+  const handleCreateJob = (generate: boolean) =>
+    runAction(generate ? "generate" : "create", async () => {
+      if (segments.length === 0) {
+        throw new Error("Extract text first.");
+      }
       const { token } = await getDesignToken();
-
-      setWorkflowStep("uploading");
-      const started = await startLocalizeDesign({
+      const created = await createCanvaJob({
         connectionToken: settings.connectionToken.trim(),
-        projectId: settings.projectId.trim() || undefined,
+        designToken: token,
         sourceLocale: settings.sourceLocale.trim(),
         targetLocales,
-        designToken: token,
-        segments: extracted.segments,
-        preserveFormatting: settings.preserveFormatting,
+        generate,
+        segments,
       });
-
-      setWorkflowStep("translating");
-      const response = await pollLocalizeDesign({
-        connectionToken: settings.connectionToken.trim(),
-        jobId: started.jobId,
+      const nextJob = pageJobFromCreate({
+        ...created,
+        targetLocales,
       });
+      setPageJob(nextJob);
+      persistSettings({ ...settings, lastJobId: created.jobId });
+      setStatusMessage(
+        generate
+          ? "Job created. Translating…"
+          : `Job ${created.jobId} created. Generate translations when you are ready.`,
+      );
+    });
 
-      const localeToApply = selectedLocale || targetLocales[0] || "";
-      const translations = localeToApply ? response.translationsByLocale[localeToApply] : undefined;
-      if (!translations) {
-        throw new Error(`No translated content returned for ${localeToApply}.`);
+  const handleGenerateExisting = () =>
+    runAction("generate", async () => {
+      if (!pageJob) {
+        throw new Error("Create a job first.");
       }
+      await generateCanvaJob({
+        connectionToken: settings.connectionToken.trim(),
+        jobId: pageJob.jobId,
+      });
+      setPageJob({ ...pageJob, status: "queued", lastError: null });
+      setStatusMessage("Generating translations…");
+    });
 
-      setWorkflowStep("applying");
+  const handlePull = () =>
+    runAction("pull", async () => {
+      const { token } = await getDesignToken();
+      const pulled = await pullCanvaTranslations({
+        connectionToken: settings.connectionToken.trim(),
+        designToken: token,
+      });
+      setPageJob(pulled);
+      const locale =
+        selectedLocale || Object.keys(pulled.translationsByLocale)[0] || targetLocales[0];
+      const translations = locale ? pulled.translationsByLocale[locale] : undefined;
+      if (!locale || !translations) {
+        throw new Error(`No translated content returned for ${locale || "the selected locale"}.`);
+      }
       await applyTranslationsToDesign(
         translations,
         selectedPageIndices,
         settings.preserveFormatting,
       );
-
-      setWorkflowStep("done");
       setStatusMessage(
-        `Localized ${extracted.segments.length} text segments across ${selectedPageIndices.length} page(s) and synced ${localeToApply} back to your design.`,
+        `Applied ${Object.keys(translations).length} translated segments (${locale}).`,
       );
-    } catch (error) {
-      setWorkflowStep("idle");
-      if (error instanceof HyperlocaliseClientError) {
-        setErrorMessage(error.message);
-        return;
-      }
+    });
 
-      setErrorMessage(error instanceof Error ? error.message : "Localization failed.");
-    }
-  };
+  const jobHref =
+    pageJob && settings.organizationSlug
+      ? buildCanvaJobUrl({
+          organizationSlug: settings.organizationSlug,
+          projectId: pageJob.projectId,
+          jobId: pageJob.jobId,
+        })
+      : null;
 
   return (
     <div className={styles.scrollContainer}>
@@ -273,8 +505,8 @@ export const App = () => {
         <Rows spacing="1u">
           <Title size="small">Hyperlocalise for Canva</Title>
           <Text>
-            Upload selected pages from your design as a JSON translation file, run localization in
-            Hyperlocalise, then sync the translated text back into Canva.
+            Connect your workspace, extract text from selected pages, create a translation job, then
+            pull reviewed locales back into this design.
           </Text>
         </Rows>
 
@@ -285,13 +517,13 @@ export const App = () => {
         ) : null}
 
         {errorMessage ? (
-          <Alert tone="critical" title="Localization failed">
+          <Alert tone="critical" title="Something went wrong">
             <Text>{errorMessage}</Text>
           </Alert>
         ) : null}
 
         {statusMessage ? (
-          <Alert tone="positive" title="Design updated">
+          <Alert tone="positive" title="Status">
             <Text>{statusMessage}</Text>
           </Alert>
         ) : null}
@@ -299,195 +531,268 @@ export const App = () => {
         <Box padding="2u" className={styles.panel}>
           <Rows spacing="1.5u">
             <Rows spacing="0.5u">
-              <Title size="xsmall">Pages to localize</Title>
+              <Title size="xsmall">Workspace</Title>
               <Text size="small" tone="secondary">
-                Choose which pages to include in the upload and sync workflow.
+                Connect Hyperlocalise with a one-time authorization, or paste a connection token for
+                local development.
               </Text>
             </Rows>
 
-            {pagesLoading ? (
-              <Text size="small" tone="secondary">
-                Loading pages from your design...
-              </Text>
-            ) : (
+            {connected ? (
               <Rows spacing="1u">
+                <Text size="small">
+                  {settings.organizationName || "Connected"}
+                  {settings.projectName ? ` · ${settings.projectName}` : ""}
+                </Text>
+                <Button variant="secondary" onClick={disconnect} disabled={busy != null}>
+                  Disconnect
+                </Button>
+              </Rows>
+            ) : (
+              <Rows spacing="1.5u">
+                <Button
+                  variant="primary"
+                  stretch
+                  onClick={handleConnectClaim}
+                  loading={busy === "connect"}
+                  disabled={busy != null}
+                >
+                  Connect Hyperlocalise
+                </Button>
+                <FormField
+                  label="Connection token"
+                  description="Optional fallback. Paste a token from workspace Integrations → Canva."
+                  value={tokenDraft}
+                  control={(props) => (
+                    <TextInput {...props} placeholder="hl_canva_..." onChange={setTokenDraft} />
+                  )}
+                />
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={handleConnectToken}
+                  disabled={busy != null || tokenDraft.trim().length === 0}
+                >
+                  Connect with token
+                </Button>
+              </Rows>
+            )}
+          </Rows>
+        </Box>
+
+        {connected ? (
+          <>
+            <Box padding="2u" className={styles.panel}>
+              <Rows spacing="1.5u">
                 <Rows spacing="0.5u">
-                  <Text size="small">
-                    {selectedPageIndices.length} of {editablePages.length} editable pages selected
+                  <Title size="xsmall">Pages to localize</Title>
+                  <Text size="small" tone="secondary">
+                    Choose which pages to include in extract, upload, and pull.
                   </Text>
-                  <div className={styles.pageActions}>
-                    <LinkButton onClick={selectAllEditablePages}>Select all</LinkButton>
-                    <LinkButton onClick={clearPageSelection}>Clear</LinkButton>
-                  </div>
                 </Rows>
 
-                <CheckboxGroup
-                  value={selectedPageValues(selectedPageIndices)}
-                  onChange={(values) =>
-                    updateSettings({
-                      selectedPageIndices: parseSelectedPageValues(values),
-                    })
-                  }
-                  options={designPages.map((page) => ({
-                    value: String(page.index),
-                    label: page.label,
-                    description: pageDescription(page),
-                    disabled: !page.editable,
-                  }))}
-                />
-              </Rows>
-            )}
-          </Rows>
-        </Box>
+                {pagesLoading ? (
+                  <Text size="small" tone="secondary">
+                    Loading pages from your design...
+                  </Text>
+                ) : (
+                  <Rows spacing="1u">
+                    <Rows spacing="0.5u">
+                      <Text size="small">
+                        {selectedPageIndices.length} of {editablePages.length} editable pages
+                        selected
+                      </Text>
+                      <div className={styles.pageActions}>
+                        <LinkButton
+                          onClick={() =>
+                            updateSettings({
+                              selectedPageIndices: defaultSelectedPages(designPages),
+                            })
+                          }
+                        >
+                          Select all
+                        </LinkButton>
+                        <LinkButton onClick={() => updateSettings({ selectedPageIndices: [] })}>
+                          Clear
+                        </LinkButton>
+                      </div>
+                    </Rows>
 
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Connection settings</Title>
-              <Text size="small" tone="secondary">
-                Paste the connection token from your Hyperlocalise workspace Canva integration.
-              </Text>
-            </Rows>
-
-            <FormField
-              label="Connection token"
-              value={settings.connectionToken}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="hl_canva_..."
-                  onChange={(value) => updateSettings({ connectionToken: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Project ID override"
-              description="Optional. Leave blank to use the project configured on the connection."
-              value={settings.projectId}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="project_..."
-                  onChange={(value) => updateSettings({ projectId: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Source locale"
-              value={settings.sourceLocale}
-              control={(props) => (
-                <Select
-                  {...props}
-                  options={LOCALE_OPTIONS}
-                  onChange={(value) => updateSettings({ sourceLocale: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Target locales"
-              description="Comma-separated locale codes"
-              value={settings.targetLocales}
-              control={(props) => (
-                <TextInput
-                  {...props}
-                  placeholder="es, fr, de"
-                  onChange={(value) => updateSettings({ targetLocales: value })}
-                />
-              )}
-            />
-
-            <FormField
-              label="Apply locale"
-              value={selectedLocale}
-              control={(props) => (
-                <Select
-                  {...props}
-                  stretch
-                  disabled={targetLocales.length === 0}
-                  options={targetLocales.map((locale) => ({
-                    value: locale,
-                    label: locale,
-                  }))}
-                  onChange={setSelectedLocale}
-                />
-              )}
-            />
-
-            <FormField
-              label="Preserve inline formatting"
-              value={settings.preserveFormatting}
-              control={(props) => (
-                <Switch
-                  {...props}
-                  value={settings.preserveFormatting}
-                  onChange={(value) => updateSettings({ preserveFormatting: value })}
-                />
-              )}
-            />
-          </Rows>
-        </Box>
-
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Workflow</Title>
-              <Text size="small" tone="secondary">
-                Extract text from selected pages, upload a source file, translate, then write
-                results back to Canva.
-              </Text>
-            </Rows>
-
-            <Rows spacing="1u">
-              {WORKFLOW_STEPS.map((step) => {
-                const isComplete =
-                  workflowStep === "done" ||
-                  WORKFLOW_STEPS.findIndex((item) => item.id === workflowStep) >
-                    WORKFLOW_STEPS.findIndex((item) => item.id === step.id);
-                const isActive = workflowStep === step.id;
-
-                return (
-                  <div key={step.id} className={styles.workflowStep}>
-                    <Badge
-                      text={isComplete ? "Done" : isActive ? "Active" : "Pending"}
-                      tone={isComplete ? "positive" : isActive ? "info" : "contrast"}
+                    <CheckboxGroup
+                      value={selectedPageValues(selectedPageIndices)}
+                      onChange={(values) =>
+                        updateSettings({
+                          selectedPageIndices: parseSelectedPageValues(values),
+                        })
+                      }
+                      options={designPages.map((page) => ({
+                        value: String(page.index),
+                        label: page.label,
+                        description: pageDescription(page),
+                        disabled: !page.editable,
+                      }))}
                     />
-                    <Text size="small">{step.label}</Text>
-                  </div>
-                );
-              })}
-            </Rows>
-
-            {isBusy ? (
-              <Rows spacing="1u">
-                <ProgressBar value={workflowProgress(workflowStep)} />
-                <Text size="small" tone="secondary">
-                  {activeStepLabel(workflowStep)}
-                  {segmentCount > 0 ? ` · ${segmentCount} segments` : ""}
-                  {selectedPageIndices.length > 0 ? ` · ${selectedPageIndices.length} pages` : ""}
-                </Text>
+                  </Rows>
+                )}
               </Rows>
-            ) : (
-              <Text size="small" tone="secondary">
-                {selectedPageIndices.length > 0
-                  ? `${selectedPageIndices.length} page(s) selected for localization.`
-                  : "Select at least one editable page to continue."}
-              </Text>
-            )}
+            </Box>
 
-            <Button
-              variant="primary"
-              stretch
-              onClick={localizeDesignFlow}
-              disabled={!canLocalize}
-              loading={isBusy}
-            >
-              Localize and sync design
-            </Button>
-          </Rows>
-        </Box>
+            <Box padding="2u" className={styles.panel}>
+              <Rows spacing="1.5u">
+                <Rows spacing="0.5u">
+                  <Title size="xsmall">Locales</Title>
+                  <Text size="small" tone="secondary">
+                    Defaults come from the connection. You can still edit them for this design.
+                  </Text>
+                </Rows>
+
+                <FormField
+                  label="Source locale"
+                  value={settings.sourceLocale}
+                  control={(props) => (
+                    <Select
+                      {...props}
+                      options={LOCALE_OPTIONS}
+                      onChange={(value) => updateSettings({ sourceLocale: value })}
+                    />
+                  )}
+                />
+
+                <FormField
+                  label="Target locales"
+                  description="Comma-separated locale codes"
+                  value={settings.targetLocales}
+                  control={(props) => (
+                    <TextInput
+                      {...props}
+                      placeholder="es, fr, de"
+                      onChange={(value) => updateSettings({ targetLocales: value })}
+                    />
+                  )}
+                />
+
+                <FormField
+                  label="Apply locale"
+                  value={selectedLocale}
+                  control={(props) => (
+                    <Select
+                      {...props}
+                      stretch
+                      disabled={targetLocales.length === 0}
+                      options={targetLocales.map((locale) => ({
+                        value: locale,
+                        label: locale,
+                      }))}
+                      onChange={setSelectedLocale}
+                    />
+                  )}
+                />
+
+                <FormField
+                  label="Preserve inline formatting"
+                  value={settings.preserveFormatting}
+                  control={(props) => (
+                    <Switch
+                      {...props}
+                      value={settings.preserveFormatting}
+                      onChange={(value) => updateSettings({ preserveFormatting: value })}
+                    />
+                  )}
+                />
+              </Rows>
+            </Box>
+
+            <Box padding="2u" className={styles.panel}>
+              <Rows spacing="1.5u">
+                <Rows spacing="0.5u">
+                  <Title size="xsmall">Job</Title>
+                  <Text size="small" tone="secondary">
+                    Extract text, create a job, generate translations, then pull a locale back into
+                    Canva.
+                  </Text>
+                </Rows>
+
+                {pageJob ? (
+                  <Rows spacing="1u">
+                    <div className={styles.workflowStep}>
+                      <Badge
+                        text={jobStatusLabel(pageJob.status)}
+                        tone={
+                          pageJob.status === "succeeded"
+                            ? "positive"
+                            : pageJob.status === "failed" || pageJob.status === "cancelled"
+                              ? "critical"
+                              : "info"
+                        }
+                      />
+                      <Text size="small">{pageJob.jobId}</Text>
+                    </div>
+                    {jobHref ? (
+                      <LinkButton onClick={() => void openExternalUrl(jobHref)}>
+                        Open in Hyperlocalise
+                      </LinkButton>
+                    ) : null}
+                  </Rows>
+                ) : (
+                  <Text size="small" tone="secondary">
+                    No job for this design yet.
+                  </Text>
+                )}
+
+                <Text size="small" tone="secondary">
+                  {segments.length > 0
+                    ? `${segments.length} extracted segment${segments.length === 1 ? "" : "s"}.`
+                    : "Extract text from the selected pages to create a job."}
+                </Text>
+
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={handleExtract}
+                  disabled={busy != null || selectedPageIndices.length === 0}
+                  loading={busy === "extract"}
+                >
+                  Extract text
+                </Button>
+                <Button
+                  variant="primary"
+                  stretch
+                  onClick={() => handleCreateJob(true)}
+                  disabled={!canCreateJob}
+                  loading={busy === "generate"}
+                >
+                  Create job and generate
+                </Button>
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={() => handleCreateJob(false)}
+                  disabled={!canCreateJob}
+                  loading={busy === "create"}
+                >
+                  Create job only
+                </Button>
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={handleGenerateExisting}
+                  disabled={!canGeneratePageJob}
+                >
+                  Generate translations
+                </Button>
+                <Button
+                  variant="primary"
+                  stretch
+                  onClick={handlePull}
+                  disabled={!canPull}
+                  loading={busy === "pull"}
+                >
+                  Pull translations
+                </Button>
+              </Rows>
+            </Box>
+          </>
+        ) : null}
       </Rows>
     </div>
   );

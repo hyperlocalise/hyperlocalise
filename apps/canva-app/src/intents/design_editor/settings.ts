@@ -12,15 +12,18 @@
  */
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v3";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v4";
 
 const defaultSettings: AppSettings = {
   connectionToken: "",
-  projectId: "",
+  organizationSlug: "",
+  organizationName: "",
+  projectName: "",
   sourceLocale: "en",
   targetLocales: "es,fr,de",
   preserveFormatting: true,
   selectedPageIndices: [],
+  lastJobId: "",
 };
 
 export function loadSettings(): AppSettings {
@@ -35,16 +38,7 @@ export function loadSettings(): AppSettings {
     }
 
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return {
-      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
-      projectId: parsed.projectId ?? defaultSettings.projectId,
-      sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
-      targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
-      preserveFormatting: parsed.preserveFormatting ?? defaultSettings.preserveFormatting,
-      selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
-        ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
-        : defaultSettings.selectedPageIndices,
-    };
+    return normalizeSettings(parsed);
   } catch {
     return defaultSettings;
   }
@@ -53,26 +47,34 @@ export function loadSettings(): AppSettings {
 function loadLegacySettings(): AppSettings {
   try {
     const raw =
+      window.localStorage.getItem("hyperlocalise:canva-app:settings:v3") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v2") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");
     if (!raw) {
       return defaultSettings;
     }
 
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return {
-      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
-      projectId: parsed.projectId ?? defaultSettings.projectId,
-      sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
-      targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
-      preserveFormatting: parsed.preserveFormatting ?? defaultSettings.preserveFormatting,
-      selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
-        ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
-        : defaultSettings.selectedPageIndices,
-    };
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & { projectId?: string };
+    return normalizeSettings(parsed);
   } catch {
     return defaultSettings;
   }
+}
+
+function normalizeSettings(parsed: Partial<AppSettings>): AppSettings {
+  return {
+    connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
+    organizationSlug: parsed.organizationSlug ?? defaultSettings.organizationSlug,
+    organizationName: parsed.organizationName ?? defaultSettings.organizationName,
+    projectName: parsed.projectName ?? defaultSettings.projectName,
+    sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
+    targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
+    preserveFormatting: parsed.preserveFormatting ?? defaultSettings.preserveFormatting,
+    selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
+      ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
+      : defaultSettings.selectedPageIndices,
+    lastJobId: parsed.lastJobId ?? defaultSettings.lastJobId,
+  };
 }
 
 export function saveSettings(settings: AppSettings): void {

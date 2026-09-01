@@ -69,6 +69,7 @@ export const Default: Story = {
     await expect(canvas.getByText("GitHub")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+    await expect(canvas.getByText("Canva")).toBeInTheDocument();
     await expect(canvas.getByText("Intercom")).toBeInTheDocument();
     await expect(canvas.getByText("Semrush")).toBeInTheDocument();
     await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();

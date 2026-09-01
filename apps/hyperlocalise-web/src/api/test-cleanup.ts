@@ -131,6 +131,11 @@ export async function cleanupWorkosTestRecords(input: {
         "DELETE FROM project_memories WHERE organization_id = ANY($1::uuid[])",
         orgParams,
       );
+      await client.query("DELETE FROM canva_connection_claims WHERE organization_id IS NULL");
+      await client.query(
+        "DELETE FROM canva_connection_claims WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
       await client.query(
         "DELETE FROM canva_connections WHERE organization_id = ANY($1::uuid[])",
         orgParams,

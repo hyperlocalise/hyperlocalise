@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -74,5 +75,37 @@ export const canvaConnections = pgTable(
     index("idx_canva_connections_org").on(table.organizationId),
     index("idx_canva_connections_api_key").on(table.apiKeyId),
     index("idx_canva_connections_project").on(table.projectId),
+  ],
+);
+
+/**
+ * One-time Canva connect claims. The Canva app creates a claim, the user
+ * authorizes it in Hyperlocalise, and the app polls once for the connection token.
+ */
+export const canvaConnectionClaims = pgTable(
+  "canva_connection_claims",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    pollTokenHash: text("poll_token_hash").notNull(),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    connectionId: uuid("connection_id").references(() => canvaConnections.id, {
+      onDelete: "cascade",
+    }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    encryptionAlgorithm: text("encryption_algorithm"),
+    ciphertext: text("ciphertext"),
+    iv: text("iv"),
+    authTag: text("auth_tag"),
+    keyVersion: integer("key_version"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("canva_connection_claims_poll_token_hash_key").on(table.pollTokenHash),
+    index("idx_canva_connection_claims_org").on(table.organizationId),
+    index("idx_canva_connection_claims_expires").on(table.expiresAt),
   ],
 );

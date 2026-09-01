@@ -39,19 +39,57 @@ export type CanvaConnectionSecretResult = {
   connectionToken: string;
 };
 
+export type CanvaJobStatusName =
+  | "queued"
+  | "running"
+  | "waiting_for_review"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
 export type StartCanvaLocalizationResult = {
   jobId: string;
+  generated: boolean;
+  projectId: string;
+  sourcePath: string;
 };
 
-export type CanvaLocalizationStatus =
+export type CanvaDesignJob = {
+  jobId: string;
+  status: CanvaJobStatusName;
+  projectId: string;
+  sourcePath: string;
+  targetLocales: string[];
+  lastError: string | null;
+  translationsByLocale: Record<string, Record<string, string>>;
+};
+
+export type CanvaLocalizationStatus = CanvaDesignJob;
+
+export type CanvaCurrentJobResult = {
+  job: CanvaDesignJob | null;
+};
+
+export type CanvaConnectionClaimStatus = "pending" | "authorized" | "consumed" | "expired";
+
+export type CanvaConnectionClaimCreated = {
+  claimId: string;
+  pollToken: string;
+  authorizeUrl: string;
+  expiresAt: string;
+};
+
+export type CanvaConnectionClaimPollResult =
   | {
-      jobId: string;
-      status: "queued" | "running";
+      status: "pending";
+      expiresAt: string;
     }
   | {
-      jobId: string;
-      status: "succeeded";
-      translationsByLocale: Record<string, Record<string, string>>;
+      status: "authorized";
+      connectionToken: string;
+    }
+  | {
+      status: "consumed" | "expired";
     };
 
 export type CanvaVerifiedUser = {

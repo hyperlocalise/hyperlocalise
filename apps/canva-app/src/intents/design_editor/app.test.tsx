@@ -15,11 +15,10 @@ import { TestAppUiProvider } from "@canva/app-ui-kit";
 import { getDesignToken } from "@canva/design";
 import { render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { App } from "./app";
 import * as designContent from "./design-content";
-import { localizeDesign } from "./hyperlocalise-client";
 
 function renderInTestProvider(node: ReactNode) {
   return render(
@@ -40,7 +39,17 @@ vi.mock("./design-content", () => ({
 }));
 
 vi.mock("./hyperlocalise-client", () => ({
-  localizeDesign: vi.fn(),
+  createCanvaClaim: vi.fn(),
+  pollCanvaClaim: vi.fn(),
+  fetchCanvaSession: vi.fn(),
+  createCanvaJob: vi.fn(),
+  generateCanvaJob: vi.fn(),
+  getCanvaJob: vi.fn(),
+  fetchCurrentCanvaJob: vi.fn(),
+  pullCanvaTranslations: vi.fn(),
+  buildCanvaJobUrl: vi.fn(() => null),
+  openExternalUrl: vi.fn(),
+  CANVA_JOB_POLL_INTERVAL_MS: 1_500,
   HyperlocaliseClientError: class HyperlocaliseClientError extends Error {},
 }));
 
@@ -51,30 +60,67 @@ describe("Hyperlocalise Canva app", () => {
       { index: 1, label: "Page 2", locked: false, editable: true },
     ]);
     vi.mocked(getDesignToken).mockResolvedValue({ token: "design-token" });
-    vi.mocked(localizeDesign).mockResolvedValue({
-      jobId: "job_test",
-      mode: "hyperlocalise",
-      translationsByLocale: {
-        es: {
-          "canva.segment.0.0.0": "Hola",
-        },
-      },
-    });
   });
 
-  it("renders localization workflow UI with page selection", async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("renders the disconnected connect flow", async () => {
     const result = renderInTestProvider(<App />);
 
     expect(result.getByText("Hyperlocalise for Canva")).toBeTruthy();
-    expect(result.getByText("Pages to localize")).toBeTruthy();
+    expect(result.getByRole("button", { name: "Connect Hyperlocalise" })).toBeTruthy();
+    expect(result.getByText("Connection token")).toBeTruthy();
+    expect(result.getByRole("button", { name: "Connect with token" })).toBeTruthy();
+    expect(result.queryByText("Pages to localize")).toBeNull();
+  });
 
-    await waitFor(() => {
-      expect(result.getByText("Page 1")).toBeTruthy();
-      expect(result.getByText("Page 2")).toBeTruthy();
+  it("loads design pages after connecting with a stored token", async () => {
+    const storage = new Map<string, string>([
+      [
+        "hyperlocalise:canva-app:settings:v4",
+        JSON.stringify({
+          connectionToken: "hl_canva_test",
+          organizationSlug: "acme",
+          organizationName: "Acme",
+          projectName: "Marketing",
+          sourceLocale: "en",
+          targetLocales: "es",
+          preserveFormatting: true,
+          selectedPageIndices: [0],
+          lastJobId: "",
+        }),
+      ],
+    ]);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => storage.get(key) ?? null);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
+      storage.set(key, value);
     });
 
-    expect(result.getByRole("button", { name: "Localize and sync design" })).toBeTruthy();
-    expect(result.getByText("Connection settings")).toBeTruthy();
-    expect(result.getByText("Workflow")).toBeTruthy();
+    const { fetchCanvaSession, fetchCurrentCanvaJob } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: { id: "project_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en",
+        targetLocales: ["es"],
+      },
+    });
+    vi.mocked(fetchCurrentCanvaJob).mockResolvedValue(null);
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByText("Pages to localize")).toBeTruthy();
+      expect(result.getByText("Page 1")).toBeTruthy();
+    });
+
+    expect(result.getByRole("button", { name: "Extract text" })).toBeTruthy();
+    expect(result.getByRole("button", { name: "Create job and generate" })).toBeTruthy();
+    expect(result.getByRole("button", { name: "Pull translations" })).toBeTruthy();
   });
 });
