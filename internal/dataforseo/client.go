@@ -93,10 +93,7 @@ func (c *Client) post(ctx context.Context, path string, payload any, opts postOp
 	if err != nil {
 		return nil, err
 	}
-	return assertResponse(response, path, assertTaskOptions{
-		okTaskStatusCode:      opts.okTaskStatusCode,
-		treatNoResultsAsEmpty: opts.treatNoResultsAsEmpty,
-	})
+	return assertResponse(response, path, assertTaskOptions(opts))
 }
 
 func (c *Client) postResponse(ctx context.Context, path string, payload any, opts postOptions) (*APIResponse, error) {
