@@ -246,19 +246,29 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
         return localizeErrorResponse(c, error);
       }
     })
-    .get("/session", canvaConnectionAuthMiddleware, async (c) => {
-      const connection = c.var.canvaConnection;
-      try {
-        const session = await getCanvaConnectionSession({
-          organizationId: connection.organizationId,
-          connectionId: connection.id,
-          projectId: connection.projectId,
-        });
-        return c.json({ session }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
+    .get(
+      "/session",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      async (c) => {
+        const connection = c.var.canvaConnection;
+        const brandError = await applyCanvaBrandBinding(c, connection, c.var.canvaUser);
+        if (brandError) {
+          return brandError;
+        }
+
+        try {
+          const session = await getCanvaConnectionSession({
+            organizationId: connection.organizationId,
+            connectionId: connection.id,
+            projectId: connection.projectId,
+          });
+          return c.json({ session }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
     .post(
       "/jobs",
       canvaConnectionAuthMiddleware,
@@ -298,43 +308,57 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
         }
       },
     )
-    .get("/jobs/current", canvaConnectionAuthMiddleware, validateCurrentJobQuery, async (c) => {
-      const query = c.req.valid("query");
-      const connection = c.var.canvaConnection;
-      try {
-        const designId =
-          query.designId ?? (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
-        const result = await getCurrentCanvaDesignJob({
-          organizationId: connection.organizationId,
-          canvaConnectionId: connection.id,
-          projectId: connection.projectId,
-          apiKeyId: connection.apiKeyId,
-          designId,
-        });
-        return c.json(result, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
-    .get("/jobs/:jobId", canvaConnectionAuthMiddleware, validateLocalizeJobIdParams, async (c) => {
-      const { jobId } = c.req.valid("param");
-      const connection = c.var.canvaConnection;
-      try {
-        const status = await getCanvaLocalizationStatus({
-          jobId,
-          organizationId: connection.organizationId,
-          canvaConnectionId: connection.id,
-          projectId: connection.projectId,
-          apiKeyId: connection.apiKeyId,
-        });
-        return c.json({ job: status }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
+    .get(
+      "/jobs/current",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validateCurrentJobQuery,
+      async (c) => {
+        const query = c.req.valid("query");
+        const connection = c.var.canvaConnection;
+        try {
+          const designId =
+            query.designId ??
+            (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
+          const result = await getCurrentCanvaDesignJob({
+            organizationId: connection.organizationId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            apiKeyId: connection.apiKeyId,
+            designId,
+          });
+          return c.json(result, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/jobs/:jobId",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validateLocalizeJobIdParams,
+      async (c) => {
+        const { jobId } = c.req.valid("param");
+        const connection = c.var.canvaConnection;
+        try {
+          const status = await getCanvaLocalizationStatus({
+            jobId,
+            organizationId: connection.organizationId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            apiKeyId: connection.apiKeyId,
+          });
+          return c.json({ job: status }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
     .post(
       "/jobs/:jobId/generate",
       canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
       validateLocalizeJobIdParams,
       async (c) => {
         if (!options.jobQueue) {
@@ -358,24 +382,31 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
         }
       },
     )
-    .get("/translations", canvaConnectionAuthMiddleware, validatePullQuery, async (c) => {
-      const query = c.req.valid("query");
-      const connection = c.var.canvaConnection;
-      try {
-        const designId =
-          query.designId ?? (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
-        const translations = await pullLatestCanvaTranslations({
-          organizationId: connection.organizationId,
-          canvaConnectionId: connection.id,
-          projectId: connection.projectId,
-          apiKeyId: connection.apiKeyId,
-          designId,
-        });
-        return c.json({ translations }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
+    .get(
+      "/translations",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validatePullQuery,
+      async (c) => {
+        const query = c.req.valid("query");
+        const connection = c.var.canvaConnection;
+        try {
+          const designId =
+            query.designId ??
+            (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
+          const translations = await pullLatestCanvaTranslations({
+            organizationId: connection.organizationId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            apiKeyId: connection.apiKeyId,
+            designId,
+          });
+          return c.json({ translations }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
     .post(
       "/localize",
       canvaConnectionAuthMiddleware,
@@ -420,6 +451,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
     .get(
       "/localize/:jobId",
       canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
       validateLocalizeJobIdParams,
       async (c) => {
         const { jobId } = c.req.valid("param");

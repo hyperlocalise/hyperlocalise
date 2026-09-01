@@ -12,7 +12,7 @@
  */
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v4";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v5";
 
 const defaultSettings: AppSettings = {
   connectionToken: "",
@@ -47,6 +47,7 @@ export function loadSettings(): AppSettings {
 function loadLegacySettings(): AppSettings {
   try {
     const raw =
+      window.localStorage.getItem("hyperlocalise:canva-app:settings:v4") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v3") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v2") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");

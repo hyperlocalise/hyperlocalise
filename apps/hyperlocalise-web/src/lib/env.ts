@@ -214,6 +214,18 @@ export const env = createEnv({
     /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
+    /** OAuth client id registered for the Canva app in the Developer Portal. */
+    CANVA_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** OAuth client secret registered for the Canva app in the Developer Portal. */
+    CANVA_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Comma-separated redirect URIs allowed for Canva OAuth. Defaults to
+     * Canva's apps OAuth callback when unset.
+     */
+    CANVA_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
+
     /** Comma-separated browser origins allowed to call the Figma plugin API. */
     FIGMA_CORS_ORIGINS: z.string().min(1).optional(),
 
@@ -333,6 +345,15 @@ export const env = createEnv({
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    CANVA_OAUTH_CLIENT_ID:
+      process.env.CANVA_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-canva-oauth-client" : undefined),
+    CANVA_OAUTH_CLIENT_SECRET:
+      process.env.CANVA_OAUTH_CLIENT_SECRET ?? (isTestEnv ? "test-canva-oauth-secret" : undefined),
+    CANVA_OAUTH_REDIRECT_URI:
+      process.env.CANVA_OAUTH_REDIRECT_URI ??
+      (isTestEnv
+        ? "https://www.canva.com/apps/oauth/authorized,https://canva.example.test/oauth/callback"
+        : undefined),
     FIGMA_CORS_ORIGINS: process.env.FIGMA_CORS_ORIGINS,
     CROWDIN_APP_CLIENT_ID:
       process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),

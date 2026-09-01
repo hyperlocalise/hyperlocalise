@@ -59,7 +59,7 @@ describe("hyperlocalise-client", () => {
       })),
     );
 
-    await expect(fetchCanvaSession("hl_canva_test")).resolves.toEqual({
+    await expect(fetchCanvaSession({ accessToken: "hl_canva_at_test" })).resolves.toEqual({
       organization: { id: "org_1", name: "Acme", slug: "acme" },
       project: { id: "project_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
       connection: {
@@ -69,6 +69,14 @@ describe("hyperlocalise-client", () => {
         targetLocales: ["es"],
       },
     });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/integrations/canva/session"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Hyperlocalise-Access-Token": "hl_canva_at_test",
+        }),
+      }),
+    );
   });
 
   it("throws a client error when session loading fails", async () => {

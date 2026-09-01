@@ -729,6 +729,13 @@
       "when": 1788243570846,
       "tag": "0103_dizzy_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1788245197898,
+      "tag": "0104_oval_dragon_man",
+      "breakpoints": true
     }
   ]
 }

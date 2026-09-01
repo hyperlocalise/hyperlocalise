@@ -14,11 +14,17 @@ import type { CanvaDesignJob, CanvaSession, DesignSegment } from "./types";
 
 declare const BACKEND_HOST: string;
 
+const ACCESS_TOKEN_HEADER = "X-Hyperlocalise-Access-Token";
 const CONNECTION_TOKEN_HEADER = "X-Hyperlocalise-Connection-Token";
 const CLAIM_TOKEN_HEADER = "X-Hyperlocalise-Claim-Token";
 export const CANVA_JOB_POLL_INTERVAL_MS = 1_500;
 const CLAIM_POLL_INTERVAL_MS = 1_500;
 const MAX_CLAIM_POLL_ATTEMPTS = 80;
+
+export type CanvaResourceAuth = {
+  accessToken?: string;
+  connectionToken?: string;
+};
 
 export class HyperlocaliseClientError extends Error {
   readonly code: string;
@@ -32,9 +38,13 @@ export class HyperlocaliseClientError extends Error {
 
 type ErrorPayload = { error?: string; message?: string };
 
+async function getCanvaUserModule() {
+  return import("@canva/user");
+}
+
 async function getAuthorizationHeader(): Promise<string | undefined> {
   try {
-    const { auth } = await import("@canva/user");
+    const { auth } = await getCanvaUserModule();
     const token = await auth.getCanvaUserToken();
     return `Bearer ${token}`;
   } catch {
@@ -42,10 +52,18 @@ async function getAuthorizationHeader(): Promise<string | undefined> {
   }
 }
 
-function buildRequestHeaders(connectionToken: string, authorization?: string) {
+function normalizeResourceAuth(auth: string | CanvaResourceAuth): CanvaResourceAuth {
+  return typeof auth === "string" ? { connectionToken: auth } : auth;
+}
+
+function buildRequestHeaders(auth: string | CanvaResourceAuth, authorization?: string) {
+  const resourceAuth = normalizeResourceAuth(auth);
   return {
     "Content-Type": "application/json",
-    [CONNECTION_TOKEN_HEADER]: connectionToken,
+    ...(resourceAuth.accessToken ? { [ACCESS_TOKEN_HEADER]: resourceAuth.accessToken } : {}),
+    ...(resourceAuth.connectionToken
+      ? { [CONNECTION_TOKEN_HEADER]: resourceAuth.connectionToken }
+      : {}),
     ...(authorization ? { Authorization: authorization } : {}),
   };
 }
@@ -67,6 +85,31 @@ function throwIfFailed(
     payload?.error ?? fallbackCode,
     payload?.message ?? fallbackMessage,
   );
+}
+
+export async function getHyperlocaliseAccessToken(): Promise<string | null> {
+  try {
+    const { auth } = await getCanvaUserModule();
+    const token = await auth.initOauth().getAccessToken();
+    return token?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function requestHyperlocaliseAuthorization(): Promise<"completed" | "aborted"> {
+  const { auth } = await getCanvaUserModule();
+  const response = await auth.initOauth().requestAuthorization();
+  return response.status === "completed" ? "completed" : "aborted";
+}
+
+export async function deauthorizeHyperlocalise(): Promise<void> {
+  try {
+    const { auth } = await getCanvaUserModule();
+    await auth.initOauth().deauthorize();
+  } catch {
+    // Local development and tests may not have a Canva OAuth session.
+  }
 }
 
 export async function createCanvaClaim(): Promise<{
@@ -147,10 +190,10 @@ export async function pollCanvaClaim(input: {
   );
 }
 
-export async function fetchCanvaSession(connectionToken: string): Promise<CanvaSession> {
+export async function fetchCanvaSession(auth: string | CanvaResourceAuth): Promise<CanvaSession> {
   const authorization = await getAuthorizationHeader();
   const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/session`, {
-    headers: buildRequestHeaders(connectionToken, authorization),
+    headers: buildRequestHeaders(auth, authorization),
   });
   const payload = (await response.json().catch(() => null)) as
     | ({ session?: CanvaSession } & ErrorPayload)
@@ -171,7 +214,7 @@ export async function fetchCanvaSession(connectionToken: string): Promise<CanvaS
 }
 
 export async function createCanvaJob(input: {
-  connectionToken: string;
+  auth: string | CanvaResourceAuth;
   designToken: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -186,7 +229,7 @@ export async function createCanvaJob(input: {
   const authorization = await getAuthorizationHeader();
   const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/jobs`, {
     method: "POST",
-    headers: buildRequestHeaders(input.connectionToken, authorization),
+    headers: buildRequestHeaders(input.auth, authorization),
     body: JSON.stringify({
       designToken: input.designToken,
       sourceLocale: input.sourceLocale,
@@ -220,7 +263,7 @@ export async function createCanvaJob(input: {
 }
 
 export async function generateCanvaJob(input: {
-  connectionToken: string;
+  auth: string | CanvaResourceAuth;
   jobId: string;
 }): Promise<void> {
   const authorization = await getAuthorizationHeader();
@@ -228,7 +271,7 @@ export async function generateCanvaJob(input: {
     `${BACKEND_HOST}/api/integrations/canva/jobs/${encodeURIComponent(input.jobId)}/generate`,
     {
       method: "POST",
-      headers: buildRequestHeaders(input.connectionToken, authorization),
+      headers: buildRequestHeaders(input.auth, authorization),
     },
   );
   if (!response.ok) {
@@ -241,13 +284,13 @@ export async function generateCanvaJob(input: {
 }
 
 export async function getCanvaJob(input: {
-  connectionToken: string;
+  auth: string | CanvaResourceAuth;
   jobId: string;
 }): Promise<CanvaDesignJob> {
   const authorization = await getAuthorizationHeader();
   const response = await fetch(
     `${BACKEND_HOST}/api/integrations/canva/jobs/${encodeURIComponent(input.jobId)}`,
-    { headers: buildRequestHeaders(input.connectionToken, authorization) },
+    { headers: buildRequestHeaders(input.auth, authorization) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({ job?: CanvaDesignJob } & ErrorPayload)
@@ -262,14 +305,14 @@ export async function getCanvaJob(input: {
 }
 
 export async function fetchCurrentCanvaJob(input: {
-  connectionToken: string;
+  auth: string | CanvaResourceAuth;
   designToken: string;
 }): Promise<CanvaDesignJob | null> {
   const authorization = await getAuthorizationHeader();
   const params = new URLSearchParams({ designToken: input.designToken });
   const response = await fetch(
     `${BACKEND_HOST}/api/integrations/canva/jobs/current?${params.toString()}`,
-    { headers: buildRequestHeaders(input.connectionToken, authorization) },
+    { headers: buildRequestHeaders(input.auth, authorization) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({ job?: CanvaDesignJob | null } & ErrorPayload)
@@ -284,14 +327,14 @@ export async function fetchCurrentCanvaJob(input: {
 }
 
 export async function pullCanvaTranslations(input: {
-  connectionToken: string;
+  auth: string | CanvaResourceAuth;
   designToken: string;
 }): Promise<CanvaDesignJob> {
   const authorization = await getAuthorizationHeader();
   const params = new URLSearchParams({ designToken: input.designToken });
   const response = await fetch(
     `${BACKEND_HOST}/api/integrations/canva/translations?${params.toString()}`,
-    { headers: buildRequestHeaders(input.connectionToken, authorization) },
+    { headers: buildRequestHeaders(input.auth, authorization) },
   );
   const payload = (await response.json().catch(() => null)) as
     | ({

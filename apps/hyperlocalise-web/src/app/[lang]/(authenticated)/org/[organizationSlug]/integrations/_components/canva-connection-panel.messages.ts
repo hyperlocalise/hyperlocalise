@@ -21,8 +21,9 @@ export const canvaConnectionPanelMessages = defineMessages({
     description: "Name shown for the Canva integrations row",
   },
   rowDescription: {
-    defaultMessage: "Connect the Canva app so designers can localize designs into this workspace.",
-    id: "u23kdkT148",
+    defaultMessage:
+      "Create a workspace connection here. Designers then sign in from Canva with OAuth.",
+    id: "EzTk/D/sRx",
     description: "Description for the Canva integrations row",
   },
   addConnection: {

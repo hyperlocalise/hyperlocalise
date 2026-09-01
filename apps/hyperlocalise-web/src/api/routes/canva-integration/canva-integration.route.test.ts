@@ -252,6 +252,7 @@ describe("canvaIntegrationRoutes", () => {
       {
         headers: {
           "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
         },
       },
     );
@@ -394,6 +395,7 @@ describe("canvaIntegrationRoutes", () => {
       {
         headers: {
           "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
         },
       },
     );

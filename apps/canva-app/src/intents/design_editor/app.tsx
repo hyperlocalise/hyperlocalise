@@ -33,16 +33,18 @@ import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from
 import {
   buildCanvaJobUrl,
   CANVA_JOB_POLL_INTERVAL_MS,
-  createCanvaClaim,
+  type CanvaResourceAuth,
   createCanvaJob,
+  deauthorizeHyperlocalise,
   fetchCanvaSession,
   fetchCurrentCanvaJob,
   generateCanvaJob,
   getCanvaJob,
+  getHyperlocaliseAccessToken,
   HyperlocaliseClientError,
   openExternalUrl,
-  pollCanvaClaim,
   pullCanvaTranslations,
+  requestHyperlocaliseAuthorization,
 } from "./hyperlocalise-client";
 import {
   loadSettings,
@@ -128,6 +130,7 @@ function isReconnectError(error: unknown) {
     error.code === "canva_connection_token_required" ||
     error.code === "canva_connection_not_found" ||
     error.code === "canva_connection_disabled" ||
+    error.code === "canva_access_token_invalid" ||
     error.code === "canva_user_token_required" ||
     error.code === "canva_user_token_invalid"
   );
@@ -145,6 +148,7 @@ export const App = () => {
   const [busy, setBusy] = useState<BusyAction>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [oauthReady, setOauthReady] = useState(false);
 
   const targetLocales = useMemo(
     () => parseTargetLocales(settings.targetLocales),
@@ -160,7 +164,16 @@ export const App = () => {
 
     return defaultSelectedPages(designPages);
   }, [designPages, editablePages, settings.selectedPageIndices]);
-  const connected = settings.connectionToken.trim().length > 0;
+  const legacyConnectionToken = settings.connectionToken.trim();
+  const connected = oauthReady || legacyConnectionToken.length > 0;
+
+  const resolveAuth = async (): Promise<CanvaResourceAuth> => {
+    const accessToken = await getHyperlocaliseAccessToken();
+    if (accessToken) {
+      return { accessToken };
+    }
+    return { connectionToken: legacyConnectionToken };
+  };
   const canCreateJob =
     connected &&
     targetLocales.length > 0 &&
@@ -185,6 +198,8 @@ export const App = () => {
   };
 
   const disconnect = () => {
+    void deauthorizeHyperlocalise();
+    setOauthReady(false);
     persistSettings({
       ...settings,
       connectionToken: "",
@@ -254,6 +269,22 @@ export const App = () => {
   }, [selectedLocale, targetLocales]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function restoreOauthSession() {
+      const accessToken = await getHyperlocaliseAccessToken();
+      if (!cancelled && accessToken) {
+        setOauthReady(true);
+      }
+    }
+
+    void restoreOauthSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!connected) {
       return;
     }
@@ -262,7 +293,7 @@ export const App = () => {
 
     async function hydrateSession() {
       try {
-        const session = await fetchCanvaSession(settings.connectionToken.trim());
+        const session = await fetchCanvaSession(await resolveAuth());
         if (cancelled) {
           return;
         }
@@ -281,7 +312,7 @@ export const App = () => {
 
         const { token } = await getDesignToken();
         const current = await fetchCurrentCanvaJob({
-          connectionToken: settings.connectionToken.trim(),
+          auth: await resolveAuth(),
           designToken: token,
         });
         if (!cancelled && current) {
@@ -303,7 +334,7 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-    // Session hydrate runs once after a token is present.
+    // Session hydrate runs once after OAuth or a fallback token is present.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
 
@@ -318,7 +349,7 @@ export const App = () => {
     async function refreshJob() {
       try {
         const job = await getCanvaJob({
-          connectionToken: settings.connectionToken.trim(),
+          auth: await resolveAuth(),
           jobId,
         });
         if (cancelled) {
@@ -347,7 +378,7 @@ export const App = () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [connected, pageJob?.jobId, pageJob?.status, settings.connectionToken]);
+  }, [connected, pageJob?.jobId, pageJob?.status, oauthReady, legacyConnectionToken]);
 
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
@@ -367,18 +398,21 @@ export const App = () => {
     }
   };
 
-  const handleConnectClaim = () =>
+  const handleConnectOauth = () =>
     runAction("connect", async () => {
-      const claim = await createCanvaClaim();
-      await openExternalUrl(claim.authorizeUrl);
-      const connectionToken = await pollCanvaClaim({
-        claimId: claim.claimId,
-        pollToken: claim.pollToken,
-      });
-      const session = await fetchCanvaSession(connectionToken);
+      const status = await requestHyperlocaliseAuthorization();
+      if (status !== "completed") {
+        throw new Error("Canva authorization was cancelled.");
+      }
+      const accessToken = await getHyperlocaliseAccessToken();
+      if (!accessToken) {
+        throw new Error("Canva did not return a Hyperlocalise access token.");
+      }
+      const session = await fetchCanvaSession({ accessToken });
+      setOauthReady(true);
       persistSettings({
         ...settings,
-        connectionToken,
+        connectionToken: "",
         organizationSlug: session.organization.slug ?? "",
         organizationName: session.organization.name,
         projectName: session.project.name,
@@ -433,7 +467,7 @@ export const App = () => {
       }
       const { token } = await getDesignToken();
       const created = await createCanvaJob({
-        connectionToken: settings.connectionToken.trim(),
+        auth: await resolveAuth(),
         designToken: token,
         sourceLocale: settings.sourceLocale.trim(),
         targetLocales,
@@ -459,7 +493,7 @@ export const App = () => {
         throw new Error("Create a job first.");
       }
       await generateCanvaJob({
-        connectionToken: settings.connectionToken.trim(),
+        auth: await resolveAuth(),
         jobId: pageJob.jobId,
       });
       setPageJob({ ...pageJob, status: "queued", lastError: null });
@@ -470,7 +504,7 @@ export const App = () => {
     runAction("pull", async () => {
       const { token } = await getDesignToken();
       const pulled = await pullCanvaTranslations({
-        connectionToken: settings.connectionToken.trim(),
+        auth: await resolveAuth(),
         designToken: token,
       });
       setPageJob(pulled);
@@ -533,8 +567,8 @@ export const App = () => {
             <Rows spacing="0.5u">
               <Title size="xsmall">Workspace</Title>
               <Text size="small" tone="secondary">
-                Connect Hyperlocalise with a one-time authorization, or paste a connection token for
-                local development.
+                Sign in with Hyperlocalise through Canva OAuth. A pasted connection token is only
+                for local development.
               </Text>
             </Rows>
 
@@ -553,7 +587,7 @@ export const App = () => {
                 <Button
                   variant="primary"
                   stretch
-                  onClick={handleConnectClaim}
+                  onClick={handleConnectOauth}
                   loading={busy === "connect"}
                   disabled={busy != null}
                 >
