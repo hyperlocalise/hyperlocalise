@@ -203,7 +203,7 @@ describe("mcpRoutes", () => {
   });
 
   it("returns an absolute OAuth metadata URI on bearer challenges", async () => {
-    const response = await app.request("http://localhost/mcp/sse");
+    const response = await app.request("http://localhost/mcp");
 
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toBe(
@@ -212,7 +212,7 @@ describe("mcpRoutes", () => {
   });
 
   it("returns the protected-resource challenge for invalid bearer tokens", async () => {
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       headers: {
         authorization: "Bearer invalid-token",
       },
@@ -232,7 +232,7 @@ describe("mcpRoutes", () => {
     const metadata = OAuthProtectedResourceMetadataSchema.parse(await response.json());
 
     expect(metadata).toMatchObject({
-      resource: "http://localhost/mcp/sse",
+      resource: "http://localhost/mcp",
       authorization_servers: ["http://localhost"],
       scopes_supported: ["mcp"],
     });
@@ -274,7 +274,7 @@ describe("mcpRoutes", () => {
         revokedAt,
       });
 
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         headers: {
           authorization: `Bearer ${accessToken}`,
         },
@@ -408,7 +408,7 @@ describe("mcpRoutes", () => {
   });
 
   it("does not expose MCP through the API alias", async () => {
-    const response = await apiApp.request("http://localhost/api/mcp/sse");
+    const response = await apiApp.request("http://localhost/api/mcp");
 
     expect(response.status).toBe(404);
   });
@@ -722,7 +722,8 @@ describe("mcpRoutes", () => {
   });
 
   it.each([
-    ["canonical endpoint", "/mcp/sse"],
+    ["canonical endpoint", "/mcp"],
+    ["legacy streamable path", "/mcp/sse"],
     ["compatibility alias", "/mcp/message"],
   ])("returns 405 for an authenticated GET to the $0", async (_label, endpoint) => {
     const headers = await authenticatedMcpHeaders();
@@ -746,7 +747,7 @@ describe("mcpRoutes", () => {
     const closeSpy = vi.spyOn(McpServer.prototype, "close");
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -774,7 +775,7 @@ describe("mcpRoutes", () => {
     const closeSpy = vi.spyOn(McpServer.prototype, "close");
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -809,7 +810,7 @@ describe("mcpRoutes", () => {
     const headers = await authenticatedMcpHeaders();
 
     const postMcp = (message: unknown) =>
-      app.request("http://localhost/mcp/sse", {
+      app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -888,33 +889,36 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it("keeps /mcp/message as a POST compatibility alias", async () => {
-    const headers = await authenticatedMcpHeaders();
+  it.each(["/mcp/sse", "/mcp/message"])(
+    "keeps %s as a POST compatibility alias",
+    async (endpoint) => {
+      const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/message", {
-      method: "POST",
-      headers: {
-        ...headers,
-        accept: "application/json, text/event-stream",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+      const response = await app.request(`http://localhost${endpoint}`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {},
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
         jsonrpc: "2.0",
         id: 1,
-        method: "tools/list",
-        params: {},
-      }),
-    });
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      jsonrpc: "2.0",
-      id: 1,
-      result: {
-        tools: expect.any(Array),
-      },
-    });
-  });
+        result: {
+          tools: expect.any(Array),
+        },
+      });
+    },
+  );
 
   it("works with a real Streamable HTTP MCP client without GET reconnects or errors", async () => {
     const stored = await fixture.createStoredProjectFixture();
@@ -923,7 +927,7 @@ describe("mcpRoutes", () => {
     const requestMethods: string[] = [];
     const transportErrors: Error[] = [];
 
-    const transport = new StreamableHTTPClientTransport(new URL("http://localhost/mcp/sse"), {
+    const transport = new StreamableHTTPClientTransport(new URL("http://localhost/mcp"), {
       requestInit: {
         headers: {
           ...headers,
@@ -1107,7 +1111,7 @@ describe("mcpRoutes", () => {
   it("preserves MCP protocol-version validation for POST requests", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1129,7 +1133,7 @@ describe("mcpRoutes", () => {
   it("advertises the list_issues tool with a bounded input schema", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1250,7 +1254,7 @@ describe("mcpRoutes", () => {
     });
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -1355,7 +1359,7 @@ describe("mcpRoutes", () => {
   ])("returns invalid_issue_query for %s", async (_label, args) => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1395,7 +1399,7 @@ describe("mcpRoutes", () => {
   it("advertises the get_issue tool with issue identifier validation", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1445,7 +1449,7 @@ describe("mcpRoutes", () => {
   it("advertises the create_issue tool with a bounded input schema", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1566,7 +1570,7 @@ describe("mcpRoutes", () => {
     const getIssueSpy = vi.spyOn(IssueSheetService.prototype, "getIssue");
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -1657,7 +1661,7 @@ describe("mcpRoutes", () => {
       },
     });
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -1787,7 +1791,7 @@ describe("mcpRoutes", () => {
     const createSpy = vi.spyOn(IssueSheetService.prototype, "createIssue");
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -1866,7 +1870,7 @@ describe("mcpRoutes", () => {
     });
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -1960,7 +1964,7 @@ describe("mcpRoutes", () => {
       },
     });
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       method: "POST",
       headers: {
         ...headers,
@@ -2020,7 +2024,7 @@ describe("mcpRoutes", () => {
     }
 
     const callCreateIssue = async (title: string) =>
-      app.request("http://localhost/mcp/sse", {
+      app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,
@@ -2142,7 +2146,7 @@ describe("mcpRoutes", () => {
       .mockRejectedValueOnce(new Error(serviceError));
 
     try {
-      const response = await app.request("http://localhost/mcp/sse", {
+      const response = await app.request("http://localhost/mcp", {
         method: "POST",
         headers: {
           ...headers,

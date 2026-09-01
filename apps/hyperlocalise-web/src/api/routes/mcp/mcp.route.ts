@@ -284,7 +284,7 @@ export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/
   const mcpBasePath = getMcpBasePath(apiBasePath);
 
   return {
-    resource: `${origin}${mcpBasePath}/sse`,
+    resource: `${origin}${mcpBasePath}`,
     authorization_servers: [origin],
     scopes_supported: ["mcp"],
     bearer_methods_supported: ["header"],
@@ -951,8 +951,9 @@ const validateRegisterBody = validator("json", (value, c) => {
 export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
   const apiBasePath = options.apiBasePath ?? "/api";
 
-  // `/mcp/sse` is the canonical Streamable HTTP endpoint advertised by
-  // protected-resource metadata. `/mcp/message` remains a compatibility alias.
+  // `/mcp` is the canonical Streamable HTTP endpoint advertised by
+  // protected-resource metadata. `/mcp/sse` and `/mcp/message` remain
+  // compatibility aliases.
   return new Hono<{ Variables: McpAuthVariables }>()
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
@@ -960,6 +961,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     .get("/.well-known/oauth-protected-resource", (c) =>
       c.json(getMcpProtectedResourceMetadata(endpointOrigin(c), apiBasePath), 200),
     )
+    .use("/mcp", mcpAuthEnabledMiddleware)
     .use("/mcp/*", mcpAuthEnabledMiddleware)
     .post(
       "/mcp/register",
@@ -1304,8 +1306,10 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         );
       },
     )
+    .use("/mcp", mcpBearerAuthMiddleware)
     .use("/mcp/sse", mcpBearerAuthMiddleware)
     .use("/mcp/message", mcpBearerAuthMiddleware)
+    .all("/mcp", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
     .all("/mcp/sse", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
     .all("/mcp/message", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth));
 }

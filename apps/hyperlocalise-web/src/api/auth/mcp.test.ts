@@ -114,7 +114,7 @@ describe("mcpBearerAuthMiddleware", () => {
       .set({ lifecycleStatus: "archived", archivedAt: new Date() })
       .where(eq(schema.organizations.id, auth.organization.localOrganizationId));
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -165,7 +165,7 @@ describe("mcpBearerAuthMiddleware", () => {
         ),
       );
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -218,7 +218,7 @@ describe("mcpBearerAuthMiddleware", () => {
         ),
       );
 
-    const response = await app.request("http://localhost/mcp/sse", {
+    const response = await app.request("http://localhost/mcp", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },

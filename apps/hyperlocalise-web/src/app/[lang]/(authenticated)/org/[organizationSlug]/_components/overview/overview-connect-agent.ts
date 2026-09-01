@@ -12,7 +12,7 @@
  */
 
 export const HYPERLOCALISE_MCP_SERVER_NAME = "hyperlocalise";
-export const HYPERLOCALISE_MCP_RESOURCE_PATH = "/mcp/sse";
+export const HYPERLOCALISE_MCP_RESOURCE_PATH = "/mcp";
 
 export const mcpAgentClientIds = ["claude", "codex", "cursor"] as const;
 

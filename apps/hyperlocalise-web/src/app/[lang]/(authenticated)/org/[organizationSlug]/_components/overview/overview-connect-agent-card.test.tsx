@@ -21,7 +21,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { OverviewConnectAgentCard } from "./overview-connect-agent-card";
 
-const mcpUrl = "https://www.hyperlocalise.com/mcp/sse";
+const mcpUrl = "https://www.hyperlocalise.com/mcp";
 
 function renderCard() {
   return render(

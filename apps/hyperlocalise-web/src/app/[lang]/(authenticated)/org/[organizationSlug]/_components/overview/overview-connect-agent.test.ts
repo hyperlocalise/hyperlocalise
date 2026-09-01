@@ -18,7 +18,7 @@ import {
   mcpAgentSnippetUsesShellPrompt,
 } from "./overview-connect-agent";
 
-const mcpUrl = "https://www.hyperlocalise.com/mcp/sse";
+const mcpUrl = "https://www.hyperlocalise.com/mcp";
 
 describe("overview connect agent helpers", () => {
   it("builds the public streamable HTTP MCP URL", () => {
