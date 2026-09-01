@@ -165,7 +165,8 @@ export function getCanvaOauthAuthorizationServerMetadata(origin: string) {
   };
 }
 
-export function createCanvaOauthRoutes() {
+// Erase the inferred schema so mounting this router does not overflow AppType (TS2589).
+export function createCanvaOauthRoutes(): Hono {
   return new Hono()
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getCanvaOauthAuthorizationServerMetadata(endpointOrigin(c)), 200),
