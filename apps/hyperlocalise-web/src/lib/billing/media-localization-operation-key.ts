@@ -12,10 +12,6 @@
  */
 import { randomUUID } from "node:crypto";
 
-export function mediaLocalizationOperationKey(baseKey: string, force?: boolean) {
-  if (!force) {
-    return baseKey;
-  }
-
+export function mediaLocalizationOperationKey(baseKey: string) {
   return `${baseKey}:attempt:${randomUUID()}`;
 }

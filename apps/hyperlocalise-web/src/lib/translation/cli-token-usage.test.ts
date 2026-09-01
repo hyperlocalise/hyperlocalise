@@ -38,9 +38,9 @@ describe("CLI token usage", () => {
         totalTokens: 67,
       }),
     ).toEqual({
-      inputTokens: 40,
-      outputTokens: 12,
-      totalTokens: 67,
+      inputTokens: 28,
+      outputTokens: 9,
+      totalTokens: 52,
       cacheReadTokens: 8,
       cacheWriteTokens: 4,
       reasoningTokens: 3,

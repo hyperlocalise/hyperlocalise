@@ -17,12 +17,17 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { getManagedAiPricingConfigMock, reserveManagedAiCreditMock, releaseManagedAiCreditMock } =
-  vi.hoisted(() => ({
-    getManagedAiPricingConfigMock: vi.fn(),
-    reserveManagedAiCreditMock: vi.fn(),
-    releaseManagedAiCreditMock: vi.fn(),
-  }));
+const {
+  getManagedAiPricingConfigMock,
+  getManagedAiCreditReservationMock,
+  reserveManagedAiCreditMock,
+  releaseManagedAiCreditMock,
+} = vi.hoisted(() => ({
+  getManagedAiPricingConfigMock: vi.fn(),
+  getManagedAiCreditReservationMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
+}));
 
 vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
@@ -36,6 +41,7 @@ vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
   return {
     ...actual,
+    getManagedAiCreditReservation: getManagedAiCreditReservationMock,
     reserveManagedAiCredit: reserveManagedAiCreditMock,
     releaseManagedAiCredit: releaseManagedAiCreditMock,
   };
@@ -108,6 +114,7 @@ beforeEach(() => {
     imageModelId: "custom/image",
     videoModelId: "custom/video",
   });
+  getManagedAiCreditReservationMock.mockResolvedValue(null);
   releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
 });
 
@@ -668,5 +675,94 @@ describe("translation job workflow helpers", () => {
         credentialSource: "gateway",
       }),
     );
+  });
+
+  it("releases unused AI credit when a string job succeeds without token usage", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    const reservation = {
+      operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+      mode: "enforced",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+    };
+    getManagedAiCreditReservationMock.mockResolvedValue(reservation);
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+        };
+      },
+    });
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation,
+      reason: "no_token_usage",
+    });
+  });
+
+  it("does not release AI credit when a string job reports billable token usage", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    getManagedAiCreditReservationMock.mockResolvedValue({
+      operationKey: `job:${job.id}:translation_jobs:ai_tokens`,
+      mode: "enforced",
+      credentialSource: "gateway",
+      estimatedAmountUsd: 0.5,
+    });
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+          tokenUsage: {
+            inputTokens: 12,
+            outputTokens: 8,
+            totalTokens: 20,
+            modelId: "openai/gpt-5.6-luna",
+            credentialSource: "gateway",
+          },
+        };
+      },
+    });
+
+    expect(releaseManagedAiCreditMock).not.toHaveBeenCalled();
   });
 });

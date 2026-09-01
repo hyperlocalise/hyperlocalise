@@ -353,32 +353,25 @@ describe("image variant generation billing", () => {
     });
   });
 
-  it("uses a stable operation key for the first generation and a unique key when forced", async () => {
+  it("uses a unique attempt key for every generation, including unforced regenerations", async () => {
     regenerateImageFromAttachment.mockRejectedValue(new Error("stop after key check"));
 
     const first = await localizeFromFetchedUrl();
-    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "image/png",
-      expect.any(String),
-      expect.objectContaining({
-        operationKey: `image-localization:variant:${first.project.id}:assets/hero.png:fr-FR`,
-      }),
+    const firstKey = vi.mocked(regenerateImageFromAttachment).mock.calls[0]?.[3]?.operationKey;
+    expect(firstKey).toMatch(
+      new RegExp(
+        `^image-localization:variant:${first.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
+      ),
     );
 
     regenerateImageFromAttachment.mockClear();
-    const forced = await localizeFromFetchedUrl({ force: true });
-    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "image/png",
-      expect.any(String),
-      expect.objectContaining({
-        operationKey: expect.stringMatching(
-          new RegExp(
-            `^image-localization:variant:${forced.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
-          ),
-        ),
-      }),
+    const second = await localizeFromFetchedUrl();
+    const secondKey = vi.mocked(regenerateImageFromAttachment).mock.calls[0]?.[3]?.operationKey;
+    expect(secondKey).toMatch(
+      new RegExp(
+        `^image-localization:variant:${second.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
+      ),
     );
+    expect(firstKey).not.toBe(secondKey);
   });
 });

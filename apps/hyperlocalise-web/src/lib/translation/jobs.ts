@@ -10,15 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { captureAnalysis, captureCompletions, captureJobStatus } from "@/lib/reporting/capture";
 import { and, eq, isNull, or } from "drizzle-orm";
 
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
-import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-events";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   isProjectTranslationKeyHidden,
@@ -28,6 +25,7 @@ import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
+import { releaseSandboxTranslationAiCredit } from "@/lib/billing/sandbox-translation-credit";
 import {
   formatManagedAiCreditError,
   releaseManagedAiCredit,
@@ -87,8 +85,6 @@ class TranslationJobRepository {
     const [job] = await db
       .select({
         id: schema.jobs.id,
-        kind: schema.jobs.kind,
-        organizationId: schema.jobs.organizationId,
         projectId: schema.jobs.projectId,
         type: schema.translationJobDetails.type,
         status: schema.jobs.status,
@@ -258,28 +254,6 @@ class TranslationJobExecutor {
       };
     }
 
-    const [project] = await db
-      .select({ organizationId: schema.projects.organizationId })
-      .from(schema.projects)
-      .where(eq(schema.projects.id, claimedJob.projectId))
-      .limit(1);
-    if (!project) {
-      return {
-        ok: false,
-        code: "translation_project_not_found",
-        message: "translation project not found",
-      };
-    }
-
-    const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: project.organizationId });
-    if (!aiFeatures.ok) {
-      return {
-        ok: false,
-        code: aiFeatures.error.code,
-        message: aiFeatures.error.message,
-      };
-    }
-
     const parsedInput = stringTranslationJobInputSchema.safeParse(claimedJob.inputPayload);
     if (!parsedInput.success) {
       return {
@@ -328,28 +302,6 @@ class TranslationJobExecutor {
       .where(
         and(eq(schema.jobs.id, claimedJob.id), eq(schema.jobs.projectId, claimedJob.projectId)),
       );
-
-    for (const targetLocale of parsedInput.data.targetLocales) {
-      try {
-        await captureAnalysis({
-          organizationId: project.organizationId,
-          projectId: claimedJob.projectId,
-          jobId: claimedJob.id,
-          sourceLocale: parsedInput.data.sourceLocale,
-          targetLocale,
-          sourceEntries: {
-            [parsedInput.data.translationKeyId ?? "source"]: parsedInput.data.sourceText,
-          },
-        });
-      } catch (error) {
-        console.warn("reporting_analysis_failed", { jobId: claimedJob.id, error });
-      }
-    }
-    await captureJobStatus({
-      jobId: claimedJob.id,
-      status: "running",
-      operationKey: `status:${claimedJob.workflowRunId}:running`,
-    });
 
     if (translateStringJobOverride) {
       const result = await translateStringJobOverride(
@@ -411,17 +363,12 @@ class TranslationJobExecutor {
 
     let result: StringTranslationJobResult;
     try {
-      result = await organizationGenerator.translateStringJob({
-        ...contextResult.context.toStringTranslationInput(
+      result = await organizationGenerator.translateStringJob(
+        contextResult.context.toStringTranslationInput(
           organizationGenerator.project.name,
           organizationGenerator.project.translationContext,
         ),
-        reporting: {
-          organizationId: project.organizationId,
-          projectId: claimedJob.projectId,
-          jobId: claimedJob.id,
-        },
-      });
+      );
     } catch (error) {
       if (aiCreditReservation) {
         await releaseManagedAiCredit({
@@ -516,28 +463,16 @@ class TranslationJobCompletionService {
     }
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
-    const [reportingJob] = await db
-      .select({ organizationId: schema.jobs.organizationId })
-      .from(schema.jobs)
-      .where(eq(schema.jobs.id, input.jobId));
-    if (reportingJob && parsedInput.success)
-      for (const translation of input.result.translations) {
-        await captureCompletions({
-          organizationId: reportingJob.organizationId,
-          jobId: input.jobId,
-          targetLocale: translation.locale,
-          sourceEntries: {
-            [parsedInput.data.translationKeyId ?? "source"]: parsedInput.data.sourceText,
-          },
-          provenance: "automated",
-        });
-      }
-    await captureJobStatus({
-      jobId: input.jobId,
-      status: "succeeded",
-      operationKey: `status:${input.workflowRunId}:succeeded`,
-    });
-    const tokenUsage = input.result.tokenUsage;
+    const tokenUsage =
+      input.result.tokenUsage && input.result.tokenUsage.totalTokens > 0
+        ? input.result.tokenUsage
+        : null;
+    if (!tokenUsage) {
+      await releaseSandboxTranslationAiCredit({
+        jobId: input.jobId,
+        reason: "no_token_usage",
+      });
+    }
     const [projectForUsage] = await db
       .select({ organizationId: schema.projects.organizationId })
       .from(schema.projects)
@@ -623,23 +558,15 @@ class TranslationJobCompletionService {
       status: "failed",
       source: "translation_job",
     });
+    await releaseSandboxTranslationAiCredit({
+      jobId: input.jobId,
+      reason: "translation_job_failed",
+    });
 
     const failedJob = await this.repository.getStored(input.jobId, input.projectId);
     if (!failedJob) {
       throw new Error(`translation job ${input.jobId} was not found in project ${input.projectId}`);
     }
-
-    await enqueueJobFailedActivity({
-      actorCredentialId: null,
-      actorKind: "system",
-      actorUserId: null,
-      errorCode: input.code,
-      jobId: failedJob.id,
-      kind: failedJob.kind,
-      organizationId: failedJob.organizationId,
-      projectId: failedJob.projectId,
-      status: "failed",
-    });
 
     return failedJob;
   }

@@ -15,15 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 
 describe("mediaLocalizationOperationKey", () => {
-  it("keeps the stable key for the first generation", () => {
-    expect(mediaLocalizationOperationKey("image-localization:variant:p:hero.png:fr")).toBe(
-      "image-localization:variant:p:hero.png:fr",
-    );
-  });
-
-  it("appends a unique attempt id when force regenerating", () => {
-    const first = mediaLocalizationOperationKey("image-localization:variant:p:hero.png:fr", true);
-    const second = mediaLocalizationOperationKey("image-localization:variant:p:hero.png:fr", true);
+  it("appends a unique attempt id for every provider run", () => {
+    const first = mediaLocalizationOperationKey("image-localization:variant:p:hero.png:fr");
+    const second = mediaLocalizationOperationKey("image-localization:variant:p:hero.png:fr");
     expect(first).toMatch(/^image-localization:variant:p:hero\.png:fr:attempt:[0-9a-f-]{36}$/);
     expect(second).toMatch(/^image-localization:variant:p:hero\.png:fr:attempt:[0-9a-f-]{36}$/);
     expect(first).not.toBe(second);

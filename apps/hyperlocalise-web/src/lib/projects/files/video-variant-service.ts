@@ -357,7 +357,6 @@ export async function localizeAndStoreVideoVariant(input: {
         organizationId: input.organizationId,
         operationKey: mediaLocalizationOperationKey(
           `video-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
-          input.force,
         ),
         source: "project_video_variant",
         dimensions: {
