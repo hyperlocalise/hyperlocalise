@@ -168,4 +168,35 @@ describe("video generation", () => {
       }),
     );
   });
+
+  it("releases the video reservation when generation fails", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "shadow",
+      pricingVersion: "test",
+      videoPriceUsdPerSecond: 0.4,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    generateVideoMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(
+      regenerateVideoFromAttachment(
+        Buffer.from("source-video"),
+        "video/mp4",
+        "Localize this clip",
+        {
+          organizationId: "org_123",
+          operationKey: "video:test",
+        },
+        8,
+      ),
+    ).rejects.toThrow("provider unavailable");
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "video_generation_failed",
+      }),
+    );
+    expect(settleManagedAiCreditMock).not.toHaveBeenCalled();
+  });
 });

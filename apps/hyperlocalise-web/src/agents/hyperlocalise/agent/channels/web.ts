@@ -28,6 +28,7 @@ import {
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
 import {
+  formatManagedAiCreditError,
   releaseManagedAiCredit,
   settleManagedAiCredit,
   type ManagedAiCreditReservation,
@@ -262,11 +263,18 @@ export function createWebChatAgentUIStreamResponse(input: {
             : null;
           const tokenUsage = addAiTokenUsage(classificationTokenUsage, agentTokenUsage);
           if (tokenUsage) {
-            await settleManagedAiCredit({
+            const settlement = await settleManagedAiCredit({
               reservation: input.aiCreditReservation,
               modelId: input.languageModel?.modelId ?? "unknown",
               tokenUsage,
             });
+            if (!settlement.ok) {
+              console.error("[web-agent] AI credit settlement failed", {
+                organizationId: input.toolContext.organizationId,
+                operationKey: input.aiCreditReservation.operationKey,
+                error: formatManagedAiCreditError(settlement.error),
+              });
+            }
           } else {
             await releaseManagedAiCredit({
               reservation: input.aiCreditReservation,

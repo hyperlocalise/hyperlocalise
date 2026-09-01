@@ -140,6 +140,15 @@ export function formatCompactUsageValue(value: number) {
   }).format(value);
 }
 
+export function formatAiCreditUsd(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(value);
+}
+
 export function getUsageProgressPercent(input: {
   usage: number;
   granted: number;
@@ -183,6 +192,10 @@ export function formatPrimaryUsageSummary(input: {
 
   if (input.unlimited) {
     return "Unlimited usage";
+  }
+
+  if (unitLabel === "AI Credit") {
+    return `${formatAiCreditUsd(input.usage)} / ${formatAiCreditUsd(input.granted)} AI credit used`;
   }
 
   return `${formatCompactUsageValue(input.usage)} / ${formatCompactUsageValue(input.granted)} ${summaryUnitLabel} used`;

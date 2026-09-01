@@ -178,7 +178,7 @@ describe("managed AI credit", () => {
       source: "chat_agent_turn",
       modelId: "claude-custom",
       credentialSource: "byok",
-      estimatedAmountUsd: 1,
+      estimatedAmountUsd: 0,
       mode: "enforced",
       dependencies: { check },
     });
@@ -234,6 +234,19 @@ describe("managed AI credit", () => {
     });
 
     expect(settled).toMatchObject({
+      ok: false,
+      error: {
+        code: "ai_credit_tracking_failed",
+        settlementUnknown: true,
+      },
+    });
+    const repeated = await settleManagedAiCredit({
+      reservation: reservation.value,
+      modelId: "custom/hyperlocalise-gpt-image-2",
+      tokenUsage: { inputTokens: 0, outputTokens: 1, totalTokens: 1 },
+      dependencies: { trackTokens },
+    });
+    expect(repeated).toMatchObject({
       ok: false,
       error: {
         code: "ai_credit_tracking_failed",
