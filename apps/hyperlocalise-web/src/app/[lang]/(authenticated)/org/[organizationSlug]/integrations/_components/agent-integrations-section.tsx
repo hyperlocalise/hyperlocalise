@@ -15,11 +15,13 @@
 import type { SimpleIcon } from "simple-icons";
 import {
   siGitlab,
+  siGoogledrive,
   siHubspot,
   siJira,
   siLinear,
   siLoops,
   siMailchimp,
+  siNotion,
   siResend,
 } from "simple-icons";
 import { useIntl, type MessageDescriptor } from "react-intl";
@@ -60,6 +62,24 @@ const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
     nameMessage: agentIntegrationsSectionMessages.linearName,
     descriptionMessage: agentIntegrationsSectionMessages.linearDescription,
     icon: siLinear,
+  },
+] as const;
+
+const comingSoonGuidelineSources: readonly ComingSoonAgent[] = [
+  {
+    nameMessage: agentIntegrationsSectionMessages.googleDriveName,
+    descriptionMessage: agentIntegrationsSectionMessages.googleDriveDescription,
+    icon: siGoogledrive,
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.sharepointName,
+    descriptionMessage: agentIntegrationsSectionMessages.sharepointDescription,
+    logoSrc: "/images/sharepoint-logo.svg",
+  },
+  {
+    nameMessage: agentIntegrationsSectionMessages.notionName,
+    descriptionMessage: agentIntegrationsSectionMessages.notionDescription,
+    icon: siNotion,
   },
 ] as const;
 
@@ -171,6 +191,23 @@ export function CollaborationIntegrationsSection({
           icon={agent.icon}
           logoSrc={agent.logoSrc}
           isLast={index === comingSoonCollaborationAgents.length - 1}
+        />
+      ))}
+    </>
+  );
+}
+
+export function GuidelineIntegrationsSection() {
+  return (
+    <>
+      {comingSoonGuidelineSources.map((source, index) => (
+        <ComingSoonIntegrationRow
+          key={source.nameMessage.id}
+          nameMessage={source.nameMessage}
+          descriptionMessage={source.descriptionMessage}
+          icon={source.icon}
+          logoSrc={source.logoSrc}
+          isLast={index === comingSoonGuidelineSources.length - 1}
         />
       ))}
     </>

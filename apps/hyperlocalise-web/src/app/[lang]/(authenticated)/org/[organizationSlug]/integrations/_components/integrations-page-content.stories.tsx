@@ -57,6 +57,10 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "Source control" })).toBeInTheDocument();
     await expect(canvas.getByText("Translation Management System")).toBeInTheDocument();
     await expect(canvas.getByText("Content & publishing")).toBeInTheDocument();
+    await expect(canvas.getByText("Guidelines")).toBeInTheDocument();
+    await expect(canvas.getByText("Google Drive")).toBeInTheDocument();
+    await expect(canvas.getByText("SharePoint")).toBeInTheDocument();
+    await expect(canvas.getByText("Notion")).toBeInTheDocument();
     await expect(canvas.getByText("Experimentation")).toBeInTheDocument();
     await expect(canvas.getByText("Projects & files")).toBeInTheDocument();
     await expect(canvas.getByText("Pages")).toBeInTheDocument();
@@ -98,6 +102,24 @@ export const FilteredCategory: Story = {
     await expect(canvas.getByRole("heading", { name: "MCP servers" })).toBeInTheDocument();
     await expect(canvas.getByText("MCP Server")).toBeInTheDocument();
     await expect(canvas.queryByRole("heading", { name: "Source control" })).not.toBeInTheDocument();
+  },
+};
+
+export const GuidelinesComingSoon: Story = {
+  parameters: {
+    msw: {
+      handlers: integrationsConnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Guidelines" }));
+    await expect(canvas.getByRole("heading", { name: "Guidelines" })).toBeInTheDocument();
+    await expect(canvas.getByText("Google Drive")).toBeInTheDocument();
+    await expect(canvas.getByText("SharePoint")).toBeInTheDocument();
+    await expect(canvas.getByText("Notion")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Coming soon" })).toHaveLength(3);
+    await expect(canvas.queryByRole("heading", { name: "Source control" })).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Contentful")).not.toBeInTheDocument();
   },
 };
 
@@ -165,6 +187,7 @@ export const WithoutProviderIntegrations: Story = {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
     await expect(canvas.getByText("Source control")).toBeInTheDocument();
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
+    await expect(canvas.getByText("Guidelines")).toBeInTheDocument();
     await expect(canvas.getByText("Customer engagement")).toBeInTheDocument();
     await expect(canvas.queryByText("Translation Management System")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();

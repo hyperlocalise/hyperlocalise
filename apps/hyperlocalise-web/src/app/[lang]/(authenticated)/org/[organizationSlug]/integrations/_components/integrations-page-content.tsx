@@ -58,6 +58,7 @@ import { agentIntegrationsSectionMessages } from "./agent-integrations-section.m
 import {
   CollaborationIntegrationsSection,
   CustomerEngagementIntegrationsSection,
+  GuidelineIntegrationsSection,
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
 import { CanvaConnectionPanel } from "./canva-connection-panel";
@@ -93,6 +94,7 @@ const INTEGRATION_CATEGORY_IDS = [
   "collaboration",
   "tms",
   "cms",
+  "guidelines",
   "customer-engagement",
   "experimentation",
   "seo-tools",
@@ -115,6 +117,7 @@ const INTEGRATION_CATEGORY_MESSAGES = {
   "source-control": agentIntegrationsSectionMessages.sourceControlCategory,
   tms: integrationsPageContentMessages.tmsCategory,
   cms: integrationsPageContentMessages.cmsCategory,
+  guidelines: agentIntegrationsSectionMessages.guidelinesCategory,
   experimentation: integrationsPageContentMessages.experimentationCategory,
   "seo-tools": integrationsPageContentMessages.seoToolsCategory,
   "mcp-servers": integrationsPageContentMessages.mcpServersCategory,
@@ -1185,6 +1188,11 @@ export function IntegrationsPageContent({
                   disabled={!userIsAdmin}
                   isLast
                 />
+              </IntegrationCategorySection>
+            ) : null}
+            {showCategory("guidelines") ? (
+              <IntegrationCategorySection categoryId="guidelines">
+                <GuidelineIntegrationsSection />
               </IntegrationCategorySection>
             ) : null}
             {showCategory("customer-engagement") ? (
