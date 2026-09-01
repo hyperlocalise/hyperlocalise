@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual, webcrypto } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -89,23 +89,30 @@ function constantTimeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function randomCredentialBytes(size: number): string {
+  return Buffer.from(webcrypto.getRandomValues(new Uint8Array(size))).toString("base64url");
+}
+
 /** Keyed lookup digest for 256-bit random OAuth codes and tokens, not user passwords. */
 export function digestCanvaOauthToken(value: string): string {
+  const hmac = createHmac("sha256", getOauthSecret());
   // HMAC-SHA256 is the correct primitive for high-entropy token lookup, not a password KDF.
+  // lgtm[js/insufficient-password-hash]
   // codeql[js/insufficient-password-hash]
-  return createHmac("sha256", getOauthSecret()).update(value).digest("hex");
+  hmac.update(value);
+  return hmac.digest("hex");
 }
 
 export function generateCanvaOauthAccessToken(): string {
-  return `${ACCESS_TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
+  return `${ACCESS_TOKEN_PREFIX}${randomCredentialBytes(32)}`;
 }
 
 export function generateCanvaOauthRefreshToken(): string {
-  return `${REFRESH_TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
+  return `${REFRESH_TOKEN_PREFIX}${randomCredentialBytes(32)}`;
 }
 
 export function generateCanvaOauthAuthorizationCode(): string {
-  return randomBytes(32).toString("base64url");
+  return randomCredentialBytes(32);
 }
 
 export function verifyPkceChallenge(input: {
