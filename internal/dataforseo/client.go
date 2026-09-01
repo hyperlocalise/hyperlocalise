@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // Client is a low-level DataForSEO HTTP client. Higher-level feature methods are
@@ -87,7 +86,6 @@ func (c *Client) AI() *AI {
 type postOptions struct {
 	okTaskStatusCode      int
 	treatNoResultsAsEmpty bool
-	allowNonRetryablePost bool
 }
 
 func (c *Client) post(ctx context.Context, path string, payload any, opts postOptions) (*Task, error) {
@@ -108,66 +106,38 @@ func (c *Client) postResponse(ctx context.Context, path string, payload any, opt
 	}
 
 	url := c.baseURL + path
-	maxAttempts := c.maxRetries + 1
-	if opts.allowNonRetryablePost {
-		maxAttempts = 1
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("dataforseo: build request: %w", err)
+	}
+	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
 	}
 
-	var lastErr error
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		if attempt > 0 {
-			backoff := time.Duration(attempt) * 250 * time.Millisecond
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
-			}
-		}
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-		if err != nil {
-			return nil, fmt.Errorf("dataforseo: build request: %w", err)
-		}
-		req.Header.Set("Authorization", c.authHeader)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		responseBody, readErr := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if readErr != nil {
-			lastErr = readErr
-			continue
-		}
-
-		if resp.StatusCode >= 500 && attempt < maxAttempts-1 {
-			lastErr = httpError(resp.StatusCode, path, string(responseBody))
-			continue
-		}
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return nil, httpError(resp.StatusCode, path, string(responseBody))
-		}
-
-		var parsed APIResponse
-		if err := json.Unmarshal(responseBody, &parsed); err != nil {
-			return nil, newError(
-				ErrorCodeInvalidResponse,
-				"DataForSEO returned invalid JSON",
-				path,
-				resp.StatusCode,
-			)
-		}
-		return &parsed, nil
+	responseBody, readErr := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, httpError(resp.StatusCode, path, string(responseBody))
 	}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("dataforseo: request failed")
+	var parsed APIResponse
+	if err := json.Unmarshal(responseBody, &parsed); err != nil {
+		return nil, newError(
+			ErrorCodeInvalidResponse,
+			"DataForSEO returned invalid JSON",
+			path,
+			resp.StatusCode,
+		)
 	}
-	return nil, lastErr
+	return &parsed, nil
 }
 
 func (c *Client) getResponse(ctx context.Context, path string) (*APIResponse, error) {

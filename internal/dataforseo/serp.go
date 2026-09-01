@@ -182,8 +182,7 @@ func (s *SERP) PostRankCheckTasks(
 	}
 
 	response, err := s.client.postResponse(ctx, pathOrganicTaskPost, payload, postOptions{
-		okTaskStatusCode:      20000,
-		allowNonRetryablePost: true,
+		okTaskStatusCode: 20000,
 	})
 	if err != nil {
 		return TaskResponse[[]PostedRankCheckTask]{}, err

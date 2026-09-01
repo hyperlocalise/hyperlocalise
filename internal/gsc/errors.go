@@ -1,6 +1,7 @@
 package gsc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -51,7 +52,12 @@ func httpError(statusCode int, path, body string) *Error {
 	message := messageForStatus(statusCode, body)
 
 	switch {
-	case statusCode == 401 || statusCode == 403:
+	case statusCode == 401:
+		return newError(ErrorCodeAuthFailed, message, path, statusCode, body)
+	case statusCode == 403:
+		if isQuotaRelatedError(body) {
+			return newError(ErrorCodeRateLimited, message, path, statusCode, body)
+		}
 		return newError(ErrorCodeAuthFailed, message, path, statusCode, body)
 	case statusCode == 404:
 		return newError(ErrorCodeNotFound, message, path, statusCode, body)
@@ -64,9 +70,60 @@ func httpError(statusCode int, path, body string) *Error {
 	}
 }
 
+func isQuotaRelatedError(body string) bool {
+	trimmed := strings.TrimSpace(body)
+	if trimmed == "" {
+		return false
+	}
+
+	var payload struct {
+		Error struct {
+			Errors []struct {
+				Reason string `json:"reason"`
+			} `json:"errors"`
+			Status string `json:"status"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
+		return containsQuotaSignal(trimmed)
+	}
+
+	if payload.Error.Status == "RESOURCE_EXHAUSTED" {
+		return true
+	}
+	for _, item := range payload.Error.Errors {
+		if containsQuotaSignal(item.Reason) {
+			return true
+		}
+	}
+	return containsQuotaSignal(trimmed)
+}
+
+func containsQuotaSignal(value string) bool {
+	lower := strings.ToLower(value)
+	quotaSignals := []string{
+		"ratelimitexceeded",
+		"userratelimitexceeded",
+		"quotaexceeded",
+		"dailylimitexceeded",
+		"resource_exhausted",
+		"quota metric",
+		"rate limit",
+	}
+	for _, signal := range quotaSignals {
+		if strings.Contains(lower, signal) {
+			return true
+		}
+	}
+	return false
+}
+
 func messageForStatus(status int, body string) string {
 	switch status {
 	case 401, 403:
+		if status == 403 && isQuotaRelatedError(body) {
+			return "Search Console rate limit reached. Retry shortly."
+		}
 		return "Search Console denied access to this property (no verified permission, or the connection was revoked)."
 	case 429:
 		return "Search Console rate limit reached. Retry shortly."

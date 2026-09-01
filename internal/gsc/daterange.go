@@ -116,9 +116,9 @@ func ResolveDateRange(input PerformanceInput, today time.Time) (startDate, endDa
 func subtractRange(end time.Time, dateRange DateRange) time.Time {
 	switch dateRange {
 	case DateRangeLast7Days:
-		return end.AddDate(0, 0, -7)
+		return end.AddDate(0, 0, -6)
 	case DateRangeLast28Days:
-		return end.AddDate(0, 0, -28)
+		return end.AddDate(0, 0, -27)
 	case DateRangeLast3Months:
 		return subtractUTCMonths(end, 3)
 	case DateRangeLast6Months:
@@ -128,7 +128,7 @@ func subtractRange(end time.Time, dateRange DateRange) time.Time {
 	case DateRangeLast16Months:
 		return subtractUTCMonths(end, 16)
 	default:
-		return end.AddDate(0, 0, -28)
+		return end.AddDate(0, 0, -27)
 	}
 }
 

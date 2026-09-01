@@ -155,6 +155,35 @@ func TestHTTPErrorMapping(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, typed.StatusCode)
 }
 
+func TestHTTPQuotaErrorMapping(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{
+			"error": {
+				"code": 403,
+				"message": "Quota exceeded for quota metric 'Queries' and limit 'Queries per day' of service 'searchconsole.googleapis.com'",
+				"status": "RESOURCE_EXHAUSTED",
+				"errors": [{"reason": "rateLimitExceeded"}]
+			}
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := gsc.NewClientWithHTTPClient(gsc.Config{
+		TokenSource:       oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
+		WebmastersBaseURL: server.URL,
+	}, server.Client())
+	require.NoError(t, err)
+
+	_, err = client.ListSites(t.Context())
+	require.Error(t, err)
+
+	typed, ok := gsc.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeRateLimited, typed.Code)
+	require.Equal(t, http.StatusForbidden, typed.StatusCode)
+}
+
 func TestBuildSearchAnalyticsRequestWrapsFilters(t *testing.T) {
 	today := time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC)
 	request := gsc.BuildSearchAnalyticsRequest(gsc.PerformanceInput{
@@ -167,7 +196,7 @@ func TestBuildSearchAnalyticsRequestWrapsFilters(t *testing.T) {
 	}, today)
 
 	require.Equal(t, "2026-01-28", request.EndDate)
-	require.Equal(t, "2025-12-31", request.StartDate)
+	require.Equal(t, "2026-01-01", request.StartDate)
 	require.Len(t, request.DimensionFilterGroups, 1)
 	require.Equal(t, "and", request.DimensionFilterGroups[0].GroupType)
 	require.Equal(t, "pricing", request.DimensionFilterGroups[0].Filters[0].Expression)
