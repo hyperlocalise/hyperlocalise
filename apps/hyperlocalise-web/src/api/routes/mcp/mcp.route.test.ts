@@ -1875,6 +1875,100 @@ describe("mcpRoutes", () => {
     });
   });
 
+  it("rolls back core fields when a combined priority update fails", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const service = new IssueSheetService();
+    const created = await service.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Original atomic title",
+      },
+    });
+
+    await service.ensureStarterColumns({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+    });
+    await db
+      .update(schema.issueSheetColumns)
+      .set({
+        config: {
+          options: [{ id: "P1", label: "P1", color: "amber" }],
+        },
+      })
+      .where(
+        and(
+          eq(schema.issueSheetColumns.organizationId, auth.organization.localOrganizationId),
+          eq(schema.issueSheetColumns.projectId, stored.project.id),
+          eq(schema.issueSheetColumns.key, "priority"),
+        ),
+      );
+
+    const response = await app.request("http://localhost/mcp/sse", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "update_issue",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: created.identifier,
+            title: "Must roll back",
+            priority: "P0",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toContain("invalid_issue_update");
+
+    const [persisted] = await db
+      .select({ title: schema.issueSheetIssues.title })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.id, created.id))
+      .limit(1);
+
+    expect(persisted?.title).toBe("Original atomic title");
+
+    const priorityActivities = await db
+      .select({ id: schema.issueSheetActivities.id })
+      .from(schema.issueSheetActivities)
+      .where(
+        and(
+          eq(schema.issueSheetActivities.issueId, created.id),
+          eq(schema.issueSheetActivities.type, "priority_changed"),
+        ),
+      );
+
+    expect(priorityActivities).toHaveLength(0);
+  });
+
   it("clears nullable update_issue fields and preserves omitted fields", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);

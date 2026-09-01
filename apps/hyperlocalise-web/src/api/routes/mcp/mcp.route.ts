@@ -734,64 +734,23 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         return mcpToolError("issue_not_found", "Issue not found");
       }
 
-      const hasCoreUpdate = Object.values(updates).some((value) => value !== undefined);
-
-      let outcome: "updated" | "unchanged" = "unchanged";
-      let issue: IssueSheetIssue | null = null;
-
       try {
-        if (hasCoreUpdate) {
-          const coreResult = await issueSheetService.updateIssue({
-            organizationId: apiAuth.organization.localOrganizationId,
-            projectId: project.id,
-            issueId,
-            actorUserId: apiAuth.user.localUserId,
-            body: updates,
-            returnOutcome: true,
-          });
+        const result = await issueSheetService.updateIssue({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId: project.id,
+          issueId,
+          actorUserId: apiAuth.user.localUserId,
+          body: updates,
+          priority,
+          returnOutcome: true,
+        });
 
-          if (!coreResult) {
-            return mcpToolError("issue_not_found", "Issue not found");
-          }
-
-          if (!("outcome" in coreResult)) {
-            throw new Error("expected issue update outcome");
-          }
-
-          outcome = coreResult.outcome;
-          issue = coreResult.issue;
+        if (!result) {
+          return mcpToolError("issue_not_found", "Issue not found");
         }
 
-        if (priority !== undefined) {
-          const priorityResult = await issueSheetService.setPriority({
-            organizationId: apiAuth.organization.localOrganizationId,
-            projectId: project.id,
-            issueId,
-            actorUserId: apiAuth.user.localUserId,
-            priority,
-          });
-
-          if (!priorityResult) {
-            return mcpToolError("issue_not_found", "Issue not found");
-          }
-
-          if (priorityResult.outcome === "updated") {
-            outcome = "updated";
-          }
-
-          issue = await issueSheetService.getIssue({
-            organizationId: apiAuth.organization.localOrganizationId,
-            projectId: project.id,
-            issueId,
-            actorUserId: apiAuth.user.localUserId,
-          });
-        }
-
-        if (!issue) {
-          return mcpToolError(
-            "invalid_issue_update",
-            "At least one mutable issue field must be provided",
-          );
+        if (!("outcome" in result)) {
+          throw new Error("expected issue update outcome");
         }
 
         return {
@@ -799,8 +758,8 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             {
               type: "text",
               text: JSON.stringify({
-                outcome,
-                issue: detailedMcpIssue(issue),
+                outcome: result.outcome,
+                issue: detailedMcpIssue(result.issue),
               }),
             },
           ],
