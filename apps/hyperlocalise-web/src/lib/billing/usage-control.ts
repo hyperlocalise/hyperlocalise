@@ -535,10 +535,6 @@ export async function completeAndTrackBillableUsage(input: {
     fetchFn: input.fetchFn,
   });
 
-  if (!trackUsageResult.ok) {
-    return trackUsageResult;
-  }
-
   if (tokenUsage) {
     const aiCreditResult = await trackAiCreditUsageInAutumn({
       db: input.db,

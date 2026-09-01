@@ -12,8 +12,7 @@
  */
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { serverAnalytics } from "@/lib/analytics/server";
+import { releaseAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
@@ -24,6 +23,8 @@ import {
   getManagedAiPricingConfig,
   managedAiReservationAmountUsd,
 } from "@/lib/billing/managed-ai-pricing";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -238,6 +239,10 @@ export async function failAgentRun(input: {
     status: "failed",
     source: run.kind,
   });
+  await releaseAgentRunAiCredit({
+    runId: input.runId,
+    reason: "agent_run_failed",
+  });
   return run;
 }
 
@@ -266,10 +271,6 @@ export async function cancelAgentRun(input: { runId: string; organizationId: str
     throw new Error("Agent run not found or not in cancellable state");
   }
 
-  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCancelled, {
-    status: "cancelled",
-    source: run.kind,
-  });
   return run;
 }
 
@@ -317,6 +318,12 @@ async function trackCompletedAgentRunUsage(input: {
 }) {
   const operationKey = `agent-run:${input.runId}:agent_runs`;
   const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
+  if (!tokenUsage) {
+    await releaseAgentRunAiCredit({
+      runId: input.runId,
+      reason: "no_token_usage",
+    });
+  }
   const pricingConfig = getManagedAiPricingConfig();
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: input.organizationId,

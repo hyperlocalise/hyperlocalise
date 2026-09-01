@@ -15,9 +15,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
-import { err, ok } from "@/lib/primitives/result/results";
 import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
@@ -33,9 +31,7 @@ import { executeProviderAgentTranslation } from "./provider-agent-translate";
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
 const loadOrganizationTranslationGeneratorMock = vi.fn();
-const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
-  ensureAiFeaturesAllowedMock: vi.fn(),
-}));
+const reserveAgentRunAiCreditMock = vi.hoisted(() => vi.fn());
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
@@ -50,14 +46,6 @@ const providerContentPullerMocks = vi.hoisted(() => {
   );
 
   return { state, getProviderContentPullerMock };
-});
-
-vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
-  return {
-    ...actual,
-    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
-  };
 });
 
 vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal) => {
@@ -88,16 +76,24 @@ vi.mock("@/lib/translation/generation", () => ({
     loadOrganizationTranslationGeneratorMock(...args),
 }));
 
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>();
+  return {
+    ...actual,
+    reserveAgentRunAiCredit: (...args: unknown[]) => reserveAgentRunAiCreditMock(...args),
+  };
+});
+
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
 beforeEach(() => {
-  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
   );
+  reserveAgentRunAiCreditMock.mockResolvedValue({ ok: true, value: null });
 });
 
 afterEach(async () => {
@@ -105,8 +101,7 @@ afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
   loadOrganizationTranslationGeneratorMock.mockReset();
-  ensureAiFeaturesAllowedMock.mockReset();
-  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+  reserveAgentRunAiCreditMock.mockReset();
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     providerContentPullerMocks.state.actual,
   );
@@ -213,6 +208,76 @@ describe("executeProviderAgentTranslation", () => {
     });
   });
 
+  it("aggregates cache and reasoning token buckets from string translations", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-tokens",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-tokens",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Bonjour" }],
+        tokenUsage: {
+          inputTokens: 10,
+          outputTokens: 4,
+          totalTokens: 19,
+          cacheReadTokens: 3,
+          cacheWriteTokens: 1,
+          reasoningTokens: 1,
+          modelId: "openai/gpt-5.6-luna",
+          credentialSource: "gateway",
+        },
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-tokens",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    const completed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+    expect(completed?.outputSummary).toMatchObject({
+      tokenUsage: {
+        inputTokens: 10,
+        outputTokens: 4,
+        totalTokens: 19,
+        cacheReadTokens: 3,
+        cacheWriteTokens: 1,
+        reasoningTokens: 1,
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+      },
+    });
+  });
+
   it("pulls Smartling job content through the provider-neutral sync layer", async () => {
     const project = await createExternalTmsProject();
     await db
@@ -287,48 +352,6 @@ describe("executeProviderAgentTranslation", () => {
       ok: false,
       code: "missing_project_id",
     });
-  });
-
-  it("fails the agent run when AI features are not allowed without pulling content", async () => {
-    const project = await createExternalTmsProject();
-    ensureAiFeaturesAllowedMock.mockResolvedValue(
-      err({
-        code: AI_FEATURES_REQUIRED_CODE,
-        message: AI_FEATURES_REQUIRED_MESSAGE,
-      }),
-    );
-
-    const run = await createAgentRun({
-      organizationId: project.organizationId,
-      providerKind: "crowdin",
-      externalJobId: "task-ai-denied",
-      kind: "translate",
-      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
-    });
-
-    const result = await executeProviderAgentTranslation({
-      agentRunId: run.id,
-      organizationId: project.organizationId,
-    });
-
-    expect(result).toMatchObject({
-      ok: false,
-      code: AI_FEATURES_REQUIRED_CODE,
-      message: AI_FEATURES_REQUIRED_MESSAGE,
-    });
-    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
-      organizationId: project.organizationId,
-    });
-    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
-    expect(loadOrganizationTranslationGeneratorMock).not.toHaveBeenCalled();
-
-    const failed = await getAgentRun({
-      runId: run.id,
-      organizationId: project.organizationId,
-    });
-    expect(failed?.status).toBe("failed");
-    expect(failed?.outputSummary).toMatchObject({ code: AI_FEATURES_REQUIRED_CODE });
-    expect(failed?.warnings).toEqual([AI_FEATURES_REQUIRED_MESSAGE]);
   });
 
   it("fails the agent run when startAgentRun throws", async () => {
@@ -532,5 +555,79 @@ describe("executeProviderAgentTranslation", () => {
     });
 
     expect(completed?.status).toBe("succeeded");
+  });
+
+  it("reserves AI credit before translating and stops when the balance is insufficient", async () => {
+    const project = await createExternalTmsProject();
+    const translateStringJob = vi.fn(async () => ({
+      translations: [{ locale: "fr", text: "Bonjour" }],
+    }));
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-credit",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-credit",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            translations: [],
+          },
+        ],
+      },
+    });
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob,
+    });
+    reserveAgentRunAiCreditMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "ai_credit_insufficient",
+        requiredAmountUsd: 0.5,
+        remainingAmountUsd: 0,
+      },
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-credit",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "ai_credit_insufficient",
+    });
+    expect(reserveAgentRunAiCreditMock).toHaveBeenCalledWith({
+      organizationId: project.organizationId,
+      runId: run.id,
+      source: "agent_run_complete",
+      modelId: expect.any(String),
+      credentialSource: "gateway",
+    });
+    expect(translateStringJob).not.toHaveBeenCalled();
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+    expect(failed?.status).toBe("failed");
+    expect(failed?.outputSummary).toMatchObject({
+      code: "ai_credit_insufficient",
+      pullRunId: "pull-run-credit",
+    });
   });
 });

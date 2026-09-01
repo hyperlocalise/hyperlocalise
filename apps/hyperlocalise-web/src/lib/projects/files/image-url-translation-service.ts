@@ -17,6 +17,7 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
@@ -170,7 +171,10 @@ export async function localizeImageUrlTranslation(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+          input.force,
+        ),
         source: "project_image_url_translation",
         dimensions: {
           channel: "project",
