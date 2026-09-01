@@ -371,9 +371,11 @@ function parseConceptImport(
   return { entries, diagnostics: parsed.diagnostics, document: parsed };
 }
 
-export function createGlossaryConceptRoutes(options: {
-  fileStorageAdapter?: FileStorageAdapter;
-} = {}) {
+export function createGlossaryConceptRoutes(
+  options: {
+    fileStorageAdapter?: FileStorageAdapter;
+  } = {},
+) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", validator("param", validateGlossaryParams), async (c) => {
@@ -615,8 +617,7 @@ export function createGlossaryConceptRoutes(options: {
                       });
                       const backup = serializeXlsx(backupDocument);
                       if (backup.errors.length > 0) throw new Error("glossary_backup_failed");
-                      const backupAdapter =
-                        options.fileStorageAdapter ?? getFileStorageAdapter();
+                      const backupAdapter = options.fileStorageAdapter ?? getFileStorageAdapter();
                       const backupFile = await createStoredFile({
                         organizationId: c.var.auth.organization.localOrganizationId,
                         createdByUserId: c.var.auth.user.localUserId,
