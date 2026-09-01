@@ -2301,12 +2301,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               );
             }
             if (videoResult.error.code === "ai_credit_unavailable") {
-              return apiErrorResponse(
-                c,
-                503,
-                videoResult.error.code,
-                videoResult.error.message,
-              );
+              return apiErrorResponse(c, 503, videoResult.error.code, videoResult.error.message);
             }
             return badRequestResponse(c, videoResult.error.code, "Video URL regeneration failed");
           }

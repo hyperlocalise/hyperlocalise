@@ -143,10 +143,7 @@ export const env = createEnv({
     AI_CREDIT_IMAGE_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-gpt-image-2"),
 
     /** Autumn custom model ID used to price one generated video second as one synthetic token. */
-    AI_CREDIT_VIDEO_MODEL_ID: z
-      .string()
-      .min(1)
-      .default("custom/hyperlocalise-seedance-2-5"),
+    AI_CREDIT_VIDEO_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-seedance-2-5"),
 
     /** Version recorded with each managed AI price calculation. */
     AI_CREDIT_PRICING_VERSION: z.string().min(1).default("2026-09-01"),

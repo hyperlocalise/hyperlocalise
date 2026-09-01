@@ -218,7 +218,7 @@ export function createWebChatAgentUIStreamResponse(input: {
           abortSignal: input.abortSignal,
         });
         if (input.aiCreditReservation) {
-          agentTokenUsagePromise = result.usage.then(extractAiSdkTokenUsage);
+          agentTokenUsagePromise = Promise.resolve(result.usage).then(extractAiSdkTokenUsage);
         }
 
         writer.merge(

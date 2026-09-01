@@ -98,10 +98,7 @@ describe("managed AI credit", () => {
         remainingAmountUsd: 0.25,
       },
     });
-    expect(check).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ requiredBalance: 1.5 }),
-    );
+    expect(check).toHaveBeenNthCalledWith(2, expect.objectContaining({ requiredBalance: 1.5 }));
     await expect(getUsageEvent(firstKey)).resolves.toMatchObject({
       estimatedAmountUsd: "0.750000000",
       credentialSource: "gateway",

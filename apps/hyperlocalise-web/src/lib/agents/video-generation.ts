@@ -62,6 +62,16 @@ function getVideoModel() {
   return getManagedVideoModel();
 }
 
+function videoJobId(providerMetadata: unknown) {
+  if (!providerMetadata || typeof providerMetadata !== "object") return undefined;
+  const gateway = Reflect.get(providerMetadata, "gateway");
+  if (!gateway || typeof gateway !== "object") return undefined;
+  const asyncJob = Reflect.get(gateway, "asyncJob");
+  if (!asyncJob || typeof asyncJob !== "object") return undefined;
+  const jobId = Reflect.get(asyncJob, "jobId");
+  return typeof jobId === "string" ? jobId : undefined;
+}
+
 function isRegionBlockedMessage(message: string) {
   const normalized = message.toLowerCase();
   return (
@@ -120,10 +130,7 @@ async function generateVideoFromPrompt(
     video: Buffer.from(generatedVideo.uint8Array),
     mimeType: generatedVideo.mediaType || "video/mp4",
     durationSeconds,
-    providerGenerationId:
-      typeof result.providerMetadata?.gateway?.asyncJob?.jobId === "string"
-        ? result.providerMetadata.gateway.asyncJob.jobId
-        : undefined,
+    providerGenerationId: videoJobId(result.providerMetadata),
   };
 }
 
