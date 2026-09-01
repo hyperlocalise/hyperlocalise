@@ -722,6 +722,9 @@
   "0RE4Gn7dt1": {
     "defaultMessage": "Phát hiện bản dịch lỗi trước khi đưa vào sản xuất"
   },
+  "0S1pdjIx4Z": {
+    "defaultMessage": "Gửi email cho đội ngũ Hyperlocalise về vấn đề bản địa hóa, bảng giá hoặc hỗ trợ."
+  },
   "0SJJYtUYDM": {
     "defaultMessage": "Không phụ thuộc TMS"
   },
@@ -1736,6 +1739,9 @@
   "40ZOWpo+3r": {
     "defaultMessage": "Brazil"
   },
+  "40cE/etX60": {
+    "defaultMessage": "Trao đổi với đội ngũ Hyperlocalise"
+  },
   "40cOR2CWgx": {
     "defaultMessage": "{count, plural, one {Đã khám phá cơ sở mã, # lượt tìm kiếm} other {Đã khám phá cơ sở mã, # lượt tìm kiếm}}"
   },
@@ -2485,6 +2491,9 @@
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
+  },
+  "6pa9eyshGx": {
+    "defaultMessage": "Bạn có câu hỏi về bản địa hóa, giá cả hoặc tài khoản của mình? Hãy gửi email cho chúng tôi và chúng tôi sẽ trả lời trong vòng một ngày làm việc."
   },
   "6q29k14I2n": {
     "defaultMessage": "URL"
@@ -3446,6 +3455,9 @@
   "A+IsVf0TGL": {
     "defaultMessage": "Trung tâm trợ giúp Contentful"
   },
+  "A/WlUY8Nlp": {
+    "defaultMessage": "Đã xuất bảng thuật ngữ"
+  },
   "A/xeqYD4/q": {
     "defaultMessage": "Chạy các cổng bản địa hóa trong GitHub Actions"
   },
@@ -4213,6 +4225,9 @@
   },
   "CpwA2GAYax": {
     "defaultMessage": "Stale"
+  },
+  "CqB7r5Lcsl": {
+    "defaultMessage": "Hỗ trợ qua email"
   },
   "CqDUHu+YvU": {
     "defaultMessage": "Sao chép liên kết đến đoạn này"
@@ -5708,6 +5723,9 @@
   "IFi2sEaC0J": {
     "defaultMessage": "Kiểm tra trước khi xuất bản"
   },
+  "IG9QdvGos0": {
+    "defaultMessage": "Liên hệ"
+  },
   "IGfRG2bCrY": {
     "defaultMessage": "Tên, dự án hoặc ID bên ngoài..."
   },
@@ -5857,6 +5875,9 @@
   },
   "IrBIXRrQQ2": {
     "defaultMessage": "Lỗi QA"
+  },
+  "IrK/1/o8Ej": {
+    "defaultMessage": "Xuất toàn bộ bảng thuật ngữ"
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
@@ -6047,6 +6068,9 @@
   "JfbQQEL9oW": {
     "defaultMessage": "Đặt loại"
   },
+  "Jh6eXznG+8": {
+    "defaultMessage": "Xuất dưới dạng TBX"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Hiển thị thanh bên trên thiết bị di động."
   },
@@ -6058,6 +6082,9 @@
   },
   "Jjjtb6X1+r": {
     "defaultMessage": "Không thể tải mục nhập này."
+  },
+  "JkMnd1m3E/": {
+    "defaultMessage": "Đang nhập bảng thuật ngữ…"
   },
   "JkzEXub4WI": {
     "defaultMessage": "Ship-safe"
@@ -7270,6 +7297,9 @@
   },
   "OU5qhClfKo": {
     "defaultMessage": "Xuất bản blog đa ngôn ngữ"
+  },
+  "OU8ZFDP47O": {
+    "defaultMessage": "Các thao tác trong bảng thuật ngữ"
   },
   "OUBWr2tI7F": {
     "defaultMessage": "You"
@@ -8585,6 +8615,9 @@
   "TWitJgQdIP": {
     "defaultMessage": "Project"
   },
+  "TWs2x7bzrZ": {
+    "defaultMessage": "Không thể xuất bảng thuật ngữ"
+  },
   "TXSZ3cXaZk": {
     "defaultMessage": "Tất cả dự án"
   },
@@ -9211,6 +9244,9 @@
   },
   "Vz9hpPn3p2": {
     "defaultMessage": "Điểm tổng thể"
+  },
+  "VzEu1cp3Je": {
+    "defaultMessage": "Đã xuất bảng thuật ngữ với {count} cảnh báo siêu dữ liệu"
   },
   "VzdHtrwQej": {
     "defaultMessage": "Gửi lời mời qua email. Họ sẽ tham gia sau khi chấp nhận thông qua nhà cung cấp danh tính của bạn."
@@ -11102,6 +11138,9 @@
   "d8Vs3k3UER": {
     "defaultMessage": "Cuộc trò chuyện này không còn khả dụng."
   },
+  "d9+py8mf04": {
+    "defaultMessage": "Xuất nội dung đã lọc dưới dạng XLSX"
+  },
   "dAeEJyCLaY": {
     "defaultMessage": "Xóa tất cả"
   },
@@ -11305,6 +11344,9 @@
   },
   "duqEj6Omtc": {
     "defaultMessage": "Loại cột"
+  },
+  "duzSZb/s6p": {
+    "defaultMessage": "Xuất dưới dạng XLSX"
   },
   "dv6HEp4mGP": {
     "defaultMessage": "Hình ảnh mục tiêu"
@@ -11599,6 +11641,9 @@
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Tạo dự án bản địa hóa đầu tiên của bạn"
+  },
+  "erXgCbsSqH": {
+    "defaultMessage": "Xuất bộ lọc dưới dạng CSV"
   },
   "esZVdLzFOW": {
     "defaultMessage": "You’re all caught up"
@@ -12818,6 +12863,9 @@
   "j28e0kftL8": {
     "defaultMessage": "{count} cột"
   },
+  "j3NSWZrB6O": {
+    "defaultMessage": "Xuất dưới dạng CSV"
+  },
   "j3sarok4E/": {
     "defaultMessage": "Máy chủ MCP"
   },
@@ -13382,6 +13430,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Cuộn đến đầu"
   },
+  "ksdqzG4/Xq": {
+    "defaultMessage": "Xuất bộ lọc dưới dạng TBX"
+  },
   "ksrwIvV64s": {
     "defaultMessage": "Cài đặt không gian làm việc"
   },
@@ -13780,6 +13831,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "Không thể tải dự án"
+  },
+  "mN+eL4E4T/": {
+    "defaultMessage": "Liên hệ Hyperlocalise"
   },
   "mNhu5W2AEy": {
     "defaultMessage": "@hyperlocalise review"
@@ -15530,6 +15584,9 @@
   "svD7SMchJb": {
     "defaultMessage": "{providerName} đã sẵn sàng cho token thành viên"
   },
+  "svMnxMDrsO": {
+    "defaultMessage": "Xuất bảng thuật ngữ đã lọc"
+  },
   "sw288YpOpz": {
     "defaultMessage": "Added"
   },
@@ -15649,6 +15706,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account"
+  },
+  "tOAFgS8YTm": {
+    "defaultMessage": "Chọn tệp TBX, XLSX hoặc CSV"
   },
   "tP1cicvIzZ": {
     "defaultMessage": "Ghi chú ngôn ngữ"

@@ -722,6 +722,9 @@
   "0RE4Gn7dt1": {
     "defaultMessage": "Détectez les mauvaises traductions avant la mise en production"
   },
+  "0S1pdjIx4Z": {
+    "defaultMessage": "Envoyez un e-mail à l’équipe Hyperlocalise pour toute question concernant la localisation, les tarifs ou l’assistance."
+  },
   "0SJJYtUYDM": {
     "defaultMessage": "Neutre vis-à-vis du TMS"
   },
@@ -1736,6 +1739,9 @@
   "40ZOWpo+3r": {
     "defaultMessage": "Brésil"
   },
+  "40cE/etX60": {
+    "defaultMessage": "Parlez avec l’équipe Hyperlocalise"
+  },
   "40cOR2CWgx": {
     "defaultMessage": "{count, plural, one {Base de code explorée, # recherche} other {Base de code explorée, # recherches}}"
   },
@@ -2485,6 +2491,9 @@
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
+  },
+  "6pa9eyshGx": {
+    "defaultMessage": "Des questions sur la localisation, les tarifs ou votre compte ? Envoyez-nous un e-mail et nous vous répondrons dans un délai d’un jour ouvré."
   },
   "6q29k14I2n": {
     "defaultMessage": "URL"
@@ -3446,6 +3455,9 @@
   "A+IsVf0TGL": {
     "defaultMessage": "Centre d’aide Contentful"
   },
+  "A/WlUY8Nlp": {
+    "defaultMessage": "Glossaire exporté"
+  },
   "A/xeqYD4/q": {
     "defaultMessage": "Exécuter les contrôles de localisation dans GitHub Actions"
   },
@@ -4213,6 +4225,9 @@
   },
   "CpwA2GAYax": {
     "defaultMessage": "Stale"
+  },
+  "CqB7r5Lcsl": {
+    "defaultMessage": "Assistance par e-mail"
   },
   "CqDUHu+YvU": {
     "defaultMessage": "Copier le lien vers ce segment"
@@ -5708,6 +5723,9 @@
   "IFi2sEaC0J": {
     "defaultMessage": "Vérifications avant publication"
   },
+  "IG9QdvGos0": {
+    "defaultMessage": "Contact"
+  },
   "IGfRG2bCrY": {
     "defaultMessage": "Nom, projet ou identifiant externe..."
   },
@@ -5857,6 +5875,9 @@
   },
   "IrBIXRrQQ2": {
     "defaultMessage": "Échec de l’assurance qualité"
+  },
+  "IrK/1/o8Ej": {
+    "defaultMessage": "Exporter le glossaire complet"
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
@@ -6047,6 +6068,9 @@
   "JfbQQEL9oW": {
     "defaultMessage": "Définir le type"
   },
+  "Jh6eXznG+8": {
+    "defaultMessage": "Exporter au format TBX"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Affiche la barre latérale mobile."
   },
@@ -6058,6 +6082,9 @@
   },
   "Jjjtb6X1+r": {
     "defaultMessage": "Impossible de charger cette entrée."
+  },
+  "JkMnd1m3E/": {
+    "defaultMessage": "Importation du glossaire…"
   },
   "JkzEXub4WI": {
     "defaultMessage": "Ship-safe"
@@ -7270,6 +7297,9 @@
   },
   "OU5qhClfKo": {
     "defaultMessage": "Publier un blog multilingue"
+  },
+  "OU8ZFDP47O": {
+    "defaultMessage": "Actions du glossaire"
   },
   "OUBWr2tI7F": {
     "defaultMessage": "You"
@@ -8585,6 +8615,9 @@
   "TWitJgQdIP": {
     "defaultMessage": "Project"
   },
+  "TWs2x7bzrZ": {
+    "defaultMessage": "Impossible d’exporter le glossaire"
+  },
   "TXSZ3cXaZk": {
     "defaultMessage": "Tous les projets"
   },
@@ -9211,6 +9244,9 @@
   },
   "Vz9hpPn3p2": {
     "defaultMessage": "Score global"
+  },
+  "VzEu1cp3Je": {
+    "defaultMessage": "Glossaire exporté avec {count} avertissements de métadonnées"
   },
   "VzdHtrwQej": {
     "defaultMessage": "Envoyez une invitation par e-mail. Ils rejoindront votre organisation après l’avoir acceptée via votre fournisseur d’identité."
@@ -11102,6 +11138,9 @@
   "d8Vs3k3UER": {
     "defaultMessage": "Cette conversation n’est plus disponible."
   },
+  "d9+py8mf04": {
+    "defaultMessage": "Exporter le filtre actuel au format XLSX"
+  },
   "dAeEJyCLaY": {
     "defaultMessage": "Tout effacer"
   },
@@ -11305,6 +11344,9 @@
   },
   "duqEj6Omtc": {
     "defaultMessage": "Type de colonne"
+  },
+  "duzSZb/s6p": {
+    "defaultMessage": "Exporter au format XLSX"
   },
   "dv6HEp4mGP": {
     "defaultMessage": "Image cible"
@@ -11599,6 +11641,9 @@
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Créez votre premier projet de localisation"
+  },
+  "erXgCbsSqH": {
+    "defaultMessage": "Exporter les résultats filtrés au format CSV"
   },
   "esZVdLzFOW": {
     "defaultMessage": "You’re all caught up"
@@ -12818,6 +12863,9 @@
   "j28e0kftL8": {
     "defaultMessage": "{count} colonnes"
   },
+  "j3NSWZrB6O": {
+    "defaultMessage": "Exporter au format CSV"
+  },
   "j3sarok4E/": {
     "defaultMessage": "Serveur MCP"
   },
@@ -13382,6 +13430,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Faire défiler jusqu’au début"
   },
+  "ksdqzG4/Xq": {
+    "defaultMessage": "Exporter le filtre en TBX"
+  },
   "ksrwIvV64s": {
     "defaultMessage": "Paramètres de l’espace de travail"
   },
@@ -13780,6 +13831,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "Échec du chargement des projets"
+  },
+  "mN+eL4E4T/": {
+    "defaultMessage": "Contacter Hyperlocalise"
   },
   "mNhu5W2AEy": {
     "defaultMessage": "@hyperlocalise réviser"
@@ -15530,6 +15584,9 @@
   "svD7SMchJb": {
     "defaultMessage": "{providerName} est prêt pour les jetons membres"
   },
+  "svMnxMDrsO": {
+    "defaultMessage": "Exporter le glossaire filtré"
+  },
   "sw288YpOpz": {
     "defaultMessage": "Ajouté"
   },
@@ -15649,6 +15706,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Compte"
+  },
+  "tOAFgS8YTm": {
+    "defaultMessage": "Choisissez un fichier TBX, XLSX ou CSV"
   },
   "tP1cicvIzZ": {
     "defaultMessage": "Notes linguistiques"

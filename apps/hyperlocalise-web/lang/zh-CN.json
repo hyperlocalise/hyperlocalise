@@ -722,6 +722,9 @@
   "0RE4Gn7dt1": {
     "defaultMessage": "在生产环境之前捕获错误翻译"
   },
+  "0S1pdjIx4Z": {
+    "defaultMessage": "就本地化、定价或支持事宜，通过电子邮件联系 Hyperlocalise 团队。"
+  },
   "0SJJYtUYDM": {
     "defaultMessage": "与 TMS 无关"
   },
@@ -1736,6 +1739,9 @@
   "40ZOWpo+3r": {
     "defaultMessage": "巴西"
   },
+  "40cE/etX60": {
+    "defaultMessage": "与 Hyperlocalise 团队交流"
+  },
   "40cOR2CWgx": {
     "defaultMessage": "{count, plural, one {探索了代码库，进行了 # 次搜索} other {探索了代码库，进行了 # 次搜索}}"
   },
@@ -2485,6 +2491,9 @@
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
+  },
+  "6pa9eyshGx": {
+    "defaultMessage": "有关本地化、定价或账户的问题？请发送电子邮件联系我们，我们将在一个工作日内回复。"
   },
   "6q29k14I2n": {
     "defaultMessage": "URL"
@@ -3446,6 +3455,9 @@
   "A+IsVf0TGL": {
     "defaultMessage": "Contentful 帮助中心"
   },
+  "A/WlUY8Nlp": {
+    "defaultMessage": "词汇表已导出"
+  },
   "A/xeqYD4/q": {
     "defaultMessage": "在 GitHub Actions 中运行本地化门禁"
   },
@@ -4213,6 +4225,9 @@
   },
   "CpwA2GAYax": {
     "defaultMessage": "Stale"
+  },
+  "CqB7r5Lcsl": {
+    "defaultMessage": "邮件支持"
   },
   "CqDUHu+YvU": {
     "defaultMessage": "复制此片段的链接"
@@ -5708,6 +5723,9 @@
   "IFi2sEaC0J": {
     "defaultMessage": "发布前检查"
   },
+  "IG9QdvGos0": {
+    "defaultMessage": "联系"
+  },
   "IGfRG2bCrY": {
     "defaultMessage": "名称、项目或外部 ID……"
   },
@@ -5857,6 +5875,9 @@
   },
   "IrBIXRrQQ2": {
     "defaultMessage": "QA 失败"
+  },
+  "IrK/1/o8Ej": {
+    "defaultMessage": "导出完整术语表"
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
@@ -6047,6 +6068,9 @@
   "JfbQQEL9oW": {
     "defaultMessage": "设置类型"
   },
+  "Jh6eXznG+8": {
+    "defaultMessage": "导出为 TBX"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "显示移动端侧边栏。"
   },
@@ -6058,6 +6082,9 @@
   },
   "Jjjtb6X1+r": {
     "defaultMessage": "无法加载此条目。"
+  },
+  "JkMnd1m3E/": {
+    "defaultMessage": "正在导入术语表…"
   },
   "JkzEXub4WI": {
     "defaultMessage": "Ship-safe"
@@ -7270,6 +7297,9 @@
   },
   "OU5qhClfKo": {
     "defaultMessage": "发布多语言博客"
+  },
+  "OU8ZFDP47O": {
+    "defaultMessage": "术语表操作"
   },
   "OUBWr2tI7F": {
     "defaultMessage": "You"
@@ -8585,6 +8615,9 @@
   "TWitJgQdIP": {
     "defaultMessage": "Project"
   },
+  "TWs2x7bzrZ": {
+    "defaultMessage": "无法导出术语表"
+  },
   "TXSZ3cXaZk": {
     "defaultMessage": "所有项目"
   },
@@ -9211,6 +9244,9 @@
   },
   "Vz9hpPn3p2": {
     "defaultMessage": "总体得分"
+  },
+  "VzEu1cp3Je": {
+    "defaultMessage": "已导出词汇表，其中有 {count} 条元数据警告"
   },
   "VzdHtrwQej": {
     "defaultMessage": "通过电子邮件发送邀请。对方通过您的身份提供商接受邀请后即可加入。"
@@ -11102,6 +11138,9 @@
   "d8Vs3k3UER": {
     "defaultMessage": "此对话已不再可用。"
   },
+  "d9+py8mf04": {
+    "defaultMessage": "将筛选结果导出为 XLSX"
+  },
   "dAeEJyCLaY": {
     "defaultMessage": "全部清除"
   },
@@ -11305,6 +11344,9 @@
   },
   "duqEj6Omtc": {
     "defaultMessage": "列类型"
+  },
+  "duzSZb/s6p": {
+    "defaultMessage": "导出为 XLSX"
   },
   "dv6HEp4mGP": {
     "defaultMessage": "目标图像"
@@ -11599,6 +11641,9 @@
   },
   "eq+MOWqVs2": {
     "defaultMessage": "创建您的第一个本地化项目"
+  },
+  "erXgCbsSqH": {
+    "defaultMessage": "将筛选结果导出为 CSV"
   },
   "esZVdLzFOW": {
     "defaultMessage": "You’re all caught up"
@@ -12818,6 +12863,9 @@
   "j28e0kftL8": {
     "defaultMessage": "{count} 列"
   },
+  "j3NSWZrB6O": {
+    "defaultMessage": "导出为 CSV"
+  },
   "j3sarok4E/": {
     "defaultMessage": "MCP 服务器"
   },
@@ -13382,6 +13430,9 @@
   "kscww+zSt8": {
     "defaultMessage": "滚动到开头"
   },
+  "ksdqzG4/Xq": {
+    "defaultMessage": "导出筛选结果为 TBX"
+  },
   "ksrwIvV64s": {
     "defaultMessage": "工作区设置"
   },
@@ -13780,6 +13831,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "项目加载失败"
+  },
+  "mN+eL4E4T/": {
+    "defaultMessage": "联系 Hyperlocalise"
   },
   "mNhu5W2AEy": {
     "defaultMessage": "@hyperlocalise 审核"
@@ -15530,6 +15584,9 @@
   "svD7SMchJb": {
     "defaultMessage": "{providerName} 已准备好用于成员令牌"
   },
+  "svMnxMDrsO": {
+    "defaultMessage": "导出筛选后的术语表"
+  },
   "sw288YpOpz": {
     "defaultMessage": "Added"
   },
@@ -15649,6 +15706,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account"
+  },
+  "tOAFgS8YTm": {
+    "defaultMessage": "选择 TBX、XLSX 或 CSV 文件"
   },
   "tP1cicvIzZ": {
     "defaultMessage": "语言说明"

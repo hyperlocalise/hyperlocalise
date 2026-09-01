@@ -722,6 +722,9 @@
   "0RE4Gn7dt1": {
     "defaultMessage": "Schlechte Übersetzungen vor der Produktion erkennen"
   },
+  "0S1pdjIx4Z": {
+    "defaultMessage": "E-Mailen Sie das Hyperlocalise-Team zu den Themen Lokalisierung, Preise oder Support."
+  },
   "0SJJYtUYDM": {
     "defaultMessage": "TMS-agnostisch"
   },
@@ -1736,6 +1739,9 @@
   "40ZOWpo+3r": {
     "defaultMessage": "Brasilien"
   },
+  "40cE/etX60": {
+    "defaultMessage": "Sprechen Sie mit dem Hyperlocalise-Team"
+  },
   "40cOR2CWgx": {
     "defaultMessage": "{count, plural, one {Codebasis durchsucht, # Suche} other {Codebasis durchsucht, # Suchvorgänge}}"
   },
@@ -2485,6 +2491,9 @@
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Projekt"
+  },
+  "6pa9eyshGx": {
+    "defaultMessage": "Fragen zur Lokalisierung, zu Preisen oder zu Ihrem Konto? Schreiben Sie uns eine E-Mail, und wir antworten innerhalb eines Werktages."
   },
   "6q29k14I2n": {
     "defaultMessage": "URL"
@@ -3446,6 +3455,9 @@
   "A+IsVf0TGL": {
     "defaultMessage": "Contentful-Hilfecenter"
   },
+  "A/WlUY8Nlp": {
+    "defaultMessage": "Glossar exportiert"
+  },
   "A/xeqYD4/q": {
     "defaultMessage": "Lokalisierungs-Gates in GitHub Actions ausführen"
   },
@@ -4213,6 +4225,9 @@
   },
   "CpwA2GAYax": {
     "defaultMessage": "Veraltet"
+  },
+  "CqB7r5Lcsl": {
+    "defaultMessage": "E-Mail-Support"
   },
   "CqDUHu+YvU": {
     "defaultMessage": "Link zu diesem Segment kopieren"
@@ -5708,6 +5723,9 @@
   "IFi2sEaC0J": {
     "defaultMessage": "Prüfungen vor der Veröffentlichung"
   },
+  "IG9QdvGos0": {
+    "defaultMessage": "Kontakt"
+  },
   "IGfRG2bCrY": {
     "defaultMessage": "Name, Projekt oder externe ID ..."
   },
@@ -5857,6 +5875,9 @@
   },
   "IrBIXRrQQ2": {
     "defaultMessage": "QA-Fehler"
+  },
+  "IrK/1/o8Ej": {
+    "defaultMessage": "Vollständiges Glossar exportieren"
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
@@ -6047,6 +6068,9 @@
   "JfbQQEL9oW": {
     "defaultMessage": "Typ festlegen"
   },
+  "Jh6eXznG+8": {
+    "defaultMessage": "Als TBX exportieren"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Zeigt die mobile Seitenleiste an."
   },
@@ -6058,6 +6082,9 @@
   },
   "Jjjtb6X1+r": {
     "defaultMessage": "Dieser Eintrag konnte nicht geladen werden."
+  },
+  "JkMnd1m3E/": {
+    "defaultMessage": "Glossar wird importiert …"
   },
   "JkzEXub4WI": {
     "defaultMessage": "Versandbereit"
@@ -7270,6 +7297,9 @@
   },
   "OU5qhClfKo": {
     "defaultMessage": "Mehrsprachigen Blog veröffentlichen"
+  },
+  "OU8ZFDP47O": {
+    "defaultMessage": "Glossaraktionen"
   },
   "OUBWr2tI7F": {
     "defaultMessage": "Du"
@@ -8585,6 +8615,9 @@
   "TWitJgQdIP": {
     "defaultMessage": "Projekt"
   },
+  "TWs2x7bzrZ": {
+    "defaultMessage": "Glossar konnte nicht exportiert werden"
+  },
   "TXSZ3cXaZk": {
     "defaultMessage": "Alle Projekte"
   },
@@ -9211,6 +9244,9 @@
   },
   "Vz9hpPn3p2": {
     "defaultMessage": "Gesamtpunktzahl"
+  },
+  "VzEu1cp3Je": {
+    "defaultMessage": "Glossar mit {count} Metadatenwarnungen exportiert"
   },
   "VzdHtrwQej": {
     "defaultMessage": "Senden Sie eine Einladung per E-Mail. Nach der Annahme über Ihren Identitätsanbieter treten sie bei."
@@ -11102,6 +11138,9 @@
   "d8Vs3k3UER": {
     "defaultMessage": "Diese Unterhaltung ist nicht mehr verfügbar."
   },
+  "d9+py8mf04": {
+    "defaultMessage": "Gefilterte Daten als XLSX exportieren"
+  },
   "dAeEJyCLaY": {
     "defaultMessage": "Alle löschen"
   },
@@ -11305,6 +11344,9 @@
   },
   "duqEj6Omtc": {
     "defaultMessage": "Spaltentyp"
+  },
+  "duzSZb/s6p": {
+    "defaultMessage": "Als XLSX exportieren"
   },
   "dv6HEp4mGP": {
     "defaultMessage": "Zielbild"
@@ -11599,6 +11641,9 @@
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Erstellen Sie Ihr erstes Lokalisierungsprojekt"
+  },
+  "erXgCbsSqH": {
+    "defaultMessage": "Gefilterte Daten als CSV exportieren"
   },
   "esZVdLzFOW": {
     "defaultMessage": "Du bist auf dem neuesten Stand"
@@ -12818,6 +12863,9 @@
   "j28e0kftL8": {
     "defaultMessage": "{count} Spalten"
   },
+  "j3NSWZrB6O": {
+    "defaultMessage": "Als CSV exportieren"
+  },
   "j3sarok4E/": {
     "defaultMessage": "MCP-Server"
   },
@@ -13382,6 +13430,9 @@
   "kscww+zSt8": {
     "defaultMessage": "Zum Anfang scrollen"
   },
+  "ksdqzG4/Xq": {
+    "defaultMessage": "Gefilterte Einträge als TBX exportieren"
+  },
   "ksrwIvV64s": {
     "defaultMessage": "Arbeitsbereichseinstellungen"
   },
@@ -13780,6 +13831,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
+  },
+  "mN+eL4E4T/": {
+    "defaultMessage": "Hyperlocalise kontaktieren"
   },
   "mNhu5W2AEy": {
     "defaultMessage": "@hyperlocalise review"
@@ -15530,6 +15584,9 @@
   "svD7SMchJb": {
     "defaultMessage": "{providerName} ist bereit für Mitgliedstoken"
   },
+  "svMnxMDrsO": {
+    "defaultMessage": "Gefiltertes Glossar exportieren"
+  },
   "sw288YpOpz": {
     "defaultMessage": "Hinzugefügt"
   },
@@ -15649,6 +15706,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Konto"
+  },
+  "tOAFgS8YTm": {
+    "defaultMessage": "Wählen Sie eine TBX-, XLSX- oder CSV-Datei aus"
   },
   "tP1cicvIzZ": {
     "defaultMessage": "Sprachliche Hinweise"

@@ -195,6 +195,10 @@
     "defaultMessage": "Detect terminology drift and glossary violations",
     "description": "Capability 2 title for the localisation-quality-monitoring use case"
   },
+  "+SujQxAt1L": {
+    "defaultMessage": "Canva app authorized. Return to Canva to finish connecting.",
+    "description": "Toast when a Canva claim is authorized"
+  },
   "+TAJxozALX": {
     "defaultMessage": "When a GTM brief is approved, localize landing page copy for each target market. Draft FR and DE first, route for review, publish to staging, and notify #gtm.",
     "description": "Agent instructions in campaign setup mock"
@@ -306,6 +310,10 @@
   "+sh3FsSzlz": {
     "defaultMessage": "Keep job",
     "description": "Dismiss button in the cancel job confirmation dialog"
+  },
+  "+t1jpGe0aj": {
+    "defaultMessage": "Create a shared Slack channel",
+    "description": "Dashboard Slack Connect banner title before the first invite"
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} tests passed",
@@ -463,6 +471,10 @@
     "defaultMessage": "Agents",
     "description": "Sidebar group label for agent navigation items"
   },
+  "/FnHAPAn3P": {
+    "defaultMessage": "Choose a connection to authorize this Canva app install.",
+    "description": "Description for the Canva claim authorization page"
+  },
   "/GID42o6lx": {
     "defaultMessage": "From pull request to release gate",
     "description": "Workflow section title for the github-release-localisation use case"
@@ -559,10 +571,6 @@
     "defaultMessage": "Save",
     "description": "Save button for issue column edit dialogs"
   },
-  "bC8xP17A1P": {
-    "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import.",
-    "description": "Description of the Issue Sheet CSV import dialog"
-  },
   "/WSX2GW1p1": {
     "defaultMessage": "Recall",
     "description": "Knowledge hero signal card title"
@@ -582,6 +590,10 @@
   "/X6DitE9lx": {
     "defaultMessage": "All sync states",
     "description": "Workspace files sync filter option to show every sync state"
+  },
+  "/Y3FQ08kzV": {
+    "defaultMessage": "Source locale",
+    "description": "Label for Canva source locale field"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filters",
@@ -731,10 +743,6 @@
     "defaultMessage": "Informal shortened name",
     "description": "Description for the short form term type"
   },
-  "CBibCD/p8E": {
-    "defaultMessage": "Read board issues for the selected project during this automation.",
-    "description": "Description for the List issues automation tool"
-  },
   "04TH5FBW4Q": {
     "defaultMessage": "Connect CLI & CI",
     "description": "Heading for the native project CLI and CI connection panel"
@@ -754,6 +762,10 @@
   "07zZke+A8Q": {
     "defaultMessage": "Cancel",
     "description": "Button to close the translation memory import preview without writing"
+  },
+  "08+4Nn7rgH": {
+    "defaultMessage": "Acme · Board",
+    "description": "Header breadcrumb in marketing app shell mock"
   },
   "087Hwu4wFp": {
     "defaultMessage": "Built for support content at scale",
@@ -870,6 +882,10 @@
   "0RE4Gn7dt1": {
     "defaultMessage": "Catch bad translations before production",
     "description": "Capability 6 title for the product-localisation use case"
+  },
+  "0S1pdjIx4Z": {
+    "defaultMessage": "Email the Hyperlocalise team about localisation, pricing, or support.",
+    "description": "Meta description for the marketing contact page"
   },
   "0T9ea5Y0Fl": {
     "defaultMessage": "Failed to search glossary and TM",
@@ -1247,6 +1263,10 @@
     "defaultMessage": "Copied",
     "description": "Confirmation after copying workflow JSON"
   },
+  "1c/OEBKiks": {
+    "defaultMessage": "Create an API key with files and jobs permissions first.",
+    "description": "Empty state when no eligible API keys exist for Canva"
+  },
   "1c3qg2u74K": {
     "defaultMessage": "Source file unavailable",
     "description": "Empty state when the CAT File view source preview cannot be shown"
@@ -1547,6 +1567,10 @@
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
     "description": "Capability 1 description for the marketing-localisation use case"
   },
+  "2Q9B8y1llx": {
+    "defaultMessage": "Board",
+    "description": "Sidebar nav label in marketing app shell mock"
+  },
   "2QU4QHjp8c": {
     "defaultMessage": "I",
     "description": "Visible abbreviation on the italic formatting toolbar button"
@@ -1667,6 +1691,10 @@
     "defaultMessage": "Search key, message, or string id",
     "description": "Placeholder for the QA findings search field"
   },
+  "2nsedTf0TG": {
+    "defaultMessage": "Failed to load Canva connections.",
+    "description": "Error when Canva connections cannot be loaded"
+  },
   "2o5nZo9c+I": {
     "defaultMessage": "Does Hyperlocalise work with GitHub?",
     "description": "Homepage FAQ question about GitHub integration"
@@ -1742,6 +1770,10 @@
   "318/PLILOK": {
     "defaultMessage": "Account",
     "description": "Settings hub row label for account settings"
+  },
+  "32+8NTo5Pl": {
+    "defaultMessage": "Board",
+    "description": "Submenu label grouping Board automation tools"
   },
   "33PBu8aQXh": {
     "defaultMessage": "Enable first",
@@ -1862,6 +1894,10 @@
   "3VvPI125F/": {
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated from the detail sheet"
+  },
+  "3W0VCaMyWO": {
+    "defaultMessage": "Create issue",
+    "description": "Menu item and tool title for creating Board issues"
   },
   "3Z+3pA/kaR": {
     "defaultMessage": "Save",
@@ -2075,6 +2111,10 @@
     "defaultMessage": "Brazil",
     "description": "Guideline mock UI market card title"
   },
+  "40cE/etX60": {
+    "defaultMessage": "Talk with the Hyperlocalise team",
+    "description": "Primary headline on the marketing contact page"
+  },
   "40cOR2CWgx": {
     "defaultMessage": "{count, plural, one {Explored the codebase, # search} other {Explored the codebase, # searches}}",
     "description": "Collapsed explore rollup without a subject"
@@ -2119,6 +2159,10 @@
     "defaultMessage": "Personal access tokens",
     "description": "Accessible label for the personal access tokens list section"
   },
+  "46zk0LJShA": {
+    "defaultMessage": "Triage open work across this workspace.",
+    "description": "Short description under the workspace Board page title"
+  },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
@@ -2126,6 +2170,10 @@
   "47mnWgc1PT": {
     "defaultMessage": "Workspace",
     "description": "Source label for workspace projects on the dashboard"
+  },
+  "483Q4BX8oa": {
+    "defaultMessage": "API key",
+    "description": "Label for the API key used by a Canva connection"
   },
   "4895zl1/X5": {
     "defaultMessage": "Glossary",
@@ -2150,6 +2198,10 @@
   "4B3q4D8+NF": {
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
+  },
+  "4Bnw8oUCip": {
+    "defaultMessage": "The board could not be loaded.",
+    "description": "Error state when the workspace board fails to load"
   },
   "4DQSOq1CB0": {
     "defaultMessage": "No project glossary concepts match this string.",
@@ -2250,10 +2302,6 @@
   "4TEJTOaEgp": {
     "defaultMessage": "Context-aware quality checks",
     "description": "Differentiator point 4 for the localisation-quality-monitoring use case"
-  },
-  "JRZrMUrfeM": {
-    "defaultMessage": "Triage localization issues for this project.",
-    "description": "Short section description for the project Board page"
   },
   "4UqkRDJW9u": {
     "defaultMessage": "Context auto-discovery",
@@ -2747,6 +2795,10 @@
     "defaultMessage": "Monitor locale health, review backlog, and quality trends without exporting from three systems.",
     "description": "Capability 6 description for the localisation-operations use case"
   },
+  "6A1bUgl3t/": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding Canva connection"
+  },
   "6AKflqYexI": {
     "defaultMessage": "Selected findings already have provider comments",
     "description": "Tooltip when selected findings cannot receive new provider comments"
@@ -2883,6 +2935,10 @@
     "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
     "description": "Collapsed explore rollup with a subject and search count"
   },
+  "6XlImduZ6L": {
+    "defaultMessage": "Board is unavailable for this string.",
+    "description": "Shown when the CAT segment cannot link to the Board (missing translation key)"
+  },
   "6YRqpDlcKq": {
     "defaultMessage": "GitHub push",
     "description": "Label for the GitHub push trigger"
@@ -2943,6 +2999,10 @@
     "defaultMessage": "Inactive",
     "description": "Badge shown on inactive project cards"
   },
+  "6haGvAy+HC": {
+    "defaultMessage": "Added to Board",
+    "description": "Toast confirmation after adding a CAT segment to the issue sheet"
+  },
   "6ieanONu91": {
     "defaultMessage": "Import CSV",
     "description": "Button to open the workspace issues CSV import dialog"
@@ -2978,6 +3038,10 @@
   "6p1y0a4MjE": {
     "defaultMessage": "Project",
     "description": "Secondary job property row label for project"
+  },
+  "6pa9eyshGx": {
+    "defaultMessage": "Questions about localisation, pricing, or your account? Email us and we will reply within one business day.",
+    "description": "Supporting copy under the contact page headline"
   },
   "6qCT8hQ6y+": {
     "defaultMessage": "Keep the signed-in user and workspace identity easy to verify before agents act on releases.",
@@ -3579,6 +3643,10 @@
     "defaultMessage": "Manage workspace access, invitations, and localization roles.",
     "description": "Workspace members page description"
   },
+  "8QmjnmRcNl": {
+    "defaultMessage": "Create a Canva connection in workspace Integrations first, then return to Canva and try again.",
+    "description": "Empty state when the user has no Canva connections to authorize"
+  },
   "8QnsMQk5Mf": {
     "defaultMessage": "Hindi (India)",
     "description": "Display name for BCP-47 locale hi-IN"
@@ -3606,10 +3674,6 @@
   "8UnBVLcjgq": {
     "defaultMessage": "{position} / {total}",
     "description": "Current segment index and total count in the compact CAT workspace header"
-  },
-  "yGs5M+8byg": {
-    "defaultMessage": "Add a project-specific workflow column to the board.",
-    "description": "Description of the dialog to add a custom Board column"
   },
   "8XNSkLVgbI": {
     "defaultMessage": "Failed to delete Ahrefs connection.",
@@ -3735,10 +3799,6 @@
     "defaultMessage": "Glossary created",
     "description": "Toast after a glossary is created successfully"
   },
-  "vqmXbSZwqU": {
-    "defaultMessage": "Create an issue to track work on this string.",
-    "description": "Empty-state description when the CAT segment has no linked issues"
-  },
   "8qa1pUW6eX": {
     "defaultMessage": "Account",
     "description": "Account settings link in the user menu"
@@ -3798,6 +3858,10 @@
   "8xIDpcJg4F": {
     "defaultMessage": "Leave a comment…",
     "description": "Placeholder for the top-level issue comment composer"
+  },
+  "8y3Le4FJl2": {
+    "defaultMessage": "Regenerate token",
+    "description": "Regenerate Canva connection token button"
   },
   "8yJ9TkhoZy": {
     "defaultMessage": "Generate a translation suggestion for this string.",
@@ -4175,6 +4239,10 @@
     "defaultMessage": "Contentful Help Center",
     "description": "Placeholder for the Contentful connection display name field"
   },
+  "A/WlUY8Nlp": {
+    "defaultMessage": "Glossary exported",
+    "description": "Toast after a glossary export downloads successfully"
+  },
   "A/xeqYD4/q": {
     "defaultMessage": "Run localisation gates in GitHub Actions",
     "description": "Workflow step 5 description for the github-release-localisation use case"
@@ -4247,6 +4315,10 @@
     "defaultMessage": "TMS",
     "description": "Automation product visual workflow destination name"
   },
+  "AAASbBGB98": {
+    "defaultMessage": "Unable to send a Slack invite right now. Try again shortly.",
+    "description": "Toast when a Slack Connect invite request fails"
+  },
   "AARt6Fk4fm": {
     "defaultMessage": "Missing accent changes the French noun",
     "description": "Title of the review finding in the PR illustration mock comment"
@@ -4274,10 +4346,6 @@
   "AF2gG24fEN": {
     "defaultMessage": "Related variants",
     "description": "Heading for related translation memory variants"
-  },
-  "6haGvAy+HC": {
-    "defaultMessage": "Added to Board",
-    "description": "Toast confirmation after adding a CAT segment to the issue sheet"
   },
   "AFid22/7fj": {
     "defaultMessage": "Manage provider",
@@ -4699,6 +4767,10 @@
     "defaultMessage": "Job cancelled",
     "description": "Success toast after cancelling a job"
   },
+  "BbhzPipEsh": {
+    "defaultMessage": "Check your email for an invitation to the channel or request a new invite.",
+    "description": "Dashboard Slack Connect banner description after an invite was sent"
+  },
   "Bbj2MTjXFz": {
     "defaultMessage": "Bad translations rarely start with bad language. They start with missing context.",
     "description": "Details section headline for the next-gen CAT tool product page"
@@ -4710,10 +4782,6 @@
   "BeBJ6Gf6JS": {
     "defaultMessage": "Alert on post-publish drift",
     "description": "Capability 6 title for the localisation-quality-monitoring use case"
-  },
-  "R/mQHxnDLt": {
-    "defaultMessage": "Board",
-    "description": "Section title for the project Board page"
   },
   "Bel9GZJcDc": {
     "defaultMessage": "Allow memory updates",
@@ -4803,6 +4871,10 @@
     "defaultMessage": "Microsoft Teams",
     "description": "Microsoft Teams integration name on the integrations page"
   },
+  "BrzNDtGGWt": {
+    "defaultMessage": "Sending…",
+    "description": "Dashboard Slack Connect banner primary action while sending"
+  },
   "BsIdlB/bdk": {
     "defaultMessage": "Default model",
     "description": "Label for the default model select field"
@@ -4855,6 +4927,10 @@
     "defaultMessage": "View original issue",
     "description": "Link to the canonical issue this one is a duplicate of"
   },
+  "C0s0NtIxgf": {
+    "defaultMessage": "Choose an API key.",
+    "description": "Validation error when Canva API key is missing"
+  },
   "C1WvaRKpWU": {
     "defaultMessage": "Connect Crowdin in Hyperlocalise",
     "description": "Title when no Hyperlocalise org maps to this Crowdin org"
@@ -4882,6 +4958,10 @@
   "C4Rv6cR7my": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale filter"
+  },
+  "C5SPm8Zbbu": {
+    "defaultMessage": "Board",
+    "description": "Workspace board page title"
   },
   "C5fqvIk+YX": {
     "defaultMessage": "Old",
@@ -4919,9 +4999,17 @@
     "defaultMessage": "Creator: {value}",
     "description": "Chip label for the active creator filter"
   },
+  "CAun4UHQNn": {
+    "defaultMessage": "Target locales",
+    "description": "Label for Canva target locales field"
+  },
   "CBECdPWm0s": {
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
+  },
+  "CBibCD/p8E": {
+    "defaultMessage": "Read board issues for the selected project during this automation.",
+    "description": "Description for the List issues automation tool"
   },
   "CCHRUS19n3": {
     "defaultMessage": "No categories found.",
@@ -5051,10 +5139,6 @@
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the localisation-operations use case"
   },
-  "4Bnw8oUCip": {
-    "defaultMessage": "The board could not be loaded.",
-    "description": "Error state when the workspace board fails to load"
-  },
   "ChA2eL6U9Z": {
     "defaultMessage": "Localisation updates the product glossary after a rebrand. Hyperlocalise scans product strings, marketing landing pages, and help center articles for terminology that no longer matches, runs regression evals against approved baselines, routes flagged strings to reviewers, blocks TMS sync for locales that fail the threshold, and continues monitoring published content for drift over the following two weeks.",
     "description": "Scenario narrative for the localisation-quality-monitoring use case"
@@ -5070,6 +5154,10 @@
   "Cidmm9AU9i": {
     "defaultMessage": "Attach glossaries, briefs, and history",
     "description": "Workflow step 2 description for the localisation-operations use case"
+  },
+  "Cil9vaybzd": {
+    "defaultMessage": "Canva is requesting access to localize designs through a Hyperlocalise workspace connection.",
+    "description": "Description for the Canva OAuth consent page"
   },
   "CjBhJGtOu7": {
     "defaultMessage": "FR and DE routed for review",
@@ -5122,6 +5210,10 @@
   "CpwA2GAYax": {
     "defaultMessage": "Stale",
     "description": "Workspace files sync state when the file is stale"
+  },
+  "CqB7r5Lcsl": {
+    "defaultMessage": "Email support",
+    "description": "Primary button that opens the support email on the contact page"
   },
   "CqDUHu+YvU": {
     "defaultMessage": "Copy link to this segment",
@@ -5179,9 +5271,13 @@
     "defaultMessage": "Format",
     "description": "Label above download format options in the CAT queue"
   },
-  "igJunofoju": {
-    "defaultMessage": "Board",
-    "description": "Heading for the CAT segment Board section"
+  "D1ORmqTKWQ": {
+    "defaultMessage": "This Canva connect request is missing or expired.",
+    "description": "Error when a Canva claim id is missing"
+  },
+  "D1Wfd509ws": {
+    "defaultMessage": "Choose which project should receive the imported board rows.",
+    "description": "Description of the workspace issues CSV import project picker dialog"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers",
@@ -5455,10 +5551,6 @@
     "defaultMessage": "Optional. You can attach projects from the glossary detail page later.",
     "description": "Help text explaining that glossary project attachment can happen later"
   },
-  "cAQmoTwBPJ": {
-    "defaultMessage": "List issues",
-    "description": "Menu item and tool title for listing Board issues"
-  },
   "DeRSeFizML": {
     "defaultMessage": "Unable to load Contentful metadata",
     "description": "Fallback error when Contentful space discovery fails"
@@ -5474,6 +5566,14 @@
   "Dhz9gdqnZ4": {
     "defaultMessage": "Next workflow starts smarter",
     "description": "Knowledge mock UI stage 4 title"
+  },
+  "DiXV/bkiCg": {
+    "defaultMessage": "Designs localized from Canva are stored in this project.",
+    "description": "Help text for the Canva project picker"
+  },
+  "DkGOoD9Ef+": {
+    "defaultMessage": "Failed to save Canva connection.",
+    "description": "Error when Canva connection save fails"
   },
   "DkpXUR9fM4": {
     "defaultMessage": "Files failed to load.",
@@ -5615,6 +5715,10 @@
     "defaultMessage": "Failed to start agent run",
     "description": "Toast and error fallback when starting an agent run fails"
   },
+  "E8k6bvQHrX": {
+    "defaultMessage": "Close board",
+    "description": "Accessible label for closing the CAT Board panel"
+  },
   "E8rEmEqTpX": {
     "defaultMessage": "Resolving…",
     "description": "Button label while a Crowdin issue is being resolved"
@@ -5702,6 +5806,10 @@
   "EQ3mwHZJMl": {
     "defaultMessage": "{count} replies",
     "description": "Thread replies link under the channel prompt message"
+  },
+  "EQ48eGG7/X": {
+    "defaultMessage": "Google Drive",
+    "description": "Google Drive integration name on the integrations page"
   },
   "EQ94/v/KcI": {
     "defaultMessage": "No comments yet. Add a note for reviewers or translators.",
@@ -5807,6 +5915,10 @@
     "defaultMessage": "Sync approved copy to Contentful, Webflow, ad platforms, and your TMS without duplicate handoffs.",
     "description": "Capability 5 description for the marketing-localisation use case"
   },
+  "EgJBlBjf3r": {
+    "defaultMessage": "Import brand guidelines and style docs from Google Drive.",
+    "description": "Google Drive integration description on the integrations page"
+  },
   "Ehcjh40kDc": {
     "defaultMessage": "Knowledge",
     "description": "Sidebar nav label in marketing app shell mock"
@@ -5859,10 +5971,6 @@
     "defaultMessage": "Track review coverage and approval status",
     "description": "Capability 4 title for the localisation-quality-monitoring use case"
   },
-  "JXB2wuhw1Z": {
-    "defaultMessage": "No issues for this string",
-    "description": "Empty-state title when the CAT segment has no linked issues"
-  },
   "EtLBqA9kAL": {
     "defaultMessage": "No related variants.",
     "description": "Empty state when a translation memory entry has no related variants"
@@ -5898,6 +6006,10 @@
   "Ez0AubJEsT": {
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for workspace guideline"
+  },
+  "EzTk/D/sRx": {
+    "defaultMessage": "Create a workspace connection here. Designers then sign in from Canva with OAuth.",
+    "description": "Description for the Canva integrations row"
   },
   "EzYVHD/5u/": {
     "defaultMessage": "Review totals and warnings before writing entries. Nothing has been saved yet.",
@@ -6050,6 +6162,10 @@
   "FJh620HSgn": {
     "defaultMessage": "Draft preview",
     "description": "Guideline mock UI draft preview section label"
+  },
+  "FJwHsDxO6W": {
+    "defaultMessage": "Setup guide",
+    "description": "Link to the selected MCP client's setup documentation"
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Quality issues surface after launch, not before",
@@ -6227,6 +6343,10 @@
     "defaultMessage": "Loading members…",
     "description": "Loading state for assignee picker members"
   },
+  "FsR2aF2lzP": {
+    "defaultMessage": "Allow access",
+    "description": "Approve Canva OAuth access"
+  },
   "FtQgWtXBLP": {
     "defaultMessage": "Retry",
     "description": "Retry button when issue sheet columns fail to load"
@@ -6298,6 +6418,14 @@
   "G8MBSDjILS": {
     "defaultMessage": "This clears saved workflows, triggers, and status check settings for this repository. GitHub metadata sync is not affected.",
     "description": "Confirmation dialog description for resetting automation settings"
+  },
+  "G8NgjmMOFE": {
+    "defaultMessage": "Then run {command} to authenticate.",
+    "description": "Next step after adding the Hyperlocalise MCP server in Codex"
+  },
+  "G9IH7mtmIb": {
+    "defaultMessage": "Codex",
+    "description": "MCP client tab label for Codex"
   },
   "GA/at1eIok": {
     "defaultMessage": "Close",
@@ -6767,6 +6895,10 @@
     "defaultMessage": "Create tokens for the CLI, CI, and integrations. A token acts with your current workspace access and stops working if you leave the organization.",
     "description": "Personal access tokens settings page description"
   },
+  "Hjj+QG5LDK": {
+    "defaultMessage": "Request failed",
+    "description": "Generic fallback when a CAT Board API request fails"
+  },
   "Hl4y/YDhod": {
     "defaultMessage": "Knowledge files must be 25 MB or smaller.",
     "description": "Toast when a knowledge file exceeds the size limit"
@@ -6802,6 +6934,10 @@
   "HrQO2GGbYJ": {
     "defaultMessage": "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
     "description": "Projects page description when no TMS provider is connected"
+  },
+  "HrspdhKQl+": {
+    "defaultMessage": "Open board",
+    "description": "Accessible label for the Board button in the app shell footer"
   },
   "Hs6SYEddPH": {
     "defaultMessage": "Target locale",
@@ -6871,6 +7007,10 @@
     "defaultMessage": "Failed to generate AI recommendation",
     "description": "Fallback error when AI translation recommendation generation fails"
   },
+  "I3Xom21N//": {
+    "defaultMessage": "Access your Hyperlocalise workspace from MCP clients.",
+    "description": "Overview card description for the inbound MCP connection snippet"
+  },
   "I42jTEngJ1": {
     "defaultMessage": "AI captures the signal",
     "description": "Knowledge mock UI stage 2 title"
@@ -6903,10 +7043,6 @@
     "defaultMessage": "Choose an organization from your account or contact support if this continues.",
     "description": "Access denied page guidance when the organization slug is missing"
   },
-  "KCIvL0TJB4": {
-    "defaultMessage": "Board",
-    "description": "Button to open the Board for the current CAT segment"
-  },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing",
     "description": "Status badge while the agent is fixing the translation"
@@ -6922,6 +7058,10 @@
   "IFi2sEaC0J": {
     "defaultMessage": "Pre-publish checks",
     "description": "Guideline mock UI compliance progress label"
+  },
+  "IG9QdvGos0": {
+    "defaultMessage": "Contact",
+    "description": "Marketing navbar link to the contact page"
   },
   "IGfRG2bCrY": {
     "defaultMessage": "Name, project, or external ID...",
@@ -7103,6 +7243,10 @@
     "defaultMessage": "Backed by",
     "description": "Heading above investor logos on the company page"
   },
+  "IqfvPpBfRa": {
+    "defaultMessage": "Choose a workspace API key with files and jobs read/write access.",
+    "description": "Help text for the Canva API key picker"
+  },
   "Ir9T3sKw7D": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the create glossary dialog"
@@ -7110,6 +7254,10 @@
   "IrBIXRrQQ2": {
     "defaultMessage": "QA failure",
     "description": "Issue Sheet issue type option for a QA failure"
+  },
+  "IrK/1/o8Ej": {
+    "defaultMessage": "Export complete glossary",
+    "description": "Label for complete glossary export choices"
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna",
@@ -7183,6 +7331,10 @@
     "defaultMessage": "Web chat",
     "description": "Trigger label for a web chat automation in the list"
   },
+  "J2Tvcwc2sx": {
+    "defaultMessage": "Open board, {count} open",
+    "description": "Accessible label for the Board button when open issues are available"
+  },
   "J4PtC/cy7o": {
     "defaultMessage": "Type",
     "description": "Label for the issue list type filter"
@@ -7206,6 +7358,10 @@
   "J7hBoTRR5O": {
     "defaultMessage": "Improve SEO and AEO discoverability across markets",
     "description": "Feature teaser benefit for domains"
+  },
+  "J8uRouTxFR": {
+    "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email.",
+    "description": "Helper text under notification preferences on account settings"
   },
   "J9N0QX7lou": {
     "defaultMessage": "{value} {unit}",
@@ -7243,6 +7399,10 @@
     "defaultMessage": "Custom",
     "description": "Badge for custom issue columns"
   },
+  "JHq50CfofL": {
+    "defaultMessage": "Delete",
+    "description": "Delete Canva connection button"
+  },
   "JIuT2aW94P": {
     "defaultMessage": "Up to date",
     "description": "Badge when a project has no open actions"
@@ -7279,6 +7439,10 @@
     "defaultMessage": "Intercom",
     "description": "Name shown for the Intercom integrations row"
   },
+  "JRZrMUrfeM": {
+    "defaultMessage": "Triage localization issues for this project.",
+    "description": "Short section description for the project Board page"
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
     "description": "Live explore status when the agent is reading a named file"
@@ -7306,6 +7470,10 @@
   "JUfajjODRg": {
     "defaultMessage": "Selected",
     "description": "Shortcut hint for the currently selected project"
+  },
+  "JXB2wuhw1Z": {
+    "defaultMessage": "No issues for this string",
+    "description": "Empty-state title when the CAT segment has no linked issues"
   },
   "JYTpmBUkk7": {
     "defaultMessage": "Integrations",
@@ -7339,6 +7507,10 @@
     "defaultMessage": "Set type",
     "description": "More menu action to set issue type"
   },
+  "Jh6eXznG+8": {
+    "defaultMessage": "Export as TBX",
+    "description": "Glossary action to export all concepts as TBX"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Displays the mobile sidebar.",
     "description": "Accessible description for the mobile sidebar sheet"
@@ -7354,6 +7526,10 @@
   "Jjjtb6X1+r": {
     "defaultMessage": "Unable to load this entry.",
     "description": "Error state when a translation memory entry detail request fails"
+  },
+  "JkMnd1m3E/": {
+    "defaultMessage": "Importing glossary…",
+    "description": "Loading label shown while importing a glossary file"
   },
   "Jm9tR2PeYs": {
     "defaultMessage": "Select a project",
@@ -7387,10 +7563,6 @@
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
   },
-  "Hjj+QG5LDK": {
-    "defaultMessage": "Request failed",
-    "description": "Generic fallback when a CAT Board API request fails"
-  },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
     "description": "Label above the sample native project i18n.yml config"
@@ -7410,6 +7582,10 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Navigation menu",
     "description": "Screen-reader title for the mobile navigation sheet"
+  },
+  "JvZ26UFlte": {
+    "defaultMessage": "Then run {command} to authenticate.",
+    "description": "Next step after adding the Hyperlocalise MCP server in Claude"
   },
   "JwC3NaQtN9": {
     "defaultMessage": "Hyperlocalise",
@@ -7495,6 +7671,10 @@
     "defaultMessage": "Uploaded",
     "description": "Badge when a native project file has no latest job"
   },
+  "KCIvL0TJB4": {
+    "defaultMessage": "Board",
+    "description": "Button to open the Board for the current CAT segment"
+  },
   "KCMz//p+DR": {
     "defaultMessage": "Web chat",
     "description": "Automation run trigger source label for web-chat-triggered runs"
@@ -7554,6 +7734,10 @@
   "KQZH+TKXlh": {
     "defaultMessage": "Public average: {average}/100",
     "description": "Average-score line on a localisation audit result standing section"
+  },
+  "KQoOqOSNYf": {
+    "defaultMessage": "Connect Canva to Hyperlocalise",
+    "description": "Title for the Canva OAuth consent page"
   },
   "KRRKR3H/tH": {
     "defaultMessage": "Close",
@@ -7767,6 +7951,10 @@
     "defaultMessage": "Active",
     "description": "Membership status label for an active workspace member"
   },
+  "LCEJpmlHkp": {
+    "defaultMessage": "Canva connection deleted.",
+    "description": "Toast when Canva connection is deleted"
+  },
   "LCZsgeJImu": {
     "defaultMessage": "Name",
     "description": "Label for the translation memory name field"
@@ -7810,6 +7998,10 @@
   "LFieXgTe0M": {
     "defaultMessage": "Works across product, marketing, support, and engineering",
     "description": "Differentiator point 6 for the localisation-quality-monitoring use case"
+  },
+  "LGF0oZcJpk": {
+    "defaultMessage": "Loading board...",
+    "description": "Suspense fallback while Board content loads"
   },
   "LGsstatwcF": {
     "defaultMessage": "Pro · 12k strings remaining",
@@ -7982,6 +8174,10 @@
   "LxGnP5nmB2": {
     "defaultMessage": "This chat is paused",
     "description": "Title when a public web chat agent is paused"
+  },
+  "LxzxKCrG8Q": {
+    "defaultMessage": "SharePoint",
+    "description": "SharePoint integration name on the integrations page"
   },
   "Ly3jSjXVvC": {
     "defaultMessage": "Settings",
@@ -8331,10 +8527,6 @@
     "defaultMessage": "Pull request",
     "description": "Workflow step 1 label for the github-release-localisation use case"
   },
-  "weTyi2vT5M": {
-    "defaultMessage": "File board issues for the selected project from automation findings.",
-    "description": "Description for the Create issue automation tool"
-  },
   "MwxM6cb/1r": {
     "defaultMessage": "Priority",
     "description": "Label for issue priority field"
@@ -8679,6 +8871,10 @@
     "defaultMessage": "Choose a Hyperlocalise project for pull translations.",
     "description": "Validation error when pull translations workflow has no project selected"
   },
+  "NyPxv6K9eG": {
+    "defaultMessage": "This Canva authorization request is missing or expired. Start again from Canva.",
+    "description": "Error when the Canva OAuth request cookie is missing"
+  },
   "Nywsookzn6": {
     "defaultMessage": "Configure fields shown on issues in this project. Hidden fields keep their values.",
     "description": "Description for the project issue columns settings section"
@@ -8847,6 +9043,10 @@
     "defaultMessage": "Publish Multilingual Blog",
     "description": "Content ops mock tab label for SEO blog publishing"
   },
+  "OU8ZFDP47O": {
+    "defaultMessage": "Glossary actions",
+    "description": "Accessible label for the glossary actions menu"
+  },
   "OUBWr2tI7F": {
     "defaultMessage": "You",
     "description": "Badge shown next to the current user’s member row"
@@ -8866,6 +9066,10 @@
   "OXxWMckqBr": {
     "defaultMessage": "When knowledge is shared instead of searched for, localisation teams can focus on what humans do best: making products feel genuinely local, culturally relevant, and trustworthy.",
     "description": "Eighth paragraph of the founders note on the company page"
+  },
+  "OY5+Uf7y9y": {
+    "defaultMessage": "Connect your agent",
+    "description": "Overview card title for connecting an MCP client to the workspace"
   },
   "OY8OoRp1g9": {
     "defaultMessage": "Updating…",
@@ -9051,6 +9255,10 @@
     "defaultMessage": "Provider file",
     "description": "Metadata label for a TMS provider file resource in the files tree"
   },
+  "PAC7QvAG7e": {
+    "defaultMessage": "Failed to delete Canva connection.",
+    "description": "Error when Canva connection delete fails"
+  },
   "PACHUU2LVi": {
     "defaultMessage": "CLI docs",
     "description": "Marketing navbar link to CLI documentation"
@@ -9094,6 +9302,10 @@
   "PHgeGQnTFw": {
     "defaultMessage": "Looking now…",
     "description": "Submit button label while the localisation audit is starting"
+  },
+  "PHuY/CmjvV": {
+    "defaultMessage": "Claude",
+    "description": "MCP client tab label for Claude"
   },
   "PIElwfqIXr": {
     "defaultMessage": "Show",
@@ -9435,6 +9647,10 @@
     "defaultMessage": "Compare search volume and intent across locales.",
     "description": "Search tool description in SEO agent setup mock"
   },
+  "QO4tHVxQGv": {
+    "defaultMessage": "Open Integrations",
+    "description": "Link to create a Canva connection before OAuth consent"
+  },
   "QOKexdLasq": {
     "defaultMessage": "Any locale",
     "description": "Option to clear the issue locale filter"
@@ -9442,6 +9658,10 @@
   "QR/HxiItgI": {
     "defaultMessage": "Term base",
     "description": "Resource type badge for a term base resource"
+  },
+  "QSTiMWaXF/": {
+    "defaultMessage": "The board could not be loaded.",
+    "description": "Error state when Board rows fail to load"
   },
   "QTY8pCBi2f": {
     "defaultMessage": "Make every review improve the next one.",
@@ -9635,6 +9855,14 @@
     "defaultMessage": "This match is only {matchPercent}% similar. Applying it may introduce errors. Continue?",
     "description": "Body for confirmation dialog when applying a low-quality TM match"
   },
+  "R/LlfIB0DY": {
+    "defaultMessage": "Display name",
+    "description": "Label for Canva display name field"
+  },
+  "R/mQHxnDLt": {
+    "defaultMessage": "Board",
+    "description": "Section title for the project Board page"
+  },
   "R/pK1EOhod": {
     "defaultMessage": "Team name must be 120 characters or fewer.",
     "description": "Validation error when the team name exceeds 120 characters"
@@ -9738,10 +9966,6 @@
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
-  },
-  "LGF0oZcJpk": {
-    "defaultMessage": "Loading board...",
-    "description": "Suspense fallback while Board content loads"
   },
   "RS4pbTA1Mq": {
     "defaultMessage": "Character limit",
@@ -9907,10 +10131,6 @@
     "defaultMessage": "Provider",
     "description": "Badge for a provider-managed glossary"
   },
-  "sJoNIftCZI": {
-    "defaultMessage": "Board",
-    "description": "App shell breadcrumb title for the workspace board page"
-  },
   "RtU7kH2epq": {
     "defaultMessage": "Select a project",
     "description": "Placeholder prompting the user to choose a TMS project"
@@ -9934,6 +10154,10 @@
   "S+TiK8YOJV": {
     "defaultMessage": "QA checks finished with {count, plural, one {# finding} other {# findings}}",
     "description": "Success toast after synchronous QA checks complete"
+  },
+  "S+glJURN8d": {
+    "defaultMessage": "Connect Canva",
+    "description": "Title for the Canva claim authorization page"
   },
   "S+mzU53tQz": {
     "defaultMessage": "Adding...",
@@ -10006,10 +10230,6 @@
   "SFMLZ4RNJi": {
     "defaultMessage": "Team",
     "description": "Eyebrow label above the team detail page title"
-  },
-  "3W0VCaMyWO": {
-    "defaultMessage": "Create issue",
-    "description": "Menu item and tool title for creating Board issues"
   },
   "SGPPXTsltm": {
     "defaultMessage": "Message #launch-ops",
@@ -10167,6 +10387,10 @@
     "defaultMessage": "Scoring",
     "description": "Progress step label when a localisation audit is scoring results"
   },
+  "SkGjZiASLT": {
+    "defaultMessage": "Copy this Canva connection token",
+    "description": "Title for the one-time Canva token reveal dialog"
+  },
   "SlLtLEkppm": {
     "defaultMessage": "Delete column?",
     "description": "Title for delete issue column confirmation dialog"
@@ -10287,10 +10511,6 @@
     "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
     "description": "Description when no Ahrefs connection is available"
   },
-  "6XlImduZ6L": {
-    "defaultMessage": "Board is unavailable for this string.",
-    "description": "Shown when the CAT segment cannot link to the Board (missing translation key)"
-  },
   "T7ocGbiped": {
     "defaultMessage": "Last delivery: No deliveries yet",
     "description": "Shown when the Contentful webhook has not delivered events"
@@ -10302,6 +10522,10 @@
   "T8Ggt03ksb": {
     "defaultMessage": "Couldn't explore {subject}",
     "description": "Completed explore rollup when at least one tool failed and a subject is known"
+  },
+  "T8LFTkce6e": {
+    "defaultMessage": "Workspace connection",
+    "description": "Label for the Canva connection picker on the OAuth consent page"
   },
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows",
@@ -10443,6 +10667,10 @@
     "defaultMessage": "Project",
     "description": "Inbox issue detail project label in content ops mock"
   },
+  "TWs2x7bzrZ": {
+    "defaultMessage": "Unable to export glossary",
+    "description": "Fallback error when glossary export fails"
+  },
   "TXSZ3cXaZk": {
     "defaultMessage": "All projects",
     "description": "Placeholder for browsing live TMS resources across all projects"
@@ -10562,6 +10790,10 @@
   "TqKPfOkj7i": {
     "defaultMessage": "Automation updated",
     "description": "Toast when a workspace automation is saved successfully"
+  },
+  "TqRYXSejeY": {
+    "defaultMessage": "Loading Slack channel invite",
+    "description": "Accessible label while the Slack Connect banner loads"
   },
   "TrnH0+MELk": {
     "defaultMessage": "Failed to copy to clipboard",
@@ -10955,6 +11187,10 @@
     "defaultMessage": "Contentful connection saved",
     "description": "Toast after successfully saving a Contentful connection"
   },
+  "V9ow5L2f7M": {
+    "defaultMessage": "Add this to ~/.cursor/mcp.json, then open Settings → MCP and click Login.",
+    "description": "Next step after copying the Hyperlocalise MCP config for Cursor"
+  },
   "V9wej2JTKV": {
     "defaultMessage": "Slug",
     "description": "Label for the team slug field"
@@ -11111,6 +11347,10 @@
     "defaultMessage": "Description",
     "description": "Label for the project description field"
   },
+  "VdPMgzyWOp": {
+    "defaultMessage": "Project",
+    "description": "Label for the project bound to a Canva connection"
+  },
   "VdjibQd9gV": {
     "defaultMessage": "Open full-page editor",
     "description": "Link to open repository automation settings on a dedicated page"
@@ -11211,6 +11451,10 @@
     "defaultMessage": "Overall score",
     "description": "Domains mock UI overall score label"
   },
+  "VzEu1cp3Je": {
+    "defaultMessage": "Glossary exported with {count} metadata warnings",
+    "description": "Toast after an export with representational warnings"
+  },
   "VzdHtrwQej": {
     "defaultMessage": "Send an invitation by email. They join after accepting through your identity provider.",
     "description": "Description of the invite member dialog"
@@ -11238,6 +11482,10 @@
   "W5v3/4xBNa": {
     "defaultMessage": "No target locales are available for this file.",
     "description": "Empty state when a project file has no target locales for CAT"
+  },
+  "W78/qWhJir": {
+    "defaultMessage": "Failed to authorize the Canva app.",
+    "description": "Error when Canva claim authorization fails"
   },
   "W8CHLNCqjs": {
     "defaultMessage": "Draft",
@@ -11511,6 +11759,10 @@
     "defaultMessage": "Translation memories failed to load.",
     "description": "Error heading when translation memories fail to load"
   },
+  "WwBtcmgwYn": {
+    "defaultMessage": "Request Slack invite",
+    "description": "Dashboard Slack Connect banner primary action"
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "Multilingual keyword research",
     "description": "Automations mock UI multilingual keyword research use case title"
@@ -11527,9 +11779,9 @@
     "defaultMessage": "API Keys",
     "description": "Settings hub row label for API keys"
   },
-  "wZsNKEWooe": {
-    "defaultMessage": "Loading board...",
-    "description": "Suspense fallback while workspace board content loads"
+  "X+DJxUtTco": {
+    "defaultMessage": "Copied",
+    "description": "Copied confirmation for Canva connection token"
   },
   "X/5lAUS4wm": {
     "defaultMessage": "/100",
@@ -11614,6 +11866,10 @@
   "XHTRGbNDAl": {
     "defaultMessage": "Personal access token",
     "description": "Label for the Crowdin personal access token input field"
+  },
+  "XHcfGv6Nhg": {
+    "defaultMessage": "Authorize Canva",
+    "description": "Authorize the pending Canva app claim"
   },
   "XIKJG5Q5Cf": {
     "defaultMessage": "Save {providerName} settings",
@@ -11807,6 +12063,10 @@
     "defaultMessage": "Agent Actions",
     "description": "Heading for available provider agent action buttons"
   },
+  "XswXu+UFpy": {
+    "defaultMessage": "Board",
+    "description": "Sidebar navigation item for the workspace board"
+  },
   "XtzSAMs4em": {
     "defaultMessage": "Chat, Slack, and general workspace questions with project and glossary context.",
     "description": "Hyperlocalise Agent Ask capability description"
@@ -11822,6 +12082,10 @@
   "XvnWp/L4sW": {
     "defaultMessage": "sync pull docs",
     "description": "Link to sync pull documentation from the native project settings panel"
+  },
+  "Xwo9y3RloU": {
+    "defaultMessage": "Linked to Canva brand {brandId}",
+    "description": "Shows the Canva brand bound to a connection"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "No teams yet",
@@ -12043,6 +12307,10 @@
     "defaultMessage": "KB",
     "description": "Kilobyte size unit abbreviation"
   },
+  "YgXBEI+WDA": {
+    "defaultMessage": "Import localization guidance from SharePoint.",
+    "description": "SharePoint integration description on the integrations page"
+  },
   "Ygi+pnLdm5": {
     "defaultMessage": "Select {key}",
     "description": "Accessible label for selecting a CAT queue segment for bulk actions"
@@ -12194,6 +12462,10 @@
   "Z1pfbdxKYT": {
     "defaultMessage": "Review pull requests for localisation issues and post one sticky comment when a pull request opens, updates, or is marked ready.",
     "description": "Description of GitHub Auto-review on the Automations page"
+  },
+  "Z2cMYJ6nRy": {
+    "defaultMessage": "Failed to regenerate the Canva connection token.",
+    "description": "Error when Canva token regeneration fails"
   },
   "Z39eNFe81L": {
     "defaultMessage": "Tools",
@@ -12767,6 +13039,10 @@
     "defaultMessage": "Save {providerName}",
     "description": "Save button label when connecting a new OAuth-based TMS provider"
   },
+  "akBS4XwW21": {
+    "defaultMessage": "An invite was just sent. Try again in a couple of minutes.",
+    "description": "Toast when Slack Connect invite is rate limited"
+  },
   "akKSazt0o+": {
     "defaultMessage": "Content types",
     "description": "Label for the Contentful content type picker field"
@@ -12911,6 +13187,10 @@
     "defaultMessage": "Hyperlocalise",
     "description": "Product name shown next to the logo in the app shell sidebar"
   },
+  "bC8xP17A1P": {
+    "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import.",
+    "description": "Description of the Issue Sheet CSV import dialog"
+  },
   "bCXvSTPFsb": {
     "defaultMessage": "Scheduled",
     "description": "Menu item to select a scheduled trigger"
@@ -13039,6 +13319,10 @@
     "defaultMessage": "Capture",
     "description": "Knowledge hero signal card title"
   },
+  "bf/8sd/M64": {
+    "defaultMessage": "Save",
+    "description": "Save Canva connection button"
+  },
   "bfKQmDUNTz": {
     "defaultMessage": "Close",
     "description": "Button to close the Issue Sheet import dialog"
@@ -13166,6 +13450,10 @@
   "cAGL69hzyh": {
     "defaultMessage": "Edit team",
     "description": "Button to open the edit team dialog on the detail page"
+  },
+  "cAQmoTwBPJ": {
+    "defaultMessage": "List issues",
+    "description": "Menu item and tool title for listing Board issues"
   },
   "cE0bfQDgYq": {
     "defaultMessage": "Sync",
@@ -13447,6 +13735,10 @@
     "defaultMessage": "This conversation is no longer available.",
     "description": "Toast when a docked conversation returns 404"
   },
+  "d9+py8mf04": {
+    "defaultMessage": "Export filtered as XLSX",
+    "description": "Glossary action to export the current language filter as XLSX"
+  },
   "dAeEJyCLaY": {
     "defaultMessage": "Clear all",
     "description": "Action to clear all Crowdin assignees"
@@ -13454,6 +13746,10 @@
   "dBWJx9vBQt": {
     "defaultMessage": "Starter",
     "description": "Starter plan name on the pricing page"
+  },
+  "dBZKwTIoEH": {
+    "defaultMessage": "Failed to add to Board",
+    "description": "Fallback error when creating an issue sheet row from CAT fails"
   },
   "dC80UX3i75": {
     "defaultMessage": "{hours} hr",
@@ -13519,6 +13815,10 @@
     "defaultMessage": "Failed to update locked strings",
     "description": "Fallback error when locking or unlocking CAT segments fails"
   },
+  "dKznjRBgya": {
+    "defaultMessage": "Board",
+    "description": "Label for the Board button in the app shell footer"
+  },
   "dLOnbBe+SR": {
     "defaultMessage": "Workspace glossaries",
     "description": "Heading for workspace glossaries"
@@ -13527,9 +13827,17 @@
     "defaultMessage": "Reviewer",
     "description": "Default author name for locally added segment comments"
   },
+  "dOX1AC82YS": {
+    "defaultMessage": "Choose a project.",
+    "description": "Validation error when Canva project is missing"
+  },
   "dOaxbDzrv5": {
     "defaultMessage": "Can't decide?",
     "description": "Heading for the undecided CTA band below the pricing FAQ"
+  },
+  "dOsXIMNL7P": {
+    "defaultMessage": "Unable to dismiss this invite right now.",
+    "description": "Toast when dismissing the Slack Connect banner fails"
   },
   "dQccrvPeHu": {
     "defaultMessage": "Segment",
@@ -13659,10 +13967,6 @@
     "defaultMessage": "Hyperlab",
     "description": "Built-in market experiments product name on the integrations page"
   },
-  "QSTiMWaXF/": {
-    "defaultMessage": "The board could not be loaded.",
-    "description": "Error state when Board rows fail to load"
-  },
   "djWAPr32N4": {
     "defaultMessage": "Cancel",
     "description": "Dismiss button in the mark-as-failed confirmation dialog"
@@ -13699,6 +14003,10 @@
     "defaultMessage": "Column type",
     "description": "Placeholder for the custom column type select"
   },
+  "duzSZb/s6p": {
+    "defaultMessage": "Export as XLSX",
+    "description": "Glossary action to export all concepts as XLSX"
+  },
   "dv6HEp4mGP": {
     "defaultMessage": "Target image",
     "description": "Alt text for the CAT target image preview"
@@ -13734,10 +14042,6 @@
   "dyR32pVyyw": {
     "defaultMessage": "Included",
     "description": "Badge on Hyperlocalise Included model provider cards"
-  },
-  "2Q9B8y1llx": {
-    "defaultMessage": "Board",
-    "description": "Sidebar nav label in marketing app shell mock"
   },
   "e+CeFvSaNg": {
     "defaultMessage": "Files",
@@ -14043,10 +14347,6 @@
     "defaultMessage": "No target locale is available for this task.",
     "description": "Empty state when all-files CAT mode has no selectable target locale"
   },
-  "r7gtZsn8Qh": {
-    "defaultMessage": "Board",
-    "description": "Project sidebar navigation item for the project board"
-  },
   "eogv8qHzO7": {
     "defaultMessage": "Direct and familiar French SaaS CTA phrasing.",
     "description": "AI reasoning for the CTA segment in the hero CAT mock"
@@ -14054,6 +14354,10 @@
   "eq+MOWqVs2": {
     "defaultMessage": "Create your first localization project",
     "description": "Title of the empty state when there are no Hyperlocalise projects"
+  },
+  "erXgCbsSqH": {
+    "defaultMessage": "Export filtered as CSV",
+    "description": "Glossary action to export the current language filter as CSV"
   },
   "etNARyGJup": {
     "defaultMessage": "Markets",
@@ -14267,10 +14571,6 @@
     "defaultMessage": "External task ID",
     "description": "Secondary job property row label for external task ID"
   },
-  "32+8NTo5Pl": {
-    "defaultMessage": "Board",
-    "description": "Submenu label grouping Board automation tools"
-  },
   "fWWcDn9s5p": {
     "defaultMessage": "Startups",
     "description": "Marketing footer resource link label for the startups program page"
@@ -14430,6 +14730,10 @@
   "g++q7Fa3R5": {
     "defaultMessage": "Retrying…",
     "description": "Button label while a job retry is in progress"
+  },
+  "g+80zjC0vY": {
+    "defaultMessage": "Comma-separated locale codes, for example es, fr, de.",
+    "description": "Help text for Canva target locales field"
   },
   "g+hqtBNXIJ": {
     "defaultMessage": "Open project",
@@ -14659,6 +14963,10 @@
     "defaultMessage": "Source:",
     "description": "Heading above the quoted CAT segment source text appended below a template's description skeleton"
   },
+  "geRgaRor6g": {
+    "defaultMessage": "Notion",
+    "description": "Notion integration name on the integrations page"
+  },
   "geqPhiQmeR": {
     "defaultMessage": "Unable to save entry",
     "description": "Fallback error when saving a translation memory entry from the detail sheet fails"
@@ -14783,10 +15091,6 @@
     "defaultMessage": "User agent",
     "description": "Label for the localisation audit crawler user agent"
   },
-  "HrspdhKQl+": {
-    "defaultMessage": "Open board",
-    "description": "Accessible label for the Board button in the app shell footer"
-  },
   "gyVhBvCqLP": {
     "defaultMessage": "Add sources",
     "description": "Button to return from global guidance to the source upload screen"
@@ -14854,6 +15158,10 @@
   "h3qjecOeg8": {
     "defaultMessage": "Open {projectName} in provider",
     "description": "Screen-reader label for opening a project in its external TMS provider"
+  },
+  "h5+KJI2d7A": {
+    "defaultMessage": "Could not load issues.",
+    "description": "Error message when CAT segment board issues fail to load"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Import issues from CSV",
@@ -15003,6 +15311,10 @@
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
   },
+  "hYi0NizHJf": {
+    "defaultMessage": "Board · this string",
+    "description": "Title on the editor mock board overlay"
+  },
   "hYx7Vbi5IN": {
     "defaultMessage": "Connect a provider",
     "description": "Empty-state button linking to integrations to connect a TMS provider"
@@ -15086,10 +15398,6 @@
   "hjMbjSqPe8": {
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
-  },
-  "dKznjRBgya": {
-    "defaultMessage": "Board",
-    "description": "Label for the Board button in the app shell footer"
   },
   "hmabVdb4tH": {
     "defaultMessage": "Glossary",
@@ -15375,6 +15683,10 @@
     "defaultMessage": "Review routing",
     "description": "Workflow step 4 label for the localisation-quality-monitoring use case"
   },
+  "igJunofoju": {
+    "defaultMessage": "Board",
+    "description": "Heading for the CAT segment Board section"
+  },
   "igisWP9I+4": {
     "defaultMessage": "{confidence}% confidence",
     "description": "Confidence suffix on a localisation audit finding"
@@ -15431,10 +15743,6 @@
     "defaultMessage": "Created",
     "description": "Created timestamp column in the concept table"
   },
-  "l+RVkhyT2N": {
-    "defaultMessage": "Create a project first, then import issues into its board.",
-    "description": "Empty state when there are no projects to import issues into"
-  },
   "irDjU9PSS4": {
     "defaultMessage": "Approved glossary terms are used correctly and forbidden terms are absent.",
     "description": "CAT format check message when glossary terms pass validation"
@@ -15475,10 +15783,6 @@
     "defaultMessage": "Forbidden term \"{term}\" appears in the target translation.",
     "description": "CAT format check message when a forbidden glossary term appears in the target"
   },
-  "dBZKwTIoEH": {
-    "defaultMessage": "Failed to add to Board",
-    "description": "Fallback error when creating an issue sheet row from CAT fails"
-  },
   "iyeC0lBvav": {
     "defaultMessage": "Comment posted",
     "description": "Write-back status when a provider comment was posted for a finding"
@@ -15518,6 +15822,10 @@
   "j28e0kftL8": {
     "defaultMessage": "{count} columns",
     "description": "Badge showing how many CSV columns were detected"
+  },
+  "j3NSWZrB6O": {
+    "defaultMessage": "Export as CSV",
+    "description": "Glossary action to export all concepts as CSV"
   },
   "j3sarok4E/": {
     "defaultMessage": "MCP Server",
@@ -15775,10 +16083,6 @@
     "defaultMessage": "Actions for {email}",
     "description": "Accessible label for a team member row actions menu"
   },
-  "sslu9yZyVp": {
-    "defaultMessage": "Board",
-    "description": "App shell breadcrumb title for the project board page"
-  },
   "jn5bLV1i0/": {
     "defaultMessage": "Jetzt starten",
     "description": "Suggested copy body in brand chat answer"
@@ -15879,10 +16183,6 @@
     "defaultMessage": "Start a new audit",
     "description": "Button to start a fresh localisation audit after a domain block"
   },
-  "C5SPm8Zbbu": {
-    "defaultMessage": "Board",
-    "description": "Workspace board page title"
-  },
   "k4KpJNxaEK": {
     "defaultMessage": "Web chat",
     "description": "Inbox conversation source label for public web chat"
@@ -15959,6 +16259,10 @@
     "defaultMessage": "Search",
     "description": "Label above the jobs search field"
   },
+  "kDHggb67Dc": {
+    "defaultMessage": "Cursor",
+    "description": "MCP client tab label for Cursor"
+  },
   "kDMX9jypDk": {
     "defaultMessage": "Multi-word expression",
     "description": "Description for the phrase term type"
@@ -16030,6 +16334,10 @@
   "kM/dmaarD3": {
     "defaultMessage": "Glossary checks",
     "description": "Editor mock use case pill for glossary term enforcement"
+  },
+  "kNbIVbtAlh": {
+    "defaultMessage": "We've invited your team to a shared Slack channel",
+    "description": "Dashboard Slack Connect banner title after an invite was sent"
   },
   "kO32zaHAd6": {
     "defaultMessage": "Couldn't save title",
@@ -16119,6 +16427,10 @@
     "defaultMessage": "Create team",
     "description": "Button to open the create team dialog"
   },
+  "kg1/W3O+Sr": {
+    "defaultMessage": "Guidelines",
+    "description": "Integrations page section heading for guideline source connectors"
+  },
   "kgZXe0zuly": {
     "defaultMessage": "Support Content That Stays Current in Every Language | Hyperlocalise",
     "description": "Page title for the help-center-localisation use case"
@@ -16199,6 +16511,10 @@
     "defaultMessage": "Scroll to start",
     "description": "Accessible label for the message scroller jump-to-start control"
   },
+  "ksdqzG4/Xq": {
+    "defaultMessage": "Export filtered as TBX",
+    "description": "Glossary action to export the current language filter as TBX"
+  },
   "ksrwIvV64s": {
     "defaultMessage": "Workspace settings",
     "description": "Breadcrumb-style label above the API keys page title"
@@ -16251,9 +16567,9 @@
     "defaultMessage": "Warnings",
     "description": "QA summary chip and filter option for warning severity"
   },
-  "J8uRouTxFR": {
-    "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email.",
-    "description": "Helper text under notification preferences on account settings"
+  "l+RVkhyT2N": {
+    "defaultMessage": "Create a project first, then import issues into its board.",
+    "description": "Empty state when there are no projects to import issues into"
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections.",
@@ -16451,6 +16767,10 @@
     "defaultMessage": "It reminded us that localisation is ultimately about connecting people.",
     "description": "Third paragraph of the founders note on the company page"
   },
+  "liYuh2p3oY": {
+    "defaultMessage": "Add connection",
+    "description": "Button to add a new Canva connection"
+  },
   "ljCRNx6fjZ": {
     "defaultMessage": "Disconnect",
     "description": "Button to remove a stored TMS provider credential"
@@ -16563,6 +16883,10 @@
     "defaultMessage": "Finding files",
     "description": "Live explore status when the agent is listing files without a pattern"
   },
+  "m9ESiA+Ppw": {
+    "defaultMessage": "Import style guides and market notes from Notion.",
+    "description": "Notion integration description on the integrations page"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear",
     "description": "Button to clear all selected target locales"
@@ -16647,10 +16971,6 @@
     "defaultMessage": "Fix first",
     "description": "Heading for the top findings to fix on a localisation audit result"
   },
-  "D1Wfd509ws": {
-    "defaultMessage": "Choose which project should receive the imported board rows.",
-    "description": "Description of the workspace issues CSV import project picker dialog"
-  },
   "mMp/zOre+X": {
     "defaultMessage": "Private",
     "description": "Badge label for a private GitHub repository"
@@ -16658,6 +16978,10 @@
   "mMsPU5+otj": {
     "defaultMessage": "Failed to load projects",
     "description": "Error when organization projects fail to load for automation settings"
+  },
+  "mN+eL4E4T/": {
+    "defaultMessage": "Contact Hyperlocalise",
+    "description": "Meta title for the marketing contact page"
   },
   "mNhu5W2AEy": {
     "defaultMessage": "@hyperlocalise review",
@@ -16879,6 +17203,10 @@
     "defaultMessage": "Translations are read from this project before opening the pull request.",
     "description": "Description for the pull translations project select field"
   },
+  "n/ryC/yPKS": {
+    "defaultMessage": "Create or link issues for this string. Navigate to an issue to collaborate.",
+    "description": "Dialog description for managing issues linked to a CAT string"
+  },
   "n02KlXlk6i": {
     "defaultMessage": "This step has no extra settings in the preview.",
     "description": "Config panel empty copy for nodes without fields"
@@ -17094,10 +17422,6 @@
   "naWIsHiFkQ": {
     "defaultMessage": "Copied OAuth callback URL",
     "description": "Aria label after copying the OAuth callback URL"
-  },
-  "hYi0NizHJf": {
-    "defaultMessage": "Board · this string",
-    "description": "Title on the editor mock board overlay"
   },
   "ndyP1whnV+": {
     "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
@@ -17451,10 +17775,6 @@
     "defaultMessage": "Translation memory",
     "description": "Section heading for translation memory matches in the intelligence panel"
   },
-  "XswXu+UFpy": {
-    "defaultMessage": "Board",
-    "description": "Sidebar navigation item for the workspace board"
-  },
   "omP7hSnBIw": {
     "defaultMessage": "Format {format}",
     "description": "Shows the provider file format in the file detail panel"
@@ -17538,6 +17858,10 @@
   "p15YTH6+4S": {
     "defaultMessage": "Agent Instructions",
     "description": "Agent instructions section heading in the marketing automation editor mock"
+  },
+  "p1EBLiYRON": {
+    "defaultMessage": "Dismiss",
+    "description": "Dashboard Slack Connect banner dismiss action"
   },
   "p22y6wrB6M": {
     "defaultMessage": "Could not remove relationship",
@@ -17679,6 +18003,10 @@
     "defaultMessage": "Passed",
     "description": "Label for a CAT format check that passed"
   },
+  "pV8l9BOlkk": {
+    "defaultMessage": "Create a project first.",
+    "description": "Empty state when no projects exist for Canva"
+  },
   "pWLMdEuyPH": {
     "defaultMessage": "{requestedLocale} is not a target locale for this file. Double-click a file or use Open Editor to edit {targetLocale}.",
     "description": "Hint when the requested locale is unavailable and a fallback will be used"
@@ -17786,6 +18114,10 @@
   "plDoLEcfb7": {
     "defaultMessage": "Decisions compound as teams learn what works in each market",
     "description": "Feature teaser benefit for guideline"
+  },
+  "pmeyEQny7X": {
+    "defaultMessage": "Install command for {client}",
+    "description": "Accessible label for the copyable MCP install snippet"
   },
   "pmgrWye2G2": {
     "defaultMessage": "Untranslated",
@@ -18143,13 +18475,13 @@
     "defaultMessage": "Czech (Czechia)",
     "description": "Display name for BCP-47 locale cs-CZ"
   },
-  "n/ryC/yPKS": {
-    "defaultMessage": "Create or link issues for this string. Navigate to an issue to collaborate.",
-    "description": "Dialog description for managing issues linked to a CAT string"
-  },
   "qySc0NPK9C": {
     "defaultMessage": "Connect",
     "description": "Primary button to submit the Crowdin personal access token"
+  },
+  "qz4qD1ttxo": {
+    "defaultMessage": "Deny",
+    "description": "Deny Canva OAuth access"
   },
   "r0gMCcsbGC": {
     "defaultMessage": "No conversations or notifications yet.",
@@ -18183,6 +18515,10 @@
     "defaultMessage": "required",
     "description": "Badge label for a required schema property"
   },
+  "r7gtZsn8Qh": {
+    "defaultMessage": "Board",
+    "description": "Project sidebar navigation item for the project board"
+  },
   "r7qqla56RV": {
     "defaultMessage": "Shortened written form",
     "description": "Description for the abbreviation term type"
@@ -18214,6 +18550,10 @@
   "rDFwnPnMxA": {
     "defaultMessage": "Ask about any string",
     "description": "AI feature capability title: ask about strings"
+  },
+  "rDKQx99X0Z": {
+    "defaultMessage": "Check your email for the Slack channel invite.",
+    "description": "Toast after a Slack Connect invite is sent"
   },
   "rDkQbK1OIB": {
     "defaultMessage": "Skipped",
@@ -18302,6 +18642,10 @@
   "rUPw7LyUVG": {
     "defaultMessage": "Strikethrough",
     "description": "Bubble menu button to toggle strikethrough text"
+  },
+  "rUZsunvsmU": {
+    "defaultMessage": "Talk with Hyperlocalise in Slack. We'll email you an invitation to a shared channel.",
+    "description": "Dashboard Slack Connect banner description before the first invite"
   },
   "rW0O4vxb9w": {
     "defaultMessage": "Activity",
@@ -18427,6 +18771,10 @@
     "defaultMessage": "Sync approved copy to CMS and ad platforms",
     "description": "Workflow step 5 description for the marketing-localisation use case"
   },
+  "rrMT/tukOI": {
+    "defaultMessage": "Copy token",
+    "description": "Copy Canva connection token button"
+  },
   "rsXJHUa4+k": {
     "defaultMessage": "This entry is read-only.",
     "description": "Notice shown when a translation memory entry cannot be edited"
@@ -18438,10 +18786,6 @@
   "rtddkKvMUV": {
     "defaultMessage": "Unable to send that message right now.",
     "description": "Toast when a public web chat message fails"
-  },
-  "tX5h+jHyR2": {
-    "defaultMessage": "Board · acme workspace",
-    "description": "Board panel title in content ops mock"
   },
   "rw4HCHelCR": {
     "defaultMessage": "Translate in chat",
@@ -18515,10 +18859,6 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when the create issue API request fails"
   },
-  "J2Tvcwc2sx": {
-    "defaultMessage": "Open board, {count} open",
-    "description": "Accessible label for the Board button when open issues are available"
-  },
   "s8Aqn1fSU6": {
     "defaultMessage": "Live projects fetched from {providerName}.",
     "description": "Dashboard panel description for live TMS projects"
@@ -18571,13 +18911,13 @@
     "defaultMessage": "Domains",
     "description": "Sidebar navigation item for linked domains"
   },
-  "E8k6bvQHrX": {
-    "defaultMessage": "Close board",
-    "description": "Accessible label for closing the CAT Board panel"
-  },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
+  },
+  "sJoNIftCZI": {
+    "defaultMessage": "Board",
+    "description": "App shell breadcrumb title for the workspace board page"
   },
   "sKaaLQUNWs": {
     "defaultMessage": "Title is required",
@@ -18594,6 +18934,10 @@
   "sNPTwegSVn": {
     "defaultMessage": "Target locales",
     "description": "Job property row label for target locales"
+  },
+  "sOWOEfN8q6": {
+    "defaultMessage": "Canva",
+    "description": "Name shown for the Canva integrations row"
   },
   "sPeeyibl9Y": {
     "defaultMessage": "Approve selected",
@@ -18751,9 +19095,17 @@
     "defaultMessage": "Block releases when quality gates fail",
     "description": "Capability 6 title for the github-release-localisation use case"
   },
+  "sslu9yZyVp": {
+    "defaultMessage": "Board",
+    "description": "App shell breadcrumb title for the project board page"
+  },
   "svD7SMchJb": {
     "defaultMessage": "{providerName} is ready for member tokens",
     "description": "Status heading when Crowdin PAT mode is configured"
+  },
+  "svMnxMDrsO": {
+    "defaultMessage": "Export filtered glossary",
+    "description": "Label for filtered glossary export choices"
   },
   "sw288YpOpz": {
     "defaultMessage": "Added",
@@ -18907,6 +19259,10 @@
     "defaultMessage": "Account",
     "description": "App shell breadcrumb title for the account settings page"
   },
+  "tOAFgS8YTm": {
+    "defaultMessage": "Choose a TBX, XLSX, or CSV file",
+    "description": "Accepted glossary import file formats"
+  },
   "tP1cicvIzZ": {
     "defaultMessage": "Linguistic notes",
     "description": "Heading for linguistic notes on a localisation audit result"
@@ -18979,6 +19335,10 @@
     "defaultMessage": "APP",
     "description": "Badge next to the Hyperlocalise agent name in the Slack mock"
   },
+  "tX5h+jHyR2": {
+    "defaultMessage": "Board · acme workspace",
+    "description": "Board panel title in content ops mock"
+  },
   "tX7cZ1uzA9": {
     "defaultMessage": "Choose file",
     "description": "Button to open the file picker for importing translations"
@@ -19022,10 +19382,6 @@
   "thAleOBSL6": {
     "defaultMessage": "Provider link",
     "description": "Detail row label for the external provider URL"
-  },
-  "h5+KJI2d7A": {
-    "defaultMessage": "Could not load issues.",
-    "description": "Error message when CAT segment board issues fail to load"
   },
   "tj9LSxTmXM": {
     "defaultMessage": "Console",
@@ -19431,6 +19787,10 @@
     "defaultMessage": "Remove {filename}",
     "description": "Accessible label to remove a pending image attachment"
   },
+  "uyA3TF6irL": {
+    "defaultMessage": "Token starting with {prefix}",
+    "description": "Hint showing the stored Canva connection token prefix"
+  },
   "uycq9iF49K": {
     "defaultMessage": "GitHub push",
     "description": "Trigger label for a GitHub push automation in the list"
@@ -19679,6 +20039,10 @@
     "defaultMessage": "Translation Memories",
     "description": "App shell breadcrumb title for the translation memories page"
   },
+  "vcGdG7Kss8": {
+    "defaultMessage": "This token is shown once. Paste it into the Canva app, or use Connect Hyperlocalise from Canva instead.",
+    "description": "Description for the one-time Canva token reveal dialog"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Add column",
     "description": "Submit button in the add column dialog"
@@ -19743,6 +20107,10 @@
     "defaultMessage": "Campaign brief",
     "description": "Workflow step 1 label for the marketing-localisation use case"
   },
+  "vqmXbSZwqU": {
+    "defaultMessage": "Create an issue to track work on this string.",
+    "description": "Empty-state description when the CAT segment has no linked issues"
+  },
   "vrYsk4CDa0": {
     "defaultMessage": "Delete task",
     "description": "Confirm button to delete a Crowdin task"
@@ -19794,6 +20162,10 @@
   "vytBTgUTFc": {
     "defaultMessage": "Add",
     "description": "Button to add a custom target locale"
+  },
+  "vz2IGDAZp1": {
+    "defaultMessage": "Canva connection saved.",
+    "description": "Toast when Canva connection is saved"
   },
   "w+rjynq1UP": {
     "defaultMessage": "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.",
@@ -19999,6 +20371,10 @@
     "defaultMessage": "Light",
     "description": "Light color theme option in the theme toggle menu"
   },
+  "wZsNKEWooe": {
+    "defaultMessage": "Loading board...",
+    "description": "Suspense fallback while workspace board content loads"
+  },
   "wZxi05pu7D": {
     "defaultMessage": "Loading glossary...",
     "description": "Loading state on the glossary detail page"
@@ -20022,6 +20398,10 @@
   "wdhrNg8UHz": {
     "defaultMessage": "Open job",
     "description": "CTA for a failed or active job on project overview"
+  },
+  "weTyi2vT5M": {
+    "defaultMessage": "File board issues for the selected project from automation findings.",
+    "description": "Description for the Create issue automation tool"
   },
   "weWSzrQ1Qp": {
     "defaultMessage": "Manage terms and assign this glossary to projects.",
@@ -20066,6 +20446,10 @@
   "wkXL+SvV0U": {
     "defaultMessage": "Uploaded style guide",
     "description": "Label for uploaded PDF in brand mock"
+  },
+  "wkeCz4YE6S": {
+    "defaultMessage": "Upload a glossary file to merge its concepts and terms into this glossary.",
+    "description": "Description for the glossary import dialog"
   },
   "wlOEitxlRT": {
     "defaultMessage": "Connect your Anthropic account",
@@ -20423,6 +20807,10 @@
     "defaultMessage": "Quick start",
     "description": "Label above the dashboard quick-start card"
   },
+  "xhz41Pr74m": {
+    "defaultMessage": "Import glossary",
+    "description": "Button to import a glossary file"
+  },
   "xi4ZQRm848": {
     "defaultMessage": "Resources",
     "description": "Marketing navbar trigger for the resources mega-menu"
@@ -20543,6 +20931,10 @@
     "defaultMessage": "The decision, correction, or preference is extracted",
     "description": "Knowledge mock UI stage 2 description"
   },
+  "y301nYXIIx": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when a Canva connection is enabled"
+  },
   "y4YFxtSnJF": {
     "defaultMessage": "Term added",
     "description": "Toast after a glossary term is added successfully"
@@ -20607,6 +20999,10 @@
     "defaultMessage": "Select all loaded issues",
     "description": "Accessible label for the select-all-loaded checkbox"
   },
+  "yD9TkWr+aV": {
+    "defaultMessage": "Enter a display name.",
+    "description": "Validation error when Canva display name is missing"
+  },
   "yDRqU0S/W9": {
     "defaultMessage": "Approved",
     "description": "Approved review status for a translation memory entry"
@@ -20646,6 +21042,10 @@
   "yGq0s5/abu": {
     "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?",
     "description": "Startups FAQ question about needing an existing TMS"
+  },
+  "yGs5M+8byg": {
+    "defaultMessage": "Add a project-specific workflow column to the board.",
+    "description": "Description of the dialog to add a custom Board column"
   },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}",
@@ -20802,10 +21202,6 @@
   "yq/V+p8X/b": {
     "defaultMessage": "Choose a source file from the project files list to open it in the Content Editor.",
     "description": "Empty state when the Content Editor page is opened without a source file"
-  },
-  "08+4Nn7rgH": {
-    "defaultMessage": "Acme · Board",
-    "description": "Header breadcrumb in marketing app shell mock"
   },
   "ysf+RB1d04": {
     "defaultMessage": "{kind} task",
@@ -21055,6 +21451,10 @@
     "defaultMessage": "Members",
     "description": "Teams table column header for member count"
   },
+  "zaVQwg8luK": {
+    "defaultMessage": "Select a glossary file",
+    "description": "Prompt inside the glossary file upload area"
+  },
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary",
     "description": "Fallback error when a glossary fails to load"
@@ -21086,10 +21486,6 @@
   "zhUOSqs0dW": {
     "defaultMessage": "Segment validation returned an invalid response.",
     "description": "Error when the CAT segment validation response fails schema validation"
-  },
-  "46zk0LJShA": {
-    "defaultMessage": "Triage open work across this workspace.",
-    "description": "Short description under the workspace Board page title"
   },
   "zirutH7PO0": {
     "defaultMessage": "Created by me",
@@ -21143,9 +21539,9 @@
     "defaultMessage": "Open Editor",
     "description": "Button label to open the job Content Editor"
   },
-  "zstI+O20TZ": {
-    "defaultMessage": "Contact",
-    "description": "Marketing navbar link to contact email"
+  "zrJMUqAnbE": {
+    "defaultMessage": "Done",
+    "description": "Dismiss Canva token dialog button"
   },
   "zuCO/3GiEh": {
     "defaultMessage": "Documentation",
