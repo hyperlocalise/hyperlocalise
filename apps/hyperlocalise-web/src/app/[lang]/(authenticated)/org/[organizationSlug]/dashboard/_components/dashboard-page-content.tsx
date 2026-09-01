@@ -63,6 +63,7 @@ import {
 import { dashboardPageContentMessages } from "./dashboard-page-content.messages";
 import { dashboardPageViewModelMessages } from "./dashboard-page-view-model.messages";
 import { DashboardPageView } from "./dashboard-page-view";
+import { SlackConnectInviteBanner } from "./slack-connect-invite-banner";
 
 const api = createApiClient();
 const automationsApi = createAutomationsApi(api);
@@ -497,6 +498,7 @@ export function DashboardPageContent({
       isAutomationsLoading={automationsQuery.isLoading || automationRunsQuery.isLoading}
       isAutomationsError={automationsQuery.isError || automationRunsQuery.isError}
       onNewRequest={() => chatDock.openNewTab()}
+      slackConnectBanner={<SlackConnectInviteBanner organizationSlug={organizationSlug} />}
       renderLink={({ href, className, children, onClick }) => (
         <Link href={href} className={className} onClick={onClick}>
           {children}

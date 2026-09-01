@@ -14,10 +14,13 @@
  */
 import { Add01Icon, ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
 import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
 import { contactUrl } from "@/components/marketing/marketing-page-content";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import {
   Accordion,
   AccordionContent,
@@ -33,6 +36,8 @@ type HomepageFaqSectionProps = {
 };
 
 export function HomepageFaqSection({ items }: HomepageFaqSectionProps) {
+  const locale = useAppLocale();
+
   return (
     <section
       id="faq"
@@ -56,8 +61,8 @@ export function HomepageFaqSection({ items }: HomepageFaqSectionProps) {
           <p className="text-sm text-muted-foreground">
             <FormattedMessage {...homepageFaqSectionMessages.moreQuestions} />
           </p>
-          <a
-            href={contactUrl}
+          <Link
+            href={rewriteAppLocalePath(contactUrl, locale)}
             className="group/contact inline-flex items-center gap-3 rounded-sm text-base font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <FormattedMessage {...homepageFaqSectionMessages.contactUs} />
@@ -67,7 +72,7 @@ export function HomepageFaqSection({ items }: HomepageFaqSectionProps) {
             >
               <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={2} className="size-3.5" />
             </span>
-          </a>
+          </Link>
         </div>
       </div>
 

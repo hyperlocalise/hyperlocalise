@@ -29,7 +29,7 @@ describe("MarketingFooter", () => {
               links: [
                 { label: "Pricing", href: "/pricing" },
                 { label: "Documentation", href: "https://hyperlocalise.dev" },
-                { label: "Contact", href: "mailto:minh@hyperlocalise.com" },
+                { label: "Contact", href: "/contact" },
               ],
             },
           ]}
@@ -44,7 +44,7 @@ describe("MarketingFooter", () => {
       "https://hyperlocalise.dev",
     );
     expect(screen.getByRole("link", { name: "Contact" }).getAttribute("href")).toBe(
-      "mailto:minh@hyperlocalise.com",
+      "/fr-FR/contact",
     );
   });
 });

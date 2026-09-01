@@ -50,5 +50,6 @@ describe("HomepageFaqSection", () => {
 
     expect(firstQuestion).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText(items[0].answer)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Contact us" })).toHaveAttribute("href", "/en/contact");
   });
 });

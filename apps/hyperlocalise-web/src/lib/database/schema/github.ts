@@ -113,6 +113,38 @@ export const slackInstallationStates = pgTable(
 );
 
 /**
+ * Stores the Hyperlocalise-hosted Slack Connect channel and latest client
+ * invite for a workspace. Used for the dashboard shared-channel banner.
+ */
+export const slackConnectInvites = pgTable(
+  "slack_connect_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    slackChannelId: text("slack_channel_id").notNull(),
+    slackChannelName: text("slack_channel_name").notNull(),
+    lastInviteId: text("last_invite_id"),
+    lastInvitedEmail: text("last_invited_email"),
+    lastInvitedAt: timestamp("last_invited_at", { withTimezone: true }),
+    lastInvitedByUserId: uuid("last_invited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("slack_connect_invites_organization_id_key").on(table.organizationId),
+    index("idx_slack_connect_invites_channel_id").on(table.slackChannelId),
+  ],
+);
+
+/**
  * Stores repositories visible through a GitHub installation, including repository identifiers, names, default branch, enabled state, and sync timestamps.
  */
 export const githubInstallationRepositories = pgTable(

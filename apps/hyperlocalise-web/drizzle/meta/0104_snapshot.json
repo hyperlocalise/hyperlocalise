@@ -1,6 +1,6 @@
 {
-  "id": "48561997-117e-44e2-86d6-58fe812e7679",
-  "prevId": "c5d93469-4893-41d1-8d15-eef7f5f1288e",
+  "id": "d87f0a8e-3a8f-4848-a254-7d3e51f13de9",
+  "prevId": "06c239f7-2d9f-483d-98b8-f52cfa59630d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8276,6 +8276,146 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.slack_connect_invites": {
+      "name": "slack_connect_invites",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slack_channel_id": {
+          "name": "slack_channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slack_channel_name": {
+          "name": "slack_channel_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_invite_id": {
+          "name": "last_invite_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_invited_email": {
+          "name": "last_invited_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_invited_at": {
+          "name": "last_invited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_invited_by_user_id": {
+          "name": "last_invited_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "slack_connect_invites_organization_id_key": {
+          "name": "slack_connect_invites_organization_id_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_slack_connect_invites_channel_id": {
+          "name": "idx_slack_connect_invites_channel_id",
+          "columns": [
+            {
+              "expression": "slack_channel_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "slack_connect_invites_organization_id_organizations_id_fk": {
+          "name": "slack_connect_invites_organization_id_organizations_id_fk",
+          "tableFrom": "slack_connect_invites",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "slack_connect_invites_last_invited_by_user_id_users_id_fk": {
+          "name": "slack_connect_invites_last_invited_by_user_id_users_id_fk",
+          "tableFrom": "slack_connect_invites",
+          "tableTo": "users",
+          "columnsFrom": [
+            "last_invited_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

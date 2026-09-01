@@ -39,6 +39,10 @@ describe("llms.txt route", () => {
     );
     expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
     expect(body).toContain("https://hyperlocalise.dev");
+    expect(body).toContain(
+      "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
+    );
     expect(body).not.toContain("github.com/hyperlocalise");
+    expect(body).not.toContain("mailto:minh@hyperlocalise.com");
   });
 });
