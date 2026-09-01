@@ -49,8 +49,13 @@ func TestSpellingWarningChecksCapsSuggestionsAtThree(t *testing.T) {
 
 func TestSpellingWarningChecksCapsIssuesAtFivePreservingOrder(t *testing.T) {
 	issues := []SpellingIssue{
-		{Word: "w1"}, {Word: "w2"}, {Word: "w3"}, {Word: "w4"},
-		{Word: "w5"}, {Word: "w6"}, {Word: "w7"},
+		{Word: "w1"},
+		{Word: "w2"},
+		{Word: "w3"},
+		{Word: "w4"},
+		{Word: "w5"},
+		{Word: "w6"},
+		{Word: "w7"},
 	}
 
 	checks := spellingWarningChecks(issues)

@@ -93,30 +93,20 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 
 	spellingRequested := requestsSpelling(req.Modes)
 
-	var skippedModes []string
+	var targetLocale string
 	if spellingRequested {
-		targetLocale, err := validateTargetLocale(req.TargetLocale)
+		var err error
+		targetLocale, err = validateTargetLocale(req.TargetLocale)
 		if err != nil {
 			writeBadRequest(w, err.Error())
 			return
 		}
-
-		switch _, err := h.checkSpelling(r.Context(), targetLocale, req.TargetText); {
-		case errors.Is(err, ErrSpellCheckUnavailable), errors.Is(err, spellcheck.ErrUnsupportedLocale):
-			skippedModes = append(skippedModes, QA_MODE_SPELLING)
-		case err != nil:
-			writeInternalError(w, "spell check failed")
-			return
-		}
 	}
 
-	checks := h.validate(segmentvalidate.Request{
-		SourceText: req.SourceText,
-		TargetText: req.TargetText,
-		SourcePath: req.SourcePath,
-		MaxLength:  req.MaxLength,
-		Modes:      req.Modes,
-	})
+	checks, skippedModes, err := h.composeSegmentValidation(r.Context(), req, targetLocale, spellingRequested)
+	if err != nil {
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -148,15 +138,6 @@ func writeBadRequest(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"error":   "bad_request",
-		"message": message,
-	})
-}
-
-func writeInternalError(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error":   "internal_error",
 		"message": message,
 	})
 }

@@ -293,7 +293,7 @@ func TestValidateSegmentSpellingSucceedsWithoutSkip(t *testing.T) {
 	require.Equal(t, "fr-FR", fake.receivedLocale)
 }
 
-func TestValidateSegmentSpellingDiscardsIssuesOnSuccess(t *testing.T) {
+func TestValidateSegmentSpellingSurfacesIssuesAsWarnings(t *testing.T) {
 	fake := &fakeSpellChecker{
 		issues: []SpellingIssue{{Word: "recieve", Suggestions: []string{"receive"}}},
 	}
@@ -308,13 +308,19 @@ func TestValidateSegmentSpellingDiscardsIssuesOnSuccess(t *testing.T) {
 
 	var resp validateSegmentResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.Len(t, resp.Checks, 1, "spelling issues must not be surfaced as checks in this contract")
-	require.Empty(t, resp.SkippedModes, "a successful check must not be reported as skipped, even with issues found")
+	require.Len(t, resp.Checks, 2, "spelling issues must be surfaced as an additional warning check")
+	require.Equal(t, "format-parity", resp.Checks[0].ID)
+	spelling := resp.Checks[1]
+	require.Equal(t, QA_MODE_SPELLING, spelling.ID)
+	require.Equal(t, QA_MODE_SPELLING, spelling.Category)
+	require.Equal(t, segmentvalidate.StatusWarn, spelling.Status, "spelling issues are warnings, not failures")
+	require.Equal(t, []string{"recieve", "receive"}, spelling.RelatedTokens)
+	require.Empty(t, resp.SkippedModes, "a successful check must not be reported as skipped")
 	require.Equal(t, "fr-FR", fake.receivedLocale)
-	require.Equal(t, spellcheck.Tokenize(targetText), fake.receivedWords)
+	require.Equal(t, spellcheck.Tokenize(targetText), fake.receivedWords, "only target text reaches the provider")
 }
 
-func TestValidateSegmentSpellingUnexpectedProviderErrorReturns500(t *testing.T) {
+func TestValidateSegmentSpellingUnexpectedProviderErrorPreservesFormatChecks(t *testing.T) {
 	fake := &fakeSpellChecker{err: errors.New("provider exploded")}
 	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
 	mux := newAuthedValidateSegmentMux(h)
@@ -322,9 +328,65 @@ func TestValidateSegmentSpellingUnexpectedProviderErrorReturns500(t *testing.T) 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"fr-FR"}`
 	rec := postValidateSegment(mux, payload)
 
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code, "an unexpected provider error must not erase format/QA results")
 
-	var body map[string]string
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Equal(t, "internal_error", body["error"])
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Checks, 1)
+	require.Equal(t, "format-parity", resp.Checks[0].ID)
+	require.Equal(t, []string{QA_MODE_SPELLING}, resp.SkippedModes)
+}
+
+func TestValidateSegmentSpellingCancellationWritesNoResponse(t *testing.T) {
+	fake := &fakeSpellChecker{err: context.Canceled}
+	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
+	mux := newAuthedValidateSegmentMux(h)
+
+	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"fr-FR"}`
+	rec := postValidateSegment(mux, payload)
+
+	require.Zero(t, rec.Body.Len(), "a canceled request must not receive a success body")
+	require.Empty(t, rec.Header().Get("Content-Type"), "a canceled request must not receive a JSON response")
+}
+
+func TestValidateSegmentSpellingDeadlineExceededWritesNoResponse(t *testing.T) {
+	fake := &fakeSpellChecker{err: context.DeadlineExceeded}
+	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
+	mux := newAuthedValidateSegmentMux(h)
+
+	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"fr-FR"}`
+	rec := postValidateSegment(mux, payload)
+
+	require.Zero(t, rec.Body.Len(), "a timed-out request must not receive a success body")
+	require.Empty(t, rec.Header().Get("Content-Type"), "a timed-out request must not receive a JSON response")
+}
+
+func TestValidateSegmentSpellingCapsIssuesAndSuggestions(t *testing.T) {
+	issues := make([]SpellingIssue, 0, 7)
+	for i := 1; i <= 7; i++ {
+		issues = append(issues, SpellingIssue{
+			Word:        fmt.Sprintf("word%d", i),
+			Suggestions: []string{"s1", "s2", "s3", "s4", "s5"},
+		})
+	}
+	fake := &fakeSpellChecker{issues: issues}
+	h := &handler{validate: segmentvalidate.ValidateSegment, spellChecker: fake}
+	mux := newAuthedValidateSegmentMux(h)
+
+	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json","modes":["spelling"],"targetLocale":"fr-FR"}`
+	rec := postValidateSegment(mux, payload)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Checks, 1+maxSpellingIssues, "must cap at 5 unique misspellings")
+
+	spellingChecks := resp.Checks[1:]
+	var gotWords []string
+	for _, check := range spellingChecks {
+		require.Len(t, check.RelatedTokens, 1+maxSpellingSuggestions, "must cap at 3 suggestions per word")
+		gotWords = append(gotWords, check.RelatedTokens[0])
+	}
+	require.Equal(t, []string{"word1", "word2", "word3", "word4", "word5"}, gotWords, "must preserve first-seen order")
 }
