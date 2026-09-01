@@ -30,9 +30,7 @@ export type CliBilledTokenUsage = CliTokenUsage & {
 };
 
 function nonnegativeInt(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? Math.floor(value)
-    : 0;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
 function optionalPositiveInt(value: number): number | undefined {
@@ -92,8 +90,8 @@ export function addCliTokenUsage(
     cacheReadTokens: optionalPositiveInt(cacheReadTokens),
     cacheWriteTokens: optionalPositiveInt(cacheWriteTokens),
     reasoningTokens: optionalPositiveInt(reasoningTokens),
-    ...(left.modelId ?? right.modelId ? { modelId: left.modelId ?? right.modelId } : {}),
-    ...(left.credentialSource ?? right.credentialSource
+    ...((left.modelId ?? right.modelId) ? { modelId: left.modelId ?? right.modelId } : {}),
+    ...((left.credentialSource ?? right.credentialSource)
       ? { credentialSource: left.credentialSource ?? right.credentialSource }
       : {}),
   };
