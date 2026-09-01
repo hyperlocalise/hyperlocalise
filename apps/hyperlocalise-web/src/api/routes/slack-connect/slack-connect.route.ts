@@ -39,8 +39,22 @@ const validateDismissBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-function canUseSlackConnect(role: AuthVariables["auth"]["membership"]["role"]) {
+function canReadSlackConnect(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "workspace:read");
+}
+
+function canManageSlackConnect(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "workspace:update");
+}
+
+function withManageFlag(
+  slackConnect: Awaited<ReturnType<typeof getSlackConnectInviteView>>,
+  role: AuthVariables["auth"]["membership"]["role"],
+) {
+  return {
+    ...slackConnect,
+    canManage: canManageSlackConnect(role),
+  };
 }
 
 function mapInviteError(
@@ -75,17 +89,20 @@ export function createSlackConnectRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      if (!canUseSlackConnect(c.var.auth.membership.role)) {
+      if (!canReadSlackConnect(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
       const slackConnect = await getSlackConnectInviteView(
         c.var.auth.organization.localOrganizationId,
       );
-      return c.json({ slackConnect }, 200);
+      return c.json(
+        { slackConnect: withManageFlag(slackConnect, c.var.auth.membership.role) },
+        200,
+      );
     })
     .post("/", async (c) => {
-      if (!canUseSlackConnect(c.var.auth.membership.role)) {
+      if (!canManageSlackConnect(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -104,16 +121,22 @@ export function createSlackConnectRoutes() {
         return mapInviteError(c, result.error);
       }
 
-      return c.json({ slackConnect: result.value }, 200);
+      return c.json(
+        { slackConnect: withManageFlag(result.value, c.var.auth.membership.role) },
+        200,
+      );
     })
     .patch("/", validateDismissBody, async (c) => {
-      if (!canUseSlackConnect(c.var.auth.membership.role)) {
+      if (!canManageSlackConnect(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
       const slackConnect = await dismissSlackConnectInvite(
         c.var.auth.organization.localOrganizationId,
       );
-      return c.json({ slackConnect }, 200);
+      return c.json(
+        { slackConnect: withManageFlag(slackConnect, c.var.auth.membership.role) },
+        200,
+      );
     });
 }

@@ -18,14 +18,20 @@ the team was invited, check email, dismiss, or request another invite.
 
 ## Behavior
 
-1. Create (or reuse) a private channel named `ext-{organization-slug}` in the
-   Hyperlocalise Slack workspace.
+1. Create (or reuse this workspace's) private channel named
+   `ext-{organization-slug}-{orgIdPrefix}` in the Hyperlocalise Slack workspace.
+   Set the channel purpose to `hyperlocalise-org:{organizationId}`. Never adopt a
+   name-taken channel unless that purpose matches. If another tenant already
+   holds the name, create `ext-{organizationIdHex}` instead.
 2. Invite optional host user IDs from `SLACK_CONNECT_HOST_USER_IDS`.
 3. Call `conversations.inviteShared` with the current user's email. Slack emails
    them a Slack Connect link. They accept and name the channel on their side.
 4. Retry with `external_limited=true` when Slack returns `restricted_action`.
-5. Rate-limit requests to once per workspace every two minutes.
+5. Rate-limit requests to once per workspace every two minutes. Reserve the
+   cooldown atomically in the database before calling Slack.
 6. Dismiss hides the banner for the workspace.
+7. GET is allowed with `workspace:read`. POST and PATCH require
+   `workspace:update` (admin or localization manager).
 
 This path is independent of the per-org Slack agent OAuth install.
 

@@ -31,6 +31,7 @@ export type SlackConnectInviteState = {
   available: boolean;
   invited: boolean;
   dismissed: boolean;
+  canManage: boolean;
   lastInvitedAt: string | null;
   invitedEmailMasked: string | null;
 };
@@ -53,12 +54,14 @@ async function fetchSlackConnectInvite(organizationSlug: string): Promise<SlackC
 
 export function SlackConnectInviteBannerView({
   invited,
+  canManage = true,
   isRequesting = false,
   isDismissing = false,
   onDismiss,
   onRequest,
 }: {
   invited: boolean;
+  canManage?: boolean;
   isRequesting?: boolean;
   isDismissing?: boolean;
   onDismiss: () => void;
@@ -87,23 +90,25 @@ export function SlackConnectInviteBannerView({
           </TypographyP>
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 pl-14 sm:pl-0">
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={isDismissing || isRequesting}
-          onClick={onDismiss}
-        >
-          <FormattedMessage {...slackConnectInviteBannerMessages.dismiss} />
-        </Button>
-        <Button type="button" disabled={isRequesting || isDismissing} onClick={onRequest}>
-          {isRequesting ? (
-            <FormattedMessage {...slackConnectInviteBannerMessages.requesting} />
-          ) : (
-            <FormattedMessage {...slackConnectInviteBannerMessages.requestInvite} />
-          )}
-        </Button>
-      </div>
+      {canManage ? (
+        <div className="flex shrink-0 items-center justify-end gap-2 pl-14 sm:pl-0">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isDismissing || isRequesting}
+            onClick={onDismiss}
+          >
+            <FormattedMessage {...slackConnectInviteBannerMessages.dismiss} />
+          </Button>
+          <Button type="button" disabled={isRequesting || isDismissing} onClick={onRequest}>
+            {isRequesting ? (
+              <FormattedMessage {...slackConnectInviteBannerMessages.requesting} />
+            ) : (
+              <FormattedMessage {...slackConnectInviteBannerMessages.requestInvite} />
+            )}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -184,10 +189,14 @@ export function SlackConnectInviteBanner({ organizationSlug }: { organizationSlu
   if (!slackConnect?.available || slackConnect.dismissed) {
     return null;
   }
+  if (!slackConnect.canManage && !slackConnect.invited) {
+    return null;
+  }
 
   return (
     <SlackConnectInviteBannerView
       invited={slackConnect.invited}
+      canManage={slackConnect.canManage}
       isRequesting={requestMutation.isPending}
       isDismissing={dismissMutation.isPending}
       onDismiss={() => {

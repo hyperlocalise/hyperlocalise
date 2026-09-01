@@ -127,6 +127,28 @@ export const SlackConnectCreate: Story = {
   },
 };
 
+export const SlackConnectInviteReadOnly: Story = {
+  args: {
+    slackConnectBanner: (
+      <SlackConnectInviteBannerView
+        invited
+        canManage={false}
+        onDismiss={() => undefined}
+        onRequest={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("We've invited your team to a shared Slack channel"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Request Slack invite" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+  },
+};
+
 export const SlackConnectInvite: Story = {
   args: {
     slackConnectBanner: (

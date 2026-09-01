@@ -24,7 +24,13 @@ import {
   type Result,
 } from "@/lib/primitives/result/results";
 
-import { maskEmailForDisplay, slackConnectChannelName } from "./connect-channel-name";
+import {
+  maskEmailForDisplay,
+  slackConnectChannelName,
+  slackConnectChannelPurpose,
+  slackConnectOrganizationIdFromPurpose,
+  slackConnectUniqueChannelName,
+} from "./connect-channel-name";
 
 export const SLACK_CONNECT_INVITE_COOLDOWN_MS = 2 * 60 * 1000;
 
@@ -55,6 +61,11 @@ export type SlackConnectApi = {
   findPrivateChannelByName: (
     name: string,
   ) => Promise<Result<SlackConnectChannel | null, SlackConnectApiError>>;
+  getChannelPurpose: (channelId: string) => Promise<Result<string | null, SlackConnectApiError>>;
+  setChannelPurpose: (
+    channelId: string,
+    purpose: string,
+  ) => Promise<Result<void, SlackConnectApiError>>;
   inviteUsers: (
     channelId: string,
     userIds: readonly string[],
@@ -107,19 +118,53 @@ export function createSlackConnectApi(botToken: string): SlackConnectApi {
       return ok(channel);
     },
     findPrivateChannelByName: async (name) => {
+      let cursor: string | undefined;
+
+      do {
+        const result = await slackMethod<{
+          channels?: Array<{ id?: string; name?: string }>;
+          response_metadata?: { next_cursor?: string };
+        }>(botToken, "conversations.list", {
+          types: "private_channel",
+          exclude_archived: true,
+          limit: 200,
+          ...(cursor ? { cursor } : {}),
+        });
+        if (isErr(result)) {
+          return result;
+        }
+
+        const match = (result.value.channels ?? []).find((channel) => channel.name === name);
+        const channel = toChannel(match);
+        if (channel) {
+          return ok(channel);
+        }
+
+        cursor = result.value.response_metadata?.next_cursor?.trim() || undefined;
+      } while (cursor);
+
+      return ok(null);
+    },
+    getChannelPurpose: async (channelId) => {
       const result = await slackMethod<{
-        channels?: Array<{ id?: string; name?: string }>;
-      }>(botToken, "conversations.list", {
-        types: "private_channel",
-        exclude_archived: true,
-        limit: 200,
+        channel?: { purpose?: { value?: string } };
+      }>(botToken, "conversations.info", { channel: channelId });
+      if (isErr(result)) {
+        return result;
+      }
+
+      return ok(result.value.channel?.purpose?.value?.trim() || null);
+    },
+    setChannelPurpose: async (channelId, purpose) => {
+      const result = await slackMethod(botToken, "conversations.setPurpose", {
+        channel: channelId,
+        purpose,
       });
       if (isErr(result)) {
         return result;
       }
 
-      const match = (result.value.channels ?? []).find((channel) => channel.name === name);
-      return ok(toChannel(match));
+      return ok(undefined);
     },
     inviteUsers: async (channelId, userIds) => {
       if (userIds.length === 0) {
@@ -184,16 +229,16 @@ export async function requestSlackConnectInvite(input: {
   }
 
   const now = input.now?.() ?? new Date();
-  const existing = await getInviteRow(input.organizationId);
-  const retryAfterSeconds = cooldownRetryAfterSeconds(existing?.lastInvitedAt, now);
-  if (retryAfterSeconds > 0) {
-    return err({ code: "slack_connect_rate_limited", retryAfterSeconds });
+  const reserved = await reserveInviteSlot(input.organizationId, now);
+  if (isErr(reserved)) {
+    return reserved;
   }
 
   const api = input.api ?? createSlackConnectApi(botToken);
   const channelResult = await resolveConnectChannel({
     api,
-    existing,
+    existing: reserved.value,
+    organizationId: input.organizationId,
     organizationSlug: input.organizationSlug,
   });
   if (isErr(channelResult)) {
@@ -206,9 +251,8 @@ export async function requestSlackConnectInvite(input: {
   }
 
   const [saved] = await db
-    .insert(schema.slackConnectInvites)
-    .values({
-      organizationId: input.organizationId,
+    .update(schema.slackConnectInvites)
+    .set({
       slackChannelId: channelResult.value.id,
       slackChannelName: channelResult.value.name,
       lastInviteId: inviteResult.value.inviteId,
@@ -216,20 +260,9 @@ export async function requestSlackConnectInvite(input: {
       lastInvitedAt: now,
       lastInvitedByUserId: input.userId,
       dismissedAt: null,
+      updatedAt: now,
     })
-    .onConflictDoUpdate({
-      target: [schema.slackConnectInvites.organizationId],
-      set: {
-        slackChannelId: channelResult.value.id,
-        slackChannelName: channelResult.value.name,
-        lastInviteId: inviteResult.value.inviteId,
-        lastInvitedEmail: input.email.trim().toLowerCase(),
-        lastInvitedAt: now,
-        lastInvitedByUserId: input.userId,
-        dismissedAt: null,
-        updatedAt: now,
-      },
-    })
+    .where(eq(schema.slackConnectInvites.organizationId, input.organizationId))
     .returning();
 
   logger.info(
@@ -241,7 +274,7 @@ export async function requestSlackConnectInvite(input: {
     "slack connect invite sent",
   );
 
-  return ok(toInviteView(saved ?? null));
+  return ok(toInviteView(saved ?? reserved.value));
 }
 
 export async function dismissSlackConnectInvite(
@@ -280,9 +313,78 @@ export async function dismissSlackConnectInvite(
   return toInviteView(updated ?? existing);
 }
 
+async function reserveInviteSlot(
+  organizationId: string,
+  now: Date,
+): Promise<Result<SlackConnectInviteRow, SlackConnectInviteError>> {
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(schema.slackConnectInvites)
+      .where(eq(schema.slackConnectInvites.organizationId, organizationId))
+      .limit(1)
+      .for("update");
+
+    if (existing) {
+      const retryAfterSeconds = cooldownRetryAfterSeconds(existing.lastInvitedAt, now);
+      if (retryAfterSeconds > 0) {
+        return err({ code: "slack_connect_rate_limited", retryAfterSeconds });
+      }
+
+      const [updated] = await tx
+        .update(schema.slackConnectInvites)
+        .set({ lastInvitedAt: now, updatedAt: now })
+        .where(eq(schema.slackConnectInvites.organizationId, organizationId))
+        .returning();
+
+      return ok(updated ?? existing);
+    }
+
+    const [created] = await tx
+      .insert(schema.slackConnectInvites)
+      .values({
+        organizationId,
+        slackChannelId: "pending",
+        slackChannelName: "pending",
+        lastInvitedAt: now,
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (created) {
+      return ok(created);
+    }
+
+    const [raced] = await tx
+      .select()
+      .from(schema.slackConnectInvites)
+      .where(eq(schema.slackConnectInvites.organizationId, organizationId))
+      .limit(1)
+      .for("update");
+
+    if (!raced) {
+      return err({ code: "slack_connect_invite_failed", slackError: "reserve_failed" });
+    }
+
+    const retryAfterSeconds = cooldownRetryAfterSeconds(raced.lastInvitedAt, now);
+    if (retryAfterSeconds > 0) {
+      return err({ code: "slack_connect_rate_limited", retryAfterSeconds });
+    }
+
+    const [updated] = await tx
+      .update(schema.slackConnectInvites)
+      .set({ lastInvitedAt: now, updatedAt: now })
+      .where(eq(schema.slackConnectInvites.organizationId, organizationId))
+      .returning();
+
+    return ok(updated ?? raced);
+  });
+}
+
 async function resolveConnectChannel(input: {
   api: SlackConnectApi;
   existing: SlackConnectInviteRow | null;
+  organizationId: string;
   organizationSlug: string;
 }): Promise<Result<SlackConnectChannel, SlackConnectApiError>> {
   if (input.existing && input.existing.slackChannelId !== "pending") {
@@ -292,10 +394,14 @@ async function resolveConnectChannel(input: {
     });
   }
 
-  const name = slackConnectChannelName(input.organizationSlug, env.SLACK_CONNECT_CHANNEL_PREFIX);
+  const name = slackConnectChannelName(
+    input.organizationSlug,
+    input.organizationId,
+    env.SLACK_CONNECT_CHANNEL_PREFIX,
+  );
   const created = await input.api.createChannel(name);
   if (isOk(created)) {
-    await inviteHostUsers(input.api, created.value.id);
+    await stampOwnedChannel(input.api, created.value.id, input.organizationId);
     return created;
   }
 
@@ -303,16 +409,80 @@ async function resolveConnectChannel(input: {
     return created;
   }
 
-  const found = await input.api.findPrivateChannelByName(name);
-  if (isErr(found)) {
-    return found;
+  const owned = await findOwnedChannelByName(input.api, name, input.organizationId);
+  if (isErr(owned)) {
+    return owned;
   }
-  if (!found.value) {
+  if (owned.value) {
+    await inviteHostUsers(input.api, owned.value.id);
+    return ok(owned.value);
+  }
+
+  const uniqueName = slackConnectUniqueChannelName(
+    input.organizationId,
+    env.SLACK_CONNECT_CHANNEL_PREFIX,
+  );
+  if (uniqueName === name) {
     return err({ code: "slack_api_error", slackError: "name_taken" });
   }
 
-  await inviteHostUsers(input.api, found.value.id);
+  const uniqueCreated = await input.api.createChannel(uniqueName);
+  if (isOk(uniqueCreated)) {
+    await stampOwnedChannel(input.api, uniqueCreated.value.id, input.organizationId);
+    return uniqueCreated;
+  }
+
+  if (!isNameTakenError(uniqueCreated.error)) {
+    return uniqueCreated;
+  }
+
+  const uniqueOwned = await findOwnedChannelByName(input.api, uniqueName, input.organizationId);
+  if (isErr(uniqueOwned)) {
+    return uniqueOwned;
+  }
+  if (uniqueOwned.value) {
+    await inviteHostUsers(input.api, uniqueOwned.value.id);
+    return ok(uniqueOwned.value);
+  }
+
+  return err({ code: "slack_api_error", slackError: "name_taken" });
+}
+
+async function findOwnedChannelByName(
+  api: SlackConnectApi,
+  name: string,
+  organizationId: string,
+): Promise<Result<SlackConnectChannel | null, SlackConnectApiError>> {
+  const found = await api.findPrivateChannelByName(name);
+  if (isErr(found) || !found.value) {
+    return found;
+  }
+
+  const purpose = await api.getChannelPurpose(found.value.id);
+  if (isErr(purpose)) {
+    return purpose;
+  }
+
+  if (slackConnectOrganizationIdFromPurpose(purpose.value) !== organizationId) {
+    return ok(null);
+  }
+
   return ok(found.value);
+}
+
+async function stampOwnedChannel(api: SlackConnectApi, channelId: string, organizationId: string) {
+  const purposeResult = await api.setChannelPurpose(
+    channelId,
+    slackConnectChannelPurpose(organizationId),
+  );
+  if (isErr(purposeResult)) {
+    logger.warn(
+      { slackChannelId: channelId, errorCode: purposeResult.error.code },
+      "slack connect channel purpose failed",
+    );
+  }
+
+  await inviteHostUsers(api, channelId);
 }
 
 async function inviteHostUsers(api: SlackConnectApi, channelId: string) {
@@ -352,7 +522,7 @@ async function getInviteRow(organizationId: string) {
 function toInviteView(invite: SlackConnectInviteRow | null): SlackConnectInviteView {
   return {
     available: true,
-    invited: Boolean(invite?.lastInvitedAt),
+    invited: Boolean(invite?.lastInviteId),
     dismissed: Boolean(invite?.dismissedAt),
     lastInvitedAt: invite?.lastInvitedAt?.toISOString() ?? null,
     invitedEmailMasked: invite?.lastInvitedEmail

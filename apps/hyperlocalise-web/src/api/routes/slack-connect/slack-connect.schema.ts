@@ -16,6 +16,7 @@ export const slackConnectInviteViewSchema = z.object({
   available: z.boolean(),
   invited: z.boolean(),
   dismissed: z.boolean(),
+  canManage: z.boolean(),
   lastInvitedAt: z.string().nullable(),
   invitedEmailMasked: z.string().nullable(),
 });

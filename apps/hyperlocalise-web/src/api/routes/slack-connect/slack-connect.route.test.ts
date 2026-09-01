@@ -61,6 +61,11 @@ const invitedView = {
   invitedEmailMasked: "m***@acme.com",
 };
 
+const invitedManagedView = {
+  ...invitedView,
+  canManage: true,
+};
+
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
@@ -81,7 +86,38 @@ describe("slack-connect routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ slackConnect: invitedView });
+    expect(await response.json()).toEqual({ slackConnect: invitedManagedView });
+  });
+
+  it("lets read-only members load the banner but not mutate it", async () => {
+    const identity = authFixture.createWorkosIdentityWithRole("member");
+    mocks.getSlackConnectInviteView.mockResolvedValue(invitedView);
+
+    const headers = await authFixture.authHeadersFor(identity);
+    const getResponse = await client.api.orgs[":organizationSlug"]["slack-connect"].$get(
+      { param: { organizationSlug: identity.organization.slug ?? "missing" } },
+      { headers },
+    );
+    const postResponse = await client.api.orgs[":organizationSlug"]["slack-connect"].$post(
+      { param: { organizationSlug: identity.organization.slug ?? "missing" } },
+      { headers },
+    );
+    const patchResponse = await client.api.orgs[":organizationSlug"]["slack-connect"].$patch(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+        json: { dismissed: true },
+      },
+      { headers },
+    );
+
+    expect(getResponse.status).toBe(200);
+    expect(await getResponse.json()).toEqual({
+      slackConnect: { ...invitedView, canManage: false },
+    });
+    expect(postResponse.status).toBe(403);
+    expect(patchResponse.status).toBe(403);
+    expect(mocks.requestSlackConnectInvite).not.toHaveBeenCalled();
+    expect(mocks.dismissSlackConnectInvite).not.toHaveBeenCalled();
   });
 
   it("sends a Slack Connect invite for the signed-in user", async () => {
@@ -100,7 +136,7 @@ describe("slack-connect routes", () => {
         email: identity.user.email,
       }),
     );
-    expect(await response.json()).toEqual({ slackConnect: invitedView });
+    expect(await response.json()).toEqual({ slackConnect: invitedManagedView });
   });
 
   it("maps Slack Connect rate limits to 429", async () => {
@@ -138,7 +174,7 @@ describe("slack-connect routes", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      slackConnect: { ...invitedView, dismissed: true },
+      slackConnect: { ...invitedManagedView, dismissed: true },
     });
   });
 });

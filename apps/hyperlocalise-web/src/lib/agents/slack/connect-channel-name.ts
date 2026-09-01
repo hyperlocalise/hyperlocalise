@@ -13,19 +13,46 @@
 
 const SLACK_CHANNEL_NAME_MAX_LENGTH = 80;
 const DEFAULT_CHANNEL_PREFIX = "ext";
+const ORGANIZATION_ID_PURPOSE_PREFIX = "hyperlocalise-org:";
+const CHANNEL_NAME_ID_SUFFIX_LENGTH = 8;
+
+export function slackConnectChannelPurpose(organizationId: string) {
+  return `${ORGANIZATION_ID_PURPOSE_PREFIX}${organizationId}`;
+}
+
+export function slackConnectOrganizationIdFromPurpose(purpose: string | null | undefined) {
+  const trimmed = purpose?.trim() ?? "";
+  if (!trimmed.startsWith(ORGANIZATION_ID_PURPOSE_PREFIX)) {
+    return null;
+  }
+
+  const organizationId = trimmed.slice(ORGANIZATION_ID_PURPOSE_PREFIX.length);
+  return organizationId.length > 0 ? organizationId : null;
+}
 
 export function slackConnectChannelName(
   organizationSlug: string,
+  organizationId: string,
   prefix = DEFAULT_CHANNEL_PREFIX,
 ): string {
   const safePrefix = sanitizeSlackChannelFragment(prefix) || DEFAULT_CHANNEL_PREFIX;
-  const safeSlug = sanitizeSlackChannelFragment(organizationSlug) || "workspace";
-  const name = `${safePrefix}-${safeSlug}`;
-  if (name.length <= SLACK_CHANNEL_NAME_MAX_LENGTH) {
-    return name;
-  }
+  const unique = organizationIdFragment(organizationId, CHANNEL_NAME_ID_SUFFIX_LENGTH);
+  const reserved = safePrefix.length + unique.length + 2;
+  const maxSlugLength = Math.max(1, SLACK_CHANNEL_NAME_MAX_LENGTH - reserved);
+  const safeSlug = (sanitizeSlackChannelFragment(organizationSlug) || "workspace").slice(
+    0,
+    maxSlugLength,
+  );
 
-  return name.slice(0, SLACK_CHANNEL_NAME_MAX_LENGTH).replace(/-+$/u, "");
+  return `${safePrefix}-${safeSlug}-${unique}`;
+}
+
+export function slackConnectUniqueChannelName(
+  organizationId: string,
+  prefix = DEFAULT_CHANNEL_PREFIX,
+): string {
+  const safePrefix = sanitizeSlackChannelFragment(prefix) || DEFAULT_CHANNEL_PREFIX;
+  return `${safePrefix}-${organizationIdFragment(organizationId)}`;
 }
 
 export function maskEmailForDisplay(email: string): string {
@@ -38,6 +65,15 @@ export function maskEmailForDisplay(email: string): string {
   const local = trimmed.slice(0, at);
   const domain = trimmed.slice(at + 1);
   return `${local[0]}***@${domain}`;
+}
+
+function organizationIdFragment(organizationId: string, length?: number) {
+  const hex = organizationId.replace(/-/gu, "").toLowerCase();
+  if (length === undefined) {
+    return hex;
+  }
+
+  return hex.slice(0, length);
 }
 
 function sanitizeSlackChannelFragment(value: string) {
