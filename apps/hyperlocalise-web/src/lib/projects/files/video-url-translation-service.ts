@@ -221,7 +221,6 @@ export async function localizeVideoUrlTranslation(input: {
         organizationId: input.organizationId,
         operationKey: mediaLocalizationOperationKey(
           `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
-          input.force,
         ),
         source: "project_video_url_translation",
         dimensions: {

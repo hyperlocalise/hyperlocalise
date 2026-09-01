@@ -345,7 +345,6 @@ export async function localizeAndStoreImageVariant(input: {
         organizationId: input.organizationId,
         operationKey: mediaLocalizationOperationKey(
           `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
-          input.force,
         ),
         source: "project_image_variant",
         dimensions: {

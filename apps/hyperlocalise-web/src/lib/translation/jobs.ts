@@ -25,6 +25,7 @@ import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
+import { releaseSandboxTranslationAiCredit } from "@/lib/billing/sandbox-translation-credit";
 import {
   formatManagedAiCreditError,
   releaseManagedAiCredit,
@@ -462,7 +463,16 @@ class TranslationJobCompletionService {
     }
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
-    const tokenUsage = input.result.tokenUsage;
+    const tokenUsage =
+      input.result.tokenUsage && input.result.tokenUsage.totalTokens > 0
+        ? input.result.tokenUsage
+        : null;
+    if (!tokenUsage) {
+      await releaseSandboxTranslationAiCredit({
+        jobId: input.jobId,
+        reason: "no_token_usage",
+      });
+    }
     const [projectForUsage] = await db
       .select({ organizationId: schema.projects.organizationId })
       .from(schema.projects)
@@ -547,6 +557,10 @@ class TranslationJobCompletionService {
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
       status: "failed",
       source: "translation_job",
+    });
+    await releaseSandboxTranslationAiCredit({
+      jobId: input.jobId,
+      reason: "translation_job_failed",
     });
 
     const failedJob = await this.repository.getStored(input.jobId, input.projectId);

@@ -173,7 +173,6 @@ export async function localizeImageUrlTranslation(input: {
         organizationId: input.organizationId,
         operationKey: mediaLocalizationOperationKey(
           `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
-          input.force,
         ),
         source: "project_image_url_translation",
         dimensions: {

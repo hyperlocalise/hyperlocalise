@@ -37,6 +37,10 @@ function optionalPositiveInt(value: number): number | undefined {
   return value > 0 ? value : undefined;
 }
 
+function exclusiveTokenPool(total: number, ...subsets: number[]): number {
+  return Math.max(0, total - subsets.reduce((sum, count) => sum + count, 0));
+}
+
 export function appendHlRunReportOutput(command: string, reportPath: string): string {
   const quotedPath = `'${reportPath.replaceAll("'", "'\\''")}'`;
   return `${command} --output ${quotedPath} --output-detail summary`;
@@ -48,15 +52,18 @@ export function parseCliTokenUsage(value: unknown): CliTokenUsage | null {
   }
 
   const record = value as Record<string, unknown>;
-  const inputTokens = nonnegativeInt(record.inputTokens) || nonnegativeInt(record.promptTokens);
-  const outputTokens =
+  const reportedInputTokens =
+    nonnegativeInt(record.inputTokens) || nonnegativeInt(record.promptTokens);
+  const reportedOutputTokens =
     nonnegativeInt(record.outputTokens) || nonnegativeInt(record.completionTokens);
   const cacheReadTokens = nonnegativeInt(record.cachedInputTokens);
   const cacheWriteTokens = nonnegativeInt(record.cacheWriteInputTokens);
   const reasoningTokens = nonnegativeInt(record.reasoningTokens);
-  const totalTokens =
-    nonnegativeInt(record.totalTokens) ||
+  const inputTokens = exclusiveTokenPool(reportedInputTokens, cacheReadTokens, cacheWriteTokens);
+  const outputTokens = exclusiveTokenPool(reportedOutputTokens, reasoningTokens);
+  const exclusiveTotal =
     inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens + reasoningTokens;
+  const totalTokens = exclusiveTotal > 0 ? exclusiveTotal : nonnegativeInt(record.totalTokens);
 
   if (totalTokens <= 0) {
     return null;
