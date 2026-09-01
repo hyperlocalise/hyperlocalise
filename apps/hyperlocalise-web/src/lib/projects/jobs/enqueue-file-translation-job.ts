@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import {
   formatUsageControlError,
@@ -180,6 +181,15 @@ export async function createFileTranslationJob(
 
   if (!project) {
     return { ok: false, code: "project_not_found", message: "Project not found." };
+  }
+
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return {
+      ok: false,
+      code: aiFeatures.error.code,
+      message: aiFeatures.error.message,
+    };
   }
 
   const localeValidation = validateJobLocalesAgainstProject(project, {

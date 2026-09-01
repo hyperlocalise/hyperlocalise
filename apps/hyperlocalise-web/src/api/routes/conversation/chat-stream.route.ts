@@ -16,6 +16,7 @@ import { z } from "zod";
 
 import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
+import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
@@ -62,6 +63,14 @@ export function createChatStreamRoutes() {
 
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
+      }
+
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
       }
 
       if (conversation.source !== "chat_ui") {

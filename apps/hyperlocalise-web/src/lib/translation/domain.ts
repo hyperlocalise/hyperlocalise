@@ -161,7 +161,9 @@ export type ContentEditorAiRecommendationError = {
     | "provider_credential_invalid"
     | "provider_credential_missing"
     | "translation_context_assembly_failed"
-    | "ai_recommendation_failed";
+    | "ai_recommendation_failed"
+    | "ai_features_required"
+    | "ai_features_check_failed";
   message: string;
 };
 

@@ -21,6 +21,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
@@ -316,10 +317,12 @@ export function JobsPageContent({
         }
         headerActions={
           canCreateJob ? (
-            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              <FormattedMessage {...jobsPageContentMessages.createJob} />
-            </Button>
+            <AiFeatureAction organizationSlug={organizationSlug} size="sm">
+              <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                <FormattedMessage {...jobsPageContentMessages.createJob} />
+              </Button>
+            </AiFeatureAction>
           ) : null
         }
         isNativeLoading={isNativeLoading}

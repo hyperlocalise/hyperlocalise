@@ -23,6 +23,7 @@ import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -372,10 +373,12 @@ export function ProjectFileDetailPanelView({
         ) : null}
         {!provider ? (
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-              <FormattedMessage {...messages.translateWithAgent} />
-            </Button>
+            <AiFeatureAction organizationSlug={organizationSlug} size="sm">
+              <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
+                <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+                <FormattedMessage {...messages.translateWithAgent} />
+              </Button>
+            </AiFeatureAction>
             <Button
               type="button"
               size="sm"

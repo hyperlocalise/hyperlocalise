@@ -30,9 +30,11 @@ import type {
   StreamedAssistantMessage,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { ReplyComposer } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/reply-composer";
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Button } from "@/components/ui/button";
 import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
 import { ChatDockEmptyState } from "./chat-dock-empty-state";
 import { chatDockMessages } from "./chat-dock.messages";
@@ -80,6 +82,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   store: ChatDockStore;
 }) {
   const intl = useIntl();
+  const aiFeaturesAccess = useAiFeaturesAccess();
   const tab = store.activeTab;
   const queryClient = useQueryClient();
   const streamManager = getChatStreamManager(organizationSlug, store);
@@ -366,19 +369,25 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           />
         )}
 
-        <ReplyComposer
-          key={tab.id}
-          disabled={isBusy}
-          draft={tab.draft}
-          initialProjectId={tab.isPending ? (store.pageContext?.projectId ?? null) : null}
-          isStreaming={isTabStreaming}
-          lockedProjectId={!tab.isPending ? (persistedConversation?.projectId ?? null) : null}
-          lockedProjectName={tab.isPending ? (store.pageContext?.projectName ?? null) : null}
-          onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
-          onSend={onSendMessage}
-          organizationSlug={organizationSlug}
-          placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
-        />
+        {aiFeaturesAccess.status === "denied" ? (
+          <div className="border-t border-border px-3 py-2">
+            <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+          </div>
+        ) : aiFeaturesAccess.status === "allowed" ? (
+          <ReplyComposer
+            key={tab.id}
+            disabled={isBusy}
+            draft={tab.draft}
+            initialProjectId={tab.isPending ? (store.pageContext?.projectId ?? null) : null}
+            isStreaming={isTabStreaming}
+            lockedProjectId={!tab.isPending ? (persistedConversation?.projectId ?? null) : null}
+            lockedProjectName={tab.isPending ? (store.pageContext?.projectName ?? null) : null}
+            onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
+            onSend={onSendMessage}
+            organizationSlug={organizationSlug}
+            placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
+          />
+        ) : null}
       </div>
     </section>
   );

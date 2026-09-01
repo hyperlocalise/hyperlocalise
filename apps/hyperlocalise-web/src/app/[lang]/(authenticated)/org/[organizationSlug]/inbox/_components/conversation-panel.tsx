@@ -12,15 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { BubbleChatNotificationIcon, Chat01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ChatDockEmptyState } from "@/components/app-shell/chat-dock/chat-dock-empty-state";
 import { chatDockMessages } from "@/components/app-shell/chat-dock/chat-dock.messages";
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
+import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
 import { ConversationMessageList } from "./conversation-message-list";
 import { conversationPanelMessages } from "./conversation-panel.messages";
@@ -37,6 +39,30 @@ import {
   type StreamedAssistantMessage,
 } from "./inbox-types";
 import { ReplyComposer } from "./reply-composer";
+
+function InboxAiComposer({
+  organizationSlug,
+  children,
+}: {
+  organizationSlug: string;
+  children: ReactNode;
+}) {
+  const access = useAiFeaturesAccess();
+
+  if (access.status === "loading") {
+    return null;
+  }
+
+  if (access.status === "denied") {
+    return (
+      <div className="border-t border-border px-4 py-3 sm:px-6">
+        <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+      </div>
+    );
+  }
+
+  return children;
+}
 
 export function ConversationPanel({
   conversation,
@@ -117,17 +143,19 @@ export function ConversationPanel({
               });
             }}
           />
-          <InboxPanelErrorBoundary scope="composer" resetKeys={[composerDisabled, draft]}>
-            <ReplyComposer
-              disabled={composerDisabled}
-              draft={draft}
-              isStreaming={isStreaming}
-              onDraftChange={onDraftChange}
-              onSend={onSendMessage}
-              organizationSlug={organizationSlug}
-              placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
-            />
-          </InboxPanelErrorBoundary>
+          <InboxAiComposer organizationSlug={organizationSlug}>
+            <InboxPanelErrorBoundary scope="composer" resetKeys={[composerDisabled, draft]}>
+              <ReplyComposer
+                disabled={composerDisabled}
+                draft={draft}
+                isStreaming={isStreaming}
+                onDraftChange={onDraftChange}
+                onSend={onSendMessage}
+                organizationSlug={organizationSlug}
+                placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
+              />
+            </InboxPanelErrorBoundary>
+          </InboxAiComposer>
         </div>
       </section>
     );
@@ -169,15 +197,20 @@ export function ConversationPanel({
         </InboxPanelErrorBoundary>
 
         {isChatUi ? (
-          <InboxPanelErrorBoundary scope="composer" resetKeys={[conversation.id, composerDisabled]}>
-            <ReplyComposer
-              disabled={composerDisabled}
-              isStreaming={isStreaming}
-              lockedProjectId={conversation.projectId}
-              onSend={onSendMessage}
-              organizationSlug={organizationSlug}
-            />
-          </InboxPanelErrorBoundary>
+          <InboxAiComposer organizationSlug={organizationSlug}>
+            <InboxPanelErrorBoundary
+              scope="composer"
+              resetKeys={[conversation.id, composerDisabled]}
+            >
+              <ReplyComposer
+                disabled={composerDisabled}
+                isStreaming={isStreaming}
+                lockedProjectId={conversation.projectId}
+                onSend={onSendMessage}
+                organizationSlug={organizationSlug}
+              />
+            </InboxPanelErrorBoundary>
+          </InboxAiComposer>
         ) : null}
       </div>
     </section>

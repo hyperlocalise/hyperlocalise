@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import {
@@ -163,17 +164,24 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
 
   if (!chatDock.hasTabs) {
     return (
-      <Button
-        type="button"
+      <AiFeatureAction
+        organizationSlug={organizationSlug}
         variant="ghost"
         size="xs"
         className="gap-1.5 px-2"
-        aria-label={intl.formatMessage(chatDockMessages.newChat)}
-        onClick={() => chatDock.openNewTab()}
       >
-        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
-        <FormattedMessage {...chatDockMessages.newChat} />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          className="gap-1.5 px-2"
+          aria-label={intl.formatMessage(chatDockMessages.newChat)}
+          onClick={() => chatDock.openNewTab()}
+        >
+          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
+          <FormattedMessage {...chatDockMessages.newChat} />
+        </Button>
+      </AiFeatureAction>
     );
   }
 
@@ -181,6 +189,7 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
     <ChatDockTabBar
       tabs={chatDock.tabs}
       activeTabId={chatDock.activeTabId}
+      organizationSlug={organizationSlug}
       onSelectTab={(tabId) => chatDock.selectTab(tabId)}
       onCloseTab={(tabId) => {
         chatDock.closeTab(tabId);

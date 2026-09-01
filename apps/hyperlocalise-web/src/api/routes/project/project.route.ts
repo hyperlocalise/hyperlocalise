@@ -19,6 +19,7 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
+import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import {
   badRequestResponse,
   conflictResponse,
@@ -1764,6 +1765,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectForbiddenResponse(c);
         }
 
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+          c,
+          c.var.auth.organization.localOrganizationId,
+        );
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
+        }
+
         const params = c.req.valid("param");
         const body = c.req.valid("json");
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
@@ -1810,6 +1819,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
 
         if (isErr(result)) {
+          if (result.error.code === "ai_features_check_failed") {
+            return serviceUnavailableResponse(c, result.error.code, result.error.message);
+          }
+          if (result.error.code === "ai_features_required") {
+            return sharedForbiddenResponse(c, result.error.code, result.error.message);
+          }
           return badRequestResponse(c, result.error.code, result.error.message);
         }
 
@@ -2056,6 +2071,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       async (c) => {
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
           return projectForbiddenResponse(c);
+        }
+
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+          c,
+          c.var.auth.organization.localOrganizationId,
+        );
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
         }
 
         const params = c.req.valid("param");
@@ -3013,6 +3036,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
           return projectForbiddenResponse(c);
+        }
+
+        if (!body.cachedOnly) {
+          const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+            c,
+            c.var.auth.organization.localOrganizationId,
+          );
+          if (aiFeaturesDenied) {
+            return aiFeaturesDenied;
+          }
         }
 
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);

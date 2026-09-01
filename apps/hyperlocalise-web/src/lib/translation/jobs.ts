@@ -15,6 +15,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
@@ -240,6 +241,28 @@ class TranslationJobExecutor {
         ok: false,
         code: "unsupported_job_type",
         message: `translation job type ${claimedJob.type} is not supported`,
+      };
+    }
+
+    const [project] = await db
+      .select({ organizationId: schema.projects.organizationId })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, claimedJob.projectId))
+      .limit(1);
+    if (!project) {
+      return {
+        ok: false,
+        code: "translation_project_not_found",
+        message: "translation project not found",
+      };
+    }
+
+    const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: project.organizationId });
+    if (!aiFeatures.ok) {
+      return {
+        ok: false,
+        code: aiFeatures.error.code,
+        message: aiFeatures.error.message,
       };
     }
 

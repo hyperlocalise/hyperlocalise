@@ -24,6 +24,7 @@ import {
   isReviewApproveAllowed,
 } from "@/api/auth/capability-guards";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
+import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { validationErrorResponse } from "@/api/errors";
 import {
@@ -433,6 +434,16 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const title = payload.title?.trim();
       const description = payload.description?.trim();
       const jobKind = payload.kind === "proofread" ? "proofread" : "translation";
+      if (jobKind !== "proofread") {
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+          c,
+          c.var.auth.organization.localOrganizationId,
+        );
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
+        }
+      }
+
       let enrichedInputPayload = inputPayload;
       if (title || description) {
         enrichedInputPayload = {
@@ -1092,6 +1103,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return projectForbiddenResponse(c);
       }
 
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
+      }
+
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
 
@@ -1169,6 +1188,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
+      }
+
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
       }
 
       const params = c.req.valid("param");

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { AiFeaturesRequiredError, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
@@ -145,6 +146,11 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   run: () => Promise<T>;
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
 }): Promise<T> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    throw new AiFeaturesRequiredError(aiFeatures.error);
+  }
+
   await reserveAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,

@@ -12,6 +12,7 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { hlEntriesPayloadToStringMap } from "@/lib/projects/files/hl-entries";
@@ -596,6 +597,18 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `project ${claim.job.projectId} not found`,
     });
     throw new Error("project not found");
+  }
+
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId });
+  if (!aiFeatures.ok) {
+    await failTranslationJobStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: aiFeatures.error.code,
+      message: aiFeatures.error.message,
+    });
+    return { status: "failed" as const, reason: aiFeatures.error.code };
   }
 
   if (isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {

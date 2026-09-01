@@ -24,6 +24,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -105,17 +106,23 @@ export const ProjectFileSelectionActions = forwardRef<
       </Button>
       {actions.isNativeFile ? (
         <>
-          <Button
-            type="button"
+          <AiFeatureAction
+            organizationSlug={organizationSlug}
             size="sm"
             className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
-            disabled={!actions.canTranslateWithAgent}
-            title={actions.translateDisabledTitle}
-            onClick={() => actions.setTranslateDialogOpen(true)}
           >
-            <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-            <FormattedMessage {...messages.translateWithAgent} />
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              className={layout === "default" ? "w-full shrink-0 sm:w-fit" : "shrink-0"}
+              disabled={!actions.canTranslateWithAgent}
+              title={actions.translateDisabledTitle}
+              onClick={() => actions.setTranslateDialogOpen(true)}
+            >
+              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.translateWithAgent} />
+            </Button>
+          </AiFeatureAction>
           <Button
             type="button"
             size="sm"

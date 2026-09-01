@@ -27,6 +27,10 @@ const { jobsPostMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   toastSuccessMock: vi.fn(),
 }));
 
+vi.mock("@/lib/billing/use-ai-features-access", () => ({
+  useAiFeaturesAccess: () => ({ status: "allowed" }),
+}));
+
 vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
     api: {

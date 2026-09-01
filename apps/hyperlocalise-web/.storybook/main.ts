@@ -20,6 +20,7 @@ const config: StorybookConfig = {
       storybookDir,
       "./mocks/authkit-nextjs-components.tsx",
     );
+    const aiFeaturesAccessMock = path.resolve(storybookDir, "./mocks/use-ai-features-access.ts");
 
     viteConfig.resolve ??= {};
     const existingAlias = viteConfig.resolve.alias;
@@ -31,6 +32,10 @@ const config: StorybookConfig = {
           find: "@workos-inc/authkit-nextjs/components",
           replacement: authkitComponentsMock,
         },
+        {
+          find: "@/lib/billing/use-ai-features-access",
+          replacement: aiFeaturesAccessMock,
+        },
       ];
     } else {
       viteConfig.resolve.alias = Object.assign(
@@ -38,6 +43,7 @@ const config: StorybookConfig = {
         existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
         {
           "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
+          "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
         },
       );
     }

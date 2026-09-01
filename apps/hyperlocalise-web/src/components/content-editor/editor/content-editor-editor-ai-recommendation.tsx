@@ -16,12 +16,14 @@ import { RefreshIcon, SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icon
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegmentIntelligence } from "@/components/content-editor/shared/types";
+import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 
 export function ContentEditorEditorAiRecommendation({
   intelligence,
@@ -38,6 +40,7 @@ export function ContentEditorEditorAiRecommendation({
   onGenerateAiRecommendation?: () => void;
   className?: string;
 }) {
+  const upgradeHref = useAiFeaturesUpgradeHref();
   const hasSuggestion = Boolean(intelligence.aiSuggestion);
 
   return (
@@ -69,7 +72,13 @@ export function ContentEditorEditorAiRecommendation({
               <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
           ) : null}
-          {onGenerateAiRecommendation ? (
+          {upgradeHref ? (
+            <UpgradePlanButton
+              organizationSlug={upgradeHref.organizationSlug}
+              variant="outline"
+              size="xs"
+            />
+          ) : onGenerateAiRecommendation ? (
             <Button
               variant="outline"
               size="xs"

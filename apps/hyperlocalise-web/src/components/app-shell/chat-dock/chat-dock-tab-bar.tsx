@@ -19,6 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 
 import { chatDockMessages } from "./chat-dock.messages";
 import type { ChatDockTab } from "./chat-dock-store";
@@ -29,12 +30,14 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
   onSelectTab,
   onCloseTab,
   onNewTab,
+  organizationSlug,
 }: {
   tabs: ChatDockTab[];
   activeTabId: string | null;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onNewTab: () => void;
+  organizationSlug: string;
 }) {
   const intl = useIntl();
 
@@ -90,17 +93,24 @@ export const ChatDockTabBar = observer(function ChatDockTabBar({
         })}
       </div>
 
-      <Button
-        type="button"
+      <AiFeatureAction
+        organizationSlug={organizationSlug}
         variant="ghost"
         size="xs"
         className="shrink-0 gap-1.5 px-2"
-        aria-label={intl.formatMessage(chatDockMessages.newChat)}
-        onClick={onNewTab}
       >
-        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
-        <FormattedMessage {...chatDockMessages.newChat} />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          className="shrink-0 gap-1.5 px-2"
+          aria-label={intl.formatMessage(chatDockMessages.newChat)}
+          onClick={onNewTab}
+        >
+          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
+          <FormattedMessage {...chatDockMessages.newChat} />
+        </Button>
+      </AiFeatureAction>
     </div>
   );
 });

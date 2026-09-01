@@ -30,6 +30,10 @@ import {
 import { createProjectFileRecord } from "./project-files.fixture";
 import { ProjectFilesTree } from "./project-files-tree";
 
+vi.mock("@/lib/billing/use-ai-features-access", () => ({
+  useAiFeaturesAccess: () => ({ status: "allowed" }),
+}));
+
 async function openOptionsMenu(container: HTMLElement) {
   const host = container.querySelector("file-tree-container");
   expect(host).toBeTruthy();

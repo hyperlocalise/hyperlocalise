@@ -26,6 +26,7 @@ import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import type { ContextMenuOpenContext } from "@pierre/trees";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 
 import { projectFileTreeContextMenuMessages as messages } from "./project-file-tree-context-menu.messages";
@@ -153,22 +154,28 @@ export function ProjectFileTreeContextMenu({
       </Button>
       {capabilities.isNativeFile ? (
         <>
-          <Button
-            type="button"
+          <AiFeatureAction
+            organizationSlug={fileActions.organizationSlug}
             size="sm"
             className="w-full justify-start"
-            disabled={!capabilities.canTranslateWithAgent}
-            title={capabilities.translateDisabledTitle}
-            onClick={() => {
-              closeMenu();
-              runAfterMenuClose(() => {
-                fileActions.onTranslateFile?.(file);
-              });
-            }}
           >
-            <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
-            <FormattedMessage {...messages.translateWithAgent} />
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="w-full justify-start"
+              disabled={!capabilities.canTranslateWithAgent}
+              title={capabilities.translateDisabledTitle}
+              onClick={() => {
+                closeMenu();
+                runAfterMenuClose(() => {
+                  fileActions.onTranslateFile?.(file);
+                });
+              }}
+            >
+              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.translateWithAgent} />
+            </Button>
+          </AiFeatureAction>
           <Button
             type="button"
             size="sm"

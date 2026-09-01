@@ -12,10 +12,12 @@
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { completeAndTrackBillableUsageMock, reserveUsageEventMock } = vi.hoisted(() => ({
-  completeAndTrackBillableUsageMock: vi.fn(),
-  reserveUsageEventMock: vi.fn(),
-}));
+const { completeAndTrackBillableUsageMock, ensureAiFeaturesAllowedMock, reserveUsageEventMock } =
+  vi.hoisted(() => ({
+    completeAndTrackBillableUsageMock: vi.fn(),
+    ensureAiFeaturesAllowedMock: vi.fn(),
+    reserveUsageEventMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/billing/usage-control", () => ({
   completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
@@ -26,6 +28,19 @@ vi.mock("@/lib/billing/usage-control", () => ({
   },
 }));
 
+vi.mock("@/lib/billing/ai-features", () => ({
+  ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  AiFeaturesRequiredError: class AiFeaturesRequiredError extends Error {
+    readonly code: string;
+
+    constructor(error: { code: string; message: string }) {
+      super(error.message);
+      this.name = "AiFeaturesRequiredError";
+      this.code = error.code;
+    }
+  },
+}));
+
 import {
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
@@ -33,7 +48,8 @@ import {
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
-import { ok } from "@/lib/primitives/result/results";
+import { AiFeaturesRequiredError } from "@/lib/billing/ai-features";
+import { err, ok } from "@/lib/primitives/result/results";
 
 describe("agent-runtime-usage", () => {
   afterEach(() => {
@@ -144,6 +160,7 @@ describe("agent-runtime-usage", () => {
   });
 
   it("meters a successful agent generate call end to end", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
     completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
 
@@ -176,6 +193,7 @@ describe("agent-runtime-usage", () => {
   });
 
   it("does not complete usage when the metered run throws", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
 
     await expect(
@@ -193,6 +211,7 @@ describe("agent-runtime-usage", () => {
   });
 
   it("still returns the successful run when usage completion fails", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
     completeAndTrackBillableUsageMock.mockResolvedValue({
       ok: false,
@@ -210,5 +229,27 @@ describe("agent-runtime-usage", () => {
     ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("does not run when AI features are denied", async () => {
+    const run = vi.fn();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: "ai_features_required",
+        message: "AI features are not included in your current plan.",
+      }),
+    );
+
+    await expect(
+      withAgentRuntimeUsageMetering({
+        organizationId: "org_123",
+        operationKey: "workspace-automation:run_denied:agent_runs",
+        source: "workspace_orchestrator",
+        run,
+      }),
+    ).rejects.toBeInstanceOf(AiFeaturesRequiredError);
+
+    expect(run).not.toHaveBeenCalled();
+    expect(reserveUsageEventMock).not.toHaveBeenCalled();
   });
 });

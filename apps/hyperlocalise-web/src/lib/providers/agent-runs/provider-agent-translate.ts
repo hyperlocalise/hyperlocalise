@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -446,6 +447,23 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       code: run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
       message: `Agent run is ${run.status}, expected queued or running`,
+    };
+  }
+
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: { code: aiFeatures.error.code },
+      warnings: [aiFeatures.error.message],
+    });
+
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: aiFeatures.error.code,
+      message: aiFeatures.error.message,
     };
   }
 

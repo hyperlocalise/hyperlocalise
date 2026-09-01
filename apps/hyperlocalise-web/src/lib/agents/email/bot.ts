@@ -22,6 +22,7 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
@@ -809,6 +810,14 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           return;
         }
 
+        const pendingAiFeatures = await ensureAiFeaturesAllowed({
+          organizationId: conversationOrganizationId,
+        });
+        if (!pendingAiFeatures.ok) {
+          await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
+          return;
+        }
+
         log.info("resuming pending clarification");
         await handlePendingClarification({
           thread,
@@ -837,6 +846,12 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
             "—Hyperlocalise Agent",
           ].join("\n"),
         );
+        return;
+      }
+
+      const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: organization.id });
+      if (!aiFeatures.ok) {
+        await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
         return;
       }
 

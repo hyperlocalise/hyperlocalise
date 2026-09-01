@@ -21,6 +21,10 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { createProjectFileRecord } from "./project-files.fixture";
 import { ProjectFileTreeContextMenu } from "./project-file-tree-context-menu";
 
+vi.mock("@/lib/billing/use-ai-features-access", () => ({
+  useAiFeaturesAccess: () => ({ status: "allowed" }),
+}));
+
 describe("ProjectFileTreeContextMenu", () => {
   it("closes the tree menu before opening the translation dialog", async () => {
     const events: string[] = [];

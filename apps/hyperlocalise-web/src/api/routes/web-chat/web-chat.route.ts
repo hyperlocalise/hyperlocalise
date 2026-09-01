@@ -18,6 +18,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { createWebChatAgentUIStreamResponse } from "@/agents/automations/workspace/agent/channels/web-chat";
 import { createRequestBodyLimitMiddleware } from "@/api/middleware/request-body-limit";
 import { extractLastUserMessage } from "@/api/routes/conversation/chat-stream-message";
+import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import {
   badRequestResponse,
   conflictResponse,
@@ -172,6 +173,11 @@ export function createWebChatRoutes(options: CreateWebChatRoutesOptions = {}) {
         return forbiddenResponse(c, "web_chat_unavailable", "This chat is currently unavailable.");
       }
 
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, agent.organization.id);
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
+      }
+
       const visitorId = readVisitorId(c);
       storeVisitorCookie(c, visitorId);
 
@@ -277,6 +283,11 @@ export function createWebChatRoutes(options: CreateWebChatRoutesOptions = {}) {
       }
       if (agent.automation.status !== "active") {
         return forbiddenResponse(c, "web_chat_unavailable", "This chat is currently unavailable.");
+      }
+
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, agent.organization.id);
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
       }
 
       const visitorId = readVisitorId(c);

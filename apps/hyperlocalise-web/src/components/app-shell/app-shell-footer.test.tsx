@@ -136,9 +136,10 @@ describe("AppShellFooter", () => {
   it("hosts chat tabs on the right of the footer status row with support", async () => {
     const user = userEvent.setup();
     autumnMocks.useCustomer.mockReturnValue({
-      data: null,
+      data: { id: "cus_1" },
       isLoading: false,
       error: null,
+      check: () => ({ allowed: true }),
     });
     autumnMocks.useListPlans.mockReturnValue({
       data: [],

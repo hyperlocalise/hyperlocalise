@@ -21,6 +21,10 @@ import { IntlProvider } from "react-intl";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
 import type { ChatDockTab } from "./chat-dock-store";
 
+vi.mock("@/lib/billing/use-ai-features-access", () => ({
+  useAiFeaturesAccess: () => ({ status: "allowed" }),
+}));
+
 const tabs: ChatDockTab[] = [
   {
     id: "conv_1",
@@ -54,6 +58,7 @@ describe("ChatDockTabBar", () => {
         <ChatDockTabBar
           tabs={tabs}
           activeTabId="conv_1"
+          organizationSlug="acme"
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onNewTab={onNewTab}

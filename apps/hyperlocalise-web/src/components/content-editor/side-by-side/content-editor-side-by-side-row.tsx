@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
+import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 
 import { ContentEditorEditorAiRecommendation } from "@/components/content-editor/editor/content-editor-editor-ai-recommendation";
 import {
@@ -155,6 +156,7 @@ export function ContentEditorSideBySideRow({
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
+  const upgradeHref = useAiFeaturesUpgradeHref();
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
   const isActive = isFocused || isHovered;
@@ -211,7 +213,7 @@ export function ContentEditorSideBySideRow({
     isFocused &&
     canEditTarget &&
     !isAssetSegment &&
-    canUseAiRecommendation &&
+    (canUseAiRecommendation || Boolean(upgradeHref)) &&
     Boolean(intelligence) &&
     Boolean(onUseAiSuggestion);
   const actionableFormatChecks = useMemo(

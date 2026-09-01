@@ -16,6 +16,7 @@ import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
 import { useIsMac } from "@/hooks/use-is-mac";
+import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -101,6 +102,7 @@ export function ContentEditorEditorPanel({
 }: ContentEditorEditorPanelProps) {
   const intl = useIntl();
   const isMac = useIsMac();
+  const upgradeHref = useAiFeaturesUpgradeHref();
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
   const supportsIssueComments = providerKind === "crowdin" && canAddComment;
@@ -254,7 +256,7 @@ export function ContentEditorEditorPanel({
             onNext={onNext}
           />
 
-          {canUseAiRecommendation && !isAssetEditorSegment(segment) ? (
+          {(canUseAiRecommendation || Boolean(upgradeHref)) && !isAssetEditorSegment(segment) ? (
             <ContentEditorEditorAiRecommendation
               intelligence={intelligence}
               isLoading={isAiSuggestionLoading}

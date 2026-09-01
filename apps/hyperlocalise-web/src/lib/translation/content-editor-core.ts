@@ -64,6 +64,7 @@ import {
   loadOrganizationTranslationModel,
 } from "@/lib/translation/generation";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 
 export type {
   ContentEditorVisualContext,
@@ -575,6 +576,11 @@ export async function generateContentEditorAiRecommendation(
   input: ContentEditorAiRecommendationInput,
   options?: { signal?: AbortSignal },
 ): Promise<Result<ContentEditorAiRecommendationResult, ContentEditorAiRecommendationError>> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return err(aiFeatures.error);
+  }
+
   const modelResult = await loadOrganizationTranslationModel(input.projectId);
   if (!modelResult.ok) {
     return err({ code: modelResult.code, message: modelResult.message });
