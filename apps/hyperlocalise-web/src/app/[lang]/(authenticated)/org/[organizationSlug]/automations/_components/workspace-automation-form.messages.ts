@@ -312,7 +312,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   issuesToolsMenu: {
     defaultMessage: "Board",
-    id: "fVOROtw+GW",
+    id: "32+8NTo5Pl",
     description: "Submenu label grouping Board automation tools",
   },
   memories: {
@@ -409,22 +409,22 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   listIssues: {
     defaultMessage: "List issues",
-    id: "DeCrAOQFGT",
+    id: "cAQmoTwBPJ",
     description: "Menu item and tool title for listing Board issues",
   },
   listIssuesDescription: {
     defaultMessage: "Read board issues for the selected project during this automation.",
-    id: "04BDy8jZlJ",
+    id: "CBibCD/p8E",
     description: "Description for the List issues automation tool",
   },
   createIssue: {
     defaultMessage: "Create issue",
-    id: "SGKONsO7tY",
+    id: "3W0VCaMyWO",
     description: "Menu item and tool title for creating Board issues",
   },
   createIssueDescription: {
     defaultMessage: "File board issues for the selected project from automation findings.",
-    id: "MweQRnF9MU",
+    id: "weTyi2vT5M",
     description: "Description for the Create issue automation tool",
   },
   removeListIssues: {

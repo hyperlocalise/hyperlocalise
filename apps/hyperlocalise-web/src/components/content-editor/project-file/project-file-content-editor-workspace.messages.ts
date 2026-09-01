@@ -62,12 +62,12 @@ export const projectFileCatWorkspaceMessages = defineMessages({
   },
   failedToAddToIssueSheet: {
     defaultMessage: "Failed to add to Board",
-    id: "iwQ9dbHG3A",
+    id: "dBZKwTIoEH",
     description: "Fallback error when creating an issue sheet row from CAT fails",
   },
   addedToIssueSheet: {
     defaultMessage: "Added to Board",
-    id: "AF35eujXwK",
+    id: "6haGvAy+HC",
     description: "Toast confirmation after adding a CAT segment to the issue sheet",
   },
   viewIssueSheetRow: {

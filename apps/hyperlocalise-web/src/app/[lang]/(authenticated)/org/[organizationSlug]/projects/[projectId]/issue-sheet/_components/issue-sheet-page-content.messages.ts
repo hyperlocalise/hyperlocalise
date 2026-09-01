@@ -17,12 +17,12 @@ import { defineMessages } from "react-intl";
 export const issueSheetPageContentMessages = defineMessages({
   sectionTitle: {
     defaultMessage: "Board",
-    id: "BeXUx2ytXa",
+    id: "R/mQHxnDLt",
     description: "Section title for the project Board page",
   },
   sectionDescription: {
     defaultMessage: "Triage localization issues for this project.",
-    id: "4UoHK4nCgZ",
+    id: "JRZrMUrfeM",
     description: "Short section description for the project Board page",
   },
   importCsv: {
@@ -102,7 +102,7 @@ export const issueSheetPageContentMessages = defineMessages({
   },
   loadIssuesError: {
     defaultMessage: "The board could not be loaded.",
-    id: "dj9zRisspO",
+    id: "QSTiMWaXF/",
     description: "Error state when Board rows fail to load",
   },
   emptyTitle: {
@@ -158,7 +158,7 @@ export const issueSheetPageContentMessages = defineMessages({
   },
   addColumnDescription: {
     defaultMessage: "Add a project-specific workflow column to the board.",
-    id: "8Wv1MRwzXX",
+    id: "yGs5M+8byg",
     description: "Description of the dialog to add a custom Board column",
   },
   columnIconLabel: {

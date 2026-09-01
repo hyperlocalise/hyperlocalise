@@ -221,13 +221,13 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "issues":
       return intl.formatMessage({
         defaultMessage: "Board",
-        id: "RtEbYHhw1P",
+        id: "sJoNIftCZI",
         description: "App shell breadcrumb title for the workspace board page",
       });
     case "issue-sheet":
       return intl.formatMessage({
         defaultMessage: "Board",
-        id: "jmazd5AXy4",
+        id: "sslu9yZyVp",
         description: "App shell breadcrumb title for the project board page",
       });
     case "jobs":

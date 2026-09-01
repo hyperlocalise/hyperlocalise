@@ -559,7 +559,7 @@
     "defaultMessage": "Save",
     "description": "Save button for issue column edit dialogs"
   },
-  "/WFoDeqxe7": {
+  "bC8xP17A1P": {
     "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import.",
     "description": "Description of the Issue Sheet CSV import dialog"
   },
@@ -731,7 +731,7 @@
     "defaultMessage": "Informal shortened name",
     "description": "Description for the short form term type"
   },
-  "04BDy8jZlJ": {
+  "CBibCD/p8E": {
     "defaultMessage": "Read board issues for the selected project during this automation.",
     "description": "Description for the List issues automation tool"
   },
@@ -2251,9 +2251,9 @@
     "defaultMessage": "Context-aware quality checks",
     "description": "Differentiator point 4 for the localisation-quality-monitoring use case"
   },
-  "4UoHK4nCgZ": {
+  "JRZrMUrfeM": {
     "defaultMessage": "Triage localization issues for this project.",
-    "description": "Short section description for the project Issue Sheet page"
+    "description": "Short section description for the project Board page"
   },
   "4UqkRDJW9u": {
     "defaultMessage": "Context auto-discovery",
@@ -3607,7 +3607,7 @@
     "defaultMessage": "{position} / {total}",
     "description": "Current segment index and total count in the compact CAT workspace header"
   },
-  "8Wv1MRwzXX": {
+  "yGs5M+8byg": {
     "defaultMessage": "Add a project-specific workflow column to the board.",
     "description": "Description of the dialog to add a custom Board column"
   },
@@ -3735,9 +3735,9 @@
     "defaultMessage": "Glossary created",
     "description": "Toast after a glossary is created successfully"
   },
-  "8qNqRTyyLK": {
+  "vqmXbSZwqU": {
     "defaultMessage": "Create an issue to track work on this string.",
-    "description": "Empty-state description when the CAT segment has no linked Issues"
+    "description": "Empty-state description when the CAT segment has no linked issues"
   },
   "8qa1pUW6eX": {
     "defaultMessage": "Account",
@@ -4275,7 +4275,7 @@
     "defaultMessage": "Related variants",
     "description": "Heading for related translation memory variants"
   },
-  "AF35eujXwK": {
+  "6haGvAy+HC": {
     "defaultMessage": "Added to Board",
     "description": "Toast confirmation after adding a CAT segment to the issue sheet"
   },
@@ -4711,7 +4711,7 @@
     "defaultMessage": "Alert on post-publish drift",
     "description": "Capability 6 title for the localisation-quality-monitoring use case"
   },
-  "BeXUx2ytXa": {
+  "R/mQHxnDLt": {
     "defaultMessage": "Board",
     "description": "Section title for the project Board page"
   },
@@ -5051,7 +5051,7 @@
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the localisation-operations use case"
   },
-  "Cgi0SFaOp5": {
+  "4Bnw8oUCip": {
     "defaultMessage": "The board could not be loaded.",
     "description": "Error state when the workspace board fails to load"
   },
@@ -5179,7 +5179,7 @@
     "defaultMessage": "Format",
     "description": "Label above download format options in the CAT queue"
   },
-  "D2Iw7bGHIc": {
+  "igJunofoju": {
     "defaultMessage": "Board",
     "description": "Heading for the CAT segment Board section"
   },
@@ -5455,9 +5455,9 @@
     "defaultMessage": "Optional. You can attach projects from the glossary detail page later.",
     "description": "Help text explaining that glossary project attachment can happen later"
   },
-  "DeCrAOQFGT": {
+  "cAQmoTwBPJ": {
     "defaultMessage": "List issues",
-    "description": "Menu item and tool title for listing Issue Sheet issues"
+    "description": "Menu item and tool title for listing Board issues"
   },
   "DeRSeFizML": {
     "defaultMessage": "Unable to load Contentful metadata",
@@ -5859,9 +5859,9 @@
     "defaultMessage": "Track review coverage and approval status",
     "description": "Capability 4 title for the localisation-quality-monitoring use case"
   },
-  "Esr6tXDJJe": {
+  "JXB2wuhw1Z": {
     "defaultMessage": "No issues for this string",
-    "description": "Empty-state title when the CAT segment has no linked Issues"
+    "description": "Empty-state title when the CAT segment has no linked issues"
   },
   "EtLBqA9kAL": {
     "defaultMessage": "No related variants.",
@@ -6903,7 +6903,7 @@
     "defaultMessage": "Choose an organization from your account or contact support if this continues.",
     "description": "Access denied page guidance when the organization slug is missing"
   },
-  "IA5Kmwt4uK": {
+  "KCIvL0TJB4": {
     "defaultMessage": "Board",
     "description": "Button to open the Board for the current CAT segment"
   },
@@ -7387,9 +7387,9 @@
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
   },
-  "JprxqupePC": {
+  "Hjj+QG5LDK": {
     "defaultMessage": "Request failed",
-    "description": "Generic fallback when a CAT Issues API request fails"
+    "description": "Generic fallback when a CAT Board API request fails"
   },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
@@ -8331,7 +8331,7 @@
     "defaultMessage": "Pull request",
     "description": "Workflow step 1 label for the github-release-localisation use case"
   },
-  "MweQRnF9MU": {
+  "weTyi2vT5M": {
     "defaultMessage": "File board issues for the selected project from automation findings.",
     "description": "Description for the Create issue automation tool"
   },
@@ -9739,7 +9739,7 @@
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
   },
-  "RQpMZIFSEX": {
+  "LGF0oZcJpk": {
     "defaultMessage": "Loading board...",
     "description": "Suspense fallback while Board content loads"
   },
@@ -9907,7 +9907,7 @@
     "defaultMessage": "Provider",
     "description": "Badge for a provider-managed glossary"
   },
-  "RtEbYHhw1P": {
+  "sJoNIftCZI": {
     "defaultMessage": "Board",
     "description": "App shell breadcrumb title for the workspace board page"
   },
@@ -10007,9 +10007,9 @@
     "defaultMessage": "Team",
     "description": "Eyebrow label above the team detail page title"
   },
-  "SGKONsO7tY": {
+  "3W0VCaMyWO": {
     "defaultMessage": "Create issue",
-    "description": "Menu item and tool title for creating Issue Sheet issues"
+    "description": "Menu item and tool title for creating Board issues"
   },
   "SGPPXTsltm": {
     "defaultMessage": "Message #launch-ops",
@@ -10287,7 +10287,7 @@
     "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
     "description": "Description when no Ahrefs connection is available"
   },
-  "T7+otbWCxu": {
+  "6XlImduZ6L": {
     "defaultMessage": "Board is unavailable for this string.",
     "description": "Shown when the CAT segment cannot link to the Board (missing translation key)"
   },
@@ -11527,7 +11527,7 @@
     "defaultMessage": "API Keys",
     "description": "Settings hub row label for API keys"
   },
-  "X+GHkBiDyV": {
+  "wZsNKEWooe": {
     "defaultMessage": "Loading board...",
     "description": "Suspense fallback while workspace board content loads"
   },
@@ -13659,7 +13659,7 @@
     "defaultMessage": "Hyperlab",
     "description": "Built-in market experiments product name on the integrations page"
   },
-  "dj9zRisspO": {
+  "QSTiMWaXF/": {
     "defaultMessage": "The board could not be loaded.",
     "description": "Error state when Board rows fail to load"
   },
@@ -13735,7 +13735,7 @@
     "defaultMessage": "Included",
     "description": "Badge on Hyperlocalise Included model provider cards"
   },
-  "dyxy90ZIN1": {
+  "2Q9B8y1llx": {
     "defaultMessage": "Board",
     "description": "Sidebar nav label in marketing app shell mock"
   },
@@ -14043,7 +14043,7 @@
     "defaultMessage": "No target locale is available for this task.",
     "description": "Empty state when all-files CAT mode has no selectable target locale"
   },
-  "enrIL8oTbj": {
+  "r7gtZsn8Qh": {
     "defaultMessage": "Board",
     "description": "Project sidebar navigation item for the project board"
   },
@@ -14267,7 +14267,7 @@
     "defaultMessage": "External task ID",
     "description": "Secondary job property row label for external task ID"
   },
-  "fVOROtw+GW": {
+  "32+8NTo5Pl": {
     "defaultMessage": "Board",
     "description": "Submenu label grouping Board automation tools"
   },
@@ -14783,7 +14783,7 @@
     "defaultMessage": "User agent",
     "description": "Label for the localisation audit crawler user agent"
   },
-  "gyT9rFJB1u": {
+  "HrspdhKQl+": {
     "defaultMessage": "Open board",
     "description": "Accessible label for the Board button in the app shell footer"
   },
@@ -15087,7 +15087,7 @@
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
   },
-  "hjub6GRZr4": {
+  "dKznjRBgya": {
     "defaultMessage": "Board",
     "description": "Label for the Board button in the app shell footer"
   },
@@ -15431,7 +15431,7 @@
     "defaultMessage": "Created",
     "description": "Created timestamp column in the concept table"
   },
-  "ipVFcJ8AtN": {
+  "l+RVkhyT2N": {
     "defaultMessage": "Create a project first, then import issues into its board.",
     "description": "Empty state when there are no projects to import issues into"
   },
@@ -15475,7 +15475,7 @@
     "defaultMessage": "Forbidden term \"{term}\" appears in the target translation.",
     "description": "CAT format check message when a forbidden glossary term appears in the target"
   },
-  "iwQ9dbHG3A": {
+  "dBZKwTIoEH": {
     "defaultMessage": "Failed to add to Board",
     "description": "Fallback error when creating an issue sheet row from CAT fails"
   },
@@ -15775,7 +15775,7 @@
     "defaultMessage": "Actions for {email}",
     "description": "Accessible label for a team member row actions menu"
   },
-  "jmazd5AXy4": {
+  "sslu9yZyVp": {
     "defaultMessage": "Board",
     "description": "App shell breadcrumb title for the project board page"
   },
@@ -15879,7 +15879,7 @@
     "defaultMessage": "Start a new audit",
     "description": "Button to start a fresh localisation audit after a domain block"
   },
-  "k3nR8wPqLm": {
+  "C5SPm8Zbbu": {
     "defaultMessage": "Board",
     "description": "Workspace board page title"
   },
@@ -16251,7 +16251,7 @@
     "defaultMessage": "Warnings",
     "description": "QA summary chip and filter option for warning severity"
   },
-  "kzAQTYATA+": {
+  "J8uRouTxFR": {
     "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email.",
     "description": "Helper text under notification preferences on account settings"
   },
@@ -16647,7 +16647,7 @@
     "defaultMessage": "Fix first",
     "description": "Heading for the top findings to fix on a localisation audit result"
   },
-  "mL4jmlzo/F": {
+  "D1Wfd509ws": {
     "defaultMessage": "Choose which project should receive the imported board rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
   },
@@ -17095,7 +17095,7 @@
     "defaultMessage": "Copied OAuth callback URL",
     "description": "Aria label after copying the OAuth callback URL"
   },
-  "ncf9XHFPKV": {
+  "hYi0NizHJf": {
     "defaultMessage": "Board · this string",
     "description": "Title on the editor mock board overlay"
   },
@@ -17451,7 +17451,7 @@
     "defaultMessage": "Translation memory",
     "description": "Section heading for translation memory matches in the intelligence panel"
   },
-  "olmZvevw/Q": {
+  "XswXu+UFpy": {
     "defaultMessage": "Board",
     "description": "Sidebar navigation item for the workspace board"
   },
@@ -18143,7 +18143,7 @@
     "defaultMessage": "Czech (Czechia)",
     "description": "Display name for BCP-47 locale cs-CZ"
   },
-  "qyJpxYtcpE": {
+  "n/ryC/yPKS": {
     "defaultMessage": "Create or link issues for this string. Navigate to an issue to collaborate.",
     "description": "Dialog description for managing issues linked to a CAT string"
   },
@@ -18439,7 +18439,7 @@
     "defaultMessage": "Unable to send that message right now.",
     "description": "Toast when a public web chat message fails"
   },
-  "rugkgwDED8": {
+  "tX5h+jHyR2": {
     "defaultMessage": "Board · acme workspace",
     "description": "Board panel title in content ops mock"
   },
@@ -18515,7 +18515,7 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when the create issue API request fails"
   },
-  "s7TZoJvKum": {
+  "J2Tvcwc2sx": {
     "defaultMessage": "Open board, {count} open",
     "description": "Accessible label for the Board button when open issues are available"
   },
@@ -18571,7 +18571,7 @@
     "defaultMessage": "Domains",
     "description": "Sidebar navigation item for linked domains"
   },
-  "sHe4qCdT7b": {
+  "E8k6bvQHrX": {
     "defaultMessage": "Close board",
     "description": "Accessible label for closing the CAT Board panel"
   },
@@ -19023,9 +19023,9 @@
     "defaultMessage": "Provider link",
     "description": "Detail row label for the external provider URL"
   },
-  "thNgDb6rW2": {
+  "h5+KJI2d7A": {
     "defaultMessage": "Could not load issues.",
-    "description": "Error message when CAT segment Issues fail to load"
+    "description": "Error message when CAT segment board issues fail to load"
   },
   "tj9LSxTmXM": {
     "defaultMessage": "Console",
@@ -20803,7 +20803,7 @@
     "defaultMessage": "Choose a source file from the project files list to open it in the Content Editor.",
     "description": "Empty state when the Content Editor page is opened without a source file"
   },
-  "yqDgUgDi10": {
+  "08+4Nn7rgH": {
     "defaultMessage": "Acme · Board",
     "description": "Header breadcrumb in marketing app shell mock"
   },
@@ -21087,9 +21087,9 @@
     "defaultMessage": "Segment validation returned an invalid response.",
     "description": "Error when the CAT segment validation response fails schema validation"
   },
-  "zi+sjAi385": {
+  "46zk0LJShA": {
     "defaultMessage": "Triage open work across this workspace.",
-    "description": "Short description under the workspace Issues page title"
+    "description": "Short description under the workspace Board page title"
   },
   "zirutH7PO0": {
     "defaultMessage": "Created by me",

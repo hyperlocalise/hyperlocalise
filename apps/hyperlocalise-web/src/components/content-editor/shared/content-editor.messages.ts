@@ -1006,7 +1006,7 @@ export const contentEditorEditorPanelMessages = defineMessages({
   },
   addToIssueSheet: {
     defaultMessage: "Board",
-    id: "IA5Kmwt4uK",
+    id: "KCIvL0TJB4",
     description: "Button to open the Board for the current CAT segment",
   },
   refreshContextTitle: {

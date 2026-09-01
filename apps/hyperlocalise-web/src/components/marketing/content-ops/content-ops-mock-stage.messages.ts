@@ -38,7 +38,7 @@ export const contentOpsMockStageMessages = defineMessages({
   },
   mockNavIssues: {
     defaultMessage: "Board",
-    id: "dyxy90ZIN1",
+    id: "2Q9B8y1llx",
     description: "Sidebar nav label in marketing app shell mock",
   },
   mockNavDashboard: {
@@ -68,7 +68,7 @@ export const contentOpsMockStageMessages = defineMessages({
   },
   mockBreadcrumbIssues: {
     defaultMessage: "Acme · Board",
-    id: "yqDgUgDi10",
+    id: "08+4Nn7rgH",
     description: "Header breadcrumb in marketing app shell mock",
   },
   mockBreadcrumbCampaign: {
@@ -165,7 +165,7 @@ export const contentOpsMockStageMessages = defineMessages({
   },
   editorIssuesPanelTitle: {
     defaultMessage: "Board · this string",
-    id: "ncf9XHFPKV",
+    id: "hYi0NizHJf",
     description: "Title on the editor mock board overlay",
   },
   editorHighlightEditor: {
@@ -335,7 +335,7 @@ export const contentOpsMockStageMessages = defineMessages({
 
   issuesTitle: {
     defaultMessage: "Board · acme workspace",
-    id: "rugkgwDED8",
+    id: "tX5h+jHyR2",
     description: "Board panel title in content ops mock",
   },
   inboxTitle: {

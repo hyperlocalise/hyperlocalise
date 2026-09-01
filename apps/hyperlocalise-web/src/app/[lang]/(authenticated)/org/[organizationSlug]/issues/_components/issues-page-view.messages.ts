@@ -17,17 +17,17 @@ import { defineMessages } from "react-intl";
 export const issuesPageViewMessages = defineMessages({
   pageTitle: {
     defaultMessage: "Board",
-    id: "k3nR8wPqLm",
+    id: "C5SPm8Zbbu",
     description: "Workspace board page title",
   },
   pageDescription: {
     defaultMessage: "Triage open work across this workspace.",
-    id: "zi+sjAi385",
+    id: "46zk0LJShA",
     description: "Short description under the workspace Board page title",
   },
   loadError: {
     defaultMessage: "The board could not be loaded.",
-    id: "Cgi0SFaOp5",
+    id: "4Bnw8oUCip",
     description: "Error state when the workspace board fails to load",
   },
   empty: {
