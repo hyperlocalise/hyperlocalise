@@ -171,6 +171,7 @@ export const SlackConnectInvite: Story = {
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
     await expect(canvas.getByText("My jobs")).toBeInTheDocument();
     await expect(canvas.getByText("Latest jobs")).toBeInTheDocument();
     await expect(canvas.getByText("Recent projects")).toBeInTheDocument();
