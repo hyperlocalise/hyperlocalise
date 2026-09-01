@@ -65,7 +65,7 @@ function compactIssue(issue: {
 export function createListIssuesTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "List Hyperlocalise Issue Sheet issues for the automation project. Use filters to triage open work before creating or notifying.",
+      "List Hyperlocalise Board issues for the automation project. Use filters to triage open work before creating or notifying.",
     inputSchema: listIssuesInputSchema,
     execute: async (input) => {
       const listConfig = session.automation.toolConfig.listIssues;

@@ -125,9 +125,9 @@ export function buildGlobalNavigationGroups(
         },
         {
           label: intl.formatMessage({
-            defaultMessage: "Issues",
+            defaultMessage: "Board",
             id: "olmZvevw/Q",
-            description: "Sidebar navigation item for workspace issues",
+            description: "Sidebar navigation item for the workspace board",
           }),
           href: org("issues"),
           icon: Copy01Icon,
@@ -357,9 +357,9 @@ export function buildProjectNavigationItems(
     },
     {
       label: intl.formatMessage({
-        defaultMessage: "Issues",
+        defaultMessage: "Board",
         id: "enrIL8oTbj",
-        description: "Project sidebar navigation item for the project issue sheet",
+        description: "Project sidebar navigation item for the project board",
       }),
       href: project("issue-sheet"),
       icon: Copy01Icon,

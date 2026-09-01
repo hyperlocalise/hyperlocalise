@@ -43,7 +43,7 @@ const createIssueInputSchema = z.object({
     .array(createIssueItemSchema)
     .max(20)
     .describe(
-      "Issues to create on the project Issue Sheet. Pass an empty array when nothing should be filed this run.",
+      "Issues to create on the project board. Pass an empty array when nothing should be filed this run.",
     ),
 });
 
@@ -79,7 +79,7 @@ async function persistCreateIssueOutput(
 export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Create Hyperlocalise Issue Sheet issues for the automation project. Pass an empty issues array when there is nothing actionable to file.",
+      "Create Hyperlocalise Board issues for the automation project. Pass an empty issues array when there is nothing actionable to file.",
     inputSchema: createIssueInputSchema,
     execute: async ({ issues }) => {
       const createConfig = session.automation.toolConfig.createIssue;

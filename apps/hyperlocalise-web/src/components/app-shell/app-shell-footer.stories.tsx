@@ -115,7 +115,7 @@ export const SupportOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("link", { name: "Email support" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "New request" })).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Issues")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Board")).not.toBeInTheDocument();
   },
 };
 
@@ -140,7 +140,7 @@ export const GuidanceAvailable: Story = {
     const glossaryButton = canvas.getByRole("button", {
       name: "Glossary guidance, concept matches available",
     });
-    const issuesButton = canvas.getByRole("button", { name: "Open issues, 2 open" });
+    const issuesButton = canvas.getByRole("button", { name: "Open board, 2 open" });
 
     await expect(glossaryButton).toBeInTheDocument();
     await expect(issuesButton).toBeInTheDocument();

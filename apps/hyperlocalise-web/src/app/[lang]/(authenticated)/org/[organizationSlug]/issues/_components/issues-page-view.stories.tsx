@@ -22,7 +22,7 @@ import {
 import { IssuesPageView } from "./issues-page-view";
 
 const meta = {
-  title: "App/Issues/Page",
+  title: "App/Board/Page",
   component: IssuesPageView,
   parameters: {
     layout: "fullscreen",
@@ -46,7 +46,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole("heading", { name: "Issues" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Board" })).toBeInTheDocument();
     await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
     await expect(canvas.getByText("Website localization")).toBeInTheDocument();
     await expect(canvas.getByText("Open")).toBeInTheDocument();
@@ -63,7 +63,7 @@ export const Loading: Story = {
     isLoading: true,
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole("heading", { name: "Issues" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Board" })).toBeInTheDocument();
     await expect(canvasElement.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(
       0,
     );
@@ -93,7 +93,7 @@ export const Error: Story = {
     isError: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Issues could not be loaded.")).toBeInTheDocument();
+    await expect(canvas.getByText("The board could not be loaded.")).toBeInTheDocument();
   },
 };
 

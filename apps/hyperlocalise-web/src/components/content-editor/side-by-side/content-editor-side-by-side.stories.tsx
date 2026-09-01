@@ -149,7 +149,7 @@ export const Default: Story = {
       { timeout: 3000 },
     );
     await expect(canvas.queryByText(/Format & QA checks/i)).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /^Issues$/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Board$/i })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Find context/i })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Approve/i })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/ICU structure/i)).not.toBeInTheDocument();

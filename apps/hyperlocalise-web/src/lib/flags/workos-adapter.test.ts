@@ -212,7 +212,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     expect(itemLabels).not.toContain("Automations");
     expect(itemLabels).not.toContain("Guideline");
-    expect(itemLabels).toContain("Issues");
+    expect(itemLabels).toContain("Board");
     expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("AI Engine");
     expect(itemLabels).not.toContain("Domains");
@@ -233,7 +233,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     expect(itemLabels).toContain("Automations");
     expect(itemLabels).toContain("Guideline");
-    expect(itemLabels).toContain("Issues");
+    expect(itemLabels).toContain("Board");
     expect(itemLabels).toContain("Domains");
     expect(itemLabels).toContain("AI Engine");
   });

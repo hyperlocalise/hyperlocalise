@@ -35,9 +35,9 @@ export default async function IssueSheetPage({
       fallback={
         <TypographyP className="text-sm text-muted-foreground">
           {intl.formatMessage({
-            defaultMessage: "Loading Issue Sheet...",
+            defaultMessage: "Loading board...",
             id: "RQpMZIFSEX",
-            description: "Suspense fallback while Issue Sheet content loads",
+            description: "Suspense fallback while Board content loads",
           })}
         </TypographyP>
       }

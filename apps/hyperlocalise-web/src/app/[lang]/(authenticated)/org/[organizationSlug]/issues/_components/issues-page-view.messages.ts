@@ -15,15 +15,20 @@
 import { defineMessages } from "react-intl";
 
 export const issuesPageViewMessages = defineMessages({
+  pageTitle: {
+    defaultMessage: "Board",
+    id: "k3nR8wPqLm",
+    description: "Workspace board page title",
+  },
   pageDescription: {
     defaultMessage: "Triage open work across this workspace.",
     id: "zi+sjAi385",
-    description: "Short description under the workspace Issues page title",
+    description: "Short description under the workspace Board page title",
   },
   loadError: {
-    defaultMessage: "Issues could not be loaded.",
+    defaultMessage: "The board could not be loaded.",
     id: "Cgi0SFaOp5",
-    description: "Error state when workspace issues fail to load",
+    description: "Error state when the workspace board fails to load",
   },
   empty: {
     defaultMessage: "No issues match this view.",

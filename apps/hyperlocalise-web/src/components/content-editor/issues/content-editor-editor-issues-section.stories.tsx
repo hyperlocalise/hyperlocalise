@@ -74,7 +74,7 @@ type Story = StoryObj<typeof meta>;
 export const WithLinkedIssues: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Issues")).toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /New issue/i })).toBeInTheDocument();
   },
 };
@@ -102,6 +102,6 @@ export const UnavailableWithoutKey: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Issues are unavailable for this string.")).toBeInTheDocument();
+    await expect(canvas.getByText("Board is unavailable for this string.")).toBeInTheDocument();
   },
 };

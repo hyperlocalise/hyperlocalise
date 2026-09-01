@@ -23,7 +23,7 @@ import { issueSheetOrganizationSlug, issueSheetProjectId } from "./issue-sheet.f
 import { IssueSheetPageContent } from "./issue-sheet-page-content";
 
 const meta = {
-  title: "App/Issues/Sheet",
+  title: "App/Board/Project",
   component: IssueSheetPageContent,
   parameters: {
     layout: "fullscreen",
@@ -49,7 +49,7 @@ export const Default: Story = {
     },
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByText("Issues")).toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
     await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
     await expect(canvas.getByText("Open")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
@@ -69,7 +69,7 @@ export const Loading: Story = {
     },
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByText("Issues")).toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
     await expect(canvasElement.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(
       0,
     );
@@ -97,8 +97,8 @@ export const Error: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Issues")).toBeInTheDocument();
-    await expect(canvas.getByText("Issues could not be loaded.")).toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
+    await expect(canvas.getByText("The board could not be loaded.")).toBeInTheDocument();
     await expect(canvas.queryByText("No issues in this view.")).not.toBeInTheDocument();
   },
 };

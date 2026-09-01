@@ -157,7 +157,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Board, Web Search, or Crowdin workflow tool.",
     });
   }
 

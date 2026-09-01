@@ -175,7 +175,7 @@ export const WithCommentsAndIssues: Story = {
     await expect(canvas.getByRole("button", { name: "Resolve" })).toBeInTheDocument();
     await expect(canvas.getAllByText("Issue")).toHaveLength(3);
 
-    const issueSheetButton = canvas.getByRole("button", { name: "Issues" });
+    const issueSheetButton = canvas.getByRole("button", { name: "Board" });
     await expect(issueSheetButton).toBeInTheDocument();
     await userEvent.click(issueSheetButton);
     await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);
@@ -220,7 +220,7 @@ export const CommentOnly: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole("tab", { name: "Issue" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add comment" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Board" })).not.toBeInTheDocument();
   },
 };
 
@@ -233,7 +233,7 @@ export const IssueSheetCtaWithExistingIssues: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const issueSheetButton = canvas.getByRole("button", { name: "Issues" });
+    const issueSheetButton = canvas.getByRole("button", { name: "Board" });
 
     await expect(issueSheetButton).toBeInTheDocument();
     await expect(issueSheetButton).toBeEnabled();
@@ -251,12 +251,12 @@ export const IssueSheetCtaOnIssueTab: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Board" })).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("tab", { name: "Issue" }));
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Issues" })).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument());
 
-    await userEvent.click(canvas.getByRole("button", { name: "Issues" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Board" }));
     await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);
   },
 };
@@ -275,7 +275,7 @@ export const IssueSheetCtaHiddenOnCommentTab: Story = {
       "data-state",
       "active",
     );
-    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Board" })).not.toBeInTheDocument();
   },
 };
 
@@ -290,7 +290,7 @@ export const IssueSheetCtaDisabledWhilePosting: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole("button", { name: "Issues" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Board" })).toBeDisabled();
   },
 };
 
@@ -305,7 +305,7 @@ export const RaiseIssueInteraction: Story = {
     await userEvent.click(canvas.getByRole("tab", { name: "Issue" }));
     await waitFor(() => expect(canvas.getByText("Issue type")).toBeInTheDocument());
     await expect(canvas.getByText("General question")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Issues" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument();
 
     const input = canvas.getByPlaceholderText("Add a comment...");
     await userEvent.type(input, "Wrong tone for ja-JP.");
@@ -316,7 +316,7 @@ export const RaiseIssueInteraction: Story = {
     await expect(canvas.getByText("1")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Resolve" })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Issues" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Board" }));
     await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);
   },
 };

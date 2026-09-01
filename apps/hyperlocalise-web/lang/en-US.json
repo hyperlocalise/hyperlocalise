@@ -560,7 +560,7 @@
     "description": "Save button for issue column edit dialogs"
   },
   "/WFoDeqxe7": {
-    "defaultMessage": "Upload a spreadsheet export, map columns to Issue Sheet fields, preview the result, then import.",
+    "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import.",
     "description": "Description of the Issue Sheet CSV import dialog"
   },
   "/WSX2GW1p1": {
@@ -732,7 +732,7 @@
     "description": "Description for the short form term type"
   },
   "04BDy8jZlJ": {
-    "defaultMessage": "Read Issue Sheet issues for the selected project during this automation.",
+    "defaultMessage": "Read board issues for the selected project during this automation.",
     "description": "Description for the List issues automation tool"
   },
   "04TH5FBW4Q": {
@@ -3608,8 +3608,8 @@
     "description": "Current segment index and total count in the compact CAT workspace header"
   },
   "8Wv1MRwzXX": {
-    "defaultMessage": "Add a project-specific workflow column to the Issue Sheet.",
-    "description": "Description of the dialog to add a custom Issue Sheet column"
+    "defaultMessage": "Add a project-specific workflow column to the board.",
+    "description": "Description of the dialog to add a custom Board column"
   },
   "8XNSkLVgbI": {
     "defaultMessage": "Failed to delete Ahrefs connection.",
@@ -4276,7 +4276,7 @@
     "description": "Heading for related translation memory variants"
   },
   "AF35eujXwK": {
-    "defaultMessage": "Added to Issue Sheet",
+    "defaultMessage": "Added to Board",
     "description": "Toast confirmation after adding a CAT segment to the issue sheet"
   },
   "AFid22/7fj": {
@@ -4712,8 +4712,8 @@
     "description": "Capability 6 title for the localisation-quality-monitoring use case"
   },
   "BeXUx2ytXa": {
-    "defaultMessage": "Issues",
-    "description": "Section title for the project Issue Sheet page"
+    "defaultMessage": "Board",
+    "description": "Section title for the project Board page"
   },
   "Bel9GZJcDc": {
     "defaultMessage": "Allow memory updates",
@@ -5052,8 +5052,8 @@
     "description": "Differentiator point 1 for the localisation-operations use case"
   },
   "Cgi0SFaOp5": {
-    "defaultMessage": "Issues could not be loaded.",
-    "description": "Error state when workspace issues fail to load"
+    "defaultMessage": "The board could not be loaded.",
+    "description": "Error state when the workspace board fails to load"
   },
   "ChA2eL6U9Z": {
     "defaultMessage": "Localisation updates the product glossary after a rebrand. Hyperlocalise scans product strings, marketing landing pages, and help center articles for terminology that no longer matches, runs regression evals against approved baselines, routes flagged strings to reviewers, blocks TMS sync for locales that fail the threshold, and continues monitoring published content for drift over the following two weeks.",
@@ -5180,8 +5180,8 @@
     "description": "Label above download format options in the CAT queue"
   },
   "D2Iw7bGHIc": {
-    "defaultMessage": "Issues",
-    "description": "Heading for the CAT segment Issues section"
+    "defaultMessage": "Board",
+    "description": "Heading for the CAT segment Board section"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers",
@@ -6904,8 +6904,8 @@
     "description": "Access denied page guidance when the organization slug is missing"
   },
   "IA5Kmwt4uK": {
-    "defaultMessage": "Issues",
-    "description": "Button to open linked Issues for the current CAT segment"
+    "defaultMessage": "Board",
+    "description": "Button to open the Board for the current CAT segment"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing",
@@ -8332,7 +8332,7 @@
     "description": "Workflow step 1 label for the github-release-localisation use case"
   },
   "MweQRnF9MU": {
-    "defaultMessage": "File Issue Sheet issues for the selected project from automation findings.",
+    "defaultMessage": "File board issues for the selected project from automation findings.",
     "description": "Description for the Create issue automation tool"
   },
   "MwxM6cb/1r": {
@@ -9740,8 +9740,8 @@
     "description": "Summary of how many pages a localisation audit sampled"
   },
   "RQpMZIFSEX": {
-    "defaultMessage": "Loading Issue Sheet...",
-    "description": "Suspense fallback while Issue Sheet content loads"
+    "defaultMessage": "Loading board...",
+    "description": "Suspense fallback while Board content loads"
   },
   "RS4pbTA1Mq": {
     "defaultMessage": "Character limit",
@@ -9908,8 +9908,8 @@
     "description": "Badge for a provider-managed glossary"
   },
   "RtEbYHhw1P": {
-    "defaultMessage": "Issues",
-    "description": "App shell breadcrumb title for the issues page"
+    "defaultMessage": "Board",
+    "description": "App shell breadcrumb title for the workspace board page"
   },
   "RtU7kH2epq": {
     "defaultMessage": "Select a project",
@@ -10288,8 +10288,8 @@
     "description": "Description when no Ahrefs connection is available"
   },
   "T7+otbWCxu": {
-    "defaultMessage": "Issues are unavailable for this string.",
-    "description": "Shown when the CAT segment cannot link to Issues (missing translation key)"
+    "defaultMessage": "Board is unavailable for this string.",
+    "description": "Shown when the CAT segment cannot link to the Board (missing translation key)"
   },
   "T7ocGbiped": {
     "defaultMessage": "Last delivery: No deliveries yet",
@@ -11528,8 +11528,8 @@
     "description": "Settings hub row label for API keys"
   },
   "X+GHkBiDyV": {
-    "defaultMessage": "Loading issues...",
-    "description": "Suspense fallback while workspace issues content loads"
+    "defaultMessage": "Loading board...",
+    "description": "Suspense fallback while workspace board content loads"
   },
   "X/5lAUS4wm": {
     "defaultMessage": "/100",
@@ -13660,8 +13660,8 @@
     "description": "Built-in market experiments product name on the integrations page"
   },
   "dj9zRisspO": {
-    "defaultMessage": "Issues could not be loaded.",
-    "description": "Error state when Issue Sheet rows fail to load"
+    "defaultMessage": "The board could not be loaded.",
+    "description": "Error state when Board rows fail to load"
   },
   "djWAPr32N4": {
     "defaultMessage": "Cancel",
@@ -13736,7 +13736,7 @@
     "description": "Badge on Hyperlocalise Included model provider cards"
   },
   "dyxy90ZIN1": {
-    "defaultMessage": "Issues",
+    "defaultMessage": "Board",
     "description": "Sidebar nav label in marketing app shell mock"
   },
   "e+CeFvSaNg": {
@@ -14044,8 +14044,8 @@
     "description": "Empty state when all-files CAT mode has no selectable target locale"
   },
   "enrIL8oTbj": {
-    "defaultMessage": "Issues",
-    "description": "Project sidebar navigation item for the project issue sheet"
+    "defaultMessage": "Board",
+    "description": "Project sidebar navigation item for the project board"
   },
   "eogv8qHzO7": {
     "defaultMessage": "Direct and familiar French SaaS CTA phrasing.",
@@ -14268,8 +14268,8 @@
     "description": "Secondary job property row label for external task ID"
   },
   "fVOROtw+GW": {
-    "defaultMessage": "Issues",
-    "description": "Submenu label grouping Issues automation tools"
+    "defaultMessage": "Board",
+    "description": "Submenu label grouping Board automation tools"
   },
   "fWWcDn9s5p": {
     "defaultMessage": "Startups",
@@ -14784,8 +14784,8 @@
     "description": "Label for the localisation audit crawler user agent"
   },
   "gyT9rFJB1u": {
-    "defaultMessage": "Open issues",
-    "description": "Accessible label for the Issues button in the app shell footer"
+    "defaultMessage": "Open board",
+    "description": "Accessible label for the Board button in the app shell footer"
   },
   "gyVhBvCqLP": {
     "defaultMessage": "Add sources",
@@ -15088,8 +15088,8 @@
     "description": "Button to retry rendering the chat dock panel"
   },
   "hjub6GRZr4": {
-    "defaultMessage": "Issues",
-    "description": "Label for the Issues button in the app shell footer"
+    "defaultMessage": "Board",
+    "description": "Label for the Board button in the app shell footer"
   },
   "hmabVdb4tH": {
     "defaultMessage": "Glossary",
@@ -15432,7 +15432,7 @@
     "description": "Created timestamp column in the concept table"
   },
   "ipVFcJ8AtN": {
-    "defaultMessage": "Create a project first, then import issues into its Issue Sheet.",
+    "defaultMessage": "Create a project first, then import issues into its board.",
     "description": "Empty state when there are no projects to import issues into"
   },
   "irDjU9PSS4": {
@@ -15476,7 +15476,7 @@
     "description": "CAT format check message when a forbidden glossary term appears in the target"
   },
   "iwQ9dbHG3A": {
-    "defaultMessage": "Failed to add to Issue Sheet",
+    "defaultMessage": "Failed to add to Board",
     "description": "Fallback error when creating an issue sheet row from CAT fails"
   },
   "iyeC0lBvav": {
@@ -15776,8 +15776,8 @@
     "description": "Accessible label for a team member row actions menu"
   },
   "jmazd5AXy4": {
-    "defaultMessage": "Issues",
-    "description": "App shell breadcrumb title for the issue sheet page"
+    "defaultMessage": "Board",
+    "description": "App shell breadcrumb title for the project board page"
   },
   "jn5bLV1i0/": {
     "defaultMessage": "Jetzt starten",
@@ -15878,6 +15878,10 @@
   "k3eu1T7STw": {
     "defaultMessage": "Start a new audit",
     "description": "Button to start a fresh localisation audit after a domain block"
+  },
+  "k3nR8wPqLm": {
+    "defaultMessage": "Board",
+    "description": "Workspace board page title"
   },
   "k4KpJNxaEK": {
     "defaultMessage": "Web chat",
@@ -16248,7 +16252,7 @@
     "description": "QA summary chip and filter option for warning severity"
   },
   "kzAQTYATA+": {
-    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email.",
+    "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email.",
     "description": "Helper text under notification preferences on account settings"
   },
   "l+wMmn4Krw": {
@@ -16644,7 +16648,7 @@
     "description": "Heading for the top findings to fix on a localisation audit result"
   },
   "mL4jmlzo/F": {
-    "defaultMessage": "Choose which project should receive the imported Issue Sheet rows.",
+    "defaultMessage": "Choose which project should receive the imported board rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
   },
   "mMp/zOre+X": {
@@ -17092,8 +17096,8 @@
     "description": "Aria label after copying the OAuth callback URL"
   },
   "ncf9XHFPKV": {
-    "defaultMessage": "Issues · this string",
-    "description": "Title on the editor mock issues overlay"
+    "defaultMessage": "Board · this string",
+    "description": "Title on the editor mock board overlay"
   },
   "ndyP1whnV+": {
     "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
@@ -17448,8 +17452,8 @@
     "description": "Section heading for translation memory matches in the intelligence panel"
   },
   "olmZvevw/Q": {
-    "defaultMessage": "Issues",
-    "description": "Sidebar navigation item for workspace issues"
+    "defaultMessage": "Board",
+    "description": "Sidebar navigation item for the workspace board"
   },
   "omP7hSnBIw": {
     "defaultMessage": "Format {format}",
@@ -18140,7 +18144,7 @@
     "description": "Display name for BCP-47 locale cs-CZ"
   },
   "qyJpxYtcpE": {
-    "defaultMessage": "Create or link Issues for this string. Navigate to an issue to collaborate.",
+    "defaultMessage": "Create or link issues for this string. Navigate to an issue to collaborate.",
     "description": "Dialog description for managing issues linked to a CAT string"
   },
   "qySc0NPK9C": {
@@ -18436,8 +18440,8 @@
     "description": "Toast when a public web chat message fails"
   },
   "rugkgwDED8": {
-    "defaultMessage": "Issues · acme workspace",
-    "description": "Issues panel title in content ops mock"
+    "defaultMessage": "Board · acme workspace",
+    "description": "Board panel title in content ops mock"
   },
   "rw4HCHelCR": {
     "defaultMessage": "Translate in chat",
@@ -18512,8 +18516,8 @@
     "description": "Fallback error when the create issue API request fails"
   },
   "s7TZoJvKum": {
-    "defaultMessage": "Open issues, {count} open",
-    "description": "Accessible label for the Issues button when open issues are available"
+    "defaultMessage": "Open board, {count} open",
+    "description": "Accessible label for the Board button when open issues are available"
   },
   "s8Aqn1fSU6": {
     "defaultMessage": "Live projects fetched from {providerName}.",
@@ -18568,8 +18572,8 @@
     "description": "Sidebar navigation item for linked domains"
   },
   "sHe4qCdT7b": {
-    "defaultMessage": "Close issues",
-    "description": "Accessible label for closing the CAT Issues panel"
+    "defaultMessage": "Close board",
+    "description": "Accessible label for closing the CAT Board panel"
   },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
@@ -20800,7 +20804,7 @@
     "description": "Empty state when the Content Editor page is opened without a source file"
   },
   "yqDgUgDi10": {
-    "defaultMessage": "Acme · Issues",
+    "defaultMessage": "Acme · Board",
     "description": "Header breadcrumb in marketing app shell mock"
   },
   "ysf+RB1d04": {

@@ -479,7 +479,7 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow({ isDirty: false, onAddToIssueSheet });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Issues$/i }));
+    await user.click(screen.getByRole("button", { name: /^Board$/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 

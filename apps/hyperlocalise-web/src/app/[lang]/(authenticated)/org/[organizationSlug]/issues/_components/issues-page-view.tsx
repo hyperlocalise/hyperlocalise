@@ -98,7 +98,7 @@ export function IssuesPageView({
       <PageHeader
         icon={Copy01Icon}
         label="Workspace"
-        title="Issues"
+        title={intl.formatMessage(issuesPageViewMessages.pageTitle)}
         description={intl.formatMessage(issuesPageViewMessages.pageDescription)}
         actions={actions}
       />

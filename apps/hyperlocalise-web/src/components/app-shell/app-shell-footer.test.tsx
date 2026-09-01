@@ -170,8 +170,8 @@ describe("AppShellFooter", () => {
 
     renderFooter({ showPlan: false, showIssueGuidance: true });
 
-    const issues = screen.getByRole("button", { name: "Open issues, 2 open" });
-    expect(issues).toHaveTextContent("Issues");
+    const issues = screen.getByRole("button", { name: "Open board, 2 open" });
+    expect(issues).toHaveTextContent("Board");
     expect(issues).toHaveTextContent("2");
 
     try {

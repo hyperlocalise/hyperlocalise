@@ -132,7 +132,7 @@ describe("ContentEditorEditorPanel UI", () => {
     const commentsSection = screen.getByText("Comments").closest("section");
     expect(commentsSection).not.toBeNull();
 
-    await user.click(within(commentsSection!).getByRole("button", { name: "Issues" }));
+    await user.click(within(commentsSection!).getByRole("button", { name: "Board" }));
 
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });

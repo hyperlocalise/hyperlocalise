@@ -37,7 +37,7 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Sidebar nav label in marketing app shell mock",
   },
   mockNavIssues: {
-    defaultMessage: "Issues",
+    defaultMessage: "Board",
     id: "dyxy90ZIN1",
     description: "Sidebar nav label in marketing app shell mock",
   },
@@ -67,7 +67,7 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Header breadcrumb in marketing app shell mock for inbox triage",
   },
   mockBreadcrumbIssues: {
-    defaultMessage: "Acme · Issues",
+    defaultMessage: "Acme · Board",
     id: "yqDgUgDi10",
     description: "Header breadcrumb in marketing app shell mock",
   },
@@ -164,9 +164,9 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Editor mock use case pill for TM, context, and AI suggestions",
   },
   editorIssuesPanelTitle: {
-    defaultMessage: "Issues · this string",
+    defaultMessage: "Board · this string",
     id: "ncf9XHFPKV",
-    description: "Title on the editor mock issues overlay",
+    description: "Title on the editor mock board overlay",
   },
   editorHighlightEditor: {
     defaultMessage: "File editor",
@@ -334,9 +334,9 @@ export const contentOpsMockStageMessages = defineMessages({
   },
 
   issuesTitle: {
-    defaultMessage: "Issues · acme workspace",
+    defaultMessage: "Board · acme workspace",
     id: "rugkgwDED8",
-    description: "Issues panel title in content ops mock",
+    description: "Board panel title in content ops mock",
   },
   inboxTitle: {
     defaultMessage: "Inbox",

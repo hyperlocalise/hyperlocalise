@@ -16,14 +16,14 @@ import { defineMessages } from "react-intl";
 
 export const issueSheetPageContentMessages = defineMessages({
   sectionTitle: {
-    defaultMessage: "Issues",
+    defaultMessage: "Board",
     id: "BeXUx2ytXa",
-    description: "Section title for the project Issue Sheet page",
+    description: "Section title for the project Board page",
   },
   sectionDescription: {
     defaultMessage: "Triage localization issues for this project.",
     id: "4UoHK4nCgZ",
-    description: "Short section description for the project Issue Sheet page",
+    description: "Short section description for the project Board page",
   },
   importCsv: {
     defaultMessage: "Import CSV",
@@ -101,9 +101,9 @@ export const issueSheetPageContentMessages = defineMessages({
     description: "Loading state shown while Issue Sheet rows are fetching",
   },
   loadIssuesError: {
-    defaultMessage: "Issues could not be loaded.",
+    defaultMessage: "The board could not be loaded.",
     id: "dj9zRisspO",
-    description: "Error state when Issue Sheet rows fail to load",
+    description: "Error state when Board rows fail to load",
   },
   emptyTitle: {
     defaultMessage: "No issues in this view.",
@@ -157,9 +157,9 @@ export const issueSheetPageContentMessages = defineMessages({
     description: "Title of the dialog to add a custom Issue Sheet column",
   },
   addColumnDescription: {
-    defaultMessage: "Add a project-specific workflow column to the Issue Sheet.",
+    defaultMessage: "Add a project-specific workflow column to the board.",
     id: "8Wv1MRwzXX",
-    description: "Description of the dialog to add a custom Issue Sheet column",
+    description: "Description of the dialog to add a custom Board column",
   },
   columnIconLabel: {
     defaultMessage: "Icon",
