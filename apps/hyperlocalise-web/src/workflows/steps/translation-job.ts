@@ -100,9 +100,8 @@ export async function reserveSandboxTranslationCreditStep(input: {
   const { db, schema } = await import("@/lib/database/client");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { sandboxTranslationBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { reserveSandboxTranslationAiCredit } = await import(
-    "@/lib/billing/sandbox-translation-credit"
-  );
+  const { reserveSandboxTranslationAiCredit } =
+    await import("@/lib/billing/sandbox-translation-credit");
 
   let organizationId = input.organizationId;
   if (!organizationId) {
@@ -134,9 +133,8 @@ export async function releaseSandboxTranslationCreditStep(input: {
   reason: string;
 }) {
   "use step";
-  const { releaseSandboxTranslationAiCredit } = await import(
-    "@/lib/billing/sandbox-translation-credit"
-  );
+  const { releaseSandboxTranslationAiCredit } =
+    await import("@/lib/billing/sandbox-translation-credit");
   await releaseSandboxTranslationAiCredit(input);
 }
 
@@ -193,9 +191,8 @@ export async function markEmailTranslationJobSucceeded(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { releaseSandboxTranslationAiCredit } = await import(
-    "@/lib/billing/sandbox-translation-credit"
-  );
+  const { releaseSandboxTranslationAiCredit } =
+    await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const byok = await loadSandboxByokCredential(succeededJob.organizationId);
@@ -577,9 +574,8 @@ export async function completeFileTranslationJobStep(input: {
     await import("@/lib/billing/usage-control");
   const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
   const { withCliBillingMetadata } = await import("@/lib/translation/cli-token-usage");
-  const { releaseSandboxTranslationAiCredit } = await import(
-    "@/lib/billing/sandbox-translation-credit"
-  );
+  const { releaseSandboxTranslationAiCredit } =
+    await import("@/lib/billing/sandbox-translation-credit");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
   const [jobForUsage] = await db

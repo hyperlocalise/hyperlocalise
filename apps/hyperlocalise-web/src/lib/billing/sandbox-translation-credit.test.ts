@@ -19,8 +19,7 @@ const getManagedAiPricingConfigMock = vi.fn();
 
 vi.mock("@/lib/billing/managed-ai-credit", () => ({
   formatManagedAiCreditError: (error: { code: string }) => error.code,
-  getManagedAiCreditReservation: (...args: unknown[]) =>
-    getManagedAiCreditReservationMock(...args),
+  getManagedAiCreditReservation: (...args: unknown[]) => getManagedAiCreditReservationMock(...args),
   reserveManagedAiCredit: (...args: unknown[]) => reserveManagedAiCreditMock(...args),
   releaseManagedAiCredit: (...args: unknown[]) => releaseManagedAiCreditMock(...args),
 }));
