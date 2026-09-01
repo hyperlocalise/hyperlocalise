@@ -183,7 +183,7 @@ func (c *Client) getResponse(ctx context.Context, path string) (*APIResponse, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

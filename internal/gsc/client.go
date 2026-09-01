@@ -92,7 +92,7 @@ func (c *Client) request(ctx context.Context, method, url string, body any, out 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

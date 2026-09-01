@@ -12,16 +12,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func testClient(t *testing.T, server *httptest.Server) *gsc.Client {
-	t.Helper()
-
-	client, err := gsc.NewClientWithHTTPClient(gsc.Config{
-		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
-	}, server.Client())
-	require.NoError(t, err)
-	return client
-}
-
 func TestNewClientRequiresTokenSource(t *testing.T) {
 	_, err := gsc.NewClient(gsc.Config{})
 	require.Error(t, err)
