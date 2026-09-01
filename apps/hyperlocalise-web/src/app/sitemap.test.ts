@@ -60,6 +60,16 @@ describe("sitemap", () => {
     }
   });
 
+  it("includes the contact page for each locale", async () => {
+    const entries = await sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const contact = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/contact`);
+      expect(contact).toBeDefined();
+      expect(contact?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/contact`);
+    }
+  });
+
   it("includes the startups page for each locale", async () => {
     const entries = await sitemap();
 

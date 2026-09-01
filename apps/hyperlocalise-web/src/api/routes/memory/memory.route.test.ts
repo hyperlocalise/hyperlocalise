@@ -36,6 +36,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -44,7 +45,7 @@ import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
 
 beforeAll(async () => {

@@ -91,18 +91,17 @@ describe("publicJobOutputFiles", () => {
 });
 
 describe("isCanvaIntegrationJob", () => {
-  it("detects canva-app metadata only on nested fileInput", () => {
+  it("detects canva-app metadata on nested fileInput or top-level metadata", () => {
     expect(
       isCanvaIntegrationJob({
         fileInput: { metadata: { integration: "canva-app" } },
       }),
     ).toBe(true);
-    // Unlike Figma, top-level metadata alone is not treated as Canva.
     expect(
       isCanvaIntegrationJob({
         metadata: { integration: "canva-app" },
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects non-canva jobs and empty metadata", () => {
@@ -142,6 +141,6 @@ describe("readCanvaConnectionIdFromJobInput", () => {
       readCanvaConnectionIdFromJobInput({
         metadata: { canvaConnectionId: "conn_top" },
       }),
-    ).toBeNull();
+    ).toBe("conn_top");
   });
 });

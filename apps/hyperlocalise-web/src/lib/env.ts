@@ -124,6 +124,22 @@ export const env = createEnv({
     /** Slack OAuth redirect URI. Optional — falls back to the current request origin. */
     SLACK_REDIRECT_URI: z.url().optional(),
 
+    /**
+     * Bot token for the Hyperlocalise Slack workspace. Used to create Slack
+     * Connect channels and email client invites. Distinct from the per-org
+     * Slack agent install.
+     */
+    SLACK_CONNECT_BOT_TOKEN: z.string().min(1).optional(),
+
+    /**
+     * Comma-separated Slack user IDs to add to each new Slack Connect channel
+     * (Hyperlocalise CS / account owners).
+     */
+    SLACK_CONNECT_HOST_USER_IDS: z.string().min(1).optional(),
+
+    /** Channel name prefix for Slack Connect client channels. Default `ext`. */
+    SLACK_CONNECT_CHANNEL_PREFIX: z.string().min(1).max(20).optional(),
+
     /** Autumn secret key for server-side usage checks and tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
 
@@ -235,6 +251,18 @@ export const env = createEnv({
     /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
+    /** OAuth client id registered for the Canva app in the Developer Portal. */
+    CANVA_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** OAuth client secret registered for the Canva app in the Developer Portal. */
+    CANVA_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Comma-separated redirect URIs allowed for Canva OAuth. Defaults to
+     * Canva's apps OAuth callback when unset.
+     */
+    CANVA_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
+
     /** Comma-separated browser origins allowed to call the Figma plugin API. */
     FIGMA_CORS_ORIGINS: z.string().min(1).optional(),
 
@@ -326,6 +354,9 @@ export const env = createEnv({
       process.env.SLACK_OAUTH_STATE_SECRET ??
       (isTestEnv ? "test-slack-oauth-state-secret" : undefined),
     SLACK_REDIRECT_URI: process.env.SLACK_REDIRECT_URI,
+    SLACK_CONNECT_BOT_TOKEN: process.env.SLACK_CONNECT_BOT_TOKEN,
+    SLACK_CONNECT_HOST_USER_IDS: process.env.SLACK_CONNECT_HOST_USER_IDS,
+    SLACK_CONNECT_CHANNEL_PREFIX: process.env.SLACK_CONNECT_CHANNEL_PREFIX,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
     AI_CREDIT_METERING_MODE: process.env.AI_CREDIT_METERING_MODE ?? "legacy",
     AI_CREDIT_CHAT_RESERVATION_USD: process.env.AI_CREDIT_CHAT_RESERVATION_USD,
@@ -363,6 +394,15 @@ export const env = createEnv({
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    CANVA_OAUTH_CLIENT_ID:
+      process.env.CANVA_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-canva-oauth-client" : undefined),
+    CANVA_OAUTH_CLIENT_SECRET:
+      process.env.CANVA_OAUTH_CLIENT_SECRET ?? (isTestEnv ? "test-canva-oauth-secret" : undefined),
+    CANVA_OAUTH_REDIRECT_URI:
+      process.env.CANVA_OAUTH_REDIRECT_URI ??
+      (isTestEnv
+        ? "https://www.canva.com/apps/oauth/authorized,https://canva.example.test/oauth/callback"
+        : undefined),
     FIGMA_CORS_ORIGINS: process.env.FIGMA_CORS_ORIGINS,
     CROWDIN_APP_CLIENT_ID:
       process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),

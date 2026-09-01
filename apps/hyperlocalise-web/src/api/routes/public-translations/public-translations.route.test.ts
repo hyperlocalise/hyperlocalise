@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
@@ -28,7 +29,7 @@ import {
   hashApiKey,
 } from "../public-jobs/public-jobs.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 
 beforeAll(async () => {
   await db.$client.query("select 1");

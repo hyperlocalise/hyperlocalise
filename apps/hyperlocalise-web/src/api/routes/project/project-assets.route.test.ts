@@ -16,6 +16,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
@@ -40,7 +41,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const { authHeadersFor, cleanup, createStoredProjectFixture } = projectFixture;
 

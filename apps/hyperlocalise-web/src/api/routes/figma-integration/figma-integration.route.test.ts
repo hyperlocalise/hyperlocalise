@@ -43,6 +43,7 @@ vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { INVALID_OR_REVOKED_API_KEY_MESSAGE } from "@/api/auth/api-key";
 import { FIGMA_API_KEY_HEADER } from "@/api/auth/figma-cors";
 import {
@@ -51,7 +52,7 @@ import {
 } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { db, schema } from "@/lib/database/client";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 
 const FIGMA_PERMISSIONS = ["files:read", "files:write", "jobs:read", "jobs:write"];
 

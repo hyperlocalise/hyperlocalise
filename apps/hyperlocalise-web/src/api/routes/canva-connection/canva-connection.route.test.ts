@@ -33,11 +33,13 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
+import { createCanvaConnectionClaim } from "@/lib/canva/connection-claims";
 import { db } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture(client);
 const projectFixture = createProjectTestFixture(client);
 
@@ -109,5 +111,69 @@ describe("canvaConnectionRoutes", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("authorizes a pending Canva claim onto a connection", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+      name: "Canva Claim Key",
+    });
+    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await client.api.orgs[":organizationSlug"]["canva-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Claim Canva",
+          apiKeyId: apiKeyBody.apiKey.id,
+          projectId: projectBody.project.id,
+          sourceLocale: "en",
+          targetLocales: ["es"],
+        },
+      },
+      { headers },
+    );
+    const createdBody = (await created.json()) as {
+      canvaConnection: { id: string };
+    };
+    const claim = await createCanvaConnectionClaim();
+
+    const response = await client.api.orgs[":organizationSlug"]["canva-connections"][
+      ":connectionId"
+    ]["complete-claim"].$post(
+      {
+        param: { organizationSlug, connectionId: createdBody.canvaConnection.id },
+        json: { claimId: claim.claimId },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { claimId: string };
+    expect(body.claimId).toBe(claim.claimId);
+
+    const authorized = await client.api.integrations.canva.claims[":claimId"].$get(
+      { param: { claimId: claim.claimId } },
+      { headers: { "X-Hyperlocalise-Claim-Token": claim.pollToken } },
+    );
+    expect(authorized.status).toBe(200);
+    const authorizedBody = (await authorized.json()) as {
+      status: string;
+      connectionToken?: string;
+    };
+    expect(authorizedBody.status).toBe("authorized");
+    expect(authorizedBody.connectionToken).toMatch(/^hl_canva_/);
+
+    const consumed = await client.api.integrations.canva.claims[":claimId"].$get(
+      { param: { claimId: claim.claimId } },
+      { headers: { "X-Hyperlocalise-Claim-Token": claim.pollToken } },
+    );
+    expect(consumed.status).toBe(200);
+    await expect(consumed.json()).resolves.toEqual({ status: "consumed" });
   });
 });

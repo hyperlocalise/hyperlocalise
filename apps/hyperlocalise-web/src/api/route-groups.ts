@@ -25,6 +25,7 @@ import type {
 
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
+import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
@@ -170,6 +171,7 @@ export function createOrgAgentsRoutes() {
   return new Hono()
     .route("/agent-email", createAgentEmailRoutes())
     .route("/agent-slack", createAgentSlackRoutes())
+    .route("/slack-connect", createSlackConnectRoutes())
     .route("/github-installation", createGithubInstallationRoutes());
 }
 

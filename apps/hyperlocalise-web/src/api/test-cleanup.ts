@@ -132,6 +132,18 @@ export async function cleanupWorkosTestRecords(input: {
         orgParams,
       );
       await client.query(
+        "DELETE FROM canva_oauth_authorization_codes WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
+        "DELETE FROM canva_oauth_tokens WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
+        "DELETE FROM canva_connection_claims WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
         "DELETE FROM canva_connections WHERE organization_id = ANY($1::uuid[])",
         orgParams,
       );

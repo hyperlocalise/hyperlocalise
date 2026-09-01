@@ -35,6 +35,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createMemoryFileStorageAdapter } from "@/api/routes/file/file.fixture";
 import {
   cleanupPublicApiFixture,
@@ -48,7 +49,7 @@ import type { TeamResponse } from "@/api/routes/team/team.schema";
 import { db, schema } from "@/lib/database/client";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const client = testClient(createApp({ fileStorageAdapter }));
+const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 const {

@@ -56,12 +56,13 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { verifyGitHubState } from "@/lib/agents/github/oauth-state";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createProjectTestFixture(client);
 
 async function createInstallationFixture(role: "admin" | "member" = "admin") {

@@ -19,6 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app, createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
@@ -51,7 +52,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 
@@ -411,7 +412,7 @@ describe("project job create", () => {
   const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
     ids: [event.jobId],
   }));
-  const createClient = testClient(
+  const createClient = testClient<AppType>(
     createApp({
       jobQueue: {
         enqueue: enqueueJob,

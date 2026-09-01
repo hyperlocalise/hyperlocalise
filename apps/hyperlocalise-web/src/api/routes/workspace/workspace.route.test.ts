@@ -43,11 +43,12 @@ vi.mock("@/lib/workos/server-client", () => ({
 }));
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { StaleOrganizationSlugError } from "@/api/auth/workos-session";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
 beforeAll(async () => {

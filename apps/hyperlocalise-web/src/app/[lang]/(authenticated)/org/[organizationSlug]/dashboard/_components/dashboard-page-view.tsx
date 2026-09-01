@@ -813,6 +813,7 @@ export function DashboardPageView({
   isAutomationsLoading = false,
   isAutomationsError = false,
   onNewRequest,
+  slackConnectBanner,
   renderLink = defaultRenderLink,
 }: {
   organizationSlug: string;
@@ -844,6 +845,7 @@ export function DashboardPageView({
   isAutomationsLoading?: boolean;
   isAutomationsError?: boolean;
   onNewRequest: () => void;
+  slackConnectBanner?: ReactNode;
   renderLink?: DashboardLinkRenderer;
 }) {
   const intl = useIntl();
@@ -860,6 +862,8 @@ export function DashboardPageView({
         title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
         description={intl.formatMessage(dashboardPageViewMessages.pageDescription)}
       />
+
+      {slackConnectBanner}
 
       <section className="grid gap-4 lg:grid-cols-2">
         {isHeroLoading ? (

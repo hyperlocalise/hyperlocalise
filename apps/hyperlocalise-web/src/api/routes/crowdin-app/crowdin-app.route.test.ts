@@ -17,6 +17,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { testClient } from "hono/testing";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { env } from "@/lib/env";
 
 function signCrowdinEventBody(rawBody: string) {
@@ -25,7 +26,7 @@ function signCrowdinEventBody(rawBody: string) {
 
 describe("crowdin app routes", () => {
   it("serves session errors for invalid jwt", async () => {
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
     const response = await client.api["crowdin-app"].session.$post({
       json: { jwtToken: "not-a-jwt" },
     });
@@ -90,7 +91,7 @@ describe("crowdin app routes", () => {
       { algorithm: "HS256", expiresIn: "5m" },
     );
 
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
     const response = await client.api["crowdin-app"].session.$post({
       json: { jwtToken: token },
     });

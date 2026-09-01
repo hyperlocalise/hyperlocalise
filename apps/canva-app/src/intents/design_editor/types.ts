@@ -31,20 +31,42 @@ export type ExtractedDesignContent = {
   preserveFormatting: boolean;
 };
 
-export type LocalizeRequest = {
-  connectionToken: string;
-  sourceLocale: string;
+export type CanvaJobStatusName =
+  | "queued"
+  | "running"
+  | "waiting_for_review"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export type CanvaDesignJob = {
+  jobId: string;
+  status: CanvaJobStatusName;
+  projectId: string;
+  sourcePath: string;
   targetLocales: string[];
-  designToken: string;
-  segments: DesignSegment[];
-  projectId?: string;
-  preserveFormatting: boolean;
+  lastError: string | null;
+  translationsByLocale: Record<string, Record<string, string>>;
 };
 
-export type LocalizeResponse = {
-  jobId: string;
-  translationsByLocale: Record<string, Record<string, string>>;
-  mode: "hyperlocalise";
+export type CanvaSession = {
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+  };
+  project: {
+    id: string;
+    name: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
+  connection: {
+    id: string;
+    displayName: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
 };
 
 export type WorkflowStep =
@@ -57,9 +79,12 @@ export type WorkflowStep =
 
 export type AppSettings = {
   connectionToken: string;
-  projectId: string;
+  organizationSlug: string;
+  organizationName: string;
+  projectName: string;
   sourceLocale: string;
   targetLocales: string;
   preserveFormatting: boolean;
   selectedPageIndices: number[];
+  lastJobId: string;
 };

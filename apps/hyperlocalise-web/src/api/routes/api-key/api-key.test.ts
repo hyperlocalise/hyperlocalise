@@ -37,6 +37,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database/client";
 import { err } from "@/lib/primitives/result/results";
@@ -59,7 +60,7 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-const client = testClient(
+const client = testClient<AppType>(
   createApp({
     jobQueue: createInlineTestJobQueue(),
   }),

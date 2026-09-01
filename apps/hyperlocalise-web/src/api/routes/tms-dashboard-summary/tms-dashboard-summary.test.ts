@@ -16,6 +16,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { db } from "@/lib/database/client";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
@@ -37,7 +38,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const client = testClient(app);
+const client = testClient<AppType>(app);
 const fixture = createProviderCredentialTestFixture(client);
 
 describe("tmsDashboardSummaryRoutes", () => {

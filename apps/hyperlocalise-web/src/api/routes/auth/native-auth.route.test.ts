@@ -36,11 +36,12 @@ vi.mock("@/lib/workos/config", () => ({
 }));
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 
 const VALID_CHALLENGE = "a".repeat(43);
 const VALID_VERIFIER = "b".repeat(43);
 
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 
 describe("nativeAuthRoutes", () => {
   afterEach(() => {

@@ -79,7 +79,12 @@ function createOrgSlugClient(origin: string) {
       "intercom-connections",
       "canva-connections",
     ]),
-    ...pickClientPaths(agents, ["agent-email", "agent-slack", "github-installation"]),
+    ...pickClientPaths(agents, [
+      "agent-email",
+      "agent-slack",
+      "slack-connect",
+      "github-installation",
+    ]),
     ...pickClientPaths(workspace, ["teams", "members", "workspace", "billing", "api-keys"]),
   };
 }

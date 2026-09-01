@@ -28,6 +28,7 @@ import type {
 import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
+import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
@@ -55,7 +56,7 @@ import {
 import type { LocalisationAuditQueue } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 
-type CreateAppOptions = {
+export type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;
@@ -68,7 +69,7 @@ type CreateAppOptions = {
   localisationAuditQueue?: LocalisationAuditQueue;
 };
 
-export function createApp(options: CreateAppOptions = {}) {
+export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {
   const jobQueue = options.jobQueue ?? createApiTranslationJobQueue();
   const providerAgentTranslationQueue =
     options.providerAgentTranslationQueue ?? createProviderAgentTranslationQueue();
@@ -117,13 +118,11 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
     .route("/crowdin-app", createCrowdinAppRoutes())
-    .route("/webhooks", createWebhookRoutes(options));
+    .route("/webhooks", createWebhookRoutes(options))
+    .route("/oauth/canva", createCanvaOauthRoutes());
 }
 
 export const app = createApp();
-
-/** Inferred schema of the single runtime Hono app. Use with `testClient`, not `hc`. */
-export type AppType = typeof app;
 
 function createInternalRoutes() {
   return new Hono()

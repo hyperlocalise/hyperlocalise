@@ -34,6 +34,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -49,7 +50,7 @@ import type { ProjectResponse } from "../project/project.schema";
 import { createGlossaryTestFixture } from "./glossary.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const client = testClient(createApp({ fileStorageAdapter }));
+const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 const fixture = createGlossaryTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 

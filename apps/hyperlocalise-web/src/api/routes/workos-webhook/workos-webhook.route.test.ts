@@ -18,6 +18,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import {
   promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
@@ -65,7 +66,7 @@ describe("workosWebhookRoutes", () => {
   });
 
   it("returns 401 for invalid signature", async () => {
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
 
     const response = await client.api.webhooks.workos.$post(
       {
@@ -88,7 +89,7 @@ describe("workosWebhookRoutes", () => {
   });
 
   it("handles user.created event", async () => {
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
 
     const payload = JSON.stringify({
       event: "user.created",
@@ -119,7 +120,7 @@ describe("workosWebhookRoutes", () => {
   });
 
   it("removes pending local membership when an invitation is revoked", async () => {
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
 
     const payload = JSON.stringify({
       event: "invitation.revoked",
@@ -148,7 +149,7 @@ describe("workosWebhookRoutes", () => {
   });
 
   it("revokes local access for organization_membership.deleted", async () => {
-    const client = testClient(app);
+    const client = testClient<AppType>(app);
 
     const payload = JSON.stringify({
       event: "organization_membership.deleted",

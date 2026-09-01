@@ -19,6 +19,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import {
   promoteInvitedPlaceholderUser,
   revokeOrganizationMembershipAccess,
@@ -66,7 +67,7 @@ vi.mock("@/lib/workos/server-client", () => ({
 }));
 
 const { createWorkosIdentity, cleanup, trackWorkosUserId } = createAuthTestFixture();
-const client = testClient(createApp());
+const client = testClient<AppType>(createApp());
 const sessionHeaders = { headers: { cookie: "wos-session=identity-regression" } };
 
 function mockWorkosSessionForIdentity(identity: ReturnType<typeof createWorkosIdentity>) {

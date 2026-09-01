@@ -60,3 +60,29 @@ export const localizeCanvaDesignBodySchema = z.object({
 export const localizeCanvaJobIdParamSchema = z.object({
   jobId: z.string().trim().min(1),
 });
+
+export const createCanvaJobBodySchema = localizeCanvaDesignBodySchema.extend({
+  generate: z.boolean().optional().default(true),
+});
+
+const canvaDesignQuerySchema = z
+  .object({
+    designId: z.string().trim().min(1).max(256).optional(),
+    designToken: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => Boolean(value.designId || value.designToken), {
+    message: "designId or designToken is required",
+  });
+
+export const currentCanvaJobQuerySchema = canvaDesignQuerySchema;
+export const pullCanvaTranslationsQuerySchema = canvaDesignQuerySchema;
+
+export const canvaClaimIdParamSchema = z.object({
+  claimId: z.string().uuid(),
+});
+
+export const completeCanvaClaimBodySchema = z.object({
+  claimId: z.string().uuid(),
+});
+
+export type CreateCanvaJobBody = z.infer<typeof createCanvaJobBodySchema>;

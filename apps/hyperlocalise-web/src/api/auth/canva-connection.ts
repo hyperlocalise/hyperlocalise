@@ -14,6 +14,7 @@ import { createMiddleware } from "hono/factory";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { getCanvaConnectionByToken } from "@/lib/canva/connections";
+import { getCanvaConnectionByOauthAccessToken } from "@/lib/canva/oauth";
 import type { CanvaVerifiedUser } from "@/lib/canva/types";
 
 export type CanvaConnectionVariables = {
@@ -31,25 +32,31 @@ export type CanvaConnectionVariables = {
 };
 
 const CONNECTION_TOKEN_HEADER = "x-hyperlocalise-connection-token";
+const ACCESS_TOKEN_HEADER = "x-hyperlocalise-access-token";
 
 export const canvaConnectionAuthMiddleware = createMiddleware<{
   Variables: CanvaConnectionVariables;
 }>(async (c, next) => {
+  const accessToken = c.req.header(ACCESS_TOKEN_HEADER)?.trim();
   const connectionToken = c.req.header(CONNECTION_TOKEN_HEADER)?.trim();
-  if (!connectionToken) {
+  if (!accessToken && !connectionToken) {
     return unauthorizedResponse(
       c,
       "canva_connection_token_required",
-      "Canva connection token is required.",
+      "A Hyperlocalise access token or Canva connection token is required.",
     );
   }
 
-  const connection = await getCanvaConnectionByToken(connectionToken);
+  const connection = accessToken
+    ? await getCanvaConnectionByOauthAccessToken(accessToken)
+    : await getCanvaConnectionByToken(connectionToken ?? "");
   if (!connection) {
     return unauthorizedResponse(
       c,
-      "canva_connection_not_found",
-      "Canva connection token is invalid.",
+      accessToken ? "canva_access_token_invalid" : "canva_connection_not_found",
+      accessToken
+        ? "Hyperlocalise access token is invalid or expired."
+        : "Canva connection token is invalid.",
     );
   }
 

@@ -48,6 +48,7 @@ import type {
   inboxItems,
   interactionRepositorySessions,
   interactionMessages,
+  slackConnectInvites,
   connectors,
   tmsLinks,
   glossaryImportRuns,
@@ -127,6 +128,8 @@ export type InteractionRepositorySession = typeof interactionRepositorySessions.
 export type NewInteractionRepositorySession = typeof interactionRepositorySessions.$inferInsert;
 export type InteractionMessage = typeof interactionMessages.$inferSelect;
 export type NewInteractionMessage = typeof interactionMessages.$inferInsert;
+export type SlackConnectInvite = typeof slackConnectInvites.$inferSelect;
+export type NewSlackConnectInvite = typeof slackConnectInvites.$inferInsert;
 export type Connector = typeof connectors.$inferSelect;
 export type NewConnector = typeof connectors.$inferInsert;
 export type TmsLink = typeof tmsLinks.$inferSelect;

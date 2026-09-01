@@ -17,6 +17,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import type { AppType } from "@/api/typed-app";
 import {
   apiKeyAuthLogContext,
   INVALID_OR_REVOKED_API_KEY_MESSAGE,
@@ -49,7 +50,7 @@ const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
   ids: [event.jobId],
 }));
 
-const client = testClient(
+const client = testClient<AppType>(
   createApp({
     jobQueue: {
       enqueue: enqueueJob,

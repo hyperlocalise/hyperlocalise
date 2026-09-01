@@ -10,13 +10,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { LocalizeRequest, LocalizeResponse } from "./types";
+import type { CanvaDesignJob, CanvaSession, DesignSegment } from "./types";
 
 declare const BACKEND_HOST: string;
 
+const ACCESS_TOKEN_HEADER = "X-Hyperlocalise-Access-Token";
 const CONNECTION_TOKEN_HEADER = "X-Hyperlocalise-Connection-Token";
-const POLL_INTERVAL_MS = 1_500;
-const MAX_POLL_ATTEMPTS = 120;
+const CLAIM_TOKEN_HEADER = "X-Hyperlocalise-Claim-Token";
+export const CANVA_JOB_POLL_INTERVAL_MS = 1_500;
+const CLAIM_POLL_INTERVAL_MS = 1_500;
+const MAX_CLAIM_POLL_ATTEMPTS = 80;
+
+export type CanvaResourceAuth = {
+  accessToken?: string;
+  connectionToken?: string;
+};
 
 export class HyperlocaliseClientError extends Error {
   readonly code: string;
@@ -28,9 +36,15 @@ export class HyperlocaliseClientError extends Error {
   }
 }
 
+type ErrorPayload = { error?: string; message?: string };
+
+async function getCanvaUserModule() {
+  return import("@canva/user");
+}
+
 async function getAuthorizationHeader(): Promise<string | undefined> {
   try {
-    const { auth } = await import("@canva/user");
+    const { auth } = await getCanvaUserModule();
     const token = await auth.getCanvaUserToken();
     return `Bearer ${token}`;
   } catch {
@@ -38,115 +52,333 @@ async function getAuthorizationHeader(): Promise<string | undefined> {
   }
 }
 
-function buildRequestHeaders(connectionToken: string, authorization?: string) {
+function normalizeResourceAuth(auth: string | CanvaResourceAuth): CanvaResourceAuth {
+  return typeof auth === "string" ? { connectionToken: auth } : auth;
+}
+
+function buildRequestHeaders(auth: string | CanvaResourceAuth, authorization?: string) {
+  const resourceAuth = normalizeResourceAuth(auth);
   return {
     "Content-Type": "application/json",
-    [CONNECTION_TOKEN_HEADER]: connectionToken,
+    ...(resourceAuth.accessToken ? { [ACCESS_TOKEN_HEADER]: resourceAuth.accessToken } : {}),
+    ...(resourceAuth.connectionToken
+      ? { [CONNECTION_TOKEN_HEADER]: resourceAuth.connectionToken }
+      : {}),
     ...(authorization ? { Authorization: authorization } : {}),
   };
 }
 
-type StartLocalizeResponse = {
-  jobId: string;
-  mode: "hyperlocalise";
-};
-
-type PollLocalizeResponse =
-  | {
-      jobId: string;
-      status: "queued" | "running";
-      mode: "hyperlocalise";
-    }
-  | {
-      jobId: string;
-      status: "succeeded";
-      translationsByLocale: Record<string, Record<string, string>>;
-      mode: "hyperlocalise";
-    };
-
-async function parseErrorPayload(response: Response) {
-  return (await response.json().catch(() => null)) as {
-    error?: string;
-    message?: string;
-  } | null;
+async function readError(response: Response): Promise<ErrorPayload> {
+  return ((await response.json().catch(() => null)) as ErrorPayload | null) ?? {};
 }
 
-export async function startLocalizeDesign(
-  request: LocalizeRequest,
-): Promise<StartLocalizeResponse> {
-  const authorization = await getAuthorizationHeader();
-  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/localize`, {
-    method: "POST",
-    headers: buildRequestHeaders(request.connectionToken, authorization),
-    body: JSON.stringify({
-      designToken: request.designToken,
-      segments: request.segments,
-      ...(request.projectId ? { projectId: request.projectId } : {}),
-      sourceLocale: request.sourceLocale,
-      targetLocales: request.targetLocales,
-    }),
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | (StartLocalizeResponse & { error?: string; message?: string })
-    | null;
-
-  if (!response.ok || !payload?.jobId) {
-    const code = payload?.error ?? "localize_request_failed";
-    const message = payload?.message ?? "Unable to localize this design.";
-    throw new HyperlocaliseClientError(code, message);
+function throwIfFailed(
+  response: Response,
+  payload: ErrorPayload | null,
+  fallbackCode: string,
+  fallbackMessage: string,
+) {
+  if (response.ok) {
+    return;
   }
-
-  return payload;
-}
-
-export async function pollLocalizeDesign(input: {
-  connectionToken: string;
-  jobId: string;
-}): Promise<LocalizeResponse> {
-  const authorization = await getAuthorizationHeader();
-
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-    const response = await fetch(
-      `${BACKEND_HOST}/api/integrations/canva/localize/${encodeURIComponent(input.jobId)}`,
-      {
-        method: "GET",
-        headers: buildRequestHeaders(input.connectionToken, authorization),
-      },
-    );
-
-    const payload = (await response.json().catch(() => null)) as
-      | (PollLocalizeResponse & { error?: string; message?: string })
-      | null;
-
-    if (!response.ok || !payload) {
-      const errorPayload = payload ?? (await parseErrorPayload(response));
-      const code = errorPayload?.error ?? "localize_poll_failed";
-      const message = errorPayload?.message ?? "Unable to check localization status.";
-      throw new HyperlocaliseClientError(code, message);
-    }
-
-    if (payload.status === "succeeded") {
-      return {
-        jobId: payload.jobId,
-        translationsByLocale: payload.translationsByLocale,
-        mode: "hyperlocalise",
-      };
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-
   throw new HyperlocaliseClientError(
-    "translation_job_timed_out",
-    "Localization is taking longer than expected. Try again in a moment.",
+    payload?.error ?? fallbackCode,
+    payload?.message ?? fallbackMessage,
   );
 }
 
-export async function localizeDesign(request: LocalizeRequest): Promise<LocalizeResponse> {
-  const started = await startLocalizeDesign(request);
-  return pollLocalizeDesign({
-    connectionToken: request.connectionToken,
-    jobId: started.jobId,
+export async function getHyperlocaliseAccessToken(): Promise<string | null> {
+  try {
+    const { auth } = await getCanvaUserModule();
+    const token = await auth.initOauth().getAccessToken();
+    return token?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function requestHyperlocaliseAuthorization(): Promise<"completed" | "aborted"> {
+  const { auth } = await getCanvaUserModule();
+  const response = await auth.initOauth().requestAuthorization();
+  return response.status === "completed" ? "completed" : "aborted";
+}
+
+export async function deauthorizeHyperlocalise(): Promise<void> {
+  try {
+    const { auth } = await getCanvaUserModule();
+    await auth.initOauth().deauthorize();
+  } catch {
+    // Local development and tests may not have a Canva OAuth session.
+  }
+}
+
+export async function createCanvaClaim(): Promise<{
+  claimId: string;
+  pollToken: string;
+  authorizeUrl: string;
+  expiresAt: string;
+}> {
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/claims`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        claimId?: string;
+        pollToken?: string;
+        authorizeUrl?: string;
+        expiresAt?: string;
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.claimId || !payload.pollToken || !payload.authorizeUrl) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_claim_create_failed",
+      payload?.message ?? "Unable to start a Canva connection.",
+    );
+  }
+  return {
+    claimId: payload.claimId,
+    pollToken: payload.pollToken,
+    authorizeUrl: payload.authorizeUrl,
+    expiresAt: payload.expiresAt ?? "",
+  };
+}
+
+export async function pollCanvaClaim(input: {
+  claimId: string;
+  pollToken: string;
+}): Promise<string> {
+  for (let attempt = 0; attempt < MAX_CLAIM_POLL_ATTEMPTS; attempt += 1) {
+    const response = await fetch(
+      `${BACKEND_HOST}/api/integrations/canva/claims/${encodeURIComponent(input.claimId)}`,
+      {
+        headers: {
+          [CLAIM_TOKEN_HEADER]: input.pollToken,
+        },
+      },
+    );
+    const payload = (await response.json().catch(() => null)) as
+      | ({
+          status?: string;
+          connectionToken?: string;
+        } & ErrorPayload)
+      | null;
+
+    if (!response.ok || !payload) {
+      throw new HyperlocaliseClientError(
+        payload?.error ?? "canva_claim_poll_failed",
+        payload?.message ?? "Unable to check the Canva connection request.",
+      );
+    }
+
+    if (payload.status === "authorized" && payload.connectionToken) {
+      return payload.connectionToken;
+    }
+    if (payload.status === "expired" || payload.status === "consumed") {
+      throw new HyperlocaliseClientError(
+        "canva_claim_expired",
+        "This connect request expired. Start again from Canva.",
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, CLAIM_POLL_INTERVAL_MS));
+  }
+
+  throw new HyperlocaliseClientError(
+    "canva_claim_timed_out",
+    "Timed out waiting for Hyperlocalise authorization.",
+  );
+}
+
+export async function fetchCanvaSession(auth: string | CanvaResourceAuth): Promise<CanvaSession> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/session`, {
+    headers: buildRequestHeaders(auth, authorization),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({ session?: CanvaSession } & ErrorPayload)
+    | null;
+  throwIfFailed(
+    response,
+    payload,
+    "canva_session_failed",
+    "Unable to load your Hyperlocalise session.",
+  );
+  if (!payload?.session) {
+    throw new HyperlocaliseClientError(
+      "canva_session_failed",
+      "Unable to load your Hyperlocalise session.",
+    );
+  }
+  return payload.session;
+}
+
+export async function createCanvaJob(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  generate: boolean;
+  segments: DesignSegment[];
+}): Promise<{
+  jobId: string;
+  generated: boolean;
+  projectId: string;
+  sourcePath: string;
+}> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/jobs`, {
+    method: "POST",
+    headers: buildRequestHeaders(input.auth, authorization),
+    body: JSON.stringify({
+      designToken: input.designToken,
+      sourceLocale: input.sourceLocale,
+      targetLocales: input.targetLocales,
+      generate: input.generate,
+      segments: input.segments,
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        job?: {
+          jobId?: string;
+          generated?: boolean;
+          projectId?: string;
+          sourcePath?: string;
+        };
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.job?.jobId || !payload.job.projectId || !payload.job.sourcePath) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_job_create_failed",
+      payload?.message ?? "Unable to create a translation job.",
+    );
+  }
+  return {
+    jobId: payload.job.jobId,
+    generated: payload.job.generated ?? input.generate,
+    projectId: payload.job.projectId,
+    sourcePath: payload.job.sourcePath,
+  };
+}
+
+export async function generateCanvaJob(input: {
+  auth: string | CanvaResourceAuth;
+  jobId: string;
+}): Promise<void> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/jobs/${encodeURIComponent(input.jobId)}/generate`,
+    {
+      method: "POST",
+      headers: buildRequestHeaders(input.auth, authorization),
+    },
+  );
+  if (!response.ok) {
+    const payload = await readError(response);
+    throw new HyperlocaliseClientError(
+      payload.error ?? "canva_job_generate_failed",
+      payload.message ?? "Unable to generate translations.",
+    );
+  }
+}
+
+export async function getCanvaJob(input: {
+  auth: string | CanvaResourceAuth;
+  jobId: string;
+}): Promise<CanvaDesignJob> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/jobs/${encodeURIComponent(input.jobId)}`,
+    { headers: buildRequestHeaders(input.auth, authorization) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ job?: CanvaDesignJob } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.job) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_job_status_failed",
+      payload?.message ?? "Unable to load the translation job.",
+    );
+  }
+  return payload.job;
+}
+
+export async function fetchCurrentCanvaJob(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+}): Promise<CanvaDesignJob | null> {
+  const authorization = await getAuthorizationHeader();
+  const params = new URLSearchParams({ designToken: input.designToken });
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/jobs/current?${params.toString()}`,
+    { headers: buildRequestHeaders(input.auth, authorization) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ job?: CanvaDesignJob | null } & ErrorPayload)
+    | null;
+  if (!response.ok) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_current_job_failed",
+      payload?.message ?? "Unable to load the current job.",
+    );
+  }
+  return payload?.job ?? null;
+}
+
+export async function pullCanvaTranslations(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+}): Promise<CanvaDesignJob> {
+  const authorization = await getAuthorizationHeader();
+  const params = new URLSearchParams({ designToken: input.designToken });
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/translations?${params.toString()}`,
+    { headers: buildRequestHeaders(input.auth, authorization) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        translations?: CanvaDesignJob | { jobId: null; status: "not_found" };
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.translations || !("jobId" in payload.translations)) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_translations_failed",
+      payload?.message ?? "Unable to pull translations.",
+    );
+  }
+  if (payload.translations.jobId == null) {
+    throw new HyperlocaliseClientError(
+      "translation_job_not_found",
+      "No translations found for this design.",
+    );
+  }
+  return payload.translations;
+}
+
+export function buildCanvaJobUrl(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+}): string | null {
+  try {
+    const parsed = new URL(BACKEND_HOST);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return `${parsed.origin}/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}`;
+  } catch {
+    return null;
+  }
+}
+
+export async function openExternalUrl(url: string) {
+  try {
+    const { requestOpenExternalUrl } = await import("@canva/platform");
+    await requestOpenExternalUrl({ url });
+  } catch {
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }
 }

@@ -60,6 +60,7 @@ import {
   CustomerEngagementIntegrationsSection,
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
+import { CanvaConnectionPanel } from "./canva-connection-panel";
 import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
@@ -1141,7 +1142,6 @@ export function IntegrationsPageContent({
                   expanded={expandedContentful}
                   onExpandedChange={handleContentfulExpandedChange}
                   isLoading={isLoadingContentful}
-                  isLast
                 >
                   <ContentfulConnectionPanel
                     connection={contentfulConnections?.[0]}
@@ -1180,6 +1180,11 @@ export function IntegrationsPageContent({
                     }}
                   />
                 </CollapsibleIntegrationRow>
+                <CanvaConnectionPanel
+                  organizationSlug={organizationSlug}
+                  disabled={!userIsAdmin}
+                  isLast
+                />
               </IntegrationCategorySection>
             ) : null}
             {showCategory("customer-engagement") ? (

@@ -25,6 +25,7 @@ import {
   dashboardProjectsItemsFixture,
 } from "./dashboard.fixture";
 import { DashboardPageView } from "./dashboard-page-view";
+import { SlackConnectInviteBannerView } from "./slack-connect-invite-banner";
 import {
   resolveAutomationSnapshotStats,
   resolveDashboardHero,
@@ -108,6 +109,64 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const SlackConnectCreate: Story = {
+  args: {
+    slackConnectBanner: (
+      <SlackConnectInviteBannerView
+        invited={false}
+        onDismiss={() => undefined}
+        onRequest={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Create a shared Slack channel")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request Slack invite" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  },
+};
+
+export const SlackConnectInviteReadOnly: Story = {
+  args: {
+    slackConnectBanner: (
+      <SlackConnectInviteBannerView
+        invited
+        canManage={false}
+        onDismiss={() => undefined}
+        onRequest={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("We've invited your team to a shared Slack channel"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Request Slack invite" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+  },
+};
+
+export const SlackConnectInvite: Story = {
+  args: {
+    slackConnectBanner: (
+      <SlackConnectInviteBannerView
+        invited
+        onDismiss={() => undefined}
+        onRequest={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("We've invited your team to a shared Slack channel"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request Slack invite" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  },
+};
 
 export const Default: Story = {
   play: async ({ canvas }) => {

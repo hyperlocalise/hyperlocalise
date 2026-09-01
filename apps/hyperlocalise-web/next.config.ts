@@ -19,6 +19,10 @@ import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  typescript: {
+    // Exclude tests and typed-app.ts so next build does not instantiate AppType (TS2589).
+    tsconfigPath: "tsconfig.build.json",
+  },
   // View transitions work without config in Next.js 16.3+ (experimental.viewTransition removed).
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {

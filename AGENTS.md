@@ -59,6 +59,10 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
   NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
   WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
   AUTUMN_API_KEY=am_sk_test_placeholder
+  # Optional. Slack Connect invites from the Hyperlocalise workspace (Overview banner).
+  # SLACK_CONNECT_BOT_TOKEN=
+  # SLACK_CONNECT_HOST_USER_IDS=
+  # SLACK_CONNECT_CHANNEL_PREFIX=ext
   # Optional. Routes file/email sandbox translation through Vercel AI Gateway.
   # AI_GATEWAY_API_KEY=
   # Optional. Enables server-side GA4 custom events via Measurement Protocol.

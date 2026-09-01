@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "src/e2e", "src/api/typed-app.ts", "**/*.test.ts", "**/*.fixture.ts"]
+}

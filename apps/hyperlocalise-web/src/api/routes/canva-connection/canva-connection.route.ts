@@ -16,6 +16,7 @@ import { validator } from "hono/validator";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import { completeCanvaConnectionClaim } from "@/lib/canva/connection-claims";
 import {
   createCanvaConnection,
   deleteCanvaConnection,
@@ -27,6 +28,7 @@ import {
 
 import {
   canvaConnectionIdParamSchema,
+  completeCanvaClaimBodySchema,
   createCanvaConnectionBodySchema,
   updateCanvaConnectionBodySchema,
 } from "./canva-connection.schema";
@@ -46,6 +48,19 @@ const validateCreateBody = validator("json", (value, c) => {
       c,
       "invalid_canva_connection_payload",
       "Canva connection payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateCompleteClaimBody = validator("json", (value, c) => {
+  const parsed = completeCanvaClaimBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_canva_claim_payload",
+      "Canva claim payload is invalid.",
       parsed.error.flatten(),
     );
   }
@@ -220,5 +235,47 @@ export function createCanvaConnectionRoutes() {
         },
         200,
       );
-    });
+    })
+    .post(
+      "/:connectionId/complete-claim",
+      validateConnectionIdParams,
+      validateCompleteClaimBody,
+      async (c) => {
+        if (!canWriteCanva(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+
+        try {
+          const result = await completeCanvaConnectionClaim({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            connectionId: params.connectionId,
+            claimId: payload.claimId,
+          });
+
+          return c.json(
+            {
+              claimId: result.claimId,
+              canvaConnection: result.connection,
+            },
+            200,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "canva_claim_complete_failed";
+          if (message === "canva_connection_not_found") {
+            return notFoundResponse(c, message);
+          }
+          if (message === "canva_claim_not_found") {
+            return notFoundResponse(c, message, "This Canva connect request was not found.");
+          }
+          if (message === "canva_claim_expired" || message === "canva_claim_already_completed") {
+            return badRequestResponse(c, message);
+          }
+          return badRequestResponse(c, "canva_claim_complete_failed");
+        }
+      },
+    );
 }
