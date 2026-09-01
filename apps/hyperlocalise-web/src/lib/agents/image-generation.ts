@@ -23,10 +23,7 @@ import {
   getManagedAiPricingConfig,
   managedAiReservationAmountUsd,
 } from "@/lib/billing/managed-ai-pricing";
-import {
-  getManagedImageModel,
-  hyperlocaliseImageModelId,
-} from "@/lib/providers/language-model";
+import { getManagedImageModel, hyperlocaliseImageModelId } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
@@ -198,9 +195,7 @@ export async function regenerateImageFromAttachment(
     };
     await settleManagedAiCredit({
       reservation: reservationResult.value,
-      modelId: result.billing.tokenUsage
-        ? hyperlocaliseImageModelId
-        : pricingConfig.imageModelId,
+      modelId: result.billing.tokenUsage ? hyperlocaliseImageModelId : pricingConfig.imageModelId,
       tokenUsage,
       providerGenerationId: result.billing.providerGenerationId,
       shadowAmountUsd: pricingConfig.imagePriceUsd

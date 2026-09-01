@@ -17,15 +17,12 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  getManagedAiPricingConfigMock,
-  reserveManagedAiCreditMock,
-  releaseManagedAiCreditMock,
-} = vi.hoisted(() => ({
-  getManagedAiPricingConfigMock: vi.fn(),
-  reserveManagedAiCreditMock: vi.fn(),
-  releaseManagedAiCreditMock: vi.fn(),
-}));
+const { getManagedAiPricingConfigMock, reserveManagedAiCreditMock, releaseManagedAiCreditMock } =
+  vi.hoisted(() => ({
+    getManagedAiPricingConfigMock: vi.fn(),
+    reserveManagedAiCreditMock: vi.fn(),
+    releaseManagedAiCreditMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();

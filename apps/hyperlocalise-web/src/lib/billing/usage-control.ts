@@ -287,8 +287,11 @@ export async function trackAiCreditUsageInAutumn(input: {
       });
     }
 
-    const estimatedAmountUsd = input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd;
-    if (!estimatedAmountUsd) {
+    const estimatedAmountUsd =
+      input.credentialSource === "byok"
+        ? 0
+        : (input.estimatedAmountUsd ?? pricingConfig.chatReservationUsd);
+    if (estimatedAmountUsd == null || (input.credentialSource === "gateway" && estimatedAmountUsd <= 0)) {
       return err({
         code: "ai_credit_pricing_not_configured",
         surface: input.source,
@@ -296,9 +299,9 @@ export async function trackAiCreditUsageInAutumn(input: {
     }
 
     const existingReservation = await getManagedAiCreditReservation({ operationKey });
-    const reservationResult = existingReservation
-      ? ok(existingReservation)
-      : await reserveManagedAiCredit({
+    let reservation = existingReservation;
+    if (!reservation) {
+      const reservationResult = await reserveManagedAiCredit({
           organizationId: input.organizationId,
           operationKey,
           source: input.source,
@@ -314,10 +317,12 @@ export async function trackAiCreditUsageInAutumn(input: {
             parent_operation_key: input.parentOperationKey,
           },
         });
-    if (!reservationResult.ok) return reservationResult;
+      if (!reservationResult.ok) return reservationResult;
+      reservation = reservationResult.value;
+    }
 
     const settlementResult = await settleManagedAiCredit({
-      reservation: reservationResult.value,
+      reservation,
       modelId: input.modelId,
       tokenUsage: input.tokenUsage,
       shadowAmountUsd: estimatedAmountUsd,
