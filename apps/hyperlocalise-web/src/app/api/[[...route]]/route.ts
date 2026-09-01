@@ -14,7 +14,7 @@ import { handle } from "@/api/hono-vercel";
 
 import { app } from "@/api/app";
 
-const handler = handle(app);
+const handler = handle(app as unknown as Parameters<typeof handle>[0]);
 
 export const GET = handler;
 export const POST = handler;

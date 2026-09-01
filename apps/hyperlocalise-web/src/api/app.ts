@@ -120,8 +120,8 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/crowdin-app", createCrowdinAppRoutes())
     .route("/webhooks", createWebhookRoutes(options));
 
-  // Mounted after the inferred chain so AppType stays under TypeScript's instantiation limit.
-  app.route("/oauth/canva", createCanvaOauthRoutes());
+  // Hono.route() merges schemas and overflows TS2589 on this app. Erase the type first.
+  (app as unknown as Hono).route("/oauth/canva", createCanvaOauthRoutes());
   return app;
 }
 
