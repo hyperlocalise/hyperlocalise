@@ -121,7 +121,7 @@ func TestComposeSegmentValidationAppendsSpellingWarnings(t *testing.T) {
 	require.Empty(t, skipped)
 	require.Len(t, checks, 2)
 	require.Equal(t, "format-parity", checks[0].ID)
-	require.Equal(t, QA_MODE_SPELLING, checks[1].ID)
+	require.Equal(t, "spelling-recieve", checks[1].ID)
 	require.Equal(t, QA_MODE_SPELLING, checks[1].Category)
 	require.Equal(t, segmentvalidate.StatusWarn, checks[1].Status)
 	require.Equal(t, []string{"recieve", "receive"}, checks[1].RelatedTokens)

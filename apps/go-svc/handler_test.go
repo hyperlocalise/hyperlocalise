@@ -311,7 +311,7 @@ func TestValidateSegmentSpellingSurfacesIssuesAsWarnings(t *testing.T) {
 	require.Len(t, resp.Checks, 2, "spelling issues must be surfaced as an additional warning check")
 	require.Equal(t, "format-parity", resp.Checks[0].ID)
 	spelling := resp.Checks[1]
-	require.Equal(t, QA_MODE_SPELLING, spelling.ID)
+	require.Equal(t, "spelling-recieve", spelling.ID, "each spelling warning needs a stable per-word ID so the frontend doesn't produce duplicate React keys")
 	require.Equal(t, QA_MODE_SPELLING, spelling.Category)
 	require.Equal(t, segmentvalidate.StatusWarn, spelling.Status, "spelling issues are warnings, not failures")
 	require.Equal(t, []string{"recieve", "receive"}, spelling.RelatedTokens)
@@ -384,8 +384,11 @@ func TestValidateSegmentSpellingCapsIssuesAndSuggestions(t *testing.T) {
 
 	spellingChecks := resp.Checks[1:]
 	var gotWords []string
+	seenIDs := make(map[string]bool, len(spellingChecks))
 	for _, check := range spellingChecks {
 		require.Len(t, check.RelatedTokens, 1+maxSpellingSuggestions, "must cap at 3 suggestions per word")
+		require.False(t, seenIDs[check.ID], "each spelling warning must have a unique ID to avoid duplicate React keys on the frontend")
+		seenIDs[check.ID] = true
 		gotWords = append(gotWords, check.RelatedTokens[0])
 	}
 	require.Equal(t, []string{"word1", "word2", "word3", "word4", "word5"}, gotWords, "must preserve first-seen order")

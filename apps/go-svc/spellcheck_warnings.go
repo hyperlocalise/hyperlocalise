@@ -29,7 +29,7 @@ func spellingWarningChecks(issues []SpellingIssue) []segmentvalidate.Check {
 		relatedTokens = append(relatedTokens, suggestions...)
 
 		checks = append(checks, segmentvalidate.Check{
-			ID:            QA_MODE_SPELLING,
+			ID:            spellingCheckID(issue.Word),
 			Label:         "Spelling",
 			Status:        segmentvalidate.StatusWarn,
 			Message:       spellingMessage(issue.Word, suggestions),
@@ -38,6 +38,10 @@ func spellingWarningChecks(issues []SpellingIssue) []segmentvalidate.Check {
 		})
 	}
 	return checks
+}
+
+func spellingCheckID(word string) string {
+	return QA_MODE_SPELLING + "-" + word
 }
 
 func spellingMessage(word string, suggestions []string) string {

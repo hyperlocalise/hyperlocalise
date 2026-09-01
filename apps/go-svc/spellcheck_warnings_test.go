@@ -19,7 +19,7 @@ func TestSpellingWarningChecksFieldShape(t *testing.T) {
 
 	require.Len(t, checks, 1)
 	check := checks[0]
-	require.Equal(t, QA_MODE_SPELLING, check.ID)
+	require.Equal(t, "spelling-recieve", check.ID)
 	require.Equal(t, "Spelling", check.Label)
 	require.Equal(t, segmentvalidate.StatusWarn, check.Status)
 	require.Equal(t, QA_MODE_SPELLING, check.Category)
@@ -45,6 +45,23 @@ func TestSpellingWarningChecksCapsSuggestionsAtThree(t *testing.T) {
 
 	require.Len(t, checks, 1)
 	require.Equal(t, []string{"helo", "hello", "help", "held"}, checks[0].RelatedTokens)
+}
+
+func TestSpellingWarningChecksDistinctMisspellingsProduceDistinctStableIDs(t *testing.T) {
+	checks := spellingWarningChecks([]SpellingIssue{
+		{Word: "recieve", Suggestions: []string{"receive"}},
+		{Word: "teh", Suggestions: []string{"the"}},
+	})
+
+	require.Len(t, checks, 2)
+	require.Equal(t, "spelling-recieve", checks[0].ID)
+	require.Equal(t, "spelling-teh", checks[1].ID)
+	require.NotEqual(t, checks[0].ID, checks[1].ID, "the frontend keys rendered checks by ID; distinct misspellings must not collide")
+
+	require.Equal(t, QA_MODE_SPELLING, checks[0].Category)
+	require.Equal(t, QA_MODE_SPELLING, checks[1].Category)
+
+	require.Equal(t, checks[0].ID, spellingCheckID("recieve"))
 }
 
 func TestSpellingWarningChecksCapsIssuesAtFivePreservingOrder(t *testing.T) {
