@@ -127,6 +127,30 @@ export const env = createEnv({
     /** Autumn secret key for server-side usage checks and tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
 
+    /** AI credit rollout mode. Legacy preserves raw-token tracking until Autumn is configured. */
+    AI_CREDIT_METERING_MODE: z.enum(["legacy", "shadow", "enforced"]).default("legacy"),
+
+    /** Conservative USD reservation for one managed main-chat turn. */
+    AI_CREDIT_CHAT_RESERVATION_USD: z.coerce.number().positive().optional(),
+
+    /** Customer USD price for one generated image, including configured markup. */
+    AI_CREDIT_IMAGE_PRICE_USD: z.coerce.number().positive().optional(),
+
+    /** Customer USD price per generated video second, including configured markup. */
+    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: z.coerce.number().positive().optional(),
+
+    /** Autumn custom model ID used to price one generated image as one synthetic token. */
+    AI_CREDIT_IMAGE_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-gpt-image-2"),
+
+    /** Autumn custom model ID used to price one generated video second as one synthetic token. */
+    AI_CREDIT_VIDEO_MODEL_ID: z
+      .string()
+      .min(1)
+      .default("custom/hyperlocalise-seedance-2-5"),
+
+    /** Version recorded with each managed AI price calculation. */
+    AI_CREDIT_PRICING_VERSION: z.string().min(1).default("2026-09-01"),
+
     /**
      * GA4 Measurement Protocol API secret. Optional — without it, server-side
      * custom events still go to Vercel Analytics but are skipped for Google.
@@ -306,6 +330,13 @@ export const env = createEnv({
       (isTestEnv ? "test-slack-oauth-state-secret" : undefined),
     SLACK_REDIRECT_URI: process.env.SLACK_REDIRECT_URI,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
+    AI_CREDIT_METERING_MODE: process.env.AI_CREDIT_METERING_MODE,
+    AI_CREDIT_CHAT_RESERVATION_USD: process.env.AI_CREDIT_CHAT_RESERVATION_USD,
+    AI_CREDIT_IMAGE_PRICE_USD: process.env.AI_CREDIT_IMAGE_PRICE_USD,
+    AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND: process.env.AI_CREDIT_VIDEO_PRICE_USD_PER_SECOND,
+    AI_CREDIT_IMAGE_MODEL_ID: process.env.AI_CREDIT_IMAGE_MODEL_ID,
+    AI_CREDIT_VIDEO_MODEL_ID: process.env.AI_CREDIT_VIDEO_MODEL_ID,
+    AI_CREDIT_PRICING_VERSION: process.env.AI_CREDIT_PRICING_VERSION,
     GA_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA_MEASUREMENT_PROTOCOL_API_SECRET,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,

@@ -15,6 +15,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -148,6 +149,12 @@ export const usageEvents = pgTable(
     status: usageEventStatusEnum("status").notNull().default("reserved"),
     operationKey: text("operation_key").notNull(),
     quantity: integer("quantity").notNull().default(1),
+    estimatedAmountUsd: numeric("estimated_amount_usd", { precision: 20, scale: 9 }),
+    amountUsd: numeric("amount_usd", { precision: 20, scale: 9 }),
+    modelId: text("model_id"),
+    providerGenerationId: text("provider_generation_id"),
+    credentialSource: text("credential_source"),
+    reservationKey: text("reservation_key"),
     dimensions: jsonb("dimensions")
       .$type<Record<string, string | number | boolean | null>>()
       .notNull()

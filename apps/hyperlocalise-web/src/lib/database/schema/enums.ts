@@ -307,6 +307,7 @@ export const usageEventStatusEnum = pgEnum("usage_event_status", [
   "tracking_pending",
   "tracking_succeeded",
   "tracking_failed",
+  "settlement_unknown",
 ]);
 /**
  * Tracks review lifecycle for native project translation segments.
