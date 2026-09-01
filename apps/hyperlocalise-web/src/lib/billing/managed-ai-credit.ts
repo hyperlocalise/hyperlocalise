@@ -77,7 +77,16 @@ export type ManagedAiCreditError =
       operationKey: string;
     }
   | {
+      code: "ai_credit_operation_already_exists";
+      operationKey: string;
+      status: (typeof schema.usageEvents.$inferSelect)["status"];
+    }
+  | {
       code: "ai_credit_usage_not_found";
+      operationKey: string;
+    }
+  | {
+      code: "ai_credit_settlement_in_progress";
       operationKey: string;
     }
   | {
@@ -189,6 +198,24 @@ async function findUsageEvent(database: DatabaseClient, operationKey: string) {
   return event;
 }
 
+export async function getManagedAiCreditReservation(input: {
+  db?: DatabaseClient;
+  operationKey: string;
+}): Promise<ManagedAiCreditReservation | null> {
+  const event = await findUsageEvent(input.db ?? db, input.operationKey);
+  if (!event) return null;
+  const storedMode = event.dimensions.metering_mode;
+  const mode: AiCreditMeteringMode =
+    storedMode === "shadow" || storedMode === "enforced" ? storedMode : "legacy";
+
+  return {
+    operationKey: event.operationKey,
+    mode,
+    credentialSource: event.credentialSource === "byok" ? "byok" : "gateway",
+    estimatedAmountUsd: positiveNumber(Number(event.estimatedAmountUsd ?? 0)),
+  };
+}
+
 export function formatManagedAiCreditError(error: ManagedAiCreditError): string {
   switch (error.code) {
     case "ai_credit_pricing_not_configured":
@@ -201,8 +228,12 @@ export function formatManagedAiCreditError(error: ManagedAiCreditError): string 
       return error.message;
     case "ai_credit_reservation_failed":
       return `Failed to reserve AI credit for ${error.operationKey}`;
+    case "ai_credit_operation_already_exists":
+      return `AI credit operation ${error.operationKey} already exists with status ${error.status}`;
     case "ai_credit_usage_not_found":
       return `AI credit usage event not found for ${error.operationKey}`;
+    case "ai_credit_settlement_in_progress":
+      return `AI credit settlement is already in progress for ${error.operationKey}`;
     case "ai_credit_tracking_failed":
       return error.message;
   }
@@ -242,13 +273,10 @@ export async function reserveManagedAiCredit(input: {
 
     const existing = await findUsageEvent(tx, input.operationKey);
     if (existing) {
-      return ok({
+      return err({
+        code: "ai_credit_operation_already_exists",
         operationKey: existing.operationKey,
-        mode,
-        credentialSource: existing.credentialSource === "byok" ? "byok" : input.credentialSource,
-        estimatedAmountUsd: positiveNumber(
-          Number(existing.estimatedAmountUsd ?? input.estimatedAmountUsd),
-        ),
+        status: existing.status,
       });
     }
 
@@ -338,6 +366,11 @@ export async function reserveManagedAiCredit(input: {
           operationKey: input.operationKey,
         });
       }
+      return err({
+        code: "ai_credit_operation_already_exists",
+        operationKey: duplicate.operationKey,
+        status: duplicate.status,
+      });
     }
 
     return ok({
@@ -380,6 +413,12 @@ export async function settleManagedAiCredit(input: {
     });
   }
   if (event.status === "settlement_unknown") {
+    if (!event.autumnTrackError) {
+      return err({
+        code: "ai_credit_settlement_in_progress",
+        operationKey: event.operationKey,
+      });
+    }
     return err({
       code: "ai_credit_tracking_failed",
       operationKey: event.operationKey,
@@ -423,17 +462,46 @@ export async function settleManagedAiCredit(input: {
     return err({ code: "ai_credit_not_configured" });
   }
 
-  await database
+  const [claimedEvent] = await database
     .update(schema.usageEvents)
     .set({
       // trackTokens has no documented idempotency key. Mark the dispatch as
       // ambiguous before the network call so a process crash cannot trigger a blind retry.
       status: "settlement_unknown",
+      modelId: input.modelId,
       providerGenerationId: input.providerGenerationId,
       dimensions: tokenDimensions,
       autumnTrackError: null,
     })
-    .where(eq(schema.usageEvents.id, event.id));
+    .where(
+      and(
+        eq(schema.usageEvents.id, event.id),
+        inArray(schema.usageEvents.status, ["reserved", "succeeded", "tracking_failed"]),
+      ),
+    )
+    .returning({ id: schema.usageEvents.id });
+
+  if (!claimedEvent) {
+    const current = await findUsageEvent(database, event.operationKey);
+    if (current?.status === "tracking_succeeded") {
+      return ok({
+        amountUsd: positiveNumber(Number(current.amountUsd ?? 0)),
+        status: "already_settled",
+      });
+    }
+    if (current?.status === "settlement_unknown" && !current.autumnTrackError) {
+      return err({
+        code: "ai_credit_settlement_in_progress",
+        operationKey: event.operationKey,
+      });
+    }
+    return err({
+      code: "ai_credit_tracking_failed",
+      operationKey: event.operationKey,
+      message: current?.autumnTrackError ?? "AI credit settlement could not be claimed",
+      settlementUnknown: current?.status === "settlement_unknown",
+    });
+  }
 
   try {
     const autumn = apiKey ? createAutumnClient(apiKey) : null;

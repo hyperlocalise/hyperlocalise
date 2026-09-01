@@ -20,6 +20,10 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import {
+  getManagedAiPricingConfig,
+  managedAiReservationAmountUsd,
+} from "@/lib/billing/managed-ai-pricing";
 import { db, schema } from "@/lib/database/client";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -313,12 +317,25 @@ async function trackCompletedAgentRunUsage(input: {
 }) {
   const operationKey = `agent-run:${input.runId}:agent_runs`;
   const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
+  const pricingConfig = getManagedAiPricingConfig();
   const trackUsageResult = await completeAndTrackBillableUsage({
     organizationId: input.organizationId,
     operationKey,
     autumnEventName: "agent_run.completed",
     unit: "run",
-    tokenUsage,
+    tokenUsage: tokenUsage
+      ? {
+          inputTokens: tokenUsage.inputTokens,
+          outputTokens: tokenUsage.outputTokens,
+          totalTokens: tokenUsage.totalTokens,
+        }
+      : null,
+    aiCreditModelId: tokenUsage?.modelId,
+    aiCreditCredentialSource: tokenUsage?.credentialSource,
+    aiCreditEstimatedAmountUsd:
+      tokenUsage?.credentialSource === "byok"
+        ? 0
+        : (managedAiReservationAmountUsd(pricingConfig, { surface: "chat" }) ?? undefined),
     aiCreditSource: "agent_run_complete",
   });
 
@@ -340,6 +357,8 @@ function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefi
     inputTokens?: unknown;
     outputTokens?: unknown;
     totalTokens?: unknown;
+    modelId?: unknown;
+    credentialSource?: unknown;
   };
   const inputTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
   const outputTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
@@ -347,7 +366,15 @@ function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefi
     typeof usage.totalTokens === "number" ? usage.totalTokens : inputTokens + outputTokens;
 
   if (totalTokens <= 0) return null;
-  return { inputTokens, outputTokens, totalTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(typeof usage.modelId === "string" ? { modelId: usage.modelId } : {}),
+    ...(usage.credentialSource === "gateway" || usage.credentialSource === "byok"
+      ? { credentialSource: usage.credentialSource }
+      : {}),
+  };
 }
 
 export async function updateAgentRun(input: {

@@ -23,7 +23,10 @@ import {
   getManagedAiPricingConfig,
   managedAiReservationAmountUsd,
 } from "@/lib/billing/managed-ai-pricing";
-import { getManagedImageModel } from "@/lib/providers/language-model";
+import {
+  getManagedImageModel,
+  hyperlocaliseImageModelId,
+} from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
@@ -61,6 +64,11 @@ async function generateImageFromPrompt(
   image: Buffer;
   mimeType: string;
   imageCount: number;
+  tokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  } | null;
   providerGenerationId?: string;
 }> {
   const model = getImageModel();
@@ -83,6 +91,14 @@ async function generateImageFromPrompt(
     image: Buffer.from(generatedImage.uint8Array),
     mimeType: generatedImage.mediaType,
     imageCount: result.images.length,
+    tokenUsage:
+      (result.usage?.totalTokens ?? 0) > 0
+        ? {
+            inputTokens: result.usage.inputTokens ?? 0,
+            outputTokens: result.usage.outputTokens ?? 0,
+            totalTokens: result.usage.totalTokens ?? 0,
+          }
+        : null,
     providerGenerationId: imageGenerationId(result.providerMetadata),
   };
 }
@@ -112,6 +128,7 @@ export async function regenerateImageFromAttachment(
       prompt,
       billing: {
         imageCount: generated.imageCount,
+        tokenUsage: generated.tokenUsage,
         providerGenerationId: generated.providerGenerationId,
       },
     };
@@ -157,15 +174,15 @@ export async function regenerateImageFromAttachment(
     organizationId: billing.organizationId,
     operationKey: `${billing.operationKey}:ai_tokens`,
     source,
-    modelId: pricingConfig.imageModelId,
+    modelId: hyperlocaliseImageModelId,
     credentialSource: "gateway",
     estimatedAmountUsd,
     interactionId: billing.interactionId ?? undefined,
     mode: pricingConfig.mode,
     dimensions: {
       ...dimensions,
-      provider_model_id: "openai/gpt-image-2",
-      synthetic_unit: "image",
+      provider_model_id: hyperlocaliseImageModelId,
+      fallback_synthetic_unit: "image",
     },
   });
   if (!reservationResult.ok) {
@@ -174,14 +191,17 @@ export async function regenerateImageFromAttachment(
 
   try {
     const result = await execute();
+    const tokenUsage = result.billing.tokenUsage ?? {
+      inputTokens: 0,
+      outputTokens: result.billing.imageCount,
+      totalTokens: result.billing.imageCount,
+    };
     await settleManagedAiCredit({
       reservation: reservationResult.value,
-      modelId: pricingConfig.imageModelId,
-      tokenUsage: {
-        inputTokens: 0,
-        outputTokens: result.billing.imageCount,
-        totalTokens: result.billing.imageCount,
-      },
+      modelId: result.billing.tokenUsage
+        ? hyperlocaliseImageModelId
+        : pricingConfig.imageModelId,
+      tokenUsage,
       providerGenerationId: result.billing.providerGenerationId,
       shadowAmountUsd: pricingConfig.imagePriceUsd
         ? pricingConfig.imagePriceUsd * result.billing.imageCount

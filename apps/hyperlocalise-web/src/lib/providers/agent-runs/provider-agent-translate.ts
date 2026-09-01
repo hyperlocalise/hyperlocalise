@@ -181,7 +181,13 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
-  let tokenUsage = {
+  let tokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    modelId?: string;
+    credentialSource?: "gateway" | "byok";
+  } = {
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
@@ -297,6 +303,9 @@ async function translateProviderUnits(input: {
           inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
           outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
           totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
+          modelId: tokenUsage.modelId ?? result.tokenUsage.modelId,
+          credentialSource:
+            tokenUsage.credentialSource ?? result.tokenUsage.credentialSource,
         };
       }
 

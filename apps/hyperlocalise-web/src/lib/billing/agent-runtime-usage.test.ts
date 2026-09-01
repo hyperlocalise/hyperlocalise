@@ -10,14 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { completeAndTrackBillableUsageMock, ensureAiFeaturesAllowedMock, reserveUsageEventMock } =
-  vi.hoisted(() => ({
-    completeAndTrackBillableUsageMock: vi.fn(),
-    ensureAiFeaturesAllowedMock: vi.fn(),
-    reserveUsageEventMock: vi.fn(),
-  }));
+const {
+  completeAndTrackBillableUsageMock,
+  ensureAiFeaturesAllowedMock,
+  reserveUsageEventMock,
+  getManagedAiPricingConfigMock,
+  reserveManagedAiCreditMock,
+  releaseManagedAiCreditMock,
+} = vi.hoisted(() => ({
+  completeAndTrackBillableUsageMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
+  reserveUsageEventMock: vi.fn(),
+  getManagedAiPricingConfigMock: vi.fn(),
+  reserveManagedAiCreditMock: vi.fn(),
+  releaseManagedAiCreditMock: vi.fn(),
+}));
 
 vi.mock("@/lib/billing/usage-control", () => ({
   completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
@@ -41,6 +50,23 @@ vi.mock("@/lib/billing/ai-features", () => ({
   },
 }));
 
+vi.mock("@/lib/billing/managed-ai-pricing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-pricing")>();
+  return {
+    ...actual,
+    getManagedAiPricingConfig: getManagedAiPricingConfigMock,
+  };
+});
+
+vi.mock("@/lib/billing/managed-ai-credit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/managed-ai-credit")>();
+  return {
+    ...actual,
+    reserveManagedAiCredit: reserveManagedAiCreditMock,
+    releaseManagedAiCredit: releaseManagedAiCreditMock,
+  };
+});
+
 import {
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
@@ -52,6 +78,26 @@ import { AiFeaturesRequiredError } from "@/lib/billing/ai-features";
 import { err, ok } from "@/lib/primitives/result/results";
 
 describe("agent-runtime-usage", () => {
+  beforeEach(() => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "legacy",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveManagedAiCreditMock.mockResolvedValue({
+      ok: true,
+      value: {
+        operationKey: "workspace-automation:run_1:agent_runs:ai_tokens",
+        mode: "enforced",
+        credentialSource: "gateway",
+        estimatedAmountUsd: 0.5,
+      },
+    });
+    releaseManagedAiCreditMock.mockResolvedValue({ ok: true, value: undefined });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
@@ -217,6 +263,43 @@ describe("agent-runtime-usage", () => {
       expect.objectContaining({
         operationKey: "workspace-automation:run_1:agent_runs",
         tokenUsage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
+      }),
+    );
+  });
+
+  it("preflights token-producing managed agents and supplies default model metadata", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
+    completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await withAgentRuntimeUsageMetering({
+      organizationId: "org_123",
+      operationKey: "workspace-automation:run_1:agent_runs",
+      source: "workspace_orchestrator",
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: async () => ({
+        usage: { inputTokens: 4, outputTokens: 6, totalTokens: 10 },
+      }),
+    });
+
+    expect(reserveManagedAiCreditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+        estimatedAmountUsd: 0.5,
+      }),
+    );
+    expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiCreditModelId: "openai/gpt-5.6-luna",
+        aiCreditCredentialSource: "gateway",
+        aiCreditEstimatedAmountUsd: 0.5,
       }),
     );
   });

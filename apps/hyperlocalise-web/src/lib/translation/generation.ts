@@ -405,6 +405,8 @@ export class OrganizationModelResolver {
         ok: true as const,
         project: projectContext,
         model,
+        modelId: loadedCredential.credential.model,
+        credentialSource: "byok" as const,
         translateStringJob: createStringTranslationGenerator({
           model,
           modelId: loadedCredential.credential.model,
@@ -418,6 +420,8 @@ export class OrganizationModelResolver {
       ok: true as const,
       project: projectContext,
       model,
+      modelId: hyperlocaliseManagedGatewayModelId,
+      credentialSource: "gateway" as const,
       translateStringJob: createManagedStringTranslationGenerator(),
     };
   }

@@ -20,9 +20,13 @@ may exceed its grant only when Autumn returns `overageAllowed`.
 
 Configure standard language models by their Models.dev-compatible `provider/model` IDs.
 
-Configure media as custom models with synthetic output-token units:
+Models.dev publishes token pricing for `openai/gpt-image-2`. Track the real input/output token
+usage reported by AI SDK against that standard model ID.
 
-- `custom/hyperlocalise-gpt-image-2`: one output token equals one generated image.
+Keep custom models only for modalities without published token pricing or when a provider omits
+usage:
+
+- `custom/hyperlocalise-gpt-image-2`: fallback where one output token equals one generated image.
 - `custom/hyperlocalise-seedance-2-5`: one output token equals one generated video second.
 
 Autumn requires both custom-model rates. Set `inputCost` to `0`; set `outputCost` to the
