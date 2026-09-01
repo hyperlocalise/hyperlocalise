@@ -357,13 +357,20 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
     throw error;
   }
   const tokenUsage = input.extractTokenUsage?.(result) ?? null;
+  const billableTokenUsage = tokenUsage && tokenUsage.totalTokens > 0 ? tokenUsage : null;
+  if (!billableTokenUsage && aiCreditReservation) {
+    await releaseManagedAiCredit({
+      reservation: aiCreditReservation,
+      reason: "no_token_usage",
+    });
+  }
 
   await trackSucceededAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     dimensions: input.dimensions,
     interactionId: input.interactionId,
-    tokenUsage,
+    tokenUsage: billableTokenUsage,
     aiCreditModelId,
     aiCreditCredentialSource,
     aiCreditEstimatedAmountUsd,

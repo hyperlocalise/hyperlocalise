@@ -404,11 +404,12 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     throw new Error(creditReservation.error.code);
   }
 
-  const { sandboxId } = await createTranslationSandbox();
   const inputFile = getSandboxInputFilename(attachment.filename);
   const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
+  let sandboxId = "";
 
   try {
+    ({ sandboxId } = await createTranslationSandbox());
     await markEmailTranslationJobRunning({ jobId: task.jobId, workflowRunId });
     await prepareSandbox(sandboxId);
     await downloadAttachment(sandboxId, attachment.downloadUrl, inputFile);
@@ -452,6 +453,8 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     await markEmailTranslationJobFailed({ jobId: task.jobId, workflowRunId, reason });
     throw error;
   } finally {
-    await stopTranslationSandbox(sandboxId);
+    if (sandboxId) {
+      await stopTranslationSandbox(sandboxId);
+    }
   }
 }

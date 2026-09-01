@@ -790,19 +790,20 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw new Error(creditReservation.error.code);
   }
 
-  let { sandboxId } = await createSandboxStep();
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
-  const context = await assembleFileTranslationContextStep({
-    jobId: claim.job.id,
-    projectId: claim.job.projectId,
-    sourceLocale: parsedInput.sourceLocale,
-    targetLocales: parsedInput.targetLocales,
-    sourceContent,
-    metadata: parsedInput.metadata,
-  });
+  let sandboxId = "";
 
   try {
+    ({ sandboxId } = await createSandboxStep());
+    const context = await assembleFileTranslationContextStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      sourceLocale: parsedInput.sourceLocale,
+      targetLocales: parsedInput.targetLocales,
+      sourceContent,
+      metadata: parsedInput.metadata,
+    });
     await prepareSandboxStep(sandboxId);
     await writeSourceFileStep(sandboxId, inputFilename, sourceContent);
 
@@ -1583,6 +1584,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     });
     throw error;
   } finally {
-    await stopSandboxStep(sandboxId);
+    if (sandboxId) {
+      await stopSandboxStep(sandboxId);
+    }
   }
 }

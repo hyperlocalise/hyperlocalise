@@ -14,7 +14,8 @@ import {
   formatManagedAiCreditError,
   type ManagedAiCreditError,
 } from "@/lib/billing/managed-ai-credit";
-import { reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import { addAiTokenUsage, reserveAgentRunAiCredit } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { sandboxTranslationBillingMetadata } from "@/lib/translation/cli-token-usage";
 import { loadSandboxByokCredential } from "@/lib/translation/sandbox-byok";
 import { createLogger } from "@/lib/log";
@@ -58,9 +59,40 @@ import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/gloss
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import type { StringTranslationGenerator } from "@/lib/translation/domain";
+import type {
+  StringTranslationGenerator,
+  StringTranslationJobResult,
+} from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
+
+type ProviderAgentStringTokenUsage = AiTokenUsage & {
+  modelId?: string;
+  credentialSource?: "gateway" | "byok";
+};
+
+function accumulateProviderAgentStringTokenUsage(
+  current: ProviderAgentStringTokenUsage | null,
+  next: NonNullable<StringTranslationJobResult["tokenUsage"]>,
+): ProviderAgentStringTokenUsage | null {
+  const aggregated = addAiTokenUsage(current, {
+    inputTokens: next.inputTokens,
+    outputTokens: next.outputTokens,
+    totalTokens: next.totalTokens,
+    cacheReadTokens: next.cacheReadTokens,
+    cacheWriteTokens: next.cacheWriteTokens,
+    reasoningTokens: next.reasoningTokens,
+  });
+  if (!aggregated) {
+    return null;
+  }
+
+  return {
+    ...aggregated,
+    modelId: current?.modelId ?? next.modelId,
+    credentialSource: current?.credentialSource ?? next.credentialSource,
+  };
+}
 
 async function reserveProviderAgentTranslationCredit(input: {
   organizationId: string;
@@ -205,17 +237,7 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
-  let tokenUsage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
-    modelId?: string;
-    credentialSource?: "gateway" | "byok";
-  } = {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-  };
+  let tokenUsage: ProviderAgentStringTokenUsage | null = null;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -323,13 +345,7 @@ async function translateProviderUnits(input: {
       });
 
       if (result.tokenUsage) {
-        tokenUsage = {
-          inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
-          outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
-          totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
-          modelId: tokenUsage.modelId ?? result.tokenUsage.modelId,
-          credentialSource: tokenUsage.credentialSource ?? result.tokenUsage.credentialSource,
-        };
+        tokenUsage = accumulateProviderAgentStringTokenUsage(tokenUsage, result.tokenUsage);
       }
 
       for (const translation of result.translations) {
@@ -424,7 +440,7 @@ async function translateProviderUnits(input: {
     skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
-    tokenUsage: tokenUsage.totalTokens > 0 ? tokenUsage : null,
+    tokenUsage,
   };
 }
 

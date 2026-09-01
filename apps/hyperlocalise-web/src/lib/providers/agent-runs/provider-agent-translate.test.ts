@@ -208,6 +208,76 @@ describe("executeProviderAgentTranslation", () => {
     });
   });
 
+  it("aggregates cache and reasoning token buckets from string translations", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-tokens",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-tokens",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Bonjour" }],
+        tokenUsage: {
+          inputTokens: 10,
+          outputTokens: 4,
+          totalTokens: 19,
+          cacheReadTokens: 3,
+          cacheWriteTokens: 1,
+          reasoningTokens: 1,
+          modelId: "openai/gpt-5.6-luna",
+          credentialSource: "gateway",
+        },
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-tokens",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    const completed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+    expect(completed?.outputSummary).toMatchObject({
+      tokenUsage: {
+        inputTokens: 10,
+        outputTokens: 4,
+        totalTokens: 19,
+        cacheReadTokens: 3,
+        cacheWriteTokens: 1,
+        reasoningTokens: 1,
+        modelId: "openai/gpt-5.6-luna",
+        credentialSource: "gateway",
+      },
+    });
+  });
+
   it("pulls Smartling job content through the provider-neutral sync layer", async () => {
     const project = await createExternalTmsProject();
     await db

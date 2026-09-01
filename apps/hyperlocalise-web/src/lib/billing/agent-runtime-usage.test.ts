@@ -294,6 +294,40 @@ describe("agent-runtime-usage", () => {
     );
   });
 
+  it("releases reserved AI credit when a successful run reports no token usage", async () => {
+    getManagedAiPricingConfigMock.mockReturnValue({
+      mode: "enforced",
+      pricingVersion: "test",
+      chatReservationUsd: 0.5,
+      imageModelId: "custom/image",
+      videoModelId: "custom/video",
+    });
+    reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
+    completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await expect(
+      withAgentRuntimeUsageMetering({
+        organizationId: "org_123",
+        operationKey: "workspace-automation:run_1:agent_runs",
+        source: "workspace_orchestrator",
+        extractTokenUsage: () => null,
+        run: async () => ({ text: "done" }),
+      }),
+    ).resolves.toEqual({ text: "done" });
+
+    expect(releaseManagedAiCreditMock).toHaveBeenCalledWith({
+      reservation: expect.objectContaining({
+        operationKey: "workspace-automation:run_1:agent_runs:ai_tokens",
+      }),
+      reason: "no_token_usage",
+    });
+    expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokenUsage: null,
+      }),
+    );
+  });
+
   it("does not complete usage when the metered run throws", async () => {
     reserveUsageEventMock.mockResolvedValue(ok({ id: "usage_1" }));
 
