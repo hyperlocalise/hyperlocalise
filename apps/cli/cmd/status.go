@@ -51,7 +51,7 @@ Status values:
   - untranslated: empty translation value`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.Load(o.configPath)
+			cfg, err := config.LoadForCLI(o.configPath)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}

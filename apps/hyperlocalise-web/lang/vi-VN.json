@@ -152,6 +152,9 @@
   "+ShkkHu7T/": {
     "defaultMessage": "Phát hiện sự sai lệch thuật ngữ và vi phạm bảng chú giải"
   },
+  "+SujQxAt1L": {
+    "defaultMessage": "Canva app authorized. Return to Canva to finish connecting."
+  },
   "+TAJxozALX": {
     "defaultMessage": "Khi bản tóm tắt GTM được phê duyệt, hãy bản địa hóa nội dung trang đích cho từng thị trường mục tiêu. Soạn FR và DE trước, gửi để xem xét, đăng lên môi trường staging và thông báo trong #gtm."
   },
@@ -241,6 +244,9 @@
   },
   "+sh3FsSzlz": {
     "defaultMessage": "Giữ công việc"
+  },
+  "+t1jpGe0aj": {
+    "defaultMessage": "Create a shared Slack channel"
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} bài kiểm tra đã đạt"
@@ -374,6 +380,9 @@
   "/EOfWYVF9T": {
     "defaultMessage": "Tác nhân"
   },
+  "/FnHAPAn3P": {
+    "defaultMessage": "Choose a connection to authorize this Canva app install."
+  },
   "/GID42o6lx": {
     "defaultMessage": "Từ pull request đến cổng phát hành"
   },
@@ -469,6 +478,9 @@
   },
   "/X6DitE9lx": {
     "defaultMessage": "Tất cả trạng thái đồng bộ hóa"
+  },
+  "/Y3FQ08kzV": {
+    "defaultMessage": "Source locale"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Bộ lọc"
@@ -622,6 +634,9 @@
   },
   "07zZke+A8Q": {
     "defaultMessage": "Hủy bỏ"
+  },
+  "08+4Nn7rgH": {
+    "defaultMessage": "Acme · Board"
   },
   "084ETvW6A4": {
     "defaultMessage": "Ngữ cảnh của \"{key}\" là gì?"
@@ -1043,6 +1058,9 @@
   "1bqb1Sak4M": {
     "defaultMessage": "Copied"
   },
+  "1c/OEBKiks": {
+    "defaultMessage": "Create an API key with files and jobs permissions first."
+  },
   "1c3qg2u74K": {
     "defaultMessage": "Không thể hiển thị tệp nguồn"
   },
@@ -1289,6 +1307,9 @@
   "2P3llDCJQ9": {
     "defaultMessage": "Pick up where you left off"
   },
+  "2Q9B8y1llx": {
+    "defaultMessage": "Board"
+  },
   "2QU4QHjp8c": {
     "defaultMessage": "Tôi"
   },
@@ -1391,6 +1412,9 @@
   "2ngWiLidNE": {
     "defaultMessage": "Tìm kiếm khóa, thông báo hoặc ID chuỗi"
   },
+  "2nsedTf0TG": {
+    "defaultMessage": "Failed to load Canva connections."
+  },
   "2o5nZo9c+I": {
     "defaultMessage": "Hyperlocalise có hoạt động với GitHub không?"
   },
@@ -1456,6 +1480,9 @@
   },
   "31nY7d5ehk": {
     "defaultMessage": "Nền tảng bản địa hóa tác tử tốt nhất để ra mắt toàn cầu chỉ trong vài ngày"
+  },
+  "32+8NTo5Pl": {
+    "defaultMessage": "Board"
   },
   "33PBu8aQXh": {
     "defaultMessage": "Bật trước"
@@ -1561,6 +1588,9 @@
   },
   "3VvPI125F/": {
     "defaultMessage": "Mục nhập đã được cập nhật"
+  },
+  "3W0VCaMyWO": {
+    "defaultMessage": "Create issue"
   },
   "3XNlGxtFuq": {
     "defaultMessage": "A few things need your attention"
@@ -1778,11 +1808,17 @@
   "46mxXNVZOE": {
     "defaultMessage": "Mã thông báo truy cập cá nhân"
   },
+  "46zk0LJShA": {
+    "defaultMessage": "Triage open work across this workspace."
+  },
   "477uPaXfz1": {
     "defaultMessage": "Chặn khi thất bại"
   },
   "47mnWgc1PT": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "483Q4BX8oa": {
+    "defaultMessage": "API key"
   },
   "4895zl1/X5": {
     "defaultMessage": "Glossary"
@@ -1801,6 +1837,9 @@
   },
   "4B3q4D8+NF": {
     "defaultMessage": "Đang tải tệp…"
+  },
+  "4Bnw8oUCip": {
+    "defaultMessage": "The board could not be loaded."
   },
   "4DQSOq1CB0": {
     "defaultMessage": "Vui lòng cung cấp văn bản cần dịch."
@@ -2306,6 +2345,9 @@
   "69e39hSj7I": {
     "defaultMessage": "Theo dõi tình trạng locale, xem lại backlog và xu hướng chất lượng mà không cần xuất dữ liệu từ ba hệ thống."
   },
+  "6A1bUgl3t/": {
+    "defaultMessage": "Cancel"
+  },
   "6AKflqYexI": {
     "defaultMessage": "Các phát hiện đã chọn đã có nhận xét của nhà cung cấp"
   },
@@ -2411,6 +2453,9 @@
   "6XDIPXtsI4": {
     "defaultMessage": "Ship-safe locales"
   },
+  "6XlImduZ6L": {
+    "defaultMessage": "Board is unavailable for this string."
+  },
   "6YRqpDlcKq": {
     "defaultMessage": "Đẩy lên GitHub"
   },
@@ -2458,6 +2503,9 @@
   },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive"
+  },
+  "6haGvAy+HC": {
+    "defaultMessage": "Added to Board"
   },
   "6ieanONu91": {
     "defaultMessage": "Nhập CSV"
@@ -2981,6 +3029,9 @@
   "8QNV5JFMzw": {
     "defaultMessage": "Quản lý quyền truy cập không gian làm việc, lời mời và các vai trò bản địa hóa."
   },
+  "8QmjnmRcNl": {
+    "defaultMessage": "Create a Canva connection in workspace Integrations first, then return to Canva and try again."
+  },
   "8QnsMQk5Mf": {
     "defaultMessage": "Tiếng Hindi (Ấn Độ)"
   },
@@ -3163,6 +3214,9 @@
   },
   "8xIDpcJg4F": {
     "defaultMessage": "Để lại bình luận…"
+  },
+  "8y3Le4FJl2": {
+    "defaultMessage": "Regenerate token"
   },
   "8yJ9TkhoZy": {
     "defaultMessage": "Tạo một đề xuất bản dịch cho chuỗi này."
@@ -3517,6 +3571,9 @@
   },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS"
+  },
+  "AAASbBGB98": {
+    "defaultMessage": "Unable to send a Slack invite right now. Try again shortly."
   },
   "AARt6Fk4fm": {
     "defaultMessage": "Thiếu dấu khiến danh từ tiếng Pháp thay đổi"
@@ -3875,6 +3932,9 @@
   "Bb2DHr7bXd": {
     "defaultMessage": "Đã hủy công việc"
   },
+  "BbhzPipEsh": {
+    "defaultMessage": "Check your email for an invitation to the channel or request a new invite."
+  },
   "Bbj2MTjXFz": {
     "defaultMessage": "Bản dịch kém hiếm khi bắt đầu từ ngôn ngữ kém. Chúng bắt đầu từ việc thiếu ngữ cảnh."
   },
@@ -3959,6 +4019,9 @@
   "BrsVyR4Efb": {
     "defaultMessage": "Giờ (UTC)"
   },
+  "BrzNDtGGWt": {
+    "defaultMessage": "Sending…"
+  },
   "BsIdlB/bdk": {
     "defaultMessage": "Mô hình mặc định"
   },
@@ -4001,6 +4064,9 @@
   "C0LtvlP3Fa": {
     "defaultMessage": "Xem vấn đề gốc"
   },
+  "C0s0NtIxgf": {
+    "defaultMessage": "Choose an API key."
+  },
   "C1FbXuFTUH": {
     "defaultMessage": "Bắt đầu bản dịch"
   },
@@ -4024,6 +4090,9 @@
   },
   "C4Rv6cR7my": {
     "defaultMessage": "Ngôn ngữ đích"
+  },
+  "C5SPm8Zbbu": {
+    "defaultMessage": "Board"
   },
   "C5fqvIk+YX": {
     "defaultMessage": "Old"
@@ -4052,8 +4121,14 @@
   "CALKqH15lR": {
     "defaultMessage": "Nhà sáng tạo: {value}"
   },
+  "CAun4UHQNn": {
+    "defaultMessage": "Target locales"
+  },
   "CBECdPWm0s": {
     "defaultMessage": "Đang thử lại…"
+  },
+  "CBibCD/p8E": {
+    "defaultMessage": "Read board issues for the selected project during this automation."
   },
   "CCHRUS19n3": {
     "defaultMessage": "Không tìm thấy danh mục nào."
@@ -4184,6 +4259,9 @@
   "Cidmm9AU9i": {
     "defaultMessage": "Đính kèm bảng thuật ngữ, bản tóm tắt và lịch sử"
   },
+  "Cil9vaybzd": {
+    "defaultMessage": "Canva is requesting access to localize designs through a Hyperlocalise workspace connection."
+  },
   "CjBhJGtOu7": {
     "defaultMessage": "FR và DE đã được chuyển để xem xét"
   },
@@ -4273,6 +4351,12 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Đang tải các kênh..."
+  },
+  "D1ORmqTKWQ": {
+    "defaultMessage": "This Canva connect request is missing or expired."
+  },
+  "D1Wfd509ws": {
+    "defaultMessage": "Choose which project should receive the imported board rows."
   },
   "D2Iw7bGHIc": {
     "defaultMessage": "Vấn đề"
@@ -4517,6 +4601,12 @@
   "Dhz9gdqnZ4": {
     "defaultMessage": "Quy trình tiếp theo bắt đầu thông minh hơn"
   },
+  "DiXV/bkiCg": {
+    "defaultMessage": "Designs localized from Canva are stored in this project."
+  },
+  "DkGOoD9Ef+": {
+    "defaultMessage": "Failed to save Canva connection."
+  },
   "DkpXUR9fM4": {
     "defaultMessage": "Không thể tải các tệp."
   },
@@ -4631,6 +4721,9 @@
   "E8+2wxkeue": {
     "defaultMessage": "Chênh lệch pull request với các bình luận đánh giá của Hyperlocalise nêu bật các lỗi dịch trước khi gộp."
   },
+  "E8k6bvQHrX": {
+    "defaultMessage": "Close board"
+  },
   "E8rEmEqTpX": {
     "defaultMessage": "Đang xử lý…"
   },
@@ -4718,6 +4811,9 @@
   "EQ3mwHZJMl": {
     "defaultMessage": "{count} lượt trả lời"
   },
+  "EQ48eGG7/X": {
+    "defaultMessage": "Google Drive"
+  },
   "EQ94/v/KcI": {
     "defaultMessage": "Chưa có bình luận nào. Thêm ghi chú cho người duyệt hoặc người dịch."
   },
@@ -4796,6 +4892,9 @@
   "EefMGzxdS7": {
     "defaultMessage": "Đồng bộ bản sao đã được phê duyệt tới Contentful, Webflow, các nền tảng quảng cáo và TMS của bạn mà không cần chuyển giao trùng lặp."
   },
+  "EgJBlBjf3r": {
+    "defaultMessage": "Import brand guidelines and style docs from Google Drive."
+  },
   "Ehcjh40kDc": {
     "defaultMessage": "Knowledge"
   },
@@ -4870,6 +4969,9 @@
   },
   "Ez0AubJEsT": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "EzTk/D/sRx": {
+    "defaultMessage": "Create a workspace connection here. Designers then sign in from Canva with OAuth."
   },
   "EzYVHD/5u/": {
     "defaultMessage": "Xem lại tổng số và các cảnh báo trước khi ghi các mục. Chưa có gì được lưu."
@@ -4993,6 +5095,9 @@
   },
   "FJh620HSgn": {
     "defaultMessage": "Bản xem trước bản nháp"
+  },
+  "FJwHsDxO6W": {
+    "defaultMessage": "Setup guide"
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Các vấn đề về chất lượng chỉ lộ ra sau khi ra mắt, không phải trước đó"
@@ -5135,6 +5240,9 @@
   "FrF4P2cRG5": {
     "defaultMessage": "Đang tải thành viên…"
   },
+  "FsR2aF2lzP": {
+    "defaultMessage": "Allow access"
+  },
   "FtQgWtXBLP": {
     "defaultMessage": "Thử lại"
   },
@@ -5191,6 +5299,12 @@
   },
   "G8MBSDjILS": {
     "defaultMessage": "Thao tác này sẽ xóa các quy trình làm việc, trình kích hoạt và cài đặt kiểm tra trạng thái đã lưu cho kho lưu trữ này. Việc đồng bộ siêu dữ liệu GitHub không bị ảnh hưởng."
+  },
+  "G8NgjmMOFE": {
+    "defaultMessage": "Then run {command} to authenticate."
+  },
+  "G9IH7mtmIb": {
+    "defaultMessage": "Codex"
   },
   "GA/at1eIok": {
     "defaultMessage": "Đóng"
@@ -5591,6 +5705,9 @@
   "HiMjguB4KA": {
     "defaultMessage": "Tạo token cho CLI, CI và các hoạt động tích hợp. Token hoạt động với quyền truy cập không gian làm việc hiện tại của bạn và sẽ ngừng hoạt động nếu bạn rời khỏi tổ chức."
   },
+  "Hjj+QG5LDK": {
+    "defaultMessage": "Request failed"
+  },
   "Hl4y/YDhod": {
     "defaultMessage": "Tệp kiến thức phải có kích thước từ 25 MB trở xuống."
   },
@@ -5623,6 +5740,9 @@
   },
   "HrsDc2wJjF": {
     "defaultMessage": "Hyperlocalise helps teams translate product copy with real context. Launch localisation faster with AI translation agents and first-class human review across your TMS."
+  },
+  "HrspdhKQl+": {
+    "defaultMessage": "Open board"
   },
   "Hs6SYEddPH": {
     "defaultMessage": "Ngôn ngữ đích"
@@ -5683,6 +5803,9 @@
   },
   "I3W7KYKnta": {
     "defaultMessage": "Không thể tạo đề xuất AI"
+  },
+  "I3Xom21N//": {
+    "defaultMessage": "Access your Hyperlocalise workspace from MCP clients."
   },
   "I42jTEngJ1": {
     "defaultMessage": "AI nắm bắt tín hiệu"
@@ -5870,6 +5993,9 @@
   "IqLI+2o8dz": {
     "defaultMessage": "Được hỗ trợ bởi"
   },
+  "IqfvPpBfRa": {
+    "defaultMessage": "Choose a workspace API key with files and jobs read/write access."
+  },
   "Ir9T3sKw7D": {
     "defaultMessage": "Cancel"
   },
@@ -5933,6 +6059,9 @@
   "J210+x7u6p": {
     "defaultMessage": "Trò chuyện trên web"
   },
+  "J2Tvcwc2sx": {
+    "defaultMessage": "Open board, {count} open"
+  },
   "J3in5zOVha": {
     "defaultMessage": "Locale, e.g. de-DE"
   },
@@ -5953,6 +6082,9 @@
   },
   "J7hBoTRR5O": {
     "defaultMessage": "Cải thiện khả năng được phát hiện qua SEO và AEO trên nhiều thị trường"
+  },
+  "J8uRouTxFR": {
+    "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email."
   },
   "J9N0QX7lou": {
     "defaultMessage": "{value} {unit}"
@@ -5984,6 +6116,9 @@
   "JHFSIHw0S8": {
     "defaultMessage": "Tùy chỉnh"
   },
+  "JHq50CfofL": {
+    "defaultMessage": "Delete"
+  },
   "JIHTr+V6i/": {
     "defaultMessage": "What needs context, review, or a fix?"
   },
@@ -6014,6 +6149,9 @@
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
   },
+  "JRZrMUrfeM": {
+    "defaultMessage": "Triage localization issues for this project."
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "Đang đọc {detail}"
   },
@@ -6034,6 +6172,9 @@
   },
   "JUfajjODRg": {
     "defaultMessage": "Selected"
+  },
+  "JXB2wuhw1Z": {
+    "defaultMessage": "No issues for this string"
   },
   "JYTpmBUkk7": {
     "defaultMessage": "Integrations"
@@ -6137,6 +6278,9 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Menu điều hướng"
   },
+  "JvZ26UFlte": {
+    "defaultMessage": "Then run {command} to authenticate."
+  },
   "JwC3NaQtN9": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -6203,6 +6347,9 @@
   "KC1mEy5GJx": {
     "defaultMessage": "Uploaded"
   },
+  "KCIvL0TJB4": {
+    "defaultMessage": "Board"
+  },
   "KCMz//p+DR": {
     "defaultMessage": "Trò chuyện trên web"
   },
@@ -6233,6 +6380,9 @@
   "KJHAVDuUjG": {
     "defaultMessage": "Mức độ ưu tiên: {value}"
   },
+  "KL1WoqHBtQ": {
+    "defaultMessage": "Upgrade plan"
+  },
   "KLP0H0Bm8w": {
     "defaultMessage": "Ahrefs"
   },
@@ -6253,6 +6403,9 @@
   },
   "KQZH+TKXlh": {
     "defaultMessage": "Điểm trung bình công khai: {average}/100"
+  },
+  "KQoOqOSNYf": {
+    "defaultMessage": "Connect Canva to Hyperlocalise"
   },
   "KRRKR3H/tH": {
     "defaultMessage": "Đóng"
@@ -6428,6 +6581,9 @@
   "LC2bgUm6Db": {
     "defaultMessage": "Active"
   },
+  "LCEJpmlHkp": {
+    "defaultMessage": "Canva connection deleted."
+  },
   "LCZsgeJImu": {
     "defaultMessage": "Name"
   },
@@ -6460,6 +6616,9 @@
   },
   "LFieXgTe0M": {
     "defaultMessage": "Hoạt động trên toàn bộ sản phẩm, marketing, hỗ trợ và kỹ thuật"
+  },
+  "LGF0oZcJpk": {
+    "defaultMessage": "Loading board..."
   },
   "LGsstatwcF": {
     "defaultMessage": "Pro · Còn lại 12k chuỗi"
@@ -6595,6 +6754,9 @@
   },
   "LxGnP5nmB2": {
     "defaultMessage": "Cuộc trò chuyện này đã tạm dừng"
+  },
+  "LxzxKCrG8Q": {
+    "defaultMessage": "SharePoint"
   },
   "Ly3jSjXVvC": {
     "defaultMessage": "Settings"
@@ -7166,6 +7328,9 @@
   "NxMkWJ+eS3": {
     "defaultMessage": "Chọn một dự án Hyperlocalise để kéo bản dịch."
   },
+  "NyPxv6K9eG": {
+    "defaultMessage": "This Canva authorization request is missing or expired. Start again from Canva."
+  },
   "Nywsookzn6": {
     "defaultMessage": "Cấu hình các trường hiển thị trên các issue trong dự án này. Các trường bị ẩn vẫn giữ nguyên giá trị."
   },
@@ -7316,6 +7481,9 @@
   "OXxWMckqBr": {
     "defaultMessage": "Khi kiến thức được chia sẻ thay vì phải tìm kiếm, các đội ngũ bản địa hóa có thể tập trung vào những gì con người làm tốt nhất: khiến sản phẩm thực sự mang tính địa phương, phù hợp với văn hóa và đáng tin cậy."
   },
+  "OY5+Uf7y9y": {
+    "defaultMessage": "Connect your agent"
+  },
   "OY8OoRp1g9": {
     "defaultMessage": "Đang cập nhật…"
   },
@@ -7460,6 +7628,9 @@
   "P9C1n98DZ2": {
     "defaultMessage": "Tệp của nhà cung cấp"
   },
+  "PAC7QvAG7e": {
+    "defaultMessage": "Failed to delete Canva connection."
+  },
   "PACHUU2LVi": {
     "defaultMessage": "Tài liệu CLI"
   },
@@ -7498,6 +7669,9 @@
   },
   "PHgeGQnTFw": {
     "defaultMessage": "Đang xem…"
+  },
+  "PHuY/CmjvV": {
+    "defaultMessage": "Claude"
   },
   "PIElwfqIXr": {
     "defaultMessage": "Hiển thị"
@@ -7781,11 +7955,17 @@
   "QO4Q6r8vEP": {
     "defaultMessage": "So sánh khối lượng tìm kiếm và mục đích tìm kiếm giữa các địa phương."
   },
+  "QO4tHVxQGv": {
+    "defaultMessage": "Open Integrations"
+  },
   "QOKexdLasq": {
     "defaultMessage": "Bất kỳ ngôn ngữ nào"
   },
   "QR/HxiItgI": {
     "defaultMessage": "Cơ sở thuật ngữ"
+  },
+  "QSTiMWaXF/": {
+    "defaultMessage": "The board could not be loaded."
   },
   "QTY8pCBi2f": {
     "defaultMessage": "Biến mỗi bài đánh giá thành sự cải thiện cho bài tiếp theo."
@@ -7957,6 +8137,12 @@
   },
   "R+hZLscXuo": {
     "defaultMessage": "Kết nối tài khoản Gemini của bạn"
+  },
+  "R/LlfIB0DY": {
+    "defaultMessage": "Display name"
+  },
+  "R/mQHxnDLt": {
+    "defaultMessage": "Board"
   },
   "R/pK1EOhod": {
     "defaultMessage": "Tên nhóm phải có tối đa 120 ký tự."
@@ -8204,6 +8390,9 @@
   "S+TiK8YOJV": {
     "defaultMessage": "Đã hoàn tất kiểm tra QA với {count, plural, one {# vấn đề} other {# vấn đề}}"
   },
+  "S+glJURN8d": {
+    "defaultMessage": "Connect Canva"
+  },
   "S+mzU53tQz": {
     "defaultMessage": "Adding..."
   },
@@ -8393,6 +8582,9 @@
   "SjHx8vM/dA": {
     "defaultMessage": "Scoring"
   },
+  "SkGjZiASLT": {
+    "defaultMessage": "Copy this Canva connection token"
+  },
   "SlLtLEkppm": {
     "defaultMessage": "Xóa cột?"
   },
@@ -8506,6 +8698,9 @@
   },
   "T8Ggt03ksb": {
     "defaultMessage": "Không thể khám phá {subject}"
+  },
+  "T8LFTkce6e": {
+    "defaultMessage": "Workspace connection"
   },
   "TBagRGINiT": {
     "defaultMessage": "Các quy trình làm việc xác định được lên lịch và được GitHub kích hoạt"
@@ -8713,6 +8908,9 @@
   },
   "TqKPfOkj7i": {
     "defaultMessage": "Đã cập nhật tự động hóa"
+  },
+  "TqRYXSejeY": {
+    "defaultMessage": "Loading Slack channel invite"
   },
   "Tr3_f_b-E4": {
     "defaultMessage": "Save"
@@ -9032,6 +9230,9 @@
   "V8Rg1mvKHG": {
     "defaultMessage": "Đã lưu kết nối Contentful"
   },
+  "V9ow5L2f7M": {
+    "defaultMessage": "Add this to ~/.cursor/mcp.json, then open Settings → MCP and click Login."
+  },
   "V9wej2JTKV": {
     "defaultMessage": "Slug"
   },
@@ -9164,6 +9365,9 @@
   "Vd2zLJN2br": {
     "defaultMessage": "Description"
   },
+  "VdPMgzyWOp": {
+    "defaultMessage": "Project"
+  },
   "VdjibQd9gV": {
     "defaultMessage": "Mở trình soạn thảo toàn trang"
   },
@@ -9283,6 +9487,9 @@
   },
   "W5v3/4xBNa": {
     "defaultMessage": "Không có ngôn ngữ đích nào khả dụng cho tệp này."
+  },
+  "W78/qWhJir": {
+    "defaultMessage": "Failed to authorize the Canva app."
   },
   "W87BMcVF5T": {
     "defaultMessage": "Ghi chú tùy chọn cho người dịch"
@@ -9527,6 +9734,9 @@
   "Ww6hf/sreW": {
     "defaultMessage": "Không thể tải các bộ nhớ dịch."
   },
+  "WwBtcmgwYn": {
+    "defaultMessage": "Request Slack invite"
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "Nghiên cứu từ khóa đa ngôn ngữ"
   },
@@ -9538,6 +9748,9 @@
   },
   "Wzlq8Ew/Ii": {
     "defaultMessage": "Khóa API"
+  },
+  "X+DJxUtTco": {
+    "defaultMessage": "Copied"
   },
   "X+GHkBiDyV": {
     "defaultMessage": "Đang tải các vấn đề..."
@@ -9610,6 +9823,9 @@
   },
   "XHTRGbNDAl": {
     "defaultMessage": "Mã thông báo truy cập cá nhân"
+  },
+  "XHcfGv6Nhg": {
+    "defaultMessage": "Authorize Canva"
   },
   "XIKJG5Q5Cf": {
     "defaultMessage": "Lưu cài đặt {providerName}"
@@ -9767,6 +9983,9 @@
   "Xs0cc+EY83": {
     "defaultMessage": "Thao tác của nhân viên"
   },
+  "XswXu+UFpy": {
+    "defaultMessage": "Board"
+  },
   "XtzSAMs4em": {
     "defaultMessage": "Các câu hỏi về Chat, Slack và không gian làm việc nói chung cùng với ngữ cảnh dự án và bảng thuật ngữ."
   },
@@ -9784,6 +10003,9 @@
   },
   "XvnWp/L4sW": {
     "defaultMessage": "Tài liệu đồng bộ hóa pull"
+  },
+  "Xwo9y3RloU": {
+    "defaultMessage": "Linked to Canva brand {brandId}"
   },
   "Xx/womTY6W": {
     "defaultMessage": "Không bị cấm"
@@ -9962,6 +10184,9 @@
   "YfmsVkUswA": {
     "defaultMessage": "KB"
   },
+  "YgXBEI+WDA": {
+    "defaultMessage": "Import localization guidance from SharePoint."
+  },
   "Ygi+pnLdm5": {
     "defaultMessage": "Chọn {key}"
   },
@@ -10081,6 +10306,9 @@
   },
   "Z1pfbdxKYT": {
     "defaultMessage": "Đánh giá các pull request để phát hiện vấn đề bản địa hóa và đăng một bình luận cố định khi pull request được mở, cập nhật hoặc đánh dấu là sẵn sàng."
+  },
+  "Z2cMYJ6nRy": {
+    "defaultMessage": "Failed to regenerate the Canva connection token."
   },
   "Z39eNFe81L": {
     "defaultMessage": "Tools"
@@ -10571,6 +10799,9 @@
   "ajjoHt03BE": {
     "defaultMessage": "Lưu {providerName}"
   },
+  "akBS4XwW21": {
+    "defaultMessage": "An invite was just sent. Try again in a couple of minutes."
+  },
   "akKSazt0o+": {
     "defaultMessage": "Các lo���i nội dung"
   },
@@ -10694,6 +10925,9 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
   },
+  "bC8xP17A1P": {
+    "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import."
+  },
   "bCXvSTPFsb": {
     "defaultMessage": "Scheduled"
   },
@@ -10795,6 +11029,9 @@
   },
   "bddYLH4n/y": {
     "defaultMessage": "Capture"
+  },
+  "bf/8sd/M64": {
+    "defaultMessage": "Save"
   },
   "bfKQmDUNTz": {
     "defaultMessage": "Close"
@@ -10903,6 +11140,9 @@
   },
   "cAGL69hzyh": {
     "defaultMessage": "Chỉnh sửa nhóm"
+  },
+  "cAQmoTwBPJ": {
+    "defaultMessage": "List issues"
   },
   "cE0bfQDgYq": {
     "defaultMessage": "Đồng bộ"
@@ -11147,6 +11387,9 @@
   "dBWJx9vBQt": {
     "defaultMessage": "Khởi đầu"
   },
+  "dBZKwTIoEH": {
+    "defaultMessage": "Failed to add to Board"
+  },
   "dC80UX3i75": {
     "defaultMessage": "{hours} giờ"
   },
@@ -11195,14 +11438,23 @@
   "dKnvI39kVF": {
     "defaultMessage": "Không thể cập nhật các chuỗi đã khóa"
   },
+  "dKznjRBgya": {
+    "defaultMessage": "Board"
+  },
   "dLOnbBe+SR": {
     "defaultMessage": "Bảng thuật ngữ không gian làm việc"
   },
   "dLflEs1D1h": {
     "defaultMessage": "Người xem xét"
   },
+  "dOX1AC82YS": {
+    "defaultMessage": "Choose a project."
+  },
   "dOaxbDzrv5": {
     "defaultMessage": "Không thể quyết định?"
+  },
+  "dOsXIMNL7P": {
+    "defaultMessage": "Unable to dismiss this invite right now."
   },
   "dQccrvPeHu": {
     "defaultMessage": "Segment"
@@ -11966,6 +12218,9 @@
   "g++q7Fa3R5": {
     "defaultMessage": "Retrying…"
   },
+  "g+80zjC0vY": {
+    "defaultMessage": "Comma-separated locale codes, for example es, fr, de."
+  },
   "g+hqtBNXIJ": {
     "defaultMessage": "Mở dự án"
   },
@@ -12152,6 +12407,9 @@
   "geFmDsE0aZ": {
     "defaultMessage": "Source:"
   },
+  "geRgaRor6g": {
+    "defaultMessage": "Notion"
+  },
   "geqPhiQmeR": {
     "defaultMessage": "Không thể lưu mục nhập"
   },
@@ -12305,6 +12563,9 @@
   "h3qjecOeg8": {
     "defaultMessage": "Mở {projectName} trong nhà cung cấp dịch vụ"
   },
+  "h5+KJI2d7A": {
+    "defaultMessage": "Could not load issues."
+  },
   "h5YfBD98F1": {
     "defaultMessage": "Nhập các vấn đề từ CSV"
   },
@@ -12424,6 +12685,9 @@
   },
   "hXSssVY0i9": {
     "defaultMessage": "Đang chờ xử lý"
+  },
+  "hYi0NizHJf": {
+    "defaultMessage": "Board · this string"
   },
   "hYx7Vbi5IN": {
     "defaultMessage": "Kết nối nhà cung cấp"
@@ -12742,6 +13006,9 @@
   },
   "igB297V19V": {
     "defaultMessage": "Định tuyến xem xét"
+  },
+  "igJunofoju": {
+    "defaultMessage": "Board"
   },
   "igisWP9I+4": {
     "defaultMessage": "{confidence}% độ tin cậy"
@@ -13235,6 +13502,9 @@
   "kC3PfwuLdP": {
     "defaultMessage": "Search"
   },
+  "kDHggb67Dc": {
+    "defaultMessage": "Cursor"
+  },
   "kDMX9jypDk": {
     "defaultMessage": "Cụm từ gồm nhiều từ"
   },
@@ -13288,6 +13558,9 @@
   },
   "kM/dmaarD3": {
     "defaultMessage": "Kiểm tra thuật ngữ"
+  },
+  "kNbIVbtAlh": {
+    "defaultMessage": "We've invited your team to a shared Slack channel"
   },
   "kO32zaHAd6": {
     "defaultMessage": "Không thể lưu tiêu đề"
@@ -13360,6 +13633,9 @@
   },
   "kf0aB8NC11": {
     "defaultMessage": "Tạo nhóm"
+  },
+  "kg1/W3O+Sr": {
+    "defaultMessage": "Guidelines"
   },
   "kgAiiSB4O6": {
     "defaultMessage": "Invalid project files response"
@@ -13474,6 +13750,9 @@
   },
   "kzAQTYATA+": {
     "defaultMessage": "Chọn liệu các cập nhật trong Hộp thư đến của Phiếu sự cố có được gửi đến email của bạn hay không."
+  },
+  "l+RVkhyT2N": {
+    "defaultMessage": "Create a project first, then import issues into its board."
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Không thể tải các kết nối Semrush."
@@ -13643,6 +13922,9 @@
   "lhVzeGwfih": {
     "defaultMessage": "Điều đó nhắc nhở chúng tôi rằng, sau cùng, bản địa hóa là kết nối mọi người."
   },
+  "liYuh2p3oY": {
+    "defaultMessage": "Add connection"
+  },
   "ljCRNx6fjZ": {
     "defaultMessage": "Ngắt kết nối"
   },
@@ -13747,6 +14029,9 @@
   },
   "m8UlToMOXC": {
     "defaultMessage": "Đang tìm tệp"
+  },
+  "m9ESiA+Ppw": {
+    "defaultMessage": "Import style guides and market notes from Notion."
   },
   "mABAdUPLF4": {
     "defaultMessage": "Kiểm soát cách các chuỗi nguồn được sắp xếp trong không gian làm việc CAT."
@@ -14008,6 +14293,9 @@
   },
   "n+jmfgFlG0": {
     "defaultMessage": "Bản dịch được đọc từ dự án này trước khi mở yêu cầu kéo."
+  },
+  "n/ryC/yPKS": {
+    "defaultMessage": "Create or link issues for this string. Navigate to an issue to collaborate."
   },
   "n02KlXlk6i": {
     "defaultMessage": "Bước này không có cài đặt bổ sung nào trong bản xem trước."
@@ -14555,6 +14843,9 @@
   "p15YTH6+4S": {
     "defaultMessage": "Hướng dẫn cho tác nhân"
   },
+  "p1EBLiYRON": {
+    "defaultMessage": "Dismiss"
+  },
   "p22y6wrB6M": {
     "defaultMessage": "Không thể xóa mối quan hệ"
   },
@@ -14669,6 +14960,9 @@
   "pV6OSYt6fC": {
     "defaultMessage": "Đã đạt"
   },
+  "pV8l9BOlkk": {
+    "defaultMessage": "Create a project first."
+  },
   "pWLMdEuyPH": {
     "defaultMessage": "{requestedLocale} không phải là ngôn ngữ đích cho tệp này. Nhấp đúp vào một tệp hoặc sử dụng Mở Trình chỉnh sửa để chỉnh sửa {targetLocale}."
   },
@@ -14758,6 +15052,9 @@
   },
   "plDoLEcfb7": {
     "defaultMessage": "Các quyết định tích lũy khi các nhóm tìm ra điều gì hiệu quả ở từng thị trường"
+  },
+  "pmeyEQny7X": {
+    "defaultMessage": "Install command for {client}"
   },
   "pmgrWye2G2": {
     "defaultMessage": "Chưa dịch"
@@ -15083,6 +15380,9 @@
   "qySc0NPK9C": {
     "defaultMessage": "Kết nối"
   },
+  "qz4qD1ttxo": {
+    "defaultMessage": "Deny"
+  },
   "r0gMCcsbGC": {
     "defaultMessage": "Chưa có cuộc trò chuyện hoặc thông báo nào."
   },
@@ -15110,6 +15410,9 @@
   "r7/0syRDA9": {
     "defaultMessage": "bắt buộc"
   },
+  "r7gtZsn8Qh": {
+    "defaultMessage": "Board"
+  },
   "r7qqla56RV": {
     "defaultMessage": "Dạng viết rút gọn"
   },
@@ -15136,6 +15439,9 @@
   },
   "rDFwnPnMxA": {
     "defaultMessage": "Hỏi về bất kỳ chuỗi nào"
+  },
+  "rDKQx99X0Z": {
+    "defaultMessage": "Check your email for the Slack channel invite."
   },
   "rDacSGpJfq": {
     "defaultMessage": "Bảng vấn đề"
@@ -15208,6 +15514,9 @@
   },
   "rUPw7LyUVG": {
     "defaultMessage": "Gạch ngang"
+  },
+  "rUZsunvsmU": {
+    "defaultMessage": "Talk with Hyperlocalise in Slack. We'll email you an invitation to a shared channel."
   },
   "rVbcl0T6/F": {
     "defaultMessage": "Translate"
@@ -15310,6 +15619,9 @@
   },
   "rqi80b8ssT": {
     "defaultMessage": "Đồng bộ nội dung đã được phê duyệt vào CMS và các nền tảng quảng cáo"
+  },
+  "rrMT/tukOI": {
+    "defaultMessage": "Copy token"
   },
   "rsXJHUa4+k": {
     "defaultMessage": "Mục nhập này chỉ được đọc."
@@ -15440,6 +15752,9 @@
   "sHrPdefvvp": {
     "defaultMessage": "Tìm kiếm micro..."
   },
+  "sJoNIftCZI": {
+    "defaultMessage": "Board"
+  },
   "sK6Zq81Q7Q": {
     "defaultMessage": "{count} in progress"
   },
@@ -15454,6 +15769,9 @@
   },
   "sNPTwegSVn": {
     "defaultMessage": "Ngôn ngữ đích"
+  },
+  "sOWOEfN8q6": {
+    "defaultMessage": "Canva"
   },
   "sPeeyibl9Y": {
     "defaultMessage": "Phê duyệt đã chọn"
@@ -15580,6 +15898,9 @@
   },
   "ssMiRZyu1M": {
     "defaultMessage": "Chặn phát hành khi các cổng chất lượng không đạt"
+  },
+  "sslu9yZyVp": {
+    "defaultMessage": "Board"
   },
   "svD7SMchJb": {
     "defaultMessage": "{providerName} đã sẵn sàng cho token thành viên"
@@ -15775,6 +16096,9 @@
   },
   "tX+m/7WBd+": {
     "defaultMessage": "ỨNG DỤNG"
+  },
+  "tX5h+jHyR2": {
+    "defaultMessage": "Board · acme workspace"
   },
   "tX7cZ1uzA9": {
     "defaultMessage": "Chọn tệp"
@@ -16136,6 +16460,9 @@
   "uxjK9vur1B": {
     "defaultMessage": "Xóa {filename}"
   },
+  "uyA3TF6irL": {
+    "defaultMessage": "Token starting with {prefix}"
+  },
   "uycq9iF49K": {
     "defaultMessage": "Đẩy GitHub"
   },
@@ -16352,6 +16679,9 @@
   "vbaH3BSX3d": {
     "defaultMessage": "Bộ nhớ dịch thuật"
   },
+  "vcGdG7Kss8": {
+    "defaultMessage": "This token is shown once. Paste it into the Canva app, or use Connect Hyperlocalise from Canva instead."
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Thêm cột"
   },
@@ -16415,6 +16745,9 @@
   "vq7ib8WdUv": {
     "defaultMessage": "Tóm tắt chiến dịch"
   },
+  "vqmXbSZwqU": {
+    "defaultMessage": "Create an issue to track work on this string."
+  },
   "vrYsk4CDa0": {
     "defaultMessage": "Xóa tác vụ"
   },
@@ -16462,6 +16795,9 @@
   },
   "vytBTgUTFc": {
     "defaultMessage": "Add"
+  },
+  "vz2IGDAZp1": {
+    "defaultMessage": "Canva connection saved."
   },
   "w+fJWojETe": {
     "defaultMessage": "Contact us for current security information, vendor review questions, or certification roadmap details, including data processing agreement requests."

@@ -323,7 +323,7 @@ type Service struct {
 
 func New() *Service {
 	return &Service{
-		loadConfig: config.Load,
+		loadConfig: config.LoadForCLI,
 		loadLock:   lockfile.Load,
 		saveLock:   lockfile.Save,
 		readFile:   os.ReadFile,

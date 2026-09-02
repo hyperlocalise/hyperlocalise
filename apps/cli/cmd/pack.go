@@ -112,7 +112,7 @@ func validatePackOptions(args []string, options packOptions) error {
 }
 
 func collectPackLocaleFilesFromConfig(options packOptions) ([]string, error) {
-	cfg, err := config.Load(options.configPath)
+	cfg, err := config.LoadForCLI(options.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -65,6 +66,8 @@ func newRootCmd(version string) *cobra.Command {
 
 // Execute invokes the command.
 func Execute(version string) error {
+	config.SetCLIVersion(version)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := newRootCmd(version).ExecuteContext(ctx); err != nil {

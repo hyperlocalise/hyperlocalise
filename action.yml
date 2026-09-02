@@ -16,7 +16,7 @@ inputs:
     description: Optional working directory for the check.
     default: .
   hyperlocalise-version:
-    description: Hyperlocalise release version to install.
+    description: Hyperlocalise release version to install. Use `config` to read `version` from the i18n config file (for example hyperlocalise@1.2.3). Defaults to `latest`.
     default: latest
   fail-on-drift:
     description: Fail the action when drift is detected.
@@ -133,16 +133,26 @@ runs:
         echo "summary-path=${artifact_dir}/${CHECK}-summary.txt" >>"${GITHUB_OUTPUT}"
         echo "github-diff-path=${artifact_dir}/github-pr.diff" >>"${GITHUB_OUTPUT}"
 
+    - name: Setup Go for config version resolution
+      if: ${{ inputs.hyperlocalise-version == 'config' }}
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache: true
+
     - name: Install Hyperlocalise
       shell: bash
       env:
         VERSION: ${{ inputs.hyperlocalise-version }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
         mkdir -p "${install_dir}"
-        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        resolved_version="$(bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/resolve-hyperlocalise-version.sh" "${VERSION}" "${CONFIG_PATH}" "${WORKING_DIRECTORY}")"
+        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${resolved_version}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Fetch GitHub pull request diff

@@ -5,12 +5,14 @@ go_library(
     srcs = [
         "i18n.go",
         "schema.go",
+        "version.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/hyperlocaliseapi",
         "@com_github_invopop_jsonschema//:jsonschema",
+        "@com_github_masterminds_semver_v3//:semver",
         "@com_github_tidwall_jsonc//:jsonc",
         "@in_gopkg_yaml_v3//:yaml_v3",
     ],

@@ -133,6 +133,145 @@ func TestInspectURL(t *testing.T) {
 	require.Equal(t, "PASS", result.IndexStatusResult.Verdict)
 }
 
+func TestInspectURLRequiresSiteAndInspectionURL(t *testing.T) {
+	client, err := gsc.NewClient(gsc.Config{
+		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
+	})
+	require.NoError(t, err)
+
+	_, err = client.InspectURL(t.Context(), "  ", "https://example.com/", "")
+	require.Error(t, err)
+	typed, ok := gsc.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeValidation, typed.Code)
+
+	_, err = client.InspectURL(t.Context(), "sc-domain:example.com", "", "")
+	require.Error(t, err)
+	typed, ok = gsc.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeValidation, typed.Code)
+}
+
+func TestInspectURLsRequiresAtLeastOneURL(t *testing.T) {
+	client, err := gsc.NewClient(gsc.Config{
+		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
+	})
+	require.NoError(t, err)
+
+	_, err = client.InspectURLs(t.Context(), "sc-domain:example.com", nil, "")
+	require.Error(t, err)
+	typed, ok := gsc.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeValidation, typed.Code)
+}
+
+func TestInspectURLsContinuesAfterNonAuthErrors(t *testing.T) {
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body gsc.InspectURLRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		seen = append(seen, body.InspectionURL)
+
+		switch body.InspectionURL {
+		case "https://example.com/missing":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"not found"}`))
+		case "https://example.com/ok":
+			_, _ = w.Write([]byte(`{
+				"inspectionResult": {
+					"indexStatusResult": {"verdict":"PASS","coverageState":"Indexed"}
+				}
+			}`))
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"bad request"}`))
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := gsc.NewClientWithHTTPClient(gsc.Config{
+		TokenSource:          oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
+		URLInspectionBaseURL: server.URL + "/v1",
+	}, server.Client())
+	require.NoError(t, err)
+
+	outcomes, err := client.InspectURLs(
+		t.Context(),
+		"sc-domain:example.com",
+		[]string{"https://example.com/missing", "https://example.com/ok"},
+		"en-US",
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"https://example.com/missing", "https://example.com/ok"}, seen)
+	require.Len(t, outcomes, 2)
+
+	require.Equal(t, "https://example.com/missing", outcomes[0].InspectionURL)
+	require.Error(t, outcomes[0].Error)
+	missingErr, ok := gsc.AsError(outcomes[0].Error)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeNotFound, missingErr.Code)
+	require.Contains(t, outcomes[0].ErrorString(), "gsc_not_found")
+
+	require.Equal(t, "https://example.com/ok", outcomes[1].InspectionURL)
+	require.NoError(t, outcomes[1].Error)
+	require.NotNil(t, outcomes[1].Result)
+	require.Equal(t, "PASS", outcomes[1].Result.IndexStatusResult.Verdict)
+	require.Empty(t, outcomes[1].ErrorString())
+}
+
+func TestInspectURLsAbortsOnAuthFailure(t *testing.T) {
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body gsc.InspectURLRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		seen = append(seen, body.InspectionURL)
+
+		switch body.InspectionURL {
+		case "https://example.com/ok":
+			_, _ = w.Write([]byte(`{
+				"inspectionResult": {
+					"indexStatusResult": {"verdict":"PASS","coverageState":"Indexed"}
+				}
+			}`))
+		case "https://example.com/forbidden":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"forbidden"}`))
+		default:
+			t.Fatalf("unexpected inspection URL %q", body.InspectionURL)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := gsc.NewClientWithHTTPClient(gsc.Config{
+		TokenSource:          oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "tok_123"}),
+		URLInspectionBaseURL: server.URL + "/v1",
+	}, server.Client())
+	require.NoError(t, err)
+
+	outcomes, err := client.InspectURLs(
+		t.Context(),
+		"sc-domain:example.com",
+		[]string{
+			"https://example.com/ok",
+			"https://example.com/forbidden",
+			"https://example.com/never",
+		},
+		"",
+	)
+	require.Error(t, err)
+	require.Equal(t, []string{"https://example.com/ok", "https://example.com/forbidden"}, seen)
+	require.Len(t, outcomes, 2)
+
+	require.NoError(t, outcomes[0].Error)
+	require.NotNil(t, outcomes[0].Result)
+
+	authErr, ok := gsc.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, gsc.ErrorCodeAuthFailed, authErr.Code)
+	require.Equal(t, http.StatusForbidden, authErr.StatusCode)
+	require.ErrorIs(t, outcomes[1].Error, err)
+}
+
 func TestHTTPErrorMapping(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)

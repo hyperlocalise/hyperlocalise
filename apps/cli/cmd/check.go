@@ -357,7 +357,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, resolveSpan := tr.Start(ctx, "check.resolve")
-	cfg, err := config.Load(o.configPath)
+	cfg, err := config.LoadForCLI(o.configPath)
 	if err != nil {
 		resolveSpan.SetStatus(codes.Error, "load_config")
 		resolveSpan.End()

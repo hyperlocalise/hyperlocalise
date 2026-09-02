@@ -97,7 +97,7 @@ type hyperlocaliseUploadFileResponse struct {
 }
 
 func newHyperlocaliseSyncRuntime(configPath string) (*hyperlocaliseSyncRuntime, error) {
-	cfg, err := config.Load(configPath)
+	cfg, err := config.LoadForCLI(configPath)
 	if err != nil {
 		return nil, err
 	}

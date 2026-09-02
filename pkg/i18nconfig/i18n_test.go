@@ -525,6 +525,16 @@ func TestLoad(t *testing.T) {
 			}`,
 			errContains: "must be >= 0",
 		},
+		{
+			name: "invalid pinned cli version",
+			content: `{
+			  "version": "1.2.3",
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x"}}}
+			}`,
+			errContains: "version:",
+		},
 	}
 
 	for _, tc := range testCases {
