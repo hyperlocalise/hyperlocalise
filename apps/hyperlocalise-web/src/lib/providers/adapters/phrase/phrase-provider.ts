@@ -186,10 +186,6 @@ export class PhraseTmsProvider extends TmsProvider {
     "glossary.import": implemented,
     "glossary.export": implemented,
     "glossary.search": unsupported,
-    "qa.run": {
-      state: "unsupported",
-      disabledReason: "Phrase QA is not wired into this connector yet.",
-    },
     "review.pull": implemented,
     "webhooks.receive": implemented,
     "webhooks.configure": implemented,

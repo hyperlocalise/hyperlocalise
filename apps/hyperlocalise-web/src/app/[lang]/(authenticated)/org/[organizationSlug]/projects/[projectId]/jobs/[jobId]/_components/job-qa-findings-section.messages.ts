@@ -91,16 +91,6 @@ export const jobQaFindingsSectionMessages = defineMessages({
     id: "XMud6JNFWG",
     description: "Inline status when posting a provider comment for a finding failed",
   },
-  failedToRunQaChecks: {
-    defaultMessage: "Failed to run QA checks",
-    id: "arfFDZqrYl",
-    description: "Toast and error fallback when running QA checks fails",
-  },
-  qaChecksFinished: {
-    defaultMessage: "QA checks finished with {count, plural, one {# finding} other {# findings}}",
-    id: "S+TiK8YOJV",
-    description: "Success toast after synchronous QA checks complete",
-  },
   failedToStartAgentRun: {
     defaultMessage: "Failed to start agent run",
     id: "m7kZYILbyh",
@@ -118,29 +108,14 @@ export const jobQaFindingsSectionMessages = defineMessages({
   },
   reviewFindingsDescription: {
     defaultMessage:
-      "Inspect issues from agent review or QA checks before writing back to the TMS. Filter by locale or check type, then act on selected findings.",
-    id: "O/cMSd1B4R",
+      "Inspect issues from agent review before writing back to the TMS. Filter by locale or check type, then act on selected findings.",
+    id: 'w+PtMk3dhE',
     description: "Description under the review findings section heading",
-  },
-  running: {
-    defaultMessage: "Running…",
-    id: "+Gpj/X++wo",
-    description: "Button label while QA checks are running",
-  },
-  runChecksNow: {
-    defaultMessage: "Run checks now",
-    id: "ABTbyceqH3",
-    description: "Button to run synchronous QA checks",
   },
   selectAtLeastOneFinding: {
     defaultMessage: "Select at least one finding",
     id: "2eSDKs0tvs",
     description: "Tooltip when an action requires selecting findings",
-  },
-  fixSelected: {
-    defaultMessage: "Fix selected ({count})",
-    id: "9cZeDO5aVi",
-    description: "Button to start an agent fix run for selected findings",
   },
   selectedAlreadyHaveComments: {
     defaultMessage: "Selected findings already have provider comments",
@@ -156,11 +131,6 @@ export const jobQaFindingsSectionMessages = defineMessages({
     defaultMessage: "Agent review is running. Results will refresh when the run completes.",
     id: "oiy7DSDLQj",
     description: "Banner while an agent review run is in progress",
-  },
-  qaChecksRunning: {
-    defaultMessage: "QA checks are running. Results will refresh when the agent run completes.",
-    id: "PDy7PaVKiz",
-    description: "Banner while a QA checks agent run is in progress",
   },
   providerReviewThreadsHeading: {
     defaultMessage: "Provider review threads",
@@ -259,20 +229,15 @@ export const jobQaFindingsSectionMessages = defineMessages({
     description: "Empty state when filters hide all findings, with a clear-filters action",
   },
   noQaFindingsYetTitle: {
-    defaultMessage: "No QA findings yet",
-    id: "SzamN21gnS",
-    description: "Empty state title when no QA report exists yet",
+    defaultMessage: "No review findings yet",
+    id: 'oJcXaqw3Ec',
+    description: "Empty state title when no review report exists yet",
   },
   noQaFindingsYetDescription: {
     defaultMessage:
-      "Run QA checks or an agent review on this TMS job to surface placeholder, ICU, glossary, and translation issues here. When checks pass, this section will show a clear no-issues state.",
-    id: "Cw9DS+v8+l",
-    description: "Empty state description when no QA report exists yet",
-  },
-  runQaChecks: {
-    defaultMessage: "Run QA checks",
-    id: "oAg3HpyTvd",
-    description: "Empty-state button to run QA checks",
+      "Run an agent review on this TMS job to surface placeholder, ICU, glossary, and translation issues here.",
+    id: 'jPKGTMWZ1h',
+    description: "Empty state description when no review report exists yet",
   },
   noIssuesFoundTitle: {
     defaultMessage: "No issues found",

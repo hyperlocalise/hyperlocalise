@@ -138,40 +138,6 @@ function readStoredReport(outputSummary: Record<string, unknown>): ProviderQaRep
   };
 }
 
-export async function runProviderJobQaForJob(input: {
-  organizationId: string;
-  projectId: string;
-  providerKind: ExternalTmsProviderKind;
-  externalJobId: string;
-  actorUserId?: string | null;
-}) {
-  const pullContent = getProviderContentPuller(input.providerKind);
-
-  const pullResult = await pullExternalTmsTaskContent({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    providerKind: input.providerKind,
-    externalJobId: input.externalJobId,
-    pullContent,
-    actorUserId: input.actorUserId,
-  });
-
-  const qaResult = await executeProviderJobQaForContent({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    providerKind: input.providerKind,
-    externalJobId: input.externalJobId,
-    content: pullResult.content,
-    pullRunId: pullResult.runId,
-  });
-
-  return {
-    pullRunId: qaResult.pullRunId,
-    report: qaResult.report,
-    unitsDiscovered: pullResult.counts.unitsDiscovered,
-  };
-}
-
 export async function executeProviderJobQaForContent(input: {
   organizationId: string;
   projectId: string;

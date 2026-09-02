@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import type {
-  ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
 } from "@/lib/workflow/types";
@@ -24,11 +23,9 @@ import {
 import { getJobProviderActionDefinition } from "@/lib/providers/jobs/job-provider-actions";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { resolveEffectiveTmsAgentAutomationSettings } from "./tms-agent-automation-settings-store";
-import { shouldAutoRunQaOnSyncedJob } from "./tms-agent-automation-settings";
 
 export type TmsAgentAutomationQueues = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
-  providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
 };
 
@@ -58,30 +55,6 @@ export async function runTmsAgentAutomationForSyncedJob(
   });
 
   const triggered: string[] = [];
-
-  const qaQueue = input.queues?.providerAgentQaQueue;
-  if (shouldAutoRunQaOnSyncedJob(settings) && qaQueue) {
-    const qaRun = await createAutomationAgentRun({
-      ...input,
-      action: "run_qa_checks",
-    });
-
-    if (qaRun) {
-      const enqueued = await enqueueAgentRunOrFail({
-        organizationId: input.organizationId,
-        runId: qaRun.id,
-        queueUnavailableMessage: "agent QA queue unavailable",
-        enqueue: () =>
-          qaQueue.enqueue({
-            agentRunId: qaRun.id,
-            organizationId: input.organizationId,
-          }),
-      });
-      if (enqueued) {
-        triggered.push("run_qa_checks");
-      }
-    }
-  }
 
   const automationLocales = settings.autoDraftTranslations.locales.filter((locale) =>
     input.targetLocales.includes(locale),
@@ -122,7 +95,7 @@ async function createAutomationAgentRun(input: {
   hyperlocaliseJobId: string;
   externalJobId: string;
   externalTaskId: string | null;
-  action: "run_qa_checks" | "translate_with_agent";
+  action: "translate_with_agent";
   automationLocales?: string[];
 }) {
   const actionDefinition = getJobProviderActionDefinition(input.action);

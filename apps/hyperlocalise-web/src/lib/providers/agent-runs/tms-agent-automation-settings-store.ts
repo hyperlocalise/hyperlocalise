@@ -185,10 +185,6 @@ function parseStoredSettings(
 ): Record<string, unknown> {
   const stored: Record<string, unknown> = {};
 
-  if (merged.autoRunQaOnSyncedJobs !== defaults.autoRunQaOnSyncedJobs) {
-    stored.autoRunQaOnSyncedJobs = merged.autoRunQaOnSyncedJobs;
-  }
-
   if (
     merged.autoDraftTranslations.enabled !== defaults.autoDraftTranslations.enabled ||
     merged.autoDraftTranslations.locales.length > 0

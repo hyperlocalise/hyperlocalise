@@ -94,8 +94,6 @@ import {
   isJobProviderActionAvailable,
 } from "@/lib/providers/jobs/job-provider-actions";
 import { resolveProviderSourceFilesForJob } from "@/lib/providers/jobs/job-provider-source-files";
-import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/shared/map-provider-qa-http-error";
-import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 
 import {
@@ -103,7 +101,6 @@ import {
   updateAgentRunProposalReviewBodySchema,
   workspaceAgentRunParamsSchema,
 } from "./agent-run.schema";
-import { providerQaReportResponseSchema } from "./job-qa.schema";
 import {
   createJobBodySchema,
   jobListQuerySchema,
@@ -126,7 +123,7 @@ type CreateWorkspaceJobRoutesOptions = {
   providerAgentWritebackQueue: ProviderAgentWritebackQueue;
 };
 
-const providerQaAgentActions = new Set(["review_with_agent", "run_qa_checks"]);
+const providerQaAgentActions = new Set(["review_with_agent"]);
 
 const jobSelect = {
   id: schema.jobs.id,
@@ -434,15 +431,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const title = payload.title?.trim();
       const description = payload.description?.trim();
       const jobKind = payload.kind === "proofread" ? "proofread" : "translation";
-      if (jobKind !== "proofread") {
-        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
-          c,
-          c.var.auth.organization.localOrganizationId,
-        );
-        if (aiFeaturesDenied) {
-          return aiFeaturesDenied;
-        }
-      }
 
       let enrichedInputPayload = inputPayload;
       if (title || description) {
@@ -1098,93 +1086,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
       },
     )
-    .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
-      if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
-        c,
-        c.var.auth.organization.localOrganizationId,
-      );
-      if (aiFeaturesDenied) {
-        return aiFeaturesDenied;
-      }
-
-      const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-
-      const [job] = await db
-        .select({
-          projectId: schema.jobs.projectId,
-          externalProviderKind: schema.externalJobDetails.providerKind,
-          externalJobId: schema.externalJobDetails.externalJobId,
-        })
-        .from(schema.jobs)
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      if (!job.externalProviderKind || !job.externalJobId) {
-        return conflictResponse(
-          c,
-          "provider_job_required",
-          "QA checks are only available for provider-backed jobs",
-        );
-      }
-
-      if (!isJobProviderActionAvailable(job.externalProviderKind, "run_qa_checks")) {
-        return conflictResponse(
-          c,
-          "provider_action_unavailable",
-          "QA checks are not available for the connected TMS",
-        );
-      }
-
-      if (!job.projectId) {
-        return badRequestResponse(c, "invalid_job_project", "Job is missing project context");
-      }
-
-      try {
-        const result = await runProviderJobQaForJob({
-          organizationId,
-          projectId: job.projectId,
-          providerKind: job.externalProviderKind,
-          externalJobId: job.externalJobId,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-
-        const qaReport = {
-          pullRunId: result.pullRunId,
-          findings: result.report.findings,
-          summary: result.report.summary,
-        };
-        const parsed = providerQaReportResponseSchema.safeParse({ qaReport });
-
-        if (!parsed.success) {
-          return internalErrorResponse(c, "invalid_qa_report", "QA report failed validation");
-        }
-
-        return c.json(parsed.data, 200);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Provider QA failed";
-        const status = mapProviderQaErrorToHttpStatus(error);
-
-        if (status === 503) {
-          return serviceUnavailableResponse(c, "provider_qa_unavailable", message);
-        }
-
-        if (status === 500) {
-          return internalErrorResponse(c, "provider_qa_failed", message);
-        }
-
-        return badRequestResponse(c, "provider_qa_failed", message);
-      }
-    })
     .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);

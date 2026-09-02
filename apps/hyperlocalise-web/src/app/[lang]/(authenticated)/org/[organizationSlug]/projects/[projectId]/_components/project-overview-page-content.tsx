@@ -19,7 +19,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
-import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
@@ -246,12 +245,10 @@ export function ProjectOverviewPageContentView({
             >
               <FormattedMessage {...messages.viewFiles} />
             </Button>
-            <AiFeatureAction organizationSlug={organizationSlug} size="sm">
-              <Button type="button" size="sm" onClick={onCreateJob}>
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-                <FormattedMessage {...messages.createJob} />
-              </Button>
-            </AiFeatureAction>
+            <Button type="button" size="sm" onClick={onCreateJob}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.createJob} />
+            </Button>
           </div>
         ) : null}
       </header>

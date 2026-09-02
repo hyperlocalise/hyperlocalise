@@ -162,7 +162,7 @@ describe("executeProviderAgentQa", () => {
       providerKind: "crowdin",
       externalJobId: "task-qa-1",
       kind: "review",
-      inputSnapshot: { projectId: project.id, action: "run_qa_checks" },
+      inputSnapshot: { projectId: project.id, action: "review_with_agent" },
     });
 
     const result = await executeProviderAgentQa({
@@ -222,7 +222,7 @@ describe("executeProviderAgentQa", () => {
       providerKind: "crowdin",
       externalJobId: "task-qa-3",
       kind: "review",
-      inputSnapshot: { action: "run_qa_checks" },
+      inputSnapshot: { action: "review_with_agent" },
     });
 
     const result = await executeProviderAgentQa({
@@ -310,7 +310,7 @@ describe("executeProviderAgentQa", () => {
       providerKind: "crowdin",
       externalJobId: "task-qa-start-fail",
       kind: "review",
-      inputSnapshot: { projectId: project.id, action: "run_qa_checks" },
+      inputSnapshot: { projectId: project.id, action: "review_with_agent" },
     });
 
     const result = await executeProviderAgentQa({

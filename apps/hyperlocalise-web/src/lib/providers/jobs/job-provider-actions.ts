@@ -45,18 +45,6 @@ export const jobProviderActionDefinitions: JobProviderActionDefinition[] = [
     requiredCapabilities: ["jobs.read", "comments.read", "keys.read"],
   },
   {
-    id: "run_qa_checks",
-    label: "Run QA checks",
-    agentRunKind: "review",
-    requiredCapabilities: ["jobs.read", "qa.run", "keys.read"],
-  },
-  {
-    id: "fix_qa_issues",
-    label: "Fix QA issues",
-    agentRunKind: "qa_fix",
-    requiredCapabilities: ["qa.run", "write_back.translation"],
-  },
-  {
     id: "leave_provider_comment",
     label: "Leave provider comment",
     agentRunKind: "comment_only",

@@ -27,7 +27,6 @@ export const providerAutomationParamsSchema = z.object({
 
 export const upsertTmsAgentAutomationSettingsBodySchema = z.object({
   settings: z.object({
-    autoRunQaOnSyncedJobs: z.boolean().optional(),
     autoDraftTranslations: z
       .object({
         enabled: z.boolean().optional(),

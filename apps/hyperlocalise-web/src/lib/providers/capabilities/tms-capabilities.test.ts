@@ -29,9 +29,9 @@ describe("normalizeTmsProviderCapabilityRegistryEntry", () => {
       label: "Future Provider",
       capabilities: {
         "files.upload": true,
-        "qa.run": {
+        "write_back.source": {
           supported: false,
-          ui: { state: "disabled", disabledReason: "QA is not available." },
+          ui: { state: "disabled", disabledReason: "Source write-back is not available." },
         },
       },
     });
@@ -42,10 +42,10 @@ describe("normalizeTmsProviderCapabilityRegistryEntry", () => {
       label: "Upload files",
       ui: { state: "enabled" },
     });
-    expect(provider.capabilities["qa.run"]).toEqual({
+    expect(provider.capabilities["write_back.source"]).toEqual({
       supported: false,
-      label: "Run QA checks",
-      ui: { state: "disabled", disabledReason: "QA is not available." },
+      label: "Write source content back",
+      ui: { state: "disabled", disabledReason: "Source write-back is not available." },
     });
     expect(provider.capabilities["webhooks.configure"]).toEqual({
       supported: false,
@@ -104,9 +104,7 @@ describe("tmsProviderCapabilityRegistry", () => {
 
   it.each([
     ["smartling", "translation_memory.import", true],
-    ["smartling", "qa.run", true],
     ["phrase", "tasks.create", true],
-    ["phrase", "qa.run", false],
     ["crowdin", "projects.write", true],
     ["crowdin", "tasks.create", true],
     ["crowdin", "translation_memory.export", true],
@@ -119,12 +117,11 @@ describe("tmsProviderCapabilityRegistry", () => {
     expect(providerSupportsTmsAction(provider, action)).toBe(supported);
   });
 
-  it("exposes disabled metadata for unsupported provider actions", () => {
-    expect(getTmsProviderActionCapability("phrase", "qa.run")).toMatchObject({
+  it("exposes hidden metadata for unsupported provider actions", () => {
+    expect(getTmsProviderActionCapability("phrase", "write_back.source")).toMatchObject({
       supported: false,
       ui: {
-        state: "disabled",
-        disabledReason: "Phrase QA is not wired into this connector yet.",
+        state: "hidden",
       },
     });
   });

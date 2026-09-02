@@ -16,7 +16,6 @@ export const tmsAgentAutomationScopeSchema = z.enum(["organization", "project", 
 export type TmsAgentAutomationScope = z.infer<typeof tmsAgentAutomationScopeSchema>;
 
 export const tmsAgentAutomationSettingsSchema = z.object({
-  autoRunQaOnSyncedJobs: z.boolean().default(false),
   autoDraftTranslations: z
     .object({
       enabled: z.boolean().default(false),
@@ -37,7 +36,6 @@ export const DEFAULT_TMS_AGENT_AUTOMATION_SETTINGS: TmsAgentAutomationSettings =
   tmsAgentAutomationSettingsSchema.parse({});
 
 const tmsAgentAutomationSettingsPartialSchema = z.object({
-  autoRunQaOnSyncedJobs: z.boolean().optional(),
   autoDraftTranslations: z
     .object({
       enabled: z.boolean().optional(),
@@ -65,7 +63,6 @@ export function mergeTmsAgentAutomationSettings(
   }
 
   return tmsAgentAutomationSettingsSchema.parse({
-    autoRunQaOnSyncedJobs: override.autoRunQaOnSyncedJobs ?? base.autoRunQaOnSyncedJobs,
     autoDraftTranslations: {
       enabled: override.autoDraftTranslations?.enabled ?? base.autoDraftTranslations.enabled,
       locales: override.autoDraftTranslations?.locales ?? base.autoDraftTranslations.locales,
@@ -93,10 +90,6 @@ export function normalizeStoredTmsAgentAutomationSettings(
   }
 
   return parseTmsAgentAutomationSettingsPartial(value);
-}
-
-export function shouldAutoRunQaOnSyncedJob(settings: TmsAgentAutomationSettings) {
-  return settings.autoRunQaOnSyncedJobs;
 }
 
 export function shouldAutoDraftTranslationForLocale(

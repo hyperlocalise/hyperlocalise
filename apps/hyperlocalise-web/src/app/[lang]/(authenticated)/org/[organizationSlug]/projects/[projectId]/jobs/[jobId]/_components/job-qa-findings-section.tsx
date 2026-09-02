@@ -15,7 +15,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  AiMagicIcon,
   Comment01Icon,
   Search01Icon,
   ShieldEnergyIcon,
@@ -440,11 +439,6 @@ export function JobQaFindingsSection({
   const [checkTypeFilter, setCheckTypeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [inlineReport, setInlineReport] = useState<{
-    findings: ProviderQaFinding[];
-    summary: { total: number; bySeverity: Record<string, number> };
-    pullRunId: string;
-  } | null>(null);
 
   const latestQaRun = useMemo(() => {
     if (!agentRuns) {
@@ -490,10 +484,6 @@ export function JobQaFindingsSection({
   }, [agentRuns]);
 
   const report = useMemo(() => {
-    if (inlineReport) {
-      return inlineReport;
-    }
-
     const parsed = parseQaReportFromOutputSummary(latestQaRun?.outputSummary);
     if (!parsed) {
       return null;
@@ -506,7 +496,7 @@ export function JobQaFindingsSection({
       summary: parsed.summary,
       pullRunId: typeof pullRunId === "string" ? pullRunId : "",
     };
-  }, [inlineReport, latestQaRun]);
+  }, [latestQaRun]);
 
   const findingsWithIds = useMemo(
     () => (report ? attachFindingIds(report.findings) : []),
@@ -549,45 +539,7 @@ export function JobQaFindingsSection({
     [selectedFindings, writeBackByFindingId],
   );
 
-  const runQaChecksAction = providerActions.find((action) => action.id === "run_qa_checks");
-  const fixQaAction = providerActions.find((action) => action.id === "fix_qa_issues");
   const commentAction = providerActions.find((action) => action.id === "leave_provider_comment");
-
-  const runSyncQa = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post({
-        param: { organizationSlug, jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          await parseActionError(response, intl.formatMessage(messages.failedToRunQaChecks)),
-        );
-      }
-
-      const body = (await response.json()) as {
-        qaReport: {
-          findings: ProviderQaFinding[];
-          summary: { total: number; bySeverity: Record<string, number> };
-          pullRunId: string;
-        };
-      };
-
-      return body.qaReport;
-    },
-    onSuccess: (qaReport) => {
-      setInlineReport(qaReport);
-      setSelectedIds(new Set());
-      toast.success(
-        intl.formatMessage(messages.qaChecksFinished, { count: qaReport.summary.total }),
-      );
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.failedToRunQaChecks),
-      );
-    },
-  });
 
   const startAgentAction = useMutation({
     mutationFn: async (input: {
@@ -682,48 +634,6 @@ export function JobQaFindingsSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {runQaChecksAction?.visible ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={
-                !runQaChecksAction.enabled || runSyncQa.isPending || startAgentAction.isPending
-              }
-              title={runQaChecksAction.disabledReason}
-              onClick={() => runSyncQa.mutate()}
-            >
-              {runSyncQa.isPending ? (
-                <FormattedMessage {...messages.running} />
-              ) : (
-                <FormattedMessage {...messages.runChecksNow} />
-              )}
-            </Button>
-          ) : null}
-          {fixQaAction?.visible ? (
-            <Button
-              size="sm"
-              disabled={
-                !fixQaAction.enabled || selectedFindings.length === 0 || startAgentAction.isPending
-              }
-              title={
-                selectedFindings.length === 0
-                  ? intl.formatMessage(messages.selectAtLeastOneFinding)
-                  : fixQaAction.disabledReason
-              }
-              onClick={() =>
-                startAgentAction.mutate({
-                  action: "fix_qa_issues",
-                  selectedFindings,
-                })
-              }
-            >
-              <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
-              <FormattedMessage
-                {...messages.fixSelected}
-                values={{ count: selectedFindings.length }}
-              />
-            </Button>
-          ) : null}
           {commentAction?.visible ? (
             <Button
               size="sm"
@@ -763,11 +673,7 @@ export function JobQaFindingsSection({
 
       {activeQaRun ? (
         <p className="mt-4 rounded-md border border-bud-500/20 bg-bud-500/8 px-3 py-2 text-sm text-bud-300">
-          {activeQaRun.inputSnapshot?.action === "review_with_agent" ? (
-            <FormattedMessage {...messages.agentReviewRunning} />
-          ) : (
-            <FormattedMessage {...messages.qaChecksRunning} />
-          )}
+          <FormattedMessage {...messages.agentReviewRunning} />
         </p>
       ) : null}
 
@@ -1004,15 +910,6 @@ export function JobQaFindingsSection({
               <FormattedMessage {...messages.noQaFindingsYetDescription} />
             </EmptyDescription>
           </EmptyHeader>
-          {runQaChecksAction?.visible && runQaChecksAction.enabled ? (
-            <Button size="sm" disabled={runSyncQa.isPending} onClick={() => runSyncQa.mutate()}>
-              {runSyncQa.isPending ? (
-                <FormattedMessage {...messages.running} />
-              ) : (
-                <FormattedMessage {...messages.runQaChecks} />
-              )}
-            </Button>
-          ) : null}
         </Empty>
       ) : null}
 

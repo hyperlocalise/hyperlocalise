@@ -154,7 +154,7 @@ describe("Identifier Schema length limits", () => {
   it("should enforce length limits on findings and locales", () => {
     const item = { externalStringId: "v", key: "v" };
     const findings = (message: string, key = "v") => ({
-      action: "run_qa_checks",
+      action: "leave_provider_comment",
       selectedFindings: [
         { checkType: "glossary", severity: "error", message, item: { ...item, key } },
       ],

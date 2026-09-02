@@ -94,9 +94,3 @@ export const providerReviewReportSchema = z.object({
   threads: z.array(providerReviewThreadSchema),
   summary: providerReviewSummarySchema,
 });
-
-export const providerQaReportResponseSchema = z.object({
-  qaReport: providerQaReportSchema.extend({
-    pullRunId: z.string(),
-  }),
-});

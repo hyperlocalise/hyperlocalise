@@ -217,7 +217,6 @@ export class SmartlingTmsProvider extends TmsProvider {
     "glossary.import": implemented,
     "glossary.export": implemented,
     "glossary.search": implemented,
-    "qa.run": implemented,
     "review.pull": implemented,
     "webhooks.receive": implemented,
     "webhooks.configure": implemented,

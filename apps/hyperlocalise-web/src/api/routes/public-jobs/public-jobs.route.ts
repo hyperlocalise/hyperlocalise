@@ -28,7 +28,6 @@ import {
   getAccessibleProjectIds,
   hasOrganizationWideProjectAccess,
 } from "@/api/auth/team-access";
-import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { badRequestResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
 import {
@@ -238,11 +237,6 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
 
         if (!project) {
           return projectNotFoundResponse(c);
-        }
-
-        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
-        if (aiFeaturesDenied) {
-          return aiFeaturesDenied;
         }
 
         const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;

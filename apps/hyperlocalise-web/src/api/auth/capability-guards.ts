@@ -95,8 +95,6 @@ function isKnownJobProviderActionAllowed(
       return isWriteBackApproveAllowed(role);
     case "translate_with_agent":
     case "review_with_agent":
-    case "run_qa_checks":
-    case "fix_qa_issues":
     case "leave_provider_comment":
       return isAiActionAllowed(role);
     default:
