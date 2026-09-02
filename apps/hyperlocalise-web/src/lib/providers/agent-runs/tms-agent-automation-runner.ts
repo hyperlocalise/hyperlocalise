@@ -15,6 +15,7 @@ import type {
   ProviderAgentWritebackQueue,
 } from "@/lib/workflow/types";
 
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
   createOrReuseActivePushApprovedWriteBackAgentRun,
   createAgentRun,
@@ -62,6 +63,11 @@ export async function runTmsAgentAutomationForSyncedJob(
 
   const translationQueue = input.queues?.providerAgentTranslationQueue;
   if (settings.autoDraftTranslations.enabled && translationQueue && automationLocales.length > 0) {
+    const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+    if (!aiFeatures.ok) {
+      return { triggered };
+    }
+
     const translateRun = await createAutomationAgentRun({
       ...input,
       action: "translate_with_agent",

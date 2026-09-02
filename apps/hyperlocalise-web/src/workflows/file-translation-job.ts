@@ -12,7 +12,6 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
-import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { hlEntriesPayloadToStringMap } from "@/lib/projects/files/hl-entries";
@@ -30,6 +29,7 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
   completeFileTranslationJobStep,
+  ensureAiFeaturesAllowedStep,
   failTranslationJobStep,
   getProjectOrganizationStep,
   getStoredFileContentStep,
@@ -599,7 +599,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw new Error("project not found");
   }
 
-  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId });
+  const aiFeatures = await ensureAiFeaturesAllowedStep({ organizationId });
   if (!aiFeatures.ok) {
     await failTranslationJobStep({
       jobId: claim.job.id,

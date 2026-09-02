@@ -137,6 +137,7 @@ export function ProjectFileContentEditorWorkspace({
 }) {
   const intl = useIntl();
   const aiFeaturesAccess = useAiFeaturesAccess();
+  const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed";
   const upgradePlanHref =
     aiFeaturesAccess.status === "denied"
       ? { organizationSlug, href: buildAvailablePlansHref(organizationSlug) }
@@ -871,9 +872,13 @@ export function ProjectFileContentEditorWorkspace({
                       treatAsVideo: nextTreatAsVideo,
                     });
                   },
-                  onRegenerateImage: async (segmentId: string) => {
-                    await regenerateImage({ externalStringId: segmentId });
-                  },
+                  ...(aiFeaturesAllowed
+                    ? {
+                        onRegenerateImage: async (segmentId: string) => {
+                          await regenerateImage({ externalStringId: segmentId });
+                        },
+                      }
+                    : {}),
                   onSetMaxLength: handleSetMaxLength,
                 }
               : {}),
@@ -927,7 +932,7 @@ export function ProjectFileContentEditorWorkspace({
           queuePagination={pagination}
           onLoadMoreQueue={loadNextPage}
           hasMoreQueue={pagination?.hasMore ?? false}
-          canLookupFreshContext={canLookupFreshContext}
+          canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
           onPageLimitChange={setPageLimit}
           nativeIssuesEnabled={isNativeProject}
           onDownloadFilteredView={handleDownloadFilteredView}

@@ -325,6 +325,15 @@ export async function createFileTranslationJob(
 export async function enqueueExistingFileTranslationJob(
   input: EnqueueExistingFileTranslationJobInput,
 ): Promise<EnqueueExistingFileTranslationJobResult> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return {
+      ok: false,
+      code: aiFeatures.error.code,
+      message: aiFeatures.error.message,
+    };
+  }
+
   const [job] = await db
     .select({
       id: schema.jobs.id,

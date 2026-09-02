@@ -29,6 +29,7 @@ import {
   hasOrganizationWideProjectAccess,
 } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/response.schema";
+import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
 import {
   formatUsageControlError,
@@ -247,6 +248,11 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         });
         if (isErr(localeValidation)) {
           return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+        }
+
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
         }
 
         if (payload.type === "file") {

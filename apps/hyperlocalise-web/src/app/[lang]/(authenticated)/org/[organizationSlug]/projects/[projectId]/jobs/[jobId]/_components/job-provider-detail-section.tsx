@@ -27,7 +27,6 @@ import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-r
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { jobProviderDetailSectionMessages as messages } from "./job-provider-detail-section.messages";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
-import { JobQaFindingsSection } from "./job-qa-findings-section";
 import type { AgentRunRecord, ProviderBackedJobFields } from "./job-detail-types";
 import { SyncedJobSourceFilesSection } from "./tms/synced-job-source-files-section";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
@@ -186,23 +185,6 @@ export function JobProviderDetailSection({
           />
         );
       }}
-      renderQaFindings={(props) => (
-        <JobQaFindingsSection
-          jobId={props.jobId}
-          organizationSlug={props.organizationSlug}
-          projectId={props.projectId}
-          externalUrl={props.job.externalUrl}
-          agentRuns={props.agentRuns}
-          agentRunsLoading={props.agentRunsLoading}
-          providerActions={props.job.providerActions ?? []}
-          onAgentRunStarted={async () => {
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: agentRunsQueryKey }),
-              queryClient.invalidateQueries({ queryKey: jobQueryKey }),
-            ]);
-          }}
-        />
-      )}
       renderDiffReview={(props) => (
         <JobAgentRunDiffReviewSection
           jobId={props.jobId}

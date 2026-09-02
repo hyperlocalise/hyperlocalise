@@ -452,6 +452,16 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
       }
 
+      if (jobKind !== "proofread") {
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+          c,
+          c.var.auth.organization.localOrganizationId,
+        );
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
+        }
+      }
+
       let ownerUserId: string | null = null;
       if (payload.ownerWorkosUserId) {
         const [owner] = await db
@@ -931,6 +941,13 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
+
+        if (payload.action === "translate_with_agent") {
+          const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
+          if (aiFeaturesDenied) {
+            return aiFeaturesDenied;
+          }
+        }
 
         const [job] = await db
           .select({

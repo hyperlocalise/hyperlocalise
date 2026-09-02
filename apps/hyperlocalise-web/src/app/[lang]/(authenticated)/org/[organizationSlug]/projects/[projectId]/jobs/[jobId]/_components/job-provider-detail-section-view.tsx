@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import { AiMagicIcon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -61,15 +61,6 @@ export type JobProviderSourceFilesRenderer = (props: {
   projectId: string;
 }) => ReactNode;
 
-export type JobProviderQaFindingsRenderer = (props: {
-  agentRuns?: AgentRunRecord[];
-  agentRunsLoading: boolean;
-  job: ProviderBackedJobFields;
-  jobId: string;
-  organizationSlug: string;
-  projectId: string | null;
-}) => ReactNode;
-
 export type JobProviderDiffReviewRenderer = (props: {
   agentRuns?: AgentRunRecord[];
   agentRunsLoading: boolean;
@@ -90,10 +81,13 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+const toolbarHiddenProviderActions = new Set<JobProviderActionId>([
+  "translate_with_agent",
+  "leave_provider_comment",
+]);
+
 function actionIcon(actionId: JobProviderActionId) {
   switch (actionId) {
-    case "leave_provider_comment":
-      return Comment01Icon;
     case "push_approved_changes":
       return RefreshIcon;
     default:
@@ -142,7 +136,6 @@ export function JobProviderDetailSectionView({
   projectId,
   renderDiffReview,
   renderExternalLink = defaultRenderExternalLink,
-  renderQaFindings,
   renderSourceFiles,
   showAgentActions = true,
   showProviderMetadata = true,
@@ -158,14 +151,13 @@ export function JobProviderDetailSectionView({
   projectId: string | null;
   renderDiffReview?: JobProviderDiffReviewRenderer;
   renderExternalLink?: JobProviderExternalLinkRenderer;
-  renderQaFindings?: JobProviderQaFindingsRenderer;
   renderSourceFiles?: JobProviderSourceFilesRenderer;
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
   const intl = useIntl();
   const visibleActions = (job.providerActions ?? []).filter(
-    (action) => action.visible && action.id !== "translate_with_agent",
+    (action) => action.visible && !toolbarHiddenProviderActions.has(action.id),
   );
   const crowdinDescription =
     getProviderPayloadString(job.externalProviderPayload, "description")?.trim() ?? "";
@@ -314,17 +306,6 @@ export function JobProviderDetailSectionView({
           </div>
         </section>
       ) : null}
-
-      {renderQaFindings
-        ? renderQaFindings({
-            agentRuns,
-            agentRunsLoading,
-            job,
-            jobId,
-            organizationSlug,
-            projectId,
-          })
-        : null}
 
       {renderDiffReview
         ? renderDiffReview({

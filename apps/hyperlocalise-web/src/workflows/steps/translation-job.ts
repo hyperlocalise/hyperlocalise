@@ -23,6 +23,12 @@ export async function claimTranslationJobStep(input: {
   return claimTranslationJob(input);
 }
 
+export async function ensureAiFeaturesAllowedStep(input: { organizationId: string }) {
+  "use step";
+  const { ensureAiFeaturesAllowed } = await import("@/lib/billing/ai-features");
+  return ensureAiFeaturesAllowed(input);
+}
+
 export async function executeClaimedTranslationJobStep(job: ClaimedTranslationJob) {
   "use step";
   const { executeClaimedTranslationJob } = await import("@/lib/translation/jobs");
