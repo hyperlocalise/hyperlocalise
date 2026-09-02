@@ -385,6 +385,16 @@ describe("MCP team-scoped access", () => {
     };
     expect(getDeniedBody.project).toBeNull();
 
+    const statusDeniedResponse = await callMcpTool(accessToken, "get_project_status", {
+      projectId: betaProjectBody.project.id,
+    });
+    expect(statusDeniedResponse.status).toBe(200);
+    const statusDeniedBody = await statusDeniedResponse.json();
+    expect((statusDeniedBody as { result?: { isError?: boolean } }).result?.isError).toBe(true);
+    expect(parseToolResultText(statusDeniedBody)).toMatchObject({
+      error: "project_not_found",
+    });
+
     const createDeniedResponse = await callMcpTool(accessToken, "create_issue", {
       projectId: alphaProjectBody.project.id,
       title: "Member must not create this issue",

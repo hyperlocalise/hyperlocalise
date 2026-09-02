@@ -77,6 +77,7 @@ import {
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import { loadMcpProjectStatus } from "@/api/routes/mcp/mcp-project-status";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -644,6 +645,51 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ project: project ?? null }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_project_status",
+    {
+      description:
+        "Get locale coverage counts for an accessible Hyperlocalise project. Returns CAT queue totals per target locale without source or target text. Counts use the native key overlay (the same filters as the Content Editor). Live TMS provider statistics are out of scope.",
+      inputSchema: z.object({
+        projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
+        sourcePath: z
+          .string()
+          .trim()
+          .min(1)
+          .max(2048)
+          .optional()
+          .describe("Optional source file path. When set, also returns counts for that file only."),
+      }),
+    },
+    async ({ projectId, sourcePath }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const status = await loadMcpProjectStatus({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        sourceLocale: project.sourceLocale,
+        targetLocales: project.targetLocales,
+        sourcePath,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
       };
     },
   );

@@ -3178,4 +3178,145 @@ describe("mcpRoutes", () => {
       });
     },
   );
+
+  it("advertises the get_project_status tool with a bounded input schema", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_project_status");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("locale coverage");
+    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId"]));
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: expect.any(Object),
+      sourcePath: {
+        type: "string",
+        minLength: 1,
+        maxLength: 2048,
+      },
+    });
+  });
+
+  it("returns locale coverage for an accessible project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_project_status",
+          arguments: {
+            projectId: stored.project.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ type: string; text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBeFalsy();
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      projectId: stored.project.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      coverageSource: "native_overlay",
+      locales: [
+        {
+          locale: "fr-FR",
+          total: 0,
+          translated: 0,
+          untranslated: 0,
+          needsReview: 0,
+          approved: 0,
+          hidden: 0,
+        },
+      ],
+    });
+  });
+
+  it("returns project_not_found for an inaccessible project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const outsider = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(outsider.identity);
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_project_status",
+          arguments: {
+            projectId: stored.project.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ type: string; text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+  });
 });
