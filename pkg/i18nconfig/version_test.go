@@ -91,6 +91,50 @@ func TestCheckPinnedCLIVersion(t *testing.T) {
 	}
 }
 
+func TestInstallerVersionFromConfigFile(t *testing.T) {
+	yamlPath := writeConfigFileNamed(t, "i18n.yml", `
+version: hyperlocalise@1.2.3 # pinned
+locales:
+  source: en-US
+  targets:
+    - es-ES
+buckets:
+  ui:
+    files:
+      - from: a
+        to: b
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: x
+`)
+
+	got, err := InstallerVersionFromConfigFile(yamlPath)
+	if err != nil {
+		t.Fatalf("installer version from yaml config: %v", err)
+	}
+	if got != "1.2.3" {
+		t.Fatalf("installer version = %q, want 1.2.3", got)
+	}
+
+	jsoncPath := writeConfigFileNamed(t, "i18n.jsonc", `{
+  // pinned cli
+  "version": "hyperlocalise@2.0.0",
+  "locales": {"source": "en-US", "targets": ["es-ES"]},
+  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+  "llm": {"profiles": {"default": {"provider": "openai", "model": "x"}}}
+}`)
+
+	got, err = InstallerVersionFromConfigFile(jsoncPath)
+	if err != nil {
+		t.Fatalf("installer version from jsonc config: %v", err)
+	}
+	if got != "2.0.0" {
+		t.Fatalf("installer version = %q, want 2.0.0", got)
+	}
+}
+
 func TestLoadForCLIEnforcesPinnedVersion(t *testing.T) {
 	path := writeConfigFile(t, `{
 	  "version": "hyperlocalise@1.2.3",

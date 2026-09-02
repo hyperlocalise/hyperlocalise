@@ -3,40 +3,20 @@ set -euo pipefail
 
 requested="${1:-latest}"
 config_path="${2:-i18n.yml}"
+working_directory="${3:-.}"
+repo_root="${GITHUB_ACTION_PATH:-${GITHUB_WORKSPACE:-.}}"
 
 if [[ "${requested}" != "config" ]]; then
   printf '%s\n' "${requested}"
   exit 0
 fi
 
-if [[ ! -f "${config_path}" ]]; then
-  echo "Failed to resolve Hyperlocalise version from config: ${config_path} does not exist." >&2
+if ! command -v go >/dev/null 2>&1; then
+  echo "Failed to resolve Hyperlocalise version from config: Go is required when hyperlocalise-version is set to config." >&2
   exit 1
 fi
 
-pinned="$(
-  awk -F: '
-    /^[[:space:]]*version:[[:space:]]*/ {
-      value = substr($0, index($0, ":") + 1)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-      gsub(/^["'\'']|["'\'']$/, "", value)
-      print value
-      exit
-    }
-  ' "${config_path}"
-)"
-
-if [[ -z "${pinned}" ]]; then
-  echo "Failed to resolve Hyperlocalise version from config: version is not set in ${config_path}." >&2
-  exit 1
-fi
-
-case "${pinned}" in
-  hyperlocalise@*|hl@*)
-    printf '%s\n' "${pinned#*@}"
-    ;;
-  *)
-    echo "Failed to resolve Hyperlocalise version from config: expected hyperlocalise@<version> or hl@<version>, got ${pinned}." >&2
-    exit 1
-    ;;
-esac
+(
+  cd "${repo_root}"
+  go run ./tools/github-action/hyperlocalise-ci/cmd/resolve-config-version "${requested}" "${config_path}" "${working_directory}"
+)

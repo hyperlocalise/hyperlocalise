@@ -56,6 +56,25 @@ func ParsePinnedCLIVersion(value string) (*semver.Version, error) {
 	return parsed, nil
 }
 
+// InstallerVersionFromConfigFile reads the pinned CLI installer version from an i18n config file.
+func InstallerVersionFromConfigFile(path string) (string, error) {
+	cfg, err := Load(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve version from config: %w", err)
+	}
+
+	if strings.TrimSpace(cfg.Version) == "" {
+		return "", fmt.Errorf("version is not set in %s", path)
+	}
+
+	pinned, err := ParsePinnedCLIVersion(cfg.Version)
+	if err != nil {
+		return "", err
+	}
+
+	return pinned.Original(), nil
+}
+
 // CheckPinnedCLIVersion verifies the running CLI matches the pinned version in the config.
 // When version is omitted or the running CLI version is unavailable, the check is skipped.
 func (c I18NConfig) CheckPinnedCLIVersion(cliVersion string) error {

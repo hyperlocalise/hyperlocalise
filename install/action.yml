@@ -9,6 +9,12 @@ inputs:
   version:
     description: Hyperlocalise release version to install (for example latest, v1.2.3, 1.2.3, or config to read version from i18n.yml).
     default: latest
+  config-path:
+    description: Path to the i18n config file used when version is config.
+    default: i18n.yml
+  working-directory:
+    description: Working directory used to resolve a relative config-path when version is config.
+    default: .
   install-dir:
     description: Directory to install the hyperlocalise binary into. Defaults to a runner temp directory.
     default: ""
@@ -21,18 +27,27 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Setup Go for config version resolution
+      if: ${{ inputs.version == 'config' }}
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version-file: ${{ github.action_path }}/../go.mod
+        cache: true
+
     - name: Install Hyperlocalise
       id: install
       shell: bash
       env:
         VERSION: ${{ inputs.version }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
         INSTALL_DIR_INPUT: ${{ inputs.install-dir }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         install_dir="${INSTALL_DIR_INPUT:-${RUNNER_TEMP}/hyperlocalise-bin}"
         mkdir -p "${install_dir}"
-        resolved_version="$(bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/resolve-hyperlocalise-version.sh" "${VERSION}")"
+        resolved_version="$(bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/resolve-hyperlocalise-version.sh" "${VERSION}" "${CONFIG_PATH}" "${WORKING_DIRECTORY}")"
         bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${resolved_version}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
         echo "install-dir=${install_dir}" >>"${GITHUB_OUTPUT}"
