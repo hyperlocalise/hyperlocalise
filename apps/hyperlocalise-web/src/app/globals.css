@@ -17,7 +17,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Geist color system (https://vercel.com/design.md)
+ * Harbour neutrals, Geist chromatic scales, Dew brand blue.
  * Light values in :root, dark values in .dark. Tailwind utilities reference --ds-* tokens.
  */
 
@@ -131,6 +131,13 @@
   --color-dew-500: #62a8ff;
   --color-dew-100: #9cc7ff;
 
+  /* Harbour primitives — theme-stable brand neutrals */
+  --color-ink: #020305;
+  --color-navy: #283a51;
+  --color-slate: #5f7188;
+  --color-steel: #a5b7c5;
+  --color-fog: #dee3e7;
+
   --color-grove-900: var(--ds-green-900);
   --color-grove-700: var(--ds-green-700);
   --color-grove-500: var(--ds-green-500);
@@ -170,12 +177,12 @@
 
   --color-warning: var(--ds-amber-700);
   --color-warning-foreground: var(--ds-gray-1000);
-  --color-success: var(--ds-green-600);
+  --color-success: #00952d;
   --color-success-foreground: #ffffff;
-  --color-error: var(--ds-red-800);
+  --color-error: #e2162a;
   --color-error-foreground: #ffffff;
-  --color-info: var(--ds-blue-600);
-  --color-info-foreground: var(--ds-gray-1000);
+  --color-info: #0090ff;
+  --color-info-foreground: #ffffff;
   --color-neutral: var(--ds-gray-500);
   --color-neutral-foreground: var(--ds-gray-1000);
 
@@ -255,27 +262,27 @@ html {
   --app-shell-header-height: 3.5rem;
 
   --ds-background-100: #ffffff;
-  --ds-background-200: #fafafa;
-  --ds-gray-100: #f2f2f2;
-  --ds-gray-200: #ebebeb;
-  --ds-gray-300: #e6e6e6;
-  --ds-gray-400: #eaeaea;
-  --ds-gray-500: #c9c9c9;
-  --ds-gray-600: #a8a8a8;
-  --ds-gray-700: #8f8f8f;
-  --ds-gray-800: #7d7d7d;
-  --ds-gray-900: #4d4d4d;
-  --ds-gray-1000: #171717;
-  --ds-gray-alpha-100: #0000000d;
-  --ds-gray-alpha-200: #00000015;
-  --ds-gray-alpha-300: #0000001a;
-  --ds-gray-alpha-400: #00000014;
-  --ds-gray-alpha-500: #00000036;
-  --ds-gray-alpha-600: #0000003d;
-  --ds-gray-alpha-700: #00000070;
-  --ds-gray-alpha-800: #00000082;
-  --ds-gray-alpha-900: #000000b3;
-  --ds-gray-alpha-1000: #000000e8;
+  --ds-background-200: #f8fbfd;
+  --ds-gray-100: #eff3f6;
+  --ds-gray-200: #dee3e7;
+  --ds-gray-300: #cbd4dc;
+  --ds-gray-400: #b8c5d0;
+  --ds-gray-500: #a5b7c5;
+  --ds-gray-600: #8194a6;
+  --ds-gray-700: #5f7188;
+  --ds-gray-800: #43556c;
+  --ds-gray-900: #283a51;
+  --ds-gray-1000: #0b121b;
+  --ds-gray-alpha-100: #0203050d;
+  --ds-gray-alpha-200: #02030515;
+  --ds-gray-alpha-300: #0203051a;
+  --ds-gray-alpha-400: #283a5114;
+  --ds-gray-alpha-500: #02030536;
+  --ds-gray-alpha-600: #0203053d;
+  --ds-gray-alpha-700: #02030570;
+  --ds-gray-alpha-800: #02030582;
+  --ds-gray-alpha-900: #020305b3;
+  --ds-gray-alpha-1000: #020305e8;
   --ds-blue-100: #f0f7ff;
   --ds-blue-200: #e9f4ff;
   --ds-blue-300: #dfefff;
@@ -359,14 +366,14 @@ html {
   --secondary: var(--ds-gray-100);
   --secondary-foreground: var(--ds-gray-1000);
   --muted: var(--ds-background-200);
-  --muted-foreground: var(--ds-gray-900);
+  --muted-foreground: var(--ds-gray-800);
   --subtle-foreground: var(--ds-gray-700);
   --subtle: var(--ds-gray-100);
   --skeleton: var(--ds-gray-200);
   --accent: var(--ds-gray-100);
   --accent-foreground: var(--ds-gray-1000);
-  --destructive: var(--ds-red-800);
-  --destructive-solid: var(--ds-red-800);
+  --destructive: #e2162a;
+  --destructive-solid: #e2162a;
   --destructive-foreground: #ffffff;
   --border: var(--ds-gray-alpha-400);
   --input: var(--ds-gray-alpha-400);
@@ -379,7 +386,7 @@ html {
   --radius: 0.375rem;
   --sidebar: var(--ds-background-200);
   --sidebar-foreground: var(--ds-gray-1000);
-  --sidebar-muted-foreground: var(--ds-gray-900);
+  --sidebar-muted-foreground: var(--ds-gray-800);
   --sidebar-primary: var(--ds-blue-700);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: var(--ds-gray-100);
@@ -391,28 +398,28 @@ html {
 .dark {
   color-scheme: dark;
 
-  --ds-background-100: #000000;
-  --ds-background-200: #000000;
-  --ds-gray-100: #1a1a1a;
-  --ds-gray-200: #1f1f1f;
-  --ds-gray-300: #292929;
-  --ds-gray-400: #2e2e2e;
-  --ds-gray-500: #454545;
-  --ds-gray-600: #878787;
-  --ds-gray-700: #8f8f8f;
-  --ds-gray-800: #7d7d7d;
-  --ds-gray-900: #a0a0a0;
-  --ds-gray-1000: #ededed;
-  --ds-gray-alpha-100: #ffffff12;
-  --ds-gray-alpha-200: #ffffff17;
-  --ds-gray-alpha-300: #ffffff21;
-  --ds-gray-alpha-400: #ffffff24;
-  --ds-gray-alpha-500: #ffffff3d;
-  --ds-gray-alpha-600: #ffffff82;
-  --ds-gray-alpha-700: #ffffff8a;
-  --ds-gray-alpha-800: #ffffff78;
-  --ds-gray-alpha-900: #ffffff9c;
-  --ds-gray-alpha-1000: #ffffffeb;
+  --ds-background-100: #020305;
+  --ds-background-200: #020305;
+  --ds-gray-100: #11161d;
+  --ds-gray-200: #192029;
+  --ds-gray-300: #202a37;
+  --ds-gray-400: #283a51;
+  --ds-gray-500: #43556c;
+  --ds-gray-600: #5f7188;
+  --ds-gray-700: #75889c;
+  --ds-gray-800: #8c9fb0;
+  --ds-gray-900: #a5b7c5;
+  --ds-gray-1000: #dee3e7;
+  --ds-gray-alpha-100: #dee3e712;
+  --ds-gray-alpha-200: #dee3e717;
+  --ds-gray-alpha-300: #dee3e721;
+  --ds-gray-alpha-400: #dee3e724;
+  --ds-gray-alpha-500: #dee3e73d;
+  --ds-gray-alpha-600: #dee3e782;
+  --ds-gray-alpha-700: #dee3e78a;
+  --ds-gray-alpha-800: #dee3e778;
+  --ds-gray-alpha-900: #dee3e79c;
+  --ds-gray-alpha-1000: #dee3e7eb;
   --ds-blue-100: #06193a;
   --ds-blue-200: #022248;
   --ds-blue-300: #002f62;
