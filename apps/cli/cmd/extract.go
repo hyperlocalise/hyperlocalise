@@ -627,37 +627,42 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 		return extractMessage{}, false, err
 	}
 
-	values := make(map[string]string)
+	var id, defaultMessage, description string
+	var hasID, hasDefaultMessage bool
 	for _, property := range properties {
 		if !property.stringValueSet {
 			continue
 		}
 		switch property.key {
-		case "description", "defaultMessage", "id":
-			values[property.key] = property.stringValue
+		case "id":
+			id = property.stringValue
+			hasID = true
+		case "defaultMessage":
+			defaultMessage = property.stringValue
+			hasDefaultMessage = true
+		case "description":
+			description = property.stringValue
 		}
 	}
 
-	id, ok := values["id"]
-	if !ok || strings.TrimSpace(id) == "" {
-		defaultMessage, ok := values["defaultMessage"]
-		if !ok {
+	if !hasID || strings.TrimSpace(id) == "" {
+		if !hasDefaultMessage {
 			return extractMessage{}, false, nil
 		}
-		id = generatedFormatJSMessageID(defaultMessage, values["description"])
+		id = generatedFormatJSMessageID(defaultMessage, description)
 	}
 
 	return extractMessage{
 		ID:             id,
-		DefaultMessage: values["defaultMessage"],
-		Description:    values["description"],
+		DefaultMessage: defaultMessage,
+		Description:    description,
 		sourcePath:     file,
 		sourcePos:      objectStart,
 	}, true, nil
 }
 
 func parseObjectProperties(src string, objectStart, objectEnd int) ([]extractObjectProperty, error) {
-	properties := make([]extractObjectProperty, 0)
+	properties := make([]extractObjectProperty, 0, 4)
 	for i := objectStart + 1; i < objectEnd; {
 		i = skipWhitespaceAndComments(src, i)
 		if i >= objectEnd {
@@ -964,7 +969,11 @@ func parseJSXAttributeValue(src string, index, tagEnd int) (string, int, bool, e
 		if end > tagEnd {
 			return "", index, false, fmt.Errorf("unterminated JSX attribute at line %d", sourceLine(src, index))
 		}
-		return html.UnescapeString(src[index+1 : end-1]), end, true, nil
+		raw := src[index+1 : end-1]
+		if strings.IndexByte(raw, '&') >= 0 {
+			return html.UnescapeString(raw), end, true, nil
+		}
+		return raw, end, true, nil
 	case '{':
 		end, ok := findMatchingDelimiter(src, index, '{', '}')
 		if !ok || end > tagEnd {
@@ -1002,12 +1011,8 @@ func parseStaticJSXExpression(expr string) (string, bool) {
 
 func skipQuotedJSXAttribute(src string, index int) int {
 	quote := src[index]
-	i := index + 1
-	for i < len(src) {
-		if src[i] == quote {
-			return i + 1
-		}
-		i++
+	if i := strings.IndexByte(src[index+1:], quote); i >= 0 {
+		return index + 1 + i + 1
 	}
 
 	return len(src) + 1
@@ -1055,8 +1060,32 @@ func parseStaticStringLiteral(src string, index int) (string, int, bool) {
 
 func readStringLiteralContent(src string, index int) (string, int, bool) {
 	quote := src[index]
+	var target string
+	switch quote {
+	case '\'':
+		target = "'\\"
+	case '"':
+		target = "\"\\"
+	case '`':
+		target = "`\\"
+	default:
+		target = string(quote) + "\\"
+	}
+
+	pos := strings.IndexAny(src[index+1:], target)
+	if pos < 0 {
+		return "", len(src), false
+	}
+	hit := index + 1 + pos
+	if src[hit] == quote {
+		return src[index+1 : hit], hit + 1, true
+	}
+
+	// Hit backslash escape, fall back to building string with builder.
 	var b strings.Builder
-	for i := index + 1; i < len(src); i++ {
+	b.Grow(len(src) - index)
+	b.WriteString(src[index+1 : hit])
+	for i := hit; i < len(src); i++ {
 		if src[i] == '\\' {
 			if i+1 >= len(src) {
 				return b.String(), len(src), false
@@ -1076,7 +1105,12 @@ func readStringLiteralContent(src string, index int) (string, int, bool) {
 }
 
 func unescapeJavaScriptString(raw string) string {
+	if strings.IndexByte(raw, '\\') < 0 {
+		return raw
+	}
+
 	var b strings.Builder
+	b.Grow(len(raw))
 	for i := 0; i < len(raw); i++ {
 		if raw[i] != '\\' || i+1 >= len(raw) {
 			b.WriteByte(raw[i])
@@ -1407,9 +1441,13 @@ func skipComment(src string, index int) (int, bool) {
 	}
 }
 
+func isWhitespaceByte(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v'
+}
+
 func skipWhitespaceAndComments(src string, index int) int {
 	for i := index; i < len(src); {
-		for i < len(src) && unicode.IsSpace(rune(src[i])) {
+		for i < len(src) && isWhitespaceByte(src[i]) {
 			i++
 		}
 
