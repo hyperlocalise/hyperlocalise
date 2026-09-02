@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestExtractCommandExtractsReactIntlMessages(t *testing.T) {
@@ -823,6 +824,359 @@ func TestUnescapeJavaScriptStringSupportsHighByteHexEscapes(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatalf("unescaped bytes = %v, want %v", got, want)
 	}
+}
+
+func TestParseStaticStringLiteral(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		index    int
+		want     string
+		wantNext int
+		wantOK   bool
+	}{
+		{name: "double quoted", src: `"hello"`, want: "hello", wantNext: 7, wantOK: true},
+		{name: "single quoted", src: `'hello'`, want: "hello", wantNext: 7, wantOK: true},
+		{name: "template literal", src: "`hello`", want: "hello", wantNext: 7, wantOK: true},
+		{name: "empty double quoted", src: `""`, want: "", wantNext: 2, wantOK: true},
+		{name: "escaped double quote", src: `"say \"hi\""`, want: `say "hi"`, wantNext: 12, wantOK: true},
+		{name: "escaped single quote", src: `'it\'s fine'`, want: "it's fine", wantNext: 12, wantOK: true},
+		{name: "escaped backtick", src: "`say \\`hi\\``", want: "say `hi`", wantNext: 12, wantOK: true},
+		{name: "escaped backslash before close", src: `"foo\\"`, want: `foo\`, wantNext: 7, wantOK: true},
+		{name: "double escaped backslash", src: `"\\\\"`, want: `\\`, wantNext: 6, wantOK: true},
+		{name: "newline escape", src: `"one\ntwo"`, want: "one\ntwo", wantNext: 10, wantOK: true},
+		{name: "tab return escapes", src: `"a\tb\rc"`, want: "a\tb\rc", wantNext: 9, wantOK: true},
+		{name: "unicode escape", src: `"em\u2014dash"`, want: "em\u2014dash", wantNext: 14, wantOK: true},
+		{name: "braced unicode escape", src: `"hi\u{1F600}"`, want: "hi\U0001F600", wantNext: 13, wantOK: true},
+		{name: "hex escape", src: `"\x41BC"`, want: "ABC", wantNext: 8, wantOK: true},
+		{name: "line continuation lf", src: "\"foo\\\nbar\"", want: "foobar", wantNext: 10, wantOK: true},
+		{name: "prefix then literal", src: `xx"hello"yy`, index: 2, want: "hello", wantNext: 9, wantOK: true},
+		{name: "unterminated", src: `"hello`, wantOK: false, wantNext: 6},
+		{name: "trailing backslash", src: `"hello\`, wantOK: false, wantNext: 7},
+		{name: "not a quote", src: `hello`, wantOK: false, wantNext: 0},
+		{name: "template interpolation rejected", src: "`hello ${name}`", wantOK: false, wantNext: 15},
+		{name: "escaped interpolation still rejected", src: "`hello \\${name}`", wantOK: false, wantNext: 16},
+		{name: "quoted key then more", src: `"id": "value"`, want: "id", wantNext: 4, wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, next, ok := parseStaticStringLiteral(tt.src, tt.index)
+			if ok != tt.wantOK || got != tt.want || next != tt.wantNext {
+				t.Fatalf("parseStaticStringLiteral(%q, %d) = (%q, %d, %t), want (%q, %d, %t)",
+					tt.src, tt.index, got, next, ok, tt.want, tt.wantNext, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestReadStringLiteralContentSkipsEscapedQuotes(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		want     string
+		wantNext int
+		wantOK   bool
+	}{
+		{name: "plain", src: `"abc"`, want: "abc", wantNext: 5, wantOK: true},
+		{name: "escaped quote mid literal", src: `"ab\"cd"`, want: `ab\"cd`, wantNext: 8, wantOK: true},
+		{name: "escaped quote then more text", src: `"ab\"cd\"ef"`, want: `ab\"cd\"ef`, wantNext: 12, wantOK: true},
+		{name: "escaped backslash then closer", src: `"ab\\"`, want: `ab\\`, wantNext: 6, wantOK: true},
+		{name: "unterminated after escape", src: `"ab\"`, wantOK: false, wantNext: 5},
+		{name: "lone backslash at eof", src: `"ab\`, wantOK: false, wantNext: 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, next, ok := readStringLiteralContent(tt.src, 0)
+			if ok != tt.wantOK || got != tt.want || next != tt.wantNext {
+				t.Fatalf("readStringLiteralContent(%q) = (%q, %d, %t), want (%q, %d, %t)",
+					tt.src, got, next, ok, tt.want, tt.wantNext, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestReadStringLiteralContentDoesNotAllocateRemainingSource(t *testing.T) {
+	prefix := strings.Repeat("x", 1<<20)
+	src := prefix + `"hello\"world"`
+	index := len(prefix)
+
+	allocs := testing.AllocsPerRun(50, func() {
+		got, next, ok := readStringLiteralContent(src, index)
+		if !ok || got != `hello\"world` || next != len(src) {
+			t.Fatalf("readStringLiteralContent = (%q, %d, %t)", got, next, ok)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v, want 0 for escaped literal scan", allocs)
+	}
+}
+
+func TestUnescapeJavaScriptString(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "plain", raw: "hello", want: "hello"},
+		{name: "empty", raw: "", want: ""},
+		{name: "quotes", raw: `say \"hi\"`, want: `say "hi"`},
+		{name: "backslash", raw: `a\\b`, want: `a\b`},
+		{name: "common escapes", raw: `\b\f\n\r\t\v`, want: "\b\f\n\r\t\v"},
+		{name: "literal quote chars", raw: "\\'\\\"\\`", want: "'\"`"},
+		{name: "unknown escape", raw: `\q`, want: "q"},
+		{name: "trailing backslash", raw: `abc\`, want: `abc\`},
+		{name: "hex", raw: `\x41`, want: "A"},
+		{name: "invalid hex", raw: `\xZZ`, want: "xZZ"},
+		{name: "unicode", raw: `\u0041`, want: "A"},
+		{name: "invalid unicode", raw: `\uZZZZ`, want: "uZZZZ"},
+		{name: "braced unicode", raw: `\u{2E}`, want: "."},
+		{name: "line continuation lf", raw: "foo\\\nbar", want: "foobar"},
+		{name: "line continuation cr", raw: "foo\\\rbar", want: "foobar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := unescapeJavaScriptString(tt.raw); got != tt.want {
+				t.Fatalf("unescapeJavaScriptString(%q) = %q, want %q", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUnescapeJavaScriptStringClonesPlainLiterals(t *testing.T) {
+	src := `prefix-PLAIN-suffix`
+	raw := src[7:12]
+	got := unescapeJavaScriptString(raw)
+	if got != "PLAIN" {
+		t.Fatalf("unescaped = %q, want PLAIN", got)
+	}
+	if stringSharesBacking(got, src) {
+		t.Fatalf("plain unescape still shares backing with source")
+	}
+}
+
+func TestParseJSXAttributeValue(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		want    string
+		wantOK  bool
+		wantErr bool
+	}{
+		{name: "double quoted", src: `"hello"`, want: "hello", wantOK: true},
+		{name: "single quoted", src: `'hello'`, want: "hello", wantOK: true},
+		{name: "html entity", src: `"Tom &amp; Jerry"`, want: "Tom & Jerry", wantOK: true},
+		{name: "numeric entity", src: `"&#39;quoted&#39;"`, want: "'quoted'", wantOK: true},
+		{name: "ampersand without entity", src: `"A & B"`, want: "A & B", wantOK: true},
+		{name: "expression string", src: `{"hello"}`, want: "hello", wantOK: true},
+		{name: "expression escaped", src: `{"say \"hi\""}`, want: `say "hi"`, wantOK: true},
+		{name: "non-static expression", src: `{name}`, wantOK: false},
+		{name: "unterminated quote", src: `"hello`, wantErr: true},
+		{name: "unterminated expression", src: `{"hello"`, wantErr: true},
+		{name: "empty quoted", src: `""`, want: "", wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, ok, err := parseJSXAttributeValue(tt.src, 0, len(tt.src))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got (%q, %t)", got, ok)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseJSXAttributeValue: %v", err)
+			}
+			if ok != tt.wantOK || got != tt.want {
+				t.Fatalf("parseJSXAttributeValue(%q) = (%q, %t), want (%q, %t)",
+					tt.src, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestParseJSXAttributeValueClonesPlainQuotedText(t *testing.T) {
+	src := `xx"plain"yy`
+	got, end, ok, err := parseJSXAttributeValue(src, 2, len(src))
+	if err != nil {
+		t.Fatalf("parseJSXAttributeValue: %v", err)
+	}
+	if !ok || got != "plain" || end != 9 {
+		t.Fatalf("parseJSXAttributeValue = (%q, %d, %t)", got, end, ok)
+	}
+	if stringSharesBacking(got, src) {
+		t.Fatalf("plain JSX attribute still shares backing with source")
+	}
+}
+
+func TestExtractedMessagesDoNotRetainSourceBacking(t *testing.T) {
+	src := `
+formatMessage({
+  id: "plain.id",
+  defaultMessage: "Plain text",
+  description: "Plain description",
+});
+
+formatMessage({
+  id: "escaped.id",
+  defaultMessage: "Say \"hello\"",
+  description: "Line one\nand two",
+});
+`
+	src += strings.Repeat("// padding keeps the source buffer large\n", 256)
+	src += `
+<FormattedMessage
+  id="jsx.plain"
+  defaultMessage="JSX plain"
+  description="JSX description"
+/>
+<FormattedMessage
+  id="jsx.entity"
+  defaultMessage="Tom &amp; Jerry"
+  description="Names"
+/>
+`
+
+	messages, err := extractMessagesFromReactIntlSource(src, "retain.tsx")
+	if err != nil {
+		t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+	}
+	if got, want := len(messages), 4; got != want {
+		t.Fatalf("message count = %d, want %d", got, want)
+	}
+
+	for _, message := range messages {
+		for _, field := range []struct {
+			name  string
+			value string
+		}{
+			{"id", message.ID},
+			{"defaultMessage", message.DefaultMessage},
+			{"description", message.Description},
+		} {
+			if stringSharesBacking(field.value, src) {
+				t.Fatalf("message %q field %s %q still shares backing with source",
+					message.ID, field.name, field.value)
+			}
+		}
+	}
+}
+
+func TestExtractMessagesFromEscapedStringLiterals(t *testing.T) {
+	src := `
+formatMessage({
+  id: "escaped.quotes",
+  defaultMessage: "Say \"hello\" and 'bye'",
+  description: "Quoted copy",
+});
+
+formatMessage({
+  id: "escaped.unicode",
+  defaultMessage: "Range\u2014end",
+  description: "Dash copy",
+});
+
+formatMessage({
+  id: 'escaped.newline',
+  defaultMessage: 'Line one\nLine two',
+});
+
+formatMessage({
+  id: "escaped.backslash",
+  defaultMessage: "C:\\Users\\name",
+});
+`
+	messages, err := extractMessagesFromReactIntlSource(src, "escaped.ts")
+	if err != nil {
+		t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+	}
+
+	got := map[string]extractMessage{}
+	for _, message := range messages {
+		got[message.ID] = message
+	}
+
+	want := map[string]extractCatalogMessage{
+		"escaped.quotes": {
+			DefaultMessage: `Say "hello" and 'bye'`,
+			Description:    "Quoted copy",
+		},
+		"escaped.unicode": {
+			DefaultMessage: "Range\u2014end",
+			Description:    "Dash copy",
+		},
+		"escaped.newline": {
+			DefaultMessage: "Line one\nLine two",
+		},
+		"escaped.backslash": {
+			DefaultMessage: `C:\Users\name`,
+		},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("message count = %d, want %d; ids=%v", len(got), len(want), got)
+	}
+	for id, wantMessage := range want {
+		gotMessage, ok := got[id]
+		if !ok {
+			t.Fatalf("missing message %q", id)
+		}
+		if gotMessage.DefaultMessage != wantMessage.DefaultMessage ||
+			gotMessage.Description != wantMessage.Description {
+			t.Fatalf("message %q = {%q, %q}, want {%q, %q}",
+				id, gotMessage.DefaultMessage, gotMessage.Description,
+				wantMessage.DefaultMessage, wantMessage.Description)
+		}
+	}
+}
+
+func TestExtractMessagesFromJSXAttributeEntities(t *testing.T) {
+	src := `
+<FormattedMessage
+  id="jsx.entities"
+  defaultMessage="Tom &amp; Jerry"
+  description="Cartoon names"
+/>
+<FormattedMessage
+  id={"jsx.expression"}
+  defaultMessage={"Say \"hello\""}
+  description={'Single quoted'}
+/>
+`
+	messages, err := extractMessagesFromReactIntlSource(src, "jsx-attrs.tsx")
+	if err != nil {
+		t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+	}
+
+	got := map[string]extractMessage{}
+	for _, message := range messages {
+		got[message.ID] = message
+	}
+
+	if got, want := len(got), 2; got != want {
+		t.Fatalf("message count = %d, want %d", got, want)
+	}
+	if message := got["jsx.entities"]; message.DefaultMessage != "Tom & Jerry" || message.Description != "Cartoon names" {
+		t.Fatalf("jsx.entities = {%q, %q}", message.DefaultMessage, message.Description)
+	}
+	if message := got["jsx.expression"]; message.DefaultMessage != `Say "hello"` || message.Description != "Single quoted" {
+		t.Fatalf("jsx.expression = {%q, %q}", message.DefaultMessage, message.Description)
+	}
+}
+
+func stringSharesBacking(value, src string) bool {
+	if len(value) == 0 || len(src) == 0 {
+		return false
+	}
+
+	valueStart := uintptr(unsafe.Pointer(unsafe.StringData(value)))
+	srcStart := uintptr(unsafe.Pointer(unsafe.StringData(src)))
+	srcEnd := srcStart + uintptr(len(src))
+	valueEnd := valueStart + uintptr(len(value))
+
+	return valueStart < srcEnd && srcStart < valueEnd
 }
 
 func TestExtractCommandSkipsFilesWithExtractionErrors(t *testing.T) {
