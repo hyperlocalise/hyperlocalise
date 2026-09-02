@@ -39,6 +39,8 @@ var safeLocalePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 // I18NConfig defines the i18n configuration file structure.
 type I18NConfig struct {
+	// Version pins the Hyperlocalise CLI version, for example hyperlocalise@1.2.3.
+	Version       string                  `json:"version,omitempty"`
 	Locales       LocaleConfig            `json:"locales" jsonschema:"required"`
 	Buckets       map[string]BucketConfig `json:"buckets" jsonschema:"required"`
 	Groups        map[string]GroupConfig  `json:"groups,omitempty"`
@@ -249,6 +251,10 @@ func normalizeYAMLValue(value any) (any, error) {
 
 // Validate validates all cross-field i18n configuration semantics.
 func (c I18NConfig) Validate() error {
+	if err := c.validateVersion(); err != nil {
+		return err
+	}
+
 	targetSet, err := c.validateLocales()
 	if err != nil {
 		return err

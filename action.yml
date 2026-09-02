@@ -16,7 +16,7 @@ inputs:
     description: Optional working directory for the check.
     default: .
   hyperlocalise-version:
-    description: Hyperlocalise release version to install.
+    description: Hyperlocalise release version to install. Use `config` to read `version` from the i18n config file (for example hyperlocalise@1.2.3). Defaults to `latest`.
     default: latest
   fail-on-drift:
     description: Fail the action when drift is detected.
@@ -137,12 +137,14 @@ runs:
       shell: bash
       env:
         VERSION: ${{ inputs.hyperlocalise-version }}
+        CONFIG_PATH: ${{ inputs.config-path }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
         mkdir -p "${install_dir}"
-        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        resolved_version="$(bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/resolve-hyperlocalise-version.sh" "${VERSION}" "${CONFIG_PATH}")"
+        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${resolved_version}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
     - name: Fetch GitHub pull request diff

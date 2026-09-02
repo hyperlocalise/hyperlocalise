@@ -7,6 +7,18 @@ description: "Field-by-field guide for the i18n config file used by run, status,
 
 `i18n.yml` controls locales, file mapping, model profiles, and optional advanced routing. `i18n.jsonc` is still supported for compatibility.
 
+## CLI version pin
+
+Pin the Hyperlocalise CLI version at the top of `i18n.yml`, similar to `packageManager` in `package.json`:
+
+```yaml
+version: hyperlocalise@1.10.0
+```
+
+When set, commands that load the config (`run`, `check`, `status`, `pack`, `sync`, and others) fail if the running CLI version does not match the pinned value. The `hl` alias is also accepted (`hl@1.10.0`).
+
+In GitHub Actions, set `hyperlocalise-version: config` to install the version declared in your i18n config file.
+
 ## Starter config
 
 ```yaml

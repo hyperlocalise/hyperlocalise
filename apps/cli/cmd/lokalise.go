@@ -567,7 +567,7 @@ func resolveLokaliseDownloadSourcesConfig(cmd *cobra.Command, o lokaliseDownload
 }
 
 func loadLokaliseDownloadSourcesStorageConfig(configPath string) (lokalise.Config, error) {
-	cfg, err := i18nconfig.Load(configPath)
+	cfg, err := i18nconfig.LoadForCLI(configPath)
 	if err != nil {
 		return lokalise.Config{}, fmt.Errorf("lokalise download sources: load config: %w", err)
 	}
@@ -757,7 +757,7 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSourcesOptions, requireAuth bool) (lokalise.Config, string, error) {
 	cfg := lokalise.Config{}
 	if strings.TrimSpace(o.configPath) != "" {
-		loaded, err := i18nconfig.Load(o.configPath)
+		loaded, err := i18nconfig.LoadForCLI(o.configPath)
 		if err != nil {
 			return lokalise.Config{}, "", err
 		}
@@ -910,7 +910,7 @@ func loadLokaliseStorageConfig(configPath string) (lokalise.Config, error) {
 }
 
 func loadLokaliseStorageConfigForAction(configPath string, action string) (lokalise.Config, error) {
-	cfg, err := i18nconfig.Load(configPath)
+	cfg, err := i18nconfig.LoadForCLI(configPath)
 	if err != nil {
 		return lokalise.Config{}, fmt.Errorf("%s: load config: %w", action, err)
 	}
