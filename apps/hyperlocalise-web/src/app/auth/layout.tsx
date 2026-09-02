@@ -14,22 +14,6 @@ import type { ReactNode } from "react";
 
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
 
-import "./crowdin-app.css";
-
-export const metadata = {
-  title: "Hyperlocalise",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
-export default function CrowdinAppLayout({ children }: { children: ReactNode }) {
-  return (
-    <BrandThemeProvider theme="product">
-      <div data-crowdin-app className="crowdin-app-root min-h-svh bg-background text-foreground">
-        {children}
-      </div>
-    </BrandThemeProvider>
-  );
+export default function AuthLayout({ children }: { children: ReactNode }) {
+  return <BrandThemeProvider theme="product">{children}</BrandThemeProvider>;
 }

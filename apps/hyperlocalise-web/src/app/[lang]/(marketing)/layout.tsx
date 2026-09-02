@@ -14,6 +14,7 @@ import type { Metadata } from "next";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { organizationJsonLd } from "@/components/seo/organization-json-ld";
+import { BrandThemeProvider } from "@/components/ui/brand-theme";
 import { INDEXABLE_ROBOTS } from "@/lib/seo/robots-metadata";
 
 import Navbar from "./_components/navbar";
@@ -24,10 +25,10 @@ export const metadata: Metadata = {
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <BrandThemeProvider theme="marketing">
       <JsonLd data={organizationJsonLd} />
       <Navbar />
       <main>{children}</main>
-    </>
+    </BrandThemeProvider>
   );
 }

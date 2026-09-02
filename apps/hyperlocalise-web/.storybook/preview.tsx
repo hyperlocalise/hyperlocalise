@@ -6,6 +6,7 @@ import "@pierre/trees/web-components";
 import "../src/app/globals.css";
 import { QueryProvider } from "../src/components/query-provider";
 import { ThemeProvider } from "../src/components/theme-provider";
+import { BrandThemeProvider } from "../src/components/ui/brand-theme";
 import { Toaster } from "../src/components/ui/sonner";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import { SUPPORTED_APP_LOCALES } from "../src/lib/app-i18n/locales";
@@ -22,19 +23,19 @@ const inter = Inter({
 
 const domine = Domine({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 const notoSerif = Noto_Serif({
   subsets: ["latin", "latin-ext", "vietnamese"],
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 const notoSerifSc = Noto_Serif_SC({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   preload: false,
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 const geistMono = Geist_Mono({
@@ -79,10 +80,23 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    brandTheme: {
+      description: "Heading typography for marketing vs product",
+      toolbar: {
+        title: "Brand",
+        icon: "paragraph",
+        items: [
+          { value: "marketing", title: "Marketing" },
+          { value: "product", title: "Product" },
+        ],
+        dynamicTitle: true,
+      },
+    },
   },
   initialGlobals: {
     locale: "en",
     theme: "dark",
+    brandTheme: "product",
   },
   decorators: [
     (Story, { globals }) => (
@@ -101,7 +115,11 @@ const preview: Preview = {
                   headingFontVariable(globals.locale),
                 )}
               >
-                <Story />
+                <BrandThemeProvider
+                  theme={globals.brandTheme === "marketing" ? "marketing" : "product"}
+                >
+                  <Story />
+                </BrandThemeProvider>
               </div>
               <Toaster richColors closeButton />
             </TooltipProvider>

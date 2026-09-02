@@ -12,6 +12,12 @@
  */
 import type { ReactNode } from "react";
 
+import { BrandThemeProvider } from "@/components/ui/brand-theme";
+
 export default function PublicChatLayout({ children }: { children: ReactNode }) {
-  return <main className="min-h-svh bg-background">{children}</main>;
+  return (
+    <BrandThemeProvider theme="product">
+      <main className="min-h-svh bg-background">{children}</main>
+    </BrandThemeProvider>
+  );
 }

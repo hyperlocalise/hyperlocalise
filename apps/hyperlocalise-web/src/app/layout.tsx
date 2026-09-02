@@ -37,13 +37,13 @@ const inter = Inter({
 /** Domine only ships latin + latin-ext (covers en / de-DE / fr-FR). */
 const domine = Domine({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 /** Fallback heading face when Domine lacks Vietnamese glyphs. */
 const notoSerif = Noto_Serif({
   subsets: ["latin", "latin-ext", "vietnamese"],
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 /** Fallback heading face when Domine lacks CJK glyphs. */
@@ -51,7 +51,7 @@ const notoSerifSc = Noto_Serif_SC({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   preload: false,
-  variable: "--font-heading",
+  variable: "--font-heading-marketing",
 });
 
 const geistMono = Geist_Mono({
