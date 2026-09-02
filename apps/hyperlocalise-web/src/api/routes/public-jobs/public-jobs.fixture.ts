@@ -129,14 +129,20 @@ export async function insertStoredSourceFile(params: {
   return file;
 }
 
-export async function insertCompletedPublicFileJob(params: {
+export async function insertPublicTranslationJob(params: {
   projectId: string;
   organizationId: string;
   apiKeyId?: string;
-  outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
+  status: (typeof schema.jobStatusEnum.enumValues)[number];
+  type?: "string" | "file";
+  lastError?: string | null;
+  completedAt?: Date | null;
+  outputFiles?: Array<{ fileId: string; locale: string; filename: string }>;
 }) {
   return db.transaction(async (tx) => {
     const id = `job_${randomUUID()}`;
+    const type = params.type ?? (params.outputFiles ? "file" : "string");
+    const outputFiles = params.outputFiles ?? [];
     const [job] = await tx
       .insert(schema.jobs)
       .values({
@@ -144,18 +150,24 @@ export async function insertCompletedPublicFileJob(params: {
         organizationId: params.organizationId,
         projectId: params.projectId,
         kind: "translation",
-        status: "succeeded",
-        inputPayload: {
-          sourceFileId: "file_source",
-          fileFormat: "xliff",
-          sourceLocale: "en-US",
-          targetLocales: params.outputFiles.map((file) => file.locale),
-        },
-        outcomePayload: {
-          outputFiles: params.outputFiles,
-        },
+        status: params.status,
+        inputPayload:
+          type === "file"
+            ? {
+                sourceFileId: "file_source",
+                fileFormat: "xliff",
+                sourceLocale: "en-US",
+                targetLocales: outputFiles.map((file) => file.locale),
+              }
+            : {
+                sourceText: "Hello world",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+        outcomePayload: outputFiles.length > 0 ? { outputFiles } : null,
+        lastError: params.lastError ?? null,
         apiKeyId: params.apiKeyId ?? null,
-        completedAt: new Date(),
+        completedAt: params.completedAt ?? (params.status === "succeeded" ? new Date() : null),
       })
       .returning();
 
@@ -165,11 +177,25 @@ export async function insertCompletedPublicFileJob(params: {
 
     await tx.insert(schema.translationJobDetails).values({
       jobId: id,
-      type: "file",
-      outcomeKind: "file_result",
+      type,
+      outcomeKind: outputFiles.length > 0 ? "file_result" : null,
     });
 
     return job;
+  });
+}
+
+export async function insertCompletedPublicFileJob(params: {
+  projectId: string;
+  organizationId: string;
+  apiKeyId?: string;
+  outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
+}) {
+  return insertPublicTranslationJob({
+    ...params,
+    status: "succeeded",
+    type: "file",
+    outputFiles: params.outputFiles,
   });
 }
 

@@ -39,6 +39,11 @@ import {
   canAccessGlossary,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
+import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
+import {
+  findAccessiblePublicJob,
+  toMcpJobEnvelope,
+} from "@/api/routes/public-jobs/public-jobs.read";
 import {
   createAuthorizationCode,
   createMcpAuthorizationRequest,
@@ -493,6 +498,12 @@ const mcpCreateIssueInputSchema = z.object({
     .describe(
       "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
     ),
+});
+
+const mcpGetJobInputSchema = z.object({
+  jobId: jobIdParamsSchema.shape.jobId.describe(
+    "ID of the translation or workflow job to inspect, typically returned by run_workflow.",
+  ),
 });
 
 type McpCreateIssueInput = z.infer<typeof mcpCreateIssueInputSchema>;
@@ -975,6 +986,33 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ glossaries }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_job",
+    {
+      description:
+        "Get status and results for one accessible Hyperlocalise job. Poll after run_workflow until the job reaches a terminal status.",
+      inputSchema: mcpGetJobInputSchema,
+    },
+    async ({ jobId }) => {
+      const job = await findAccessiblePublicJob(apiAuth, jobId);
+
+      if (!job) {
+        return mcpToolError("job_not_found", "Job not found");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              job: toMcpJobEnvelope(job),
+            }),
+          },
+        ],
       };
     },
   );

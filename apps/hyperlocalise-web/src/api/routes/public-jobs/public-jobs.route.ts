@@ -23,11 +23,7 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import {
-  buildAccessibleJobsWhere,
-  getAccessibleProjectIds,
-  hasOrganizationWideProjectAccess,
-} from "@/api/auth/team-access";
+import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
@@ -55,6 +51,11 @@ import {
   jobIdParamsSchema,
   latestPublicJobQuerySchema,
 } from "./public-jobs.schema";
+import {
+  findAccessiblePublicJob,
+  publicJobOutputFiles,
+  toPublicJobEnvelope,
+} from "./public-jobs.read";
 import {
   invalidJobPayloadResponse,
   jobNotFoundResponse,
@@ -91,12 +92,6 @@ const validateLatestPublicJobQuery = validator("query", (value, c) => {
 
 type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
-};
-
-type PublicJobOutputFile = {
-  fileId: string;
-  locale: string;
-  filename: string;
 };
 
 type ApiKeyProjectAccessScope = {
@@ -178,44 +173,6 @@ function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScop
   }
 
   return and(organizationScope, inArray(schema.jobs.projectId, scope.accessibleProjectIds))!;
-}
-
-function hasValue(value: unknown): value is string {
-  return typeof value === "string" && value.trim() !== "";
-}
-
-function isPublicJobOutputFile(value: unknown): value is PublicJobOutputFile {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return hasValue(candidate.fileId) && hasValue(candidate.locale) && hasValue(candidate.filename);
-}
-
-function publicJobOutputFiles(input: {
-  type: string | null;
-  outcomeKind: string | null;
-  outcomePayload: unknown;
-}) {
-  if (input.type !== "file" || input.outcomeKind !== "file_result") {
-    return null;
-  }
-
-  if (!input.outcomePayload || typeof input.outcomePayload !== "object") {
-    return null;
-  }
-
-  const outputFiles = (input.outcomePayload as Record<string, unknown>).outputFiles;
-  if (!Array.isArray(outputFiles) || !outputFiles.every(isPublicJobOutputFile)) {
-    return null;
-  }
-
-  return outputFiles.map((outputFile) => ({
-    fileId: outputFile.fileId,
-    locale: outputFile.locale,
-    filename: outputFile.filename,
-  }));
 }
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
@@ -455,32 +412,17 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     )
     .get("/:jobId", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
       const params = c.req.valid("param");
-      const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
+      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
 
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          organizationId: schema.jobs.organizationId,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          status: schema.jobs.status,
-          type: schema.translationJobDetails.type,
-          inputPayload: schema.jobs.inputPayload,
-          outcomeKind: schema.translationJobDetails.outcomeKind,
-          outcomePayload: schema.jobs.outcomePayload,
-          lastError: schema.jobs.lastError,
-          workflowRunId: schema.jobs.workflowRunId,
-          createdAt: schema.jobs.createdAt,
-          updatedAt: schema.jobs.updatedAt,
-          completedAt: schema.jobs.completedAt,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(and(eq(schema.jobs.id, params.jobId), accessibleJobsWhere))
-        .limit(1);
+      if (!job) {
+        return jobNotFoundResponse(c);
+      }
+
+      return c.json({ job: toPublicJobEnvelope(job) }, 200);
+    })
+    .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
+      const params = c.req.valid("param");
+      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
 
       if (!job) {
         return jobNotFoundResponse(c);
@@ -491,46 +433,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           job: {
             id: job.id,
             projectId: job.projectId,
+            kind: job.kind,
             type: job.type,
             status: job.status,
             createdAt: job.createdAt,
             updatedAt: job.updatedAt,
             completedAt: job.completedAt,
             lastError: job.lastError,
-            outputFiles: publicJobOutputFiles(job),
           },
         },
         200,
       );
-    })
-    .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
-      const params = c.req.valid("param");
-      const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
-
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          createdAt: schema.jobs.createdAt,
-          updatedAt: schema.jobs.updatedAt,
-          completedAt: schema.jobs.completedAt,
-          lastError: schema.jobs.lastError,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(and(eq(schema.jobs.id, params.jobId), accessibleJobsWhere))
-        .limit(1);
-
-      if (!job) {
-        return jobNotFoundResponse(c);
-      }
-
-      return c.json({ job }, 200);
     });
 }

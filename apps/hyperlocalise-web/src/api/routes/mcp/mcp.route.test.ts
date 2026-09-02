@@ -40,6 +40,10 @@ import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 
 import { createProjectTestFixture } from "../project/project.fixture";
+import {
+  insertCompletedPublicFileJob,
+  insertPublicTranslationJob,
+} from "../public-jobs/public-jobs.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -2937,4 +2941,241 @@ describe("mcpRoutes", () => {
       createSpy.mockRestore();
     }
   });
+
+  it("advertises the get_job tool with jobId validation", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_job");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("job");
+    expect(tool?.inputSchema?.required).toEqual(["jobId"]);
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      jobId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+    });
+  });
+
+  it.each([
+    ["queued", { status: "queued" as const, lastError: null, completedAt: null }],
+    ["running", { status: "running" as const, lastError: null, completedAt: null }],
+    [
+      "succeeded",
+      {
+        status: "succeeded" as const,
+        lastError: null,
+        completedAt: new Date("2026-03-01T12:00:00.000Z"),
+      },
+    ],
+    [
+      "failed",
+      {
+        status: "failed" as const,
+        lastError: "Provider timed out",
+        completedAt: new Date("2026-03-01T12:00:00.000Z"),
+      },
+    ],
+  ])("returns a distinguishable %s job envelope", async (_label, jobState) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const job = await insertPublicTranslationJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      ...jobState,
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_job",
+          arguments: {
+            jobId: job.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "") as {
+      job: Record<string, unknown>;
+    };
+
+    expect(output.job).toEqual({
+      id: job.id,
+      projectId: stored.project.id,
+      type: "string",
+      kind: "translation",
+      status: jobState.status,
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+      completedAt: jobState.completedAt ? expect.any(String) : null,
+      lastError: jobState.lastError,
+      outputFiles: null,
+    });
+    expect(output.job).not.toHaveProperty("inputPayload");
+    expect(output.job).not.toHaveProperty("outcomePayload");
+    expect(output.job).not.toHaveProperty("workflowRunId");
+    expect(output.job).not.toHaveProperty("organizationId");
+  });
+
+  it("includes output file ids for a completed file job", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const job = await insertCompletedPublicFileJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      outputFiles: [
+        {
+          fileId: "file_output_fr",
+          locale: "fr-FR",
+          filename: "source.fr-FR.xliff",
+        },
+      ],
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_job",
+          arguments: {
+            jobId: job.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "") as {
+      job: { status: string; outputFiles: unknown };
+    };
+
+    expect(output.job.status).toBe("succeeded");
+    expect(output.job.outputFiles).toEqual([
+      {
+        fileId: "file_output_fr",
+        locale: "fr-FR",
+        filename: "source.fr-FR.xliff",
+      },
+    ]);
+  });
+
+  it.each(["missing", "cross-organization"])(
+    "returns job_not_found for a %s job id",
+    async (scenario) => {
+      const stored = await fixture.createStoredProjectFixture();
+      const headers = await authenticatedMcpHeaders(stored.identity);
+      const other = await fixture.createStoredProjectFixture();
+      const otherJob = await insertPublicTranslationJob({
+        organizationId: other.organization.id,
+        projectId: other.project.id,
+        status: "queued",
+      });
+
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "get_job",
+            arguments: {
+              jobId: scenario === "missing" ? "job_does_not_exist" : otherJob.id,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ text?: string }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+      expect(JSON.parse(body.result?.content?.[0]?.text ?? "")).toEqual({
+        error: "job_not_found",
+        message: "Job not found",
+      });
+    },
+  );
 });

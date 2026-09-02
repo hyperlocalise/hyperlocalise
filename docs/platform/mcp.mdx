@@ -64,6 +64,16 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 
 `list_issues` supports the same filters as the workspace Board API, including `view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `search`, `sort`, `sortDir`, `limit` (max 50), and `offset`.
 
+### Jobs
+
+| Tool | Description |
+| --- | --- |
+| `get_job` | Job status by `jobId`. Poll after `run_workflow` until the job is terminal. |
+
+`get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
+
+Missing or inaccessible jobs, including jobs from another organization, return `job_not_found`.
+
 ### Reserved (not implemented)
 
 These tools are advertised but return `not_implemented` today:
@@ -99,6 +109,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs |
 | `forbidden` on issue tools | Your role is read-only for write-back operations |
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
+| `job_not_found` | Wrong `jobId`, missing project access, or a job from another organization |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next
