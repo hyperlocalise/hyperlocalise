@@ -21,8 +21,10 @@ import { createAuthorizationCode } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
+import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
 import { testClient } from "hono/testing";
 
+import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 import type { ProjectResponse } from "../project/project.schema";
 import { createTeamTestFixture } from "../team/team.fixture";
@@ -255,6 +257,47 @@ describe("MCP team-scoped access", () => {
       throw new Error("expected external issue fixture");
     }
 
+    const seedProjectFile = async (input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    }) => {
+      const storedFile = await insertStoredSourceFile({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        filename: input.sourcePath.split("/").at(-1),
+        contentType: "application/json",
+        sourceKind: "repository_file",
+        metadata: { sourcePath: input.sourcePath, sourceHash: `hash-${input.sourcePath}` },
+      });
+      const version = await ensureRepositorySourceFileVersionForStoredFile({
+        db,
+        fileId: storedFile.id,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+      if (!version) {
+        throw new Error(`expected repository source file version for ${input.sourcePath}`);
+      }
+      return storedFile;
+    };
+
+    const alphaFile = await seedProjectFile({
+      organizationId: memberAuth.organization.localOrganizationId,
+      projectId: alphaProjectBody.project.id,
+      sourcePath: "locales/alpha.json",
+    });
+    await seedProjectFile({
+      organizationId: memberAuth.organization.localOrganizationId,
+      projectId: betaProjectBody.project.id,
+      sourcePath: "locales/beta.json",
+    });
+    await seedProjectFile({
+      organizationId: externalOrganization.id,
+      projectId: externalProject.id,
+      sourcePath: "locales/external.json",
+    });
+
     const accessToken = await mcpAccessTokenForAuth(memberAuth);
 
     const adminAccessToken = await mcpAccessTokenForAuth(adminAuth);
@@ -383,6 +426,51 @@ describe("MCP team-scoped access", () => {
       project: { id: string } | null;
     };
     expect(getDeniedBody.project).toBeNull();
+
+    const accessibleFilesResponse = await callMcpTool(accessToken, "list_files", {
+      projectId: alphaProjectBody.project.id,
+    });
+    expect(accessibleFilesResponse.status).toBe(200);
+    expect(parseToolResultText(await accessibleFilesResponse.json())).toMatchObject({
+      total: 1,
+      files: [
+        expect.objectContaining({
+          id: alphaFile.id,
+          sourcePath: "locales/alpha.json",
+          filename: "alpha.json",
+        }),
+      ],
+    });
+
+    const inaccessibleFileLookups = [
+      {
+        label: "wrong team",
+        projectId: betaProjectBody.project.id,
+      },
+      {
+        label: "wrong organization",
+        projectId: externalProject.id,
+      },
+    ];
+
+    for (const lookup of inaccessibleFileLookups) {
+      const response = await callMcpTool(accessToken, "list_files", {
+        projectId: lookup.projectId,
+      });
+
+      expect(response.status, lookup.label).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(
+        (responseBody as { result?: { isError?: boolean } }).result?.isError,
+        lookup.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(responseBody), lookup.label).toMatchObject({
+        error: "project_not_found",
+      });
+    }
 
     const createDeniedResponse = await callMcpTool(accessToken, "create_issue", {
       projectId: alphaProjectBody.project.id,

@@ -3,7 +3,7 @@ title: "MCP server"
 description: "Connect coding agents to Hyperlocalise Cloud over the Model Context Protocol."
 ---
 
-Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, glossaries, and Board items from your workspace.
+Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, glossaries, and Board items from your workspace.
 
 The server uses OAuth with PKCE. After you approve access, the agent receives a bearer token scoped to one organization and your current membership role.
 
@@ -46,8 +46,11 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | --- | --- |
 | `list_projects` | List accessible projects (`limit`, default 20, max 50) |
 | `get_project` | Project details by `projectId` |
+| `list_files` | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`) |
 | `list_glossaries` | List glossaries linked to accessible projects |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100) |
+
+`list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
 ### Board (issues)
 
@@ -85,7 +88,7 @@ See [Integrations](/platform/integrations#mcp-server-connections).
 
 An MCP session inherits your live organization membership:
 
-- Project and glossary reads respect team and project access.
+- Project, file, and glossary reads respect team and project access.
 - Issue writes follow the same rules as the Board UI.
 - Revoking your membership or disabling MCP auth ends the session on the next refresh.
 
@@ -99,6 +102,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs |
 | `forbidden` on issue tools | Your role is read-only for write-back operations |
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
+| `project_not_found` | Wrong `projectId` or missing project access on `list_files` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next

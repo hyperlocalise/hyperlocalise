@@ -12,7 +12,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
@@ -72,6 +72,11 @@ import {
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  filterProjectFiles,
+  listProjectFilesForProject,
+} from "@/lib/projects/files/project-file-service";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -376,6 +381,31 @@ const mcpListIssuesInputSchema = z
     }
   });
 
+const mcpListFilesInputSchema = z.object({
+  projectId: projectIdSchema.describe(
+    "ID of the accessible Hyperlocalise project whose source files to list.",
+  ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe("Maximum number of files to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of files to skip before returning results."),
+  search: z
+    .string()
+    .trim()
+    .max(256)
+    .optional()
+    .describe("Optional case-insensitive filter on source path or filename."),
+});
+
 const mcpGetIssueInputSchema = z.object({
   projectId: z
     .string()
@@ -545,6 +575,22 @@ function detailedMcpIssue(issue: IssueSheetIssue) {
   };
 }
 
+function compactMcpFile(input: {
+  file: ProjectFileRecord;
+  stored: { contentType: string; updatedAt: Date } | undefined;
+  sourceLocale: string | null;
+}) {
+  return {
+    id: input.file.storedFileId ?? input.file.provider?.externalResourceId ?? input.file.sourcePath,
+    sourcePath: input.file.sourcePath,
+    filename: input.file.filename,
+    contentType: input.stored?.contentType ?? null,
+    byteSize: input.file.byteSize,
+    updatedAt: input.stored?.updatedAt.toISOString() ?? input.file.uploadedAt,
+    sourceLocale: input.file.provider?.sourceLocale ?? input.sourceLocale,
+  };
+}
+
 function compactMcpIssue(issue: OrganizationIssueListItem) {
   return {
     id: issue.id,
@@ -633,6 +679,82 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ project: project ?? null }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "list_files",
+    {
+      description:
+        "List source files in an accessible Hyperlocalise project. Returns metadata only — use sourcePath values for upload, download, or run_workflow.",
+      inputSchema: mcpListFilesInputSchema,
+    },
+    async ({ projectId, limit, offset, search }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const listed = await listProjectFilesForProject({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        providerFilters: search ? { search } : undefined,
+      });
+      const filtered = filterProjectFiles(listed, { search });
+      const page = filtered.slice(offset, offset + limit);
+      const nextOffset = offset + page.length;
+      const hasMore = nextOffset < filtered.length;
+
+      const storedFileIds = page.flatMap((file) => (file.storedFileId ? [file.storedFileId] : []));
+      const storedRows =
+        storedFileIds.length > 0
+          ? await db
+              .select({
+                id: schema.storedFiles.id,
+                contentType: schema.storedFiles.contentType,
+                updatedAt: schema.storedFiles.updatedAt,
+              })
+              .from(schema.storedFiles)
+              .where(
+                and(
+                  eq(schema.storedFiles.organizationId, apiAuth.organization.localOrganizationId),
+                  inArray(schema.storedFiles.id, storedFileIds),
+                ),
+              )
+          : [];
+      const storedById = new Map(storedRows.map((row) => [row.id, row]));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              total: filtered.length,
+              pagination: {
+                limit,
+                offset,
+                hasMore,
+                nextOffset: hasMore ? nextOffset : null,
+              },
+              files: page.map((file) =>
+                compactMcpFile({
+                  file,
+                  stored: file.storedFileId ? storedById.get(file.storedFileId) : undefined,
+                  sourceLocale: project.sourceLocale,
+                }),
+              ),
+            }),
+          },
+        ],
       };
     },
   );
