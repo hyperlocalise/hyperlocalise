@@ -973,7 +973,7 @@ func parseJSXAttributeValue(src string, index, tagEnd int) (string, int, bool, e
 		if strings.IndexByte(raw, '&') >= 0 {
 			return html.UnescapeString(raw), end, true, nil
 		}
-		return raw, end, true, nil
+		return strings.Clone(raw), end, true, nil
 	case '{':
 		end, ok := findMatchingDelimiter(src, index, '{', '}')
 		if !ok || end > tagEnd {
@@ -1072,41 +1072,28 @@ func readStringLiteralContent(src string, index int) (string, int, bool) {
 		target = string(quote) + "\\"
 	}
 
-	pos := strings.IndexAny(src[index+1:], target)
-	if pos < 0 {
-		return "", len(src), false
-	}
-	hit := index + 1 + pos
-	if src[hit] == quote {
-		return src[index+1 : hit], hit + 1, true
-	}
-
-	// Hit backslash escape, fall back to building string with builder.
-	var b strings.Builder
-	b.Grow(len(src) - index)
-	b.WriteString(src[index+1 : hit])
-	for i := hit; i < len(src); i++ {
-		if src[i] == '\\' {
-			if i+1 >= len(src) {
-				return b.String(), len(src), false
-			}
-			b.WriteByte(src[i])
-			i++
-			b.WriteByte(src[i])
-			continue
+	i := index + 1
+	for i < len(src) {
+		pos := strings.IndexAny(src[i:], target)
+		if pos < 0 {
+			return "", len(src), false
 		}
+		i += pos
 		if src[i] == quote {
-			return b.String(), i + 1, true
+			return src[index+1 : i], i + 1, true
 		}
-		b.WriteByte(src[i])
+		if i+1 >= len(src) {
+			return "", len(src), false
+		}
+		i += 2
 	}
 
-	return b.String(), len(src), false
+	return "", len(src), false
 }
 
 func unescapeJavaScriptString(raw string) string {
 	if strings.IndexByte(raw, '\\') < 0 {
-		return raw
+		return strings.Clone(raw)
 	}
 
 	var b strings.Builder
