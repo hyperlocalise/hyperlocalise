@@ -465,7 +465,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               capabilities.viewerId === "video" ||
               capabilities.viewerId === "markdown") &&
             editing.onRegenerateImage
-              ? (input) => void editing.onRegenerateImage?.(editorSegment.id, input)
+              ? (input) => editing.onRegenerateImage?.(editorSegment.id, input)
               : undefined
           }
         />

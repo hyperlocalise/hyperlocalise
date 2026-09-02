@@ -82,10 +82,6 @@ export const ContentEditorQueueToolbarConnected = observer(
       }
     }, [store, store.ui.isFileView, store.selectionMode]);
 
-    if (store.ui.isFileView) {
-      return null;
-    }
-
     const handleSearchChange = useCallback(
       (value: string) => {
         store.setQueueSearch(value);
@@ -114,6 +110,10 @@ export const ContentEditorQueueToolbarConnected = observer(
       },
       [onQueueSortChange, store],
     );
+
+    if (store.ui.isFileView) {
+      return null;
+    }
 
     const toolbar = (
       <ContentEditorQueueToolbar

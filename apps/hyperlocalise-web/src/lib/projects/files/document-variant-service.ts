@@ -139,6 +139,17 @@ export async function localizeAndStoreDocumentVariant(input: {
         sourceText,
       }),
     });
+
+    if (result.finishReason !== "stop") {
+      return err({
+        code: "localization_failed",
+        message:
+          result.finishReason === "length"
+            ? "Document translation was truncated because the output exceeded the model limit"
+            : "Document translation did not complete successfully",
+      });
+    }
+
     translatedText = result.text.trim();
   } catch (error) {
     return err({

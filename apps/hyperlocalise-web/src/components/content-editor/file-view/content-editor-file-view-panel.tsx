@@ -145,8 +145,13 @@ export function ContentEditorFileViewPanel({
     if (!onRegenerate) {
       return;
     }
-    await onRegenerate({ instructions: instructions || undefined });
-    setGenerateDialogOpen(false);
+
+    try {
+      await onRegenerate({ instructions: instructions || undefined });
+      setGenerateDialogOpen(false);
+    } catch {
+      // Keep the dialog open so the user can retry after a failed generation.
+    }
   }
 
   return (
