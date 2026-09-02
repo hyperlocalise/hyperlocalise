@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
@@ -98,4 +99,42 @@ llm:
 		t.Fatalf("write config: %v", err)
 	}
 	return configPath
+}
+
+func TestResolveProjectSourcePathsUsesConfigRoot(t *testing.T) {
+	projectDir := t.TempDir()
+	sourceRel := filepath.Join("locales", "en", "messages.json")
+	sourceAbs := filepath.Join(projectDir, sourceRel)
+	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
+		t.Fatalf("mkdir source: %v", err)
+	}
+	if err := os.WriteFile(sourceAbs, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	svc := newTestService()
+	svc.enforceProjectPaths = true
+	root, err := pathguard.CanonicalForContainment(projectDir)
+	if err != nil {
+		t.Fatalf("canonical project dir: %v", err)
+	}
+	svc.projectRoot = root
+
+	got, err := svc.resolveProjectSourcePaths(filepath.ToSlash("locales/en/messages.json"))
+	if err != nil {
+		t.Fatalf("resolveProjectSourcePaths() error = %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("resolveProjectSourcePaths() = %v, want one path", got)
+	}
+	want, err := pathguard.CanonicalForContainment(sourceAbs)
+	if err != nil {
+		t.Fatalf("canonical source path: %v", err)
+	}
+	if filepath.Clean(got[0]) != filepath.Clean(want) {
+		t.Fatalf("resolveProjectSourcePaths() = %q, want %q", got[0], want)
+	}
 }

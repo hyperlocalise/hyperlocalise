@@ -60,6 +60,46 @@ func TestCheckCommandPrefixIDAlignsSourceAndTargetKeys(t *testing.T) {
 	}
 }
 
+func TestCheckCommandResolvesPathsRelativeToConfigDirectory(t *testing.T) {
+	repoRoot := t.TempDir()
+	projectDir := filepath.Join(repoRoot, "nested-app")
+	configPath := filepath.Join(projectDir, "i18n.jsonc")
+	sourcePath := filepath.Join(projectDir, "src", "locales", "en", "common.json")
+	targetPath := filepath.Join(projectDir, "src", "locales", "fr", "common.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Bonjour"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfigWithMappings(t, configPath, []checkConfigMapping{
+		{source: "src/locales/en/common.json", target: "src/locales/fr/common.json"},
+	}, []string{"fr"})
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command from repo root with nested config: %v", err)
+	}
+	if !strings.Contains(out.String(), "No problems.") {
+		t.Fatalf("expected no-findings stylish output, got %q", out.String())
+	}
+}
+
 func TestCheckCommandWithoutPrefixIDReportsPrefixedSourceMismatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

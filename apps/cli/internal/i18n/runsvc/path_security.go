@@ -60,6 +60,26 @@ func (s *Service) validateProjectPath(path string) error {
 	return pathguard.EnsureUnderRoot(s.projectRoot, path)
 }
 
+func (s *Service) resolveProjectPattern(pattern string) string {
+	trimmed := strings.TrimSpace(pattern)
+	if trimmed == "" || filepath.IsAbs(trimmed) || !s.enforceProjectPaths || strings.TrimSpace(s.projectRoot) == "" {
+		return trimmed
+	}
+	return filepath.Join(s.projectRoot, trimmed)
+}
+
+func (s *Service) resolveProjectSourcePaths(sourcePattern string) ([]string, error) {
+	return resolveSourcePaths(s.resolveProjectPattern(sourcePattern))
+}
+
+func (s *Service) resolveProjectTargetPath(sourcePattern, targetPattern, sourcePath string) (string, error) {
+	return resolveTargetPath(
+		s.resolveProjectPattern(sourcePattern),
+		s.resolveProjectPattern(targetPattern),
+		s.resolveProjectPattern(sourcePath),
+	)
+}
+
 func (s *Service) readProjectFile(path string) ([]byte, error) {
 	if err := s.validateProjectPath(path); err != nil {
 		return nil, err

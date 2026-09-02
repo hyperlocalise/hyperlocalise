@@ -148,7 +148,7 @@ func newHyperlocaliseSyncRuntime(configPath string) (*hyperlocaliseSyncRuntime, 
 }
 
 func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePushReport, error) {
-	plans, err := planHyperlocaliseFiles(rt.cfg, o.locales)
+	plans, err := planHyperlocaliseFiles(rt.cfg, o.locales, rt.configRoot)
 	if err != nil {
 		return hyperlocalisePushReport{}, err
 	}
@@ -166,7 +166,7 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 
 	var failedItems []string
 	for _, plan := range plans {
-		if _, uploadErr := rt.client.uploadFile(ctx, rt.projectID, plan); uploadErr != nil {
+		if _, uploadErr := rt.client.uploadFile(ctx, rt.projectID, rt.configRoot, plan); uploadErr != nil {
 			failedItems = append(failedItems, fmt.Sprintf("%s: %v", plan.SourcePath, uploadErr))
 			continue
 		}
@@ -183,7 +183,7 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 }
 
 func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePullReport, error) {
-	plans, err := planHyperlocaliseFilesWithOptions(rt.cfg, o.locales, false)
+	plans, err := planHyperlocaliseFilesWithOptions(rt.cfg, o.locales, false, rt.configRoot)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
 	}
@@ -331,11 +331,11 @@ func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePl
 	})
 }
 
-func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
-	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
+func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string, configRoot string) ([]hyperlocaliseFilePlan, error) {
+	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true, configRoot)
 }
 
-func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
+func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool, configRoot string) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
 		return nil, err
@@ -352,31 +352,39 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 		bucket := cfg.Buckets[bucketName]
 		for _, mapping := range bucket.Files {
 			sourcePattern := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
-			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			sourcePaths, err := resolveSourcePathsForStatus(configRoot, sourcePattern)
 			if err != nil {
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
-			for _, sourcePath := range sourcePaths {
-				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+			for _, resolvedSourcePath := range sourcePaths {
+				if shouldIgnoreSourcePathForStatus(resolvedSourcePath, cfg.Locales.Targets) {
 					continue
 				}
-				fileFormat := inferHyperlocaliseFileFormat(sourcePath)
+				fileFormat := inferHyperlocaliseFileFormat(resolvedSourcePath)
 				if fileFormat == "" {
-					return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
+					return nil, fmt.Errorf("unsupported source file format for %q", resolvedSourcePath)
+				}
+				sourcePath, err := relativizeConfigPath(configRoot, resolvedSourcePath)
+				if err != nil {
+					return nil, fmt.Errorf("relativize source path %q: %w", resolvedSourcePath, err)
 				}
 				sourceHash := ""
 				if hashSources {
-					sourceHash, err = sha256File(sourcePath)
+					sourceHash, err = sha256File(resolvedSourcePath)
 					if err != nil {
-						return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+						return nil, fmt.Errorf("hash source file %q: %w", resolvedSourcePath, err)
 					}
 				}
 				targetPaths := make(map[string]string, len(targetLocales))
 				for _, locale := range targetLocales {
 					targetPattern := pathresolver.ResolveTargetPath(mapping.To, cfg.Locales.Source, locale)
-					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					resolvedTargetPath, err := resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, resolvedSourcePath)
 					if err != nil {
-						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+						return nil, fmt.Errorf("resolve target path for source %q: %w", resolvedSourcePath, err)
+					}
+					targetPath, err := relativizeConfigPath(configRoot, resolvedTargetPath)
+					if err != nil {
+						return nil, fmt.Errorf("relativize target path %q: %w", resolvedTargetPath, err)
 					}
 					targetPaths[locale] = targetPath
 				}
@@ -532,8 +540,12 @@ func sha256File(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (c *hyperlocaliseAPIClient) uploadFile(ctx context.Context, projectID string, plan hyperlocaliseFilePlan) (string, error) {
-	content, err := os.ReadFile(plan.SourcePath)
+func (c *hyperlocaliseAPIClient) uploadFile(ctx context.Context, projectID, configRoot string, plan hyperlocaliseFilePlan) (string, error) {
+	resolvedSourcePath, err := runsvc.ResolveExportPath(configRoot, plan.SourcePath)
+	if err != nil {
+		return "", fmt.Errorf("resolve source path %q: %w", plan.SourcePath, err)
+	}
+	content, err := os.ReadFile(resolvedSourcePath)
 	if err != nil {
 		return "", err
 	}

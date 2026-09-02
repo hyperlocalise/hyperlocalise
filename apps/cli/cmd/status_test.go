@@ -920,3 +920,31 @@ func testStatusConfig() *config.I18NConfig {
 		},
 	}
 }
+
+func TestStatusCommandResolvesPathsRelativeToConfigDirectory(t *testing.T) {
+	configPath, _, _ := setupNestedConfigLocaleProject(t)
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--output", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("status command from foreign cwd with nested config: %v", err)
+	}
+
+	rows, err := csv.NewReader(bytes.NewReader(out.Bytes())).ReadAll()
+	if err != nil {
+		t.Fatalf("parse csv: %v\n%s", err, out.String())
+	}
+	if len(rows) != 2 {
+		t.Fatalf("expected header plus one row, got %d: %v", len(rows), rows)
+	}
+	if rows[1][0] != "hello" || rows[1][2] != "fr" || rows[1][3] != "translated" {
+		t.Fatalf("expected translated hello row for fr, got %v", rows[1])
+	}
+}

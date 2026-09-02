@@ -450,7 +450,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 				sourcePattern := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
 				sources, ok := resolvedSourcesCache[sourcePattern]
 				if !ok {
-					sources, err = resolveSourcePaths(sourcePattern)
+					sources, err = s.resolveProjectSourcePaths(sourcePattern)
 					if err != nil {
 						return nil, nil, fmt.Errorf("planning tasks: resolve source paths for %q: %w", sourcePattern, err)
 					}
@@ -492,7 +492,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, target := range targets {
 							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
-							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
+							targetPath, err := s.resolveProjectTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
 							if err != nil {
 								return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
 							}
@@ -560,7 +560,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 
 					for _, target := range targets {
 						resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
-						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
+						targetPath, err := s.resolveProjectTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
 						if err != nil {
 							return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
 						}

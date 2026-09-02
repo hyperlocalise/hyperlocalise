@@ -393,7 +393,12 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	)
 	resolveSpan.End()
 
-	index, err := buildCheckConfigIndex(cfg, buckets, locales)
+	configRoot, err := config.ConfigDirectory(o.configPath)
+	if err != nil {
+		return checkReport{}, fmt.Errorf("resolve config directory: %w", err)
+	}
+
+	index, err := buildCheckConfigIndex(cfg, buckets, locales, configRoot)
 	if err != nil {
 		return checkReport{}, err
 	}
@@ -433,7 +438,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}, nil
 }
 
-func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string) (*checkConfigIndex, error) {
+func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string, configRoot string) (*checkConfigIndex, error) {
 	index := &checkConfigIndex{
 		sourceByPath:   make(map[string]checkSourceDescriptor),
 		targetToSource: make(map[string]checkTargetLookup),
@@ -443,7 +448,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string) (*
 		bucket := cfg.Buckets[bucketName]
 		for _, file := range bucket.Files {
 			sourcePattern := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
-			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			sourcePaths, err := resolveSourcePathsForStatus(configRoot, sourcePattern)
 			if err != nil {
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
@@ -459,7 +464,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string) (*
 				}
 				for _, locale := range locales {
 					targetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, locale)
-					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					targetPath, err := resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, sourcePath)
 					if err != nil {
 						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
 					}

@@ -555,7 +555,7 @@ func TestPlanHyperlocaliseFilesExpandsBlogMarkdownGlob(t *testing.T) {
 		},
 	}
 
-	plans, err := planHyperlocaliseFiles(cfg, nil)
+	plans, err := planHyperlocaliseFiles(cfg, nil, dir)
 	if err != nil {
 		t.Fatalf("planHyperlocaliseFiles: %v", err)
 	}
@@ -1092,6 +1092,11 @@ func newHyperlocalisePushTestRuntime(server *httptest.Server, extraFiles []confi
 	}}
 	files = append(files, extraFiles...)
 
+	configRoot, err := os.Getwd()
+	if err != nil {
+		configRoot = ""
+	}
+
 	return &hyperlocaliseSyncRuntime{
 		cfg: &config.I18NConfig{
 			Locales: config.LocaleConfig{
@@ -1104,7 +1109,8 @@ func newHyperlocalisePushTestRuntime(server *httptest.Server, extraFiles []confi
 				},
 			},
 		},
-		projectID: "project-1",
+		configRoot: configRoot,
+		projectID:  "project-1",
 		client: &hyperlocaliseAPIClient{
 			baseURL:    server.URL,
 			apiKey:     "test-key",

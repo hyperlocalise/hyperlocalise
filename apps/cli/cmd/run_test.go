@@ -2047,3 +2047,29 @@ func TestLoadPrefilledEntriesFlatAndLocaleKeyed(t *testing.T) {
 		t.Fatalf("expected mixed shape error, got %v", err)
 	}
 }
+
+func TestRunDryRunResolvesPathsRelativeToConfigDirectory(t *testing.T) {
+	configPath, _, targetPath := setupNestedConfigLocaleProject(t)
+	if err := os.Remove(targetPath); err != nil {
+		t.Fatalf("remove target before dry-run: %v", err)
+	}
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run from foreign cwd with nested config: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry_run=true") {
+		t.Fatalf("expected dry-run output, got %q", out.String())
+	}
+	if _, statErr := os.Stat(targetPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", statErr)
+	}
+}

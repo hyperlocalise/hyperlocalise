@@ -69,9 +69,14 @@ Status values:
 				return err
 			}
 
+			configRoot, err := config.ConfigDirectory(o.configPath)
+			if err != nil {
+				return fmt.Errorf("resolve config directory: %w", err)
+			}
+
 			entries, err := collectStatusEntries(context.Background(), cfg, syncsvc.LocalReadRequest{
 				Locales: locales,
-			}, buckets)
+			}, buckets, configRoot)
 			if err != nil {
 				return fmt.Errorf("read local translations: %w", err)
 			}
@@ -198,7 +203,7 @@ func statusBucketFiles(cfg *config.I18NConfig, bucket string) (map[string]struct
 	return files, nil
 }
 
-func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc.LocalReadRequest, buckets []string) ([]storage.Entry, error) {
+func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc.LocalReadRequest, buckets []string, configRoot string) ([]storage.Entry, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	locales := req.Locales
 	if len(locales) == 0 {
@@ -210,7 +215,7 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 		bucket := cfg.Buckets[bucketName]
 		for _, file := range bucket.Files {
 			sourcePattern := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
-			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			sourcePaths, err := resolveSourcePathsForStatus(configRoot, sourcePattern)
 			if err != nil {
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
@@ -245,7 +250,7 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 
 				for _, locale := range locales {
 					targetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, locale)
-					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					targetPath, err := resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, sourcePath)
 					if err != nil {
 						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
 					}
@@ -399,12 +404,55 @@ func shouldIgnoreSourcePathForStatus(sourcePath string, targetLocales []string) 
 	return false
 }
 
-func resolveSourcePathsForStatus(sourcePattern string) ([]string, error) {
-	if !strings.ContainsAny(sourcePattern, "*?[") {
-		return []string{sourcePattern}, nil
+func resolveConfigRelativePath(configRoot, path string) (string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", fmt.Errorf("path is empty")
 	}
-	if !strings.Contains(sourcePattern, "**") {
-		matches, err := filepath.Glob(sourcePattern)
+	if filepath.IsAbs(trimmed) {
+		return filepath.Clean(trimmed), nil
+	}
+	root := strings.TrimSpace(configRoot)
+	if root == "" {
+		return filepath.Clean(trimmed), nil
+	}
+	return filepath.Join(root, trimmed), nil
+}
+
+func relativizeConfigPath(configRoot, path string) (string, error) {
+	root := strings.TrimSpace(configRoot)
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", fmt.Errorf("path is empty")
+	}
+	if root == "" {
+		return filepath.Clean(trimmed), nil
+	}
+	abs, err := resolveConfigRelativePath(root, trimmed)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", fmt.Errorf("relativize path %q against config root: %w", trimmed, err)
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", fmt.Errorf("path %q escapes config root %q", trimmed, root)
+	}
+	return rel, nil
+}
+
+func resolveSourcePathsForStatus(configRoot, sourcePattern string) ([]string, error) {
+	resolvedPattern, err := resolveConfigRelativePath(configRoot, sourcePattern)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.ContainsAny(resolvedPattern, "*?[") {
+		return []string{resolvedPattern}, nil
+	}
+	if !strings.Contains(resolvedPattern, "**") {
+		matches, err := filepath.Glob(resolvedPattern)
 		if err != nil {
 			return nil, err
 		}
@@ -412,13 +460,13 @@ func resolveSourcePathsForStatus(sourcePattern string) ([]string, error) {
 		return matches, nil
 	}
 
-	normalizedPattern := filepath.ToSlash(sourcePattern)
+	normalizedPattern := filepath.ToSlash(resolvedPattern)
 	re, err := globToRegexForStatus(normalizedPattern)
 	if err != nil {
 		return nil, err
 	}
 
-	baseDir := baseDirForDoublestarForStatus(sourcePattern)
+	baseDir := baseDirForDoublestarForStatus(resolvedPattern)
 	matches := make([]string, 0)
 	err = filepath.WalkDir(baseDir, func(candidate string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -440,16 +488,28 @@ func resolveSourcePathsForStatus(sourcePattern string) ([]string, error) {
 	return matches, nil
 }
 
-func resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath string) (string, error) {
-	if !strings.ContainsAny(sourcePattern, "*?[") {
-		return targetPattern, nil
+func resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, sourcePath string) (string, error) {
+	resolvedSourcePattern, err := resolveConfigRelativePath(configRoot, sourcePattern)
+	if err != nil {
+		return "", err
 	}
-	if !strings.ContainsAny(targetPattern, "*?[") {
-		return "", fmt.Errorf("target pattern %q must include glob tokens when source pattern %q includes globs", targetPattern, sourcePattern)
+	resolvedTargetPattern, err := resolveConfigRelativePath(configRoot, targetPattern)
+	if err != nil {
+		return "", err
 	}
-	sourceBase := globBaseDirForStatus(sourcePattern)
-	targetBase := globBaseDirForStatus(targetPattern)
-	relative, err := filepath.Rel(sourceBase, sourcePath)
+	resolvedSourcePath, err := resolveConfigRelativePath(configRoot, sourcePath)
+	if err != nil {
+		return "", err
+	}
+	if !strings.ContainsAny(resolvedSourcePattern, "*?[") {
+		return resolvedTargetPattern, nil
+	}
+	if !strings.ContainsAny(resolvedTargetPattern, "*?[") {
+		return "", fmt.Errorf("target pattern %q must include glob tokens when source pattern %q includes globs", resolvedTargetPattern, resolvedSourcePattern)
+	}
+	sourceBase := globBaseDirForStatus(resolvedSourcePattern)
+	targetBase := globBaseDirForStatus(resolvedTargetPattern)
+	relative, err := filepath.Rel(sourceBase, resolvedSourcePath)
 	if err != nil {
 		return "", err
 	}

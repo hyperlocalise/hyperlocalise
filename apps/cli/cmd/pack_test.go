@@ -963,3 +963,54 @@ func assertPackPrefixIDCollisionError(t *testing.T, err error, idA, idB, packedI
 		t.Fatalf("error %q must mention packed id %q", msg, packedID)
 	}
 }
+
+func TestPackCommandResolvesPathsRelativeToConfigDirectory(t *testing.T) {
+	repoRoot := t.TempDir()
+	projectDir := filepath.Join(repoRoot, "nested-app")
+	configPath := filepath.Join(projectDir, "i18n.jsonc")
+	langDir := filepath.Join(projectDir, "lang")
+	distDir := filepath.Join(projectDir, "dist")
+
+	writePackTestFile(t, filepath.Join(langDir, "en-US.json"), `{
+  "home.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Home heading"
+  }
+}`)
+	writePackTestFile(t, filepath.Join(distDir, "es-ES.json"), `{
+  "home.title": {
+    "defaultMessage": "Panel",
+    "description": "Home heading"
+  }
+}`)
+	writePackConfigWithFiles(t, configPath, []packConfigFileMapping{
+		{from: "lang/{{source}}.json", to: "dist/{{target}}.json"},
+	})
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"--config", configPath, "--out-suffix", ".packed"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("pack command from foreign cwd with nested config: %v", err)
+	}
+	if !strings.Contains(errOut.String(), "dist/es-ES.packed.json") {
+		t.Fatalf("expected status output for packed file, got %q", errOut.String())
+	}
+
+	content, err := os.ReadFile(filepath.Join(distDir, "es-ES.packed.json"))
+	if err != nil {
+		t.Fatalf("read packed output file: %v", err)
+	}
+	got := decodePackCatalogOutput(t, content)
+	want := map[string]extractCatalogMessage{
+		"home.title": {DefaultMessage: "Panel"},
+	}
+	assertPackCatalogOutput(t, got, want)
+}
