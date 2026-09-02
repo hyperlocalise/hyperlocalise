@@ -9,19 +9,19 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	extast "github.com/yuin/goldmark/extension/ast"
-	textm "github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/extension"
+	extast "github.com/yuin/goldmark/v2/extension/ast"
+	"github.com/yuin/goldmark/v2/parser"
+	textm "github.com/yuin/goldmark/v2/text"
 )
 
-var standardMarkdownParser = goldmark.New(goldmark.WithExtensions(
-	extension.Table,
-	extension.Strikethrough,
-	extension.TaskList,
-	extension.DefinitionList,
-	extension.Footnote,
+var standardMarkdownParser = parser.New(parser.WithExtensions(
+	extension.TableParser,
+	extension.StrikethroughParser,
+	extension.TaskListItemParser,
+	extension.DefinitionListParser,
+	extension.FootnoteParser,
 ))
 
 type markdownSpanCandidate struct {
@@ -202,8 +202,7 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 }
 
 func collectMarkdownBodyCandidates(content []byte, baseOffset int) []markdownSpanCandidate {
-	reader := textm.NewReader(content)
-	root := standardMarkdownParser.Parser().Parse(reader)
+	root := standardMarkdownParser.Parse(content)
 	candidates := []markdownSpanCandidate{}
 	seen := map[string]struct{}{}
 
@@ -216,17 +215,15 @@ func collectMarkdownBodyCandidates(content []byte, baseOffset int) []markdownSpa
 		case *extast.Table:
 			appendTableCandidates(&candidates, seen, typed, content, baseOffset)
 			return ast.WalkSkipChildren, nil
-		case *ast.Heading, *ast.Paragraph, *ast.TextBlock:
+		case *ast.Heading, *ast.Paragraph:
 			appendBlockLineCandidates(&candidates, seen, n, baseOffset)
-		case *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock:
+		case *ast.CodeBlock, *ast.HTMLBlock:
 			return ast.WalkSkipChildren, nil
 		case *extast.Strikethrough:
 			// Wraps inline content; walk into children.
-		case *extast.TaskCheckBox:
-			// Within a ListItem; Paragraph children are already walked.
 		case *extast.DefinitionTerm, *extast.DefinitionDescription:
 			appendBlockLineCandidates(&candidates, seen, n, baseOffset)
-		case *extast.FootnoteList:
+		case *extast.FootnoteDefinition:
 			return ast.WalkSkipChildren, nil
 		}
 
@@ -236,14 +233,21 @@ func collectMarkdownBodyCandidates(content []byte, baseOffset int) []markdownSpa
 	return candidates
 }
 
+func markdownBlockSource(node ast.Node) []textm.Segment {
+	block, ok := node.(ast.BlockNode)
+	if !ok {
+		return nil
+	}
+	return block.Source()
+}
+
 func appendBlockLineCandidates(out *[]markdownSpanCandidate, seen map[string]struct{}, node ast.Node, baseOffset int) {
-	lines := node.Lines()
-	if lines == nil || lines.Len() == 0 {
+	segments := markdownBlockSource(node)
+	if len(segments) == 0 {
 		return
 	}
 
-	for i := 0; i < lines.Len(); i++ {
-		segment := lines.At(i)
+	for i, segment := range segments {
 		start := baseOffset + segment.Start
 		stop := baseOffset + trimMarkdownSegmentStop(segment)
 		appendMarkdownCandidate(out, seen, start, stop, markdownNodePath(node, i))
@@ -252,17 +256,23 @@ func appendBlockLineCandidates(out *[]markdownSpanCandidate, seen map[string]str
 
 func appendTableCandidates(out *[]markdownSpanCandidate, seen map[string]struct{}, table *extast.Table, content []byte, baseOffset int) {
 	rowIndex := 0
-	for row := table.FirstChild(); row != nil; row = row.NextSibling() {
-		switch typed := row.(type) {
+	for child := table.FirstChild(); child != nil; child = child.NextSibling() {
+		switch typed := child.(type) {
 		case *extast.TableHeader:
 			if start, stop, ok := markdownTableRowSpan(typed, content, baseOffset); ok {
 				appendMarkdownCandidate(out, seen, start, stop, markdownNodePath(typed, 0))
 			}
-		case *extast.TableRow:
-			if start, stop, ok := markdownTableRowSpan(typed, content, baseOffset); ok {
-				appendMarkdownCandidate(out, seen, start, stop, markdownNodePath(table, 0)+"/row["+strconv.Itoa(rowIndex)+"]") // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		case *extast.TableBody:
+			for row := typed.FirstChild(); row != nil; row = row.NextSibling() {
+				tableRow, ok := row.(*extast.TableRow)
+				if !ok {
+					continue
+				}
+				if start, stop, ok := markdownTableRowSpan(tableRow, content, baseOffset); ok {
+					appendMarkdownCandidate(out, seen, start, stop, markdownNodePath(table, 0)+"/row["+strconv.Itoa(rowIndex)+"]") // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+				}
+				rowIndex++
 			}
-			rowIndex++
 		}
 	}
 }
@@ -271,12 +281,11 @@ func markdownTableRowSpan(row ast.Node, content []byte, baseOffset int) (int, in
 	minStart := -1
 	maxStop := -1
 	for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
-		lines := cell.Lines()
-		if lines == nil || lines.Len() == 0 {
+		segments := markdownBlockSource(cell)
+		if len(segments) == 0 {
 			continue
 		}
-		for i := 0; i < lines.Len(); i++ {
-			segment := lines.At(i)
+		for _, segment := range segments {
 			if minStart < 0 || segment.Start < minStart {
 				minStart = segment.Start
 			}

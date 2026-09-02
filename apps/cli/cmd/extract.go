@@ -314,7 +314,7 @@ func hasGlobMeta(path string) bool {
 
 type extractGlobPattern struct {
 	raw      string
-	matchers []glob.Glob
+	matchers []*glob.Pattern
 }
 
 func compileExtractGlobPatterns(patterns []string) ([]extractGlobPattern, error) {
@@ -337,7 +337,7 @@ func compileExtractGlobPattern(raw string) (extractGlobPattern, error) {
 	}
 
 	alternates := extractGlobAlternates(pattern)
-	matchers := make([]glob.Glob, 0, len(alternates))
+	matchers := make([]*glob.Pattern, 0, len(alternates))
 	for _, alternate := range alternates {
 		matcher, err := glob.Compile(alternate, '/')
 		if err != nil {
