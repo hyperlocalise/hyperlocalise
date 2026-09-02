@@ -408,12 +408,12 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		prefixIndex = collectPackPrefixIndex()
 	}
 
-	selection, err := buildCheckSelection(index, o.file, o.key, o.prefixID, prefixIndex)
+	selection, err := buildCheckSelection(index, o.file, o.key, o.prefixID, prefixIndex, configRoot)
 	if err != nil {
 		return checkReport{}, err
 	}
 	if o.diffStdin {
-		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key, o.prefixID, o.ignoreDuplicateID, prefixIndex)
+		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key, o.prefixID, o.ignoreDuplicateID, prefixIndex, configRoot)
 		if err != nil {
 			return checkReport{}, err
 		}
@@ -453,7 +453,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string, co
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
 			for _, sourcePath := range sourcePaths {
-				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+				if shouldIgnoreSourcePathForStatus(sourcePath, configRoot, cfg.Locales.Targets) {
 					continue
 				}
 
@@ -486,7 +486,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string, co
 	return index, nil
 }
 
-func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter string, prefixID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
+func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter string, prefixID bool, prefixIndex packPrefixIndex, configRoot string) (checkSelection, error) {
 	selection := checkSelection{}
 
 	trimmedKey := strings.TrimSpace(keyFilter)
@@ -501,22 +501,18 @@ func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter st
 	if trimmedFile == "" {
 		return selection, nil
 	}
-	fileFilter, err := filepath.Abs(trimmedFile)
-	if err != nil {
-		return checkSelection{}, fmt.Errorf("resolve --file path %q: %w", trimmedFile, err)
-	}
-	fileFilter = filepath.Clean(fileFilter)
-	if _, ok := index.sourceByPath[fileFilter]; !ok {
+	desc, ok := lookupCheckSourceDescriptor(index, configRoot, trimmedFile)
+	if !ok {
 		selection.bySource = map[string]checkSourceScope{}
 		return selection, nil
 	}
 	selection.bySource = map[string]checkSourceScope{
-		fileFilter: {},
+		filepath.Clean(desc.sourcePath): {},
 	}
 	return selection, nil
 }
 
-func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
+func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex, configRoot string) (checkSelection, error) {
 	changedFiles, err := parseUnifiedDiffChangedFiles(diffContent)
 	if err != nil {
 		return checkSelection{}, err
@@ -535,7 +531,7 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		changedPath := filepath.Clean(changed.path)
 		changedKeys := changed.keys
 		if prefixID {
-			if _, isSource := index.sourceByPath[changedPath]; isSource {
+			if _, isSource := lookupCheckSourceDescriptor(index, configRoot, changedPath); isSource {
 				var err error
 				changedKeys, err = normalizeCheckChangedKeys(changed.keys, prefixIndex, ignoreDuplicateID)
 				if err != nil {
@@ -543,7 +539,7 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 				}
 			}
 		}
-		if sourceDesc, ok := index.sourceByPath[changedPath]; ok {
+		if sourceDesc, ok := lookupCheckSourceDescriptor(index, configRoot, changedPath); ok {
 			scope := selection.bySource[filepath.Clean(sourceDesc.sourcePath)]
 			scope.keys = intersectChangedKeys(scope.keys, changedKeys, filterKey)
 			scope.sourceInDiff = true
@@ -551,7 +547,7 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 			selection.bySource[filepath.Clean(sourceDesc.sourcePath)] = scope
 			continue
 		}
-		targetLookup, ok := index.targetToSource[changedPath]
+		targetLookup, ok := lookupCheckTargetLookup(index, configRoot, changedPath)
 		if !ok {
 			continue
 		}

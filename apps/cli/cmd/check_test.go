@@ -100,6 +100,27 @@ func TestCheckCommandResolvesPathsRelativeToConfigDirectory(t *testing.T) {
 	}
 }
 
+func TestCheckDiffStdinMatchesConfigRelativeSourcePaths(t *testing.T) {
+	configPath, _, targetPath := setupNestedConfigLocaleProject(t)
+	if err := os.WriteFile(targetPath, []byte("{\n  \"hello\": \"\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	report := executeCheckJSON(t, configPath, unifiedDiffForPath("src/locales/fr/common.json", `@@ -1,3 +1,3 @@
+ {
+-  "hello": "Bonjour"
++  "hello": ""
+ }
+`), "--diff-stdin", "--no-fail", "--check", checkNotLocalized)
+
+	if len(report.Findings) != 1 || report.Findings[0].Key != "hello" {
+		t.Fatalf("expected diff-stdin to match config-relative target path, got %+v", report.Findings)
+	}
+}
+
 func TestCheckCommandWithoutPrefixIDReportsPrefixedSourceMismatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

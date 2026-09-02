@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
@@ -78,6 +79,96 @@ func (s *Service) resolveProjectTargetPath(sourcePattern, targetPattern, sourceP
 		s.resolveProjectPattern(targetPattern),
 		s.resolveProjectPattern(sourcePath),
 	)
+}
+
+func relativizeProjectPath(projectRoot, path string) (string, bool) {
+	root := strings.TrimSpace(projectRoot)
+	trimmed := strings.TrimSpace(path)
+	if root == "" || trimmed == "" {
+		return "", false
+	}
+	rel, err := filepath.Rel(root, trimmed)
+	if err != nil {
+		return "", false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", false
+	}
+	return rel, true
+}
+
+func preferredTaskIdentity(projectRoot, targetPath, entryKey string) string {
+	if rel, ok := relativizeProjectPath(projectRoot, targetPath); ok {
+		return taskIdentity(rel, entryKey)
+	}
+	return taskIdentity(targetPath, entryKey)
+}
+
+func sourcePathMatchesFilter(projectRoot, filter, sourcePath string) bool {
+	for _, candidate := range sourcePathFilterCandidates(projectRoot, filter) {
+		if filepath.Clean(candidate) == filepath.Clean(sourcePath) {
+			return true
+		}
+	}
+	return false
+}
+
+func sourcePathMatchesAnyFilter(projectRoot string, filters []string, sourcePath string) bool {
+	for _, filter := range filters {
+		if sourcePathMatchesFilter(projectRoot, filter, sourcePath) {
+			return true
+		}
+	}
+	return false
+}
+
+func sourcePathFilterCandidates(projectRoot, filter string) []string {
+	trimmed := strings.TrimSpace(filter)
+	if trimmed == "" {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	add := func(candidate string) {
+		candidate = filepath.Clean(candidate)
+		if candidate == "" {
+			return
+		}
+		seen[candidate] = struct{}{}
+	}
+	add(trimmed)
+	if abs, err := filepath.Abs(trimmed); err == nil {
+		add(abs)
+	}
+	if root := strings.TrimSpace(projectRoot); root != "" && !filepath.IsAbs(trimmed) {
+		add(filepath.Join(root, trimmed))
+	}
+	candidates := make([]string, 0, len(seen))
+	for candidate := range seen {
+		candidates = append(candidates, candidate)
+	}
+	slices.Sort(candidates)
+	return candidates
+}
+
+func (s *Service) expandSourcePathFilters(paths []string) (map[string]struct{}, []string, error) {
+	if len(paths) == 0 {
+		return nil, nil, nil
+	}
+
+	originals := make([]string, 0, len(paths))
+	matchSet := make(map[string]struct{})
+	for _, path := range paths {
+		trimmed := strings.TrimSpace(path)
+		if trimmed == "" {
+			return nil, nil, fmt.Errorf("invalid source file value: must not be empty")
+		}
+		originals = append(originals, trimmed)
+		for _, candidate := range sourcePathFilterCandidates(s.projectRoot, trimmed) {
+			matchSet[candidate] = struct{}{}
+		}
+	}
+	return matchSet, originals, nil
 }
 
 func (s *Service) readProjectFile(path string) ([]byte, error) {

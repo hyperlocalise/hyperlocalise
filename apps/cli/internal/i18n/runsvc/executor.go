@@ -544,7 +544,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	}
 
 	select {
-	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: outputValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+	case completions <- taskCompletion{identity: preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: outputValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 		state.reportMu.Lock()
 		state.report.Succeeded++
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))

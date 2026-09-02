@@ -9,8 +9,18 @@ import (
 	"strings"
 )
 
-func shouldIgnoreSourcePath(sourcePath string, targetLocales []string) bool {
-	normalized := filepath.ToSlash(sourcePath)
+func shouldIgnoreSourcePath(sourcePath, projectRoot string, targetLocales []string) bool {
+	pathForScan := sourcePath
+	if root := strings.TrimSpace(projectRoot); root != "" {
+		if rel, err := filepath.Rel(root, sourcePath); err == nil {
+			rel = filepath.ToSlash(rel)
+			if rel != ".." && !strings.HasPrefix(rel, "../") {
+				pathForScan = rel
+			}
+		}
+	}
+
+	normalized := filepath.ToSlash(pathForScan)
 	segments := strings.Split(normalized, "/")
 	if len(segments) < 2 {
 		return false

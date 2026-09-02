@@ -138,3 +138,34 @@ func TestResolveProjectSourcePathsUsesConfigRoot(t *testing.T) {
 		t.Fatalf("resolveProjectSourcePaths() = %q, want %q", got[0], want)
 	}
 }
+
+func TestRelativizeProjectPath(t *testing.T) {
+	projectDir := t.TempDir()
+	sourceAbs := filepath.Join(projectDir, "locales", "en", "messages.json")
+	if got, ok := relativizeProjectPath(projectDir, sourceAbs); !ok || got != "locales/en/messages.json" {
+		t.Fatalf("relativizeProjectPath() = (%q, %v), want (locales/en/messages.json, true)", got, ok)
+	}
+}
+
+func TestSourcePathMatchesFilterResolvesRelativeFlagAgainstProjectRoot(t *testing.T) {
+	projectDir := t.TempDir()
+	sourceAbs := filepath.Join(projectDir, "docs", "en", "messages.json")
+	if !sourcePathMatchesFilter(projectDir, "docs/en/messages.json", sourceAbs) {
+		t.Fatalf("expected relative --file filter to match absolute source path")
+	}
+}
+
+func TestTaskIdentityCandidatesIncludeRelativeTargetPath(t *testing.T) {
+	projectDir := t.TempDir()
+	targetAbs := filepath.Join(projectDir, "dist", "fr", "strings.json")
+	task := Task{TargetPath: targetAbs, EntryKey: "hello"}
+
+	identities := taskIdentityCandidates(task, projectDir)
+	want := taskIdentity("dist/fr/strings.json", "hello")
+	for _, identity := range identities {
+		if identity == want {
+			return
+		}
+	}
+	t.Fatalf("taskIdentityCandidates() = %v, want to include %q", identities, want)
+}

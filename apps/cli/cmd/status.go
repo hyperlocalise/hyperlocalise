@@ -220,7 +220,7 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
 			for _, sourcePath := range sourcePaths {
-				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+				if shouldIgnoreSourcePathForStatus(sourcePath, configRoot, cfg.Locales.Targets) {
 					continue
 				}
 
@@ -384,8 +384,18 @@ func filterByLocaleAndBucket(entries []storage.Entry, locales []string, bucket s
 	return withBucket
 }
 
-func shouldIgnoreSourcePathForStatus(sourcePath string, targetLocales []string) bool {
-	normalized := filepath.ToSlash(sourcePath)
+func shouldIgnoreSourcePathForStatus(sourcePath, configRoot string, targetLocales []string) bool {
+	pathForScan := sourcePath
+	if root := strings.TrimSpace(configRoot); root != "" {
+		if rel, err := filepath.Rel(root, sourcePath); err == nil {
+			rel = filepath.ToSlash(rel)
+			if rel != ".." && !strings.HasPrefix(rel, "../") {
+				pathForScan = rel
+			}
+		}
+	}
+
+	normalized := filepath.ToSlash(pathForScan)
 	segments := strings.Split(normalized, "/")
 	if len(segments) < 2 {
 		return false
@@ -441,6 +451,63 @@ func relativizeConfigPath(configRoot, path string) (string, error) {
 		return "", fmt.Errorf("path %q escapes config root %q", trimmed, root)
 	}
 	return rel, nil
+}
+
+func checkPathLookupCandidates(configRoot, path string) []string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	add := func(candidate string) {
+		candidate = filepath.Clean(candidate)
+		if candidate == "" {
+			return
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+	}
+
+	add(trimmed)
+	if abs, err := filepath.Abs(trimmed); err == nil {
+		add(abs)
+	}
+	if root := strings.TrimSpace(configRoot); root != "" {
+		if resolved, err := resolveConfigRelativePath(root, trimmed); err == nil {
+			add(resolved)
+		}
+		if rel, err := relativizeConfigPath(root, trimmed); err == nil {
+			add(rel)
+		}
+	}
+
+	candidates := make([]string, 0, len(seen))
+	for candidate := range seen {
+		candidates = append(candidates, candidate)
+	}
+	slices.Sort(candidates)
+	return candidates
+}
+
+func lookupCheckSourceDescriptor(index *checkConfigIndex, configRoot, path string) (checkSourceDescriptor, bool) {
+	for _, candidate := range checkPathLookupCandidates(configRoot, path) {
+		if desc, ok := index.sourceByPath[candidate]; ok {
+			return desc, true
+		}
+	}
+	return checkSourceDescriptor{}, false
+}
+
+func lookupCheckTargetLookup(index *checkConfigIndex, configRoot, path string) (checkTargetLookup, bool) {
+	for _, candidate := range checkPathLookupCandidates(configRoot, path) {
+		if lookup, ok := index.targetToSource[candidate]; ok {
+			return lookup, true
+		}
+	}
+	return checkTargetLookup{}, false
 }
 
 func resolveSourcePathsForStatus(configRoot, sourcePattern string) ([]string, error) {

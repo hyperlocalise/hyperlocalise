@@ -145,7 +145,7 @@ func collectPackLocaleFilesFromConfig(options packOptions) ([]string, error) {
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
 			for _, sourcePath := range sourcePaths {
-				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+				if shouldIgnoreSourcePathForStatus(sourcePath, configRoot, cfg.Locales.Targets) {
 					continue
 				}
 				for _, locale := range locales {

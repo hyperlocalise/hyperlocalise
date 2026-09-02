@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func TestResolveConfigRelativePath(t *testing.T) {
@@ -222,4 +224,37 @@ func setupNestedConfigLocaleProject(t *testing.T) (configPath, sourcePath, targe
 	}, []string{"fr"})
 
 	return configPath, sourcePath, targetPath
+}
+
+func TestShouldIgnoreSourcePathForStatusIgnoresLocaleOutsideConfigRoot(t *testing.T) {
+	repoRoot := t.TempDir()
+	projectDir := filepath.Join(repoRoot, "fr", "nested-app")
+	sourcePath := filepath.Join(projectDir, "src", "locales", "en", "common.json")
+	if shouldIgnoreSourcePathForStatus(sourcePath, projectDir, []string{"fr"}) {
+		t.Fatalf("expected ancestor locale directory outside config-relative path to be ignored for filtering")
+	}
+}
+
+func TestLookupCheckSourceDescriptorMatchesConfigRelativeDiffPath(t *testing.T) {
+	configPath, sourcePath, _ := setupNestedConfigLocaleProject(t)
+	index, err := buildCheckConfigIndex(mustLoadCheckConfig(t, configPath), []string{"ui"}, []string{"fr"}, filepath.Dir(configPath))
+	if err != nil {
+		t.Fatalf("buildCheckConfigIndex: %v", err)
+	}
+
+	if _, ok := lookupCheckSourceDescriptor(index, filepath.Dir(configPath), "src/locales/en/common.json"); !ok {
+		t.Fatalf("expected config-relative diff path to match indexed source")
+	}
+	if _, ok := lookupCheckSourceDescriptor(index, filepath.Dir(configPath), sourcePath); !ok {
+		t.Fatalf("expected absolute source path to match indexed source")
+	}
+}
+
+func mustLoadCheckConfig(t *testing.T, configPath string) *config.I18NConfig {
+	t.Helper()
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	return cfg
 }

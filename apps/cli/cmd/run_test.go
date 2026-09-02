@@ -2073,3 +2073,26 @@ func TestRunDryRunResolvesPathsRelativeToConfigDirectory(t *testing.T) {
 		t.Fatalf("expected no target file written in dry-run, stat err=%v", statErr)
 	}
 }
+
+func TestRunDryRunFileFilterResolvesRelativeToConfigDirectory(t *testing.T) {
+	configPath, _, targetPath := setupNestedConfigLocaleProject(t)
+	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("remove target before dry-run: %v", err)
+	}
+
+	otherCWD := t.TempDir()
+	t.Chdir(otherCWD)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--file", "src/locales/en/common.json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run with relative --file from foreign cwd: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry_run=true") {
+		t.Fatalf("expected dry-run output, got %q", out.String())
+	}
+}

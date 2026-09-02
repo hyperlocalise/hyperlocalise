@@ -26,11 +26,24 @@ func TestShouldIgnoreSourcePathScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldIgnoreSourcePath(tt.path, tt.target)
+			got := shouldIgnoreSourcePath(tt.path, "", tt.target)
 			if got != tt.want {
 				t.Fatalf("shouldIgnoreSourcePath(%q, %v) = %t, want %t", tt.path, tt.target, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestShouldIgnoreSourcePathIgnoresLocaleOutsideProjectRoot(t *testing.T) {
+	projectDir := filepath.Join(t.TempDir(), "fr", "nested-app")
+	sourcePath := filepath.Join(projectDir, "src", "locales", "en", "common.json")
+	if shouldIgnoreSourcePath(sourcePath, projectDir, []string{"fr"}) {
+		t.Fatalf("expected ancestor locale directory outside project-relative path to be ignored for filtering")
+	}
+
+	localeInsideProject := filepath.Join(projectDir, "docs", "fr", "index.mdx")
+	if !shouldIgnoreSourcePath(localeInsideProject, projectDir, []string{"fr"}) {
+		t.Fatalf("expected locale segment in project-relative path to be ignored")
 	}
 }
 

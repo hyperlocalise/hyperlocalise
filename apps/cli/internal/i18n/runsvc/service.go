@@ -357,11 +357,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	if err != nil {
 		return nil, nil, fmt.Errorf("planning tasks: %w", err)
 	}
-	filteredSourcePaths, err := normalizeSourcePaths(onlySourcePaths)
+	_, filteredSourceOriginals, err := s.expandSourcePathFilters(onlySourcePaths)
 	if err != nil {
 		return nil, nil, fmt.Errorf("planning tasks: %w", err)
 	}
-	matchedSourcePaths := make(map[string]struct{}, len(filteredSourcePaths))
+	matchedSourceOriginals := make(map[string]struct{}, len(filteredSourceOriginals))
 	if filteredBucket != "" {
 		if _, ok := cfg.Buckets[filteredBucket]; !ok {
 			return nil, nil, fmt.Errorf("planning tasks: unknown bucket %q", filteredBucket)
@@ -461,19 +461,21 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 				}
 
 				for _, sourcePath := range sources {
-					if len(filteredSourcePaths) > 0 {
-						if _, ok := filteredSourcePaths[sourcePath]; !ok {
-							continue
-						}
-					}
-					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
+					if len(filteredSourceOriginals) > 0 && !sourcePathMatchesAnyFilter(s.projectRoot, filteredSourceOriginals, sourcePath) {
 						continue
+					}
+					if shouldIgnoreSourcePath(sourcePath, s.projectRoot, cfg.Locales.Targets) {
+						continue
+					}
+					if len(filteredSourceOriginals) > 0 {
+						for _, original := range filteredSourceOriginals {
+							if sourcePathMatchesFilter(s.projectRoot, original, sourcePath) {
+								matchedSourceOriginals[original] = struct{}{}
+							}
+						}
 					}
 					if err := s.validateProjectPath(sourcePath); err != nil {
 						return nil, nil, fmt.Errorf("planning tasks: source path %q: %w", sourcePath, err)
-					}
-					if len(filteredSourcePaths) > 0 {
-						matchedSourcePaths[sourcePath] = struct{}{}
 					}
 					if isSupportedImagePath(sourcePath) {
 						sourceContent, err := s.readProjectFile(sourcePath)
@@ -625,11 +627,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		}
 	}
 
-	if len(filteredSourcePaths) > 0 {
+	if len(filteredSourceOriginals) > 0 {
 		unmatched := make([]string, 0)
-		for sourcePath := range filteredSourcePaths {
-			if _, ok := matchedSourcePaths[sourcePath]; !ok {
-				unmatched = append(unmatched, sourcePath)
+		for _, original := range filteredSourceOriginals {
+			if _, ok := matchedSourceOriginals[original]; !ok {
+				unmatched = append(unmatched, original)
 			}
 		}
 		slices.Sort(unmatched)
@@ -708,22 +710,6 @@ func normalizeTargetLocales(locales []string) ([]string, error) {
 		normalized = append(normalized, trimmed)
 	}
 
-	return normalized, nil
-}
-
-func normalizeSourcePaths(paths []string) (map[string]struct{}, error) {
-	if len(paths) == 0 {
-		return nil, nil
-	}
-
-	normalized := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		trimmed := strings.TrimSpace(path)
-		if trimmed == "" {
-			return nil, fmt.Errorf("invalid source file value: must not be empty")
-		}
-		normalized[filepath.Clean(trimmed)] = struct{}{}
-	}
 	return normalized, nil
 }
 
@@ -1002,11 +988,21 @@ func taskIdentity(targetPath, entryKey string) string {
 	return targetPath + "::" + entryKey
 }
 
-func taskIdentityCandidates(task Task) []string {
-	identities := []string{taskIdentity(task.TargetPath, task.EntryKey)}
+func taskIdentityCandidates(task Task, projectRoot string) []string {
+	identities := []string{
+		preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey),
+		taskIdentity(task.TargetPath, task.EntryKey),
+	}
+	if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+		identities = append(identities, taskIdentity(rel, task.EntryKey))
+	}
 	if isMarkdownEntryKey(task.EntryKey) {
 		for _, entryKey := range legacyMarkdownEntryKeyCandidates(task.EntryKey) {
+			identities = append(identities, preferredTaskIdentity(projectRoot, task.TargetPath, entryKey))
 			identities = append(identities, taskIdentity(task.TargetPath, entryKey))
+			if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+				identities = append(identities, taskIdentity(rel, entryKey))
+			}
 		}
 	}
 	return dedupeStrings(identities)

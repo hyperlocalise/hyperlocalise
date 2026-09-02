@@ -357,7 +357,7 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 				return nil, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
 			}
 			for _, resolvedSourcePath := range sourcePaths {
-				if shouldIgnoreSourcePathForStatus(resolvedSourcePath, cfg.Locales.Targets) {
+				if shouldIgnoreSourcePathForStatus(resolvedSourcePath, configRoot, cfg.Locales.Targets) {
 					continue
 				}
 				fileFormat := inferHyperlocaliseFileFormat(resolvedSourcePath)
