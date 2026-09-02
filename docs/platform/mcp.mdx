@@ -46,8 +46,17 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | --- | --- |
 | `list_projects` | List accessible projects (`limit`, default 20, max 50) |
 | `get_project` | Project details by `projectId` |
+| `get_project_status` | Locale coverage counts by `projectId`, with optional `sourcePath` |
 | `list_glossaries` | List glossaries linked to accessible projects |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100) |
+
+`get_project_status` answers “how done is French?” without paging translations. It returns `sourceLocale`, `targetLocales`, and per-locale counts: `total`, `translated`, `untranslated`, `needsReview`, `approved`, and `hidden`. Counts match Content Editor queue filters on the native key overlay. Hidden keys stay in `total` and, when they have no target text, in `untranslated`, because that is how the native CAT server filter counts them.
+
+When you pass `sourcePath`, the tool still returns project-wide locale totals and adds a `files` row for that path. The response includes counts only. It never includes source or target text.
+
+For TMS-backed projects the tool still returns native overlay counts (`coverageSource: "native_overlay"`). It does not fetch live provider statistics. Use the provider CAT or CLI for Crowdin, Phrase, Lokalise, or Smartling progress.
+
+Inaccessible projects return `project_not_found`.
 
 ### Board (issues)
 
@@ -99,6 +108,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs |
 | `forbidden` on issue tools | Your role is read-only for write-back operations |
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
+| `project_not_found` | Wrong `projectId` or missing project access on `get_project_status` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next
