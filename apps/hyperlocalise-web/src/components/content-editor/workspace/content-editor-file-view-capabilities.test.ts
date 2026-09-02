@@ -26,7 +26,7 @@ describe("cat-file-view-capabilities", () => {
 
     expect(capabilities).toEqual({
       family: "image",
-      availableViews: ["file", "comfortable", "side-by-side"],
+      availableViews: ["file"],
       defaultView: "file",
       viewerId: "image",
     });
@@ -51,7 +51,7 @@ describe("cat-file-view-capabilities", () => {
 
     expect(capabilities).toEqual({
       family: "video",
-      availableViews: ["file", "comfortable", "side-by-side"],
+      availableViews: ["file"],
       defaultView: "file",
       viewerId: "video",
     });
@@ -127,7 +127,7 @@ describe("cat-file-view-capabilities", () => {
     expect(clampCatWorkspaceViewMode("file", text)).toBe("comfortable");
 
     const image = resolveCatFileViewCapabilities({ sourcePath: "a.webp" });
-    expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("comfortable");
+    expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("file");
     expect(clampCatWorkspaceViewMode("file", image)).toBe("file");
   });
 });

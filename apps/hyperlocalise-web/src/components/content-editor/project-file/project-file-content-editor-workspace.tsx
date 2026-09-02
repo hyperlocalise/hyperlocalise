@@ -874,8 +874,12 @@ export function ProjectFileContentEditorWorkspace({
                   },
                   ...(aiFeaturesAllowed
                     ? {
-                        onRegenerateImage: async (segmentId: string) => {
-                          await regenerateImage({ externalStringId: segmentId });
+                        onRegenerateImage: async (segmentId, options) => {
+                          await regenerateImage({
+                            externalStringId: segmentId,
+                            instructions: options?.instructions,
+                            force: options?.force,
+                          });
                         },
                       }
                     : {}),

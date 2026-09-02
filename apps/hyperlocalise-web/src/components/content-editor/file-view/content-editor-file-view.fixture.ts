@@ -34,6 +34,13 @@ export const CAT_STORY_VIDEO_SOURCE_URL =
 export const CAT_STORY_VIDEO_TARGET_URL =
   "https://www.w3.org/WAI/content-images/wai-videos/perspective-video-form-controls.mp4";
 
+import {
+  CAT_STORY_DOCUMENT_MDX_SOURCE_URL,
+  CAT_STORY_DOCUMENT_MDX_TARGET_URL,
+  CAT_STORY_DOCUMENT_SOURCE_URL,
+  CAT_STORY_DOCUMENT_TARGET_URL,
+} from "./content-editor-document-msw-handlers";
+
 export const contentEditorImageFileIntelligenceFixture: ContentEditorSegmentIntelligence = {
   ...contentEditorIntelligenceFixture,
   reviewReason:
@@ -46,6 +53,22 @@ export const contentEditorImageFileIntelligenceFixture: ContentEditorSegmentInte
   productMeaning: "Hero image that introduces pending review work on the dashboard.",
   segmentType: "Image file",
   constraints: "Keep the product UI readable. Do not crop the CTA.",
+  aiSuggestion: undefined,
+  aiReasoning: undefined,
+};
+
+export const contentEditorDocumentFileIntelligenceFixture: ContentEditorSegmentIntelligence = {
+  ...contentEditorIntelligenceFixture,
+  reviewReason:
+    "The intro guide still uses English section headings. Localize the Markdown body and frontmatter fields.",
+  reviewRisk: "medium",
+  intent: "Onboarding guide for new reviewers.",
+  locationBreadcrumb: "Docs > Getting started",
+  filePath: "content/intro.md",
+  componentName: "IntroGuide",
+  productMeaning: "Markdown guide that explains how to review translations in the dashboard.",
+  segmentType: "Document file",
+  constraints: "Preserve MDX components and keyboard markup.",
   aiSuggestion: undefined,
   aiReasoning: undefined,
 };
@@ -86,6 +109,44 @@ export function createCatImageFileSegment(
     targetAssetUrl: CAT_STORY_IMAGE_TARGET_URL,
     ...overrides,
   };
+}
+
+export function createCatDocumentFileSegment(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorSegment {
+  return {
+    id: "seg-document-file",
+    index: 1,
+    key: "content/intro.md",
+    sourceText: "content/intro.md",
+    targetText: "",
+    sourcePath: "content/intro.md",
+    sourceLocale: SOURCE_LOCALE,
+    targetLocale: TARGET_LOCALE,
+    status: "needs_review",
+    contextLabel: "Intro guide",
+    tags: ["document", "docs"],
+    contentKind: "document",
+    sourceAssetUrl: CAT_STORY_DOCUMENT_SOURCE_URL,
+    targetAssetUrl: CAT_STORY_DOCUMENT_TARGET_URL,
+    ...overrides,
+  };
+}
+
+export function createCatDocumentMdxFileSegment(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorSegment {
+  return createCatDocumentFileSegment({
+    id: "seg-document-mdx-file",
+    key: "content/guide.mdx",
+    sourceText: "content/guide.mdx",
+    sourcePath: "content/guide.mdx",
+    contextLabel: "Component guide",
+    tags: ["document", "mdx"],
+    sourceAssetUrl: CAT_STORY_DOCUMENT_MDX_SOURCE_URL,
+    targetAssetUrl: CAT_STORY_DOCUMENT_MDX_TARGET_URL,
+    ...overrides,
+  });
 }
 
 export function createCatVideoFileSegment(
@@ -165,6 +226,51 @@ export function createCatVideoFileWorkspaceState(
     contentEditorVideoFileIntelligenceFixture,
     createMediaFileContext(segment.sourcePath ?? "onboarding/walkthrough.mp4", "walkthrough.mp4"),
   );
+}
+
+export function createCatDocumentFileWorkspaceState(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorWorkspaceState {
+  const segment = createCatDocumentFileSegment(overrides);
+  return createMediaWorkspaceState(
+    [segment],
+    segment.id,
+    contentEditorDocumentFileIntelligenceFixture,
+    createMediaFileContext(segment.sourcePath ?? "content/intro.md", "intro.md"),
+  );
+}
+
+export function createCatDocumentMdxFileWorkspaceState(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorWorkspaceState {
+  const segment = createCatDocumentMdxFileSegment(overrides);
+  return createMediaWorkspaceState(
+    [segment],
+    segment.id,
+    contentEditorDocumentFileIntelligenceFixture,
+    createMediaFileContext(segment.sourcePath ?? "content/guide.mdx", "guide.mdx"),
+  );
+}
+
+export function createCatDocumentAndImageWorkspaceState(): ContentEditorWorkspaceState {
+  const documentSegment = createCatDocumentFileSegment({ index: 1 });
+  const imageSegment = createCatImageFileSegment({ index: 2 });
+  const segments = [documentSegment, imageSegment];
+
+  return createContentEditorWorkspaceState({
+    segments,
+    queueSegments: segments.map(toQueueSegment),
+    selectedSegmentId: documentSegment.id,
+    formatChecks: [],
+    segmentFormatChecks: {},
+    intelligence: contentEditorDocumentFileIntelligenceFixture,
+    segmentIntelligence: {
+      [documentSegment.id]: contentEditorDocumentFileIntelligenceFixture,
+      [imageSegment.id]: contentEditorImageFileIntelligenceFixture,
+    },
+    fileContext: createMediaFileContext("All Files", "All Files"),
+    breadcrumbs: ["Project", "HL-Test", "Files", "All Files"],
+  });
 }
 
 export function createCatImageAndVideoWorkspaceState(): ContentEditorWorkspaceState {

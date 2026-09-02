@@ -23,13 +23,17 @@ import {
   type ContentEditorDocumentFrontmatterField,
 } from "@/components/content-editor/file-view/content-editor-document-frontmatter";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
-import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { MarkdownEditor, MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx";
+
+function isMdxDocumentFilename(filename: string) {
+  return filename.toLowerCase().endsWith(".mdx");
+}
 
 type LoadedDocument = { status: "missing" } | { status: "ok"; text: string } | { status: "error" };
 
@@ -212,17 +216,25 @@ export function ContentEditorDocumentFileViewerPane({
             ) : null}
             {readOnly ? (
               <MarkdownPreview value={body} className="min-h-[16rem]" emptyMessage={emptyLabel} />
-            ) : (
+            ) : isMdxDocumentFilename(filename) ? (
               /*
-                Author edits in a raw textarea — not TipTap MarkdownEditor. TipTap's
-                getMarkdown() HTML-escapes angle brackets, which permanently corrupts
-                MDX/JSX and raw HTML on Save (e.g. <Callout> → &lt;Callout&gt;).
+                MDX keeps a raw textarea: TipTap getMarkdown() HTML-escapes angle brackets,
+                which corrupts JSX and raw HTML on save (e.g. <Callout> → &lt;Callout&gt;).
               */
               <Textarea
                 value={body}
                 onChange={(event) => setBody(event.currentTarget.value)}
                 aria-label={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
                 className="min-h-[16rem] resize-y font-mono text-sm leading-relaxed"
+              />
+            ) : (
+              <MarkdownEditor
+                key={`${role}-${src ?? seedSrc ?? "missing"}-${filename}`}
+                value={body}
+                onChange={setBody}
+                disabled={isBusy || isSaving}
+                ariaLabel={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
+                className="min-h-[16rem]"
               />
             )}
           </div>

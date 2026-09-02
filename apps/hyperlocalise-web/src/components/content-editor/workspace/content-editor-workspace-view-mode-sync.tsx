@@ -19,7 +19,6 @@ import { useEffect } from "react";
 import {
   clampCatWorkspaceViewMode,
   resolveCatFileViewCapabilities,
-  type ContentEditorFileViewFamily,
 } from "./content-editor-file-view-capabilities";
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
 
@@ -42,8 +41,6 @@ export const ContentEditorWorkspaceViewModeSync = observer(
     }, [onPageLimitChange, store]);
 
     useEffect(() => {
-      let previousFamily: ContentEditorFileViewFamily | null = null;
-
       return reaction(
         () => {
           const selected = store.selectedSegmentView;
@@ -55,20 +52,7 @@ export const ContentEditorWorkspaceViewModeSync = observer(
         },
         ({ viewMode, sourcePath, contentKind }) => {
           const capabilities = resolveCatFileViewCapabilities({ sourcePath, contentKind });
-          let nextMode = clampCatWorkspaceViewMode(viewMode, capabilities);
-
-          // Entering a binary-first family selects File view by default.
-          // Staying in the same family keeps an explicit Comfortable / Side by side choice.
-          if (
-            (capabilities.family === "image" ||
-              capabilities.family === "video" ||
-              capabilities.family === "office") &&
-            previousFamily !== capabilities.family
-          ) {
-            nextMode = capabilities.defaultView;
-          }
-
-          previousFamily = capabilities.family;
+          const nextMode = clampCatWorkspaceViewMode(viewMode, capabilities);
 
           if (nextMode !== viewMode) {
             store.ui.setViewMode(nextMode);

@@ -52,7 +52,10 @@ export interface ContentEditorWorkspaceEditing {
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void | Promise<void>;
   onSetMaxLength?: (segmentId: string, maxLength: number | null) => void | Promise<void>;
-  onRegenerateImage?: (segmentId: string) => void | Promise<void>;
+  onRegenerateImage?: (
+    segmentId: string,
+    options?: { instructions?: string; force?: boolean },
+  ) => void | Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
 }
 

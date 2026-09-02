@@ -116,6 +116,7 @@ import {
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
   projectImageAssetPath,
@@ -252,6 +253,7 @@ import {
   loadContentEditorSegmentVisualContext,
 } from "@/lib/translation/content-editor-core";
 import {
+  inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedSourceUploadFormat,
@@ -2174,6 +2176,68 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
           const targetAssetUrl = result.value.storedFileId
             ? projectVideoAssetPath({
+                organizationSlug,
+                projectId: params.projectId,
+                fileId: result.value.storedFileId,
+              })
+            : null;
+
+          return c.json(
+            {
+              imageVariant: {
+                id: result.value.id,
+                status: result.value.status,
+                targetAssetUrl,
+                storedFileId: result.value.storedFileId,
+              },
+            },
+            200,
+          );
+        }
+
+        if (inferSupportedDocumentTranslationFileFormat(body.sourcePath)) {
+          const sourceFile = fileBackedSourceFile;
+          if (!sourceFile) {
+            return badRequestResponse(
+              c,
+              "source_file_not_found",
+              "Source file not found for the given path",
+            );
+          }
+
+          const latestVersion = await getLatestRepositorySourceFileVersion({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+          });
+          if (!latestVersion?.storedFileId) {
+            return badRequestResponse(
+              c,
+              "source_bytes_missing",
+              "Source document bytes are missing",
+            );
+          }
+
+          const result = await localizeAndStoreDocumentVariant({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            sourceLocale: project.sourceLocale,
+            sourceStoredFileId: latestVersion.storedFileId,
+            repositorySourceFileId: sourceFile.id,
+            instructions: body.instructions,
+            provenance: "agent",
+            createdByUserId: c.var.auth.user.localUserId,
+            force: body.force,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "Document regeneration failed");
+          }
+
+          const targetAssetUrl = result.value.storedFileId
+            ? projectImageAssetPath({
                 organizationSlug,
                 projectId: params.projectId,
                 fileId: result.value.storedFileId,

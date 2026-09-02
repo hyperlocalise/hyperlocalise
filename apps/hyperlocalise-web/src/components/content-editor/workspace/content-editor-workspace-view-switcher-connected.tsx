@@ -43,7 +43,7 @@ export const ContentEditorWorkspaceViewSwitcherConnected = observer(
       ? (mode: ContentEditorWorkspaceViewMode) => store.ui.setViewMode(mode)
       : onChange;
 
-    if (!resolvedOnChange) {
+    if (!resolvedOnChange || resolvedAvailableViews.length <= 1) {
       return null;
     }
 

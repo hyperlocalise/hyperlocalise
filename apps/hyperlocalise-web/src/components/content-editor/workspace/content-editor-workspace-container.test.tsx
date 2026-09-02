@@ -21,6 +21,7 @@ import {
   createCatImageFileWorkspaceState,
   createCatVideoFileWorkspaceState,
 } from "@/components/content-editor/file-view/content-editor-file-view.fixture";
+import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   contentEditorSegmentsFixture,
   createContentEditorWorkspaceState,
@@ -254,5 +255,31 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     expect(document.querySelectorAll("video")).toHaveLength(2);
     expect(screen.getByText("Upload translated file")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
+  });
+
+  it("hides queue toolbar controls in file view", async () => {
+    renderCatWorkspace(
+      <>
+        <ContentEditorQueueToolbarHost />
+        <ContentEditorWorkspaceContainer
+          initialState={createCatImageFileWorkspaceState()}
+          initialViewMode="file"
+          editing={{
+            onRegenerateImage: vi.fn(),
+            onUploadImage: vi.fn(),
+          }}
+        />
+      </>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.queryByRole("button", { name: "Filter queue" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Show multi-select")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Content Editor view mode" }),
+    ).not.toBeInTheDocument();
   });
 });

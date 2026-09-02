@@ -35,14 +35,7 @@ const SEGMENT_VIEWS = [
   "comfortable",
   "side-by-side",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
-const IMAGE_VIEWS = [
-  "file",
-  "comfortable",
-  "side-by-side",
-] as const satisfies readonly ContentEditorWorkspaceViewMode[];
-const VIDEO_VIEWS = IMAGE_VIEWS;
-const OFFICE_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
-const DOCUMENT_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -77,7 +70,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (contentKind === "image_file" || inferSupportedImageTranslationFileFormat(sourcePath)) {
     return {
       family: "image",
-      availableViews: IMAGE_VIEWS,
+      availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "image",
     };
@@ -86,7 +79,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (contentKind === "video_file" || inferSupportedVideoTranslationFileFormat(sourcePath)) {
     return {
       family: "video",
-      availableViews: VIDEO_VIEWS,
+      availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "video",
     };
@@ -98,7 +91,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (officeFormat) {
     return {
       family: "office",
-      availableViews: OFFICE_VIEWS,
+      availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: officeViewerIdForExtension(extension) ?? "docx",
     };
@@ -107,7 +100,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (contentKind === "document" || inferSupportedDocumentTranslationFileFormat(sourcePath)) {
     return {
       family: "document",
-      availableViews: DOCUMENT_VIEWS,
+      availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "markdown",
     };

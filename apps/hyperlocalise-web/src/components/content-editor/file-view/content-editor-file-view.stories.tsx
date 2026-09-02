@@ -25,10 +25,17 @@ import {
   CAT_STORY_IMAGE_TARGET_URL,
   CAT_STORY_VIDEO_SOURCE_URL,
   CAT_STORY_VIDEO_TARGET_URL,
+  createCatDocumentAndImageWorkspaceState,
+  createCatDocumentFileWorkspaceState,
+  createCatDocumentMdxFileWorkspaceState,
   createCatImageAndVideoWorkspaceState,
   createCatImageFileWorkspaceState,
   createCatVideoFileWorkspaceState,
 } from "./content-editor-file-view.fixture";
+import {
+  CAT_STORY_DOCUMENT_ERROR_TARGET_URL,
+  contentEditorDocumentMswHandlers,
+} from "./content-editor-document-msw-handlers";
 
 const meta = {
   title: "CAT/File view",
@@ -70,6 +77,12 @@ const mediaReview = {
   onAskQuestion: fn(),
 };
 
+const documentMswParameters = {
+  msw: {
+    handlers: contentEditorDocumentMswHandlers,
+  },
+} as const;
+
 function fileViewArgs(initialState: ContentEditorWorkspaceState): Story["args"] {
   return {
     initialState,
@@ -84,12 +97,21 @@ function viewModeButtons(canvas: ReturnType<typeof within>) {
   return canvas.getAllByRole("button", { name: "Content Editor view mode" });
 }
 
+async function expectDocumentFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
+  await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
+  await expect(canvas.getByText(filename)).toBeInTheDocument();
+  await expect(canvas.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument();
+  await expect(canvas.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+  await expect(canvas.getByRole("button", { name: /Generate|Regenerate/i })).toBeInTheDocument();
+  await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
+}
+
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
   await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
   await expect(canvas.getByText(filename)).toBeInTheDocument();
   await expect(canvas.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument();
   await expect(canvas.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
-  await expect(canvas.getByRole("button", { name: /Regenerate/i })).toBeInTheDocument();
+  await expect(canvas.getByRole("button", { name: /Generate|Regenerate/i })).toBeInTheDocument();
   await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
 }
 
@@ -163,8 +185,8 @@ export const VideoFile: Story = {
     await expectFileViewChrome(canvas, "onboarding/walkthrough.mp4");
     const videos = canvasElement.querySelectorAll("video");
     await expect(videos).toHaveLength(2);
-    await expect(videos[0]).toHaveAttribute("src", CAT_STORY_VIDEO_TARGET_URL);
-    await expect(videos[1]).toHaveAttribute("src", CAT_STORY_VIDEO_SOURCE_URL);
+    await expect(videos[0]).toHaveAttribute("src", CAT_STORY_VIDEO_SOURCE_URL);
+    await expect(videos[1]).toHaveAttribute("src", CAT_STORY_VIDEO_TARGET_URL);
     await expect(canvas.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
   },
 };
@@ -217,5 +239,95 @@ export const ImageAndVideoQueue: Story = {
     await expect(canvas.queryByAltText("Source image")).not.toBeInTheDocument();
 
     await expect(window.localStorage.getItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY)).toBe("file");
+  },
+};
+
+export const DocumentFile: Story = {
+  parameters: documentMswParameters,
+  args: fileViewArgs(createCatDocumentFileWorkspaceState()),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expectDocumentFileViewChrome(canvas, "content/intro.md");
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("heading", { level: 1, name: "Getting started" }),
+      ).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(canvas.getByRole("heading", { level: 1, name: "Bắt đầu" })).toBeInTheDocument(),
+    );
+    await expect(canvas.getByText("Document properties")).toBeInTheDocument();
+    const titleField = canvasElement.querySelector<HTMLInputElement>(
+      "#content-editor-document-field-target-title",
+    );
+    await expect(titleField).toHaveValue("Bắt đầu");
+    await expect(canvas.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
+  },
+};
+
+export const DocumentFileEmptyTarget: Story = {
+  parameters: documentMswParameters,
+  args: fileViewArgs(createCatDocumentFileWorkspaceState({ targetAssetUrl: null })),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expectDocumentFileViewChrome(canvas, "content/intro.md");
+    await expect(canvas.getByRole("button", { name: /^Generate$/i })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("heading", { level: 1, name: "Getting started" }),
+      ).toBeInTheDocument(),
+    );
+    await expect(canvas.getByRole("button", { name: /^Approve$/i })).toBeDisabled();
+  },
+};
+
+export const DocumentFileWithMdx: Story = {
+  parameters: documentMswParameters,
+  args: fileViewArgs(createCatDocumentMdxFileWorkspaceState()),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expectDocumentFileViewChrome(canvas, "content/guide.mdx");
+    const editor = await canvas.findByLabelText("Translated document");
+    await expect(editor).toHaveValue(expect.stringContaining('<Callout type="info">'));
+    await expect(editor).toHaveValue(expect.stringContaining("<kbd>Esc</kbd>"));
+    await expect(canvas.getByRole("button", { name: /Save edits/i })).toBeInTheDocument();
+  },
+};
+
+export const DocumentFileLoadError: Story = {
+  parameters: documentMswParameters,
+  args: fileViewArgs(
+    createCatDocumentFileWorkspaceState({ targetAssetUrl: CAT_STORY_DOCUMENT_ERROR_TARGET_URL }),
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expectDocumentFileViewChrome(canvas, "content/intro.md");
+    await waitFor(() =>
+      expect(canvas.getByText("Could not load the translated file")).toBeInTheDocument(),
+    );
+    await expect(canvas.queryByLabelText("Translated document")).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /^Approve$/i })).toBeDisabled();
+  },
+};
+
+export const DocumentAndImageQueue: Story = {
+  parameters: documentMswParameters,
+  args: fileViewArgs(createCatDocumentAndImageWorkspaceState()),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expectDocumentFileViewChrome(canvas, "content/intro.md");
+    await waitFor(() =>
+      expect(canvas.getByRole("heading", { level: 1, name: "Bắt đầu" })).toBeInTheDocument(),
+    );
+
+    await userEvent.click(canvas.getByRole("button", { name: /Next file/i }));
+    await waitFor(() => expect(canvas.getByText("marketing/hero.png")).toBeInTheDocument());
+    await expect(canvas.getByAltText("Source image")).toBeInTheDocument();
+    await expect(canvas.queryByLabelText("Translated document")).not.toBeInTheDocument();
   },
 };
