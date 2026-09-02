@@ -185,6 +185,33 @@ describe("linkedDomainRoutes", () => {
     expect(verified.linkedDomain.projectId).toMatch(/^project_/);
     expect(verified.linkedDomain.verifiedMethod).toBe("dns_txt");
 
+    const projectId = verified.linkedDomain.projectId;
+    expect(projectId).toBeTruthy();
+    const projectMemoryRows = await db
+      .select({
+        memoryId: schema.projectMemories.memoryId,
+        priority: schema.projectMemories.priority,
+      })
+      .from(schema.projectMemories)
+      .where(eq(schema.projectMemories.projectId, projectId!));
+    expect(projectMemoryRows).toHaveLength(1);
+    expect(projectMemoryRows[0]?.priority).toBe(0);
+
+    const [defaultMemory] = await db
+      .select({
+        id: schema.memories.id,
+        source: schema.memories.source,
+        name: schema.memories.name,
+      })
+      .from(schema.memories)
+      .where(eq(schema.memories.id, projectMemoryRows[0]!.memoryId))
+      .limit(1);
+    expect(defaultMemory).toMatchObject({
+      id: projectMemoryRows[0]?.memoryId,
+      source: "native",
+      name: domainKey,
+    });
+
     const [auditRow] = await db
       .select()
       .from(schema.localisationAudits)

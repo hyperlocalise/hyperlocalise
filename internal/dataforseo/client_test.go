@@ -188,6 +188,148 @@ func TestAssertTaskTreatsNoResultsAsEmpty(t *testing.T) {
 	require.Equal(t, task, parsed)
 }
 
+func TestAssertTaskBilledFailureIncludesBilling(t *testing.T) {
+	task := &Task{
+		StatusCode:    50000,
+		StatusMessage: "Internal Error.",
+		Path:          []string{"v3", "dataforseo_labs", "google", "related_keywords", "live"},
+		Cost:          0.12,
+	}
+
+	_, err := assertTask(task, pathRelatedKeywords, assertTaskOptions{})
+	require.Error(t, err)
+
+	typed, ok := AsError(err)
+	require.True(t, ok)
+	require.Equal(t, ErrorCodeTaskFailed, typed.Code)
+	require.Equal(t, 50000, typed.StatusCode)
+	require.NotNil(t, typed.Billing)
+	require.Equal(t, 0.12, typed.Billing.CostUSD)
+	require.Equal(t, task.Path, typed.Billing.Path)
+}
+
+func TestAssertTaskUnbilledFailureOmitsBilling(t *testing.T) {
+	task := &Task{
+		StatusCode:    40102,
+		StatusMessage: "Invalid Path.",
+		Path:          []string{"v3", "dataforseo_labs", "google", "related_keywords", "live"},
+		Cost:          0,
+	}
+
+	_, err := assertTask(task, pathRelatedKeywords, assertTaskOptions{})
+	require.Error(t, err)
+
+	typed, ok := AsError(err)
+	require.True(t, ok)
+	require.Equal(t, ErrorCodeTaskFailed, typed.Code)
+	require.Nil(t, typed.Billing)
+}
+
+func TestHTTPErrorMapping(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+		wantCode   ErrorCode
+	}{
+		{name: "unauthorized", statusCode: http.StatusUnauthorized, wantCode: ErrorCodeAuthFailed},
+		{name: "rate limited", statusCode: http.StatusTooManyRequests, wantCode: ErrorCodeRateLimited},
+		{name: "upstream", statusCode: http.StatusBadGateway, wantCode: ErrorCodeUpstreamUnavailable},
+		{name: "other client error", statusCode: http.StatusBadRequest, wantCode: ErrorCodeTaskFailed},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(`{"message":"nope"}`))
+			}))
+			t.Cleanup(server.Close)
+
+			client, err := NewClientWithHTTPClient(Config{APIKey: "dGVzdA=="}, server.Client())
+			require.NoError(t, err)
+			client.baseURL = server.URL
+
+			_, err = client.Labs().RelatedKeywords(t.Context(), RelatedKeywordsInput{
+				Keyword: "seo",
+				Market:  MarketScope{LocationCode: 2840, LanguageCode: "en"},
+			})
+			require.Error(t, err)
+
+			typed, ok := AsError(err)
+			require.True(t, ok)
+			require.Equal(t, tc.wantCode, typed.Code)
+			require.Equal(t, tc.statusCode, typed.StatusCode)
+			require.Equal(t, pathRelatedKeywords, typed.Path)
+		})
+	}
+}
+
+func TestLabsRankedKeywordsPassesOffset(t *testing.T) {
+	var offset any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, pathRankedKeywords, r.URL.Path)
+
+		var payload []map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		require.Len(t, payload, 1)
+		offset = payload[0]["offset"]
+
+		_, _ = w.Write([]byte(`{
+			"status_code": 20000,
+			"tasks": [{
+				"status_code": 20000,
+				"path": ["v3","dataforseo_labs","google","ranked_keywords","live"],
+				"cost": 0.08,
+				"result": [{
+					"total_count": 42,
+					"items": [{"keyword":"pricing","rank_group":4}]
+				}]
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClientWithHTTPClient(Config{APIKey: "dGVzdA=="}, server.Client())
+	require.NoError(t, err)
+	client.baseURL = server.URL
+
+	response, err := client.Labs().RankedKeywords(t.Context(), RankedKeywordsInput{
+		Target: "example.com",
+		Market: MarketScope{LocationCode: 2840, LanguageCode: "en"},
+		Limit:  25,
+		Offset: 50,
+	})
+	require.NoError(t, err)
+	require.Equal(t, float64(50), offset)
+	require.Equal(t, 0.08, response.Billing.CostUSD)
+	require.NotNil(t, response.Data.TotalCount)
+	require.Equal(t, 42, *response.Data.TotalCount)
+	require.Len(t, response.Data.Items, 1)
+	require.Equal(t, "pricing", response.Data.Items[0]["keyword"])
+}
+
+func TestLabsRankedKeywordsRequiresTarget(t *testing.T) {
+	client, err := NewClient(Config{APIKey: "dGVzdA=="})
+	require.NoError(t, err)
+
+	_, err = client.Labs().RankedKeywords(t.Context(), RankedKeywordsInput{
+		Target: "   ",
+		Market: MarketScope{LocationCode: 2840, LanguageCode: "en"},
+	})
+	require.Error(t, err)
+	typed, ok := AsError(err)
+	require.True(t, ok)
+	require.Equal(t, ErrorCodeValidation, typed.Code)
+}
+
+func TestIsTaskInProgress(t *testing.T) {
+	require.False(t, IsTaskInProgress(nil))
+	require.False(t, IsTaskInProgress(&Task{StatusCode: 20000}))
+	require.True(t, IsTaskInProgress(&Task{StatusCode: 20100}))
+	require.True(t, IsTaskInProgress(&Task{StatusCode: 40601}))
+	require.True(t, IsTaskInProgress(&Task{StatusCode: 40602}))
+}
+
 func TestConfigAuthorizationFromLoginPassword(t *testing.T) {
 	cfg := Config{Login: "user", Password: "secret"}
 	require.Equal(t, "dXNlcjpzZWNyZXQ=", cfg.authorizationValue())
