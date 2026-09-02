@@ -11,15 +11,21 @@ import (
 
 func shouldIgnoreSourcePath(sourcePath, projectRoot string, targetLocales []string) bool {
 	pathForScan := sourcePath
+	configRelative := false
 	if root := strings.TrimSpace(projectRoot); root != "" {
 		if rel, err := filepath.Rel(root, sourcePath); err == nil {
 			rel = filepath.ToSlash(rel)
 			if rel != ".." && !strings.HasPrefix(rel, "../") {
 				pathForScan = rel
+				configRelative = true
 			}
 		}
 	}
 
+	return shouldIgnoreLocalePathSegments(pathForScan, configRelative, targetLocales)
+}
+
+func shouldIgnoreLocalePathSegments(pathForScan string, configRelative bool, targetLocales []string) bool {
 	normalized := filepath.ToSlash(pathForScan)
 	segments := strings.Split(normalized, "/")
 	if len(segments) < 2 {
@@ -31,7 +37,11 @@ func shouldIgnoreSourcePath(sourcePath, projectRoot string, targetLocales []stri
 		targets[locale] = struct{}{}
 	}
 
-	for i := 1; i < len(segments)-1; i++ {
+	start := 1
+	if configRelative {
+		start = 0
+	}
+	for i := start; i < len(segments)-1; i++ {
 		if _, ok := targets[segments[i]]; ok {
 			return true
 		}

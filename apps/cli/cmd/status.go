@@ -386,11 +386,13 @@ func filterByLocaleAndBucket(entries []storage.Entry, locales []string, bucket s
 
 func shouldIgnoreSourcePathForStatus(sourcePath, configRoot string, targetLocales []string) bool {
 	pathForScan := sourcePath
+	configRelative := false
 	if root := strings.TrimSpace(configRoot); root != "" {
 		if rel, err := filepath.Rel(root, sourcePath); err == nil {
 			rel = filepath.ToSlash(rel)
 			if rel != ".." && !strings.HasPrefix(rel, "../") {
 				pathForScan = rel
+				configRelative = true
 			}
 		}
 	}
@@ -406,7 +408,11 @@ func shouldIgnoreSourcePathForStatus(sourcePath, configRoot string, targetLocale
 		targets[locale] = struct{}{}
 	}
 
-	for i := 1; i < len(segments)-1; i++ {
+	start := 1
+	if configRelative {
+		start = 0
+	}
+	for i := start; i < len(segments)-1; i++ {
 		if _, ok := targets[segments[i]]; ok {
 			return true
 		}

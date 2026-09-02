@@ -79,7 +79,7 @@ type contextMemorySlot struct {
 	memory string
 }
 
-func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, omitPerEntryBatches bool) (*executorState, error) {
+func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, omitPerEntryBatches bool) (*executorState, error) {
 	staged := map[string]stagedOutput{}
 	for targetPath, output := range initialStaged {
 		entries := map[string]string{}
@@ -106,7 +106,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	}
 	for _, task := range tasks {
 		state.pendingByTarget[task.TargetPath]++
-		state.idsByTarget[task.TargetPath] = append(state.idsByTarget[task.TargetPath], taskIdentity(task.TargetPath, task.EntryKey))
+		state.idsByTarget[task.TargetPath] = append(state.idsByTarget[task.TargetPath], preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey))
 		existing := state.sourceByTarget[task.TargetPath]
 		if existing != "" && existing != task.SourcePath {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting source paths", task.TargetPath)
@@ -132,7 +132,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 		scheduledTasks = interleaveTasksByContextKey(tasks)
 	}
 
-	state, err := newExecutorState(scheduledTasks, initialStaged, pruneTargets, contextPlan, omitPerEntryBatches)
+	state, err := newExecutorState(scheduledTasks, s.projectRoot, initialStaged, pruneTargets, contextPlan, omitPerEntryBatches)
 	if err != nil {
 		return nil, nil, executionReport{}, err
 	}

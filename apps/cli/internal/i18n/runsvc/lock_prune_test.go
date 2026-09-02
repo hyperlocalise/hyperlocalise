@@ -1,6 +1,7 @@
 package runsvc
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
@@ -52,5 +53,43 @@ func TestShouldPruneLock(t *testing.T) {
 	}
 	if shouldPruneLock(Input{Bucket: "docs"}) {
 		t.Fatal("expected scoped run without prune to skip lock pruning")
+	}
+}
+
+func TestRollbackLockForTargetUsesPreferredIdentity(t *testing.T) {
+	projectDir := t.TempDir()
+	targetAbs := filepath.Join(projectDir, "dist", "fr", "strings.json")
+	task := Task{TargetPath: targetAbs, EntryKey: "hello"}
+
+	state, err := newExecutorState([]Task{task}, projectDir, nil, nil, contextMemoryPlan{}, false)
+	if err != nil {
+		t.Fatalf("newExecutorState: %v", err)
+	}
+
+	identity := preferredTaskIdentity(projectDir, targetAbs, "hello")
+	lockState := &lockfile.File{
+		RunCompleted: map[string]lockfile.RunCompletion{
+			identity: {SourceHash: "abc"},
+		},
+	}
+
+	removed, changed := (&Service{}).rollbackLockForTarget(lockState, targetAbs, map[string]struct{}{}, state)
+	if !changed || removed != 1 {
+		t.Fatalf("rollbackLockForTarget() = (%d, %v), want (1, true)", removed, changed)
+	}
+	if _, ok := lockState.RunCompleted[identity]; ok {
+		t.Fatalf("expected completion %q to be rolled back", identity)
+	}
+}
+
+func TestBuildPlannedLockKeySetUsesRelativeTargetPath(t *testing.T) {
+	projectDir := t.TempDir()
+	targetAbs := filepath.Join(projectDir, "dist", "fr", "strings.json")
+	keep := buildPlannedLockKeySet([]Task{{TargetPath: targetAbs, EntryKey: "hello"}}, projectDir)
+	if _, ok := keep["dist/fr/strings.json"]; !ok {
+		t.Fatalf("expected relative target path key, got %+v", keep)
+	}
+	if _, ok := keep[targetAbs]; ok {
+		t.Fatalf("did not expect absolute target path key, got %+v", keep)
 	}
 }

@@ -6,13 +6,14 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
-func buildPlannedLockKeySet(planned []Task) map[string]map[string]struct{} {
+func buildPlannedLockKeySet(planned []Task, projectRoot string) map[string]map[string]struct{} {
 	keep := map[string]map[string]struct{}{}
 	for _, task := range planned {
-		bucket := keep[task.TargetPath]
+		targetPath := plannedLockTargetPath(projectRoot, task.TargetPath)
+		bucket := keep[targetPath]
 		if bucket == nil {
 			bucket = map[string]struct{}{}
-			keep[task.TargetPath] = bucket
+			keep[targetPath] = bucket
 		}
 		bucket[task.EntryKey] = struct{}{}
 	}
@@ -77,5 +78,5 @@ func (s *Service) reconcileLockEntries(in Input, planned []Task, state *lockfile
 	if !shouldPruneLock(in) {
 		return 0
 	}
-	return pruneLockEntries(state, buildPlannedLockKeySet(planned))
+	return pruneLockEntries(state, buildPlannedLockKeySet(planned, s.projectRoot))
 }

@@ -105,6 +105,13 @@ func preferredTaskIdentity(projectRoot, targetPath, entryKey string) string {
 	return taskIdentity(targetPath, entryKey)
 }
 
+func plannedLockTargetPath(projectRoot, targetPath string) string {
+	if rel, ok := relativizeProjectPath(projectRoot, targetPath); ok {
+		return rel
+	}
+	return targetPath
+}
+
 func sourcePathMatchesFilter(projectRoot, filter, sourcePath string) bool {
 	for _, candidate := range sourcePathFilterCandidates(projectRoot, filter) {
 		if filepath.Clean(candidate) == filepath.Clean(sourcePath) {

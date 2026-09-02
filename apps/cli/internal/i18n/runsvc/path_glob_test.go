@@ -45,6 +45,11 @@ func TestShouldIgnoreSourcePathIgnoresLocaleOutsideProjectRoot(t *testing.T) {
 	if !shouldIgnoreSourcePath(localeInsideProject, projectDir, []string{"fr"}) {
 		t.Fatalf("expected locale segment in project-relative path to be ignored")
 	}
+
+	topLevelLocaleFile := filepath.Join(projectDir, "fr", "messages.json")
+	if !shouldIgnoreSourcePath(topLevelLocaleFile, projectDir, []string{"fr"}) {
+		t.Fatalf("expected top-level locale directory under project root to be ignored")
+	}
 }
 
 func TestResolveSourcePathsNoGlobReturnsInput(t *testing.T) {
