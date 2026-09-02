@@ -855,7 +855,7 @@ func TestParseStaticStringLiteral(t *testing.T) {
 		{name: "trailing backslash", src: `"hello\`, wantOK: false, wantNext: 7},
 		{name: "not a quote", src: `hello`, wantOK: false, wantNext: 0},
 		{name: "template interpolation rejected", src: "`hello ${name}`", wantOK: false, wantNext: 15},
-		{name: "escaped interpolation still rejected", src: "`hello \\${name}`", wantOK: false, wantNext: 17},
+		{name: "escaped interpolation still rejected", src: "`hello \\${name}`", wantOK: false, wantNext: 16},
 		{name: "quoted key then more", src: `"id": "value"`, want: "id", wantNext: 4, wantOK: true},
 	}
 
@@ -924,7 +924,7 @@ func TestUnescapeJavaScriptString(t *testing.T) {
 		{name: "quotes", raw: `say \"hi\"`, want: `say "hi"`},
 		{name: "backslash", raw: `a\\b`, want: `a\b`},
 		{name: "common escapes", raw: `\b\f\n\r\t\v`, want: "\b\f\n\r\t\v"},
-		{name: "literal quote chars", raw: `\'\"\``, want: "'\"`"},
+		{name: "literal quote chars", raw: "\\'\\\"\\`", want: "'\"`"},
 		{name: "unknown escape", raw: `\q`, want: "q"},
 		{name: "trailing backslash", raw: `abc\`, want: `abc\`},
 		{name: "hex", raw: `\x41`, want: "A"},
