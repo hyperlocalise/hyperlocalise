@@ -81,7 +81,7 @@ async function seedFileKeys(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     repositorySourceFileId: sourceFile.id,
-    entries: input.entries,
+    entries: input.entries.map((entry) => ({ ...entry, context: null })),
   });
 
   const keys = await db

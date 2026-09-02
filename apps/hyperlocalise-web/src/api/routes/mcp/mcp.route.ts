@@ -651,9 +651,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           .min(1)
           .max(2048)
           .optional()
-          .describe(
-            "Optional source file path. When set, also returns counts for that file only.",
-          ),
+          .describe("Optional source file path. When set, also returns counts for that file only."),
       }),
     },
     async ({ projectId, sourcePath }) => {
