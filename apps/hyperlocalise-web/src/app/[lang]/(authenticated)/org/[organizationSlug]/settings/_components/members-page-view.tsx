@@ -178,7 +178,7 @@ function MembersTableHeader() {
   return (
     <div
       role="row"
-      className="hidden grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid"
+      className="hidden grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_3rem] gap-4 border-b border-border px-1 py-2.5 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:grid"
     >
       <div role="columnheader">
         <FormattedMessage {...membersPageContentMessages.columnMember} />
@@ -226,11 +226,7 @@ function MemberRowActions({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className={cn(
-              "rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground",
-              "opacity-100 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100",
-              "data-popup-open:opacity-100 aria-expanded:opacity-100",
-            )}
+            className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
             aria-label={intl.formatMessage(membersPageContentMessages.actionsForMember, {
               name: member.displayName,
             })}
@@ -490,7 +486,7 @@ export function MembersPageView({
                 <div
                   key={member.email}
                   role="row"
-                  className="group/row grid gap-4 border-t border-border px-1 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] md:items-center"
+                  className="group/row grid gap-4 border-t border-border px-1 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_3rem] md:items-center"
                 >
                   <div role="cell" className="flex min-w-0 items-start gap-3">
                     <MemberAvatar displayName={member.displayName} avatarUrl={member.avatarUrl} />

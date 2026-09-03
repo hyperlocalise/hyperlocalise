@@ -97,6 +97,14 @@ describe("MembersPageView", () => {
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
+  it("keeps the row actions trigger visible without requiring hover", () => {
+    renderMembersPage();
+
+    const trigger = screen.getByRole("button", { name: "Actions for Mina Chen" });
+    expect(trigger).toBeVisible();
+    expect(trigger.className).not.toMatch(/opacity-0/);
+  });
+
   it("opens the change-role dialog from the row actions menu", async () => {
     const user = userEvent.setup();
     const member = createMember();
