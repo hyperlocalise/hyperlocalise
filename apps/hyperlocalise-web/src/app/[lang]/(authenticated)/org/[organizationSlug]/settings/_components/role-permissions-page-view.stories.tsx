@@ -40,6 +40,7 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Role permissions" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Members" })).toBeInTheDocument();
+    await expect(canvas.getByRole("table", { name: "Role permission matrix" })).toBeInTheDocument();
     await expect(canvas.getByText("View workspace")).toBeInTheDocument();
     await expect(canvas.getByText("workspace:read")).toBeInTheDocument();
     await expect(canvas.getByText("projects:read")).toBeInTheDocument();

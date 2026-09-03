@@ -13,15 +13,22 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import { Fragment } from "react";
 import { ArrowLeft01Icon, Tick02Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import {
   groupRolePermissionRows,
   ROLE_PERMISSION_MATRIX_ROLES,
   type RolePermissionGroupId,
+  type RolePermissionRow,
   type RolePermissionRowId,
   roleHasPermissionRow,
 } from "@/lib/members/role-permission-matrix";
@@ -31,6 +38,10 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 
 import { getRoleLabel } from "./members-settings-view-model";
 import { rolePermissionsPageViewMessages as messages } from "./role-permissions-page-view.messages";
+
+const ROLE_COLUMN_COUNT = ROLE_PERMISSION_MATRIX_ROLES.length;
+const MATRIX_COLUMN_COUNT = ROLE_COLUMN_COUNT + 1;
+const ROLE_COLUMN_WIDTH = "1/12" as const;
 
 const groupMessages = {
   work: messages.groupWork,
@@ -70,12 +81,73 @@ function PermissionMark({ allowed }: { allowed: boolean }) {
   }
 
   return (
-    <>
+    <Box display="inline-flex" alignItems="center" justifyContent="center">
       <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="size-4 text-primary" />
       <span className="sr-only">
         <FormattedMessage {...messages.allowed} />
       </span>
-    </>
+    </Box>
+  );
+}
+
+function MatrixHeaderRow() {
+  const intl = useIntl();
+
+  return (
+    <Columns spacing="1u" alignY="center" role="row">
+      <Column width="fluid" role="columnheader">
+        <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+          <FormattedMessage {...messages.columnPermission} />
+        </span>
+      </Column>
+      {ROLE_PERMISSION_MATRIX_ROLES.map((role) => (
+        <Column key={role} width={ROLE_COLUMN_WIDTH} role="columnheader">
+          <Row spacing="0" align="center" alignY="center">
+            <span className="text-center text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+              {getRoleLabel(role, intl)}
+            </span>
+          </Row>
+        </Column>
+      ))}
+    </Columns>
+  );
+}
+
+function MatrixGroupHeader({ groupId }: { groupId: RolePermissionGroupId }) {
+  return (
+    <Columns spacing="0" role="row">
+      <Column width="fluid" role="columnheader" aria-colspan={MATRIX_COLUMN_COUNT}>
+        <Box background="muted" paddingX="1.5u" paddingY="1u" borderRadius="standard">
+          <span className="text-xs font-medium text-muted-foreground">
+            <FormattedMessage {...groupMessages[groupId]} />
+          </span>
+        </Box>
+      </Column>
+    </Columns>
+  );
+}
+
+function MatrixPermissionRow({ row }: { row: RolePermissionRow }) {
+  return (
+    <Columns spacing="1u" alignY="center" role="row">
+      <Column width="fluid" role="rowheader">
+        <Rows spacing="0.5u">
+          <span className="font-medium text-foreground">
+            <FormattedMessage {...rowMessages[row.id]} />
+          </span>
+          <span className="font-mono text-[11px] leading-4 text-muted-foreground">
+            {row.capability}
+          </span>
+        </Rows>
+      </Column>
+      {ROLE_PERMISSION_MATRIX_ROLES.map((role) => (
+        <Column key={role} width={ROLE_COLUMN_WIDTH} role="cell">
+          <Row spacing="0" align="center" alignY="center">
+            <PermissionMark allowed={roleHasPermissionRow(role, row.capability)} />
+          </Row>
+        </Column>
+      ))}
+    </Columns>
   );
 }
 
@@ -87,7 +159,7 @@ export function RolePermissionsPageView({ organizationSlug }: { organizationSlug
     <WorkspacePageShell>
       <WorkspacePeopleNav organizationSlug={organizationSlug} />
 
-      <div className="flex flex-col gap-4">
+      <Rows spacing="2u">
         <Button
           nativeButton={false}
           render={<Link href={`/org/${organizationSlug}/members`} />}
@@ -105,65 +177,24 @@ export function RolePermissionsPageView({ organizationSlug }: { organizationSlug
           title={intl.formatMessage(messages.pageTitle)}
           description={intl.formatMessage(messages.pageDescription)}
         />
-      </div>
+      </Rows>
 
-      <div className="min-w-0 overflow-x-auto">
-        <table className="w-full min-w-[56rem] border-collapse text-sm">
-          <caption className="sr-only">
-            <FormattedMessage {...messages.matrixAriaLabel} />
-          </caption>
-          <thead>
-            <tr className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-              <th scope="col" className="px-3 py-3 text-start font-medium">
-                <FormattedMessage {...messages.columnPermission} />
-              </th>
-              {ROLE_PERMISSION_MATRIX_ROLES.map((role) => (
-                <th
-                  key={role}
-                  scope="col"
-                  className="w-[6.75rem] px-2 py-3 text-center font-medium"
-                >
-                  {getRoleLabel(role, intl)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          {groups.map((group) => (
-            <tbody key={group.id}>
-              <tr>
-                <th
-                  scope="colgroup"
-                  colSpan={ROLE_PERMISSION_MATRIX_ROLES.length + 1}
-                  className="rounded-md bg-muted px-3 py-2 text-start text-xs font-medium text-muted-foreground"
-                >
-                  <FormattedMessage {...groupMessages[group.id]} />
-                </th>
-              </tr>
-              {group.rows.map((row) => (
-                <tr key={row.id} className="border-b border-border/60">
-                  <th scope="row" className="px-3 py-3 text-start font-normal">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium text-foreground">
-                        <FormattedMessage {...rowMessages[row.id]} />
-                      </span>
-                      <span className="font-mono text-[11px] leading-4 text-muted-foreground">
-                        {row.capability}
-                      </span>
-                    </div>
-                  </th>
-                  {ROLE_PERMISSION_MATRIX_ROLES.map((role) => (
-                    <td key={role} className="px-2 py-3 text-center">
-                      <span className="inline-flex size-5 items-center justify-center">
-                        <PermissionMark allowed={roleHasPermissionRow(role, row.capability)} />
-                      </span>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          ))}
-        </table>
-      </div>
+      <Rows
+        spacing="1u"
+        role="table"
+        aria-label={intl.formatMessage(messages.matrixAriaLabel)}
+        aria-colcount={MATRIX_COLUMN_COUNT}
+      >
+        <MatrixHeaderRow />
+        {groups.map((group) => (
+          <Fragment key={group.id}>
+            <MatrixGroupHeader groupId={group.id} />
+            {group.rows.map((row) => (
+              <MatrixPermissionRow key={row.id} row={row} />
+            ))}
+          </Fragment>
+        ))}
+      </Rows>
     </WorkspacePageShell>
   );
 }
