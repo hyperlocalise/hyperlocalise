@@ -35,7 +35,10 @@ import {
   getVisualWorkflowRunByIdempotencyKey,
 } from "./visual-workflow-runs";
 import type { VisualWorkflowRecord } from "./visual-workflow-types";
-import type { VisualWorkflowRunTriggerSource } from "./visual-workflow-run-types";
+import type {
+  VisualWorkflowRunRecord,
+  VisualWorkflowRunTriggerSource,
+} from "./visual-workflow-run-types";
 
 const logger = createLogger("visual-workflow-dispatch");
 
@@ -72,17 +75,24 @@ export type VisualWorkflowDispatchResult =
       runId: string;
       inserted: boolean;
       enqueued: boolean;
+      scheduleSlotCommitted: boolean;
     }
   | {
       outcome: "skipped";
       runId: string;
       inserted: boolean;
       enqueued: boolean;
+      scheduleSlotCommitted: boolean;
       skipReason: string;
     };
 
 function executionQueue(input?: VisualWorkflowExecutionQueue) {
   return input ?? createVisualWorkflowExecutionQueue();
+}
+
+function visualWorkflowRunWasEnqueued(run: VisualWorkflowRunRecord): boolean {
+  const marker = run.outputSummary.executionEnqueuedAt;
+  return typeof marker === "string" && marker.length > 0;
 }
 
 async function dispatchVisualWorkflowRun(input: {
@@ -98,6 +108,7 @@ async function dispatchVisualWorkflowRun(input: {
       runId: "",
       inserted: false,
       enqueued: false,
+      scheduleSlotCommitted: false,
       skipReason: "workflow_not_active",
     };
   }
@@ -110,6 +121,7 @@ async function dispatchVisualWorkflowRun(input: {
   const queue = executionQueue(input.queue);
 
   if (existing) {
+    const scheduleSlotCommitted = visualWorkflowRunWasEnqueued(existing);
     const enqueued = await enqueueVisualWorkflowRunOnce({
       runId: existing.id,
       organizationId: input.workflow.organizationId,
@@ -127,6 +139,7 @@ async function dispatchVisualWorkflowRun(input: {
       runId: existing.id,
       inserted: false,
       enqueued,
+      scheduleSlotCommitted: scheduleSlotCommitted || enqueued,
     };
   }
 
@@ -155,6 +168,7 @@ async function dispatchVisualWorkflowRun(input: {
     runId: run.id,
     inserted: true,
     enqueued,
+    scheduleSlotCommitted: enqueued,
   };
 }
 
@@ -178,7 +192,7 @@ export async function dispatchVisualWorkflowForScheduleAndAdvance(input: {
     queue: input.queue,
   });
 
-  if (result.outcome === "enqueued" && result.enqueued) {
+  if (result.outcome === "enqueued" && result.scheduleSlotCommitted) {
     await advanceVisualWorkflowNextRun({
       visualWorkflowId: input.workflow.id,
       organizationId: input.workflow.organizationId,

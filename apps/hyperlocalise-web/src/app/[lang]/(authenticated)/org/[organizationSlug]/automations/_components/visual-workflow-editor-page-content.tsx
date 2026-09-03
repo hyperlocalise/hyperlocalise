@@ -44,7 +44,7 @@ export function VisualWorkflowEditorPageContent({
     name: workflow.name,
   });
 
-  const saveMutation = useMutation({
+  const persistMutation = useMutation({
     mutationFn: (input: {
       definition: VisualWorkflowDefinition;
       status?: VisualWorkflowRecord["status"];
@@ -54,17 +54,31 @@ export function VisualWorkflowEditorPageContent({
         definition: input.definition,
         ...(input.status ? { status: input.status } : {}),
       }),
-    onSuccess: () => {
-      toast.success(<FormattedMessage {...visualWorkflowEditorMessages.saved} />);
-    },
-    onError: () => {
-      toast.error(<FormattedMessage {...visualWorkflowEditorMessages.saveFailed} />);
-    },
   });
 
-  const handleStatusChange = async (active: boolean) => {
+  const saveMutation = {
+    ...persistMutation,
+    mutate: (definition: VisualWorkflowDefinition) => {
+      persistMutation.mutate(
+        { definition },
+        {
+          onSuccess: () => {
+            toast.success(<FormattedMessage {...visualWorkflowEditorMessages.saved} />);
+          },
+          onError: () => {
+            toast.error(<FormattedMessage {...visualWorkflowEditorMessages.saveFailed} />);
+          },
+        },
+      );
+    },
+    mutateAsync: persistMutation.mutateAsync,
+    isPending: persistMutation.isPending,
+  };
+
+  const handleStatusChange = async (active: boolean, definition: VisualWorkflowDefinition) => {
     try {
-      await injectedApi.updateVisualWorkflow(organizationSlug, workflow.id, {
+      await persistMutation.mutateAsync({
+        definition,
         status: active ? "active" : "paused",
       });
       router.refresh();
@@ -100,7 +114,7 @@ export function VisualWorkflowEditorPageContent({
         initialName={editorState.name}
         initialNodes={editorState.nodes}
         initialEdges={editorState.edges}
-        onSave={(definition) => saveMutation.mutate({ definition })}
+        onSave={(definition) => saveMutation.mutate(definition)}
         isSaving={saveMutation.isPending}
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}

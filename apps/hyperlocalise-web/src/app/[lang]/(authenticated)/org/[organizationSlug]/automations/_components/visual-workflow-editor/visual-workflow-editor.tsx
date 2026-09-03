@@ -42,7 +42,7 @@ import type {
   VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
-import { validateVisualWorkflowGraph } from "@/lib/visual-workflows/validation/validate-workflow";
+import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { applyVisualWorkflowConnection, VisualWorkflowCanvas } from "./visual-workflow-canvas";
@@ -86,7 +86,7 @@ export function VisualWorkflowEditor({
   visualWorkflowsApi?: VisualWorkflowsApi;
   onPersistBeforeTest?: (definition: VisualWorkflowDefinition) => Promise<unknown>;
   workflowStatus?: VisualWorkflowStatus;
-  onStatusChange?: (active: boolean) => void | Promise<void>;
+  onStatusChange?: (active: boolean, definition: VisualWorkflowDefinition) => void | Promise<void>;
   statusUpdating?: boolean;
 }) {
   const intl = useIntl();
@@ -103,7 +103,10 @@ export function VisualWorkflowEditor({
   const runAbortRef = useRef<AbortController | null>(null);
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const issues = useMemo(() => validateVisualWorkflowGraph(nodes, edges), [nodes, edges]);
+  const issues = useMemo(
+    () => validateVisualWorkflowDefinition(toVisualWorkflowDefinition({ name, nodes, edges })),
+    [edges, name, nodes],
+  );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
   const saveDisabled = issues.length > 0;
@@ -324,6 +327,16 @@ export function VisualWorkflowEditor({
     void onSave(toVisualWorkflowDefinition({ name, nodes, edges }));
   }, [edges, name, nodes, onSave, saveDisabled]);
 
+  const handleStatusChange = useCallback(
+    async (active: boolean) => {
+      if (!onStatusChange || (active && saveDisabled)) {
+        return;
+      }
+      await onStatusChange(active, toVisualWorkflowDefinition({ name, nodes, edges }));
+    },
+    [edges, name, nodes, onStatusChange, saveDisabled],
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <VisualWorkflowChrome
@@ -339,7 +352,7 @@ export function VisualWorkflowEditor({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         workflowStatus={workflowStatus}
-        onStatusChange={onStatusChange}
+        onStatusChange={onStatusChange ? handleStatusChange : undefined}
         statusDisabled={statusUpdating || saveDisabled}
       />
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (

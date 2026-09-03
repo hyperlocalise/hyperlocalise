@@ -120,6 +120,17 @@ type RunNodeResult =
   | { ok: true; branchResult?: boolean; nodeType: string }
   | { ok: false; error: Record<string, unknown> };
 
+function clearLoopBodyState(input: {
+  context: VisualWorkflowExecutionContext;
+  nodeResults: Record<string, Record<string, unknown>>;
+  bodyNodeIds: readonly string[];
+}) {
+  for (const bodyNodeId of input.bodyNodeIds) {
+    delete input.context.nodes[bodyNodeId];
+    delete input.nodeResults[bodyNodeId];
+  }
+}
+
 async function runScopedSubgraph(input: {
   graph: VisualWorkflowGraphIndex;
   nodeIds: readonly string[];
@@ -308,6 +319,12 @@ export async function runVisualWorkflowInterpreter(input: {
           ...nodeResults[nodeId],
           item: items[index],
           index,
+        });
+
+        clearLoopBodyState({
+          context,
+          nodeResults,
+          bodyNodeIds: orderedBody,
         });
 
         const bodyResult = await runScopedSubgraph({
