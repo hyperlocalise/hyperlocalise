@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Add01Icon,
@@ -38,8 +39,10 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -47,6 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
@@ -96,20 +100,26 @@ function MembersTableHeader({ showActions }: { showActions: boolean }) {
   );
 }
 
+const teamRoles: TeamRole[] = ["manager", "member"];
+
 function MemberRowActions({
   member,
+  canUpdateRole,
   canRemove,
-  isRemovingMember,
+  isBusy,
+  onChangeRole,
   onRemoveMember,
 }: {
   member: TeamMemberRow;
+  canUpdateRole: boolean;
   canRemove: boolean;
-  isRemovingMember: boolean;
+  isBusy: boolean;
+  onChangeRole: (member: TeamMemberRow) => void;
   onRemoveMember: (member: TeamMemberRow) => void;
 }) {
   const intl = useIntl();
 
-  if (!canRemove) {
+  if (!canUpdateRole && !canRemove) {
     return null;
   }
 
@@ -129,24 +139,138 @@ function MemberRowActions({
             aria-label={intl.formatMessage(teamDetailPageViewMessages.actionsForMember, {
               email: member.email,
             })}
-            disabled={isRemovingMember}
+            disabled={isBusy}
           />
         }
       >
         <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => onRemoveMember(member)}
-            disabled={isRemovingMember}
-          >
-            <FormattedMessage {...teamDetailPageViewMessages.removeFromTeam} />
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        {canUpdateRole ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => onChangeRole(member)} disabled={isBusy}>
+              <FormattedMessage {...teamDetailPageViewMessages.changeRole} />
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : null}
+        {canUpdateRole && canRemove ? <DropdownMenuSeparator /> : null}
+        {canRemove ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onRemoveMember(member)}
+              disabled={isBusy}
+            >
+              <FormattedMessage {...teamDetailPageViewMessages.removeFromTeam} />
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ChangeTeamMemberRoleDialog({
+  member,
+  isSaving,
+  onOpenChange,
+  onSubmit,
+}: {
+  member: TeamMemberRow | null;
+  isSaving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
+}) {
+  const intl = useIntl();
+  const [role, setRole] = useState<TeamRole>(member?.role ?? "member");
+
+  useEffect(() => {
+    if (member) {
+      setRole(member.role);
+    }
+  }, [member]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!member || role === member.role) {
+      return;
+    }
+
+    onSubmit({ workosUserId: member.workosUserId, role });
+  }
+
+  return (
+    <Dialog
+      open={member !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && isSaving) {
+          return;
+        }
+
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...teamDetailPageViewMessages.changeRoleTitle} />
+            </DialogTitle>
+            <DialogDescription>
+              {member
+                ? intl.formatMessage(teamDetailPageViewMessages.changeRoleDescription, {
+                    email: member.email,
+                  })
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel>
+              <FormattedMessage {...teamDetailPageViewMessages.roleLabel} />
+            </FieldLabel>
+            <Select
+              value={role}
+              onValueChange={(value) => setRole(value as TeamRole)}
+              disabled={isSaving}
+            >
+              <SelectTrigger className="border-border bg-muted">
+                <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {teamRoles.map((teamRole) => (
+                  <SelectItem
+                    key={teamRole}
+                    value={teamRole}
+                    label={getTeamRoleLabel(teamRole, intl)}
+                  >
+                    {getTeamRoleLabel(teamRole, intl)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+          </Field>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => onOpenChange(false)}
+            >
+              <FormattedMessage {...teamDetailPageViewMessages.cancel} />
+            </Button>
+            <Button type="submit" disabled={isSaving || !member || role === member.role}>
+              {isSaving ? <Spinner /> : null}
+              {isSaving ? (
+                <FormattedMessage {...teamDetailPageViewMessages.updatingRole} />
+              ) : (
+                <FormattedMessage {...teamDetailPageViewMessages.updateRole} />
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -163,13 +287,15 @@ export function TeamDetailPageView({
   isEditOpen,
   isSavingTeam,
   isRemovingMember,
-  updatingMemberRoleId,
+  isUpdatingMemberRole,
+  editingMember,
   removingMember,
   onAddMemberOpenChange,
   onEditOpenChange,
   onAddMember,
   onUpdateTeam,
   onUpdateMemberRole,
+  onEditingMemberChange,
   onRemoveMember,
   onRemovingMemberChange,
 }: {
@@ -185,13 +311,15 @@ export function TeamDetailPageView({
   isEditOpen: boolean;
   isSavingTeam: boolean;
   isRemovingMember: boolean;
-  updatingMemberRoleId: string | null;
+  isUpdatingMemberRole: boolean;
+  editingMember: TeamMemberRow | null;
   removingMember: TeamMemberRow | null;
   onAddMemberOpenChange: (open: boolean) => void;
   onEditOpenChange: (open: boolean) => void;
   onAddMember: (input: { workosUserId: string; role: TeamRole }) => void;
   onUpdateTeam: (values: { name: string; slug: string }) => void;
   onUpdateMemberRole: (input: { workosUserId: string; role: TeamRole }) => void;
+  onEditingMemberChange: (member: TeamMemberRow | null) => void;
   onRemoveMember: (workosUserId: string) => void;
   onRemovingMemberChange: (member: TeamMemberRow | null) => void;
 }) {
@@ -356,53 +484,24 @@ export function TeamDetailPageView({
                       <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase md:hidden">
                         <FormattedMessage {...teamDetailPageViewMessages.columnRole} />
                       </span>
-                      {canUpdateRole ? (
-                        <Select
-                          value={member.role}
-                          onValueChange={(value) => {
-                            if (value === member.role) {
-                              return;
-                            }
-
-                            onUpdateMemberRole({
-                              workosUserId: member.workosUserId,
-                              role: value as TeamRole,
-                            });
-                          }}
-                          disabled={updatingMemberRoleId === member.workosUserId}
-                        >
-                          <SelectTrigger className="h-9 w-[12rem] max-w-full border-border bg-background/60 text-subtle-foreground hover:bg-muted">
-                            <SelectValue>{getTeamRoleLabel(member.role, intl)}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manager" label={getTeamRoleLabel("manager", intl)}>
-                              {getTeamRoleLabel("manager", intl)}
-                            </SelectItem>
-                            <SelectItem value="member" label={getTeamRoleLabel("member", intl)}>
-                              {getTeamRoleLabel("member", intl)}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "h-auto max-w-[12rem] truncate rounded-lg px-3 py-1.5 text-sm",
-                                  "border-border bg-muted text-subtle-foreground",
-                                )}
-                              >
-                                {getTeamRoleLabel(member.role, intl)}
-                              </Badge>
-                            }
-                          />
-                          <TooltipContent side="bottom" align="start" className="max-w-xs">
-                            {getTeamRoleDescription(member.role, intl)}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "h-auto max-w-[12rem] truncate rounded-lg px-3 py-1.5 text-sm",
+                                "border-border bg-muted text-subtle-foreground",
+                              )}
+                            >
+                              {getTeamRoleLabel(member.role, intl)}
+                            </Badge>
+                          }
+                        />
+                        <TooltipContent side="bottom" align="start" className="max-w-xs">
+                          {getTeamRoleDescription(member.role, intl)}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
 
@@ -410,8 +509,10 @@ export function TeamDetailPageView({
                     {pageState.canManageMembers ? (
                       <MemberRowActions
                         member={member}
+                        canUpdateRole={canUpdateRole}
                         canRemove={canRemove}
-                        isRemovingMember={isRemovingMember}
+                        isBusy={isRemovingMember || isUpdatingMemberRole}
+                        onChangeRole={onEditingMemberChange}
                         onRemoveMember={onRemovingMemberChange}
                       />
                     ) : null}
@@ -442,6 +543,17 @@ export function TeamDetailPageView({
         isSaving={isAddingMember}
         onOpenChange={onAddMemberOpenChange}
         onSubmit={onAddMember}
+      />
+
+      <ChangeTeamMemberRoleDialog
+        member={editingMember}
+        isSaving={isUpdatingMemberRole}
+        onOpenChange={(open) => {
+          if (!open) {
+            onEditingMemberChange(null);
+          }
+        }}
+        onSubmit={onUpdateMemberRole}
       />
 
       <Dialog

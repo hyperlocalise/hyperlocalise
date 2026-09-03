@@ -52,6 +52,7 @@ export function TeamDetailPageContent({
   const queryClient = useQueryClient();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMemberRow | null>(null);
   const [removingMember, setRemovingMember] = useState<TeamMemberRow | null>(null);
 
   const teamQuery = useQuery({
@@ -102,6 +103,7 @@ export function TeamDetailPageContent({
     mutationFn: (input: { workosUserId: string; role: TeamRole }) =>
       injectedTeamsApi.addTeamMember(organizationSlug, teamId, input),
     onSuccess: async () => {
+      setEditingMember(null);
       await invalidateTeam();
       toast.success(intl.formatMessage(teamDetailPageContentMessages.roleUpdated));
     },
@@ -137,15 +139,15 @@ export function TeamDetailPageContent({
       isEditOpen={isEditOpen}
       isSavingTeam={updateTeam.isPending}
       isRemovingMember={removeMember.isPending}
-      updatingMemberRoleId={
-        updateMemberRole.isPending ? (updateMemberRole.variables?.workosUserId ?? null) : null
-      }
+      isUpdatingMemberRole={updateMemberRole.isPending}
+      editingMember={editingMember}
       removingMember={removingMember}
       onAddMemberOpenChange={setIsAddMemberOpen}
       onEditOpenChange={setIsEditOpen}
       onAddMember={(input) => addMember.mutate(input)}
       onUpdateTeam={(values) => updateTeam.mutate(values)}
       onUpdateMemberRole={(input) => updateMemberRole.mutate(input)}
+      onEditingMemberChange={setEditingMember}
       onRemoveMember={(workosUserId) => removeMember.mutate(workosUserId)}
       onRemovingMemberChange={setRemovingMember}
     />

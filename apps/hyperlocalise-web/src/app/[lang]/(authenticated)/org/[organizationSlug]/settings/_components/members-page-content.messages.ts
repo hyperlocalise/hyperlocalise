@@ -136,15 +136,45 @@ export const membersPageContentMessages = defineMessages({
     id: "OUBWr2tI7F",
     description: "Badge shown next to the current user’s member row",
   },
-  revokeInvitationAria: {
-    defaultMessage: "Revoke invitation for {name}",
-    id: "+3ub8INH28",
-    description: "Accessible label for the revoke invitation button",
+  actionsForMember: {
+    defaultMessage: "Actions for {name}",
+    id: "pW1y7yrfkU",
+    description: "Accessible label for a workspace member row actions menu",
   },
-  removeMemberAria: {
-    defaultMessage: "Remove {name}",
-    id: "+91wkWHR07",
-    description: "Accessible label for the remove member button",
+  changeRole: {
+    defaultMessage: "Change role...",
+    id: "Y9Z2OL0Qj9",
+    description: "Menu item to change a workspace member’s role",
+  },
+  changeRoleTitle: {
+    defaultMessage: "Change role",
+    id: "rCXudWBslO",
+    description: "Title of the change member role dialog",
+  },
+  changeRoleDescription: {
+    defaultMessage: "Choose a new workspace role for {name}.",
+    id: "WmIEZ/nBLI",
+    description: "Description of the change member role dialog",
+  },
+  updateRole: {
+    defaultMessage: "Update role",
+    id: "5Ftr9lj7RM",
+    description: "Confirm button to update a workspace member’s role",
+  },
+  updatingRole: {
+    defaultMessage: "Updating...",
+    id: "6TDcwIX1nJ",
+    description: "Submit button label while a member role is being updated",
+  },
+  revokeInvitationMenu: {
+    defaultMessage: "Revoke invitation...",
+    id: "LeQu4ZEOkJ",
+    description: "Menu item to revoke a pending workspace invitation",
+  },
+  removeMemberMenu: {
+    defaultMessage: "Remove member...",
+    id: "acDR5UQdFA",
+    description: "Menu item to remove a workspace member",
   },
   revokeInvitation: {
     defaultMessage: "Revoke invitation",

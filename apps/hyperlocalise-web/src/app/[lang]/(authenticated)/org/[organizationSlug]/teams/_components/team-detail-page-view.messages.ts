@@ -40,6 +40,36 @@ export const teamDetailPageViewMessages = defineMessages({
     id: "BkNjvJSOTT",
     description: "Menu item to remove a member from the team",
   },
+  changeRole: {
+    defaultMessage: "Change role...",
+    id: "LqnXxoT6He",
+    description: "Menu item to change a team member’s role",
+  },
+  changeRoleTitle: {
+    defaultMessage: "Change role",
+    id: "smAw7U0xZ+",
+    description: "Title of the change team member role dialog",
+  },
+  changeRoleDescription: {
+    defaultMessage: "Choose a new team role for {email}.",
+    id: "xZFAbDOIux",
+    description: "Description of the change team member role dialog",
+  },
+  roleLabel: {
+    defaultMessage: "Role",
+    id: "vlvGY6fhsb",
+    description: "Label for the team role select in the change role dialog",
+  },
+  updateRole: {
+    defaultMessage: "Update role",
+    id: "8Wsdxcak0K",
+    description: "Confirm button to update a team member’s role",
+  },
+  updatingRole: {
+    defaultMessage: "Updating...",
+    id: "Gk7YcyvJlX",
+    description: "Submit button label while a team member role is being updated",
+  },
   backToTeams: {
     defaultMessage: "Back to teams",
     id: "wtUAi5KCmb",

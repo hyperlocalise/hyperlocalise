@@ -41,13 +41,15 @@ const meta = {
     isEditOpen: false,
     isSavingTeam: false,
     isRemovingMember: false,
-    updatingMemberRoleId: null,
+    isUpdatingMemberRole: false,
+    editingMember: null,
     removingMember: null,
     onAddMemberOpenChange: fn(),
     onEditOpenChange: fn(),
     onAddMember: fn(),
     onUpdateTeam: fn(),
     onUpdateMemberRole: fn(),
+    onEditingMemberChange: fn(),
     onRemoveMember: fn(),
     onRemovingMemberChange: fn(),
   },
@@ -92,6 +94,18 @@ export const AddMemberDialogOpen: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("dialog", { name: "Add team member" })).toBeInTheDocument();
     await expect(canvas.getByText("sam@example.com")).toBeInTheDocument();
+  },
+};
+
+export const ChangeRoleDialogOpen: Story = {
+  args: {
+    editingMember: team.members[1],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("dialog", { name: "Change role" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Choose a new team role for otto@example.com."),
+    ).toBeInTheDocument();
   },
 };
 
