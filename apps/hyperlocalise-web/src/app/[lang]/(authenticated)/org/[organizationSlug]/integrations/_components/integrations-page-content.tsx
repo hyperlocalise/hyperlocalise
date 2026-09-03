@@ -37,6 +37,7 @@ import {
   OAUTH_AUTH_MODE,
   PAT_AUTH_MODE,
 } from "@/lib/providers/contracts/external-tms-provider-credential";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -49,12 +50,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Box } from "@/components/ui/layout/box";
-import { Row } from "@/components/ui/layout/row";
+import { ItemGroup } from "@/components/ui/item";
 import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
@@ -80,11 +81,9 @@ import { integrationsPageContentMessages } from "./integrations-page-content.mes
 import { IntegrationLogo } from "./integration-logo";
 import {
   CollapsibleIntegrationRow,
-  IntegrationCategoryCard,
   IntegrationCategoryLabel,
   IntegrationRow,
   IntegrationRowFrame,
-  integrationConnectButtonClassName,
 } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
@@ -141,7 +140,7 @@ function IntegrationCategorySection({
       <IntegrationCategoryLabel>
         <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
       </IntegrationCategoryLabel>
-      <IntegrationCategoryCard>{children}</IntegrationCategoryCard>
+      <ItemGroup>{children}</ItemGroup>
     </Rows>
   );
 }
@@ -564,7 +563,6 @@ function TmsIntegrationRow({
   expanded,
   onExpandedChange,
   isLoading = false,
-  isLast,
   children,
 }: {
   integration: TmsIntegrationConfig;
@@ -575,7 +573,7 @@ function TmsIntegrationRow({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   isLoading?: boolean;
-  isLast: boolean;
+  isLast?: boolean;
   children?: ReactNode;
 }) {
   const intl = useIntl();
@@ -597,31 +595,15 @@ function TmsIntegrationRow({
     <IntegrationRowFrame
       open={showPanel && expanded}
       onOpenChange={onExpandedChange}
-      isLast={isLast}
       highlighted={expanded}
-      hoverClassName="hover:bg-muted/20"
-      highlightClassName="bg-muted/20"
       icon={
         "icon" in integration && integration.icon ? (
           <SimpleBrandIcon icon={integration.icon} colored={isConnected && !isComingSoon} />
         ) : (
-          <Image
-            src={integration.logo}
-            alt=""
-            width={30}
-            height={30}
-            className={cn(
-              "max-h-7 w-auto object-contain",
-              (!isConnected || isComingSoon) && "opacity-75",
-            )}
-          />
+          <Image src={integration.logo} alt="" width={30} height={30} />
         )
       }
-      iconClassName={
-        isConnected && !isComingSoon
-          ? "border-border bg-muted text-foreground"
-          : "border-border bg-muted/50 text-muted-foreground"
-      }
+      iconMuted={!isConnected || isComingSoon}
       name={integration.name}
       description={integration.detail}
       nameExtra={
@@ -632,10 +614,9 @@ function TmsIntegrationRow({
         ) : null
       }
       showPanel={showPanel}
-      panelClassName="border-border bg-muted/20"
       action={
         isLoading && !isIncluded && userIsAdmin ? (
-          <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+          <Skeleton className="h-8 w-[5.75rem]" aria-hidden />
         ) : isIncluded ? (
           <Button
             type="button"
@@ -666,12 +647,7 @@ function TmsIntegrationRow({
         ) : userIsAdmin && showPanel ? (
           <CollapsibleTrigger
             render={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={isConnected ? undefined : integrationConnectButtonClassName}
-              >
+              <Button type="button" variant={isConnected ? "outline" : "default"} size="sm">
                 {isConnected ? (
                   <FormattedMessage {...integrationRowMessages.manage} />
                 ) : (
@@ -690,9 +666,9 @@ function TmsIntegrationRow({
             <FormattedMessage {...integrationRowMessages.viewOnly} />
           </Badge>
         ) : (
-          <span className="text-sm text-muted-foreground">
+          <TypographyMuted>
             <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
-          </span>
+          </TypographyMuted>
         )
       }
     >
@@ -925,30 +901,16 @@ export function IntegrationsPageContent({
       />
 
       {integrationError ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 text-sm text-destructive"
-        >
-          <Box padding="2u">
-            <Row spacing="1.5u" alignY="start">
-              <HugeiconsIcon
-                icon={Alert02Icon}
-                strokeWidth={1.8}
-                className="mt-0.5 size-4 shrink-0"
-              />
-              <Rows spacing="0.5u">
-                <p className="font-medium">{integrationError.title}</p>
-                <p className="leading-6 text-destructive/80">{integrationError.description}</p>
-              </Rows>
-            </Row>
-          </Box>
-        </div>
+        <Alert variant="destructive">
+          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} />
+          <AlertTitle>{integrationError.title}</AlertTitle>
+          <AlertDescription>{integrationError.description}</AlertDescription>
+        </Alert>
       ) : null}
 
       <Tabs
         value={categoryFilter}
         onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
-        className="gap-5"
       >
         <TabsList>
           <TabsTrigger value="all">
