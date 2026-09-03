@@ -65,12 +65,14 @@ import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   issueSheetCreateIssueBodySchema,
+  issueSheetFeedQuerySchema,
   issueSheetUpdateIssueBodySchema,
 } from "@/api/routes/project/issue-sheet.schema";
 import {
   IssueSheetService,
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import type { IssueSheetComment } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 
 const authorizationQuerySchema = z.object({
@@ -388,6 +390,29 @@ const mcpGetIssueInputSchema = z.object({
   ),
 });
 
+const issueSheetFeedQueryShape = issueSheetFeedQuerySchema.shape;
+
+const invalidCommentCursor = Symbol("invalid_comment_cursor");
+
+const mcpListIssueCommentsInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible project containing the issue."),
+  issueId: issueIdSchema.describe(
+    "Canonical issue identifier such as HL-123, or a legacy issue UUID.",
+  ),
+  limit: issueSheetFeedQueryShape.limit.describe(
+    "Maximum number of comment threads to return, from 1 to 100.",
+  ),
+  cursor: issueSheetFeedQueryShape.cursor
+    .catch(invalidCommentCursor as never)
+    .meta({ default: undefined })
+    .describe("Opaque cursor returned by a previous list_issue_comments call."),
+});
+
 const issueSheetService = new IssueSheetService();
 const createIssueShape = issueSheetCreateIssueBodySchema.shape;
 const updateIssueShape = issueSheetUpdateIssueBodySchema.shape;
@@ -573,6 +598,19 @@ function compactMcpIssue(issue: OrganizationIssueListItem) {
   };
 }
 
+function mcpIssueComment(comment: IssueSheetComment) {
+  return {
+    id: comment.id,
+    body: comment.body,
+    author: comment.author,
+    parentId: comment.parentId,
+    mentionedUserIds: comment.mentionedUserIds,
+    mentionedIssueIds: comment.mentionedIssueIds,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
+  };
+}
+
 async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   const apiAuth = apiAuthContextFromMcpAuth(auth);
   const server = new McpServer({
@@ -669,6 +707,73 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           },
         ],
       };
+    },
+  );
+
+  server.registerTool(
+    "list_issue_comments",
+    {
+      description:
+        "List comment threads for one accessible Hyperlocalise issue with cursor pagination. Root comments are ordered chronologically, with each root followed by its replies in chronological order.",
+      inputSchema: mcpListIssueCommentsInputSchema,
+    },
+    async ({ projectId, issueId, limit, cursor }) => {
+      if ((cursor as unknown) === invalidCommentCursor) {
+        return mcpToolError("invalid_comment_cursor", "Invalid comment cursor");
+      }
+
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      try {
+        const feed = await issueSheetService.listFeed({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId: project.id,
+          issueId,
+          actorUserId: apiAuth.user.localUserId,
+          role: apiAuth.membership.role,
+          limit,
+          cursor,
+          mode: "comments",
+        });
+
+        const comments = feed.items.flatMap((item) => {
+          if (item.kind !== "comment_thread") {
+            return [];
+          }
+
+          return [mcpIssueComment(item.root), ...item.replies.map(mcpIssueComment)];
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                comments,
+                nextCursor: feed.nextCursor,
+              }),
+            },
+          ],
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message === "issue_sheet_issue_not_found") {
+          return mcpToolError("issue_not_found", "Issue not found");
+        }
+
+        if (error instanceof Error && error.message === "invalid_issue_sheet_feed_cursor") {
+          return mcpToolError("invalid_comment_cursor", "Invalid comment cursor");
+        }
+
+        throw error;
+      }
     },
   );
 

@@ -326,6 +326,28 @@ describe("MCP team-scoped access", () => {
 
     expect(accessibleIssueResponse.status).toBe(200);
 
+    const accessibleCommentsResponse = await callMcpTool(accessToken, "list_issue_comments", {
+      projectId: alphaProjectBody.project.id,
+      issueId: alphaIssue.id,
+    });
+
+    expect(accessibleCommentsResponse.status).toBe(200);
+
+    const accessibleCommentsResponseBody = await accessibleCommentsResponse.json();
+
+    expect(
+      (
+        accessibleCommentsResponseBody as {
+          result?: { isError?: boolean };
+        }
+      ).result?.isError,
+    ).not.toBe(true);
+
+    expect(parseToolResultText(accessibleCommentsResponseBody)).toEqual({
+      comments: [],
+      nextCursor: null,
+    });
+
     const accessibleIssueResponseBody = await accessibleIssueResponse.json();
 
     expect(parseToolResultText(accessibleIssueResponseBody)).toMatchObject({
@@ -374,6 +396,28 @@ describe("MCP team-scoped access", () => {
       ).toBe(true);
 
       expect(parseToolResultText(responseBody), lookup.label).toMatchObject({
+        error: "issue_not_found",
+      });
+
+      const commentsResponse = await callMcpTool(accessToken, "list_issue_comments", {
+        projectId: lookup.projectId,
+        issueId: lookup.issueId,
+      });
+
+      expect(commentsResponse.status, lookup.label).toBe(200);
+
+      const commentsResponseBody = await commentsResponse.json();
+
+      expect(
+        (
+          commentsResponseBody as {
+            result?: { isError?: boolean };
+          }
+        ).result?.isError,
+        lookup.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(commentsResponseBody), lookup.label).toMatchObject({
         error: "issue_not_found",
       });
     }

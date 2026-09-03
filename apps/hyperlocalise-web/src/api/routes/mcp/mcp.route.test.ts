@@ -23,6 +23,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 
 import {
   createAuthorizationCode,
@@ -1146,8 +1147,75 @@ describe("mcpRoutes", () => {
         ],
       });
 
+      const auth = globalThis.__testApiAuthContext;
+
+      if (!auth) {
+        throw new Error("expected test auth context");
+      }
+
+      const commentService = new IssueSheetCommentService();
+
+      const sdkComment = await commentService.create({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        issueId: createdIssue.id,
+        actorUserId: auth.user.localUserId,
+        role: auth.membership.role,
+        auth,
+        body: {
+          body: "Comment created for MCP SDK coverage",
+        },
+      });
+
+      expect(sdkComment.ok).toBe(true);
+
+      if (!sdkComment.ok) {
+        throw new Error("expected SDK comment fixture creation to succeed");
+      }
+
+      const commentsResult = await client.callTool({
+        name: "list_issue_comments",
+        arguments: {
+          projectId: stored.project.id,
+          issueId: createdIssue.identifier,
+        },
+      });
+
+      const commentsContent = (
+        commentsResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
+
+      if (!commentsContent?.text) {
+        throw new Error("expected list_issue_comments text content");
+      }
+
+      const commentsOutput = JSON.parse(commentsContent.text) as {
+        comments: Array<{
+          id: string;
+          body: string;
+          parentId: string | null;
+        }>;
+        nextCursor: string | null;
+      };
+
+      expect(commentsOutput).toEqual({
+        comments: [
+          expect.objectContaining({
+            id: sdkComment.value.id,
+            body: "Comment created for MCP SDK coverage",
+            parentId: null,
+          }),
+        ],
+        nextCursor: null,
+      });
+
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(8);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(9);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -2313,6 +2381,792 @@ describe("mcpRoutes", () => {
         description: expect.stringContaining("retry key"),
       },
     });
+  });
+
+  it("advertises the list_issue_comments tool with bounded pagination input", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "list_issue_comments");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("comment");
+    expect(tool?.inputSchema?.required).toEqual(expect.arrayContaining(["projectId", "issueId"]));
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+      },
+      issueId: {
+        type: "string",
+      },
+      limit: {
+        minimum: 1,
+        maximum: 100,
+      },
+      cursor: {
+        type: "string",
+        minLength: 1,
+        maxLength: 512,
+      },
+    });
+  });
+
+  it("returns an empty comment page for an accessible issue without comments", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issue = await new IssueSheetService().createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue without comments",
+        issueType: "general_question",
+      },
+    });
+
+    const listFeedSpy = vi.spyOn(IssueSheetService.prototype, "listFeed");
+
+    try {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_issue_comments",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: issue.identifier,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+
+      expect(body.result?.isError).not.toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      const output = JSON.parse(text!) as {
+        comments: unknown[];
+        nextCursor: string | null;
+      };
+
+      expect(output).toEqual({
+        comments: [],
+        nextCursor: null,
+      });
+
+      expect(listFeedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: auth.organization.localOrganizationId,
+          projectId: stored.project.id,
+          issueId: issue.identifier,
+          actorUserId: auth.user.localUserId,
+        }),
+      );
+    } finally {
+      listFeedSpy.mockRestore();
+    }
+  });
+
+  it("returns root comments and replies without feed activities", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+    const commentService = new IssueSheetCommentService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue with discussion",
+        issueType: "general_question",
+      },
+    });
+
+    const root = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "Root comment",
+        mentionedUserIds: [auth.user.localUserId],
+        mentionedIssueIds: [issue.id],
+      },
+    });
+
+    expect(root.ok).toBe(true);
+
+    if (!root.ok) {
+      throw new Error("expected root comment creation to succeed");
+    }
+
+    const reply = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "Reply comment",
+        parentId: root.value.id,
+      },
+    });
+
+    expect(reply.ok).toBe(true);
+
+    if (!reply.ok) {
+      throw new Error("expected reply creation to succeed");
+    }
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "list_issue_comments",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const text = body.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const output = JSON.parse(text!) as {
+      comments: Array<{
+        id: string;
+        body: string;
+        parentId: string | null;
+        author: {
+          userId: string;
+          displayName: string;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
+        mentionedUserIds: string[];
+        mentionedIssueIds: string[];
+        createdAt: string;
+        updatedAt: string;
+      }>;
+      nextCursor: string | null;
+    };
+
+    expect(output.comments).toHaveLength(2);
+    expect(output.comments[0]).toMatchObject({
+      id: root.value.id,
+      body: "Root comment",
+      parentId: null,
+      author: {
+        userId: auth.user.localUserId,
+        displayName: expect.any(String),
+      },
+      mentionedUserIds: [auth.user.localUserId],
+      mentionedIssueIds: [issue.id],
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+    });
+
+    expect(output.comments[1]).toMatchObject({
+      body: "Reply comment",
+      parentId: root.value.id,
+    });
+
+    expect(output.comments.map((comment) => comment.id)).toEqual([root.value.id, reply.value.id]);
+    expect(output.nextCursor).toBeNull();
+
+    expect(output.comments[0]).not.toHaveProperty("organizationId");
+    expect(output.comments[0]).not.toHaveProperty("projectId");
+    expect(output.comments[0]).not.toHaveProperty("issueId");
+    expect(output.comments[0]).not.toHaveProperty("path");
+    expect(output.comments[0]).not.toHaveProperty("depth");
+    expect(output.comments[0]).not.toHaveProperty("canEdit");
+    expect(output.comments[0]).not.toHaveProperty("canDelete");
+  });
+
+  it("does not return deleted comments", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+    const commentService = new IssueSheetCommentService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue with deleted comment",
+        issueType: "general_question",
+      },
+    });
+
+    const comment = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "Comment to delete",
+      },
+    });
+
+    expect(comment.ok).toBe(true);
+
+    if (!comment.ok) {
+      throw new Error("expected comment creation to succeed");
+    }
+
+    const deleted = await commentService.delete({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      commentId: comment.value.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+    });
+
+    expect(deleted).toEqual({ ok: true });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "list_issue_comments",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const text = body.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const output = JSON.parse(text!) as {
+      comments: Array<{
+        id: string;
+        body: string;
+      }>;
+      nextCursor: string | null;
+    };
+
+    expect(output).toEqual({
+      comments: [],
+      nextCursor: null,
+    });
+
+    expect(output.comments.some((item) => item.id === comment.value.id)).toBe(false);
+  });
+
+  it("paginates comments without activity-only pages", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+    const commentService = new IssueSheetCommentService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue with paginated comments",
+        issueType: "general_question",
+      },
+    });
+
+    const firstComment = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "First comment",
+      },
+    });
+
+    expect(firstComment.ok).toBe(true);
+
+    if (!firstComment.ok) {
+      throw new Error("expected first comment creation to succeed");
+    }
+
+    const secondComment = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "Second comment",
+      },
+    });
+
+    expect(secondComment.ok).toBe(true);
+
+    if (!secondComment.ok) {
+      throw new Error("expected second comment creation to succeed");
+    }
+
+    // Give the comments deterministic ordering even if PostgreSQL assigned
+    // equal timestamps during this fast test.
+    const sharedCreatedAt = new Date(Date.now() + 60_000);
+
+    await db
+      .update(schema.issueSheetComments)
+      .set({
+        createdAt: sharedCreatedAt,
+        updatedAt: sharedCreatedAt,
+      })
+      .where(eq(schema.issueSheetComments.id, firstComment.value.id));
+
+    await db
+      .update(schema.issueSheetComments)
+      .set({
+        createdAt: sharedCreatedAt,
+        updatedAt: sharedCreatedAt,
+      })
+      .where(eq(schema.issueSheetComments.id, secondComment.value.id));
+
+    const expectedComments = [
+      {
+        id: firstComment.value.id,
+        body: "First comment",
+      },
+      {
+        id: secondComment.value.id,
+        body: "Second comment",
+      },
+    ].sort((left, right) => left.id.localeCompare(right.id));
+
+    const callListIssueComments = async (cursor?: string) => {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_issue_comments",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: issue.identifier,
+              limit: 1,
+              ...(cursor ? { cursor } : {}),
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+
+      expect(body.result?.isError).not.toBe(true);
+
+      const text = body.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      return JSON.parse(text!) as {
+        comments: Array<{
+          id: string;
+          body: string;
+        }>;
+        nextCursor: string | null;
+      };
+    };
+
+    const firstPage = await callListIssueComments();
+
+    expect(firstPage.comments).toEqual([expect.objectContaining(expectedComments[0])]);
+
+    expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await callListIssueComments(firstPage.nextCursor!);
+
+    expect(secondPage.comments).toEqual([expect.objectContaining(expectedComments[1])]);
+
+    expect(secondPage.nextCursor).toBeNull();
+
+    expect([firstPage.comments[0]?.id, secondPage.comments[0]?.id]).toEqual(
+      expectedComments.map((comment) => comment.id),
+    );
+  });
+
+  it("rejects a comment cursor belonging to another issue", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+    const commentService = new IssueSheetCommentService();
+
+    const issueA = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue A",
+        issueType: "general_question",
+      },
+    });
+
+    const issueB = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue B",
+        issueType: "general_question",
+      },
+    });
+
+    for (const body of ["First issue A comment", "Second issue A comment"]) {
+      const comment = await commentService.create({
+        organizationId: auth.organization.localOrganizationId,
+        projectId: stored.project.id,
+        issueId: issueA.id,
+        actorUserId: auth.user.localUserId,
+        role: auth.membership.role,
+        auth,
+        body: { body },
+      });
+
+      expect(comment.ok).toBe(true);
+
+      if (!comment.ok) {
+        throw new Error("expected comment creation to succeed");
+      }
+    }
+
+    const callListIssueComments = async (input: {
+      issueId: string;
+      cursor?: string;
+      limit?: number;
+    }) => {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_issue_comments",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: input.issueId,
+              limit: input.limit ?? 1,
+              ...(input.cursor ? { cursor: input.cursor } : {}),
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      return (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+    };
+
+    const issueAResponse = await callListIssueComments({
+      issueId: issueA.identifier,
+      limit: 1,
+    });
+
+    expect(issueAResponse.result?.isError).not.toBe(true);
+
+    const firstPageText = issueAResponse.result?.content?.[0]?.text;
+
+    expect(firstPageText).toBeDefined();
+
+    const firstPage = JSON.parse(firstPageText!) as {
+      comments: Array<{ id: string }>;
+      nextCursor: string | null;
+    };
+
+    expect(firstPage.comments).toHaveLength(1);
+    expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+    const issueBResponse = await callListIssueComments({
+      issueId: issueB.identifier,
+      cursor: firstPage.nextCursor!,
+    });
+
+    expect(issueBResponse.result?.isError).toBe(true);
+
+    const errorText = issueBResponse.result?.content?.[0]?.text;
+
+    expect(errorText).toBeDefined();
+    expect(errorText).toContain("invalid_comment_cursor");
+  });
+
+  it("returns invalid_comment_cursor for a malformed cursor", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issue = await new IssueSheetService().createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue with invalid cursor",
+        issueType: "general_question",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "list_issue_comments",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+            cursor: "not-a-valid-cursor",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toContain("invalid_comment_cursor");
+  });
+
+  it.each([
+    {
+      label: "wrong JSON type",
+      cursor: 123,
+    },
+    {
+      label: "overlong value",
+      cursor: "x".repeat(513),
+    },
+  ])("returns invalid_comment_cursor for a $label cursor", async ({ cursor }) => {
+    const headers = await authenticatedMcpHeaders();
+    const listFeedSpy = vi.spyOn(IssueSheetService.prototype, "listFeed");
+
+    try {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_issue_comments",
+            arguments: {
+              projectId: "project-id",
+              issueId: "HL-1",
+              cursor,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+
+      expect(body.result?.isError).toBe(true);
+      expect(body.result?.content?.[0]?.text).toContain("invalid_comment_cursor");
+      expect(listFeedSpy).not.toHaveBeenCalled();
+    } finally {
+      listFeedSpy.mockRestore();
+    }
   });
 
   it("rejects get_issue calls with a non-UUID issue ID", async () => {
