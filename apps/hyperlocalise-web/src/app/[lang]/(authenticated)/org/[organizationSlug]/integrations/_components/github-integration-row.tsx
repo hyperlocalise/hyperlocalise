@@ -30,6 +30,8 @@ import { RepositoryAutomationSettingsAction } from "./repository-automation-sett
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/primitives/cn";
@@ -397,7 +399,7 @@ export function GitHubIntegrationRow({
       {isLoading ? (
         <Skeleton className="h-24 rounded-lg" />
       ) : isError ? (
-        <div className="flex flex-col gap-3">
+        <Rows spacing="1.5u">
           <TypographyP className="text-sm text-destructive">
             {error instanceof Error
               ? error.message
@@ -406,10 +408,10 @@ export function GitHubIntegrationRow({
           <Button variant="outline" size="sm" onClick={() => void refetchInstallation()}>
             <FormattedMessage {...githubIntegrationRowMessages.retry} />
           </Button>
-        </div>
+        </Rows>
       ) : connected ? (
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2">
+        <Rows spacing="2u">
+          <Box display="flex" flexWrap="wrap" gap="1u">
             {installationSettingsUrl ? (
               <Button
                 variant="outline"
@@ -451,9 +453,9 @@ export function GitHubIntegrationRow({
                 <FormattedMessage {...githubIntegrationRowMessages.disconnect} />
               )}
             </Button>
-          </div>
+          </Box>
 
-          <div className="flex flex-col gap-3">
+          <Rows spacing="1.5u">
             <div className="flex flex-col gap-2 md:flex-row">
               <div className="relative min-w-0 flex-1">
                 <HugeiconsIcon
@@ -605,8 +607,8 @@ export function GitHubIntegrationRow({
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </Rows>
+        </Rows>
       ) : null}
     </IntegrationRow>
   );

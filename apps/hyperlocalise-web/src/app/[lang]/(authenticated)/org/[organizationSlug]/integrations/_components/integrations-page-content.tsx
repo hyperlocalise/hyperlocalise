@@ -16,7 +16,7 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Alert02Icon, ArrowDown01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, ArrowDown01Icon, Delete02Icon, PuzzleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siCrowdin } from "simple-icons";
@@ -48,12 +48,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Box } from "@/components/ui/layout/box";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TypographyH1 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
 import {
   CollaborationIntegrationsSection,
@@ -80,6 +83,7 @@ import {
   IntegrationCategoryCard,
   IntegrationCategoryLabel,
   IntegrationRow,
+  IntegrationRowFrame,
   integrationConnectButtonClassName,
 } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
@@ -133,12 +137,12 @@ function IntegrationCategorySection({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <Rows spacing="1.5u">
       <IntegrationCategoryLabel>
         <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
       </IntegrationCategoryLabel>
       <IntegrationCategoryCard>{children}</IntegrationCategoryCard>
-    </section>
+    </Rows>
   );
 }
 
@@ -590,124 +594,110 @@ function TmsIntegrationRow({
   const showPanel = userIsAdmin && !isComingSoon && !isBlockedByActiveProvider;
 
   return (
-    <Collapsible
+    <IntegrationRowFrame
       open={showPanel && expanded}
       onOpenChange={onExpandedChange}
-      className={cn(!isLast && "border-b border-border")}
-    >
-      <div
-        className={cn(
-          "flex items-center gap-4 px-5 py-4 transition-colors",
-          "hover:bg-muted/20",
-          expanded && "bg-muted/20",
-        )}
-      >
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
-            isConnected && !isComingSoon
-              ? "border-border bg-muted text-foreground"
-              : "border-border bg-muted/50 text-muted-foreground",
-          )}
-        >
-          {"icon" in integration && integration.icon ? (
-            <SimpleBrandIcon icon={integration.icon} colored={isConnected && !isComingSoon} />
-          ) : (
-            <Image
-              src={integration.logo}
-              alt=""
-              width={30}
-              height={30}
-              className={cn(
-                "max-h-7 w-auto object-contain",
-                (!isConnected || isComingSoon) && "opacity-75",
-              )}
-            />
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-medium text-foreground">{integration.name}</p>
-            {isIncluded ? (
-              <Badge variant="outline">
-                <FormattedMessage {...integrationRowMessages.included} />
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
-        </div>
-
-        <div className="shrink-0">
-          {isLoading && !isIncluded && userIsAdmin ? (
-            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
-          ) : isIncluded ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              nativeButton={false}
-              render={<Link href={`/org/${organizationSlug}/projects`} />}
-            >
-              {intl.formatMessage(integrationsPageContentMessages.viewProjects)}
-            </Button>
-          ) : isComingSoon ? (
-            <Button type="button" variant="outline" size="sm" disabled>
-              <FormattedMessage {...integrationRowMessages.comingSoon} />
-            </Button>
-          ) : isBlockedByActiveProvider ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button type="button" variant="outline" size="sm" disabled>
-                    <FormattedMessage {...integrationRowMessages.connect} />
-                  </Button>
-                }
-              />
-              <TooltipContent>
-                {intl.formatMessage(integrationsPageContentMessages.disconnectTmsTooltip)}
-              </TooltipContent>
-            </Tooltip>
-          ) : userIsAdmin && showPanel ? (
-            <CollapsibleTrigger
+      isLast={isLast}
+      highlighted={expanded}
+      hoverClassName="hover:bg-muted/20"
+      highlightClassName="bg-muted/20"
+      icon={
+        "icon" in integration && integration.icon ? (
+          <SimpleBrandIcon icon={integration.icon} colored={isConnected && !isComingSoon} />
+        ) : (
+          <Image
+            src={integration.logo}
+            alt=""
+            width={30}
+            height={30}
+            className={cn(
+              "max-h-7 w-auto object-contain",
+              (!isConnected || isComingSoon) && "opacity-75",
+            )}
+          />
+        )
+      }
+      iconClassName={
+        isConnected && !isComingSoon
+          ? "border-border bg-muted text-foreground"
+          : "border-border bg-muted/50 text-muted-foreground"
+      }
+      name={integration.name}
+      description={integration.detail}
+      nameExtra={
+        isIncluded ? (
+          <Badge variant="outline">
+            <FormattedMessage {...integrationRowMessages.included} />
+          </Badge>
+        ) : null
+      }
+      showPanel={showPanel}
+      panelClassName="border-border bg-muted/20"
+      action={
+        isLoading && !isIncluded && userIsAdmin ? (
+          <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+        ) : isIncluded ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/org/${organizationSlug}/projects`} />}
+          >
+            {intl.formatMessage(integrationsPageContentMessages.viewProjects)}
+          </Button>
+        ) : isComingSoon ? (
+          <Button type="button" variant="outline" size="sm" disabled>
+            <FormattedMessage {...integrationRowMessages.comingSoon} />
+          </Button>
+        ) : isBlockedByActiveProvider ? (
+          <Tooltip>
+            <TooltipTrigger
               render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={isConnected ? undefined : integrationConnectButtonClassName}
-                >
-                  {isConnected ? (
-                    <FormattedMessage {...integrationRowMessages.manage} />
-                  ) : (
-                    <FormattedMessage {...integrationRowMessages.connect} />
-                  )}
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
-                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                    strokeWidth={2}
-                  />
+                <Button type="button" variant="outline" size="sm" disabled>
+                  <FormattedMessage {...integrationRowMessages.connect} />
                 </Button>
               }
             />
-          ) : isConnected ? (
-            <Badge variant="outline">
-              <FormattedMessage {...integrationRowMessages.viewOnly} />
-            </Badge>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
-            </span>
-          )}
-        </div>
-      </div>
-
-      {showPanel ? (
-        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
-          {children}
-        </CollapsibleContent>
-      ) : null}
-    </Collapsible>
+            <TooltipContent>
+              {intl.formatMessage(integrationsPageContentMessages.disconnectTmsTooltip)}
+            </TooltipContent>
+          </Tooltip>
+        ) : userIsAdmin && showPanel ? (
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={isConnected ? undefined : integrationConnectButtonClassName}
+              >
+                {isConnected ? (
+                  <FormattedMessage {...integrationRowMessages.manage} />
+                ) : (
+                  <FormattedMessage {...integrationRowMessages.connect} />
+                )}
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        ) : isConnected ? (
+          <Badge variant="outline">
+            <FormattedMessage {...integrationRowMessages.viewOnly} />
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+          </span>
+        )
+      }
+    >
+      {children}
+    </IntegrationRowFrame>
   );
 }
 
@@ -926,328 +916,334 @@ export function IntegrationsPageContent({
   }
 
   return (
-    <main className="space-y-5">
-      <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-        <FormattedMessage {...integrationsPageContentMessages.pageTitle} />
-      </TypographyH1>
+    <WorkspacePageShell>
+      <PageHeader
+        icon={PuzzleIcon}
+        label={intl.formatMessage(integrationsPageContentMessages.pageLabel)}
+        title={intl.formatMessage(integrationsPageContentMessages.pageTitle)}
+        description={intl.formatMessage(integrationsPageContentMessages.pageDescription)}
+      />
 
       {integrationError ? (
         <div
           role="alert"
-          className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 text-sm text-destructive"
         >
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="mt-0.5 size-4 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">{integrationError.title}</p>
-            <p className="leading-6 text-destructive/80">{integrationError.description}</p>
-          </div>
+          <Box padding="2u">
+            <Row spacing="1.5u" alignY="start">
+              <HugeiconsIcon
+                icon={Alert02Icon}
+                strokeWidth={1.8}
+                className="mt-0.5 size-4 shrink-0"
+              />
+              <Rows spacing="0.5u">
+                <p className="font-medium">{integrationError.title}</p>
+                <p className="leading-6 text-destructive/80">{integrationError.description}</p>
+              </Rows>
+            </Row>
+          </Box>
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-4">
-        <Tabs
-          value={categoryFilter}
-          onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
-          className="gap-5"
-        >
-          <TabsList>
-            <TabsTrigger value="all">
-              <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
+      <Tabs
+        value={categoryFilter}
+        onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
+        className="gap-5"
+      >
+        <TabsList>
+          <TabsTrigger value="all">
+            <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
+          </TabsTrigger>
+          {visibleCategoryIds.map((categoryId) => (
+            <TabsTrigger key={categoryId} value={categoryId}>
+              <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
             </TabsTrigger>
-            {visibleCategoryIds.map((categoryId) => (
-              <TabsTrigger key={categoryId} value={categoryId}>
-                <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <div ref={categoryListRef} className="flex flex-col gap-6">
-            {showCategory("source-control") ? (
-              <IntegrationCategorySection categoryId="source-control">
-                <SourceControlIntegrationsSection
-                  organizationSlug={organizationSlug}
-                  userCanManage={userCanManageAgents}
-                />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("collaboration") ? (
-              <IntegrationCategorySection categoryId="collaboration">
-                <CollaborationIntegrationsSection
-                  organizationSlug={organizationSlug}
-                  userCanManage={userCanManageAgents}
-                />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("tms") && canManageProviderIntegrations ? (
-              <IntegrationCategorySection categoryId="tms">
-                {tmsIntegrations.map((integration, index) => {
-                  const tmsCredential =
-                    integration.providerKind === "native"
-                      ? undefined
-                      : externalTmsCredentials?.find(
-                          (item) => item.providerKind === integration.providerKind,
-                        );
-
-                  return (
-                    <TmsIntegrationRow
-                      key={integration.name}
-                      integration={integration}
-                      credential={tmsCredential}
-                      activeExternalProviderKind={activeExternalTmsProviderCredential?.providerKind}
-                      organizationSlug={organizationSlug}
-                      userIsAdmin={userIsAdmin}
-                      isLoading={isLoadingExternalTms}
-                      isLast={index === tmsIntegrations.length - 1}
-                      expanded={
-                        integration.providerKind !== "native" &&
-                        expandedTmsProvider === integration.providerKind
-                      }
-                      onExpandedChange={(expanded) => {
-                        if (integration.providerKind === "native") {
-                          return;
-                        }
-                        handleTmsExpandedChange(integration.providerKind, tmsCredential, expanded);
-                      }}
-                    >
-                      {userIsAdmin &&
-                      integration.providerKind !== "native" &&
-                      expandedTmsProvider === integration.providerKind ? (
-                        <TmsProviderCredentialPanel
-                          providerKind={integration.providerKind}
-                          providerName={integration.name}
-                          credential={tmsCredential}
-                          organizationSlug={organizationSlug}
-                          userIsAdmin={userIsAdmin}
-                          displayName={tmsDisplayName}
-                          onDisplayNameChange={setTmsDisplayName}
-                          secret={tmsSecret}
-                          onSecretChange={setTmsSecret}
-                          crowdinAuthMode={tmsCrowdinAuthMode}
-                          onCrowdinAuthModeChange={setTmsCrowdinAuthMode}
-                          oauthClientId={tmsOauthClientId}
-                          onOauthClientIdChange={setTmsOauthClientId}
-                          oauthClientSecret={tmsOauthClientSecret}
-                          onOauthClientSecretChange={setTmsOauthClientSecret}
-                          baseUrl={tmsBaseUrl}
-                          onBaseUrlChange={setTmsBaseUrl}
-                          showSecret={showTmsSecret}
-                          onToggleShowSecret={() => setShowTmsSecret((current) => !current)}
-                          onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
-                          onSave={() => {
-                            const oauthPayload = buildTmsOAuthAppPayload({
-                              displayName: tmsDisplayName,
-                              oauthClientId: tmsOauthClientId,
-                              oauthClientSecret: tmsOauthClientSecret,
-                              baseUrl: tmsBaseUrl,
-                            });
-
-                            if (integration.providerKind === "crowdin") {
-                              if (tmsCrowdinAuthMode === PAT_AUTH_MODE) {
-                                saveCrowdinPatSetup.mutate(
-                                  {
-                                    displayName: tmsDisplayName.trim(),
-                                    ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
-                                  },
-                                  {
-                                    onSuccess: () => {
-                                      setShowTmsSecret(false);
-                                    },
-                                  },
-                                );
-                                return;
-                              }
-
-                              saveCrowdinOAuthApp.mutate(oauthPayload, {
-                                onSuccess: () => {
-                                  setTmsOauthClientId("");
-                                  setTmsOauthClientSecret("");
-                                  setShowTmsSecret(false);
-                                },
-                              });
-                              return;
-                            }
-                            if (integration.providerKind === "phrase") {
-                              savePhraseOAuthApp.mutate(oauthPayload, {
-                                onSuccess: () => {
-                                  setTmsOauthClientId("");
-                                  setTmsOauthClientSecret("");
-                                  setShowTmsSecret(false);
-                                },
-                              });
-                              return;
-                            }
-                            if (integration.providerKind === "lokalise") {
-                              saveLokaliseOAuthApp.mutate(oauthPayload, {
-                                onSuccess: () => {
-                                  setTmsOauthClientId("");
-                                  setTmsOauthClientSecret("");
-                                  setShowTmsSecret(false);
-                                },
-                              });
-                              return;
-                            }
-                            saveExternalTms.mutate(
-                              {
-                                providerKind: integration.providerKind,
-                                displayName: tmsDisplayName.trim(),
-                                secretMaterial: tmsSecret.trim(),
-                                ...(tmsCredential?.region ? { region: tmsCredential.region } : {}),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
-                              },
-                              {
-                                onSuccess: () => {
-                                  setTmsSecret("");
-                                  setShowTmsSecret(false);
-                                },
-                              },
-                            );
-                          }}
-                          isSaving={
-                            saveExternalTms.isPending ||
-                            saveCrowdinOAuthApp.isPending ||
-                            saveCrowdinPatSetup.isPending ||
-                            savePhraseOAuthApp.isPending ||
-                            saveLokaliseOAuthApp.isPending
-                          }
-                          isDisconnecting={deleteExternalTms.isPending}
-                          displayNameFieldId={tmsDisplayNameFieldId}
-                          secretFieldId={tmsSecretFieldId}
-                          oauthClientIdFieldId={tmsOauthClientIdFieldId}
-                          oauthClientSecretFieldId={tmsOauthClientSecretFieldId}
-                          redirectUriFieldId={tmsOauthRedirectUriFieldId}
-                          baseUrlFieldId={tmsBaseUrlFieldId}
-                          crowdinAuthModeFieldId={tmsCrowdinAuthModeFieldId}
-                        />
-                      ) : null}
-                    </TmsIntegrationRow>
-                  );
-                })}
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("cms") && canManageProviderIntegrations ? (
-              <IntegrationCategorySection categoryId="cms">
-                <IntegrationRow
-                  name={intl.formatMessage(
-                    integrationsPageContentMessages.contentPublishingFilesName,
-                  )}
-                  description={intl.formatMessage(
-                    integrationsPageContentMessages.contentPublishingFilesDetail,
-                  )}
-                  icon={<IntegrationLogo src="/images/logo.png" />}
-                  iconMuted
-                  action="coming-soon"
-                />
-                <CollapsibleIntegrationRow
-                  name={contentfulIntegration.name}
-                  description={contentfulIntegration.detail}
-                  icon={<IntegrationLogo src={contentfulIntegration.logo} />}
-                  isConnected={Boolean(contentfulConnections?.[0])}
-                  userIsAdmin={userIsAdmin}
-                  expanded={expandedContentful}
-                  onExpandedChange={handleContentfulExpandedChange}
-                  isLoading={isLoadingContentful}
-                >
-                  <ContentfulConnectionPanel
-                    connection={contentfulConnections?.[0]}
-                    disabled={!userIsAdmin}
-                    form={contentfulForm}
-                    onFormChange={setContentfulForm}
-                    lastWebhookSecret={lastContentfulWebhookSecret}
-                    isSaving={saveContentfulConnection.isPending}
-                    organizationSlug={organizationSlug}
-                    onSave={() => {
-                      const accessToken = contentfulForm.accessToken.trim();
-                      const existingConnection = contentfulConnections?.[0];
-
-                      const payload = {
-                        displayName: contentfulForm.displayName.trim(),
-                        spaceId: contentfulForm.spaceId.trim(),
-                        environmentId: contentfulForm.environmentId.trim() || "master",
-                        contentTypeIds: contentfulForm.contentTypeIds,
-                      };
-
-                      saveContentfulConnection.mutate(
-                        existingConnection
-                          ? {
-                              ...payload,
-                              connectionId: existingConnection.id,
-                              ...(accessToken ? { accessToken } : {}),
-                            }
-                          : { ...payload, accessToken },
-                        {
-                          onSuccess: (result) => {
-                            setContentfulForm((current) => ({ ...current, accessToken: "" }));
-                            setLastContentfulWebhookSecret(result.webhookSecret ?? "");
-                          },
-                        },
+          ))}
+        </TabsList>
+        <Rows ref={categoryListRef} spacing="3u">
+          {showCategory("source-control") ? (
+            <IntegrationCategorySection categoryId="source-control">
+              <SourceControlIntegrationsSection
+                organizationSlug={organizationSlug}
+                userCanManage={userCanManageAgents}
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("collaboration") ? (
+            <IntegrationCategorySection categoryId="collaboration">
+              <CollaborationIntegrationsSection
+                organizationSlug={organizationSlug}
+                userCanManage={userCanManageAgents}
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("tms") && canManageProviderIntegrations ? (
+            <IntegrationCategorySection categoryId="tms">
+              {tmsIntegrations.map((integration, index) => {
+                const tmsCredential =
+                  integration.providerKind === "native"
+                    ? undefined
+                    : externalTmsCredentials?.find(
+                        (item) => item.providerKind === integration.providerKind,
                       );
+
+                return (
+                  <TmsIntegrationRow
+                    key={integration.name}
+                    integration={integration}
+                    credential={tmsCredential}
+                    activeExternalProviderKind={activeExternalTmsProviderCredential?.providerKind}
+                    organizationSlug={organizationSlug}
+                    userIsAdmin={userIsAdmin}
+                    isLoading={isLoadingExternalTms}
+                    isLast={index === tmsIntegrations.length - 1}
+                    expanded={
+                      integration.providerKind !== "native" &&
+                      expandedTmsProvider === integration.providerKind
+                    }
+                    onExpandedChange={(expanded) => {
+                      if (integration.providerKind === "native") {
+                        return;
+                      }
+                      handleTmsExpandedChange(integration.providerKind, tmsCredential, expanded);
                     }}
-                  />
-                </CollapsibleIntegrationRow>
-                <CanvaConnectionPanel
-                  organizationSlug={organizationSlug}
+                  >
+                    {userIsAdmin &&
+                    integration.providerKind !== "native" &&
+                    expandedTmsProvider === integration.providerKind ? (
+                      <TmsProviderCredentialPanel
+                        providerKind={integration.providerKind}
+                        providerName={integration.name}
+                        credential={tmsCredential}
+                        organizationSlug={organizationSlug}
+                        userIsAdmin={userIsAdmin}
+                        displayName={tmsDisplayName}
+                        onDisplayNameChange={setTmsDisplayName}
+                        secret={tmsSecret}
+                        onSecretChange={setTmsSecret}
+                        crowdinAuthMode={tmsCrowdinAuthMode}
+                        onCrowdinAuthModeChange={setTmsCrowdinAuthMode}
+                        oauthClientId={tmsOauthClientId}
+                        onOauthClientIdChange={setTmsOauthClientId}
+                        oauthClientSecret={tmsOauthClientSecret}
+                        onOauthClientSecretChange={setTmsOauthClientSecret}
+                        baseUrl={tmsBaseUrl}
+                        onBaseUrlChange={setTmsBaseUrl}
+                        showSecret={showTmsSecret}
+                        onToggleShowSecret={() => setShowTmsSecret((current) => !current)}
+                        onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
+                        onSave={() => {
+                          const oauthPayload = buildTmsOAuthAppPayload({
+                            displayName: tmsDisplayName,
+                            oauthClientId: tmsOauthClientId,
+                            oauthClientSecret: tmsOauthClientSecret,
+                            baseUrl: tmsBaseUrl,
+                          });
+
+                          if (integration.providerKind === "crowdin") {
+                            if (tmsCrowdinAuthMode === PAT_AUTH_MODE) {
+                              saveCrowdinPatSetup.mutate(
+                                {
+                                  displayName: tmsDisplayName.trim(),
+                                  ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                                },
+                                {
+                                  onSuccess: () => {
+                                    setShowTmsSecret(false);
+                                  },
+                                },
+                              );
+                              return;
+                            }
+
+                            saveCrowdinOAuthApp.mutate(oauthPayload, {
+                              onSuccess: () => {
+                                setTmsOauthClientId("");
+                                setTmsOauthClientSecret("");
+                                setShowTmsSecret(false);
+                              },
+                            });
+                            return;
+                          }
+                          if (integration.providerKind === "phrase") {
+                            savePhraseOAuthApp.mutate(oauthPayload, {
+                              onSuccess: () => {
+                                setTmsOauthClientId("");
+                                setTmsOauthClientSecret("");
+                                setShowTmsSecret(false);
+                              },
+                            });
+                            return;
+                          }
+                          if (integration.providerKind === "lokalise") {
+                            saveLokaliseOAuthApp.mutate(oauthPayload, {
+                              onSuccess: () => {
+                                setTmsOauthClientId("");
+                                setTmsOauthClientSecret("");
+                                setShowTmsSecret(false);
+                              },
+                            });
+                            return;
+                          }
+                          saveExternalTms.mutate(
+                            {
+                              providerKind: integration.providerKind,
+                              displayName: tmsDisplayName.trim(),
+                              secretMaterial: tmsSecret.trim(),
+                              ...(tmsCredential?.region ? { region: tmsCredential.region } : {}),
+                              ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                            },
+                            {
+                              onSuccess: () => {
+                                setTmsSecret("");
+                                setShowTmsSecret(false);
+                              },
+                            },
+                          );
+                        }}
+                        isSaving={
+                          saveExternalTms.isPending ||
+                          saveCrowdinOAuthApp.isPending ||
+                          saveCrowdinPatSetup.isPending ||
+                          savePhraseOAuthApp.isPending ||
+                          saveLokaliseOAuthApp.isPending
+                        }
+                        isDisconnecting={deleteExternalTms.isPending}
+                        displayNameFieldId={tmsDisplayNameFieldId}
+                        secretFieldId={tmsSecretFieldId}
+                        oauthClientIdFieldId={tmsOauthClientIdFieldId}
+                        oauthClientSecretFieldId={tmsOauthClientSecretFieldId}
+                        redirectUriFieldId={tmsOauthRedirectUriFieldId}
+                        baseUrlFieldId={tmsBaseUrlFieldId}
+                        crowdinAuthModeFieldId={tmsCrowdinAuthModeFieldId}
+                      />
+                    ) : null}
+                  </TmsIntegrationRow>
+                );
+              })}
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("cms") && canManageProviderIntegrations ? (
+            <IntegrationCategorySection categoryId="cms">
+              <IntegrationRow
+                name={intl.formatMessage(
+                  integrationsPageContentMessages.contentPublishingFilesName,
+                )}
+                description={intl.formatMessage(
+                  integrationsPageContentMessages.contentPublishingFilesDetail,
+                )}
+                icon={<IntegrationLogo src="/images/logo.png" />}
+                iconMuted
+                action="coming-soon"
+              />
+              <CollapsibleIntegrationRow
+                name={contentfulIntegration.name}
+                description={contentfulIntegration.detail}
+                icon={<IntegrationLogo src={contentfulIntegration.logo} />}
+                isConnected={Boolean(contentfulConnections?.[0])}
+                userIsAdmin={userIsAdmin}
+                expanded={expandedContentful}
+                onExpandedChange={handleContentfulExpandedChange}
+                isLoading={isLoadingContentful}
+              >
+                <ContentfulConnectionPanel
+                  connection={contentfulConnections?.[0]}
                   disabled={!userIsAdmin}
-                  isLast
-                />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("guidelines") ? (
-              <IntegrationCategorySection categoryId="guidelines">
-                <GuidelineIntegrationsSection />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("customer-engagement") ? (
-              <IntegrationCategorySection categoryId="customer-engagement">
-                <CustomerEngagementIntegrationsSection
+                  form={contentfulForm}
+                  onFormChange={setContentfulForm}
+                  lastWebhookSecret={lastContentfulWebhookSecret}
+                  isSaving={saveContentfulConnection.isPending}
                   organizationSlug={organizationSlug}
-                  userIsAdmin={userIsAdmin}
-                  showIntercom={canManageProviderIntegrations}
+                  onSave={() => {
+                    const accessToken = contentfulForm.accessToken.trim();
+                    const existingConnection = contentfulConnections?.[0];
+
+                    const payload = {
+                      displayName: contentfulForm.displayName.trim(),
+                      spaceId: contentfulForm.spaceId.trim(),
+                      environmentId: contentfulForm.environmentId.trim() || "master",
+                      contentTypeIds: contentfulForm.contentTypeIds,
+                    };
+
+                    saveContentfulConnection.mutate(
+                      existingConnection
+                        ? {
+                            ...payload,
+                            connectionId: existingConnection.id,
+                            ...(accessToken ? { accessToken } : {}),
+                          }
+                        : { ...payload, accessToken },
+                      {
+                        onSuccess: (result) => {
+                          setContentfulForm((current) => ({ ...current, accessToken: "" }));
+                          setLastContentfulWebhookSecret(result.webhookSecret ?? "");
+                        },
+                      },
+                    );
+                  }}
                 />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("experimentation") && canManageProviderIntegrations ? (
-              <IntegrationCategorySection categoryId="experimentation">
-                <IntegrationRow
-                  name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
-                  description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
-                  icon={<IntegrationLogo src="/images/logo.png" />}
-                  iconMuted
-                  action="coming-soon"
-                  isLast
-                />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("seo-tools") && canManageProviderIntegrations ? (
-              <IntegrationCategorySection categoryId="seo-tools">
-                <IntegrationRow
-                  name={intl.formatMessage(integrationsPageContentMessages.hyperSeoName)}
-                  description={intl.formatMessage(integrationsPageContentMessages.hyperSeoDetail)}
-                  icon={<IntegrationLogo src="/images/logo.png" />}
-                  iconMuted
-                  action="coming-soon"
-                />
-                <SemrushConnectionPanel
-                  organizationSlug={organizationSlug}
-                  disabled={!userIsAdmin}
-                />
-                <AhrefsConnectionPanel
-                  organizationSlug={organizationSlug}
-                  disabled={!userIsAdmin}
-                  isLast
-                />
-              </IntegrationCategorySection>
-            ) : null}
-            {showCategory("mcp-servers") && canManageProviderIntegrations ? (
-              <IntegrationCategorySection categoryId="mcp-servers">
-                <McpServerConnectionPanel
-                  organizationSlug={organizationSlug}
-                  disabled={!userIsAdmin}
-                  isLast
-                />
-              </IntegrationCategorySection>
-            ) : null}
-          </div>
-        </Tabs>
-      </section>
+              </CollapsibleIntegrationRow>
+              <CanvaConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+                isLast
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("guidelines") ? (
+            <IntegrationCategorySection categoryId="guidelines">
+              <GuidelineIntegrationsSection />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("customer-engagement") ? (
+            <IntegrationCategorySection categoryId="customer-engagement">
+              <CustomerEngagementIntegrationsSection
+                organizationSlug={organizationSlug}
+                userIsAdmin={userIsAdmin}
+                showIntercom={canManageProviderIntegrations}
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("experimentation") && canManageProviderIntegrations ? (
+            <IntegrationCategorySection categoryId="experimentation">
+              <IntegrationRow
+                name={intl.formatMessage(integrationsPageContentMessages.hyperlabName)}
+                description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
+                icon={<IntegrationLogo src="/images/logo.png" />}
+                iconMuted
+                action="coming-soon"
+                isLast
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("seo-tools") && canManageProviderIntegrations ? (
+            <IntegrationCategorySection categoryId="seo-tools">
+              <IntegrationRow
+                name={intl.formatMessage(integrationsPageContentMessages.hyperSeoName)}
+                description={intl.formatMessage(integrationsPageContentMessages.hyperSeoDetail)}
+                icon={<IntegrationLogo src="/images/logo.png" />}
+                iconMuted
+                action="coming-soon"
+              />
+              <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <AhrefsConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+                isLast
+              />
+            </IntegrationCategorySection>
+          ) : null}
+          {showCategory("mcp-servers") && canManageProviderIntegrations ? (
+            <IntegrationCategorySection categoryId="mcp-servers">
+              <McpServerConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+                isLast
+              />
+            </IntegrationCategorySection>
+          ) : null}
+        </Rows>
+      </Tabs>
 
       {canManageProviderIntegrations ? (
         <AlertDialog
@@ -1308,6 +1304,6 @@ export function IntegrationsPageContent({
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
-    </main>
+    </WorkspacePageShell>
   );
 }

@@ -29,6 +29,10 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -166,18 +170,26 @@ export function EmailIntegrationRow({
       isLoading={isLoading}
       isLast={isLast}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-          <TypographyP className="text-sm leading-6 text-muted-foreground">
-            {intl.formatMessage(emailIntegrationRowMessages.panelInstructions)}
-          </TypographyP>
-          <Switch
-            checked={emailAgent?.enabled ?? false}
-            onCheckedChange={toggleEnabled}
-            aria-label={intl.formatMessage(emailIntegrationRowMessages.enableEmailAgentAriaLabel)}
-            disabled={isLoading || isError || updateEmailAgentState.isPending || !userCanManage}
-          />
-        </div>
+      <Rows spacing="2u">
+        <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
+          <Columns spacing="1.5u" alignY="center" collapseBelow="small">
+            <Column width="fluid">
+              <TypographyP className="text-sm leading-6 text-muted-foreground">
+                {intl.formatMessage(emailIntegrationRowMessages.panelInstructions)}
+              </TypographyP>
+            </Column>
+            <Column width="content">
+              <Switch
+                checked={emailAgent?.enabled ?? false}
+                onCheckedChange={toggleEnabled}
+                aria-label={intl.formatMessage(
+                  emailIntegrationRowMessages.enableEmailAgentAriaLabel,
+                )}
+                disabled={isLoading || isError || updateEmailAgentState.isPending || !userCanManage}
+              />
+            </Column>
+          </Columns>
+        </Box>
 
         {isError ? (
           <TypographyP className="text-sm text-destructive">
@@ -233,7 +245,7 @@ export function EmailIntegrationRow({
             </Tooltip>
           </InputGroupAddon>
         </InputGroup>
-      </div>
+      </Rows>
     </IntegrationRow>
   );
 }

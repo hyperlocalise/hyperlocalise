@@ -15,10 +15,21 @@
 import { defineMessages } from "react-intl";
 
 export const integrationsPageContentMessages = defineMessages({
+  pageLabel: {
+    defaultMessage: "Workspace",
+    id: "MlPI89XpLh",
+    description: "Integrations page header eyebrow label",
+  },
   pageTitle: {
     defaultMessage: "Integrations",
     id: "9glYgHRgqB",
     description: "Integrations page heading",
+  },
+  pageDescription: {
+    defaultMessage:
+      "Connect the systems this workspace uses for source content, collaboration, and translation.",
+    id: "c4Om5rZTyf",
+    description: "Integrations page description under the heading",
   },
   categoryFilterAll: {
     defaultMessage: "All",

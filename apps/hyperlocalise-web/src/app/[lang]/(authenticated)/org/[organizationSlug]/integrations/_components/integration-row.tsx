@@ -21,6 +21,10 @@ import { integrationRowMessages } from "./integration-row.messages";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH3 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
@@ -74,6 +78,81 @@ const actionStyles: Record<
   },
 };
 
+export function IntegrationRowFrame({
+  open,
+  onOpenChange,
+  isLast = false,
+  highlighted,
+  hoverClassName,
+  highlightClassName,
+  icon,
+  iconClassName,
+  name,
+  description,
+  nameExtra,
+  action,
+  showPanel,
+  panelClassName,
+  children,
+}: {
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  isLast?: boolean;
+  highlighted: boolean;
+  hoverClassName: string;
+  highlightClassName: string;
+  icon?: ReactNode;
+  iconClassName: string;
+  name: string;
+  description: string;
+  nameExtra?: ReactNode;
+  action: ReactNode;
+  showPanel: boolean;
+  panelClassName: string;
+  children?: ReactNode;
+}) {
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={onOpenChange}
+      className={cn(!isLast && "border-b border-border")}
+    >
+      <div className={cn("transition-colors", hoverClassName, highlighted && highlightClassName)}>
+        <Box paddingX="2u" paddingY="2u">
+          <Columns spacing="2u" alignY="center">
+            <Column width="content">
+              <div
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-lg border p-2 transition-colors",
+                  iconClassName,
+                )}
+              >
+                {icon}
+              </div>
+            </Column>
+            <Column width="fluid">
+              <Rows spacing="0.5u">
+                <Box display="flex" flexWrap="wrap" alignItems="center" gap="1u">
+                  <p className="text-base font-medium text-foreground">{name}</p>
+                  {nameExtra}
+                </Box>
+                <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+              </Rows>
+            </Column>
+            <Column width="content">{action}</Column>
+          </Columns>
+        </Box>
+      </div>
+
+      {showPanel ? (
+        <CollapsibleContent className={cn("border-t", panelClassName)}>
+          <Box padding="2u">{children}</Box>
+        </CollapsibleContent>
+      ) : null}
+    </Collapsible>
+  );
+}
+
 export function IntegrationRow({
   name,
   description,
@@ -88,89 +167,71 @@ export function IntegrationRow({
   isLast = false,
   children,
 }: IntegrationRowProps) {
-  const showPanel = action === "manage" && children;
+  const showPanel = Boolean(action === "manage" && children);
   const activeStyle = actionStyles[action];
   const iconContainerClass = iconMuted
     ? "border-border bg-background text-foreground"
     : activeStyle.icon;
 
   return (
-    <Collapsible
+    <IntegrationRowFrame
       open={expanded}
       onOpenChange={onExpandedChange}
-      className={cn(!isLast && "border-b border-border")}
+      isLast={isLast}
+      highlighted={expanded}
+      hoverClassName={activeStyle.row}
+      highlightClassName={activeStyle.panel}
+      icon={icon}
+      iconClassName={iconContainerClass}
+      name={name}
+      description={description}
+      showPanel={showPanel}
+      panelClassName={activeStyle.panel}
+      action={
+        isLoading && (action === "connect" || action === "manage") ? (
+          <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+        ) : action === "coming-soon" ? (
+          <Button type="button" variant="outline" size="sm" disabled>
+            <FormattedMessage {...integrationRowMessages.comingSoon} />
+          </Button>
+        ) : action === "view-only" ? (
+          <span className="text-sm text-muted-foreground">
+            <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+          </span>
+        ) : action === "connect" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onConnect}
+            disabled={isConnecting}
+            className={activeStyle.button}
+          >
+            {isConnecting ? (
+              <FormattedMessage {...integrationRowMessages.connecting} />
+            ) : (
+              <FormattedMessage {...integrationRowMessages.connect} />
+            )}
+            <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
+          </Button>
+        ) : showPanel ? (
+          <CollapsibleTrigger
+            render={
+              <Button type="button" variant="outline" size="sm">
+                <FormattedMessage {...integrationRowMessages.manage} />
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        ) : null
+      }
     >
-      <div
-        className={cn(
-          "flex items-center gap-4 px-5 py-4 transition-colors",
-          activeStyle.row,
-          expanded && activeStyle.panel,
-        )}
-      >
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg border p-2 transition-colors",
-            iconContainerClass,
-          )}
-        >
-          {icon}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-medium text-foreground">{name}</p>
-          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{description}</p>
-        </div>
-
-        <div className="shrink-0">
-          {isLoading && (action === "connect" || action === "manage") ? (
-            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
-          ) : action === "coming-soon" ? (
-            <Button type="button" variant="outline" size="sm" disabled>
-              <FormattedMessage {...integrationRowMessages.comingSoon} />
-            </Button>
-          ) : action === "view-only" ? (
-            <span className="text-sm text-muted-foreground">
-              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
-            </span>
-          ) : action === "connect" ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onConnect}
-              disabled={isConnecting}
-              className={activeStyle.button}
-            >
-              {isConnecting ? (
-                <FormattedMessage {...integrationRowMessages.connecting} />
-              ) : (
-                <FormattedMessage {...integrationRowMessages.connect} />
-              )}
-              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
-            </Button>
-          ) : showPanel ? (
-            <CollapsibleTrigger
-              render={
-                <Button type="button" variant="outline" size="sm">
-                  <FormattedMessage {...integrationRowMessages.manage} />
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
-                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                    strokeWidth={2}
-                  />
-                </Button>
-              }
-            />
-          ) : null}
-        </div>
-      </div>
-
-      {showPanel ? (
-        <CollapsibleContent className={cn("border-t px-5 py-5", activeStyle.panel)}>
-          {children}
-        </CollapsibleContent>
-      ) : null}
-    </Collapsible>
+      {children}
+    </IntegrationRowFrame>
   );
 }
 
@@ -204,79 +265,63 @@ export function CollapsibleIntegrationRow({
   const showPanel = userIsAdmin || isConnected;
 
   return (
-    <Collapsible
+    <IntegrationRowFrame
       open={showPanel && expanded}
       onOpenChange={onExpandedChange}
-      className={cn(!isLast && "border-b border-border")}
-    >
-      <div
-        className={cn(
-          "flex items-center gap-4 px-5 py-4 transition-colors",
-          "hover:bg-muted/20",
-          expanded && "bg-muted/20",
-        )}
-      >
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
-            isConnected
-              ? "border-border bg-muted text-foreground"
-              : "border-border bg-muted/50 text-muted-foreground",
-          )}
-        >
-          {icon}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-medium text-foreground">{name}</p>
-          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{description}</p>
-        </div>
-
-        <div className="shrink-0">
-          {isLoading && showPanel ? (
-            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
-          ) : showPanel ? (
-            <CollapsibleTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={
-                    userIsAdmin && !isConnected ? integrationConnectButtonClassName : undefined
-                  }
-                >
-                  {userIsAdmin ? (
-                    isConnected ? (
-                      <FormattedMessage {...integrationRowMessages.manage} />
-                    ) : (
-                      <FormattedMessage {...integrationRowMessages.connect} />
-                    )
+      isLast={isLast}
+      highlighted={expanded}
+      hoverClassName="hover:bg-muted/20"
+      highlightClassName="bg-muted/20"
+      icon={icon}
+      iconClassName={
+        isConnected
+          ? "border-border bg-muted text-foreground"
+          : "border-border bg-muted/50 text-muted-foreground"
+      }
+      name={name}
+      description={description}
+      showPanel={showPanel}
+      panelClassName="border-border bg-muted/20"
+      action={
+        isLoading && showPanel ? (
+          <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+        ) : showPanel ? (
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={
+                  userIsAdmin && !isConnected ? integrationConnectButtonClassName : undefined
+                }
+              >
+                {userIsAdmin ? (
+                  isConnected ? (
+                    <FormattedMessage {...integrationRowMessages.manage} />
                   ) : (
-                    <FormattedMessage {...integrationRowMessages.viewOnly} />
-                  )}
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
-                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                    strokeWidth={2}
-                  />
-                </Button>
-              }
-            />
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
-            </span>
-          )}
-        </div>
-      </div>
-
-      {showPanel ? (
-        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
-          {children}
-        </CollapsibleContent>
-      ) : null}
-    </Collapsible>
+                    <FormattedMessage {...integrationRowMessages.connect} />
+                  )
+                ) : (
+                  <FormattedMessage {...integrationRowMessages.viewOnly} />
+                )}
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            <FormattedMessage {...integrationRowMessages.adminsCanConnect} />
+          </span>
+        )
+      }
+    >
+      {children}
+    </IntegrationRowFrame>
   );
 }
 

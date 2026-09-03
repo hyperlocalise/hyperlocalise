@@ -23,6 +23,10 @@ import { slackIntegrationRowMessages } from "./slack-integration-row.messages";
 import { IntegrationLogo } from "./integration-logo";
 import { IntegrationRow } from "./integration-row";
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { createApiClient } from "@/lib/api-client";
@@ -181,36 +185,44 @@ export function SlackIntegrationRow({
       {isLoading ? (
         <Skeleton className="h-16 rounded-lg" />
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <TypographyP className="text-sm font-medium text-foreground">
-                {isError
-                  ? intl.formatMessage(slackIntegrationRowMessages.settingsUnavailable)
-                  : viewModel.statusTitle}
-              </TypographyP>
-              {slackAgent?.teamId ? (
-                <TypographyP className="mt-1 text-xs text-muted-foreground">
-                  {intl.formatMessage(slackIntegrationRowMessages.workspaceId, {
-                    teamId: slackAgent.teamId,
-                  })}
-                </TypographyP>
-              ) : null}
-            </div>
-            <Switch
-              checked={viewModel.enabled}
-              onCheckedChange={(enabled) => updateSlackAgentState.mutate(enabled)}
-              aria-label={intl.formatMessage(slackIntegrationRowMessages.enableSlackAgentAriaLabel)}
-              disabled={
-                viewModel.toggleDisabled ||
-                isError ||
-                updateSlackAgentState.isPending ||
-                isCreatingInstallUrl ||
-                !userCanManage
-              }
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <Rows spacing="2u">
+          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
+            <Columns spacing="1.5u" alignY="center" collapseBelow="small">
+              <Column width="fluid">
+                <Rows spacing="0.5u">
+                  <TypographyP className="text-sm font-medium text-foreground">
+                    {isError
+                      ? intl.formatMessage(slackIntegrationRowMessages.settingsUnavailable)
+                      : viewModel.statusTitle}
+                  </TypographyP>
+                  {slackAgent?.teamId ? (
+                    <TypographyP className="text-xs text-muted-foreground">
+                      {intl.formatMessage(slackIntegrationRowMessages.workspaceId, {
+                        teamId: slackAgent.teamId,
+                      })}
+                    </TypographyP>
+                  ) : null}
+                </Rows>
+              </Column>
+              <Column width="content">
+                <Switch
+                  checked={viewModel.enabled}
+                  onCheckedChange={(enabled) => updateSlackAgentState.mutate(enabled)}
+                  aria-label={intl.formatMessage(
+                    slackIntegrationRowMessages.enableSlackAgentAriaLabel,
+                  )}
+                  disabled={
+                    viewModel.toggleDisabled ||
+                    isError ||
+                    updateSlackAgentState.isPending ||
+                    isCreatingInstallUrl ||
+                    !userCanManage
+                  }
+                />
+              </Column>
+            </Columns>
+          </Box>
+          <Box display="flex" flexWrap="wrap" gap="1u">
             <Button size="sm" onClick={() => void handleConnect()} disabled={isCreatingInstallUrl}>
               {isCreatingInstallUrl
                 ? intl.formatMessage(slackIntegrationRowMessages.openingSlack)
@@ -228,8 +240,8 @@ export function SlackIntegrationRow({
                   : intl.formatMessage(slackIntegrationRowMessages.disable)}
               </Button>
             ) : null}
-          </div>
-        </div>
+          </Box>
+        </Rows>
       )}
     </IntegrationRow>
   );
