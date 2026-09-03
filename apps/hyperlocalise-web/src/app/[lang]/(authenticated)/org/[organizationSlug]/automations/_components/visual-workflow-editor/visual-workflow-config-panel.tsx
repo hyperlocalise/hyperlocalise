@@ -30,10 +30,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import type {
   HttpMethod,
-  MockValidationIssue,
   VisualNodeConfig,
   VisualWorkflowRfNode,
-} from "@/lib/visual-workflows/mock/types";
+  VisualWorkflowValidationIssue,
+} from "@/lib/visual-workflows/schema/types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
@@ -46,7 +46,7 @@ export function VisualWorkflowConfigPanel({
   onChangeConfig,
 }: {
   node: VisualWorkflowRfNode;
-  issues: readonly MockValidationIssue[];
+  issues: readonly VisualWorkflowValidationIssue[];
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
 }) {
@@ -152,7 +152,7 @@ export function VisualWorkflowConfigPanel({
       {issues.length > 0 ? (
         <div className="border-t border-border px-4 py-3 text-sm text-destructive">
           {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? "all"}`}>
+            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
               {intl.formatMessage(issueMessage(issue.code))}
             </p>
           ))}
@@ -166,7 +166,7 @@ function isHttpMethod(value: string): value is HttpMethod {
   return HTTP_METHODS.includes(value as HttpMethod);
 }
 
-function issueMessage(code: MockValidationIssue["code"]) {
+function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
   switch (code) {
     case "missing_trigger":
       return messages.missingTrigger;
@@ -174,5 +174,7 @@ function issueMessage(code: MockValidationIssue["code"]) {
       return messages.multipleTriggers;
     case "orphan_node":
       return messages.orphanNode;
+    case "invalid_edge":
+      return messages.invalidEdge;
   }
 }

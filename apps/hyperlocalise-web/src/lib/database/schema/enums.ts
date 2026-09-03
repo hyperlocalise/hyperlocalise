@@ -232,6 +232,15 @@ export const workspaceAutomationRunStatusEnum = pgEnum("workspace_automation_run
   "skipped",
 ]);
 /**
+ * Tracks persisted visual workflow definitions from draft authoring through active scheduling and archival.
+ */
+export const visualWorkflowStatusEnum = pgEnum("visual_workflow_status", [
+  "draft",
+  "active",
+  "paused",
+  "archived",
+]);
+/**
  * Defines where automated TMS agent settings apply: organization-wide, project-specific, or provider-credential-specific.
  */
 export const tmsAgentAutomationScopeEnum = pgEnum("tms_agent_automation_scope", [

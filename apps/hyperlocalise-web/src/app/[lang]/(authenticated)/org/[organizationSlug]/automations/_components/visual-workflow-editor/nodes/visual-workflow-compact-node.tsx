@@ -23,8 +23,8 @@ import {
   isTriggerType,
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
-} from "@/lib/visual-workflows/mock/node-catalog";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/mock/types";
+} from "@/lib/visual-workflows/catalog/node-catalog";
+import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";

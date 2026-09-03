@@ -400,7 +400,7 @@ export function GitHubIntegrationRow({
         <Skeleton className="h-24 rounded-lg" />
       ) : isError ? (
         <Rows spacing="1.5u">
-          <TypographyP className="text-sm text-destructive">
+          <TypographyP size="small" tone="critical">
             {error instanceof Error
               ? error.message
               : intl.formatMessage(githubIntegrationRowMessages.loadError)}

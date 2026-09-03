@@ -57,7 +57,7 @@ export type CanonicalVisualWorkflowEdge = {
   targetHandle: string | null;
 };
 
-export type CanonicalVisualWorkflowDraft = {
+export type VisualWorkflowDefinition = {
   schemaVersion: typeof VISUAL_WORKFLOW_SCHEMA_VERSION;
   name: string;
   nodes: CanonicalVisualWorkflowNode[];
@@ -67,10 +67,17 @@ export type CanonicalVisualWorkflowDraft = {
   };
 };
 
-export type MockValidationIssue = {
-  code: "missing_trigger" | "multiple_triggers" | "orphan_node";
+/** @deprecated Use VisualWorkflowDefinition */
+export type CanonicalVisualWorkflowDraft = VisualWorkflowDefinition;
+
+export type VisualWorkflowValidationIssue = {
+  code: "missing_trigger" | "multiple_triggers" | "orphan_node" | "invalid_edge";
   nodeId?: string;
+  edgeId?: string;
 };
+
+/** @deprecated Use VisualWorkflowValidationIssue */
+export type MockValidationIssue = VisualWorkflowValidationIssue;
 
 export type VisualWorkflowEditorState = {
   name: string;

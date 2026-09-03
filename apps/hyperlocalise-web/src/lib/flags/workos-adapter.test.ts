@@ -160,6 +160,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       automations: false,
       knowledge: false,
       visualMock: false,
+      visualWorkflows: false,
       domains: false,
       glossarySearch: false,
     });
@@ -185,6 +186,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       automations: true,
       knowledge: true,
       visualMock: true,
+      visualWorkflows: true,
       domains: true,
       glossarySearch: true,
     });
@@ -204,6 +206,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       automations: false,
       knowledge: false,
       visualMock: false,
+      visualWorkflows: false,
       domains: false,
       glossarySearch: false,
     });
@@ -225,6 +228,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       automations: true,
       knowledge: true,
       visualMock: true,
+      visualWorkflows: true,
       domains: true,
       glossarySearch: true,
     });

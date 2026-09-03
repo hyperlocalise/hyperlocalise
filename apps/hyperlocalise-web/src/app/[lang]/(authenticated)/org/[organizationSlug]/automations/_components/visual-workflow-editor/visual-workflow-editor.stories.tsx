@@ -46,6 +46,7 @@ export const SampleGraph: Story = {
     initialName: visualWorkflowDemoDraft.name,
     initialNodes: visualWorkflowDemoDraft.nodes,
     initialEdges: visualWorkflowDemoDraft.edges,
+    previewMode: true,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Lead ping")).toBeInTheDocument();
@@ -55,6 +56,9 @@ export const SampleGraph: Story = {
 };
 
 export const Empty: Story = {
+  args: {
+    previewMode: true,
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Add first step" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Load sample" })).toBeInTheDocument();

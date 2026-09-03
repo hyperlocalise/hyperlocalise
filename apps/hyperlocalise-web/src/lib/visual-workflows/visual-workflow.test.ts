@@ -12,12 +12,15 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { visualWorkflowDemoDraft } from "./demo-draft";
-import { createDefaultConfig } from "./node-catalog";
-import { fromCanonicalDraft, toCanonicalDraft } from "./to-canonical-draft";
-import { validateMockWorkflow } from "./validate-mock-workflow";
-import { nodeFailsInFakeRun, orderNodesForFakeRun } from "./fake-run";
-import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./types";
+import { visualWorkflowDemoDraft } from "./fixtures/demo-draft";
+import { createDefaultConfig } from "./catalog/node-catalog";
+import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "./schema/serializers";
+import {
+  validateVisualWorkflowDefinition,
+  validateVisualWorkflowGraph,
+} from "./validation/validate-workflow";
+import { nodeFailsInFakeRun, orderNodesForFakeRun } from "./preview/fake-run";
+import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./schema/types";
 
 function node(
   id: string,
@@ -37,14 +40,14 @@ function node(
   };
 }
 
-describe("toCanonicalDraft", () => {
+describe("toVisualWorkflowDefinition", () => {
   it("exports schema-versioned nodes, edges, and editor positions", () => {
     const nodes = [node("a", "trigger.manual", 10, 20), node("b", "action.http", 280, 20)];
     const edges: VisualWorkflowRfEdge[] = [
       { id: "e1", source: "a", target: "b", sourceHandle: "out" },
     ];
 
-    const draft = toCanonicalDraft({ name: "Lead ping", nodes, edges });
+    const draft = toVisualWorkflowDefinition({ name: "Lead ping", nodes, edges });
 
     expect(draft.schemaVersion).toBe(1);
     expect(draft.name).toBe("Lead ping");
@@ -65,13 +68,13 @@ describe("toCanonicalDraft", () => {
     });
   });
 
-  it("round-trips through fromCanonicalDraft", () => {
+  it("round-trips through fromVisualWorkflowDefinition", () => {
     const original = {
       name: "Round trip",
       nodes: [node("a", "logic.if", 8, 16)],
       edges: [] as VisualWorkflowRfEdge[],
     };
-    const restored = fromCanonicalDraft(toCanonicalDraft(original));
+    const restored = fromVisualWorkflowDefinition(toVisualWorkflowDefinition(original));
     expect(restored.name).toBe("Round trip");
     expect(restored.nodes[0]?.id).toBe("a");
     expect(restored.nodes[0]?.data.catalogType).toBe("logic.if");
@@ -79,13 +82,13 @@ describe("toCanonicalDraft", () => {
   });
 });
 
-describe("validateMockWorkflow", () => {
+describe("validateVisualWorkflowGraph", () => {
   it("reports a missing trigger on an empty canvas", () => {
-    expect(validateMockWorkflow([], [])).toEqual([{ code: "missing_trigger" }]);
+    expect(validateVisualWorkflowGraph([], [])).toEqual([{ code: "missing_trigger" }]);
   });
 
   it("reports orphan action nodes and multiple triggers", () => {
-    const issues = validateMockWorkflow(
+    const issues = validateVisualWorkflowGraph(
       [node("t1", "trigger.manual"), node("t2", "trigger.manual"), node("http", "action.http")],
       [],
     );
@@ -94,14 +97,14 @@ describe("validateMockWorkflow", () => {
 
   it("accepts the shipped sample graph", () => {
     expect(
-      validateMockWorkflow(visualWorkflowDemoDraft.nodes, visualWorkflowDemoDraft.edges),
+      validateVisualWorkflowGraph(visualWorkflowDemoDraft.nodes, visualWorkflowDemoDraft.edges),
     ).toEqual([]);
     expect(visualWorkflowDemoDraft.name).toBe("Lead ping");
   });
 
   it("accepts a connected trigger to http graph", () => {
     expect(
-      validateMockWorkflow(
+      validateVisualWorkflowGraph(
         [node("t", "trigger.manual"), node("h", "action.http")],
         [{ id: "e", source: "t", target: "h" }],
       ),
@@ -109,11 +112,31 @@ describe("validateMockWorkflow", () => {
   });
 
   it("reports a self-looped action that is not reachable from the trigger", () => {
-    const issues = validateMockWorkflow(
+    const issues = validateVisualWorkflowGraph(
       [node("t", "trigger.manual"), node("h", "action.http")],
       [{ id: "loop", source: "h", target: "h" }],
     );
     expect(issues).toEqual([{ code: "orphan_node", nodeId: "h" }]);
+  });
+
+  it("reports edges whose endpoints do not exist", () => {
+    const issues = validateVisualWorkflowGraph(
+      [node("t", "trigger.manual")],
+      [{ id: "e1", source: "t", target: "missing" }],
+    );
+    expect(issues).toEqual([{ code: "invalid_edge", edgeId: "e1" }]);
+  });
+
+  it("rejects dangling edges when validating a persisted definition", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Broken",
+      nodes: [node("t", "trigger.manual")],
+      edges: [{ id: "e1", source: "t", target: "missing" }],
+    });
+
+    expect(validateVisualWorkflowDefinition(definition)).toEqual([
+      { code: "invalid_edge", edgeId: "e1" },
+    ]);
   });
 });
 

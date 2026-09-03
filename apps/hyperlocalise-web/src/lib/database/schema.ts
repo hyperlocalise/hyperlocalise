@@ -28,6 +28,7 @@ export * from "./schema/canva";
 export * from "./schema/crowdin-app";
 export * from "./schema/jobs";
 export * from "./schema/agents";
+export * from "./schema/visual-workflows";
 export * from "./schema/files";
 export * from "./schema/project-strings";
 export * from "./schema/project-image-variants";

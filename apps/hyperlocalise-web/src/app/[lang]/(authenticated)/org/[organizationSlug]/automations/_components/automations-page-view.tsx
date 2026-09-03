@@ -208,6 +208,7 @@ export function AutomationsPageView({
   onSaveAutoReview,
   renderAutomationLink = defaultRenderAutomationLink,
   renderActionLink = defaultRenderActionLink,
+  visualWorkflowsEnabled = false,
 }: {
   organizationSlug: string;
   projectId?: string;
@@ -223,6 +224,7 @@ export function AutomationsPageView({
   onSaveAutoReview?: (input: GithubAutoReviewSettingsWrite) => Promise<void>;
   renderAutomationLink?: AutomationsLinkRenderer;
   renderActionLink?: AutomationsActionLinkRenderer;
+  visualWorkflowsEnabled?: boolean;
 }) {
   const intl = useIntl();
   const [templateCategoryFilter, setTemplateCategoryFilter] =
@@ -255,16 +257,33 @@ export function AutomationsPageView({
         )}
         title={intl.formatMessage(automationsPageViewMessages.pageTitle)}
         description={intl.formatMessage(automationsPageViewMessages.pageDescription)}
-        actions={renderActionLink({
-          href: `${automationsBasePath}/new`,
-          kind: "header",
-          children: (
-            <>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              <FormattedMessage {...automationsPageViewMessages.newAutomation} />
-            </>
-          ),
-        })}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {visualWorkflowsEnabled && !projectId ? (
+              <Button
+                nativeButton={false}
+                render={<Link href={`/org/${organizationSlug}/automations/visual-workflows`} />}
+                variant="outline"
+              >
+                <FormattedMessage
+                  defaultMessage="Advanced workflows"
+                  id="5Q7wl9b9ir"
+                  description="Link from automations list to visual workflows"
+                />
+              </Button>
+            ) : null}
+            {renderActionLink({
+              href: `${automationsBasePath}/new`,
+              kind: "header",
+              children: (
+                <>
+                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                  <FormattedMessage {...automationsPageViewMessages.newAutomation} />
+                </>
+              ),
+            })}
+          </div>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-3">

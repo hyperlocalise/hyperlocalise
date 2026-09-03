@@ -57,6 +57,7 @@ import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
+import { createVisualWorkflowRoutes } from "./routes/visual-workflow/visual-workflow.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
@@ -139,7 +140,8 @@ export function createOrgProjectsRoutes(options: OrgScopedRouteOptions) {
     .route(
       "/automations",
       createWorkspaceAutomationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    );
+    )
+    .route("/visual-workflows", createVisualWorkflowRoutes());
 }
 
 export function createOrgTmsRoutes(options: OrgScopedRouteOptions) {

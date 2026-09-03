@@ -120,7 +120,7 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
   if (isLoading) {
     return (
       <Rows spacing="3u">
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.saving} />
         </TypographyP>
       </Rows>
@@ -130,7 +130,7 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
   if (isError) {
     return (
       <Rows spacing="3u">
-        <TypographyP className="text-sm text-destructive">
+        <TypographyP size="small" tone="critical">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       </Rows>

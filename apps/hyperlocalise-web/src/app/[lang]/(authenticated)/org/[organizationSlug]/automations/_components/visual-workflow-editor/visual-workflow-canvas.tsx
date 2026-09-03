@@ -27,8 +27,11 @@ import { Canvas } from "@/components/ai-elements/canvas";
 import { Controls } from "@/components/ai-elements/controls";
 import { Panel } from "@/components/ai-elements/panel";
 import { Button } from "@/components/ui/button";
-import { isTriggerType } from "@/lib/visual-workflows/mock/node-catalog";
-import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "@/lib/visual-workflows/mock/types";
+import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";

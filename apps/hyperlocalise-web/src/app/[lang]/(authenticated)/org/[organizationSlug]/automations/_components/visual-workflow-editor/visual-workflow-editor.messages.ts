@@ -57,8 +57,13 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   save: {
     defaultMessage: "Save",
-    id: "w2aW2pUc2c",
-    description: "Disabled save button in visual workflow chrome",
+    id: "U87kn4cxmh",
+    description: "Save button in visual workflow chrome",
+  },
+  saving: {
+    defaultMessage: "Saving…",
+    id: "4JSF3BIeDZ",
+    description: "Save button label while a visual workflow is being saved",
   },
   exportJson: {
     defaultMessage: "Export JSON",
@@ -260,6 +265,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "Mepjj5xstx",
     description: "Validation message when a node has no incoming edge",
   },
+  invalidEdge: {
+    defaultMessage: "Remove edges that point to missing steps.",
+    id: "UvtZVrIkJR",
+    description: "Validation message when an edge references a missing node",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",
@@ -269,6 +279,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "false",
     id: "kXUdWEZuUt",
     description: "Label on the if-node false output handle",
+  },
+  saved: {
+    defaultMessage: "Saved",
+    id: "C6xexxLShL",
+    description: "Confirmation after saving a visual workflow",
+  },
+  saveFailed: {
+    defaultMessage: "Could not save this workflow.",
+    id: "BpV0qLbT1A",
+    description: "Toast when visual workflow save fails",
   },
   triggerBadge: {
     defaultMessage: "Trigger",

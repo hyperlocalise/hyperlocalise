@@ -10,25 +10,27 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { visualWorkflowIdParamSchema } from "@/api/routes/visual-workflow/visual-workflow.schema";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
   workspaceVisualWorkflowsFlag,
 } from "@/lib/flags/workspace-flags";
+import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
-import { AutomationsPageContent } from "./_components/automations-page-content";
+import { VisualWorkflowEditorPageContent } from "../../_components/visual-workflow-editor-page-content";
 
-export default async function AutomationsPage({
+export default async function VisualWorkflowEditorPage({
   params,
 }: {
-  params: Promise<{ organizationSlug: string }>;
+  params: Promise<{ organizationSlug: string; visualWorkflowId: string }>;
 }) {
-  const { organizationSlug } = await params;
+  const { organizationSlug, visualWorkflowId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const [automationsEnabled, visualWorkflowsEnabled] = await Promise.all([
     getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
@@ -39,15 +41,28 @@ export default async function AutomationsPage({
     return <FeatureTeaserPage feature="automations" scope="workspace" />;
   }
 
-  const templates = getMergedWorkspaceAutomationTemplates();
+  if (!visualWorkflowsEnabled) {
+    notFound();
+  }
+
+  if (!isWorkspaceOperatorRole(auth.membership.role)) {
+    notFound();
+  }
+
+  if (!visualWorkflowIdParamSchema.safeParse({ visualWorkflowId }).success) {
+    notFound();
+  }
+
+  const workflow = await getVisualWorkflowById({
+    organizationId: auth.activeOrganization.localOrganizationId,
+    visualWorkflowId,
+  });
+
+  if (!workflow) {
+    notFound();
+  }
 
   return (
-    <Suspense fallback={null}>
-      <AutomationsPageContent
-        organizationSlug={organizationSlug}
-        templates={templates}
-        visualWorkflowsEnabled={visualWorkflowsEnabled}
-      />
-    </Suspense>
+    <VisualWorkflowEditorPageContent organizationSlug={organizationSlug} workflow={workflow} />
   );
 }

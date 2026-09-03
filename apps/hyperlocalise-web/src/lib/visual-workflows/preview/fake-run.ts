@@ -10,8 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { isTriggerType } from "./node-catalog";
-import type { MockNodeRunStatus, VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./types";
+import { isTriggerType } from "../catalog/node-catalog";
+import type {
+  MockNodeRunStatus,
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "../schema/types";
 
 export function nodeFailsInFakeRun(node: VisualWorkflowRfNode): boolean {
   const { config } = node.data;
