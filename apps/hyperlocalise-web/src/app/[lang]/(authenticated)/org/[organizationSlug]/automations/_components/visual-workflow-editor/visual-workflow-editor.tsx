@@ -38,6 +38,7 @@ import type {
   VisualWorkflowDefinition,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
+  VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
 import { validateVisualWorkflowGraph } from "@/lib/visual-workflows/validation/validate-workflow";
 
@@ -282,14 +283,8 @@ export function VisualWorkflowEditor({
               {issues.length > 0 ? (
                 <div className="border-t border-border px-4 py-3 text-sm text-destructive">
                   {issues.map((issue) => (
-                    <p key={`${issue.code}-${issue.nodeId ?? "all"}`}>
-                      {intl.formatMessage(
-                        issue.code === "missing_trigger"
-                          ? messages.missingTrigger
-                          : issue.code === "multiple_triggers"
-                            ? messages.multipleTriggers
-                            : messages.orphanNode,
-                      )}
+                    <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
+                      {intl.formatMessage(issueMessage(issue.code))}
                     </p>
                   ))}
                 </div>
@@ -300,4 +295,17 @@ export function VisualWorkflowEditor({
       </div>
     </div>
   );
+}
+
+function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
+  switch (code) {
+    case "missing_trigger":
+      return messages.missingTrigger;
+    case "multiple_triggers":
+      return messages.multipleTriggers;
+    case "orphan_node":
+      return messages.orphanNode;
+    case "invalid_edge":
+      return messages.invalidEdge;
+  }
 }

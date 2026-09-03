@@ -15,7 +15,10 @@ import { describe, expect, it } from "vite-plus/test";
 import { visualWorkflowDemoDraft } from "./fixtures/demo-draft";
 import { createDefaultConfig } from "./catalog/node-catalog";
 import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "./schema/serializers";
-import { validateVisualWorkflowGraph } from "./validation/validate-workflow";
+import {
+  validateVisualWorkflowDefinition,
+  validateVisualWorkflowGraph,
+} from "./validation/validate-workflow";
 import { nodeFailsInFakeRun, orderNodesForFakeRun } from "./preview/fake-run";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./schema/types";
 
@@ -114,6 +117,26 @@ describe("validateVisualWorkflowGraph", () => {
       [{ id: "loop", source: "h", target: "h" }],
     );
     expect(issues).toEqual([{ code: "orphan_node", nodeId: "h" }]);
+  });
+
+  it("reports edges whose endpoints do not exist", () => {
+    const issues = validateVisualWorkflowGraph(
+      [node("t", "trigger.manual")],
+      [{ id: "e1", source: "t", target: "missing" }],
+    );
+    expect(issues).toEqual([{ code: "invalid_edge", edgeId: "e1" }]);
+  });
+
+  it("rejects dangling edges when validating a persisted definition", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Broken",
+      nodes: [node("t", "trigger.manual")],
+      edges: [{ id: "e1", source: "t", target: "missing" }],
+    });
+
+    expect(validateVisualWorkflowDefinition(definition)).toEqual([
+      { code: "invalid_edge", edgeId: "e1" },
+    ]);
   });
 });
 

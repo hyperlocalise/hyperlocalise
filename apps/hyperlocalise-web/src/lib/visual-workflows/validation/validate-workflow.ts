@@ -23,6 +23,14 @@ export function validateVisualWorkflowGraph(
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowValidationIssue[] {
   const issues: VisualWorkflowValidationIssue[] = [];
+  const nodeIds = new Set(nodes.map((node) => node.id));
+
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
+      issues.push({ code: "invalid_edge", edgeId: edge.id });
+    }
+  }
+
   const triggers = nodes.filter((node) => isTriggerType(node.data.catalogType));
 
   if (triggers.length === 0) {
@@ -37,6 +45,9 @@ export function validateVisualWorkflowGraph(
     outgoing.set(node.id, []);
   }
   for (const edge of edges) {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
+      continue;
+    }
     outgoing.get(edge.source)?.push(edge.target);
   }
 

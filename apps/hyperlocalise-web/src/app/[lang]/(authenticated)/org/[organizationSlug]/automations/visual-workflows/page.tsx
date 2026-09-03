@@ -13,6 +13,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   getWorkspaceFeatureFlagEnabled,
@@ -40,6 +41,10 @@ export default async function VisualWorkflowsPage({
   }
 
   if (!visualWorkflowsEnabled) {
+    notFound();
+  }
+
+  if (!isWorkspaceOperatorRole(auth.membership.role)) {
     notFound();
   }
 

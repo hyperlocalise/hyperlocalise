@@ -12,6 +12,8 @@
  */
 import { notFound } from "next/navigation";
 
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { visualWorkflowIdParamSchema } from "@/api/routes/visual-workflow/visual-workflow.schema";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   getWorkspaceFeatureFlagEnabled,
@@ -40,6 +42,14 @@ export default async function VisualWorkflowEditorPage({
   }
 
   if (!visualWorkflowsEnabled) {
+    notFound();
+  }
+
+  if (!isWorkspaceOperatorRole(auth.membership.role)) {
+    notFound();
+  }
+
+  if (!visualWorkflowIdParamSchema.safeParse({ visualWorkflowId }).success) {
     notFound();
   }
 

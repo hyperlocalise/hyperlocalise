@@ -71,8 +71,9 @@ export type VisualWorkflowDefinition = {
 export type CanonicalVisualWorkflowDraft = VisualWorkflowDefinition;
 
 export type VisualWorkflowValidationIssue = {
-  code: "missing_trigger" | "multiple_triggers" | "orphan_node";
+  code: "missing_trigger" | "multiple_triggers" | "orphan_node" | "invalid_edge";
   nodeId?: string;
+  edgeId?: string;
 };
 
 /** @deprecated Use VisualWorkflowValidationIssue */

@@ -152,7 +152,7 @@ export function VisualWorkflowConfigPanel({
       {issues.length > 0 ? (
         <div className="border-t border-border px-4 py-3 text-sm text-destructive">
           {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? "all"}`}>
+            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
               {intl.formatMessage(issueMessage(issue.code))}
             </p>
           ))}
@@ -174,5 +174,7 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
       return messages.multipleTriggers;
     case "orphan_node":
       return messages.orphanNode;
+    case "invalid_edge":
+      return messages.invalidEdge;
   }
 }

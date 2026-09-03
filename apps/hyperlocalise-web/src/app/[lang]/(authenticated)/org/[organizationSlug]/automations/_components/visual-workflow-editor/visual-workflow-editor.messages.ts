@@ -265,6 +265,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "Mepjj5xstx",
     description: "Validation message when a node has no incoming edge",
   },
+  invalidEdge: {
+    defaultMessage: "Remove edges that point to missing steps.",
+    id: "UvtZVrIkJR",
+    description: "Validation message when an edge references a missing node",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",
