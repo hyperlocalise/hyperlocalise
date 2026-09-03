@@ -22,6 +22,7 @@ use_repo(
     "com_github_gobwas_glob",
     "com_github_golangci_golangci_lint_v2",
     "com_github_invopop_jsonschema",
+    "com_github_jackc_pgx_v5",
     "com_github_lokalise_go_lokalise_api_v5",
     "com_github_masterminds_semver_v3",
     "com_github_mattn_go_isatty",

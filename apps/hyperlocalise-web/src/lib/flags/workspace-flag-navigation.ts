@@ -16,6 +16,7 @@ import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
+  WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   WORKSPACE_VISUAL_WORKFLOWS_FLAG,
@@ -30,6 +31,7 @@ function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<str
     [WORKSPACE_VISUAL_WORKFLOWS_FLAG]: flags.visualWorkflows,
     [WORKSPACE_DOMAINS_FLAG]: flags.domains,
     [WORKSPACE_GLOSSARY_SEARCH_FLAG]: flags.glossarySearch,
+    [WORKSPACE_HYPERLAB_FLAG]: flags.hyperlab,
   };
 }
 

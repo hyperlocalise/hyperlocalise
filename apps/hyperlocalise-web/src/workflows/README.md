@@ -33,6 +33,9 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         +-- createWorkspaceAutomationExecutionQueue()
         |       `---------------> workspaceAutomationExecutionWorkflow
         |
+        +-- createVisualWorkflowExecutionQueue()
+        |       `---------------> visualWorkflowExecutionWorkflow
+        |
         `-- provider/TMS queues
                 +-- providerAgentTranslationWorkflow
                 +-- providerAgentQaWorkflow
@@ -61,6 +64,33 @@ runWorkspaceOrchestrator (ToolLoopAgent)
         +-- notify_slack
         `-- notify_email
 ```
+
+## Visual Workflow Execution
+
+Advanced (visual) workflows are deterministic graphs edited in Cloud Automations. Manual runs create a `visual_workflow_runs` row and enqueue `visualWorkflowExecutionWorkflow`:
+
+```text
+POST /api/orgs/:slug/visual-workflows/:id/runs
+        |
+        v
+dispatchManualVisualWorkflowRun
+        |
+        v
+createVisualWorkflowExecutionQueue
+        |
+        v
+visualWorkflowExecutionWorkflow
+        |
+        v
+executeVisualWorkflowStep -> runVisualWorkflowInterpreter
+        |
+        +-- trigger.manual
+        +-- action.http
+        +-- logic.if (true/false edges)
+        `-- ai.agent (organization AI Engine)
+```
+
+Implementation details live in [`src/lib/visual-workflows/README.md`](../lib/visual-workflows/README.md).
 
 ## Hyperlocalise Agent: Uploaded File Translation
 

@@ -27,6 +27,7 @@ const MEMBER_READ_CAPABILITIES = [
   "glossaries:read",
   "memories:read",
   "jobs:read",
+  "experiments:read",
 ] as const;
 
 const JOB_CONTRIBUTOR_CAPABILITIES = ["jobs:create", "jobs:write", "ai_actions:run"] as const;
@@ -48,6 +49,7 @@ const DEVELOPER_CAPABILITIES = [
   "projects:create",
   "projects:write",
   "integrations:read",
+  "experiments:write",
 ] as const;
 
 const LOCALIZATION_MANAGER_CAPABILITIES = [
@@ -68,6 +70,7 @@ const LOCALIZATION_MANAGER_CAPABILITIES = [
   "api_keys:write",
   "integrations:read",
   "integrations:write",
+  "experiments:write",
   "billing:read",
 ] as const;
 

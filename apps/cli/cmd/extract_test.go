@@ -767,6 +767,155 @@ func TestScanTemplateLiteralHandlesRegexWithQuotesInInterpolation(t *testing.T) 
 	}
 }
 
+func TestExtractReactIntlCallMessagesPreservesIdentifierBoundaries(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		wantIDs []string
+	}{
+		{
+			name: "suffix formatMessage is ignored",
+			src: `myformatMessage({
+  id: "suffix.format",
+  defaultMessage: "Custom",
+});
+`,
+			wantIDs: nil,
+		},
+		{
+			name: "prefixed defineMessage is ignored",
+			src: `_defineMessage({
+  id: "suffix.define",
+  defaultMessage: "Hidden",
+});
+`,
+			wantIDs: nil,
+		},
+		{
+			name: "prefixed defineMessages is ignored",
+			src: `$defineMessages({
+  title: {
+    id: "suffix.defines",
+    defaultMessage: "Hidden",
+  },
+});
+`,
+			wantIDs: nil,
+		},
+		{
+			name: "identifier containing both d and f is ignored",
+			src: `undefinedMessage({
+  id: "suffix.undefined",
+  defaultMessage: "Hidden",
+});
+`,
+			wantIDs: nil,
+		},
+		{
+			name: "bare formatMessage is extracted",
+			src: `formatMessage({
+  id: "real.format",
+  defaultMessage: "Hello",
+});
+`,
+			wantIDs: []string{"real.format"},
+		},
+		{
+			name: "member formatMessage is extracted",
+			src: `intl.formatMessage({
+  id: "real.member",
+  defaultMessage: "Hello",
+});
+`,
+			wantIDs: []string{"real.member"},
+		},
+		{
+			name: "bare defineMessage is extracted",
+			src: `defineMessage({
+  id: "real.define",
+  defaultMessage: "Hello",
+});
+`,
+			wantIDs: []string{"real.define"},
+		},
+		{
+			name: "suffix calls do not hide later real calls",
+			src: `myformatMessage({
+  id: "suffix.format",
+  defaultMessage: "Custom",
+});
+_defineMessage({
+  id: "suffix.define",
+  defaultMessage: "Hidden",
+});
+formatMessage({
+  id: "real.after-suffix",
+  defaultMessage: "Hello",
+});
+`,
+			wantIDs: []string{"real.after-suffix"},
+		},
+		{
+			name: "real call after identifier that contains d and f",
+			src: `const unused = undefined;
+formatMessage({
+  id: "real.after-undefined",
+  defaultMessage: "Hello",
+});
+`,
+			wantIDs: []string{"real.after-undefined"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			messages, err := extractMessagesFromReactIntlSource(tt.src, "boundary.ts")
+			if err != nil {
+				t.Fatalf("extractMessagesFromReactIntlSource: %v", err)
+			}
+
+			gotIDs := make([]string, 0, len(messages))
+			for _, message := range messages {
+				gotIDs = append(gotIDs, message.ID)
+			}
+			if len(gotIDs) != len(tt.wantIDs) {
+				t.Fatalf("ids = %v, want %v", gotIDs, tt.wantIDs)
+			}
+			for i, wantID := range tt.wantIDs {
+				if gotIDs[i] != wantID {
+					t.Fatalf("ids = %v, want %v", gotIDs, tt.wantIDs)
+				}
+			}
+		})
+	}
+}
+
+func TestStartsAtIdentifierBoundary(t *testing.T) {
+	tests := []struct {
+		name  string
+		src   string
+		index int
+		want  bool
+	}{
+		{name: "start of source", src: "formatMessage", index: 0, want: true},
+		{name: "after punctuation", src: ".formatMessage", index: 1, want: true},
+		{name: "after whitespace", src: " formatMessage", index: 1, want: true},
+		{name: "suffix of identifier", src: "myformatMessage", index: 2, want: false},
+		{name: "after underscore", src: "_defineMessage", index: 1, want: false},
+		{name: "after dollar", src: "$defineMessages", index: 1, want: false},
+		{name: "after digit", src: "x2formatMessage", index: 2, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := startsAtIdentifierBoundary(tt.src, tt.index); got != tt.want {
+				t.Fatalf("startsAtIdentifierBoundary(%q, %d) = %t, want %t",
+					tt.src, tt.index, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtractMessagesFromSourceWithRegexInsideTemplateLiteral(t *testing.T) {
 	src := "\n" +
 		"function escapeCsv(field: string | number): string {\n" +

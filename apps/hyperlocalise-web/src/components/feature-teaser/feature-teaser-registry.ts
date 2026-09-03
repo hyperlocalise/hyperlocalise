@@ -13,11 +13,16 @@
  * Version 2.0 or later.
  */
 import { defineMessages, type MessageDescriptor } from "react-intl";
-import { Bookmark01Icon, FlashIcon, Globe02Icon } from "@hugeicons/core-free-icons";
+import {
+  Bookmark01Icon,
+  FlashIcon,
+  FlaskConicalIcon,
+  Globe02Icon,
+} from "@hugeicons/core-free-icons";
 
 import type { NavigationIcon } from "@/components/app-shell/navigation-config";
 
-export type FeatureTeaserId = "automations" | "guideline" | "domains";
+export type FeatureTeaserId = "automations" | "guideline" | "domains" | "hyperlab";
 
 export type FeatureTeaserScope = "workspace" | "project";
 
@@ -63,6 +68,11 @@ export const featureTeaserMessages = defineMessages({
     defaultMessage: "Demo request: Domains",
     id: "XztnKIGYn5",
     description: "Email subject for domains feature teaser contact link",
+  },
+  contactSubjectHyperlab: {
+    defaultMessage: "Demo request: Hyperlab",
+    id: "omHOw+4o9P",
+    description: "Email subject for Hyperlab feature teaser contact link",
   },
 
   automationsPageLabel: {
@@ -224,6 +234,60 @@ export const featureTeaserMessages = defineMessages({
     id: "4Y5ejA62oY",
     description: "Feature teaser benefit for domains",
   },
+
+  hyperlabPageLabel: {
+    defaultMessage: "Workspace",
+    id: "y4aVDPth8a",
+    description: "Feature teaser page label for Hyperlab",
+  },
+  hyperlabPageLabelProject: {
+    defaultMessage: "Workspace",
+    id: "mVLREix+gB",
+    description: "Feature teaser page label for Hyperlab when opened from a project",
+  },
+  hyperlabTitle: {
+    defaultMessage: "Hyperlab",
+    id: "+i+mcUZPR+",
+    description: "Feature teaser title for Hyperlab",
+  },
+  hyperlabDescription: {
+    defaultMessage:
+      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
+    id: "smm3qbe1rP",
+    description: "Feature teaser description for Hyperlab",
+  },
+  hyperlabDescriptionProject: {
+    defaultMessage:
+      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
+    id: "uScOO0+uJ9",
+    description: "Feature teaser description for Hyperlab when opened from a project",
+  },
+  hyperlabEarlyAccessTitle: {
+    defaultMessage: "Target, split, and ship without another vendor",
+    id: "YWi5RNeyc2",
+    description: "Feature teaser early access title for Hyperlab",
+  },
+  hyperlabEarlyAccessDescription: {
+    defaultMessage:
+      "Hyperlab lets your team define flags, audiences, and rollouts, then evaluate them over OFREP. Available in early access.",
+    id: "AHcwXmS1XC",
+    description: "Feature teaser early access description for Hyperlab",
+  },
+  hyperlabBenefit0: {
+    defaultMessage: "Create experiment and config flags unique to your workspace",
+    id: "OpL4o1Rl3O",
+    description: "Feature teaser benefit for Hyperlab",
+  },
+  hyperlabBenefit1: {
+    defaultMessage: "Target visitors with attribute rules evaluated live",
+    id: "32sQGI6Lre",
+    description: "Feature teaser benefit for Hyperlab",
+  },
+  hyperlabBenefit2: {
+    defaultMessage: "Evaluate from any OpenFeature SDK over OFREP",
+    id: "cGCurVuGU/",
+    description: "Feature teaser benefit for Hyperlab",
+  },
 });
 
 export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig> = {
@@ -272,10 +336,26 @@ export const featureTeaserRegistry: Record<FeatureTeaserId, FeatureTeaserConfig>
       featureTeaserMessages.domainsBenefit2,
     ],
   },
+  hyperlab: {
+    icon: FlaskConicalIcon,
+    pageLabel: featureTeaserMessages.hyperlabPageLabel,
+    pageLabelProject: featureTeaserMessages.hyperlabPageLabelProject,
+    pageTitle: featureTeaserMessages.hyperlabTitle,
+    pageDescription: featureTeaserMessages.hyperlabDescription,
+    pageDescriptionProject: featureTeaserMessages.hyperlabDescriptionProject,
+    earlyAccessTitle: featureTeaserMessages.hyperlabEarlyAccessTitle,
+    earlyAccessDescription: featureTeaserMessages.hyperlabEarlyAccessDescription,
+    benefits: [
+      featureTeaserMessages.hyperlabBenefit0,
+      featureTeaserMessages.hyperlabBenefit1,
+      featureTeaserMessages.hyperlabBenefit2,
+    ],
+  },
 };
 
 export const featureTeaserContactSubjects: Record<FeatureTeaserId, MessageDescriptor> = {
   automations: featureTeaserMessages.contactSubjectAutomations,
   guideline: featureTeaserMessages.contactSubjectGuideline,
   domains: featureTeaserMessages.contactSubjectDomains,
+  hyperlab: featureTeaserMessages.contactSubjectHyperlab,
 };

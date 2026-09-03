@@ -623,6 +623,9 @@
   "06V6dOkQzU": {
     "defaultMessage": "申请演示"
   },
+  "06WDA4hoab": {
+    "defaultMessage": "Cancel"
+  },
   "06dt5VSN/y": {
     "defaultMessage": "产品图片占位符"
   },
@@ -859,6 +862,9 @@
   },
   "0pVEMuUCAh": {
     "defaultMessage": "Locales"
+  },
+  "0pg6zXLFtI": {
+    "defaultMessage": "Role permissions"
   },
   "0r2uyKvHbT": {
     "defaultMessage": "正在加载分支…"
@@ -1103,6 +1109,9 @@
   "1fxDZQx14T": {
     "defaultMessage": "关闭聊天"
   },
+  "1gdAJhh6Lk": {
+    "defaultMessage": "Edit memories"
+  },
   "1ggu9Tm0ub": {
     "defaultMessage": "会话列表加载失败"
   },
@@ -1111,6 +1120,9 @@
   },
   "1ij8kHzcbw": {
     "defaultMessage": "Save"
+  },
+  "1j5qZoDR84": {
+    "defaultMessage": "Add optional instructions for the AI model, then generate the translated file."
   },
   "1jAp3L0qGd": {
     "defaultMessage": "审核：{value}"
@@ -1402,6 +1414,9 @@
   },
   "2lPB6SLWPB": {
     "defaultMessage": "深受早期布局全球化的团队信赖"
+  },
+  "2mJ+zZY2rg": {
+    "defaultMessage": "Manage billing"
   },
   "2mcGAlQ7te": {
     "defaultMessage": "目前没有待处理的操作。准备好继续时，可以发起新请求或浏览项目。"
@@ -1840,6 +1855,9 @@
   },
   "4Bnw8oUCip": {
     "defaultMessage": "The board could not be loaded."
+  },
+  "4C48CjJZ/y": {
+    "defaultMessage": "Role permissions"
   },
   "4DQSOq1CB0": {
     "defaultMessage": "没有项目术语表概念与此字符串匹配。"
@@ -2696,6 +2714,9 @@
   "7EM7rmfbAT": {
     "defaultMessage": "Placeholder"
   },
+  "7F+nlF4WOX": {
+    "defaultMessage": "e.g. Keep speaker notes concise and preserve slide layout."
+  },
   "7GXNJdLyH7": {
     "defaultMessage": "未找到任何问题"
   },
@@ -2707,6 +2728,9 @@
   },
   "7JjjDkCqaI": {
     "defaultMessage": "询问"
+  },
+  "7JxV+XlcQy": {
+    "defaultMessage": "View jobs"
   },
   "7L1IE082cR": {
     "defaultMessage": "放心审批"
@@ -2845,6 +2869,9 @@
   },
   "7qHTh1/iSP": {
     "defaultMessage": "创建翻译任务失败"
+  },
+  "7qX3gQkmz8": {
+    "defaultMessage": "View workspace"
   },
   "7qbqYtxGI/": {
     "defaultMessage": "项目"
@@ -3121,6 +3148,9 @@
   },
   "8ibz5Pm78D": {
     "defaultMessage": "上一个"
+  },
+  "8jOo2pj9Lk": {
+    "defaultMessage": "Manage credentials"
   },
   "8jmFMvrCLC": {
     "defaultMessage": "修订版本 {revision}"
@@ -3635,6 +3665,9 @@
   "AKyH88ZuDN": {
     "defaultMessage": "搜索语言区域…"
   },
+  "ALBGSq9MmL": {
+    "defaultMessage": "Manage teams"
+  },
   "ALRaijWLiy": {
     "defaultMessage": "正在重置..."
   },
@@ -3832,6 +3865,9 @@
   },
   "BCjjJI52jI": {
     "defaultMessage": "闭环"
+  },
+  "BCsSQdOvtG": {
+    "defaultMessage": "View integrations"
   },
   "BERSauR8KR": {
     "defaultMessage": "可翻译的"
@@ -4048,6 +4084,9 @@
   },
   "ByKnEF5329": {
     "defaultMessage": "{actor} 将优先级从 {previousPriority} 更改为 {nextPriority}"
+  },
+  "BydbarlJgJ": {
+    "defaultMessage": "Generate translation"
   },
   "BzZ7RfYZdI": {
     "defaultMessage": "在 GitHub 上审查拉取请求并发布一条置顶评论"
@@ -5174,6 +5213,9 @@
   "FdB4nFTP4P": {
     "defaultMessage": "审核队列"
   },
+  "Fe6NxNaeWi": {
+    "defaultMessage": "Role permission matrix"
+  },
   "FeC29AzS2o": {
     "defaultMessage": "Hyperlocalise 徽标"
   },
@@ -5296,6 +5338,9 @@
   },
   "G6UECKdIQ0": {
     "defaultMessage": "翻译错误"
+  },
+  "G6aiREcgX6": {
+    "defaultMessage": "Update workspace settings"
   },
   "G8MBSDjILS": {
     "defaultMessage": "这将清除此仓库中保存的工作流、触发器和状态检查设置。GitHub 元数据同步不受影响。"
@@ -5834,6 +5879,9 @@
   "IA5Kmwt4uK": {
     "defaultMessage": "问题"
   },
+  "IBYpVWNrJA": {
+    "defaultMessage": "Document properties"
+  },
   "IC06cS9nUd": {
     "defaultMessage": "代理修复中"
   },
@@ -5917,6 +5965,9 @@
   },
   "IarSQrZ6vP": {
     "defaultMessage": "复制值"
+  },
+  "IbH+KBJEVh": {
+    "defaultMessage": "e.g. Preserve heading styles and leave company names untranslated."
   },
   "IbjMoz30p/": {
     "defaultMessage": "Starter 适合需要更多席位和无限项目的小型团队。Growth 提供更高的代理、令牌和自动化限额，并支持无限翻译任务，适用于生产本地化工作流。"
@@ -6626,6 +6677,9 @@
   "LHjP+HTMcQ": {
     "defaultMessage": "Locales"
   },
+  "LICkSSM/jQ": {
+    "defaultMessage": "Invite people"
+  },
   "LJ6zecrDM9": {
     "defaultMessage": "加载更多文件"
   },
@@ -6685,6 +6739,9 @@
   },
   "Lao1OE+Yco": {
     "defaultMessage": "正在撤销…"
+  },
+  "LcATF1z/n8": {
+    "defaultMessage": "Allowed"
   },
   "LcZxj/pk5J": {
     "defaultMessage": "小时"
@@ -6842,6 +6899,9 @@
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} 个字符"
   },
+  "MBLJMvPrmC": {
+    "defaultMessage": "Edit glossaries"
+  },
   "MBw6r00XBp": {
     "defaultMessage": "选择所有已加载的内容"
   },
@@ -6997,6 +7057,9 @@
   },
   "Ml4FXbhH7X": {
     "defaultMessage": "为译员添加上下文…"
+  },
+  "MlPI89XpLh": {
+    "defaultMessage": "Workspace"
   },
   "MlXu9cA5kU": {
     "defaultMessage": "典型备注"
@@ -7486,6 +7549,9 @@
   },
   "OY8OoRp1g9": {
     "defaultMessage": "更新中…"
+  },
+  "OYX4uMwpwD": {
+    "defaultMessage": "Run AI"
   },
   "OYqtJuYY8f": {
     "defaultMessage": "正在收集术语表、翻译记忆库和发布上下文"
@@ -8051,6 +8117,9 @@
   "QhAcz8vXW1": {
     "defaultMessage": "请选择有效的源语言区域设置。"
   },
+  "QhDAk8yitQ": {
+    "defaultMessage": "Generate"
+  },
   "QhgL5ysg0T": {
     "defaultMessage": "Hyperlocalise 标志"
   },
@@ -8561,6 +8630,9 @@
   "SgpR5Qp/zA": {
     "defaultMessage": "GitHub 发布本地化"
   },
+  "Sgqu6sf3FE": {
+    "defaultMessage": "e.g. Keep column headers formal and do not translate formula cells."
+  },
   "Sh8RAqFAQE": {
     "defaultMessage": "我们的平台拥有先进的 AI 内容工具"
   },
@@ -8933,6 +9005,9 @@
   "TvKxxMeDL1": {
     "defaultMessage": "在草稿提交给人工审核之前，强制执行术语、字符限制和产品语调。"
   },
+  "TwAHdkAXq8": {
+    "defaultMessage": "Not allowed"
+  },
   "TwXDgIzwCq": {
     "defaultMessage": "这将永久删除 {glossaryName} 及其所有概念和术语。此操作无法撤销。"
   },
@@ -9067,6 +9142,9 @@
   },
   "US//RTOcgM": {
     "defaultMessage": "任务已创建"
+  },
+  "US6u2ypJBV": {
+    "defaultMessage": "View projects"
   },
   "USEpvu/QYB": {
     "defaultMessage": "GitHub"
@@ -9256,6 +9334,9 @@
   },
   "VFYJ+T/TTl": {
     "defaultMessage": "截图以便审核人员了解文案显示的位置。"
+  },
+  "VFu590psFB": {
+    "defaultMessage": "e.g. Add tone, terminology, or layout preferences for the model."
   },
   "VG/iXFDz5w": {
     "defaultMessage": "批次：{value}"
@@ -9935,6 +10016,9 @@
   "XeOh0cpTI1": {
     "defaultMessage": "Status"
   },
+  "XeXZ1sE3tK": {
+    "defaultMessage": "e.g. Keep product names in English and preserve MDX components."
+  },
   "Xg01khiunA": {
     "defaultMessage": "评分 {score}"
   },
@@ -10013,6 +10097,9 @@
   "XzH5GON6Rv": {
     "defaultMessage": "还没有团队"
   },
+  "XzqRCb9LWK": {
+    "defaultMessage": "Workspace"
+  },
   "XztnKIGYn5": {
     "defaultMessage": "演示请求：域名"
   },
@@ -10021,6 +10108,9 @@
   },
   "Y+l0NYAqjY": {
     "defaultMessage": "主干"
+  },
+  "Y/Ta4tMAG1": {
+    "defaultMessage": "Approve write-back"
   },
   "Y19LAzxjpx": {
     "defaultMessage": "每周"
@@ -10736,6 +10826,9 @@
   "aMnfNfkmk0": {
     "defaultMessage": "取消"
   },
+  "aQCAPll/8g": {
+    "defaultMessage": "Work"
+  },
   "aQKVpqRw8t": {
     "defaultMessage": "移除 Crowdin 工具"
   },
@@ -11110,6 +11203,9 @@
   },
   "c3udbicBEE": {
     "defaultMessage": "drift ready"
+  },
+  "c4Om5rZTyf": {
+    "defaultMessage": "Connect the systems this workspace uses for source content, collaboration, and translation."
   },
   "c4wtcYLzS0": {
     "defaultMessage": "没有语言区域或受指派人员"
@@ -12335,6 +12431,9 @@
   "gLjdVIWCoD": {
     "defaultMessage": "Deleting..."
   },
+  "gMK6GFoBBA": {
+    "defaultMessage": "Members"
+  },
   "gMcYjhS5Ca": {
     "defaultMessage": "团队"
   },
@@ -12502,6 +12601,9 @@
   },
   "gws2JgYaNJ": {
     "defaultMessage": "Fixing"
+  },
+  "gy+E1G7FV0": {
+    "defaultMessage": "What each workspace role can do. A mark means allowed. Empty means not allowed."
   },
   "gyGnNuR5md": {
     "defaultMessage": "必填"
@@ -12886,6 +12988,9 @@
   },
   "iJ52PdWghi": {
     "defaultMessage": "术语"
+  },
+  "iK15Pu+eHU": {
+    "defaultMessage": "Instructions for the model"
   },
   "iL0uh6nGuj": {
     "defaultMessage": "分支模式"
@@ -13340,6 +13445,9 @@
   "jletyEWDwl": {
     "defaultMessage": "{email} 的操作"
   },
+  "jlhNAM1L3Z": {
+    "defaultMessage": "People"
+  },
   "jmazd5AXy4": {
     "defaultMessage": "问题"
   },
@@ -13570,6 +13678,9 @@
   },
   "kPJq84MgiE": {
     "defaultMessage": "截止日期为 {due}"
+  },
+  "kQCAngZDoM": {
+    "defaultMessage": "Create projects"
   },
   "kQdK+U9dBZ": {
     "defaultMessage": "至 {value}"
@@ -13840,6 +13951,9 @@
   },
   "lHKw2e6/kS": {
     "defaultMessage": "选择一个文件"
+  },
+  "lHdvBQ5B1/": {
+    "defaultMessage": "Coming soon"
   },
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm}（{targetLocale}）"
@@ -14327,6 +14441,9 @@
   "n7fzXxI33N": {
     "defaultMessage": "来源"
   },
+  "n7kQpjbGxA": {
+    "defaultMessage": "Approve reviews"
+  },
   "n8LjMOVBA2": {
     "defaultMessage": "进行中"
   },
@@ -14377,6 +14494,9 @@
   },
   "nGmfwrX00x": {
     "defaultMessage": "删除"
+  },
+  "nHm2321vb2": {
+    "defaultMessage": "e.g. Keep the logo visible and match the original pacing and tone."
   },
   "nIU9FaUviZ": {
     "defaultMessage": "域名"
@@ -14644,6 +14764,9 @@
   },
   "oDR2kKlwsc": {
     "defaultMessage": "Failed to load Ahrefs connections."
+  },
+  "oEmsIJPKd5": {
+    "defaultMessage": "Push draft translations"
   },
   "oFlc5dBfFx": {
     "defaultMessage": "明白了，Maya——我调取了 Canva 画板，并确定了发布上线所需的信息："
@@ -15365,11 +15488,17 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "波兰语（波兰）"
   },
+  "quhhKaWY+z": {
+    "defaultMessage": "Manage integrations"
+  },
   "qwBzCi54cg": {
     "defaultMessage": "{count, plural, =0 {尚未使用} one {# 个项目} other {# 个项目}}"
   },
   "qxBrl7Yxqo": {
     "defaultMessage": "星期一"
+  },
+  "qxK7wREk5o": {
+    "defaultMessage": "Workspace"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "捷克语（捷克）"
@@ -15461,6 +15590,9 @@
   "rHh2CqoXbz": {
     "defaultMessage": "说明每次运行时代理需要检查、标记和忽略的具体内容。"
   },
+  "rI3RUd2o85": {
+    "defaultMessage": "Manage projects"
+  },
   "rIotJfHv/2": {
     "defaultMessage": "构建您的 AI 原生本地化工作流"
   },
@@ -15541,6 +15673,9 @@
   },
   "rYXZcW+sgJ": {
     "defaultMessage": "启用 Slack 代理"
+  },
+  "rYa7wjb2DF": {
+    "defaultMessage": "Work on jobs"
   },
   "rZ8kVxd7JR": {
     "defaultMessage": "Hyperlocalise 并不是来取代你的 TMS 的。它增加了一层工作流，将工程变更信号、LLM 辅助起草、人工审校和发布信心连接起来。"
@@ -15790,6 +15925,9 @@
   },
   "sSszzKe0NY": {
     "defaultMessage": "因为本地化不再受翻译速度拖累。团队不必再耗费时间收集上下文、协调审校人员、切换工具以及修复发布后的问题。Hyperlocalise 可自动化处理这些工作流程，让团队能够持续推进。"
+  },
+  "sTY0HjJCgH": {
+    "defaultMessage": "Permission"
   },
   "sUjt/GKyKZ": {
     "defaultMessage": "目前无法创建自动化操作"

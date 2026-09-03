@@ -39,6 +39,14 @@ GitHub triggers need the GitHub App connected first. The UI shows **Connect firs
 
 **Source upload** is the Cloud-side counterpart to [CLI sync push](/platform/cli): the CLI uploads files; this trigger starts translation.
 
+## Advanced workflows
+
+When the `workspace-visual-workflows` flag is enabled, organization **Automations** also shows **Advanced workflows**. These are deterministic graphs (manual trigger, HTTP requests, if/else branching, and AI steps) rather than LLM-orchestrated playbooks.
+
+Use them for fixed step order and explicit branches. Keep using agent automations for schedule/GitHub/upload triggers and multi-tool orchestration.
+
+See [Advanced workflows](/platform/visual-workflows).
+
 ## One-off work
 
 For a single agent session instead of a saved automation, use **New Request** (under **Agents**) or **Inbox**. Track your own runs in **My Jobs**.
@@ -47,6 +55,7 @@ Workspace **AI Engine** chooses the model provider agents use.
 
 ## Next
 
+- [Advanced workflows](/platform/visual-workflows)
 - [Knowledge](/platform/knowledge)
 - [Connect the CLI](/platform/cli)
 - [Getting started](/platform/getting-started)

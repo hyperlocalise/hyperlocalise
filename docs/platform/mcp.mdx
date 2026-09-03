@@ -67,6 +67,7 @@ Inaccessible projects return `project_not_found`.
 | --- | --- |
 | `list_issues` | Filter, sort, and paginate workspace Board items |
 | `get_issue` | Full issue by `projectId` and `issueId` (`HL-123` or legacy UUID) |
+| `list_issue_comments` | Comment threads for one issue with cursor pagination |
 | `create_issue` | Create an issue in an accessible project |
 | `update_issue` | Update mutable fields on one issue |
 
@@ -75,6 +76,8 @@ Inaccessible projects return `project_not_found`.
 `create_issue` accepts optional `idempotencyKey`. When set, Hyperlocalise stores the issue under `mcp:<key>` and returns the same issue on retry unless the payload changes.
 
 `list_issues` supports the same filters as the workspace Board API, including `view`, `status`, `issueType`, `priority`, `locale`, `assignee`, `projectId`, `search`, `sort`, `sortDir`, `limit` (max 50), and `offset`.
+
+`list_issue_comments` requires `projectId` and `issueId`. Optional `limit` (1–100) and `cursor` paginate comment threads. Root comments are ordered chronologically; each root is followed by its replies in chronological order. The response includes `comments` (each with `id`, `body`, `author`, `parentId`, mention ids, and timestamps) and `nextCursor` when more threads exist. Inaccessible projects or issues return `issue_not_found`. A bad cursor returns `invalid_comment_cursor`.
 
 ### Jobs
 
@@ -121,6 +124,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `registration_disabled` on `/api/mcp/register` | Dynamic registration is off in production; use a client that supports metadata-based client IDs |
 | `forbidden` on issue tools | Your role is read-only for write-back operations |
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
+| `invalid_comment_cursor` | Stale or malformed `cursor` on `list_issue_comments` |
 | `job_not_found` | Wrong `jobId`, missing project access, or a job from another organization |
 | `project_not_found` | Wrong `projectId` or missing project access on `list_files` or `get_project_status` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |

@@ -32,6 +32,7 @@ const MEMBER_READ_CAPABILITIES: OrganizationCapability[] = [
   "glossaries:read",
   "memories:read",
   "jobs:read",
+  "experiments:read",
 ];
 
 const CONTRIBUTOR_CAPABILITIES: OrganizationCapability[] = [
@@ -63,6 +64,7 @@ const OPERATOR_CAPABILITIES: OrganizationCapability[] = [
   "api_keys:write",
   "integrations:read",
   "integrations:write",
+  "experiments:write",
   "billing:read",
 ];
 
@@ -82,6 +84,7 @@ const DEVELOPER_CAPABILITIES: OrganizationCapability[] = [
   "projects:create",
   "projects:write",
   "integrations:read",
+  "experiments:write",
 ];
 
 const ALL_ROLES = [

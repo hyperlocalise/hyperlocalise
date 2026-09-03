@@ -382,3 +382,15 @@ export const repositorySourceFileIngestStateEnum = pgEnum("repository_source_fil
   "skipped",
   "failed",
 ]);
+/**
+ * Distinguishes experiment flags (tied to a rollout) from static config flags.
+ */
+export const experimentFlagKindEnum = pgEnum("experiment_flag_kind", ["experiment", "config"]);
+/**
+ * Tracks whether an experiment is editable, live, or retired.
+ */
+export const experimentStatusEnum = pgEnum("experiment_status", ["draft", "active", "archived"]);
+/**
+ * Distinguishes a single-variant toggle from a multi-variant A/B experiment.
+ */
+export const experimentKindEnum = pgEnum("experiment_kind", ["toggle", "ab"]);

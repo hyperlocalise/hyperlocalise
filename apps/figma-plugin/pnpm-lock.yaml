@@ -22,7 +22,7 @@ importers:
     devDependencies:
       '@figma/plugin-typings':
         specifier: ^1.123.0
-        version: 1.136.0
+        version: 1.137.0
       '@testing-library/react':
         specifier: 16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -296,8 +296,8 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@figma/plugin-typings@1.136.0':
-    resolution: {integrity: sha512-a+SbYX1SN8LYMSQ9PsmUtec6NMAbTcOq8O1vdBOVtYf+xhDD6o2GHUgeygOZ64TUKD6fKNm2SpHLFfHoDzxsXA==}
+  '@figma/plugin-typings@1.137.0':
+    resolution: {integrity: sha512-sab4AZPa5oWXjbO27UHeHWGGbl6oX+25LSXwUQIN+hoKeoeFuYeoZ7h6rCE1LZkHlvbsZjucs8wqcnOqmKiVnQ==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1853,7 +1853,7 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@figma/plugin-typings@1.136.0': {}
+  '@figma/plugin-typings@1.137.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

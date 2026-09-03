@@ -163,6 +163,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       visualWorkflows: false,
       domains: false,
       glossarySearch: false,
+      hyperlab: false,
     });
 
     const automationsItem = annotated
@@ -189,6 +190,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       visualWorkflows: true,
       domains: true,
       glossarySearch: true,
+      hyperlab: true,
     });
 
     const flaggedItems = annotated
@@ -209,6 +211,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       visualWorkflows: false,
       domains: false,
       glossarySearch: false,
+      hyperlab: false,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
@@ -231,6 +234,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       visualWorkflows: true,
       domains: true,
       glossarySearch: true,
+      hyperlab: true,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));

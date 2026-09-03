@@ -1,5 +1,5 @@
 {
-  "id": "9f7158bc-abda-43eb-9952-15a6816efaf7",
+  "id": "6b2cdd41-197f-4a9a-8280-696695f9bfaa",
   "prevId": "8bbd2ee2-1f21-4bb0-8ce6-d8c3926f88ba",
   "version": "7",
   "dialect": "postgresql",
@@ -14632,18 +14632,6 @@
           "notNull": true,
           "default": 1
         },
-        "trigger_fingerprint": {
-          "name": "trigger_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "next_run_at": {
-          "name": "next_run_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -14692,48 +14680,6 @@
             },
             {
               "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_visual_workflows_org_next_run_at": {
-          "name": "idx_visual_workflows_org_next_run_at",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "next_run_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_visual_workflows_org_trigger_fingerprint": {
-          "name": "idx_visual_workflows_org_trigger_fingerprint",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "trigger_fingerprint",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21934,6 +21880,1022 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.experiment_allocations": {
+      "name": "experiment_allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start": {
+          "name": "start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "end": {
+          "name": "end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 9999
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_experiment_allocations_variant_id": {
+          "name": "idx_experiment_allocations_variant_id",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_allocations_range": {
+          "name": "idx_experiment_allocations_range",
+          "columns": [
+            {
+              "expression": "start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "end",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_allocations_variant_id_experiment_variants_id_fk": {
+          "name": "experiment_allocations_variant_id_experiment_variants_id_fk",
+          "tableFrom": "experiment_allocations",
+          "tableTo": "experiment_variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "experiment_allocations_range_check": {
+          "name": "experiment_allocations_range_check",
+          "value": "\"experiment_allocations\".\"start\" >= 0 AND \"experiment_allocations\".\"end\" <= 9999 AND \"experiment_allocations\".\"start\" <= \"experiment_allocations\".\"end\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.experiment_audiences": {
+      "name": "experiment_audiences",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criterion": {
+          "name": "criterion",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_experiment_audiences_org": {
+          "name": "idx_experiment_audiences_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_audiences_organization_id_organizations_id_fk": {
+          "name": "experiment_audiences_organization_id_organizations_id_fk",
+          "tableFrom": "experiment_audiences",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.experiment_client_keys": {
+      "name": "experiment_client_keys",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_prefix": {
+          "name": "key_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "experiment_client_keys_key_hash_key": {
+          "name": "experiment_client_keys_key_hash_key",
+          "columns": [
+            {
+              "expression": "key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_client_keys_org": {
+          "name": "idx_experiment_client_keys_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_client_keys_organization_id_organizations_id_fk": {
+          "name": "experiment_client_keys_organization_id_organizations_id_fk",
+          "tableFrom": "experiment_client_keys",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "experiment_client_keys_created_by_user_id_users_id_fk": {
+          "name": "experiment_client_keys_created_by_user_id_users_id_fk",
+          "tableFrom": "experiment_client_keys",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.experiment_flag_assignments": {
+      "name": "experiment_flag_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "flag_id": {
+          "name": "flag_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "experiment_flag_assignments_flag_variant_key": {
+          "name": "experiment_flag_assignments_flag_variant_key",
+          "columns": [
+            {
+              "expression": "flag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_flag_assignments_flag_id": {
+          "name": "idx_experiment_flag_assignments_flag_id",
+          "columns": [
+            {
+              "expression": "flag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_flag_assignments_variant_id": {
+          "name": "idx_experiment_flag_assignments_variant_id",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_flag_assignments_flag_id_experiment_flags_id_fk": {
+          "name": "experiment_flag_assignments_flag_id_experiment_flags_id_fk",
+          "tableFrom": "experiment_flag_assignments",
+          "tableTo": "experiment_flags",
+          "columnsFrom": [
+            "flag_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "experiment_flag_assignments_variant_id_experiment_variants_id_fk": {
+          "name": "experiment_flag_assignments_variant_id_experiment_variants_id_fk",
+          "tableFrom": "experiment_flag_assignments",
+          "tableTo": "experiment_variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.experiment_flag_configs": {
+      "name": "experiment_flag_configs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "flag_id": {
+          "name": "flag_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "experiment_flag_configs_flag_id_key": {
+          "name": "experiment_flag_configs_flag_id_key",
+          "columns": [
+            {
+              "expression": "flag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_flag_configs_flag_id_experiment_flags_id_fk": {
+          "name": "experiment_flag_configs_flag_id_experiment_flags_id_fk",
+          "tableFrom": "experiment_flag_configs",
+          "tableTo": "experiment_flags",
+          "columnsFrom": [
+            "flag_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.experiment_flags": {
+      "name": "experiment_flags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "experiment_flag_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'experiment'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "experiment_flags_org_key_key": {
+          "name": "experiment_flags_org_key_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_flags_org_kind": {
+          "name": "idx_experiment_flags_org_kind",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_flags_organization_id_organizations_id_fk": {
+          "name": "experiment_flags_organization_id_organizations_id_fk",
+          "tableFrom": "experiment_flags",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.experiment_variants": {
+      "name": "experiment_variants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "experiment_id": {
+          "name": "experiment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience_id": {
+          "name": "audience_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rollout_percentage": {
+          "name": "rollout_percentage",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 10000
+        },
+        "is_control": {
+          "name": "is_control",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "experiment_variants_experiment_key_key": {
+          "name": "experiment_variants_experiment_key_key",
+          "columns": [
+            {
+              "expression": "experiment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_variants_experiment_id": {
+          "name": "idx_experiment_variants_experiment_id",
+          "columns": [
+            {
+              "expression": "experiment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiment_variants_audience_id": {
+          "name": "idx_experiment_variants_audience_id",
+          "columns": [
+            {
+              "expression": "audience_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiment_variants_experiment_id_experiments_id_fk": {
+          "name": "experiment_variants_experiment_id_experiments_id_fk",
+          "tableFrom": "experiment_variants",
+          "tableTo": "experiments",
+          "columnsFrom": [
+            "experiment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "experiment_variants_audience_id_experiment_audiences_id_fk": {
+          "name": "experiment_variants_audience_id_experiment_audiences_id_fk",
+          "tableFrom": "experiment_variants",
+          "tableTo": "experiment_audiences",
+          "columnsFrom": [
+            "audience_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "experiment_variants_rollout_percentage_check": {
+          "name": "experiment_variants_rollout_percentage_check",
+          "value": "\"experiment_variants\".\"rollout_percentage\" >= 0 AND \"experiment_variants\".\"rollout_percentage\" <= 10000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.experiments": {
+      "name": "experiments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "experiment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "experiment_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'toggle'"
+        },
+        "audience_id": {
+          "name": "audience_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rollout_percentage": {
+          "name": "rollout_percentage",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 10000
+        },
+        "seed": {
+          "name": "seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_at": {
+          "name": "start_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "end_at": {
+          "name": "end_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UTC'"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_experiments_org_status": {
+          "name": "idx_experiments_org_status",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiments_org_window": {
+          "name": "idx_experiments_org_window",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "end_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_experiments_audience_id": {
+          "name": "idx_experiments_audience_id",
+          "columns": [
+            {
+              "expression": "audience_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "experiments_organization_id_organizations_id_fk": {
+          "name": "experiments_organization_id_organizations_id_fk",
+          "tableFrom": "experiments",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "experiments_audience_id_experiment_audiences_id_fk": {
+          "name": "experiments_audience_id_experiment_audiences_id_fk",
+          "tableFrom": "experiments",
+          "tableTo": "experiment_audiences",
+          "columnsFrom": [
+            "audience_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "experiments_rollout_percentage_check": {
+          "name": "experiments_rollout_percentage_check",
+          "value": "\"experiments\".\"rollout_percentage\" >= 0 AND \"experiments\".\"rollout_percentage\" <= 10000"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -21961,6 +22923,31 @@
     },
     "public.asset_status": {
       "name": "asset_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "public.experiment_flag_kind": {
+      "name": "experiment_flag_kind",
+      "schema": "public",
+      "values": [
+        "experiment",
+        "config"
+      ]
+    },
+    "public.experiment_kind": {
+      "name": "experiment_kind",
+      "schema": "public",
+      "values": [
+        "toggle",
+        "ab"
+      ]
+    },
+    "public.experiment_status": {
+      "name": "experiment_status",
       "schema": "public",
       "values": [
         "draft",
@@ -22345,10 +23332,7 @@
       "name": "visual_workflow_run_trigger_source",
       "schema": "public",
       "values": [
-        "manual",
-        "scheduled",
-        "github",
-        "source_upload"
+        "manual"
       ]
     },
     "public.visual_workflow_status": {

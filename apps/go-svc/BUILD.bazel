@@ -13,6 +13,7 @@ go_binary(
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc",
     visibility = ["//visibility:public"],
     deps = [
+        "//apps/go-svc/internal/experiment",
         "//apps/go-svc/internal/ironsession",
         "//internal/i18n/segmentvalidate",
         "//internal/i18n/spellcheck",

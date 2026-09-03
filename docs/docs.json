@@ -135,6 +135,7 @@
                 "pages": [
                   "platform/cat",
                   "platform/automations",
+                  "platform/visual-workflows",
                   "platform/knowledge"
                 ]
               },
