@@ -21,6 +21,7 @@ import type {
 export type VisualWorkflowGraphIndex = {
   nodesById: Map<string, CanonicalVisualWorkflowNode>;
   outgoingByNodeId: Map<string, CanonicalVisualWorkflowEdge[]>;
+  incomingCountByNodeId: Map<string, number>;
   triggerNodeId: string;
 };
 
@@ -29,9 +30,11 @@ export function buildVisualWorkflowGraphIndex(
 ): VisualWorkflowGraphIndex | null {
   const nodesById = new Map(definition.nodes.map((node) => [node.id, node]));
   const outgoingByNodeId = new Map<string, CanonicalVisualWorkflowEdge[]>();
+  const incomingCountByNodeId = new Map<string, number>();
 
   for (const node of definition.nodes) {
     outgoingByNodeId.set(node.id, []);
+    incomingCountByNodeId.set(node.id, 0);
   }
 
   for (const edge of definition.edges) {
@@ -39,6 +42,7 @@ export function buildVisualWorkflowGraphIndex(
       continue;
     }
     outgoingByNodeId.get(edge.source)?.push(edge);
+    incomingCountByNodeId.set(edge.target, (incomingCountByNodeId.get(edge.target) ?? 0) + 1);
   }
 
   const triggers = definition.nodes.filter((node) => isTriggerType(node.type));
@@ -49,6 +53,7 @@ export function buildVisualWorkflowGraphIndex(
   return {
     nodesById,
     outgoingByNodeId,
+    incomingCountByNodeId,
     triggerNodeId: triggers[0]!.id,
   };
 }

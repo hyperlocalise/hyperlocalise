@@ -33,6 +33,13 @@ type VisualWorkflowNodeRunRow = typeof schema.visualWorkflowNodeRuns.$inferSelec
 
 const DEFINITION_SNAPSHOT_KEY = "definitionSnapshot";
 
+const TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES = new Set<VisualWorkflowRunStatus>([
+  "succeeded",
+  "failed",
+  "cancelled",
+  "skipped",
+]);
+
 function buildRunInputSnapshot(input: {
   triggerInput?: Record<string, unknown>;
   definition: VisualWorkflowDefinition;
@@ -76,6 +83,155 @@ function mergeRunOutputSummary(
     ...existing,
     ...patch,
   };
+}
+
+async function claimVisualWorkflowRunForExecution(input: {
+  runId: string;
+  organizationId: string;
+  visualWorkflowId: string;
+  dbClient?: DatabaseClient;
+}): Promise<
+  | { kind: "claimed"; run: VisualWorkflowRunRecord }
+  | { kind: "already_finished"; run: VisualWorkflowRunRecord }
+  | { kind: "already_running"; run: VisualWorkflowRunRecord }
+  | null
+> {
+  const dbClient = input.dbClient ?? db;
+  const now = new Date();
+  const [claimed] = await dbClient
+    .update(schema.visualWorkflowRuns)
+    .set({
+      status: "running",
+      startedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.visualWorkflowId, input.visualWorkflowId),
+        eq(schema.visualWorkflowRuns.status, "queued"),
+      ),
+    )
+    .returning();
+
+  if (claimed) {
+    return { kind: "claimed", run: serializeRun(claimed) };
+  }
+
+  const run = await getVisualWorkflowRunById({
+    organizationId: input.organizationId,
+    visualWorkflowId: input.visualWorkflowId,
+    runId: input.runId,
+    dbClient,
+  });
+  if (!run) {
+    return null;
+  }
+
+  if (TERMINAL_VISUAL_WORKFLOW_RUN_STATUSES.has(run.status)) {
+    return { kind: "already_finished", run };
+  }
+
+  if (run.status === "running") {
+    return { kind: "already_running", run };
+  }
+
+  return null;
+}
+
+async function finishVisualWorkflowRun(input: {
+  runId: string;
+  organizationId: string;
+  status: Extract<VisualWorkflowRunStatus, "succeeded" | "failed">;
+  error?: Record<string, unknown> | null;
+  outputSummaryPatch?: Record<string, unknown>;
+  dbClient?: DatabaseClient;
+}): Promise<VisualWorkflowRunRecord | null> {
+  const dbClient = input.dbClient ?? db;
+  const [current] = await dbClient
+    .select({ outputSummary: schema.visualWorkflowRuns.outputSummary })
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.status, "running"),
+      ),
+    )
+    .limit(1);
+
+  if (!current) {
+    const [row] = await dbClient
+      .select()
+      .from(schema.visualWorkflowRuns)
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, input.runId),
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+
+    return row ? serializeRun(row) : null;
+  }
+
+  const [row] = await dbClient
+    .update(schema.visualWorkflowRuns)
+    .set({
+      status: input.status,
+      ...(input.error !== undefined ? { error: input.error } : {}),
+      outputSummary: mergeRunOutputSummary(current.outputSummary, input.outputSummaryPatch ?? {}),
+      completedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.status, "running"),
+      ),
+    )
+    .returning();
+
+  return row ? serializeRun(row) : null;
+}
+
+async function clearVisualWorkflowRunEnqueueMarker(input: {
+  runId: string;
+  organizationId: string;
+  dbClient?: DatabaseClient;
+}): Promise<void> {
+  const dbClient = input.dbClient ?? db;
+  const [run] = await dbClient
+    .select({ outputSummary: schema.visualWorkflowRuns.outputSummary })
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!run) {
+    return;
+  }
+
+  const { executionEnqueuedAt: _removed, ...outputSummaryWithoutEnqueueMarker } = run.outputSummary;
+
+  await dbClient
+    .update(schema.visualWorkflowRuns)
+    .set({
+      outputSummary: outputSummaryWithoutEnqueueMarker,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+      ),
+    );
 }
 
 function toIsoString(value: Date | null): string | null {
@@ -352,7 +508,16 @@ export async function enqueueVisualWorkflowRunOnce(input: {
   });
 
   if (shouldEnqueue) {
-    await input.enqueue();
+    try {
+      await input.enqueue();
+    } catch (error) {
+      await clearVisualWorkflowRunEnqueueMarker({
+        runId: input.runId,
+        organizationId: input.organizationId,
+        dbClient,
+      });
+      throw error;
+    }
   }
 
   return shouldEnqueue;
@@ -466,13 +631,11 @@ export async function failInFlightVisualWorkflowRun(input: {
     return;
   }
 
-  await updateVisualWorkflowRun({
+  await finishVisualWorkflowRun({
     runId: input.runId,
     organizationId: input.organizationId,
     status: "failed",
     error: { message: input.message },
-    outputSummary: run.outputSummary,
-    completedAt: new Date(),
   });
 }
 
@@ -481,48 +644,39 @@ export async function executeVisualWorkflowRun(input: {
   organizationId: string;
   visualWorkflowId: string;
 }): Promise<VisualWorkflowRunRecord | null> {
+  const claim = await claimVisualWorkflowRunForExecution(input);
+  if (!claim) {
+    return null;
+  }
+
+  if (claim.kind === "already_finished" || claim.kind === "already_running") {
+    return claim.run;
+  }
+
+  const run = claim.run;
+
   const workflow = await getVisualWorkflowById({
     organizationId: input.organizationId,
     visualWorkflowId: input.visualWorkflowId,
   });
   if (!workflow) {
-    await updateVisualWorkflowRun({
+    return finishVisualWorkflowRun({
       runId: input.runId,
       organizationId: input.organizationId,
       status: "failed",
       error: { message: "visual_workflow_not_found" },
-      completedAt: new Date(),
     });
-    return null;
-  }
-
-  const run = await getVisualWorkflowRunById({
-    organizationId: input.organizationId,
-    visualWorkflowId: input.visualWorkflowId,
-    runId: input.runId,
-  });
-  if (!run) {
-    return null;
   }
 
   const definition = resolveRunDefinition({ run, workflow });
   if (!definition) {
-    return updateVisualWorkflowRun({
+    return finishVisualWorkflowRun({
       runId: input.runId,
       organizationId: input.organizationId,
       status: "failed",
       error: { message: "visual_workflow_definition_snapshot_missing" },
-      outputSummary: run.outputSummary,
-      completedAt: new Date(),
     });
   }
-
-  await updateVisualWorkflowRun({
-    runId: input.runId,
-    organizationId: input.organizationId,
-    status: "running",
-    startedAt: new Date(),
-  });
 
   const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter");
   const result = await runVisualWorkflowInterpreter({
@@ -548,7 +702,7 @@ export async function executeVisualWorkflowRun(input: {
   });
 
   if (!result.ok) {
-    return updateVisualWorkflowRun({
+    return finishVisualWorkflowRun({
       runId: input.runId,
       organizationId: input.organizationId,
       status: "failed",
@@ -556,21 +710,19 @@ export async function executeVisualWorkflowRun(input: {
         ...result.error,
         failedNodeId: result.failedNodeId,
       },
-      outputSummary: mergeRunOutputSummary(run.outputSummary, {
+      outputSummaryPatch: {
         nodeResults: result.nodeResults,
-      }),
-      completedAt: new Date(),
+      },
     });
   }
 
-  return updateVisualWorkflowRun({
+  return finishVisualWorkflowRun({
     runId: input.runId,
     organizationId: input.organizationId,
     status: "succeeded",
-    outputSummary: mergeRunOutputSummary(run.outputSummary, {
+    outputSummaryPatch: {
       nodeResults: result.nodeResults,
-    }),
-    completedAt: new Date(),
+    },
   });
 }
 

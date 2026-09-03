@@ -65,15 +65,16 @@ export async function runVisualWorkflowInterpreter(input: {
 
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
-  const visited = new Set<string>();
+  const completed = new Set<string>();
+  const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
 
   while (queue.length > 0) {
     const nodeId = queue.shift();
-    if (!nodeId || visited.has(nodeId)) {
+    if (!nodeId || completed.has(nodeId)) {
       continue;
     }
-    visited.add(nodeId);
+    completed.add(nodeId);
 
     const node = graph.nodesById.get(nodeId);
     if (!node) {
@@ -128,7 +129,9 @@ export async function runVisualWorkflowInterpreter(input: {
     });
 
     for (const edge of nextEdges) {
-      if (!visited.has(edge.target)) {
+      const remaining = (pendingIncoming.get(edge.target) ?? 1) - 1;
+      pendingIncoming.set(edge.target, remaining);
+      if (remaining === 0) {
         queue.push(edge.target);
       }
     }
