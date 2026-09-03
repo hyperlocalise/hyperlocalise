@@ -10,10 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createDefaultConfig, getVisualNodeDimensions } from "./node-catalog";
+import { createDefaultConfig, getVisualNodeDimensions } from "../catalog/node-catalog";
 import type {
-  CanonicalVisualWorkflowDraft,
   VisualCatalogType,
+  VisualWorkflowDefinition,
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
@@ -28,8 +28,10 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "logic.for_each",
 ]);
 
-export function toCanonicalDraft(state: VisualWorkflowEditorState): CanonicalVisualWorkflowDraft {
-  const positions: CanonicalVisualWorkflowDraft["editor"]["positions"] = {};
+export function toVisualWorkflowDefinition(
+  state: VisualWorkflowEditorState,
+): VisualWorkflowDefinition {
+  const positions: VisualWorkflowDefinition["editor"]["positions"] = {};
 
   for (const node of state.nodes) {
     positions[node.id] = { x: node.position.x, y: node.position.y };
@@ -54,10 +56,15 @@ export function toCanonicalDraft(state: VisualWorkflowEditorState): CanonicalVis
   };
 }
 
-export function fromCanonicalDraft(draft: CanonicalVisualWorkflowDraft): VisualWorkflowEditorState {
-  const nodes: VisualWorkflowRfNode[] = draft.nodes.map((node) => {
+/** @deprecated Use toVisualWorkflowDefinition */
+export const toCanonicalDraft = toVisualWorkflowDefinition;
+
+export function fromVisualWorkflowDefinition(
+  definition: VisualWorkflowDefinition,
+): VisualWorkflowEditorState {
+  const nodes: VisualWorkflowRfNode[] = definition.nodes.map((node) => {
     const type = ENABLED_TYPES.has(node.type) ? node.type : "action.http";
-    const position = draft.editor.positions[node.id] ?? { x: 80, y: 160 };
+    const position = definition.editor.positions[node.id] ?? { x: 80, y: 160 };
     const config = node.config.kind === type ? node.config : createDefaultConfig(type);
 
     const dimensions = getVisualNodeDimensions(type);
@@ -74,7 +81,7 @@ export function fromCanonicalDraft(draft: CanonicalVisualWorkflowDraft): VisualW
     };
   });
 
-  const edges: VisualWorkflowRfEdge[] = draft.edges.map((edge) => ({
+  const edges: VisualWorkflowRfEdge[] = definition.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -86,8 +93,34 @@ export function fromCanonicalDraft(draft: CanonicalVisualWorkflowDraft): VisualW
   }));
 
   return {
-    name: draft.name,
+    name: definition.name,
     nodes,
     edges,
+  };
+}
+
+/** @deprecated Use fromVisualWorkflowDefinition */
+export const fromCanonicalDraft = fromVisualWorkflowDefinition;
+
+export function createEmptyVisualWorkflowDefinition(
+  name = "Untitled workflow",
+): VisualWorkflowDefinition {
+  const triggerId = "trigger";
+  return {
+    schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
+    name,
+    nodes: [
+      {
+        id: triggerId,
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+    ],
+    edges: [],
+    editor: {
+      positions: {
+        [triggerId]: { x: 40, y: 160 },
+      },
+    },
   };
 }

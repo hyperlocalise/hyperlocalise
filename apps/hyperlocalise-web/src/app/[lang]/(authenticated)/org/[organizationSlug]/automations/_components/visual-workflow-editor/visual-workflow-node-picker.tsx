@@ -22,8 +22,8 @@ import {
   VISUAL_CATALOG_CATEGORY_ORDER,
   VISUAL_NODE_CATALOG,
   type VisualNodeCatalogItem,
-} from "@/lib/visual-workflows/mock/node-catalog";
-import type { VisualCatalogCategory, VisualCatalogType } from "@/lib/visual-workflows/mock/types";
+} from "@/lib/visual-workflows/catalog/node-catalog";
+import type { VisualCatalogCategory, VisualCatalogType } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";

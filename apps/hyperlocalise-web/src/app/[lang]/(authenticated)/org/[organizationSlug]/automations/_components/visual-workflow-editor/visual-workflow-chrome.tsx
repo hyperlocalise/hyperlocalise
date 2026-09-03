@@ -29,12 +29,20 @@ export function VisualWorkflowChrome({
   copied,
   onExport,
   onCopy,
+  onSave,
+  isSaving = false,
+  saveDisabled = false,
+  previewMode = false,
 }: {
   name: string;
   onNameChange: (name: string) => void;
   copied: boolean;
   onExport: () => void;
   onCopy: () => void;
+  onSave?: () => void;
+  isSaving?: boolean;
+  saveDisabled?: boolean;
+  previewMode?: boolean;
 }) {
   const intl = useIntl();
   const previewOnly = intl.formatMessage(messages.previewOnly);
@@ -49,9 +57,11 @@ export function VisualWorkflowChrome({
           variant="inline"
           className="max-w-xs px-2 font-medium"
         />
-        <Badge variant="outline" className="rounded-full">
-          <FormattedMessage {...messages.previewBadge} />
-        </Badge>
+        {previewMode ? (
+          <Badge variant="outline" className="rounded-full">
+            <FormattedMessage {...messages.previewBadge} />
+          </Badge>
+        ) : null}
       </div>
 
       <Tabs value="editor" className="items-center">
@@ -112,16 +122,26 @@ export function VisualWorkflowChrome({
         <Button type="button" variant="outline" size="sm" onClick={onExport}>
           <FormattedMessage {...messages.exportJson} />
         </Button>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button type="button" size="sm" disabled>
-                <FormattedMessage {...messages.save} />
-              </Button>
-            }
-          />
-          <TooltipContent>{previewOnly}</TooltipContent>
-        </Tooltip>
+        {onSave ? (
+          <Button type="button" size="sm" disabled={saveDisabled || isSaving} onClick={onSave}>
+            {isSaving ? (
+              <FormattedMessage {...messages.saving} />
+            ) : (
+              <FormattedMessage {...messages.save} />
+            )}
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button type="button" size="sm" disabled>
+                  <FormattedMessage {...messages.save} />
+                </Button>
+              }
+            />
+            <TooltipContent>{previewOnly}</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </header>
   );

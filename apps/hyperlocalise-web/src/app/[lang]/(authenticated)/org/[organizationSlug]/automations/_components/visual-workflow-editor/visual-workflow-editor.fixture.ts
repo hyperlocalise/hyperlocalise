@@ -10,4 +10,4 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/mock/demo-draft";
+export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";

@@ -11,9 +11,9 @@
  * Version 2.0 or later.
  */
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
@@ -21,9 +21,9 @@ import {
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
-import { AutomationsPageContent } from "./_components/automations-page-content";
+import { VisualWorkflowsPageContent } from "../_components/visual-workflows-page-content";
 
-export default async function AutomationsPage({
+export default async function VisualWorkflowsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
@@ -39,15 +39,13 @@ export default async function AutomationsPage({
     return <FeatureTeaserPage feature="automations" scope="workspace" />;
   }
 
-  const templates = getMergedWorkspaceAutomationTemplates();
+  if (!visualWorkflowsEnabled) {
+    notFound();
+  }
 
   return (
     <Suspense fallback={null}>
-      <AutomationsPageContent
-        organizationSlug={organizationSlug}
-        templates={templates}
-        visualWorkflowsEnabled={visualWorkflowsEnabled}
-      />
+      <VisualWorkflowsPageContent organizationSlug={organizationSlug} />
     </Suspense>
   );
 }

@@ -68,11 +68,13 @@ export function AutomationsPageContent({
   organizationSlug,
   projectId,
   templates,
+  visualWorkflowsEnabled = false,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
   projectId?: string;
   templates: WorkspaceAutomationTemplate[];
+  visualWorkflowsEnabled?: boolean;
   automationsApi?: typeof automationsApi;
 }) {
   const intl = useIntl();
@@ -120,6 +122,7 @@ export function AutomationsPageContent({
       }}
       renderAutomationLink={renderProductionAutomationLink}
       renderActionLink={renderProductionActionLink}
+      visualWorkflowsEnabled={visualWorkflowsEnabled}
     />
   );
 }

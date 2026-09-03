@@ -10,14 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { isTriggerType } from "./node-catalog";
-import type { MockValidationIssue, VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./types";
+import { isTriggerType } from "../catalog/node-catalog";
+import type {
+  VisualWorkflowDefinition,
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+  VisualWorkflowValidationIssue,
+} from "../schema/types";
 
-export function validateMockWorkflow(
+export function validateVisualWorkflowGraph(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
-): MockValidationIssue[] {
-  const issues: MockValidationIssue[] = [];
+): VisualWorkflowValidationIssue[] {
+  const issues: VisualWorkflowValidationIssue[] = [];
   const triggers = nodes.filter((node) => isTriggerType(node.data.catalogType));
 
   if (triggers.length === 0) {
@@ -58,3 +63,31 @@ export function validateMockWorkflow(
 
   return issues;
 }
+
+export function validateVisualWorkflowDefinition(
+  definition: VisualWorkflowDefinition,
+): VisualWorkflowValidationIssue[] {
+  const nodes: VisualWorkflowRfNode[] = definition.nodes.map((node) => ({
+    id: node.id,
+    type: node.type,
+    position: definition.editor.positions[node.id] ?? { x: 0, y: 0 },
+    data: {
+      catalogType: node.type,
+      config: node.config,
+      runStatus: "idle",
+    },
+  }));
+
+  const edges: VisualWorkflowRfEdge[] = definition.edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
+  }));
+
+  return validateVisualWorkflowGraph(nodes, edges);
+}
+
+/** @deprecated Use validateVisualWorkflowGraph */
+export const validateMockWorkflow = validateVisualWorkflowGraph;

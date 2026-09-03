@@ -10,10 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { fromCanonicalDraft } from "./to-canonical-draft";
-import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
+import { fromVisualWorkflowDefinition } from "../schema/serializers";
+import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "../schema/types";
 
-export const visualWorkflowDemoDraft = fromCanonicalDraft({
+export const visualWorkflowDemoDraft = fromVisualWorkflowDefinition({
   schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
   name: "Lead ping",
   nodes: [

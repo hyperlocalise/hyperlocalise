@@ -23,7 +23,7 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
-import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "./types";
+import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
 
 export type CatalogIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 

@@ -23,22 +23,23 @@ import {
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
-import { runFakeWorkflow } from "@/lib/visual-workflows/mock/fake-run";
+import { runFakeWorkflow } from "@/lib/visual-workflows/preview/fake-run";
 import {
   createDefaultConfig,
   getVisualNodeDimensions,
   isTriggerType,
-} from "@/lib/visual-workflows/mock/node-catalog";
-import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/mock/demo-draft";
-import { toCanonicalDraft } from "@/lib/visual-workflows/mock/to-canonical-draft";
+} from "@/lib/visual-workflows/catalog/node-catalog";
+import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
+import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   MockNodeRunStatus,
   VisualCatalogType,
   VisualNodeConfig,
+  VisualWorkflowDefinition,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
-} from "@/lib/visual-workflows/mock/types";
-import { validateMockWorkflow } from "@/lib/visual-workflows/mock/validate-mock-workflow";
+} from "@/lib/visual-workflows/schema/types";
+import { validateVisualWorkflowGraph } from "@/lib/visual-workflows/validation/validate-workflow";
 
 import { applyVisualWorkflowConnection, VisualWorkflowCanvas } from "./visual-workflow-canvas";
 import {
@@ -57,10 +58,16 @@ export function VisualWorkflowEditor({
   initialNodes = [],
   initialEdges = [],
   initialName,
+  previewMode = false,
+  onSave,
+  isSaving = false,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
   initialEdges?: VisualWorkflowRfEdge[];
   initialName?: string;
+  previewMode?: boolean;
+  onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
+  isSaving?: boolean;
 }) {
   const intl = useIntl();
   const [name, setName] = useState(initialName ?? intl.formatMessage(messages.untitledName));
@@ -74,9 +81,10 @@ export function VisualWorkflowEditor({
   const runAbortRef = useRef<AbortController | null>(null);
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const issues = useMemo(() => validateMockWorkflow(nodes, edges), [nodes, edges]);
+  const issues = useMemo(() => validateVisualWorkflowGraph(nodes, edges), [nodes, edges]);
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
+  const saveDisabled = issues.length > 0;
 
   const onNodesChange = useCallback((changes: NodeChange<VisualWorkflowRfNode>[]) => {
     setNodes((current) => applyNodeChanges(changes, current));
@@ -193,7 +201,7 @@ export function VisualWorkflowEditor({
   }, [edges, nodes, setRunStatus]);
 
   const draftJson = useCallback(() => {
-    return `${JSON.stringify(toCanonicalDraft({ name, nodes, edges }), null, 2)}\n`;
+    return `${JSON.stringify(toVisualWorkflowDefinition({ name, nodes, edges }), null, 2)}\n`;
   }, [edges, name, nodes]);
 
   const onExport = useCallback(() => {
@@ -212,6 +220,13 @@ export function VisualWorkflowEditor({
     window.setTimeout(() => setCopied(false), 1500);
   }, [draftJson]);
 
+  const handleSave = useCallback(() => {
+    if (!onSave || saveDisabled) {
+      return;
+    }
+    void onSave(toVisualWorkflowDefinition({ name, nodes, edges }));
+  }, [edges, name, nodes, onSave, saveDisabled]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <VisualWorkflowChrome
@@ -220,6 +235,10 @@ export function VisualWorkflowEditor({
         copied={copied}
         onExport={onExport}
         onCopy={onCopy}
+        onSave={onSave ? handleSave : undefined}
+        isSaving={isSaving}
+        saveDisabled={saveDisabled}
+        previewMode={previewMode}
       />
       <div className="flex min-h-0 flex-1">
         <VisualWorkflowCanvasActionsProvider onAddFromNode={openPicker}>
