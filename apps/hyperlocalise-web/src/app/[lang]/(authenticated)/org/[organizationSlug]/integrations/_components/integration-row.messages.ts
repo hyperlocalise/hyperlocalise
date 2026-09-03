@@ -22,7 +22,7 @@ export const integrationRowMessages = defineMessages({
   },
   open: {
     defaultMessage: "Open",
-    id: "hyperlab.integrationOpen",
+    id: "qlNsO5chum",
     description: "Button label to open a built-in product from Integrations",
   },
   adminsCanConnect: {

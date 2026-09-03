@@ -113,7 +113,9 @@ export function HyperlabExperimentsPage({
                     value={kind}
                     onChange={(event) => setKind(event.target.value as "toggle" | "ab")}
                   >
-                    <option value="toggle">{intl.formatMessage(messages.experimentKindToggle)}</option>
+                    <option value="toggle">
+                      {intl.formatMessage(messages.experimentKindToggle)}
+                    </option>
                     <option value="ab">{intl.formatMessage(messages.experimentKindAb)}</option>
                   </select>
                 </Field>

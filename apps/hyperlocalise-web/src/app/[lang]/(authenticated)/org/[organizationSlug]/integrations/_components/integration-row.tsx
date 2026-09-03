@@ -151,12 +151,7 @@ export function IntegrationRow({
             <FormattedMessage {...integrationRowMessages.comingSoon} />
           </Button>
         ) : action === "open" && href ? (
-          <Button
-            nativeButton={false}
-            variant="outline"
-            size="sm"
-            render={<Link href={href} />}
-          >
+          <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
             <FormattedMessage {...integrationRowMessages.open} />
             <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
           </Button>

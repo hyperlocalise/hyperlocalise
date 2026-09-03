@@ -31,9 +31,6 @@ describe("calculateAllocationRanges", () => {
   });
 
   it("returns null for a zero-percent variant", () => {
-    expect(calculateAllocationRanges(10000, [0, 10000])).toEqual([
-      null,
-      { start: 0, end: 9999 },
-    ]);
+    expect(calculateAllocationRanges(10000, [0, 10000])).toEqual([null, { start: 0, end: 9999 }]);
   });
 });

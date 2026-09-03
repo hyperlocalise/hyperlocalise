@@ -159,7 +159,7 @@ export function HyperlabKeysPage({
             <Rows spacing="0">
               {keys.map((key) => (
                 <Box key={key.id} paddingX="2u" paddingY="1.5u">
-                  <Row spacing="1.5u" align="space-between" alignY="center">
+                  <Row spacing="1.5u" align="spaceBetween" alignY="center">
                     <Rows spacing="0.5u">
                       <TypographyP className="font-medium">{key.name}</TypographyP>
                       <TypographyP className="text-sm text-muted-foreground">

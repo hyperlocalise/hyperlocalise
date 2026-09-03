@@ -20,10 +20,7 @@ export function hyperlabClient() {
   return api.api.orgs[":organizationSlug"].hyperlab;
 }
 
-export async function readHyperlabJson<T>(
-  response: Response,
-  fallbackMessage: string,
-): Promise<T> {
+export async function readHyperlabJson<T>(response: Response, fallbackMessage: string): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as T & {
     message?: string;
     error?: string;

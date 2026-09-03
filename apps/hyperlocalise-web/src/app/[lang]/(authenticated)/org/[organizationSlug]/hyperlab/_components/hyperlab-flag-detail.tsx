@@ -105,7 +105,9 @@ export function HyperlabFlagDetail({
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-flag", organizationSlug, flagId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["hyperlab-flag", organizationSlug, flagId],
+      });
     },
   });
 
@@ -128,7 +130,7 @@ export function HyperlabFlagDetail({
       const response = await client.flags[":flagId"].$delete({
         param: { organizationSlug, flagId },
       });
-      if (!response.ok && response.status !== 204) {
+      if (!response.ok) {
         await readHyperlabJson(response, intl.formatMessage(messages.loadError));
       }
     },
@@ -199,7 +201,11 @@ export function HyperlabFlagDetail({
               </Field>
             ) : null}
             {canWrite ? (
-              <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              <Button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+              >
                 <FormattedMessage {...messages.save} />
               </Button>
             ) : null}

@@ -24,11 +24,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import {
-  experimentFlagKindEnum,
-  experimentKindEnum,
-  experimentStatusEnum,
-} from "./enums";
+import { experimentFlagKindEnum, experimentKindEnum, experimentStatusEnum } from "./enums";
 import { organizations, users } from "./organizations";
 
 export type ExperimentCriterionMatch =

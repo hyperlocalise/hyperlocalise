@@ -51,7 +51,7 @@ import { hashExperimentClientKey } from "@/lib/experiments/client-keys";
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
-function hyperlab(organizationSlug: string) {
+function hyperlab() {
   return client.api.orgs[":organizationSlug"].hyperlab;
 }
 
@@ -89,7 +89,7 @@ describe("hyperlabRoutes", () => {
     const slug = identity.organization.slug ?? "missing-slug";
     const otherSlug = other.organization.slug ?? "missing-slug";
 
-    const created = await hyperlab(slug).flags.$post(
+    const created = await hyperlab().flags.$post(
       { param: { organizationSlug: slug }, json: { key: "checkout-cta", kind: "experiment" } },
       { headers },
     );
@@ -97,19 +97,19 @@ describe("hyperlabRoutes", () => {
     const createdBody = (await created.json()) as { flag: { id: string; key: string } };
     expect(createdBody.flag.key).toBe("checkout-cta");
 
-    const duplicate = await hyperlab(slug).flags.$post(
-      { param: { organizationSlug: slug }, json: { key: "checkout-cta" } },
+    const duplicate = await hyperlab().flags.$post(
+      { param: { organizationSlug: slug }, json: { key: "checkout-cta", kind: "experiment" } },
       { headers },
     );
     expect(duplicate.status).toBe(409);
 
-    const otherCopy = await hyperlab(otherSlug).flags.$post(
-      { param: { organizationSlug: otherSlug }, json: { key: "checkout-cta" } },
+    const otherCopy = await hyperlab().flags.$post(
+      { param: { organizationSlug: otherSlug }, json: { key: "checkout-cta", kind: "experiment" } },
       { headers: otherHeaders },
     );
     expect(otherCopy.status).toBe(201);
 
-    const foreign = await hyperlab(otherSlug).flags[":flagId"].$get(
+    const foreign = await hyperlab().flags[":flagId"].$get(
       { param: { organizationSlug: otherSlug, flagId: createdBody.flag.id } },
       { headers: otherHeaders },
     );
@@ -121,7 +121,7 @@ describe("hyperlabRoutes", () => {
     const headers = await fixture.authHeadersFor(identity);
     const slug = identity.organization.slug ?? "missing-slug";
 
-    const created = await hyperlab(slug).keys.$post(
+    const created = await hyperlab().keys.$post(
       { param: { organizationSlug: slug }, json: { name: "Browser" } },
       { headers },
     );
@@ -132,7 +132,7 @@ describe("hyperlabRoutes", () => {
     expect(createdBody.key.secret).toMatch(/^hlk_/);
     expect(createdBody.key.keyPrefix).toBe(createdBody.key.secret.slice(0, 8));
 
-    const listed = await hyperlab(slug).keys.$get({ param: { organizationSlug: slug } }, { headers });
+    const listed = await hyperlab().keys.$get({ param: { organizationSlug: slug } }, { headers });
     const listedBody = (await listed.json()) as { keys: Array<{ id: string; secret?: string }> };
     const listedKey = listedBody.keys.find((key) => key.id === createdBody.key.id);
     expect(listedKey).toBeDefined();
@@ -155,8 +155,8 @@ describe("hyperlabRoutes", () => {
     const memberHeaders = await fixture.authHeadersFor(member);
     const slug = admin.organization.slug ?? "missing-slug";
 
-    const response = await hyperlab(slug).flags.$post(
-      { param: { organizationSlug: slug }, json: { key: "blocked-flag" } },
+    const response = await hyperlab().flags.$post(
+      { param: { organizationSlug: slug }, json: { key: "blocked-flag", kind: "experiment" } },
       { headers: memberHeaders },
     );
     expect(response.status).toBe(403);
@@ -168,7 +168,7 @@ describe("hyperlabRoutes", () => {
     const headers = await fixture.authHeadersFor(identity);
     const slug = identity.organization.slug ?? "missing-slug";
 
-    const response = await hyperlab(slug).flags.$get(
+    const response = await hyperlab().flags.$get(
       { param: { organizationSlug: slug } },
       { headers },
     );

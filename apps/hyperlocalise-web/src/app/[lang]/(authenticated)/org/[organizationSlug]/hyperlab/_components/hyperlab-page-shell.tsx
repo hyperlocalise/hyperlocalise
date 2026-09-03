@@ -20,7 +20,7 @@ import { FormattedMessage } from "react-intl";
 import { Box } from "@/components/ui/layout/box";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
-import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { cn } from "@/lib/primitives/cn";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";

@@ -112,7 +112,9 @@ export function HyperlabFlagsPage({
                     value={kind}
                     onChange={(event) => setKind(event.target.value as "experiment" | "config")}
                   >
-                    <option value="experiment">{intl.formatMessage(messages.flagKindExperiment)}</option>
+                    <option value="experiment">
+                      {intl.formatMessage(messages.flagKindExperiment)}
+                    </option>
                     <option value="config">{intl.formatMessage(messages.flagKindConfig)}</option>
                   </select>
                 </Field>

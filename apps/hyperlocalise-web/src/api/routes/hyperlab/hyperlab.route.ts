@@ -124,7 +124,7 @@ export function createHyperlabRoutes() {
       await next();
     })
     .get("/flags", async (c) => {
-      const flags = await listExperimentFlags(c.var.auth.organization.id);
+      const flags = await listExperimentFlags(c.var.auth.organization.localOrganizationId);
       return c.json({ flags: flags.map(serializeFlag) }, 200);
     })
     .post("/flags", validateJson(createFlagBodySchema, "invalid_flag_payload"), async (c) => {
@@ -136,7 +136,7 @@ export function createHyperlabRoutes() {
         const [flag] = await db
           .insert(schema.experimentFlags)
           .values({
-            organizationId: c.var.auth.organization.id,
+            organizationId: c.var.auth.organization.localOrganizationId,
             key: body.key,
             description: body.description,
             kind: body.kind,
@@ -148,12 +148,18 @@ export function createHyperlabRoutes() {
       }
     })
     .get("/flags/:flagId", validateParams(flagIdParamsSchema), async (c) => {
-      const flag = await getExperimentFlag(c.var.auth.organization.id, c.req.valid("param").flagId);
+      const flag = await getExperimentFlag(
+        c.var.auth.organization.localOrganizationId,
+        c.req.valid("param").flagId,
+      );
       if (!flag) {
         return notFoundResponse(c, "flag_not_found");
       }
       const config = await getExperimentFlagConfig(flag.id);
-      return c.json({ flag: serializeFlag(flag), config: serializeFlagConfig(config, flag.id) }, 200);
+      return c.json(
+        { flag: serializeFlag(flag), config: serializeFlagConfig(config, flag.id) },
+        200,
+      );
     })
     .put(
       "/flags/:flagId",
@@ -171,7 +177,10 @@ export function createHyperlabRoutes() {
           .where(
             and(
               eq(schema.experimentFlags.id, flagId),
-              eq(schema.experimentFlags.organizationId, c.var.auth.organization.id),
+              eq(
+                schema.experimentFlags.organizationId,
+                c.var.auth.organization.localOrganizationId,
+              ),
             ),
           )
           .returning();
@@ -189,7 +198,10 @@ export function createHyperlabRoutes() {
         if (!canWrite(c.var.auth.membership.role)) {
           return forbiddenResponse(c, "forbidden", "Missing experiments:write");
         }
-        const flag = await getExperimentFlag(c.var.auth.organization.id, c.req.valid("param").flagId);
+        const flag = await getExperimentFlag(
+          c.var.auth.organization.localOrganizationId,
+          c.req.valid("param").flagId,
+        );
         if (!flag) {
           return notFoundResponse(c, "flag_not_found");
         }
@@ -217,7 +229,7 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experimentFlags.id, c.req.valid("param").flagId),
-            eq(schema.experimentFlags.organizationId, c.var.auth.organization.id),
+            eq(schema.experimentFlags.organizationId, c.var.auth.organization.localOrganizationId),
           ),
         )
         .returning({ id: schema.experimentFlags.id });
@@ -230,7 +242,12 @@ export function createHyperlabRoutes() {
       const audiences = await db
         .select()
         .from(schema.experimentAudiences)
-        .where(eq(schema.experimentAudiences.organizationId, c.var.auth.organization.id))
+        .where(
+          eq(
+            schema.experimentAudiences.organizationId,
+            c.var.auth.organization.localOrganizationId,
+          ),
+        )
         .orderBy(desc(schema.experimentAudiences.createdAt));
       return c.json({ audiences: audiences.map(serializeAudience) }, 200);
     })
@@ -245,7 +262,7 @@ export function createHyperlabRoutes() {
         const [audience] = await db
           .insert(schema.experimentAudiences)
           .values({
-            organizationId: c.var.auth.organization.id,
+            organizationId: c.var.auth.organization.localOrganizationId,
             name: body.name,
             description: body.description,
             criterion: body.criterion ?? null,
@@ -261,7 +278,10 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experimentAudiences.id, c.req.valid("param").audienceId),
-            eq(schema.experimentAudiences.organizationId, c.var.auth.organization.id),
+            eq(
+              schema.experimentAudiences.organizationId,
+              c.var.auth.organization.localOrganizationId,
+            ),
           ),
         )
         .limit(1);
@@ -289,7 +309,10 @@ export function createHyperlabRoutes() {
           .where(
             and(
               eq(schema.experimentAudiences.id, c.req.valid("param").audienceId),
-              eq(schema.experimentAudiences.organizationId, c.var.auth.organization.id),
+              eq(
+                schema.experimentAudiences.organizationId,
+                c.var.auth.organization.localOrganizationId,
+              ),
             ),
           )
           .returning();
@@ -308,7 +331,10 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experimentAudiences.id, c.req.valid("param").audienceId),
-            eq(schema.experimentAudiences.organizationId, c.var.auth.organization.id),
+            eq(
+              schema.experimentAudiences.organizationId,
+              c.var.auth.organization.localOrganizationId,
+            ),
           ),
         )
         .returning({ id: schema.experimentAudiences.id });
@@ -321,7 +347,7 @@ export function createHyperlabRoutes() {
       const rows = await db
         .select()
         .from(schema.experiments)
-        .where(eq(schema.experiments.organizationId, c.var.auth.organization.id))
+        .where(eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId))
         .orderBy(desc(schema.experiments.createdAt));
       return c.json({ experiments: rows.map(serializeExperiment) }, 200);
     })
@@ -334,7 +360,7 @@ export function createHyperlabRoutes() {
         }
         const body = c.req.valid("json");
         const audience = await assertAudienceInOrganization(
-          c.var.auth.organization.id,
+          c.var.auth.organization.localOrganizationId,
           body.audienceId,
         );
         if (isErr(audience)) {
@@ -348,7 +374,7 @@ export function createHyperlabRoutes() {
         const [experiment] = await db
           .insert(schema.experiments)
           .values({
-            organizationId: c.var.auth.organization.id,
+            organizationId: c.var.auth.organization.localOrganizationId,
             name: body.name,
             kind: body.kind,
             audienceId: body.audienceId ?? null,
@@ -369,7 +395,7 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experiments.id, c.req.valid("param").experimentId),
-            eq(schema.experiments.organizationId, c.var.auth.organization.id),
+            eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
           ),
         )
         .limit(1);
@@ -412,7 +438,7 @@ export function createHyperlabRoutes() {
         }
         const body = c.req.valid("json");
         const audience = await assertAudienceInOrganization(
-          c.var.auth.organization.id,
+          c.var.auth.organization.localOrganizationId,
           body.audienceId,
         );
         if (isErr(audience)) {
@@ -424,7 +450,7 @@ export function createHyperlabRoutes() {
           .where(
             and(
               eq(schema.experiments.id, c.req.valid("param").experimentId),
-              eq(schema.experiments.organizationId, c.var.auth.organization.id),
+              eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
             ),
           )
           .limit(1);
@@ -446,7 +472,12 @@ export function createHyperlabRoutes() {
             startAt,
             endAt,
             timezone: body.timezone,
-            archivedAt: body.status === "archived" ? (current.archivedAt ?? new Date()) : body.status ? null : undefined,
+            archivedAt:
+              body.status === "archived"
+                ? (current.archivedAt ?? new Date())
+                : body.status
+                  ? null
+                  : undefined,
           })
           .where(eq(schema.experiments.id, current.id))
           .returning();
@@ -465,7 +496,7 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experiments.id, c.req.valid("param").experimentId),
-            eq(schema.experiments.organizationId, c.var.auth.organization.id),
+            eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
           ),
         )
         .returning({ id: schema.experiments.id });
@@ -489,7 +520,7 @@ export function createHyperlabRoutes() {
           .where(
             and(
               eq(schema.experiments.id, experimentId),
-              eq(schema.experiments.organizationId, c.var.auth.organization.id),
+              eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
             ),
           )
           .limit(1);
@@ -498,7 +529,7 @@ export function createHyperlabRoutes() {
         }
         const body = c.req.valid("json");
         const audience = await assertAudienceInOrganization(
-          c.var.auth.organization.id,
+          c.var.auth.organization.localOrganizationId,
           body.audienceId,
         );
         if (isErr(audience)) {
@@ -532,7 +563,7 @@ export function createHyperlabRoutes() {
         }
         const body = c.req.valid("json");
         const audience = await assertAudienceInOrganization(
-          c.var.auth.organization.id,
+          c.var.auth.organization.localOrganizationId,
           body.audienceId,
         );
         if (isErr(audience)) {
@@ -544,11 +575,14 @@ export function createHyperlabRoutes() {
             experimentId: schema.experimentVariants.experimentId,
           })
           .from(schema.experimentVariants)
-          .innerJoin(schema.experiments, eq(schema.experiments.id, schema.experimentVariants.experimentId))
+          .innerJoin(
+            schema.experiments,
+            eq(schema.experiments.id, schema.experimentVariants.experimentId),
+          )
           .where(
             and(
               eq(schema.experimentVariants.id, c.req.valid("param").variantId),
-              eq(schema.experiments.organizationId, c.var.auth.organization.id),
+              eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
             ),
           )
           .limit(1);
@@ -591,19 +625,21 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experiments.id, variant.experimentId),
-            eq(schema.experiments.organizationId, c.var.auth.organization.id),
+            eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
           ),
         )
         .limit(1);
       if (!owned) {
         return notFoundResponse(c, "variant_not_found");
       }
-      await db.delete(schema.experimentVariants).where(eq(schema.experimentVariants.id, variant.id));
+      await db
+        .delete(schema.experimentVariants)
+        .where(eq(schema.experimentVariants.id, variant.id));
       await recomputeExperimentAllocations(variant.experimentId);
       return c.body(null, 204);
     })
     .get("/assignments", async (c) => {
-      const flags = await listExperimentFlags(c.var.auth.organization.id);
+      const flags = await listExperimentFlags(c.var.auth.organization.localOrganizationId);
       if (flags.length === 0) {
         return c.json({ assignments: [] }, 200);
       }
@@ -627,7 +663,10 @@ export function createHyperlabRoutes() {
           return forbiddenResponse(c, "forbidden", "Missing experiments:write");
         }
         const body = c.req.valid("json");
-        const flag = await getExperimentFlag(c.var.auth.organization.id, body.flagId);
+        const flag = await getExperimentFlag(
+          c.var.auth.organization.localOrganizationId,
+          body.flagId,
+        );
         if (!flag) {
           return notFoundResponse(c, "flag_not_found");
         }
@@ -637,11 +676,14 @@ export function createHyperlabRoutes() {
             experimentOrganizationId: schema.experiments.organizationId,
           })
           .from(schema.experimentVariants)
-          .innerJoin(schema.experiments, eq(schema.experiments.id, schema.experimentVariants.experimentId))
+          .innerJoin(
+            schema.experiments,
+            eq(schema.experiments.id, schema.experimentVariants.experimentId),
+          )
           .where(
             and(
               eq(schema.experimentVariants.id, body.variantId),
-              eq(schema.experiments.organizationId, c.var.auth.organization.id),
+              eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
             ),
           )
           .limit(1);
@@ -660,7 +702,11 @@ export function createHyperlabRoutes() {
             .returning();
           return c.json({ assignment: serializeAssignment(assignment) }, 201);
         } catch {
-          return conflictResponse(c, "assignment_exists", "This flag is already attached to the variant");
+          return conflictResponse(
+            c,
+            "assignment_exists",
+            "This flag is already attached to the variant",
+          );
         }
       },
     )
@@ -684,7 +730,10 @@ export function createHyperlabRoutes() {
         if (!current) {
           return notFoundResponse(c, "assignment_not_found");
         }
-        const flag = await getExperimentFlag(c.var.auth.organization.id, current.flagId);
+        const flag = await getExperimentFlag(
+          c.var.auth.organization.localOrganizationId,
+          current.flagId,
+        );
         if (!flag) {
           return notFoundResponse(c, "assignment_not_found");
         }
@@ -714,7 +763,10 @@ export function createHyperlabRoutes() {
       if (!assignment) {
         return notFoundResponse(c, "assignment_not_found");
       }
-      const flag = await getExperimentFlag(c.var.auth.organization.id, assignment.flagId);
+      const flag = await getExperimentFlag(
+        c.var.auth.organization.localOrganizationId,
+        assignment.flagId,
+      );
       if (!flag) {
         return notFoundResponse(c, "assignment_not_found");
       }
@@ -727,28 +779,37 @@ export function createHyperlabRoutes() {
       const keys = await db
         .select()
         .from(schema.experimentClientKeys)
-        .where(eq(schema.experimentClientKeys.organizationId, c.var.auth.organization.id))
+        .where(
+          eq(
+            schema.experimentClientKeys.organizationId,
+            c.var.auth.organization.localOrganizationId,
+          ),
+        )
         .orderBy(desc(schema.experimentClientKeys.createdAt));
       return c.json({ keys: keys.map(serializeClientKey) }, 200);
     })
-    .post("/keys", validateJson(createClientKeyBodySchema, "invalid_client_key_payload"), async (c) => {
-      if (!canWrite(c.var.auth.membership.role)) {
-        return forbiddenResponse(c, "forbidden", "Missing experiments:write");
-      }
-      const body = c.req.valid("json");
-      const plainKey = generateExperimentClientKey();
-      const [key] = await db
-        .insert(schema.experimentClientKeys)
-        .values({
-          organizationId: c.var.auth.organization.id,
-          name: body.name,
-          keyHash: hashExperimentClientKey(plainKey),
-          keyPrefix: getExperimentClientKeyPrefix(plainKey),
-          createdByUserId: c.var.auth.user.id,
-        })
-        .returning();
-      return c.json({ key: { ...serializeClientKey(key), secret: plainKey } }, 201);
-    })
+    .post(
+      "/keys",
+      validateJson(createClientKeyBodySchema, "invalid_client_key_payload"),
+      async (c) => {
+        if (!canWrite(c.var.auth.membership.role)) {
+          return forbiddenResponse(c, "forbidden", "Missing experiments:write");
+        }
+        const body = c.req.valid("json");
+        const plainKey = generateExperimentClientKey();
+        const [key] = await db
+          .insert(schema.experimentClientKeys)
+          .values({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            name: body.name,
+            keyHash: hashExperimentClientKey(plainKey),
+            keyPrefix: getExperimentClientKeyPrefix(plainKey),
+            createdByUserId: c.var.auth.user.localUserId,
+          })
+          .returning();
+        return c.json({ key: { ...serializeClientKey(key), secret: plainKey } }, 201);
+      },
+    )
     .delete("/keys/:keyId", validateParams(clientKeyIdParamsSchema), async (c) => {
       if (!canWrite(c.var.auth.membership.role)) {
         return forbiddenResponse(c, "forbidden", "Missing experiments:write");
@@ -759,7 +820,10 @@ export function createHyperlabRoutes() {
         .where(
           and(
             eq(schema.experimentClientKeys.id, c.req.valid("param").keyId),
-            eq(schema.experimentClientKeys.organizationId, c.var.auth.organization.id),
+            eq(
+              schema.experimentClientKeys.organizationId,
+              c.var.auth.organization.localOrganizationId,
+            ),
           ),
         )
         .returning();

@@ -63,7 +63,7 @@ export const integrationsPageContentMessages = defineMessages({
   },
   hyperlabDetail: {
     defaultMessage: "Test a change with some users before you show it to everyone.",
-    id: "A9QMrzJCol",
+    id: "Rk8U85urY5",
     description: "Built-in experiments product description on the integrations page",
   },
   cmsCategory: {

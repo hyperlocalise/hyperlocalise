@@ -146,7 +146,11 @@ export function HyperlabExperimentDetail({
               </Button>
             ) : null}
             {experiment.status !== "archived" ? (
-              <Button type="button" variant="outline" onClick={() => saveMutation.mutate("archived")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => saveMutation.mutate("archived")}
+              >
                 <FormattedMessage {...messages.archive} />
               </Button>
             ) : null}
@@ -218,7 +222,11 @@ export function HyperlabExperimentDetail({
               </select>
             </Field>
             {canWrite ? (
-              <Button type="button" onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
+              <Button
+                type="button"
+                onClick={() => saveMutation.mutate(undefined)}
+                disabled={saveMutation.isPending}
+              >
                 <FormattedMessage {...messages.save} />
               </Button>
             ) : null}
@@ -263,7 +271,7 @@ export function HyperlabExperimentDetail({
                     const allocation = allocationsByVariant.get(variant.id);
                     return (
                       <Box key={variant.id} paddingX="2u" paddingY="1.5u">
-                        <Row spacing="1.5u" align="space-between" alignY="center">
+                        <Row spacing="1.5u" align="spaceBetween" alignY="center">
                           <Rows spacing="0.5u">
                             <TypographyP className="font-medium">{variant.key}</TypographyP>
                             <TypographyP className="text-xs text-muted-foreground">

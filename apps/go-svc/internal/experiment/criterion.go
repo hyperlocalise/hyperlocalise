@@ -7,11 +7,11 @@ import (
 )
 
 type criterionNode struct {
-	Type     string           `json:"type"`
-	Name     string           `json:"name"`
-	Match    string           `json:"match"`
-	Value    json.RawMessage  `json:"value"`
-	Children []criterionNode  `json:"children"`
+	Type     string          `json:"type"`
+	Name     string          `json:"name"`
+	Match    string          `json:"match"`
+	Value    json.RawMessage `json:"value"`
+	Children []criterionNode `json:"children"`
 }
 
 func evaluateCriterion(raw json.RawMessage, attributes map[string]any) (bool, error) {

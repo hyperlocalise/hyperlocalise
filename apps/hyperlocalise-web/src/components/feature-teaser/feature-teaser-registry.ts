@@ -13,7 +13,12 @@
  * Version 2.0 or later.
  */
 import { defineMessages, type MessageDescriptor } from "react-intl";
-import { Bookmark01Icon, FlashIcon, FlaskConicalIcon, Globe02Icon } from "@hugeicons/core-free-icons";
+import {
+  Bookmark01Icon,
+  FlashIcon,
+  FlaskConicalIcon,
+  Globe02Icon,
+} from "@hugeicons/core-free-icons";
 
 import type { NavigationIcon } from "@/components/app-shell/navigation-config";
 
@@ -66,7 +71,7 @@ export const featureTeaserMessages = defineMessages({
   },
   contactSubjectHyperlab: {
     defaultMessage: "Demo request: Hyperlab",
-    id: "hyperlab.contactSubject",
+    id: "omHOw+4o9P",
     description: "Email subject for Hyperlab feature teaser contact link",
   },
 
@@ -232,53 +237,55 @@ export const featureTeaserMessages = defineMessages({
 
   hyperlabPageLabel: {
     defaultMessage: "Workspace",
-    id: "hyperlab.teaserPageLabel",
+    id: "y4aVDPth8a",
     description: "Feature teaser page label for Hyperlab",
   },
   hyperlabPageLabelProject: {
     defaultMessage: "Workspace",
-    id: "hyperlab.teaserPageLabelProject",
+    id: "mVLREix+gB",
     description: "Feature teaser page label for Hyperlab when opened from a project",
   },
   hyperlabTitle: {
     defaultMessage: "Hyperlab",
-    id: "hyperlab.teaserTitle",
+    id: "+i+mcUZPR+",
     description: "Feature teaser title for Hyperlab",
   },
   hyperlabDescription: {
-    defaultMessage: "Ship flags and experiments from this workspace, then evaluate them in your apps.",
-    id: "hyperlab.teaserDescription",
+    defaultMessage:
+      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
+    id: "smm3qbe1rP",
     description: "Feature teaser description for Hyperlab",
   },
   hyperlabDescriptionProject: {
-    defaultMessage: "Ship flags and experiments from this workspace, then evaluate them in your apps.",
-    id: "hyperlab.teaserDescriptionProject",
+    defaultMessage:
+      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
+    id: "uScOO0+uJ9",
     description: "Feature teaser description for Hyperlab when opened from a project",
   },
   hyperlabEarlyAccessTitle: {
     defaultMessage: "Target, split, and ship without another vendor",
-    id: "hyperlab.teaserEarlyAccessTitle",
+    id: "YWi5RNeyc2",
     description: "Feature teaser early access title for Hyperlab",
   },
   hyperlabEarlyAccessDescription: {
     defaultMessage:
       "Hyperlab lets your team define flags, audiences, and rollouts, then evaluate them over OFREP. Available in early access.",
-    id: "hyperlab.teaserEarlyAccessDescription",
+    id: "AHcwXmS1XC",
     description: "Feature teaser early access description for Hyperlab",
   },
   hyperlabBenefit0: {
     defaultMessage: "Create experiment and config flags unique to your workspace",
-    id: "hyperlab.teaserBenefit0",
+    id: "OpL4o1Rl3O",
     description: "Feature teaser benefit for Hyperlab",
   },
   hyperlabBenefit1: {
     defaultMessage: "Target visitors with attribute rules evaluated live",
-    id: "hyperlab.teaserBenefit1",
+    id: "32sQGI6Lre",
     description: "Feature teaser benefit for Hyperlab",
   },
   hyperlabBenefit2: {
     defaultMessage: "Evaluate from any OpenFeature SDK over OFREP",
-    id: "hyperlab.teaserBenefit2",
+    id: "cGCurVuGU/",
     description: "Feature teaser benefit for Hyperlab",
   },
 });

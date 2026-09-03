@@ -59,6 +59,7 @@ export type NavigationItem = {
     | typeof WORKSPACE_AUTOMATIONS_FLAG
     | typeof WORKSPACE_KNOWLEDGE_FLAG
     | typeof WORKSPACE_DOMAINS_FLAG
+    | typeof WORKSPACE_HYPERLAB_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
   /** When true, the feature flag is off and the nav item links to a teaser page. */
   preview?: boolean;
@@ -237,14 +238,14 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "Hyperlab",
-            id: "hyperlab.navItem",
+            id: "e1WibRfkfv",
             description: "Sidebar navigation item for Hyperlab experiments",
           }),
           href: org("hyperlab"),
           icon: FlaskConicalIcon,
           description: intl.formatMessage({
             defaultMessage: "Flags and experiments for your apps",
-            id: "hyperlab.navItemDescription",
+            id: "4/gpJsFcCP",
             description: "Sidebar description for the Hyperlab navigation item",
           }),
           featureFlagKey: WORKSPACE_HYPERLAB_FLAG,

@@ -23,6 +23,8 @@ import { Rows } from "@/components/ui/layout/rows";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import { experimentCriterionNodeSchema } from "@/lib/experiments/criterion";
+
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import { hyperlabClient, readHyperlabJson, type HyperlabAudience } from "./hyperlab-api";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
@@ -74,7 +76,9 @@ export function HyperlabAudienceDetail({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const criterion = criterionText.trim() ? (JSON.parse(criterionText) as unknown) : null;
+      const criterion = criterionText.trim()
+        ? experimentCriterionNodeSchema.parse(JSON.parse(criterionText))
+        : null;
       const response = await client.audiences[":audienceId"].$put({
         param: { organizationSlug, audienceId },
         json: { name, criterion },
@@ -139,7 +143,11 @@ export function HyperlabAudienceDetail({
               </FieldDescription>
             </Field>
             {canWrite ? (
-              <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              <Button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+              >
                 <FormattedMessage {...messages.save} />
               </Button>
             ) : null}
