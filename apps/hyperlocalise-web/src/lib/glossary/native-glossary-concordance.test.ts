@@ -18,6 +18,7 @@ import {
 } from "@/lib/providers/contracts/glossary-term-status";
 import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import {
+  concordanceSourceContainsTerm,
   pickPreferredTermForLocale,
   filterConcordanceTargetTerms,
 } from "@/lib/glossary/native-glossary";
@@ -89,6 +90,56 @@ describe("filterConcordanceTargetTerms", () => {
 
   it("returns no target terms when the query requests none", () => {
     expect(filterConcordanceTargetTerms(terms, [])).toEqual([]);
+  });
+});
+
+describe("concordanceSourceContainsTerm", () => {
+  it("does not match a term embedded in a hyphenated term", () => {
+    expect(
+      concordanceSourceContainsTerm("e-ticket", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("matches a standalone term and a term inside a phrase", () => {
+    expect(
+      concordanceSourceContainsTerm("Book a ticket", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("booking reference", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("matches hyphenated terms case-insensitively", () => {
+    expect(
+      concordanceSourceContainsTerm("E-TICKET", {
+        sourceTerm: "e-ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("preserves case-sensitive matching", () => {
+    expect(
+      concordanceSourceContainsTerm("E-TICKET", {
+        sourceTerm: "e-ticket",
+        caseSensitive: true,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("e-ticket", {
+        sourceTerm: "e-ticket",
+        caseSensitive: true,
+      }),
+    ).toBe(true);
   });
 });
 

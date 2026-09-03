@@ -30,7 +30,6 @@ import {
 } from "@/lib/providers/contracts/glossary-match";
 import { buildGlossaryTsQuery } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
-import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
   Glossary,
   normalizeGlossaryGender,
@@ -99,6 +98,46 @@ function toNativeConcordanceConceptTerm(row: GlossaryTermRow): NormalizedGlossar
     partOfSpeech: row.partOfSpeech,
     gender: row.gender,
   };
+}
+
+function isConcordanceTermCharacter(character: string | undefined) {
+  return character !== undefined && /[\p{L}\p{N}_-]/u.test(character);
+}
+
+export function concordanceSourceContainsTerm(
+  sourceText: string,
+  input: { sourceTerm: string; caseSensitive: boolean },
+) {
+  const normalizedSourceText = input.caseSensitive ? sourceText : sourceText.toLocaleLowerCase();
+  const normalizedSourceTerm = input.caseSensitive
+    ? input.sourceTerm
+    : input.sourceTerm.toLocaleLowerCase();
+
+  if (!normalizedSourceTerm) {
+    return false;
+  }
+
+  let searchStart = 0;
+  while (searchStart < normalizedSourceText.length) {
+    const matchStart = normalizedSourceText.indexOf(normalizedSourceTerm, searchStart);
+    if (matchStart < 0) {
+      return false;
+    }
+
+    const matchEnd = matchStart + normalizedSourceTerm.length;
+    const characterBefore = normalizedSourceText[matchStart - 1];
+    const characterAfter = normalizedSourceText[matchEnd];
+    if (
+      !isConcordanceTermCharacter(characterBefore) &&
+      !isConcordanceTermCharacter(characterAfter)
+    ) {
+      return true;
+    }
+
+    searchStart = matchEnd;
+  }
+
+  return false;
 }
 
 export function filterConcordanceTargetTerms<T extends { locale: string }>(
@@ -1097,12 +1136,14 @@ export class NativeGlossary extends Glossary {
           end`,
         ),
       )
-      .orderBy(desc(sql`rank`))
-      .limit(limit);
+      // Apply the result limit only after the exact boundary filter below. The SQL predicate is
+      // intentionally a broad indexed candidate filter because PostgreSQL tokenizes hyphenated
+      // terms such as "e-ticket" into separate full-text tokens.
+      .orderBy(desc(sql`rank`));
 
     const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>
       row.conceptId &&
-      sourceContainsTerm(query.sourceText, {
+      concordanceSourceContainsTerm(query.sourceText, {
         sourceTerm: row.matchedSourceTerm,
         caseSensitive: row.caseSensitive ?? false,
       })
