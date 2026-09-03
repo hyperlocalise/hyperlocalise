@@ -16,6 +16,9 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
+import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
+import type { VisualWorkflowDefinition } from "./schema/types";
+import type { VisualWorkflowRecord } from "./visual-workflow-types";
 import { getVisualWorkflowById } from "./visual-workflows";
 import type {
   VisualWorkflowNodeRunRecord,
@@ -27,6 +30,53 @@ import type {
 
 type VisualWorkflowRunRow = typeof schema.visualWorkflowRuns.$inferSelect;
 type VisualWorkflowNodeRunRow = typeof schema.visualWorkflowNodeRuns.$inferSelect;
+
+const DEFINITION_SNAPSHOT_KEY = "definitionSnapshot";
+
+function buildRunInputSnapshot(input: {
+  triggerInput?: Record<string, unknown>;
+  definition: VisualWorkflowDefinition;
+}): Record<string, unknown> {
+  const { [DEFINITION_SNAPSHOT_KEY]: _ignored, ...triggerInput } = input.triggerInput ?? {};
+  return {
+    ...triggerInput,
+    [DEFINITION_SNAPSHOT_KEY]: input.definition,
+  };
+}
+
+function extractTriggerInputFromRunSnapshot(
+  inputSnapshot: Record<string, unknown>,
+): Record<string, unknown> {
+  const { [DEFINITION_SNAPSHOT_KEY]: _ignored, ...triggerInput } = inputSnapshot;
+  return triggerInput;
+}
+
+function resolveRunDefinition(input: {
+  run: VisualWorkflowRunRecord;
+  workflow: VisualWorkflowRecord;
+}): VisualWorkflowDefinition | null {
+  const snapshot = input.run.inputSnapshot[DEFINITION_SNAPSHOT_KEY];
+  const parsedSnapshot = visualWorkflowDefinitionSchema.safeParse(snapshot);
+  if (parsedSnapshot.success) {
+    return parsedSnapshot.data;
+  }
+
+  if (input.run.definitionVersion === input.workflow.definitionVersion) {
+    return input.workflow.definition;
+  }
+
+  return null;
+}
+
+function mergeRunOutputSummary(
+  existing: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...existing,
+    ...patch,
+  };
+}
 
 function toIsoString(value: Date | null): string | null {
   return value ? value.toISOString() : null;
@@ -215,7 +265,10 @@ export async function createVisualWorkflowRun(input: {
       status: input.status ?? "queued",
       idempotencyKey: input.idempotencyKey ?? null,
       definitionVersion: workflow.definitionVersion,
-      inputSnapshot: input.inputSnapshot ?? {},
+      inputSnapshot: buildRunInputSnapshot({
+        triggerInput: input.inputSnapshot,
+        definition: workflow.definition,
+      }),
     })
     .onConflictDoNothing({
       target: [
@@ -253,7 +306,7 @@ export async function enqueueVisualWorkflowRunOnce(input: {
   dbClient?: DatabaseClient;
 }): Promise<boolean> {
   const dbClient = input.dbClient ?? db;
-  return dbClient.transaction(async (tx) => {
+  const shouldEnqueue = await dbClient.transaction(async (tx) => {
     const [run] = await tx
       .select({
         outputSummary: schema.visualWorkflowRuns.outputSummary,
@@ -279,8 +332,6 @@ export async function enqueueVisualWorkflowRunOnce(input: {
       return false;
     }
 
-    await input.enqueue();
-
     await tx
       .update(schema.visualWorkflowRuns)
       .set({
@@ -299,6 +350,12 @@ export async function enqueueVisualWorkflowRunOnce(input: {
 
     return true;
   });
+
+  if (shouldEnqueue) {
+    await input.enqueue();
+  }
+
+  return shouldEnqueue;
 }
 
 export async function updateVisualWorkflowRun(input: {
@@ -347,6 +404,29 @@ export async function upsertVisualWorkflowNodeRun(input: {
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowNodeRunRecord> {
   const dbClient = input.dbClient ?? db;
+  const conflictUpdate: Partial<typeof schema.visualWorkflowNodeRuns.$inferInsert> & {
+    updatedAt: Date;
+  } = {
+    status: input.status,
+    updatedAt: new Date(),
+  };
+
+  if (input.inputSnapshot !== undefined) {
+    conflictUpdate.inputSnapshot = input.inputSnapshot;
+  }
+  if (input.outputSnapshot !== undefined) {
+    conflictUpdate.outputSnapshot = input.outputSnapshot;
+  }
+  if (input.error !== undefined) {
+    conflictUpdate.error = input.error;
+  }
+  if (input.startedAt !== undefined) {
+    conflictUpdate.startedAt = input.startedAt;
+  }
+  if (input.finishedAt !== undefined) {
+    conflictUpdate.finishedAt = input.finishedAt;
+  }
+
   const [row] = await dbClient
     .insert(schema.visualWorkflowNodeRuns)
     .values({
@@ -363,19 +443,37 @@ export async function upsertVisualWorkflowNodeRun(input: {
     })
     .onConflictDoUpdate({
       target: [schema.visualWorkflowNodeRuns.runId, schema.visualWorkflowNodeRuns.nodeId],
-      set: {
-        status: input.status,
-        inputSnapshot: input.inputSnapshot ?? {},
-        outputSnapshot: input.outputSnapshot ?? {},
-        error: input.error ?? null,
-        startedAt: input.startedAt ?? null,
-        finishedAt: input.finishedAt ?? null,
-        updatedAt: new Date(),
-      },
+      set: conflictUpdate,
     })
     .returning();
 
   return serializeNodeRun(row);
+}
+
+export async function failInFlightVisualWorkflowRun(input: {
+  runId: string;
+  organizationId: string;
+  visualWorkflowId: string;
+  message: string;
+}): Promise<void> {
+  const run = await getVisualWorkflowRunById({
+    organizationId: input.organizationId,
+    visualWorkflowId: input.visualWorkflowId,
+    runId: input.runId,
+  });
+
+  if (!run || run.status !== "running") {
+    return;
+  }
+
+  await updateVisualWorkflowRun({
+    runId: input.runId,
+    organizationId: input.organizationId,
+    status: "failed",
+    error: { message: input.message },
+    outputSummary: run.outputSummary,
+    completedAt: new Date(),
+  });
 }
 
 export async function executeVisualWorkflowRun(input: {
@@ -407,6 +505,18 @@ export async function executeVisualWorkflowRun(input: {
     return null;
   }
 
+  const definition = resolveRunDefinition({ run, workflow });
+  if (!definition) {
+    return updateVisualWorkflowRun({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      status: "failed",
+      error: { message: "visual_workflow_definition_snapshot_missing" },
+      outputSummary: run.outputSummary,
+      completedAt: new Date(),
+    });
+  }
+
   await updateVisualWorkflowRun({
     runId: input.runId,
     organizationId: input.organizationId,
@@ -416,9 +526,9 @@ export async function executeVisualWorkflowRun(input: {
 
   const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter");
   const result = await runVisualWorkflowInterpreter({
-    definition: workflow.definition,
+    definition,
     organizationId: input.organizationId,
-    triggerInput: run.inputSnapshot,
+    triggerInput: extractTriggerInputFromRunSnapshot(run.inputSnapshot),
     onNodeUpdate: async (update) => {
       await upsertVisualWorkflowNodeRun({
         runId: input.runId,
@@ -426,11 +536,13 @@ export async function executeVisualWorkflowRun(input: {
         nodeId: update.nodeId,
         nodeType: update.nodeType,
         status: update.status,
-        inputSnapshot: update.inputSnapshot,
-        outputSnapshot: update.outputSnapshot,
-        error: update.error ?? null,
-        startedAt: update.status === "running" ? new Date() : undefined,
-        finishedAt: update.status === "succeeded" || update.status === "failed" ? new Date() : null,
+        ...(update.inputSnapshot !== undefined ? { inputSnapshot: update.inputSnapshot } : {}),
+        ...(update.outputSnapshot !== undefined ? { outputSnapshot: update.outputSnapshot } : {}),
+        ...(update.error !== undefined ? { error: update.error } : {}),
+        ...(update.status === "running" ? { startedAt: new Date() } : {}),
+        ...(update.status === "succeeded" || update.status === "failed"
+          ? { finishedAt: new Date() }
+          : {}),
       });
     },
   });
@@ -444,9 +556,9 @@ export async function executeVisualWorkflowRun(input: {
         ...result.error,
         failedNodeId: result.failedNodeId,
       },
-      outputSummary: {
+      outputSummary: mergeRunOutputSummary(run.outputSummary, {
         nodeResults: result.nodeResults,
-      },
+      }),
       completedAt: new Date(),
     });
   }
@@ -455,9 +567,9 @@ export async function executeVisualWorkflowRun(input: {
     runId: input.runId,
     organizationId: input.organizationId,
     status: "succeeded",
-    outputSummary: {
+    outputSummary: mergeRunOutputSummary(run.outputSummary, {
       nodeResults: result.nodeResults,
-    },
+    }),
     completedAt: new Date(),
   });
 }

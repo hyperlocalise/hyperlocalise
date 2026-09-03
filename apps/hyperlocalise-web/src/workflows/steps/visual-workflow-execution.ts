@@ -49,7 +49,8 @@ export async function executeVisualWorkflowStep(
 
   logger.info(stepContext, "visual workflow execution step started");
 
-  const { executeVisualWorkflowRun } = await import("@/lib/visual-workflows/visual-workflow-runs");
+  const { executeVisualWorkflowRun, failInFlightVisualWorkflowRun } =
+    await import("@/lib/visual-workflows/visual-workflow-runs");
 
   try {
     const run = await executeVisualWorkflowRun({
@@ -94,13 +95,14 @@ export async function executeVisualWorkflowStep(
   } catch (error) {
     const message = error instanceof Error ? error.message : "visual_workflow_step_failed";
     logger.error({ ...stepContext, message }, "visual workflow execution step threw");
-    return {
-      ok: false,
-      error: {
-        code: "execution_failed",
-        message,
-        runId: event.visualWorkflowRunId,
-      },
-    };
+
+    await failInFlightVisualWorkflowRun({
+      runId: event.visualWorkflowRunId,
+      organizationId: event.organizationId,
+      visualWorkflowId: event.visualWorkflowId,
+      message,
+    }).catch(() => undefined);
+
+    throw error;
   }
 }
