@@ -104,7 +104,7 @@ export const NotifyOnPushBlockers: Story = {
   ...templateStory("notify-on-push-blockers"),
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByLabelText("GitHub push → GitHub → GitHub comment"),
+      canvas.getByLabelText("GitHub pull request → GitHub → GitHub comment"),
     ).toBeInTheDocument();
   },
 };

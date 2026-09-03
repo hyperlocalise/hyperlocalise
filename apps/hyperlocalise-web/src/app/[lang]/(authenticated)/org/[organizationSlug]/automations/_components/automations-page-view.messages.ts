@@ -152,14 +152,9 @@ export const automationsPageViewMessages = defineMessages({
     id: "EvF3cGlK0a",
     description: "Template category filter tab for release readiness templates",
   },
-  addTemplate: {
-    defaultMessage: "Add",
-    id: "rIuVU6iths",
-    description: "Button to create an automation from a template",
-  },
   comingSoon: {
     defaultMessage: "Coming soon",
-    id: "Oyb9LX/sl2",
-    description: "Disabled button when a template is not yet activatable",
+    id: "lHdvBQ5B1/",
+    description: "Badge when a template is not yet activatable",
   },
 });

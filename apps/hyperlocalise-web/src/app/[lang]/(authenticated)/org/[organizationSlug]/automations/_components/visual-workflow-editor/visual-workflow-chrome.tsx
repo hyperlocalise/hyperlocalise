@@ -46,7 +46,8 @@ export function VisualWorkflowChrome({
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           aria-label={intl.formatMessage(messages.workflowNameLabel)}
-          className="h-8 max-w-xs border-transparent bg-transparent px-2 font-medium shadow-none focus-visible:border-ring"
+          variant="inline"
+          className="max-w-xs px-2 font-medium"
         />
         <Badge variant="outline" className="rounded-full">
           <FormattedMessage {...messages.previewBadge} />

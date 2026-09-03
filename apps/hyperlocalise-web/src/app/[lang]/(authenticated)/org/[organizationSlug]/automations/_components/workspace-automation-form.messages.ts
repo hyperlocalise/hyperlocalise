@@ -927,11 +927,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "Ej5U0a0604",
     description: "Section heading for automation agent instructions",
   },
-  modelSection: {
-    defaultMessage: "Model",
-    id: "XCYkEzJaA9",
-    description: "Section heading for the automation language model selector",
-  },
   modelLabel: {
     defaultMessage: "Model",
     id: "yKlYrz3iYw",

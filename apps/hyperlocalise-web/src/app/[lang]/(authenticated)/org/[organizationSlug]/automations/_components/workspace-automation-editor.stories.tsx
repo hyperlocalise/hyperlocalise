@@ -120,8 +120,8 @@ export const CreateEmpty: Story = {
     await expect(
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("combobox", { name: "Model" })).toBeInTheDocument();
-    await expect(canvas.getByRole("combobox", { name: "Model" })).toHaveTextContent("GPT-5.6 Luna");
+    await expect(canvas.getByRole("button", { name: "Model" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Model" })).toHaveTextContent("GPT-5.6 Luna");
   },
 };
 
@@ -140,12 +140,12 @@ export const ProjectSelectorForScheduledTrigger: Story = {
 export const CreateModelOptions: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(canvas.getByRole("combobox", { name: "Model" }));
-    await expect(await body.findByRole("option", { name: "GPT-5.6 Luna" })).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: "GPT-5.6 Terra" })).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: "GPT-5.6 Sol" })).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: "Claude Sonnet 5" })).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: "Claude Opus 5" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Model" }));
+    await expect(await body.findByRole("menuitem", { name: "GPT-5.6 Luna" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "GPT-5.6 Terra" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "GPT-5.6 Sol" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Claude Sonnet 5" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Claude Opus 5" })).toBeInTheDocument();
   },
 };
 

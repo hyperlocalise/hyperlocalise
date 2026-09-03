@@ -25,6 +25,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
 import type {
   WorkspaceAutomationTemplate,
   WorkspaceAutomationTemplateCategory,
@@ -32,7 +33,7 @@ import type {
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { AutomationTemplateFlow } from "./automation-template-flow";
+import { AutomationTemplateFlow, AutomationTemplateTriggerIcon } from "./automation-template-flow";
 import type { GithubAutoReviewSettingsDto, GithubAutoReviewSettingsWrite } from "./automations-api";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
@@ -127,6 +128,54 @@ function defaultRenderActionLink({
       {children}
     </Button>
   );
+}
+
+function AutomationTemplateCard({
+  automationsBasePath,
+  renderAutomationLink,
+  template,
+}: {
+  automationsBasePath: string;
+  renderAutomationLink: AutomationsLinkRenderer;
+  template: WorkspaceAutomationTemplate;
+}) {
+  const card = (
+    <Card
+      size="sm"
+      className={cn(
+        "flex-row items-start gap-3.5 bg-muted px-5 py-5",
+        template.activatable && "transition-colors hover:bg-subtle",
+      )}
+    >
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-subtle ring-1 ring-border">
+        <AutomationTemplateTriggerIcon template={template} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-start gap-2">
+          <CardTitle className="text-sm font-semibold">{template.name}</CardTitle>
+          {template.activatable ? null : (
+            <Badge variant="outline" className="shrink-0">
+              <FormattedMessage {...automationsPageViewMessages.comingSoon} />
+            </Badge>
+          )}
+        </div>
+        <CardDescription className="line-clamp-2 text-pretty">
+          {template.description}
+        </CardDescription>
+        <AutomationTemplateFlow template={template} />
+      </div>
+    </Card>
+  );
+
+  if (!template.activatable) {
+    return card;
+  }
+
+  return renderAutomationLink({
+    href: `${automationsBasePath}/new?template=${template.id}`,
+    className: "rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    children: card,
+  });
 }
 
 function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomationRecord }) {
@@ -356,28 +405,12 @@ export function AutomationsPageView({
           </TabsList>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredTemplates.map((template) => (
-              <Card key={template.id} size="sm" className="gap-4 px-5 py-5">
-                <AutomationTemplateFlow template={template} />
-                <div className="space-y-1.5">
-                  <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
-                  <p className="text-sm text-pretty text-muted-foreground">
-                    {template.description}
-                  </p>
-                </div>
-                <div className="mt-auto flex items-center gap-2">
-                  {template.activatable ? (
-                    renderActionLink({
-                      href: `${automationsBasePath}/new?template=${template.id}`,
-                      kind: "template",
-                      children: <FormattedMessage {...automationsPageViewMessages.addTemplate} />,
-                    })
-                  ) : (
-                    <Button size="sm" variant="outline" className="rounded-full" disabled>
-                      <FormattedMessage {...automationsPageViewMessages.comingSoon} />
-                    </Button>
-                  )}
-                </div>
-              </Card>
+              <AutomationTemplateCard
+                key={template.id}
+                automationsBasePath={automationsBasePath}
+                renderAutomationLink={renderAutomationLink}
+                template={template}
+              />
             ))}
           </div>
         </Tabs>

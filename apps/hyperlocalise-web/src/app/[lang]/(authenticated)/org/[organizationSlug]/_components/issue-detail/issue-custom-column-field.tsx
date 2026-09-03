@@ -156,9 +156,9 @@ export function IssueCustomColumnField({
       onBlur={onCommit}
       disabled={disabled}
       placeholder={emptyValue}
+      variant={variant === "sidebar" ? "inline" : "default"}
       className={cn(
-        variant === "sidebar" &&
-          "h-8 border-transparent bg-transparent px-1.5 text-end shadow-none hover:bg-muted/60 focus-visible:border-ring",
+        variant === "sidebar" && "text-end",
         variant === "main" ? "w-full" : "w-44 max-w-full",
       )}
     />

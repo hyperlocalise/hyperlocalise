@@ -78,7 +78,7 @@ export const GithubTriggerHidesRun: Story = {
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
-    await expect(canvas.getByRole("combobox", { name: "Model" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Model" })).toBeInTheDocument();
   },
 };
 

@@ -102,7 +102,6 @@ import { getLocaleLabel } from "@/lib/i18n/locales";
 import {
   WORKSPACE_AUTOMATION_MODELS,
   type WorkspaceAutomationGithubTriggerEvent,
-  type WorkspaceAutomationModel,
   type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
@@ -545,6 +544,64 @@ function GithubRepositorySelect({
       </Select>
       <FieldError message={error} />
     </div>
+  );
+}
+
+function HeaderModelSelector({
+  disabled,
+  form,
+  onChange,
+}: {
+  disabled?: boolean;
+  form: WorkspaceAutomationFormState;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+}) {
+  const intl = useIntl();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={disabled}
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={intl.formatMessage(workspaceAutomationFormMessages.modelLabel)}
+            title={intl.formatMessage(workspaceAutomationFormMessages.modelDescription)}
+            className="h-auto gap-1 px-0 py-0 text-sm font-normal text-muted-foreground hover:bg-transparent hover:text-foreground disabled:opacity-50"
+          />
+        }
+      >
+        <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+        <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[form.model]} />
+        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="min-w-56" align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <FormattedMessage {...workspaceAutomationFormMessages.modelLabel} />
+          </DropdownMenuLabel>
+          {WORKSPACE_AUTOMATION_MODELS.map((model) => (
+            <DropdownMenuItem
+              key={model}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  model,
+                })
+              }
+            >
+              <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[model]} />
+              {form.model === model ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.selectedShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -3213,6 +3270,8 @@ export function WorkspaceAutomationEditor({
             onChange={onChange}
             projects={projectsQuery.data ?? []}
           />
+          <span className="text-border">{METADATA_SEPARATOR}</span>
+          <HeaderModelSelector disabled={disabled} form={form} onChange={onChange} />
           {form.triggerMode !== "manual" ? (
             <>
               <span className="text-border">{METADATA_SEPARATOR}</span>
@@ -3259,46 +3318,6 @@ export function WorkspaceAutomationEditor({
             organizationSlug={organizationSlug}
             repositories={repositories}
           />
-
-          <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.modelSection)}>
-            <EditorPanel>
-              <EditorRow
-                icon={<HugeiconsIcon icon={BrainCircuitIcon} className="size-4" />}
-                title={<FormattedMessage {...workspaceAutomationFormMessages.modelLabel} />}
-                description={
-                  <FormattedMessage {...workspaceAutomationFormMessages.modelDescription} />
-                }
-              >
-                <Select
-                  value={form.model}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-                    onChange({
-                      ...form,
-                      model: value as WorkspaceAutomationModel,
-                    });
-                  }}
-                  disabled={disabled}
-                >
-                  <SelectTrigger
-                    aria-label={intl.formatMessage(workspaceAutomationFormMessages.modelLabel)}
-                    className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORKSPACE_AUTOMATION_MODELS.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[model]} />
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </EditorRow>
-            </EditorPanel>
-          </EditorSection>
 
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}

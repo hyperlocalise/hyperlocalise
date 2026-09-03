@@ -13,7 +13,17 @@
  * Version 2.0 or later.
  */
 
-import { Clock01Icon, Comment01Icon, Mail01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Fragment } from "react";
+import {
+  Clock01Icon,
+  Comment01Icon,
+  Mail01Icon,
+  Search01Icon,
+  CheckmarkCircle02Icon,
+  SparklesIcon,
+  Task01Icon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { siGithub } from "simple-icons";
 import Image from "next/image";
@@ -33,7 +43,11 @@ type IconBucket =
   | "email"
   | "contentful"
   | "web-search"
-  | "web-chat";
+  | "web-chat"
+  | "upload"
+  | "job"
+  | "translate"
+  | "validation";
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -43,8 +57,9 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "github-comment":
     case "push-source":
     case "pull-translations":
-    case "validation":
       return "github";
+    case "validation":
+      return "validation";
     case "slack":
       return "slack";
     case "email":
@@ -55,9 +70,14 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "web-search":
       return "web-search";
     case "web-chat":
-      return "web-chat";
     case "knowledge-files":
       return "web-chat";
+    case "source-upload":
+      return "upload";
+    case "create-job":
+      return "job";
+    case "translate-with-agent":
+      return "translate";
     case "scheduled":
     case "manual":
     default:
@@ -65,51 +85,60 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
   }
 }
 
-function FlowIcon({ bucket }: { bucket: IconBucket }) {
+function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: string }) {
+  const iconClassName = cn("size-3.5", className);
+
   switch (bucket) {
     case "github":
-      return <SimpleBrandIcon icon={siGithub} colored className="size-4" />;
+      return <SimpleBrandIcon icon={siGithub} colored className={iconClassName} />;
     case "slack":
       return (
-        <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />
+        <Image
+          src="/images/slack-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
       );
     case "email":
-      return <HugeiconsIcon icon={Mail01Icon} className="size-4" />;
+      return <HugeiconsIcon icon={Mail01Icon} className={iconClassName} strokeWidth={1.8} />;
     case "contentful":
       return (
         <Image
           src="/images/contentful-logo.svg"
-          alt="Contentful"
+          alt=""
           width={16}
           height={16}
-          className="size-4"
+          className={iconClassName}
         />
       );
     case "web-search":
-      return <HugeiconsIcon icon={Search01Icon} className="size-4" strokeWidth={1.8} />;
+      return <HugeiconsIcon icon={Search01Icon} className={iconClassName} strokeWidth={1.8} />;
     case "web-chat":
-      return <HugeiconsIcon icon={Comment01Icon} className="size-4" strokeWidth={1.8} />;
+      return <HugeiconsIcon icon={Comment01Icon} className={iconClassName} strokeWidth={1.8} />;
+    case "upload":
+      return <HugeiconsIcon icon={Upload01Icon} className={iconClassName} strokeWidth={1.8} />;
+    case "job":
+      return <HugeiconsIcon icon={Task01Icon} className={iconClassName} strokeWidth={1.8} />;
+    case "translate":
+      return <HugeiconsIcon icon={SparklesIcon} className={iconClassName} strokeWidth={1.8} />;
+    case "validation":
+      return (
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} strokeWidth={1.8} />
+      );
     case "schedule":
-      return <HugeiconsIcon icon={Clock01Icon} className="size-4" strokeWidth={1.8} />;
+      return <HugeiconsIcon icon={Clock01Icon} className={iconClassName} strokeWidth={1.8} />;
   }
 }
 
-function uniqueToolBuckets(
-  trigger: WorkspaceAutomationTemplateFlowNode,
-  tools: WorkspaceAutomationTemplateFlowNode[],
-) {
-  const triggerBucket = iconBucketForNode(trigger);
-  const buckets: IconBucket[] = [];
-
-  for (const tool of tools) {
-    const bucket = iconBucketForNode(tool);
-    if (bucket === triggerBucket || buckets.includes(bucket)) {
-      continue;
-    }
-    buckets.push(bucket);
-  }
-
-  return buckets;
+export function AutomationTemplateTriggerIcon({
+  template,
+}: {
+  template: WorkspaceAutomationTemplate;
+}) {
+  const flow = getWorkspaceAutomationTemplateFlow(template);
+  return <FlowIcon bucket={iconBucketForNode(flow.trigger)} className="size-4" />;
 }
 
 export function AutomationTemplateFlow({
@@ -120,25 +149,28 @@ export function AutomationTemplateFlow({
   template: WorkspaceAutomationTemplate;
 }) {
   const flow = getWorkspaceAutomationTemplateFlow(template);
-  const triggerBucket = iconBucketForNode(flow.trigger);
-  const toolBuckets = uniqueToolBuckets(flow.trigger, flow.tools);
-  const summary = [flow.trigger.label, ...flow.tools.map((tool) => tool.label)].join(" → ");
+  const steps = [flow.trigger, ...flow.tools];
+  const summary = steps.map((step) => step.label).join(" → ");
 
   return (
     <div
-      className={cn("flex items-center gap-2 text-muted-foreground", className)}
+      className={cn("flex flex-wrap items-center gap-1.5 text-muted-foreground", className)}
       title={summary}
       aria-label={summary}
     >
-      <FlowIcon bucket={triggerBucket} />
-      {toolBuckets.length > 0 ? (
-        <>
-          <span className="h-px w-3 shrink-0 bg-muted5" aria-hidden />
-          {toolBuckets.map((bucket) => (
-            <FlowIcon key={bucket} bucket={bucket} />
-          ))}
-        </>
-      ) : null}
+      {steps.map((step, index) => (
+        <Fragment key={`${step.id}-${index}`}>
+          {index > 0 ? (
+            <span aria-hidden className="text-xs">
+              →
+            </span>
+          ) : null}
+          <span className="flex items-center gap-1.5">
+            <FlowIcon bucket={iconBucketForNode(step)} />
+            <span className="text-xs whitespace-nowrap">{step.label}</span>
+          </span>
+        </Fragment>
+      ))}
     </div>
   );
 }

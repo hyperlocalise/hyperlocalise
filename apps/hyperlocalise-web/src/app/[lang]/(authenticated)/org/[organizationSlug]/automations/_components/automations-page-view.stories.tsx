@@ -62,7 +62,7 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "From Hyperlocalise" })).toBeInTheDocument();
     await expect(
-      canvas.getByRole("heading", { name: "Review localisation before it merges" }),
+      canvas.getByRole("heading", { name: "Automate GTM, review, and research workflows" }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Auto-review/ })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Configure" })).toBeInTheDocument();
@@ -143,14 +143,15 @@ export const MarketingTemplates: Story = {
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Marketing" }));
     await expect(canvas.getByText("Market messaging brief")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Coming soon" })).toBeInTheDocument();
+    await expect(canvas.getByText("Coming soon")).toBeInTheDocument();
   },
 };
 
 export const ActivatableTemplate: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Add" })).not.toHaveLength(0);
+    await expect(
+      canvas.getByRole("link", { name: /Translate Contentful article/i }),
+    ).toHaveAttribute("href", "/org/acme/automations/new?template=translate-contentful-article");
   },
 };
 
