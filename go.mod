@@ -14,7 +14,7 @@ require (
 	github.com/crowdin/crowdin-api-client-go v0.18.0
 	github.com/gobwas/glob v1.0.0
 	github.com/invopop/jsonschema v0.14.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/openai/openai-go/v3 v3.54.0
