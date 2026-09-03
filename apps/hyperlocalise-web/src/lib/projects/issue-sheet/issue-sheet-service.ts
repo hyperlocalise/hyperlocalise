@@ -163,12 +163,12 @@ const FEED_CURSOR_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 function parseFeedCursor(
   cursor: string,
-): { createdAt: string; sortRank: number; id: string } | null {
+): { createdAt: string; sortRank: number; id: string; issueId?: string } | null {
   const parts = cursor.split("|");
-  if (parts.length !== 3) {
+  if (parts.length !== 3 && parts.length !== 4) {
     return null;
   }
-  const [createdAt, sortRankRaw, id] = parts;
+  const [createdAt, sortRankRaw, id, issueId] = parts;
   if (!createdAt || Number.isNaN(Date.parse(createdAt))) {
     return null;
   }
@@ -178,11 +178,20 @@ function parseFeedCursor(
   if (!id || !FEED_CURSOR_UUID_PATTERN.test(id)) {
     return null;
   }
-  return { createdAt, sortRank: Number(sortRankRaw), id };
+  if (issueId !== undefined && !FEED_CURSOR_UUID_PATTERN.test(issueId)) {
+    return null;
+  }
+  return { createdAt, sortRank: Number(sortRankRaw), id, issueId };
 }
 
-function encodeFeedCursor(input: { createdAt: string; sortRank: number; id: string }) {
-  return `${input.createdAt}|${input.sortRank}|${input.id}`;
+function encodeFeedCursor(input: {
+  createdAt: string;
+  sortRank: number;
+  id: string;
+  issueId?: string;
+}) {
+  const cursor = `${input.createdAt}|${input.sortRank}|${input.id}`;
+  return input.issueId ? `${cursor}|${input.issueId}` : cursor;
 }
 
 type ActivityRow = {
@@ -851,29 +860,16 @@ export class IssueSheetService {
 
     const commentsOnly = input.mode === "comments";
 
-    if (parsedCursor && commentsOnly) {
-      if (parsedCursor.sortRank !== 1) {
-        throw new Error("invalid_issue_sheet_feed_cursor");
-      }
+    if (parsedCursor?.issueId && parsedCursor.issueId !== issue.id) {
+      throw new Error("invalid_issue_sheet_feed_cursor");
+    }
 
-      const [cursorComment] = await this.database
-        .select({ id: schema.issueSheetComments.id })
-        .from(schema.issueSheetComments)
-        .where(
-          and(
-            eq(schema.issueSheetComments.organizationId, input.organizationId),
-            eq(schema.issueSheetComments.projectId, input.projectId),
-            eq(schema.issueSheetComments.issueId, issue.id),
-            eq(schema.issueSheetComments.id, parsedCursor.id),
-            eq(schema.issueSheetComments.depth, 0),
-            sql`${schema.issueSheetComments.createdAt} = ${parsedCursor.createdAt}::timestamptz`,
-          ),
-        )
-        .limit(1);
-
-      if (!cursorComment) {
-        throw new Error("invalid_issue_sheet_feed_cursor");
-      }
+    if (
+      parsedCursor &&
+      commentsOnly &&
+      (parsedCursor.sortRank !== 1 || parsedCursor.issueId === undefined)
+    ) {
+      throw new Error("invalid_issue_sheet_feed_cursor");
     }
 
     const kindFilter = commentsOnly ? sql`and feed.kind = 'comment_thread'` : sql``;
@@ -1058,6 +1054,7 @@ export class IssueSheetService {
         createdAt: String(last.created_at_cursor),
         sortRank: Number(last.sort_rank),
         id: String(last.id),
+        ...(commentsOnly ? { issueId: issue.id } : {}),
       });
     }
 

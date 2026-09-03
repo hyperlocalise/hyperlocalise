@@ -2777,7 +2777,7 @@ describe("mcpRoutes", () => {
     expect(output.comments.some((item) => item.id === comment.value.id)).toBe(false);
   });
 
-  it("paginates comments without activity-only pages", async () => {
+  it("paginates comments after the cursor comment is deleted", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);
     const auth = globalThis.__testApiAuthContext;
@@ -2921,6 +2921,17 @@ describe("mcpRoutes", () => {
     expect(firstPage.comments).toEqual([expect.objectContaining(expectedComments[0])]);
 
     expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+    const deleted = await commentService.delete({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      commentId: firstPage.comments[0]!.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+    });
+
+    expect(deleted).toEqual({ ok: true });
 
     const secondPage = await callListIssueComments(firstPage.nextCursor!);
 
