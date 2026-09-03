@@ -200,4 +200,83 @@ describe("visual workflow interpreter", () => {
     expect(result.ok).toBe(true);
     expect(started.filter((nodeId) => nodeId === "noop")).toHaveLength(2);
   });
+
+  it("orders multi-node loop bodies by dependencies", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Ordered loop body",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "loop",
+          type: "logic.for_each",
+          config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
+        },
+        { id: "first", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "second", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "first", sourceHandle: null, targetHandle: null },
+        { id: "e3", source: "first", target: "second", sourceHandle: "true", targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      triggerInput: { items: ["a"] },
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started.indexOf("second")).toBeGreaterThan(started.indexOf("first"));
+  });
+
+  it("respects conditional branching inside loop bodies", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Loop branching",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "loop",
+          type: "logic.for_each",
+          config: { kind: "logic.for_each", collection: "{{trigger.items}}" },
+        },
+        { id: "iff", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "taken", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "skipped", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "loop", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "loop", target: "iff", sourceHandle: null, targetHandle: null },
+        { id: "e3", source: "iff", target: "taken", sourceHandle: "true", targetHandle: null },
+        { id: "e4", source: "iff", target: "skipped", sourceHandle: "false", targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      triggerInput: { items: ["a"] },
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("taken");
+    expect(started).not.toContain("skipped");
+  });
 });

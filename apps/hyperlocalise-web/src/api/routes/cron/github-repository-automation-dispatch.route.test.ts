@@ -33,6 +33,13 @@ const runWorkspaceAutomationSchedulerMock = vi.fn(async () => ({
   duplicates: 0,
 }));
 
+const runVisualWorkflowSchedulerMock = vi.fn(async () => ({
+  processed: 1,
+  enqueued: 1,
+  skipped: 0,
+  duplicates: 0,
+}));
+
 async function createClient(input?: { cronSecret?: string | null }) {
   const cronSecret = input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
 
@@ -45,6 +52,9 @@ async function createClient(input?: { cronSecret?: string | null }) {
   }));
   vi.doMock("@/lib/agents/workspace-automation-scheduler", () => ({
     runWorkspaceAutomationScheduler: runWorkspaceAutomationSchedulerMock,
+  }));
+  vi.doMock("@/lib/visual-workflows/visual-workflow-scheduler", () => ({
+    runVisualWorkflowScheduler: runVisualWorkflowSchedulerMock,
   }));
   vi.doMock("@/lib/env", () => ({
     env: {
@@ -65,10 +75,12 @@ describe("github repository automation dispatch cron route", () => {
     vi.doUnmock("@/lib/agents/github/github-repository-automation-scheduler");
     vi.doUnmock("@/lib/agents/github/github-repository-automation-worker");
     vi.doUnmock("@/lib/agents/workspace-automation-scheduler");
+    vi.doUnmock("@/lib/visual-workflows/visual-workflow-scheduler");
     vi.doUnmock("@/lib/env");
     runGithubRepositoryAutomationSchedulerMock.mockClear();
     runGithubRepositoryAutomationWorkerMock.mockClear();
     runWorkspaceAutomationSchedulerMock.mockClear();
+    runVisualWorkflowSchedulerMock.mockClear();
   });
 
   it("rejects requests without the cron secret", async () => {
@@ -107,6 +119,12 @@ describe("github repository automation dispatch cron route", () => {
           skipped: 0,
           duplicates: 0,
         },
+        visualWorkflowScheduler: {
+          processed: 1,
+          enqueued: 1,
+          skipped: 0,
+          duplicates: 0,
+        },
         worker: {
           processed: 1,
           started: 1,
@@ -116,6 +134,7 @@ describe("github repository automation dispatch cron route", () => {
     });
     expect(runGithubRepositoryAutomationSchedulerMock).toHaveBeenCalledTimes(1);
     expect(runWorkspaceAutomationSchedulerMock).toHaveBeenCalledTimes(1);
+    expect(runVisualWorkflowSchedulerMock).toHaveBeenCalledTimes(1);
     expect(runGithubRepositoryAutomationWorkerMock).toHaveBeenCalledTimes(1);
   });
 });

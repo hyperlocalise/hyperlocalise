@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { branchMatchesAutomationPatterns } from "@/lib/agents/github/github-repository-automation-settings";
 
 import { isTriggerType } from "../catalog/node-catalog";
@@ -152,8 +153,13 @@ export function validateVisualWorkflowTriggerConfig(
         return { ok: false, message: "At least one branch pattern is required." };
       }
       return { ok: true };
-    case "trigger.scheduled":
+    case "trigger.scheduled": {
+      const timezone = config.schedule.timezone?.trim();
+      if (timezone && !isValidAutomationTimeZone(timezone)) {
+        return { ok: false, message: "Schedule timezone is invalid." };
+      }
       return { ok: true };
+    }
     case "trigger.source_upload":
       return { ok: true };
     case "trigger.manual":

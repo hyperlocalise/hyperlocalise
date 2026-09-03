@@ -225,6 +225,12 @@ export async function createVisualWorkflow(input: {
   }
 
   const status = input.status ?? "draft";
+  if (status === "active") {
+    const activeTrigger = validateActiveVisualWorkflowTrigger(validated.value);
+    if (!activeTrigger.ok) {
+      return err({ code: "invalid_active_trigger", message: activeTrigger.message });
+    }
+  }
 
   const [row] = await dbClient
     .insert(schema.visualWorkflows)

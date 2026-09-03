@@ -39,6 +39,33 @@ import type { VisualWorkflowRunTriggerSource } from "./visual-workflow-run-types
 
 const logger = createLogger("visual-workflow-dispatch");
 
+const ACTIVE_WORKFLOW_PAGE_SIZE = 100;
+
+async function listAllActiveVisualWorkflows(
+  organizationId: string,
+): Promise<VisualWorkflowRecord[]> {
+  const workflows: VisualWorkflowRecord[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await listVisualWorkflows({
+      organizationId,
+      status: "active",
+      limit: ACTIVE_WORKFLOW_PAGE_SIZE,
+      offset,
+    });
+    workflows.push(...page);
+
+    if (page.length < ACTIVE_WORKFLOW_PAGE_SIZE) {
+      break;
+    }
+
+    offset += ACTIVE_WORKFLOW_PAGE_SIZE;
+  }
+
+  return workflows;
+}
+
 export type VisualWorkflowDispatchResult =
   | {
       outcome: "enqueued";
@@ -77,7 +104,21 @@ async function dispatchVisualWorkflowRun(input: {
     visualWorkflowId: input.workflow.id,
     idempotencyKey: input.idempotencyKey,
   });
+  const queue = executionQueue(input.queue);
+
   if (existing) {
+    await enqueueVisualWorkflowRunOnce({
+      runId: existing.id,
+      organizationId: input.workflow.organizationId,
+      enqueue: async () => {
+        await queue.enqueue({
+          visualWorkflowRunId: existing.id,
+          visualWorkflowId: input.workflow.id,
+          organizationId: input.workflow.organizationId,
+        });
+      },
+    });
+
     return {
       outcome: "enqueued",
       runId: existing.id,
@@ -93,7 +134,6 @@ async function dispatchVisualWorkflowRun(input: {
     inputSnapshot: input.inputSnapshot,
   });
 
-  const queue = executionQueue(input.queue);
   const enqueued = await enqueueVisualWorkflowRunOnce({
     runId: run.id,
     organizationId: input.workflow.organizationId,
@@ -151,13 +191,7 @@ export async function dispatchVisualWorkflowsForGithubPush(input: {
   commitAfter: string;
   queue?: VisualWorkflowExecutionQueue;
 }): Promise<VisualWorkflowDispatchResult[]> {
-  const workflows = (
-    await listVisualWorkflows({
-      organizationId: input.organizationId,
-      status: "active",
-      limit: 100,
-    })
-  ).filter((workflow) =>
+  const workflows = (await listAllActiveVisualWorkflows(input.organizationId)).filter((workflow) =>
     visualWorkflowShouldDispatchOnGithubPush(workflow, {
       githubInstallationRepositoryId: input.githubInstallationRepositoryId,
       branch: input.branch,
@@ -213,13 +247,7 @@ export async function dispatchVisualWorkflowsForGithubPullRequest(input: {
   commitAfter: string;
   queue?: VisualWorkflowExecutionQueue;
 }): Promise<VisualWorkflowDispatchResult[]> {
-  const workflows = (
-    await listVisualWorkflows({
-      organizationId: input.organizationId,
-      status: "active",
-      limit: 100,
-    })
-  ).filter((workflow) =>
+  const workflows = (await listAllActiveVisualWorkflows(input.organizationId)).filter((workflow) =>
     visualWorkflowShouldDispatchOnGithubPullRequest(workflow, {
       githubInstallationRepositoryId: input.githubInstallationRepositoryId,
       baseBranch: input.baseBranch,
@@ -274,13 +302,7 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
   sourceFileId: string;
   queue?: VisualWorkflowExecutionQueue;
 }): Promise<VisualWorkflowDispatchResult[]> {
-  const workflows = (
-    await listVisualWorkflows({
-      organizationId: input.organizationId,
-      status: "active",
-      limit: 100,
-    })
-  ).filter((workflow) =>
+  const workflows = (await listAllActiveVisualWorkflows(input.organizationId)).filter((workflow) =>
     visualWorkflowShouldDispatchOnSourceUpload(workflow, { projectId: input.projectId }),
   );
 

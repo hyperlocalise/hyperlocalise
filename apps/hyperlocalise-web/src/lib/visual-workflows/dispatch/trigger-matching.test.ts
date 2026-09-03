@@ -109,4 +109,29 @@ describe("visual workflow trigger matching", () => {
     const result = validateActiveVisualWorkflowTrigger(definition);
     expect(result.ok).toBe(false);
   });
+
+  it("rejects scheduled triggers with invalid time zones", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Scheduled",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.scheduled",
+          config: {
+            kind: "trigger.scheduled",
+            schedule: { cadence: "daily", timezone: "Not a zone" },
+          },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+
+    const result = validateActiveVisualWorkflowTrigger(definition);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain("timezone");
+    }
+  });
 });

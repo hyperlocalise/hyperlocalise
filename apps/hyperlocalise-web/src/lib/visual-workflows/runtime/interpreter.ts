@@ -23,7 +23,7 @@ import {
   selectNextEdges,
   type VisualWorkflowGraphIndex,
 } from "./graph-index";
-import { findForEachLoopRegion, sortLoopBodyNodes } from "./loop-region";
+import { findForEachLoopRegion, incomingEdgesForNode, sortLoopBodyNodes } from "./loop-region";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -116,6 +116,93 @@ function releaseSkippedOutgoingEdge(input: {
   });
 }
 
+type RunNodeResult =
+  | { ok: true; branchResult?: boolean; nodeType: string }
+  | { ok: false; error: Record<string, unknown> };
+
+async function runScopedSubgraph(input: {
+  graph: VisualWorkflowGraphIndex;
+  nodeIds: readonly string[];
+  runNode: (nodeId: string) => Promise<RunNodeResult>;
+}): Promise<
+  | { ok: true; lastCompletedNodeId?: string }
+  | { ok: false; failedNodeId: string; error: Record<string, unknown> }
+> {
+  const scope = new Set(input.nodeIds);
+  const pendingIncoming = new Map<string, number>();
+  const completed = new Set<string>();
+  const skipped = new Set<string>();
+  const queue: string[] = [];
+  let lastCompletedNodeId: string | undefined;
+
+  for (const nodeId of input.nodeIds) {
+    const incomingCount = incomingEdgesForNode(input.graph, nodeId).filter((edge) =>
+      scope.has(edge.source),
+    ).length;
+    pendingIncoming.set(nodeId, incomingCount);
+    if (incomingCount === 0) {
+      queue.push(nodeId);
+    }
+  }
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
+      continue;
+    }
+    completed.add(nodeId);
+
+    const execution = await input.runNode(nodeId);
+    if (!execution.ok) {
+      return { ok: false, failedNodeId: nodeId, error: execution.error };
+    }
+    lastCompletedNodeId = nodeId;
+
+    const node = input.graph.nodesById.get(nodeId);
+    if (!node) {
+      continue;
+    }
+
+    const outgoing = input.graph.outgoingByNodeId.get(nodeId) ?? [];
+    const nextEdges = selectNextEdges({
+      nodeType: node.type,
+      branchResult: execution.branchResult ?? null,
+      outgoing,
+    });
+    const selectedEdgeIds = new Set(nextEdges.map((edge) => edge.id));
+
+    for (const edge of nextEdges) {
+      if (!scope.has(edge.target)) {
+        continue;
+      }
+      releasePredecessorEdge({
+        pendingIncoming,
+        queue,
+        targetNodeId: edge.target,
+      });
+    }
+
+    if (node.type === "logic.if") {
+      for (const edge of outgoing) {
+        if (selectedEdgeIds.has(edge.id) || !scope.has(edge.target)) {
+          continue;
+        }
+
+        releaseSkippedOutgoingEdge({
+          edge,
+          graph: input.graph,
+          completed,
+          skipped,
+          pendingIncoming,
+          queue,
+        });
+      }
+    }
+  }
+
+  return { ok: true, lastCompletedNodeId };
+}
+
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
@@ -140,12 +227,7 @@ export async function runVisualWorkflowInterpreter(input: {
   const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
 
-  const runNode = async (
-    nodeId: string,
-  ): Promise<
-    | { ok: true; branchResult?: boolean; nodeType: string }
-    | { ok: false; error: Record<string, unknown> }
-  > => {
+  const runNode = async (nodeId: string): Promise<RunNodeResult> => {
     const node = graph.nodesById.get(nodeId);
     if (!node) {
       return { ok: false, error: { message: "Node not found." } };
@@ -228,20 +310,22 @@ export async function runVisualWorkflowInterpreter(input: {
           index,
         });
 
-        for (const bodyNodeId of orderedBody) {
-          const bodyResult = await runNode(bodyNodeId);
-          if (!bodyResult.ok) {
-            return {
-              ok: false,
-              context,
-              nodeResults,
-              failedNodeId: bodyNodeId,
-              error: bodyResult.error,
-            };
-          }
+        const bodyResult = await runScopedSubgraph({
+          graph,
+          nodeIds: orderedBody,
+          runNode,
+        });
+        if (!bodyResult.ok) {
+          return {
+            ok: false,
+            context,
+            nodeResults,
+            failedNodeId: bodyResult.failedNodeId,
+            error: bodyResult.error,
+          };
         }
 
-        const lastBodyNodeId = orderedBody.at(-1);
+        const lastBodyNodeId = bodyResult.lastCompletedNodeId;
         iterationOutputs.push(
           lastBodyNodeId ? (nodeResults[lastBodyNodeId] ?? {}) : { item: items[index], index },
         );

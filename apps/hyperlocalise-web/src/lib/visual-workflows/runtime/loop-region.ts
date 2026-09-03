@@ -13,7 +13,7 @@
 import type { CanonicalVisualWorkflowEdge } from "../schema/types";
 import type { VisualWorkflowGraphIndex } from "./graph-index";
 
-function incomingEdgesForNode(
+export function incomingEdgesForNode(
   graph: VisualWorkflowGraphIndex,
   nodeId: string,
 ): CanonicalVisualWorkflowEdge[] {
@@ -85,9 +85,7 @@ export function sortLoopBodyNodes(
   const pending = new Map<string, number>();
 
   for (const nodeId of bodyNodeIds) {
-    const incoming = incomingEdgesForNode(graph, nodeId).filter(
-      (edge) => bodySet.has(edge.source) || edge.source === forEachNodeId,
-    );
+    const incoming = incomingEdgesForNode(graph, nodeId).filter((edge) => bodySet.has(edge.source));
     pending.set(nodeId, incoming.length);
   }
 
