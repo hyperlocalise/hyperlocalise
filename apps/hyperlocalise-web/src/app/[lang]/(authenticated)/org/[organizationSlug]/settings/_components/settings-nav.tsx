@@ -60,7 +60,7 @@ export function SettingsNav({
   return (
     <nav
       aria-label={intl.formatMessage(messages.navAriaLabel)}
-      className="h-full w-full overflow-y-auto border-b border-border md:w-[13.75rem] md:border-r md:border-b-0"
+      className="w-full border-b border-border md:h-full md:w-[13.75rem] md:overflow-y-auto md:border-r md:border-b-0"
     >
       <Box paddingTop="3u" paddingBottom="4u" paddingStart="2u" paddingEnd="1.5u">
         <Rows spacing="3u">

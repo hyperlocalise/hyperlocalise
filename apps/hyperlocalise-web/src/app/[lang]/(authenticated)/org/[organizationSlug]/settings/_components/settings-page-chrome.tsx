@@ -15,8 +15,6 @@
 import type { ReactNode } from "react";
 
 import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
@@ -79,13 +77,9 @@ export function SettingsSectionHeader({
 
 export function SettingsLayoutFrame({ nav, children }: { nav: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
-      <Columns spacing="0" height="full" collapseBelow="medium">
-        <Column width="content">{nav}</Column>
-        <Column width="fluid">
-          <div className="h-full min-h-0 overflow-y-auto">{children}</div>
-        </Column>
-      </Columns>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
+      <div className="w-full shrink-0 md:h-full md:w-auto">{nav}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
     </div>
   );
 }
