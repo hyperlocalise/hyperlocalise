@@ -22,15 +22,10 @@ if (isDomEnvironment) {
     cleanup();
   });
 
-  if (!Element.prototype.getAnimations) {
-    Element.prototype.getAnimations = () => [];
-  }
-
-  if (!("getAnimations" in document.documentElement)) {
-    Object.defineProperty(document.documentElement, "getAnimations", {
-      value: () => [],
-    });
-  }
+  // happy-dom 20.12+ implements Web Animations. Motion then calls
+  // Animation.cancel(), which rejects `finished` as AbortError and Vitest
+  // treats that unhandled rejection as a failed run.
+  installNoopWebAnimations();
 
   if (!globalThis.ResizeObserver) {
     class ResizeObserverMock {
@@ -55,5 +50,60 @@ if (isDomEnvironment) {
 
   Element.prototype.getBoundingClientRect = function () {
     return defaultRect as DOMRect;
+  };
+}
+
+function installNoopWebAnimations() {
+  const createNoopAnimation = (): Animation => {
+    const animation = {
+      id: "",
+      currentTime: 0,
+      startTime: 0,
+      playbackRate: 1,
+      playState: "idle" as AnimationPlayState,
+      pending: false,
+      replaceState: "active" as AnimationReplaceState,
+      effect: null,
+      timeline: null,
+      onfinish: null,
+      oncancel: null,
+      onremove: null,
+      cancel() {},
+      finish() {},
+      play() {},
+      pause() {},
+      persist() {},
+      reverse() {},
+      updatePlaybackRate() {},
+      commitStyles() {},
+      addEventListener() {},
+      removeEventListener() {},
+      dispatchEvent() {
+        return true;
+      },
+    } as Animation;
+    Object.defineProperty(animation, "finished", {
+      value: Promise.resolve(animation),
+    });
+    Object.defineProperty(animation, "ready", {
+      value: Promise.resolve(animation),
+    });
+    return animation;
+  };
+
+  Element.prototype.animate = function () {
+    return createNoopAnimation();
+  };
+  Element.prototype.getAnimations = () => [];
+  document.getAnimations = () => [];
+
+  if (typeof Animation === "undefined") {
+    return;
+  }
+
+  const originalCancel = Animation.prototype.cancel;
+  Animation.prototype.cancel = function (this: Animation) {
+    void this.finished.catch(() => undefined);
+    originalCancel.call(this);
   };
 }
