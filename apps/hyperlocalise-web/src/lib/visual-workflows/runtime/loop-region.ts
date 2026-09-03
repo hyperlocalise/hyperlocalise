@@ -56,6 +56,12 @@ export function findForEachLoopRegion(input: {
     }
 
     body.add(nodeId);
+
+    const node = input.graph.nodesById.get(nodeId);
+    if (node?.type === "logic.for_each") {
+      continue;
+    }
+
     for (const edge of input.graph.outgoingByNodeId.get(nodeId) ?? []) {
       queue.push(edge.target);
     }

@@ -117,7 +117,7 @@ function releaseSkippedOutgoingEdge(input: {
 }
 
 type RunNodeResult =
-  | { ok: true; branchResult?: boolean; nodeType: string }
+  | { ok: true; branchResult?: boolean; nodeType: string; executedNodeIds?: string[] }
   | { ok: false; error: Record<string, unknown> };
 
 function clearLoopBodyState(input: {
@@ -135,6 +135,7 @@ async function runScopedSubgraph(input: {
   graph: VisualWorkflowGraphIndex;
   nodeIds: readonly string[];
   runNode: (nodeId: string) => Promise<RunNodeResult>;
+  runScopedNode: (nodeId: string) => Promise<RunNodeResult>;
 }): Promise<
   | { ok: true; lastCompletedNodeId?: string }
   | { ok: false; failedNodeId: string; error: Record<string, unknown> }
@@ -163,7 +164,7 @@ async function runScopedSubgraph(input: {
     }
     completed.add(nodeId);
 
-    const execution = await input.runNode(nodeId);
+    const execution = await input.runScopedNode(nodeId);
     if (!execution.ok) {
       return { ok: false, failedNodeId: nodeId, error: execution.error };
     }
@@ -212,6 +213,93 @@ async function runScopedSubgraph(input: {
   }
 
   return { ok: true, lastCompletedNodeId };
+}
+
+type ForEachExecutionContext = {
+  graph: VisualWorkflowGraphIndex;
+  context: VisualWorkflowExecutionContext;
+  nodeResults: Record<string, Record<string, unknown>>;
+  runNode: (nodeId: string) => Promise<RunNodeResult>;
+  executeForEachNode: (forEachNodeId: string) => Promise<RunNodeResult>;
+};
+
+async function executeForEachLoop(
+  input: ForEachExecutionContext & {
+    forEachNodeId: string;
+  },
+): Promise<RunNodeResult> {
+  const execution = await input.runNode(input.forEachNodeId);
+  if (!execution.ok) {
+    return execution;
+  }
+
+  const items = (input.nodeResults[input.forEachNodeId]?.items as unknown[]) ?? [];
+  const { bodyNodeIds } = findForEachLoopRegion({
+    graph: input.graph,
+    forEachNodeId: input.forEachNodeId,
+  });
+  const orderedBody = sortLoopBodyNodes(input.graph, input.forEachNodeId, bodyNodeIds);
+  const iterationOutputs: Record<string, unknown>[] = [];
+  const executedNodeIds = new Set<string>();
+
+  for (let index = 0; index < items.length; index += 1) {
+    setNodeOutput(input.context, input.forEachNodeId, {
+      ...input.nodeResults[input.forEachNodeId],
+      item: items[index],
+      index,
+    });
+
+    clearLoopBodyState({
+      context: input.context,
+      nodeResults: input.nodeResults,
+      bodyNodeIds: orderedBody,
+    });
+
+    const bodyResult = await runScopedSubgraph({
+      graph: input.graph,
+      nodeIds: orderedBody,
+      runNode: input.runNode,
+      runScopedNode: async (nodeId) => {
+        const node = input.graph.nodesById.get(nodeId);
+        if (node?.type === "logic.for_each") {
+          const nested = await input.executeForEachNode(nodeId);
+          if (nested.ok && nested.executedNodeIds) {
+            for (const executedNodeId of nested.executedNodeIds) {
+              executedNodeIds.add(executedNodeId);
+            }
+          }
+          return nested;
+        }
+
+        const result = await input.runNode(nodeId);
+        if (result.ok) {
+          executedNodeIds.add(nodeId);
+        }
+        return result;
+      },
+    });
+    if (!bodyResult.ok) {
+      return { ok: false, error: bodyResult.error };
+    }
+
+    const lastBodyNodeId = bodyResult.lastCompletedNodeId;
+    iterationOutputs.push(
+      lastBodyNodeId ? (input.nodeResults[lastBodyNodeId] ?? {}) : { item: items[index], index },
+    );
+  }
+
+  setNodeOutput(input.context, input.forEachNodeId, {
+    ...input.nodeResults[input.forEachNodeId],
+    iterationOutputs,
+  });
+  input.nodeResults[input.forEachNodeId] =
+    input.context.nodes[input.forEachNodeId] ?? input.nodeResults[input.forEachNodeId] ?? {};
+
+  return {
+    ok: true,
+    nodeType: "logic.for_each",
+    executedNodeIds: [...new Set([input.forEachNodeId, ...executedNodeIds])],
+  };
 }
 
 export async function runVisualWorkflowInterpreter(input: {
@@ -282,6 +370,16 @@ export async function runVisualWorkflowInterpreter(input: {
     return { ok: true, branchResult: execution.branchResult, nodeType: node.type };
   };
 
+  const forEachContext: ForEachExecutionContext = {
+    graph,
+    context,
+    nodeResults,
+    runNode,
+    executeForEachNode: async () => ({ ok: false, error: { message: "Loop executor not ready." } }),
+  };
+  forEachContext.executeForEachNode = async (forEachNodeId) =>
+    executeForEachLoop({ ...forEachContext, forEachNodeId });
+
   while (queue.length > 0) {
     const nodeId = queue.shift();
     if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
@@ -295,7 +393,7 @@ export async function runVisualWorkflowInterpreter(input: {
     }
 
     if (node.type === "logic.for_each") {
-      const execution = await runNode(nodeId);
+      const execution = await executeForEachLoop({ ...forEachContext, forEachNodeId: nodeId });
       if (!execution.ok) {
         return {
           ok: false,
@@ -306,59 +404,19 @@ export async function runVisualWorkflowInterpreter(input: {
         };
       }
 
-      const items = (nodeResults[nodeId]?.items as unknown[]) ?? [];
-      const { bodyNodeIds, exitTargetIds } = findForEachLoopRegion({
+      const { exitTargetIds } = findForEachLoopRegion({
         graph,
         forEachNodeId: nodeId,
       });
-      const orderedBody = sortLoopBodyNodes(graph, nodeId, bodyNodeIds);
-      const iterationOutputs: Record<string, unknown>[] = [];
 
-      for (let index = 0; index < items.length; index += 1) {
-        setNodeOutput(context, nodeId, {
-          ...nodeResults[nodeId],
-          item: items[index],
-          index,
-        });
-
-        clearLoopBodyState({
-          context,
-          nodeResults,
-          bodyNodeIds: orderedBody,
-        });
-
-        const bodyResult = await runScopedSubgraph({
-          graph,
-          nodeIds: orderedBody,
-          runNode,
-        });
-        if (!bodyResult.ok) {
-          return {
-            ok: false,
-            context,
-            nodeResults,
-            failedNodeId: bodyResult.failedNodeId,
-            error: bodyResult.error,
-          };
-        }
-
-        const lastBodyNodeId = bodyResult.lastCompletedNodeId;
-        iterationOutputs.push(
-          lastBodyNodeId ? (nodeResults[lastBodyNodeId] ?? {}) : { item: items[index], index },
-        );
-      }
-
-      setNodeOutput(context, nodeId, {
-        ...nodeResults[nodeId],
-        iterationOutputs,
-      });
-      nodeResults[nodeId] = context.nodes[nodeId] ?? nodeResults[nodeId] ?? {};
-
-      for (const bodyNodeId of orderedBody) {
-        completed.add(bodyNodeId);
+      for (const executedNodeId of execution.executedNodeIds ?? []) {
+        completed.add(executedNodeId);
       }
 
       for (const exitTargetId of exitTargetIds) {
+        if (completed.has(exitTargetId)) {
+          continue;
+        }
         releasePredecessorEdge({
           pendingIncoming,
           queue,

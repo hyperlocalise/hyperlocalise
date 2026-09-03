@@ -110,6 +110,7 @@ export function VisualWorkflowEditor({
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
   const saveDisabled = issues.length > 0;
+  const isActive = workflowStatus === "active";
 
   const onNodesChange = useCallback((changes: NodeChange<VisualWorkflowRfNode>[]) => {
     setNodes((current) => applyNodeChanges(changes, current));
@@ -353,7 +354,7 @@ export function VisualWorkflowEditor({
         onTabChange={setActiveTab}
         workflowStatus={workflowStatus}
         onStatusChange={onStatusChange ? handleStatusChange : undefined}
-        statusDisabled={statusUpdating || saveDisabled}
+        statusDisabled={statusUpdating || (!isActive && saveDisabled)}
       />
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel

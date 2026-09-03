@@ -197,6 +197,16 @@ async function finishVisualWorkflowRun(input: {
   return row ? serializeRun(row) : null;
 }
 
+function visualWorkflowRunEnqueueCommitted(outputSummary: Record<string, unknown>): boolean {
+  const marker = outputSummary.executionEnqueueCommittedAt;
+  return typeof marker === "string" && marker.length > 0;
+}
+
+function visualWorkflowRunEnqueueInProgress(outputSummary: Record<string, unknown>): boolean {
+  const marker = outputSummary.executionEnqueuedAt;
+  return typeof marker === "string" && marker.length > 0;
+}
+
 async function clearVisualWorkflowRunEnqueueMarker(input: {
   runId: string;
   organizationId: string;
@@ -218,12 +228,16 @@ async function clearVisualWorkflowRunEnqueueMarker(input: {
     return;
   }
 
-  const { executionEnqueuedAt: _removed, ...outputSummaryWithoutEnqueueMarker } = run.outputSummary;
+  const {
+    executionEnqueuedAt: _executionEnqueuedAt,
+    executionEnqueueCommittedAt: _executionEnqueueCommittedAt,
+    ...outputSummaryWithoutEnqueueMarkers
+  } = run.outputSummary;
 
   await dbClient
     .update(schema.visualWorkflowRuns)
     .set({
-      outputSummary: outputSummaryWithoutEnqueueMarker,
+      outputSummary: outputSummaryWithoutEnqueueMarkers,
       updatedAt: new Date(),
     })
     .where(
@@ -232,6 +246,54 @@ async function clearVisualWorkflowRunEnqueueMarker(input: {
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
       ),
     );
+}
+
+async function markVisualWorkflowRunEnqueueCommitted(input: {
+  runId: string;
+  organizationId: string;
+  dbClient?: DatabaseClient;
+}): Promise<void> {
+  const dbClient = input.dbClient ?? db;
+  const [run] = await dbClient
+    .select({ outputSummary: schema.visualWorkflowRuns.outputSummary })
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!run) {
+    throw new Error("visual_workflow_run_not_found");
+  }
+
+  await dbClient
+    .update(schema.visualWorkflowRuns)
+    .set({
+      outputSummary: {
+        ...run.outputSummary,
+        executionEnqueueCommittedAt: new Date().toISOString(),
+      },
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.id, input.runId),
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+      ),
+    );
+}
+
+export class VisualWorkflowDispatchMismatchError extends Error {
+  readonly reason: "workflow_not_active" | "workflow_definition_changed";
+
+  constructor(reason: "workflow_not_active" | "workflow_definition_changed") {
+    super(reason);
+    this.name = "VisualWorkflowDispatchMismatchError";
+    this.reason = reason;
+  }
 }
 
 function toIsoString(value: Date | null): string | null {
@@ -389,6 +451,7 @@ export async function createVisualWorkflowRun(input: {
   idempotencyKey?: string | null;
   inputSnapshot?: Record<string, unknown>;
   status?: VisualWorkflowRunStatus;
+  matchedDefinitionVersion?: number;
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowRunRecord> {
   const dbClient = input.dbClient ?? db;
@@ -399,6 +462,15 @@ export async function createVisualWorkflowRun(input: {
   });
   if (!workflow) {
     throw new Error("visual_workflow_not_found");
+  }
+
+  if (input.matchedDefinitionVersion !== undefined) {
+    if (workflow.status !== "active") {
+      throw new VisualWorkflowDispatchMismatchError("workflow_not_active");
+    }
+    if (workflow.definitionVersion !== input.matchedDefinitionVersion) {
+      throw new VisualWorkflowDispatchMismatchError("workflow_definition_changed");
+    }
   }
 
   if (input.idempotencyKey) {
@@ -456,14 +528,19 @@ export async function createVisualWorkflowRun(input: {
   return serializeRun(row);
 }
 
+export type EnqueueVisualWorkflowRunOnceResult = {
+  enqueuedNow: boolean;
+  scheduleSlotCommitted: boolean;
+};
+
 export async function enqueueVisualWorkflowRunOnce(input: {
   runId: string;
   organizationId: string;
   enqueue: () => Promise<void>;
   dbClient?: DatabaseClient;
-}): Promise<boolean> {
+}): Promise<EnqueueVisualWorkflowRunOnceResult> {
   const dbClient = input.dbClient ?? db;
-  const shouldEnqueue = await dbClient.transaction(async (tx) => {
+  const claim = await dbClient.transaction(async (tx) => {
     const [run] = await tx
       .select({
         outputSummary: schema.visualWorkflowRuns.outputSummary,
@@ -482,11 +559,12 @@ export async function enqueueVisualWorkflowRunOnce(input: {
       throw new Error("visual_workflow_run_not_found");
     }
 
-    if (
-      typeof run.outputSummary.executionEnqueuedAt === "string" &&
-      run.outputSummary.executionEnqueuedAt.length > 0
-    ) {
-      return false;
+    if (visualWorkflowRunEnqueueCommitted(run.outputSummary)) {
+      return { shouldEnqueue: false, scheduleSlotCommitted: true } as const;
+    }
+
+    if (visualWorkflowRunEnqueueInProgress(run.outputSummary)) {
+      return { shouldEnqueue: false, scheduleSlotCommitted: false } as const;
     }
 
     await tx
@@ -505,23 +583,32 @@ export async function enqueueVisualWorkflowRunOnce(input: {
         ),
       );
 
-    return true;
+    return { shouldEnqueue: true, scheduleSlotCommitted: false } as const;
   });
 
-  if (shouldEnqueue) {
-    try {
-      await input.enqueue();
-    } catch (error) {
-      await clearVisualWorkflowRunEnqueueMarker({
-        runId: input.runId,
-        organizationId: input.organizationId,
-        dbClient,
-      });
-      throw error;
-    }
+  if (!claim.shouldEnqueue) {
+    return {
+      enqueuedNow: false,
+      scheduleSlotCommitted: claim.scheduleSlotCommitted,
+    };
   }
 
-  return shouldEnqueue;
+  try {
+    await input.enqueue();
+    await markVisualWorkflowRunEnqueueCommitted({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      dbClient,
+    });
+    return { enqueuedNow: true, scheduleSlotCommitted: true };
+  } catch (error) {
+    await clearVisualWorkflowRunEnqueueMarker({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      dbClient,
+    });
+    throw error;
+  }
 }
 
 export async function updateVisualWorkflowRun(input: {
@@ -742,17 +829,24 @@ export async function dispatchManualVisualWorkflowRun(input: {
     return null;
   }
 
+  const { buildVisualWorkflowManualIdempotencyKey } = await import("./dispatch/idempotency");
+  const persistedIdempotencyKey = buildVisualWorkflowManualIdempotencyKey({
+    visualWorkflowId: input.visualWorkflowId,
+    definitionVersion: workflow.definitionVersion,
+    idempotencyKey: input.idempotencyKey,
+  });
+
   const run = await createVisualWorkflowRun({
     organizationId: input.organizationId,
     visualWorkflowId: input.visualWorkflowId,
     triggerSource: "manual",
-    idempotencyKey: input.idempotencyKey,
+    idempotencyKey: persistedIdempotencyKey,
     inputSnapshot: input.inputSnapshot,
   });
 
   const { createVisualWorkflowExecutionQueue } = await import("@/workflows/adapters");
   const queue = input.queue ?? createVisualWorkflowExecutionQueue();
-  const enqueued = await enqueueVisualWorkflowRunOnce({
+  const enqueueResult = await enqueueVisualWorkflowRunOnce({
     runId: run.id,
     organizationId: input.organizationId,
     enqueue: async () => {
@@ -764,5 +858,5 @@ export async function dispatchManualVisualWorkflowRun(input: {
     },
   });
 
-  return { runId: run.id, enqueued };
+  return { runId: run.id, enqueued: enqueueResult.enqueuedNow };
 }

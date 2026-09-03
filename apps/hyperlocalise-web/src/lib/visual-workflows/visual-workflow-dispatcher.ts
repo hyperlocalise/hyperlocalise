@@ -33,6 +33,7 @@ import {
   createVisualWorkflowRun,
   enqueueVisualWorkflowRunOnce,
   getVisualWorkflowRunByIdempotencyKey,
+  VisualWorkflowDispatchMismatchError,
 } from "./visual-workflow-runs";
 import type { VisualWorkflowRecord } from "./visual-workflow-types";
 import type {
@@ -90,11 +91,6 @@ function executionQueue(input?: VisualWorkflowExecutionQueue) {
   return input ?? createVisualWorkflowExecutionQueue();
 }
 
-function visualWorkflowRunWasEnqueued(run: VisualWorkflowRunRecord): boolean {
-  const marker = run.outputSummary.executionEnqueuedAt;
-  return typeof marker === "string" && marker.length > 0;
-}
-
 async function dispatchVisualWorkflowRun(input: {
   workflow: VisualWorkflowRecord;
   triggerSource: VisualWorkflowRunTriggerSource;
@@ -121,8 +117,7 @@ async function dispatchVisualWorkflowRun(input: {
   const queue = executionQueue(input.queue);
 
   if (existing) {
-    const scheduleSlotCommitted = visualWorkflowRunWasEnqueued(existing);
-    const enqueued = await enqueueVisualWorkflowRunOnce({
+    const enqueueResult = await enqueueVisualWorkflowRunOnce({
       runId: existing.id,
       organizationId: input.workflow.organizationId,
       enqueue: async () => {
@@ -138,20 +133,36 @@ async function dispatchVisualWorkflowRun(input: {
       outcome: "enqueued",
       runId: existing.id,
       inserted: false,
-      enqueued,
-      scheduleSlotCommitted: scheduleSlotCommitted || enqueued,
+      enqueued: enqueueResult.enqueuedNow,
+      scheduleSlotCommitted: enqueueResult.scheduleSlotCommitted,
     };
   }
 
-  const run = await createVisualWorkflowRun({
-    organizationId: input.workflow.organizationId,
-    visualWorkflowId: input.workflow.id,
-    triggerSource: input.triggerSource,
-    idempotencyKey: input.idempotencyKey,
-    inputSnapshot: input.inputSnapshot,
-  });
+  let run: VisualWorkflowRunRecord;
+  try {
+    run = await createVisualWorkflowRun({
+      organizationId: input.workflow.organizationId,
+      visualWorkflowId: input.workflow.id,
+      triggerSource: input.triggerSource,
+      idempotencyKey: input.idempotencyKey,
+      inputSnapshot: input.inputSnapshot,
+      matchedDefinitionVersion: input.workflow.definitionVersion,
+    });
+  } catch (error) {
+    if (error instanceof VisualWorkflowDispatchMismatchError) {
+      return {
+        outcome: "skipped",
+        runId: "",
+        inserted: false,
+        enqueued: false,
+        scheduleSlotCommitted: false,
+        skipReason: error.reason,
+      };
+    }
+    throw error;
+  }
 
-  const enqueued = await enqueueVisualWorkflowRunOnce({
+  const enqueueResult = await enqueueVisualWorkflowRunOnce({
     runId: run.id,
     organizationId: input.workflow.organizationId,
     enqueue: async () => {
@@ -167,8 +178,8 @@ async function dispatchVisualWorkflowRun(input: {
     outcome: "enqueued",
     runId: run.id,
     inserted: true,
-    enqueued,
-    scheduleSlotCommitted: enqueued,
+    enqueued: enqueueResult.enqueuedNow,
+    scheduleSlotCommitted: enqueueResult.scheduleSlotCommitted,
   };
 }
 

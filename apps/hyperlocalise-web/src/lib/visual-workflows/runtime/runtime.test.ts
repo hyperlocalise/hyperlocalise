@@ -327,4 +327,46 @@ describe("visual workflow interpreter", () => {
     expect(result.ok).toBe(true);
     expect(started.filter((nodeId) => nodeId === "join")).toHaveLength(1);
   });
+
+  it("runs nested for-each loops for every outer and inner item", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Nested loop",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "outer",
+          type: "logic.for_each",
+          config: { kind: "logic.for_each", collection: "{{trigger.outer}}" },
+        },
+        {
+          id: "inner",
+          type: "logic.for_each",
+          config: { kind: "logic.for_each", collection: "{{nodes.outer.item}}" },
+        },
+        { id: "noop", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "outer", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "outer", target: "inner", sourceHandle: null, targetHandle: null },
+        { id: "e3", source: "inner", target: "noop", sourceHandle: null, targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      triggerInput: { outer: [["a", "b"], ["c"]] },
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started.filter((nodeId) => nodeId === "noop")).toHaveLength(3);
+  });
 });
