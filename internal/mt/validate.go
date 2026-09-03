@@ -8,11 +8,16 @@ import (
 )
 
 func validateBCP47(locale string) error {
-	trimmed := strings.TrimSpace(locale)
-	if trimmed == "" {
+	if locale == "" {
 		return &Error{Code: ErrorCodeValidation, Message: "locale is required"}
 	}
-	if _, err := language.Parse(trimmed); err != nil {
+	if strings.TrimSpace(locale) != locale {
+		return &Error{
+			Code:    ErrorCodeValidation,
+			Message: fmt.Sprintf("locale %q must not contain leading or trailing whitespace", locale),
+		}
+	}
+	if _, err := language.Parse(locale); err != nil {
 		return &Error{
 			Code:    ErrorCodeValidation,
 			Message: fmt.Sprintf("locale %q must be a valid BCP 47 language tag", locale),

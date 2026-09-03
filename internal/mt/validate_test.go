@@ -18,6 +18,9 @@ func TestValidateBCP47(t *testing.T) {
 		{name: "empty", locale: "", wantErr: true},
 		{name: "whitespace only", locale: "   ", wantErr: true},
 		{name: "not a locale", locale: "not a locale", wantErr: true},
+		{name: "leading and trailing whitespace", locale: " en ", wantErr: true},
+		{name: "trailing whitespace", locale: "en ", wantErr: true},
+		{name: "leading whitespace", locale: " en", wantErr: true},
 	}
 
 	for _, tc := range cases {
