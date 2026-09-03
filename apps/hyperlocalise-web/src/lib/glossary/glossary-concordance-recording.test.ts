@@ -48,15 +48,11 @@ import { searchGlossaryConcordance } from "./glossary-concordance";
 type RecordedResult = (typeof recording.runs)[number]["output"]["data"][number]["data"];
 type RecordedRun = (typeof recording.runs)[number];
 
-function recordedResultsForExpression(run: RecordedRun, expression: string): RecordedResult[] {
-  const normalizedExpression = expression.toLocaleLowerCase();
-  return run.output.data
-    .map((wrapped) => wrapped.data)
-    .filter((result) =>
-      result.sourceTerms.some((term) =>
-        normalizedExpression.includes(term.text.toLocaleLowerCase()),
-      ),
-    );
+function recordedResultsForRun(run: RecordedRun): RecordedResult[] {
+  if (run.input.expressions.length !== 1) {
+    throw new Error(`Crowdin recording run ${run.caseId} must contain exactly one expression`);
+  }
+  return run.output.data.map((wrapped) => wrapped.data);
 }
 
 function toNativeMatch(
@@ -117,9 +113,7 @@ describe("searchGlossaryConcordance with Crowdin recording", () => {
     ]);
   });
 
-  it("replays every recorded input/output batch without a project id", async () => {
-    expect(recording.runs).toHaveLength(20);
-
+  it("replays every recorded input/output run without a project id", async () => {
     let expectedMatches: NormalizedGlossaryMatch[] = [];
     const adapterSearches: ReturnType<typeof vi.fn>[] = [];
     mocks.createGlossary.mockImplementation(() => {
@@ -129,23 +123,25 @@ describe("searchGlossaryConcordance with Crowdin recording", () => {
     });
 
     for (const run of recording.runs) {
-      for (const expression of run.input.expressions) {
-        const recordedResults = recordedResultsForExpression(run, expression);
-        expectedMatches = recordedResults.map((result, index) =>
-          toNativeMatch(result, run.targetLanguageId, recordedResults.length - index),
-        );
-
-        const matches = await searchGlossaryConcordance({
-          organizationId: "org-ota-fixture",
-          glossaryIds: [String(recording.glossary.id)],
-          sourceLocale: run.input.sourceLanguageId,
-          targetLocales: [run.input.targetLanguageId],
-          sourceText: expression,
-          limit: 20,
-        });
-
-        expect(matches.map(comparableMatch)).toEqual(expectedMatches.map(comparableMatch));
+      const [expression] = run.input.expressions;
+      if (!expression) {
+        throw new Error(`Crowdin recording run ${run.caseId} has no expression`);
       }
+      const recordedResults = recordedResultsForRun(run);
+      expectedMatches = recordedResults.map((result, index) =>
+        toNativeMatch(result, run.targetLanguageId, recordedResults.length - index),
+      );
+
+      const matches = await searchGlossaryConcordance({
+        organizationId: "org-ota-fixture",
+        glossaryIds: [String(recording.glossary.id)],
+        sourceLocale: run.input.sourceLanguageId,
+        targetLocales: [run.input.targetLanguageId],
+        sourceText: expression,
+        limit: 20,
+      });
+
+      expect(matches.map(comparableMatch)).toEqual(expectedMatches.map(comparableMatch));
     }
 
     const expectedReplayCount = recording.runs.reduce(

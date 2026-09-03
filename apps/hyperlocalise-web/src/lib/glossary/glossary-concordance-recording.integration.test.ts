@@ -43,12 +43,7 @@ type OtaFixture = {
 };
 
 const otaFixture = JSON.parse(
-  readFileSync(
-    fileURLToPath(
-      new URL("../../../../../tools/crowdin-ota-glossary-fixture/fixture.json", import.meta.url),
-    ),
-    "utf8",
-  ),
+  readFileSync(fileURLToPath(new URL("./fixtures/fixture.json", import.meta.url)), "utf8"),
 ) as OtaFixture;
 
 const fixture = createGlossaryTestFixture();
@@ -85,20 +80,13 @@ function importDocument(): GlossaryImportDocument {
   };
 }
 
-function recordedResultsForExpression(run: RecordedRun, expression: string): RecordedResult[] {
-  const normalizedExpression = expression.toLocaleLowerCase();
-  return run.output.data
-    .map((wrapped) => wrapped.data)
-    .filter((result) =>
-      result.sourceTerms.some((term) =>
-        normalizedExpression.includes(term.text.toLocaleLowerCase()),
-      ),
-    );
+function recordedResultsForRun(run: RecordedRun): RecordedResult[] {
+  return run.output.data.map((wrapped) => wrapped.data);
 }
 
 function expectedMatch(result: RecordedResult, targetLocale: string) {
-  const sourceTerm = result.sourceTerms[0];
-  const targetTerm = result.targetTerms[0];
+  const sourceTerm = result.sourceTerms.find((term) => term.languageId === "en");
+  const targetTerm = result.targetTerms.find((term) => term.languageId === targetLocale);
   if (!sourceTerm || !targetTerm) {
     throw new Error("Recording result must contain source and target terms");
   }
@@ -156,16 +144,15 @@ const concordanceCases: ConcordanceCase[] = recording.runs.flatMap((run) =>
     targetLanguageId: run.input.targetLanguageId,
     expression,
     crowdin: sortComparableMatches(
-      recordedResultsForExpression(run, expression).map((result) =>
-        expectedMatch(result, run.targetLanguageId),
-      ),
+      recordedResultsForRun(run).map((result) => expectedMatch(result, run.targetLanguageId)),
     ),
   })),
 );
 
 describe("native glossary concordance against Crowdin recording", () => {
   beforeAll(async () => {
-    expect(concordanceCases).toHaveLength(160);
+    expect(concordanceCases.length).toBeGreaterThan(0);
+    expect(recording.runs.every((run) => run.input.expressions.length === 1)).toBe(true);
 
     const { glossary } = await fixture.createStoredGlossaryFixture();
     seededGlossary = glossary;

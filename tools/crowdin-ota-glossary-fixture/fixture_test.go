@@ -16,15 +16,15 @@ import (
 )
 
 func TestFixtureIsComplete(t *testing.T) {
-	value, err := loadFixture(fixtureJSON)
+	value, err := loadDefaultFixture()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(value.Concepts) != expectedConceptCount {
 		t.Fatalf("concept count = %d, want %d", len(value.Concepts), expectedConceptCount)
 	}
-	if len(value.QueryCases) != 5 {
-		t.Fatalf("query case count = %d, want 5", len(value.QueryCases))
+	if len(value.QueryCases) != expectedQueryCases {
+		t.Fatalf("query case count = %d, want %d", len(value.QueryCases), expectedQueryCases)
 	}
 
 	var totalTerms int
@@ -36,8 +36,35 @@ func TestFixtureIsComplete(t *testing.T) {
 	}
 }
 
+func TestFixtureHasConcordanceCoverageCases(t *testing.T) {
+	value, err := loadDefaultFixture()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ids := make(map[string]bool, len(value.QueryCases))
+	for _, query := range value.QueryCases {
+		ids[query.ID] = true
+	}
+	for _, id := range []string{
+		"exact-primary",
+		"phrases-and-punctuation",
+		"aliases-and-case",
+		"controls",
+		"mixed-batch",
+		"contextual-sentences",
+		"term-boundaries",
+		"statuses-and-overlap",
+		"locale-and-negative",
+	} {
+		if !ids[id] {
+			t.Fatalf("missing concordance coverage case %q", id)
+		}
+	}
+}
+
 func TestWriteTBX(t *testing.T) {
-	value, err := loadFixture(fixtureJSON)
+	value, err := loadDefaultFixture()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +95,7 @@ func TestWriteTBX(t *testing.T) {
 }
 
 func TestValidateFixtureRejectsMissingLocale(t *testing.T) {
-	value, err := loadFixture(fixtureJSON)
+	value, err := loadDefaultFixture()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +176,7 @@ func TestCreateUploadAndPollGlossaryImport(t *testing.T) {
 	client.pollInterval = time.Millisecond
 	client.importTimeout = time.Second
 
-	value, err := loadFixture(fixtureJSON)
+	value, err := loadDefaultFixture()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +196,7 @@ func TestCreateUploadAndPollGlossaryImport(t *testing.T) {
 	}
 }
 
-func TestRunWritesTwentyPairsWithoutTokenInRecording(t *testing.T) {
+func TestRunWritesAllPairsWithoutTokenInRecording(t *testing.T) {
 	var concordanceCount atomic.Int32
 	server := newIPv4TestServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method == http.MethodPost && request.URL.Path == "/api/v2/glossaries" {
@@ -199,8 +226,13 @@ func TestRunWritesTwentyPairsWithoutTokenInRecording(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if concordanceCount.Load() != 20 {
-		t.Fatalf("concordance count = %d, want 20", concordanceCount.Load())
+	fixture, err := loadDefaultFixture()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedRuns := fixtureExpressionCount(fixture) * len(fixture.TargetLanguageIDs)
+	if concordanceCount.Load() != int32(expectedRuns) {
+		t.Fatalf("concordance count = %d, want %d", concordanceCount.Load(), expectedRuns)
 	}
 	content, err := os.ReadFile(outputPath)
 	if err != nil {
@@ -213,8 +245,13 @@ func TestRunWritesTwentyPairsWithoutTokenInRecording(t *testing.T) {
 	if err := json.Unmarshal(content, &value); err != nil {
 		t.Fatal(err)
 	}
-	if len(value.Runs) != 20 || value.Glossary.ID != 44 {
-		t.Fatalf("recording = %d runs, glossary %d", len(value.Runs), value.Glossary.ID)
+	if len(value.Runs) != expectedRuns || value.Glossary.ID != 44 {
+		t.Fatalf("recording = %d runs, want %d, glossary %d", len(value.Runs), expectedRuns, value.Glossary.ID)
+	}
+	for _, run := range value.Runs {
+		if len(run.Input.Expressions) != 1 {
+			t.Fatalf("recorded run expressions = %d, want 1", len(run.Input.Expressions))
+		}
 	}
 }
 

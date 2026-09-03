@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,9 +9,6 @@ import (
 	"os"
 	"strings"
 )
-
-//go:embed fixture.json
-var fixtureJSON []byte
 
 type options struct {
 	createGlossary bool
@@ -39,7 +35,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	value, err := loadFixture(fixtureJSON)
+	value, err := loadDefaultFixture()
 	if err != nil {
 		return err
 	}
@@ -75,27 +71,29 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if opts.userID > 0 {
 		userID = &opts.userID
 	}
-	runs := make([]recordedRun, 0, len(value.QueryCases)*len(value.TargetLanguageIDs))
+	runs := make([]recordedRun, 0, fixtureExpressionCount(value)*len(value.TargetLanguageIDs))
 	for _, targetLanguageID := range value.TargetLanguageIDs {
 		for _, query := range value.QueryCases {
-			input := concordanceRequest{
-				SourceLanguageID: value.SourceLanguageID,
-				TargetLanguageID: targetLanguageID,
-				Expressions:      query.Expressions,
-				UserID:           userID,
+			for _, expression := range query.Expressions {
+				input := concordanceRequest{
+					SourceLanguageID: value.SourceLanguageID,
+					TargetLanguageID: targetLanguageID,
+					Expressions:      []string{expression},
+					UserID:           userID,
+				}
+				output, status, requestErr := client.concordance(ctx, input)
+				if requestErr != nil {
+					return fmt.Errorf("concordance case %s/%s/%s: %w", targetLanguageID, query.ID, expression, requestErr)
+				}
+				runs = append(runs, recordedRun{
+					CaseID:           query.ID,
+					TargetLanguageID: targetLanguageID,
+					Input:            input,
+					HTTPStatus:       status,
+					Output:           output,
+				})
+				_, _ = fmt.Fprintf(stdout, "captured %s/%s/%s (%d)\n", targetLanguageID, query.ID, expression, status)
 			}
-			output, status, requestErr := client.concordance(ctx, input)
-			if requestErr != nil {
-				return fmt.Errorf("concordance case %s/%s: %w", targetLanguageID, query.ID, requestErr)
-			}
-			runs = append(runs, recordedRun{
-				CaseID:           query.ID,
-				TargetLanguageID: targetLanguageID,
-				Input:            input,
-				HTTPStatus:       status,
-				Output:           output,
-			})
-			_, _ = fmt.Fprintf(stdout, "captured %s/%s (%d)\n", targetLanguageID, query.ID, status)
 		}
 	}
 

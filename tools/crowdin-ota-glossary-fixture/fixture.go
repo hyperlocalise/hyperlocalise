@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -19,9 +20,11 @@ import (
 
 const (
 	defaultBaseURL       = "https://api.crowdin.com/api/v2"
+	defaultFixturePath   = "apps/hyperlocalise-web/src/lib/glossary/fixtures/fixture.json"
 	defaultSeedOutput    = "tools/crowdin-ota-glossary-fixture/ota-glossary.tbx"
 	defaultRecordOutput  = "apps/hyperlocalise-web/src/lib/glossary/fixtures/ota-concordance-recording.json"
 	expectedConceptCount = 50
+	expectedQueryCases   = 9
 	maxExpressions       = 20
 )
 
@@ -186,6 +189,40 @@ type apiError struct {
 	Body   string
 }
 
+func fixtureExpressionCount(value fixture) int {
+	count := 0
+	for _, query := range value.QueryCases {
+		count += len(query.Expressions)
+	}
+	return count
+}
+
+func loadDefaultFixture() (fixture, error) {
+	content, err := readDefaultFixture()
+	if err != nil {
+		return fixture{}, err
+	}
+	return loadFixture(content)
+}
+
+func readDefaultFixture() ([]byte, error) {
+	candidates := []string{defaultFixturePath}
+	if _, sourcePath, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates, filepath.Join(filepath.Dir(sourcePath), "..", "..", defaultFixturePath))
+	}
+
+	var lastErr error
+	for _, candidate := range candidates {
+		content, err := os.ReadFile(candidate)
+		if err == nil {
+			return content, nil
+		}
+		lastErr = err
+	}
+
+	return nil, fmt.Errorf("read default fixture %q: %w", defaultFixturePath, lastErr)
+}
+
 func (e *apiError) Error() string {
 	if e.Body == "" {
 		return fmt.Sprintf("crowdin %s %s: HTTP %d", e.Method, e.Path, e.Status)
@@ -254,8 +291,8 @@ func validateFixture(value fixture) error {
 		}
 	}
 
-	if len(value.QueryCases) != 5 {
-		return fmt.Errorf("fixture must contain 5 query cases, got %d", len(value.QueryCases))
+	if len(value.QueryCases) != expectedQueryCases {
+		return fmt.Errorf("fixture must contain %d query cases, got %d", expectedQueryCases, len(value.QueryCases))
 	}
 	queryIDs := make(map[string]struct{}, len(value.QueryCases))
 	for _, query := range value.QueryCases {
