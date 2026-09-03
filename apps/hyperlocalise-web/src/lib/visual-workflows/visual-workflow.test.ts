@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { visualWorkflowDemoDraft } from "./fixtures/demo-draft";
 import { createDefaultConfig } from "./catalog/node-catalog";
+import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "./schema/serializers";
 import {
   validateVisualWorkflowDefinition,
@@ -137,6 +138,45 @@ describe("validateVisualWorkflowGraph", () => {
     expect(validateVisualWorkflowDefinition(definition)).toEqual([
       { code: "invalid_edge", edgeId: "e1" },
     ]);
+  });
+
+  it("rejects nested for-each loops", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Nested loops",
+      nodes: [
+        node("t", "trigger.manual"),
+        node("outer", "logic.for_each"),
+        node("inner", "logic.for_each"),
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "outer" },
+        { id: "e2", source: "outer", target: "inner" },
+      ],
+    });
+
+    expect(validateVisualWorkflowDefinition(definition)).toEqual([
+      { code: "nested_for_each", nodeId: "inner" },
+    ]);
+  });
+});
+
+describe("visualWorkflowDefinitionSchema", () => {
+  it("rejects nodes whose type does not match config kind", () => {
+    const parsed = visualWorkflowDefinitionSchema.safeParse({
+      schemaVersion: 1,
+      name: "Mismatched",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.github",
+          config: { kind: "trigger.source_upload" },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });
 

@@ -20,6 +20,7 @@ import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 import { resolveNextRunAtForVisualWorkflow } from "./dispatch/schedule";
 import {
+  getVisualWorkflowTriggerNode,
   resolveVisualWorkflowTriggerFingerprint,
   validateActiveVisualWorkflowTrigger,
 } from "./dispatch/trigger-matching";
@@ -108,6 +109,24 @@ function resolveWorkflowSchedulingMetadata(input: {
     input.from,
   );
   return { triggerFingerprint, nextRunAt };
+}
+
+function schedulingConfigChanged(input: {
+  existing: VisualWorkflowRecord;
+  nextDefinition: VisualWorkflowDefinition;
+  nextStatus: VisualWorkflowStatus;
+}): boolean {
+  if (input.existing.status !== input.nextStatus) {
+    return true;
+  }
+
+  const existingTrigger = getVisualWorkflowTriggerNode(input.existing.definition);
+  const nextTrigger = getVisualWorkflowTriggerNode(input.nextDefinition);
+
+  return (
+    existingTrigger?.type !== nextTrigger?.type ||
+    JSON.stringify(existingTrigger?.config) !== JSON.stringify(nextTrigger?.config)
+  );
 }
 
 async function projectExists(input: {
@@ -338,11 +357,24 @@ export async function updateVisualWorkflow(input: {
   }
 
   const definitionChanged = JSON.stringify(existing.definition) !== JSON.stringify(validated.value);
+  const schedulingChanged = schedulingConfigChanged({
+    existing,
+    nextDefinition: validated.value,
+    nextStatus,
+  });
   const scheduling = resolveWorkflowSchedulingMetadata({
     workflowId: existing.id,
     status: nextStatus,
     definition: validated.value,
   });
+  const resolvedNextRunAt = schedulingChanged
+    ? scheduling.nextRunAt
+    : existing.nextRunAt
+      ? new Date(existing.nextRunAt)
+      : null;
+  const resolvedTriggerFingerprint = schedulingChanged
+    ? scheduling.triggerFingerprint
+    : existing.triggerFingerprint;
 
   const [row] = await dbClient
     .update(schema.visualWorkflows)
@@ -354,8 +386,8 @@ export async function updateVisualWorkflow(input: {
       definitionVersion: definitionChanged
         ? existing.definitionVersion + 1
         : existing.definitionVersion,
-      triggerFingerprint: scheduling.triggerFingerprint,
-      nextRunAt: scheduling.nextRunAt,
+      triggerFingerprint: resolvedTriggerFingerprint,
+      nextRunAt: resolvedNextRunAt,
     })
     .where(
       and(

@@ -360,6 +360,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "7j13INCpbH",
     description: "Validation message when trigger config is invalid for activation",
   },
+  nestedForEach: {
+    defaultMessage: "Nested For Each loops are not supported yet.",
+    id: "pyS8Vyq98T",
+    description: "Validation message when a for-each loop contains another for-each loop",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",

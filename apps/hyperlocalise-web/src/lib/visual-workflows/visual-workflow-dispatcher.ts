@@ -71,11 +71,13 @@ export type VisualWorkflowDispatchResult =
       outcome: "enqueued";
       runId: string;
       inserted: boolean;
+      enqueued: boolean;
     }
   | {
       outcome: "skipped";
       runId: string;
       inserted: boolean;
+      enqueued: boolean;
       skipReason: string;
     };
 
@@ -95,6 +97,7 @@ async function dispatchVisualWorkflowRun(input: {
       outcome: "skipped",
       runId: "",
       inserted: false,
+      enqueued: false,
       skipReason: "workflow_not_active",
     };
   }
@@ -107,7 +110,7 @@ async function dispatchVisualWorkflowRun(input: {
   const queue = executionQueue(input.queue);
 
   if (existing) {
-    await enqueueVisualWorkflowRunOnce({
+    const enqueued = await enqueueVisualWorkflowRunOnce({
       runId: existing.id,
       organizationId: input.workflow.organizationId,
       enqueue: async () => {
@@ -123,6 +126,7 @@ async function dispatchVisualWorkflowRun(input: {
       outcome: "enqueued",
       runId: existing.id,
       inserted: false,
+      enqueued,
     };
   }
 
@@ -149,7 +153,8 @@ async function dispatchVisualWorkflowRun(input: {
   return {
     outcome: "enqueued",
     runId: run.id,
-    inserted: enqueued,
+    inserted: true,
+    enqueued,
   };
 }
 
@@ -173,11 +178,13 @@ export async function dispatchVisualWorkflowForScheduleAndAdvance(input: {
     queue: input.queue,
   });
 
-  await advanceVisualWorkflowNextRun({
-    visualWorkflowId: input.workflow.id,
-    organizationId: input.workflow.organizationId,
-    completedAt: input.completedAt,
-  });
+  if (result.outcome === "enqueued" && result.enqueued) {
+    await advanceVisualWorkflowNextRun({
+      visualWorkflowId: input.workflow.id,
+      organizationId: input.workflow.organizationId,
+      completedAt: input.completedAt,
+    });
+  }
 
   return result;
 }

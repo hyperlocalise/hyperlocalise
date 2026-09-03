@@ -92,7 +92,16 @@ const visualWorkflowNodeSchema = z
     type: visualCatalogTypeSchema,
     config: visualNodeConfigSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((node, ctx) => {
+    if (node.type !== node.config.kind) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Node type ${node.type} must match config kind ${node.config.kind}.`,
+        path: ["config", "kind"],
+      });
+    }
+  });
 
 const visualWorkflowEdgeSchema = z
   .object({

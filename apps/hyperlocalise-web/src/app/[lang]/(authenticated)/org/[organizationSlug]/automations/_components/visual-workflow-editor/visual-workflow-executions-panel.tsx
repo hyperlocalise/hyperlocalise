@@ -56,7 +56,7 @@ export function VisualWorkflowExecutionsPanel({
     refetchInterval: (query) => {
       const runs = query.state.data ?? [];
       const hasActive = runs.some((run) => run.status === "queued" || run.status === "running");
-      return hasActive ? 2000 : false;
+      return hasActive ? 2000 : 15_000;
     },
   });
 

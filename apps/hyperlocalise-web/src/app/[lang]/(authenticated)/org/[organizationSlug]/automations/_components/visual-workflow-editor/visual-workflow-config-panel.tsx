@@ -315,6 +315,8 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
       return messages.invalidEdge;
     case "invalid_trigger_config":
       return messages.invalidTriggerConfig;
+    case "nested_for_each":
+      return messages.nestedForEach;
     default:
       return assertNever(code);
   }

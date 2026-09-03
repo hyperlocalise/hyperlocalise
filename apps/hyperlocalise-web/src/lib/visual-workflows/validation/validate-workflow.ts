@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { isTriggerType } from "../catalog/node-catalog";
+import { buildVisualWorkflowGraphIndex } from "../runtime/graph-index";
+import { findForEachLoopRegion } from "../runtime/loop-region";
 import type {
   VisualWorkflowDefinition,
   VisualWorkflowRfEdge,
@@ -97,7 +99,28 @@ export function validateVisualWorkflowDefinition(
     targetHandle: edge.targetHandle,
   }));
 
-  return validateVisualWorkflowGraph(nodes, edges);
+  const issues = validateVisualWorkflowGraph(nodes, edges);
+  const graph = buildVisualWorkflowGraphIndex(definition);
+  if (graph) {
+    for (const node of definition.nodes) {
+      if (node.type !== "logic.for_each") {
+        continue;
+      }
+
+      const { bodyNodeIds } = findForEachLoopRegion({
+        graph,
+        forEachNodeId: node.id,
+      });
+      for (const bodyNodeId of bodyNodeIds) {
+        const bodyNode = graph.nodesById.get(bodyNodeId);
+        if (bodyNode?.type === "logic.for_each") {
+          issues.push({ code: "nested_for_each", nodeId: bodyNodeId });
+        }
+      }
+    }
+  }
+
+  return issues;
 }
 
 /** @deprecated Use validateVisualWorkflowGraph */

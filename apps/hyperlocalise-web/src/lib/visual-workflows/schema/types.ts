@@ -100,7 +100,8 @@ export type VisualWorkflowValidationIssue = {
     | "multiple_triggers"
     | "orphan_node"
     | "invalid_edge"
-    | "invalid_trigger_config";
+    | "invalid_trigger_config"
+    | "nested_for_each";
   nodeId?: string;
   edgeId?: string;
 };
