@@ -6,15 +6,15 @@ User-facing docs: [`docs/platform/visual-workflows.mdx`](../../../../docs/platfo
 
 ## Layout
 
-| Path | Role |
-| --- | --- |
-| `catalog/node-catalog.ts` | Node types exposed in the editor picker and default configs |
-| `schema/` | Canonical definition types, Zod schema, React Flow serializers |
-| `validation/validate-workflow.ts` | Graph invariants (single trigger, reachability, valid edges) |
-| `visual-workflows.ts` | CRUD for `visual_workflows` rows |
-| `visual-workflow-runs.ts` | Run lifecycle, idempotency, node run persistence |
-| `runtime/` | Interpreter, per-node executors, template expressions |
-| `preview/fake-run.ts` | Client-side fake execution for editor preview |
+| Path                              | Role                                                           |
+| --------------------------------- | -------------------------------------------------------------- |
+| `catalog/node-catalog.ts`         | Node types exposed in the editor picker and default configs    |
+| `schema/`                         | Canonical definition types, Zod schema, React Flow serializers |
+| `validation/validate-workflow.ts` | Graph invariants (single trigger, reachability, valid edges)   |
+| `visual-workflows.ts`             | CRUD for `visual_workflows` rows                               |
+| `visual-workflow-runs.ts`         | Run lifecycle, idempotency, node run persistence               |
+| `runtime/`                        | Interpreter, per-node executors, template expressions          |
+| `preview/fake-run.ts`             | Client-side fake execution for editor preview                  |
 
 API routes live in [`src/api/routes/visual-workflow/`](../../api/routes/visual-workflow/) and mount at `/api/orgs/:organizationSlug/visual-workflows`.
 
