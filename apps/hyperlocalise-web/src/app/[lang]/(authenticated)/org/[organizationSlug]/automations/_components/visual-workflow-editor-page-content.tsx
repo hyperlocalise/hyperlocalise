@@ -22,7 +22,7 @@ import { fromVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/seri
 import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
-import { createVisualWorkflowsApi } from "./visual-workflows-api";
+import { createVisualWorkflowsApi, type VisualWorkflowsApi } from "./visual-workflows-api";
 import { VisualWorkflowEditor } from "./visual-workflow-editor/visual-workflow-editor";
 import { visualWorkflowEditorMessages } from "./visual-workflow-editor/visual-workflow-editor.messages";
 
@@ -35,7 +35,7 @@ export function VisualWorkflowEditorPageContent({
 }: {
   organizationSlug: string;
   workflow: VisualWorkflowRecord;
-  visualWorkflowsApi?: typeof visualWorkflowsApi;
+  visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const editorState = fromVisualWorkflowDefinition({
     ...workflow.definition,
@@ -78,6 +78,10 @@ export function VisualWorkflowEditorPageContent({
         initialEdges={editorState.edges}
         onSave={(definition) => saveMutation.mutate(definition)}
         isSaving={saveMutation.isPending}
+        organizationSlug={organizationSlug}
+        visualWorkflowId={workflow.id}
+        visualWorkflowsApi={injectedApi}
+        onPersistBeforeTest={(definition) => saveMutation.mutateAsync(definition)}
       />
     </div>
   );

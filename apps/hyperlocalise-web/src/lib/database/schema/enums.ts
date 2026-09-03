@@ -241,6 +241,33 @@ export const visualWorkflowStatusEnum = pgEnum("visual_workflow_status", [
   "archived",
 ]);
 /**
+ * Records why a persisted visual workflow run was created.
+ */
+export const visualWorkflowRunTriggerSourceEnum = pgEnum("visual_workflow_run_trigger_source", [
+  "manual",
+]);
+/**
+ * Tracks persisted visual workflow run execution from queueing through terminal outcomes.
+ */
+export const visualWorkflowRunStatusEnum = pgEnum("visual_workflow_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "skipped",
+]);
+/**
+ * Tracks per-node execution status within a visual workflow run.
+ */
+export const visualWorkflowNodeRunStatusEnum = pgEnum("visual_workflow_node_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "skipped",
+]);
+/**
  * Defines where automated TMS agent settings apply: organization-wide, project-specific, or provider-credential-specific.
  */
 export const tmsAgentAutomationScopeEnum = pgEnum("tms_agent_automation_scope", [

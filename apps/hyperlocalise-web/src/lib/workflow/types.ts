@@ -140,6 +140,14 @@ export type WorkspaceAutomationExecutionEventData = {
 
 export type WorkspaceAutomationExecutionQueue = JobQueue<WorkspaceAutomationExecutionEventData>;
 
+export type VisualWorkflowExecutionEventData = {
+  visualWorkflowRunId: string;
+  visualWorkflowId: string;
+  organizationId: string;
+};
+
+export type VisualWorkflowExecutionQueue = JobQueue<VisualWorkflowExecutionEventData>;
+
 export type SourceFileIngestEventData = {
   sourceFileVersionId: string;
   organizationId: string;

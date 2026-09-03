@@ -14,6 +14,7 @@ import { start } from "workflow/api";
 
 import { createLogger } from "@/lib/log";
 import { emailTranslationWorkflow } from "./email-translation";
+import { visualWorkflowExecutionWorkflow } from "./visual-workflow-execution";
 import { workspaceAutomationExecutionWorkflow } from "./workspace-automation-execution";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
@@ -34,6 +35,7 @@ import type {
   SourceFileIngestQueue,
   TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
+  VisualWorkflowExecutionQueue,
   RepositoryAgentTaskQueue,
   GithubPullRequestReviewQueue,
 } from "@/lib/workflow/types";
@@ -160,6 +162,22 @@ export function createWorkspaceAutomationExecutionQueue(): WorkspaceAutomationEx
   return {
     async enqueue(event) {
       const run = await start(workspaceAutomationExecutionWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createVisualWorkflowExecutionQueue(): VisualWorkflowExecutionQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        const { executeVisualWorkflowStep } =
+          await import("@/workflows/steps/visual-workflow-execution");
+        await executeVisualWorkflowStep(event);
+        return { ids: ["local_inline_visual_workflow"] };
+      }
+
+      const run = await start(visualWorkflowExecutionWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

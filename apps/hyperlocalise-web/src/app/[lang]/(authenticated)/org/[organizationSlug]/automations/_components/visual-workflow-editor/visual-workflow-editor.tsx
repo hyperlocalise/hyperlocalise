@@ -22,6 +22,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { runFakeWorkflow } from "@/lib/visual-workflows/preview/fake-run";
 import {
@@ -51,6 +52,7 @@ import { VisualWorkflowChrome } from "./visual-workflow-chrome";
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
+import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
 const NODE_GAP_X = 260;
 const NODE_GAP_Y = 36;
@@ -62,6 +64,10 @@ export function VisualWorkflowEditor({
   previewMode = false,
   onSave,
   isSaving = false,
+  organizationSlug,
+  visualWorkflowId,
+  visualWorkflowsApi,
+  onPersistBeforeTest,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
   initialEdges?: VisualWorkflowRfEdge[];
@@ -69,6 +75,10 @@ export function VisualWorkflowEditor({
   previewMode?: boolean;
   onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
   isSaving?: boolean;
+  organizationSlug?: string;
+  visualWorkflowId?: string;
+  visualWorkflowsApi?: VisualWorkflowsApi;
+  onPersistBeforeTest?: (definition: VisualWorkflowDefinition) => Promise<unknown>;
 }) {
   const intl = useIntl();
   const [name, setName] = useState(initialName ?? intl.formatMessage(messages.untitledName));
@@ -184,7 +194,33 @@ export function VisualWorkflowEditor({
     );
   }, []);
 
-  const onTestWorkflow = useCallback(async () => {
+  const applyNodeRunStatuses = useCallback(
+    (nodeRuns: Array<{ nodeId: string; status: string }>) => {
+      const statusByNodeId = new Map(
+        nodeRuns.map((nodeRun) => [nodeRun.nodeId, nodeRun.status] as const),
+      );
+      setNodes((current) =>
+        current.map((node) => {
+          const status = statusByNodeId.get(node.id);
+          if (!status) {
+            return node;
+          }
+          const mappedStatus: MockNodeRunStatus =
+            status === "running"
+              ? "running"
+              : status === "succeeded"
+                ? "succeeded"
+                : status === "failed"
+                  ? "failed"
+                  : "idle";
+          return { ...node, data: { ...node.data, runStatus: mappedStatus } };
+        }),
+      );
+    },
+    [],
+  );
+
+  const onTestWorkflowClick = useCallback(async () => {
     runAbortRef.current?.abort();
     const controller = new AbortController();
     runAbortRef.current = controller;
@@ -192,14 +228,63 @@ export function VisualWorkflowEditor({
     setNodes((current) =>
       current.map((node) => ({ ...node, data: { ...node.data, runStatus: "idle" } })),
     );
-    await runFakeWorkflow({
-      nodes,
-      edges,
-      signal: controller.signal,
-      onStatus: setRunStatus,
-    });
-    setIsRunning(false);
-  }, [edges, nodes, setRunStatus]);
+
+    const definition = toVisualWorkflowDefinition({ name, nodes, edges });
+
+    try {
+      if (organizationSlug && visualWorkflowId && visualWorkflowsApi && onPersistBeforeTest) {
+        await onPersistBeforeTest(definition);
+        const idempotencyKey = `manual-${visualWorkflowId}-${Date.now()}`;
+        const { run } = await visualWorkflowsApi.createVisualWorkflowRun(
+          organizationSlug,
+          visualWorkflowId,
+          { idempotencyKey },
+        );
+
+        const terminalStatuses = new Set(["succeeded", "failed", "cancelled", "skipped"]);
+        let latestRun = run;
+        while (!terminalStatuses.has(latestRun.status)) {
+          if (controller.signal.aborted) {
+            return;
+          }
+          await sleep(750, controller.signal);
+          latestRun = await visualWorkflowsApi.getVisualWorkflowRun(
+            organizationSlug,
+            visualWorkflowId,
+            latestRun.id,
+          );
+          applyNodeRunStatuses(latestRun.nodeRuns ?? []);
+        }
+
+        applyNodeRunStatuses(latestRun.nodeRuns ?? []);
+        if (latestRun.status === "failed") {
+          toast.error(intl.formatMessage(messages.testRunFailed));
+        }
+      } else {
+        await runFakeWorkflow({
+          nodes,
+          edges,
+          signal: controller.signal,
+          onStatus: setRunStatus,
+        });
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsRunning(false);
+      }
+    }
+  }, [
+    applyNodeRunStatuses,
+    edges,
+    intl,
+    name,
+    nodes,
+    onPersistBeforeTest,
+    organizationSlug,
+    setRunStatus,
+    visualWorkflowId,
+    visualWorkflowsApi,
+  ]);
 
   const draftJson = useCallback(() => {
     return `${JSON.stringify(toVisualWorkflowDefinition({ name, nodes, edges }), null, 2)}\n`;
@@ -260,7 +345,7 @@ export function VisualWorkflowEditor({
               setPanelMode("picker");
               setAddFrom(null);
             }}
-            onTestWorkflow={onTestWorkflow}
+            onTestWorkflow={onTestWorkflowClick}
           />
         </VisualWorkflowCanvasActionsProvider>
         <aside className="flex w-[360px] shrink-0 flex-col border-l border-border bg-background">
@@ -308,4 +393,22 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
     case "invalid_edge":
       return messages.invalidEdge;
   }
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const timeout = window.setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeout);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }

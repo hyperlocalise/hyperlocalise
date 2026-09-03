@@ -12,6 +12,7 @@
  */
 import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
+import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
 import { readApiResponseError } from "@/lib/api-error";
 
 export type VisualWorkflowsApi = {
@@ -33,6 +34,16 @@ export type VisualWorkflowsApi = {
       status?: VisualWorkflowRecord["status"];
     },
   ): Promise<VisualWorkflowRecord>;
+  createVisualWorkflowRun(
+    organizationSlug: string,
+    visualWorkflowId: string,
+    input: { idempotencyKey: string; inputSnapshot?: Record<string, unknown> },
+  ): Promise<{ run: VisualWorkflowRunRecord; dispatch: { runId: string; enqueued: boolean } }>;
+  getVisualWorkflowRun(
+    organizationSlug: string,
+    visualWorkflowId: string,
+    runId: string,
+  ): Promise<VisualWorkflowRunRecord>;
 };
 
 function visualWorkflowsBasePath(organizationSlug: string) {
@@ -91,6 +102,35 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
       }
       const body = (await response.json()) as { visualWorkflow: VisualWorkflowRecord };
       return body.visualWorkflow;
+    },
+    async createVisualWorkflowRun(organizationSlug, visualWorkflowId, input) {
+      const response = await fetch(
+        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}/runs`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to start visual workflow run");
+      }
+      return (await response.json()) as {
+        run: VisualWorkflowRunRecord;
+        dispatch: { runId: string; enqueued: boolean };
+      };
+    },
+    async getVisualWorkflowRun(organizationSlug, visualWorkflowId, runId) {
+      const response = await fetch(
+        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}/runs/${encodeURIComponent(runId)}`,
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load visual workflow run");
+      }
+      const body = (await response.json()) as { run: VisualWorkflowRunRecord };
+      return body.run;
     },
   };
 }

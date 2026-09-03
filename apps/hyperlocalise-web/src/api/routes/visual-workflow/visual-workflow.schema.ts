@@ -47,3 +47,19 @@ export const updateVisualWorkflowBodySchema = z
   .refine((value) => Object.keys(value).length > 0, {
     message: "Expected at least one visual workflow field",
   });
+
+export const visualWorkflowRunIdParamSchema = visualWorkflowIdParamSchema.extend({
+  runId: z.string().uuid(),
+});
+
+export const listVisualWorkflowRunsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const createVisualWorkflowRunBodySchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(1).max(200),
+    inputSnapshot: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();

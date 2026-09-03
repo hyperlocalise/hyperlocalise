@@ -245,6 +245,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "7A2BIhpV5s",
     description: "Bottom-center button that runs the fake workflow animation",
   },
+  testRunFailed: {
+    defaultMessage: "Workflow test run failed.",
+    id: "z5dStQCLpf",
+    description: "Toast when a server-backed visual workflow test run fails",
+  },
   testingWorkflow: {
     defaultMessage: "Testing…",
     id: "yDT7YBlKvk",

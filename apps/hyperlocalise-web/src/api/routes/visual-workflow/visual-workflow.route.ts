@@ -24,13 +24,21 @@ import {
   listVisualWorkflows,
   updateVisualWorkflow,
 } from "@/lib/visual-workflows/visual-workflows";
+import {
+  dispatchManualVisualWorkflowRun,
+  getVisualWorkflowRunById,
+  listVisualWorkflowRuns,
+} from "@/lib/visual-workflows/visual-workflow-runs";
 import type { VisualWorkflowValidationError } from "@/lib/visual-workflows/visual-workflow-types";
 
 import {
   createVisualWorkflowBodySchema,
+  createVisualWorkflowRunBodySchema,
+  listVisualWorkflowRunsQuerySchema,
   listVisualWorkflowsQuerySchema,
   updateVisualWorkflowBodySchema,
   visualWorkflowIdParamSchema,
+  visualWorkflowRunIdParamSchema,
 } from "./visual-workflow.schema";
 
 const validateListQuery = validator("query", (value, c) => {
@@ -74,6 +82,40 @@ const validateUpdateBody = validator("json", (value, c) => {
       c,
       "invalid_visual_workflow_payload",
       "Visual workflow payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateVisualWorkflowRunParams = validator("param", (value, c) => {
+  const parsed = visualWorkflowRunIdParamSchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_visual_workflow_run_id");
+  }
+  return parsed.data;
+});
+
+const validateListRunsQuery = validator("query", (value, c) => {
+  const parsed = listVisualWorkflowRunsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_query_params",
+      "Query parameters are invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateCreateRunBody = validator("json", (value, c) => {
+  const parsed = createVisualWorkflowRunBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_visual_workflow_run_payload",
+      "Visual workflow run payload is invalid.",
       parsed.error.flatten(),
     );
   }
@@ -188,5 +230,77 @@ export function createVisualWorkflowRoutes() {
       }
 
       return c.json({ visualWorkflow: result.value }, 200);
+    })
+    .get(
+      "/:visualWorkflowId/runs",
+      validateVisualWorkflowParams,
+      validateListRunsQuery,
+      async (c) => {
+        const { visualWorkflowId } = c.req.valid("param");
+        const query = c.req.valid("query");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        const workflow = await getVisualWorkflowById({ organizationId, visualWorkflowId });
+        if (!workflow) {
+          return notFoundResponse(c, "visual_workflow_not_found");
+        }
+
+        const runs = await listVisualWorkflowRuns({
+          organizationId,
+          visualWorkflowId,
+          limit: query.limit,
+          offset: query.offset,
+        });
+
+        return c.json({ runs }, 200);
+      },
+    )
+    .post(
+      "/:visualWorkflowId/runs",
+      validateVisualWorkflowParams,
+      validateCreateRunBody,
+      async (c) => {
+        const { visualWorkflowId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        const result = await dispatchManualVisualWorkflowRun({
+          organizationId,
+          visualWorkflowId,
+          idempotencyKey: body.idempotencyKey,
+          inputSnapshot: body.inputSnapshot,
+        });
+
+        if (!result) {
+          return notFoundResponse(c, "visual_workflow_not_found");
+        }
+
+        const run = await getVisualWorkflowRunById({
+          organizationId,
+          visualWorkflowId,
+          runId: result.runId,
+          includeNodeRuns: true,
+        });
+        if (!run) {
+          throw new Error("visual_workflow_run_not_found");
+        }
+
+        return c.json({ run, dispatch: result }, 202);
+      },
+    )
+    .get("/:visualWorkflowId/runs/:runId", validateVisualWorkflowRunParams, async (c) => {
+      const { visualWorkflowId, runId } = c.req.valid("param");
+      const run = await getVisualWorkflowRunById({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        visualWorkflowId,
+        runId,
+        includeNodeRuns: true,
+      });
+
+      if (!run) {
+        return notFoundResponse(c, "visual_workflow_run_not_found");
+      }
+
+      return c.json({ run }, 200);
     });
 }
