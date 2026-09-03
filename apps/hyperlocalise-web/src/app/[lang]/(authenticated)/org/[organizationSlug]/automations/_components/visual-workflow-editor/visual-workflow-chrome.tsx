@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
@@ -33,6 +34,11 @@ export function VisualWorkflowChrome({
   isSaving = false,
   saveDisabled = false,
   previewMode = false,
+  activeTab = "editor",
+  onTabChange,
+  workflowStatus = "draft",
+  onStatusChange,
+  statusDisabled = false,
 }: {
   name: string;
   onNameChange: (name: string) => void;
@@ -43,9 +49,15 @@ export function VisualWorkflowChrome({
   isSaving?: boolean;
   saveDisabled?: boolean;
   previewMode?: boolean;
+  activeTab?: "editor" | "executions";
+  onTabChange?: (tab: "editor" | "executions") => void;
+  workflowStatus?: VisualWorkflowStatus;
+  onStatusChange?: (active: boolean) => void;
+  statusDisabled?: boolean;
 }) {
   const intl = useIntl();
   const previewOnly = intl.formatMessage(messages.previewOnly);
+  const isActive = workflowStatus === "active";
 
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2.5">
@@ -61,47 +73,69 @@ export function VisualWorkflowChrome({
           <Badge variant="outline" className="rounded-full">
             <FormattedMessage {...messages.previewBadge} />
           </Badge>
+        ) : workflowStatus !== "draft" ? (
+          <Badge variant={isActive ? "default" : "outline"} className="rounded-full">
+            {isActive ? (
+              <FormattedMessage {...messages.activeLabel} />
+            ) : (
+              <FormattedMessage {...messages.pausedLabel} />
+            )}
+          </Badge>
         ) : null}
       </div>
 
-      <Tabs value="editor" className="items-center">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (value === "editor" || value === "executions") {
+            onTabChange?.(value);
+          }
+        }}
+        className="items-center"
+      >
         <TabsList>
           <TabsTrigger value="editor">
             <FormattedMessage {...messages.editorTab} />
           </TabsTrigger>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span>
-                  <TabsTrigger value="executions" disabled>
-                    <FormattedMessage {...messages.executionsTab} />
-                  </TabsTrigger>
-                </span>
-              }
-            />
-            <TooltipContent>
-              <FormattedMessage {...messages.comingSoon} />
-            </TooltipContent>
-          </Tooltip>
+          <TabsTrigger value="executions" disabled={previewMode}>
+            <FormattedMessage {...messages.executionsTab} />
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
       <div className="flex flex-1 items-center justify-end gap-2">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Switch
-                  disabled
-                  size="sm"
-                  aria-label={intl.formatMessage(messages.inactiveLabel)}
-                />
-                <FormattedMessage {...messages.inactiveLabel} />
-              </span>
-            }
-          />
-          <TooltipContent>{previewOnly}</TooltipContent>
-        </Tooltip>
+        {previewMode || !onStatusChange ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Switch
+                    disabled
+                    size="sm"
+                    aria-label={intl.formatMessage(messages.inactiveLabel)}
+                  />
+                  <FormattedMessage {...messages.inactiveLabel} />
+                </span>
+              }
+            />
+            <TooltipContent>{previewOnly}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Switch
+              checked={isActive}
+              disabled={statusDisabled || isSaving}
+              size="sm"
+              aria-label={intl.formatMessage(messages.activeLabel)}
+              onCheckedChange={(checked) => onStatusChange(checked)}
+            />
+            {isActive ? (
+              <FormattedMessage {...messages.activeLabel} />
+            ) : (
+              <FormattedMessage {...messages.inactiveLabel} />
+            )}
+          </span>
+        )}
         <Tooltip>
           <TooltipTrigger
             render={

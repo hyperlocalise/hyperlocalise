@@ -245,6 +245,9 @@ export const visualWorkflowStatusEnum = pgEnum("visual_workflow_status", [
  */
 export const visualWorkflowRunTriggerSourceEnum = pgEnum("visual_workflow_run_trigger_source", [
   "manual",
+  "scheduled",
+  "github",
+  "source_upload",
 ]);
 /**
  * Tracks persisted visual workflow run execution from queueing through terminal outcomes.

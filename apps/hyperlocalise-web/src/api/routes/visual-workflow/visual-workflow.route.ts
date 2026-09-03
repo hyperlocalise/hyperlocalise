@@ -147,6 +147,10 @@ function mapVisualWorkflowValidationError(
     });
   }
 
+  if (error.code === "invalid_active_trigger") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+
   return badRequestResponse(c, error.code, error.message);
 }
 

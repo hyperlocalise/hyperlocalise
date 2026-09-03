@@ -142,8 +142,16 @@ function titleFor(type: VisualCatalogType) {
   switch (type) {
     case "trigger.manual":
       return messages.nodeManualTrigger;
+    case "trigger.scheduled":
+      return messages.nodeScheduledTrigger;
+    case "trigger.github":
+      return messages.nodeGithubTrigger;
+    case "trigger.source_upload":
+      return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.notify_slack":
+      return messages.nodeNotifySlack;
     case "logic.if":
       return messages.nodeIf;
     case "ai.agent":
@@ -157,8 +165,16 @@ function hintFor(type: VisualCatalogType) {
   switch (type) {
     case "trigger.manual":
       return messages.nodeManualTriggerHint;
+    case "trigger.scheduled":
+      return messages.nodeScheduledTriggerHint;
+    case "trigger.github":
+      return messages.nodeGithubTriggerHint;
+    case "trigger.source_upload":
+      return messages.nodeSourceUploadTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
+    case "action.notify_slack":
+      return messages.nodeNotifySlackHint;
     case "logic.if":
       return messages.nodeIfHint;
     case "ai.agent":

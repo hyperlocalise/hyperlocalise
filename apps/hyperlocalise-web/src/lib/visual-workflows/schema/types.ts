@@ -16,7 +16,11 @@ export const VISUAL_WORKFLOW_SCHEMA_VERSION = 1 as const;
 
 export type VisualCatalogType =
   | "trigger.manual"
+  | "trigger.scheduled"
+  | "trigger.github"
+  | "trigger.source_upload"
   | "action.http"
+  | "action.notify_slack"
   | "logic.if"
   | "ai.agent"
   | "logic.for_each";
@@ -25,11 +29,31 @@ export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flo
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export type VisualWorkflowScheduleCadence = "hourly" | "daily" | "weekly";
+
+export type VisualWorkflowGithubTriggerEvent = "push" | "pull_request";
+
+export type VisualWorkflowScheduleConfig = {
+  cadence: VisualWorkflowScheduleCadence;
+  hourUtc?: number;
+  dayOfWeek?: number;
+  timezone?: string;
+};
+
 export type MockNodeRunStatus = "idle" | "running" | "succeeded" | "failed";
 
 export type VisualNodeConfig =
   | { kind: "trigger.manual" }
+  | { kind: "trigger.scheduled"; schedule: VisualWorkflowScheduleConfig }
+  | {
+      kind: "trigger.github";
+      githubInstallationRepositoryId: string;
+      branches: string[];
+      events?: VisualWorkflowGithubTriggerEvent[];
+    }
+  | { kind: "trigger.source_upload"; projectId?: string }
   | { kind: "action.http"; method: HttpMethod; url: string }
+  | { kind: "action.notify_slack"; channelId: string; message: string }
   | { kind: "logic.if"; condition: string }
   | { kind: "ai.agent"; prompt: string }
   | { kind: "logic.for_each"; collection: string };
@@ -71,7 +95,12 @@ export type VisualWorkflowDefinition = {
 export type CanonicalVisualWorkflowDraft = VisualWorkflowDefinition;
 
 export type VisualWorkflowValidationIssue = {
-  code: "missing_trigger" | "multiple_triggers" | "orphan_node" | "invalid_edge";
+  code:
+    | "missing_trigger"
+    | "multiple_triggers"
+    | "orphan_node"
+    | "invalid_edge"
+    | "invalid_trigger_config";
   nodeId?: string;
   edgeId?: string;
 };

@@ -65,6 +65,42 @@ export function resolveVisualWorkflowTemplate(
   });
 }
 
+function normalizeToArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return [];
+  }
+  return [value];
+}
+
+export function resolveVisualWorkflowCollection(
+  template: string,
+  context: VisualWorkflowExecutionContext,
+): unknown[] {
+  const trimmed = template.trim();
+  const fullExpression = trimmed.match(/^\{\{\s*([^}]+?)\s*\}\}$/);
+  if (fullExpression?.[1]) {
+    return normalizeToArray(resolveExpressionPath(fullExpression[1], context));
+  }
+
+  const resolved = resolveVisualWorkflowTemplate(trimmed, context).trim();
+  if (!resolved) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(resolved) as unknown;
+    return normalizeToArray(parsed);
+  } catch {
+    return resolved
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+}
+
 export function evaluateVisualWorkflowCondition(
   condition: string,
   context: VisualWorkflowExecutionContext,

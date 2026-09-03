@@ -131,8 +131,16 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
   switch (type) {
     case "trigger.manual":
       return messages.nodeManualTrigger;
+    case "trigger.scheduled":
+      return messages.nodeScheduledTrigger;
+    case "trigger.github":
+      return messages.nodeGithubTrigger;
+    case "trigger.source_upload":
+      return messages.nodeSourceUploadTrigger;
     case "action.http":
       return messages.nodeHttp;
+    case "action.notify_slack":
+      return messages.nodeNotifySlack;
     case "logic.if":
       return messages.nodeIf;
     case "ai.agent":

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import type {
   HttpMethod,
   VisualNodeConfig,
@@ -118,6 +119,137 @@ export function VisualWorkflowConfigPanel({
             />
           </div>
         ) : null}
+        {config.kind === "logic.for_each" ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor="vw-for-each-collection">
+              <FormattedMessage {...messages.forEachCollection} />
+            </Label>
+            <Textarea
+              id="vw-for-each-collection"
+              value={config.collection}
+              onChange={(event) => onChangeConfig({ ...config, collection: event.target.value })}
+              placeholder="{{trigger.items}}"
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.notify_slack" ? (
+          <>
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-slack-channel">
+                <FormattedMessage {...messages.slackChannelId} />
+              </Label>
+              <Input
+                id="vw-slack-channel"
+                value={config.channelId}
+                onChange={(event) => onChangeConfig({ ...config, channelId: event.target.value })}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-slack-message">
+                <FormattedMessage {...messages.slackMessage} />
+              </Label>
+              <Textarea
+                id="vw-slack-message"
+                value={config.message}
+                onChange={(event) => onChangeConfig({ ...config, message: event.target.value })}
+              />
+            </div>
+          </>
+        ) : null}
+        {config.kind === "trigger.github" ? (
+          <>
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-github-repo">
+                <FormattedMessage {...messages.githubRepositoryId} />
+              </Label>
+              <Input
+                id="vw-github-repo"
+                value={config.githubInstallationRepositoryId}
+                onChange={(event) =>
+                  onChangeConfig({
+                    ...config,
+                    githubInstallationRepositoryId: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-github-branches">
+                <FormattedMessage {...messages.githubBranches} />
+              </Label>
+              <Input
+                id="vw-github-branches"
+                value={config.branches.join(", ")}
+                onChange={(event) =>
+                  onChangeConfig({
+                    ...config,
+                    branches: event.target.value
+                      .split(",")
+                      .map((entry) => entry.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="main, release/*"
+              />
+            </div>
+          </>
+        ) : null}
+        {config.kind === "trigger.scheduled" ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor="vw-schedule-cadence">
+              <FormattedMessage {...messages.scheduleCadence} />
+            </Label>
+            <Select
+              value={config.schedule.cadence}
+              items={[
+                { value: "hourly", label: "Hourly" },
+                { value: "daily", label: "Daily" },
+                { value: "weekly", label: "Weekly" },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "hourly" && value !== "daily" && value !== "weekly") {
+                  return;
+                }
+                onChangeConfig({
+                  ...config,
+                  schedule: { ...config.schedule, cadence: value },
+                });
+              }}
+            >
+              <SelectTrigger id="vw-schedule-cadence" className="w-full">
+                <SelectValue>{config.schedule.cadence}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hourly" label="Hourly">
+                  Hourly
+                </SelectItem>
+                <SelectItem value="daily" label="Daily">
+                  Daily
+                </SelectItem>
+                <SelectItem value="weekly" label="Weekly">
+                  Weekly
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {config.kind === "trigger.source_upload" ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor="vw-source-project">
+              <FormattedMessage {...messages.sourceUploadProjectId} />
+            </Label>
+            <Input
+              id="vw-source-project"
+              value={config.projectId ?? ""}
+              onChange={(event) =>
+                onChangeConfig({
+                  ...config,
+                  projectId: event.target.value.trim() || undefined,
+                })
+              }
+            />
+          </div>
+        ) : null}
         {config.kind === "ai.agent" ? (
           <>
             <div className="grid gap-1.5">
@@ -143,10 +275,15 @@ export function VisualWorkflowConfigPanel({
             </div>
           </>
         ) : null}
-        {config.kind === "trigger.manual" ? (
-          <TypographyP className="text-sm text-muted-foreground">
-            <FormattedMessage {...messages.noConfig} />
-          </TypographyP>
+        {config.kind === "trigger.manual" ||
+        config.kind === "trigger.scheduled" ||
+        config.kind === "trigger.github" ||
+        config.kind === "trigger.source_upload" ? (
+          config.kind === "trigger.manual" ? (
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...messages.noConfig} />
+            </TypographyP>
+          ) : null
         ) : null}
       </div>
       {issues.length > 0 ? (
@@ -176,5 +313,9 @@ function issueMessage(code: VisualWorkflowValidationIssue["code"]) {
       return messages.orphanNode;
     case "invalid_edge":
       return messages.invalidEdge;
+    case "invalid_trigger_config":
+      return messages.invalidTriggerConfig;
+    default:
+      return assertNever(code);
   }
 }

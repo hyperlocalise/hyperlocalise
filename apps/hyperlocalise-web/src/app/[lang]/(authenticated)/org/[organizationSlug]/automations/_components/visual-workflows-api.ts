@@ -39,6 +39,11 @@ export type VisualWorkflowsApi = {
     visualWorkflowId: string,
     input: { idempotencyKey: string; inputSnapshot?: Record<string, unknown> },
   ): Promise<{ run: VisualWorkflowRunRecord; dispatch: { runId: string; enqueued: boolean } }>;
+  listVisualWorkflowRuns(
+    organizationSlug: string,
+    visualWorkflowId: string,
+    input?: { limit?: number; offset?: number },
+  ): Promise<VisualWorkflowRunRecord[]>;
   getVisualWorkflowRun(
     organizationSlug: string,
     visualWorkflowId: string,
@@ -120,6 +125,25 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
         run: VisualWorkflowRunRecord;
         dispatch: { runId: string; enqueued: boolean };
       };
+    },
+    async listVisualWorkflowRuns(organizationSlug, visualWorkflowId, input) {
+      const params = new URLSearchParams();
+      if (input?.limit !== undefined) {
+        params.set("limit", String(input.limit));
+      }
+      if (input?.offset !== undefined) {
+        params.set("offset", String(input.offset));
+      }
+      const query = params.toString();
+      const response = await fetch(
+        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}/runs${query ? `?${query}` : ""}`,
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load visual workflow runs");
+      }
+      const body = (await response.json()) as { runs: VisualWorkflowRunRecord[] };
+      return body.runs;
     },
     async getVisualWorkflowRun(organizationSlug, visualWorkflowId, runId) {
       const response = await fetch(

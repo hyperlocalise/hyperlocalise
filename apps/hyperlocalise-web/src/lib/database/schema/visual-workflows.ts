@@ -36,6 +36,8 @@ export const visualWorkflows = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     definitionVersion: integer("definition_version").notNull().default(1),
+    triggerFingerprint: text("trigger_fingerprint"),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -45,5 +47,10 @@ export const visualWorkflows = pgTable(
   (table) => [
     index("idx_visual_workflows_org_status").on(table.organizationId, table.status),
     index("idx_visual_workflows_org_project").on(table.organizationId, table.projectId),
+    index("idx_visual_workflows_org_next_run_at").on(table.organizationId, table.nextRunAt),
+    index("idx_visual_workflows_org_trigger_fingerprint").on(
+      table.organizationId,
+      table.triggerFingerprint,
+    ),
   ],
 );

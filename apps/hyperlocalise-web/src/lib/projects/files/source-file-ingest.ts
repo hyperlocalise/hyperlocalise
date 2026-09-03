@@ -166,6 +166,14 @@ export async function dispatchSourceUploadAutomations(input: {
     sourcePath: input.sourcePath,
     sourceHash: input.sourceHash,
   });
+
+  const { dispatchVisualWorkflowsForSourceUpload } =
+    await import("@/lib/visual-workflows/visual-workflow-dispatcher");
+  await dispatchVisualWorkflowsForSourceUpload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceFileId: input.sourceFileId,
+  });
 }
 
 export async function enqueueSourceFileIngestAfterUpload(

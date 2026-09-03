@@ -22,7 +22,11 @@ import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
 
 const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.manual",
+  "trigger.scheduled",
+  "trigger.github",
+  "trigger.source_upload",
   "action.http",
+  "action.notify_slack",
   "logic.if",
   "ai.agent",
   "logic.for_each",

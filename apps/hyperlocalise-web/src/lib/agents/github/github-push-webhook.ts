@@ -103,6 +103,16 @@ export async function handleGithubPushWebhook(
       commitBefore,
       commitAfter,
     });
+    const { dispatchVisualWorkflowsForGithubPush } =
+      await import("@/lib/visual-workflows/visual-workflow-dispatcher");
+    await dispatchVisualWorkflowsForGithubPush({
+      deliveryId: input.deliveryId,
+      organizationId: input.organizationId,
+      githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+      branch,
+      commitBefore,
+      commitAfter,
+    });
   } catch (error) {
     logger.error(
       {

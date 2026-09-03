@@ -12,12 +12,17 @@
  */
 import { generateText } from "ai";
 
+import { runWorkspaceAutomationSlackNotificationTool } from "@/lib/agents/workspace-automation/notification-tools";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
-import { evaluateVisualWorkflowCondition, resolveVisualWorkflowTemplate } from "./expressions";
+import {
+  evaluateVisualWorkflowCondition,
+  resolveVisualWorkflowCollection,
+  resolveVisualWorkflowTemplate,
+} from "./expressions";
 
 export type VisualWorkflowNodeExecutionResult =
   | {
@@ -41,6 +46,9 @@ export async function executeVisualWorkflowNode(input: {
 
   switch (node.config.kind) {
     case "trigger.manual":
+    case "trigger.scheduled":
+    case "trigger.github":
+    case "trigger.source_upload":
       return {
         ok: true,
         output: {
@@ -90,6 +98,46 @@ export async function executeVisualWorkflowNode(input: {
         };
       }
     }
+    case "action.notify_slack": {
+      const channelId = resolveVisualWorkflowTemplate(node.config.channelId, context).trim();
+      const message = resolveVisualWorkflowTemplate(node.config.message, context).trim();
+      if (!channelId) {
+        return {
+          ok: false,
+          error: { code: "missing_channel", message: "Slack channel ID is required." },
+        };
+      }
+      if (!message) {
+        return {
+          ok: false,
+          error: { code: "missing_message", message: "Slack message is required." },
+        };
+      }
+
+      const result = await runWorkspaceAutomationSlackNotificationTool({
+        organizationId: input.organizationId,
+        channelId,
+        message,
+      });
+
+      if (!result.ok) {
+        return {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        output: {
+          sent: true,
+          channelId,
+        },
+      };
+    }
     case "logic.if": {
       const resolvedCondition = resolveVisualWorkflowTemplate(node.config.condition, context);
       const branchResult = evaluateVisualWorkflowCondition(node.config.condition, context);
@@ -132,14 +180,16 @@ export async function executeVisualWorkflowNode(input: {
         };
       }
     }
-    case "logic.for_each":
+    case "logic.for_each": {
+      const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {
-        ok: false,
-        error: {
-          code: "unsupported_node",
-          message: "Loop nodes are not supported in Phase 1.",
+        ok: true,
+        output: {
+          items,
+          count: items.length,
         },
       };
+    }
     default:
       return {
         ok: false,

@@ -360,13 +360,14 @@ export async function listVisualWorkflowNodeRuns(input: {
   return rows.map((row) => serializeNodeRun(row));
 }
 
-async function getVisualWorkflowRunByIdempotencyKey(input: {
+export async function getVisualWorkflowRunByIdempotencyKey(input: {
   organizationId: string;
   visualWorkflowId: string;
   idempotencyKey: string;
-  dbClient: DatabaseClient;
+  dbClient?: DatabaseClient;
 }) {
-  const [row] = await input.dbClient
+  const dbClient = input.dbClient ?? db;
+  const [row] = await dbClient
     .select()
     .from(schema.visualWorkflowRuns)
     .where(

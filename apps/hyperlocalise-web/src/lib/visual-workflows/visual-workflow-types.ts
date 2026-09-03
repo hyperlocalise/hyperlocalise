@@ -27,10 +27,13 @@ export type VisualWorkflowRecord = {
   name: string;
   definition: VisualWorkflowDefinition;
   definitionVersion: number;
+  triggerFingerprint: string | null;
+  nextRunAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type VisualWorkflowValidationError =
   | { code: "invalid_definition"; message: string }
-  | { code: "invalid_graph"; issues: Array<{ code: string; nodeId?: string }> };
+  | { code: "invalid_graph"; issues: Array<{ code: string; nodeId?: string }> }
+  | { code: "invalid_active_trigger"; message: string };

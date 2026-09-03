@@ -50,6 +50,46 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "tZkO4BrIat",
     description: "Disabled workflow active-state toggle label",
   },
+  activeLabel: {
+    defaultMessage: "Active",
+    id: "EOnZA0Blf8",
+    description: "Label when a visual workflow is active and receiving production triggers",
+  },
+  pausedLabel: {
+    defaultMessage: "Paused",
+    id: "wO5LCBiwAW",
+    description: "Badge label when a visual workflow is paused",
+  },
+  executionsLoading: {
+    defaultMessage: "Loading runs…",
+    id: "2UzN/e58h6",
+    description: "Loading state for the visual workflow executions tab",
+  },
+  executionsEmpty: {
+    defaultMessage: "No runs yet. Test the workflow or activate a production trigger.",
+    id: "xCzhnb7LDc",
+    description: "Empty state for the visual workflow executions list",
+  },
+  executionsSelectRun: {
+    defaultMessage: "Select a run to inspect node-level status.",
+    id: "3CTikplBoF",
+    description: "Prompt when no run is selected in the executions tab",
+  },
+  executionsNoNodeRuns: {
+    defaultMessage: "No node runs recorded for this execution yet.",
+    id: "XDw6P/hnSY",
+    description: "Empty node run table in executions detail",
+  },
+  executionNodeColumn: {
+    defaultMessage: "Node",
+    id: "U2UH4sKilD",
+    description: "Column header for node id in execution detail",
+  },
+  executionStatusColumn: {
+    defaultMessage: "Status",
+    id: "86k8CEUaJ5",
+    description: "Column header for node status in execution detail",
+  },
   share: {
     defaultMessage: "Share",
     id: "LwRsugxcAC",
@@ -181,9 +221,49 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Catalog title for the for-each placeholder node",
   },
   nodeLoopHint: {
-    defaultMessage: "Iterate over items. Coming soon.",
-    id: "o1RbbbgBAc",
-    description: "Catalog description for the for-each placeholder node",
+    defaultMessage: "Iterate over a collection sequentially.",
+    id: "UBB7DkzFVO",
+    description: "Catalog description for the for-each node",
+  },
+  nodeScheduledTrigger: {
+    defaultMessage: "Schedule",
+    id: "Q6fTrZjDFK",
+    description: "Catalog title for the scheduled trigger node",
+  },
+  nodeScheduledTriggerHint: {
+    defaultMessage: "Run on a recurring schedule.",
+    id: "K8Rm2vBkxl",
+    description: "Catalog description for the scheduled trigger node",
+  },
+  nodeGithubTrigger: {
+    defaultMessage: "GitHub",
+    id: "X6j8iQtiXf",
+    description: "Catalog title for the GitHub trigger node",
+  },
+  nodeGithubTriggerHint: {
+    defaultMessage: "Start when a repository event occurs.",
+    id: "oJs8Cbpwe6",
+    description: "Catalog description for the GitHub trigger node",
+  },
+  nodeSourceUploadTrigger: {
+    defaultMessage: "Source upload",
+    id: "3v87yVdwpX",
+    description: "Catalog title for the source upload trigger node",
+  },
+  nodeSourceUploadTriggerHint: {
+    defaultMessage: "Start when a source file is uploaded.",
+    id: "96dcZwdhGc",
+    description: "Catalog description for the source upload trigger node",
+  },
+  nodeNotifySlack: {
+    defaultMessage: "Notify Slack",
+    id: "t2I2Yj3t0M",
+    description: "Catalog title for the notify Slack action node",
+  },
+  nodeNotifySlackHint: {
+    defaultMessage: "Send a Slack message to a channel.",
+    id: "5/GGmNLCh0",
+    description: "Catalog description for the notify Slack action node",
   },
   addNode: {
     defaultMessage: "Add node",
@@ -275,6 +355,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "UvtZVrIkJR",
     description: "Validation message when an edge references a missing node",
   },
+  invalidTriggerConfig: {
+    defaultMessage: "Fix the trigger configuration before activating this workflow.",
+    id: "7j13INCpbH",
+    description: "Validation message when trigger config is invalid for activation",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",
@@ -291,9 +376,59 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Confirmation after saving a visual workflow",
   },
   saveFailed: {
-    defaultMessage: "Could not save this workflow.",
-    id: "BpV0qLbT1A",
-    description: "Toast when visual workflow save fails",
+    defaultMessage: "Could not save workflow",
+    id: "vZgNJeOOdN",
+    description: "Toast when saving a visual workflow fails",
+  },
+  activateFailed: {
+    defaultMessage: "Could not update workflow status. Use a production trigger before activating.",
+    id: "SyXUY/R958",
+    description: "Toast when activating a visual workflow fails",
+  },
+  activated: {
+    defaultMessage: "Workflow activated",
+    id: "wv8HUfa79G",
+    description: "Toast when a visual workflow is activated",
+  },
+  paused: {
+    defaultMessage: "Workflow paused",
+    id: "W3kvUxF+V1",
+    description: "Toast when a visual workflow is paused",
+  },
+  forEachCollection: {
+    defaultMessage: "Collection expression",
+    id: "TSLfOgCp9k",
+    description: "Label for for-each collection expression field",
+  },
+  slackChannelId: {
+    defaultMessage: "Slack channel ID",
+    id: "ALH+xiJiG8",
+    description: "Label for Slack channel id on notify slack node",
+  },
+  slackMessage: {
+    defaultMessage: "Message",
+    id: "NGsHVcOyFb",
+    description: "Label for Slack message on notify slack node",
+  },
+  githubRepositoryId: {
+    defaultMessage: "GitHub repository ID",
+    id: "a1/Cklodwn",
+    description: "Label for GitHub installation repository id on trigger node",
+  },
+  githubBranches: {
+    defaultMessage: "Branch patterns",
+    id: "IsFQvqwJAO",
+    description: "Label for GitHub branch patterns on trigger node",
+  },
+  scheduleCadence: {
+    defaultMessage: "Cadence",
+    id: "+KX/fjdtO4",
+    description: "Label for schedule cadence on scheduled trigger node",
+  },
+  sourceUploadProjectId: {
+    defaultMessage: "Project ID (optional)",
+    id: "ImtoSoLxJY",
+    description: "Optional project filter for source upload trigger",
   },
   triggerBadge: {
     defaultMessage: "Trigger",

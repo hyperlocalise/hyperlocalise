@@ -12,7 +12,12 @@
  */
 import { z } from "zod";
 
-export const visualWorkflowRunTriggerSourceSchema = z.enum(["manual"]);
+export const visualWorkflowRunTriggerSourceSchema = z.enum([
+  "manual",
+  "scheduled",
+  "github",
+  "source_upload",
+]);
 export const visualWorkflowRunStatusSchema = z.enum([
   "queued",
   "running",

@@ -18,6 +18,7 @@ import { createLogger } from "@/lib/log";
 import { runGithubRepositoryAutomationScheduler } from "@/lib/agents/github/github-repository-automation-scheduler";
 import { runGithubRepositoryAutomationWorker } from "@/lib/agents/github/github-repository-automation-worker";
 import { runWorkspaceAutomationScheduler } from "@/lib/agents/workspace-automation-scheduler";
+import { runVisualWorkflowScheduler } from "@/lib/visual-workflows/visual-workflow-scheduler";
 
 const logger = createLogger("cron-github-repository-automation-dispatch");
 
@@ -49,6 +50,9 @@ export function createGithubRepositoryAutomationDispatchRoutes() {
     const workspaceAutomationSchedulerResults = await runWorkspaceAutomationScheduler({
       limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     });
+    const visualWorkflowSchedulerResults = await runVisualWorkflowScheduler({
+      limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    });
 
     const workerResults = await runGithubRepositoryAutomationWorker({
       limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
@@ -66,6 +70,11 @@ export function createGithubRepositoryAutomationDispatchRoutes() {
           enqueued: workspaceAutomationSchedulerResults.enqueued,
           skipped: workspaceAutomationSchedulerResults.skipped,
         },
+        visualWorkflowScheduler: {
+          processed: visualWorkflowSchedulerResults.processed,
+          enqueued: visualWorkflowSchedulerResults.enqueued,
+          skipped: visualWorkflowSchedulerResults.skipped,
+        },
         worker: {
           processed: workerResults.processed,
           started: workerResults.started,
@@ -80,6 +89,7 @@ export function createGithubRepositoryAutomationDispatchRoutes() {
         results: {
           scheduler: schedulerResults,
           workspaceAutomationScheduler: workspaceAutomationSchedulerResults,
+          visualWorkflowScheduler: visualWorkflowSchedulerResults,
           worker: workerResults,
         },
       },

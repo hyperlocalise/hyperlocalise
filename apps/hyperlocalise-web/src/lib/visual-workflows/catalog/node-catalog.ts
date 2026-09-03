@@ -16,7 +16,9 @@ import {
   FlashIcon,
   GitBranchIcon,
   Globe02Icon,
+  Mail01Icon,
   Task01Icon,
+  Upload04Icon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -42,10 +44,34 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: Clock01Icon,
   },
   {
+    type: "trigger.scheduled",
+    category: "trigger",
+    enabled: true,
+    icon: Clock01Icon,
+  },
+  {
+    type: "trigger.github",
+    category: "trigger",
+    enabled: true,
+    icon: GitBranchIcon,
+  },
+  {
+    type: "trigger.source_upload",
+    category: "trigger",
+    enabled: true,
+    icon: Upload04Icon,
+  },
+  {
     type: "action.http",
     category: "action",
     enabled: true,
     icon: Globe02Icon,
+  },
+  {
+    type: "action.notify_slack",
+    category: "action",
+    enabled: true,
+    icon: Mail01Icon,
   },
   {
     type: "logic.if",
@@ -62,7 +88,7 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
   {
     type: "logic.for_each",
     category: "flow",
-    enabled: false,
+    enabled: true,
     icon: Task01Icon,
   },
 ];
@@ -81,8 +107,24 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
   switch (type) {
     case "trigger.manual":
       return { kind: "trigger.manual" };
+    case "trigger.scheduled":
+      return {
+        kind: "trigger.scheduled",
+        schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+      };
+    case "trigger.github":
+      return {
+        kind: "trigger.github",
+        githubInstallationRepositoryId: "",
+        branches: ["main"],
+        events: ["push"],
+      };
+    case "trigger.source_upload":
+      return { kind: "trigger.source_upload" };
     case "action.http":
       return { kind: "action.http", method: "GET", url: "" };
+    case "action.notify_slack":
+      return { kind: "action.notify_slack", channelId: "", message: "" };
     case "logic.if":
       return { kind: "logic.if", condition: "" };
     case "ai.agent":
@@ -104,6 +146,9 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   if (type === "logic.if") {
     return { width: 200, height: 120 };
   }
+  if (type.startsWith("trigger.")) {
+    return { width: 200, height: 120 };
+  }
   return { width: 200, height: 104 };
 }
 
@@ -123,8 +168,16 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   switch (config.kind) {
     case "trigger.manual":
       return "On demand";
+    case "trigger.scheduled":
+      return config.schedule.cadence;
+    case "trigger.github":
+      return config.branches[0] ?? "GitHub";
+    case "trigger.source_upload":
+      return config.projectId ? "Project upload" : "Any project";
     case "action.http":
       return config.method;
+    case "action.notify_slack":
+      return config.channelId ? "Slack" : "Slack channel";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
     case "ai.agent":

@@ -23,6 +23,7 @@ import {
   selectNextEdges,
   type VisualWorkflowGraphIndex,
 } from "./graph-index";
+import { findForEachLoopRegion, sortLoopBodyNodes } from "./loop-region";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -139,16 +140,15 @@ export async function runVisualWorkflowInterpreter(input: {
   const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
 
-  while (queue.length > 0) {
-    const nodeId = queue.shift();
-    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
-      continue;
-    }
-    completed.add(nodeId);
-
+  const runNode = async (
+    nodeId: string,
+  ): Promise<
+    | { ok: true; branchResult?: boolean; nodeType: string }
+    | { ok: false; error: Record<string, unknown> }
+  > => {
     const node = graph.nodesById.get(nodeId);
     if (!node) {
-      continue;
+      return { ok: false, error: { message: "Node not found." } };
     }
 
     await input.onNodeUpdate?.({
@@ -173,13 +173,7 @@ export async function runVisualWorkflowInterpreter(input: {
         status: "failed",
         error: execution.error,
       });
-      return {
-        ok: false,
-        context,
-        nodeResults,
-        failedNodeId: nodeId,
-        error: execution.error,
-      };
+      return { ok: false, error: execution.error };
     }
 
     setNodeOutput(context, nodeId, execution.output);
@@ -191,6 +185,99 @@ export async function runVisualWorkflowInterpreter(input: {
       status: "succeeded",
       outputSnapshot: execution.output,
     });
+
+    return { ok: true, branchResult: execution.branchResult, nodeType: node.type };
+  };
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
+      continue;
+    }
+    completed.add(nodeId);
+
+    const node = graph.nodesById.get(nodeId);
+    if (!node) {
+      continue;
+    }
+
+    if (node.type === "logic.for_each") {
+      const execution = await runNode(nodeId);
+      if (!execution.ok) {
+        return {
+          ok: false,
+          context,
+          nodeResults,
+          failedNodeId: nodeId,
+          error: execution.error,
+        };
+      }
+
+      const items = (nodeResults[nodeId]?.items as unknown[]) ?? [];
+      const { bodyNodeIds, exitTargetIds } = findForEachLoopRegion({
+        graph,
+        forEachNodeId: nodeId,
+      });
+      const orderedBody = sortLoopBodyNodes(graph, nodeId, bodyNodeIds);
+      const iterationOutputs: Record<string, unknown>[] = [];
+
+      for (let index = 0; index < items.length; index += 1) {
+        setNodeOutput(context, nodeId, {
+          ...nodeResults[nodeId],
+          item: items[index],
+          index,
+        });
+
+        for (const bodyNodeId of orderedBody) {
+          const bodyResult = await runNode(bodyNodeId);
+          if (!bodyResult.ok) {
+            return {
+              ok: false,
+              context,
+              nodeResults,
+              failedNodeId: bodyNodeId,
+              error: bodyResult.error,
+            };
+          }
+        }
+
+        const lastBodyNodeId = orderedBody.at(-1);
+        iterationOutputs.push(
+          lastBodyNodeId ? (nodeResults[lastBodyNodeId] ?? {}) : { item: items[index], index },
+        );
+      }
+
+      setNodeOutput(context, nodeId, {
+        ...nodeResults[nodeId],
+        iterationOutputs,
+      });
+      nodeResults[nodeId] = context.nodes[nodeId] ?? nodeResults[nodeId] ?? {};
+
+      for (const bodyNodeId of orderedBody) {
+        completed.add(bodyNodeId);
+      }
+
+      for (const exitTargetId of exitTargetIds) {
+        releasePredecessorEdge({
+          pendingIncoming,
+          queue,
+          targetNodeId: exitTargetId,
+        });
+      }
+
+      continue;
+    }
+
+    const execution = await runNode(nodeId);
+    if (!execution.ok) {
+      return {
+        ok: false,
+        context,
+        nodeResults,
+        failedNodeId: nodeId,
+        error: execution.error,
+      };
+    }
 
     const outgoing = graph.outgoingByNodeId.get(nodeId) ?? [];
     const nextEdges = selectNextEdges({
