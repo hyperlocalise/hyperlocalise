@@ -14,6 +14,7 @@
  */
 import { ArrowDown01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -35,7 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
-export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
+export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only" | "open";
 
 type IntegrationRowProps = {
   name: string;
@@ -43,6 +44,7 @@ type IntegrationRowProps = {
   icon?: ReactNode;
   iconMuted?: boolean;
   action: IntegrationRowAction;
+  href?: string;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   onConnect?: () => void;
@@ -121,6 +123,7 @@ export function IntegrationRow({
   icon,
   iconMuted = false,
   action,
+  href,
   expanded = false,
   onExpandedChange,
   onConnect,
@@ -146,6 +149,16 @@ export function IntegrationRow({
         ) : action === "coming-soon" ? (
           <Button type="button" variant="outline" size="sm" disabled>
             <FormattedMessage {...integrationRowMessages.comingSoon} />
+          </Button>
+        ) : action === "open" && href ? (
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={<Link href={href} />}
+          >
+            <FormattedMessage {...integrationRowMessages.open} />
+            <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
           </Button>
         ) : action === "view-only" ? (
           <TypographyMuted>

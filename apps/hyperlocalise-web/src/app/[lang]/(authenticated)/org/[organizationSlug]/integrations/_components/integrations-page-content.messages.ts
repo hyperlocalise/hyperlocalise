@@ -62,10 +62,9 @@ export const integrationsPageContentMessages = defineMessages({
     description: "Built-in market experiments product name on the integrations page",
   },
   hyperlabDetail: {
-    defaultMessage:
-      "Run and measure market experiments across locales — variants, rollouts, and winner selection built into Hyperlocalise.",
+    defaultMessage: "Test a change with some users before you show it to everyone.",
     id: "A9QMrzJCol",
-    description: "Built-in market experiments product description on the integrations page",
+    description: "Built-in experiments product description on the integrations page",
   },
   cmsCategory: {
     defaultMessage: "Content & publishing",

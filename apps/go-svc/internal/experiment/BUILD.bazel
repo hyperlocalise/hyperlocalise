@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "experiment",
+    srcs = [
+        "cache.go",
+        "criterion.go",
+        "evaluate.go",
+        "hash.go",
+        "memory_store.go",
+        "ofrep.go",
+        "store.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment",
+    visibility = ["//apps/go-svc:__pkg__"],
+    deps = [
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "experiment_test",
+    srcs = [
+        "criterion_test.go",
+        "evaluate_benchmark_test.go",
+        "hash_test.go",
+        "ofrep_test.go",
+    ],
+    embed = [":experiment"],
+    deps = [
+        "@com_github_stretchr_testify//require",
+    ],
+)

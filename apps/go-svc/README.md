@@ -2,7 +2,7 @@
 
 Go container service for CPU-heavy work that runs beside the Next.js app on Vercel. Today it powers CAT segment validation (format, length, and Hunspell spelling checks). Future Domains SEO features will call DataForSEO through `internal/dataforseo` and Google Search Console through `internal/gsc`.
 
-Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` when called directly via the `GO_SVC_URL` binding.
+Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
 ## Environment variables
 
@@ -28,6 +28,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `PORT` | `8080` | HTTP listen port. |
 | `HUNSPELL_DICT_DIR` | `/usr/share/hunspell` | Directory containing Hunspell `.aff` / `.dic` files. The container image bundles dictionaries at the default path. |
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required to serve Hyperlab OFREP evaluate routes. |
 
 ### DataForSEO (upcoming SEO features)
 
@@ -117,5 +118,7 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie | Validate a CAT segment (format, length, spelling) |
+| `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
+| `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
 Authenticated requests must include the `wos-session` cookie from a signed-in Hyperlocalise user.

@@ -18,6 +18,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_DOMAINS_FLAG,
+  WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
@@ -201,6 +202,8 @@ describe("path builders", () => {
     expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("Board")?.featureFlagKey).toBeUndefined();
     expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
+    expect(byLabel.get("Hyperlab")?.href).toBe("/org/acme/hyperlab");
+    expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
 
     expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
     expect(groups[1]?.items.map((item) => item.label)).toEqual([

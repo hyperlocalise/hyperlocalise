@@ -1173,7 +1173,8 @@ export function IntegrationsPageContent({
                 description={intl.formatMessage(integrationsPageContentMessages.hyperlabDetail)}
                 icon={<IntegrationLogo src="/images/logo.png" />}
                 iconMuted
-                action="coming-soon"
+                action="open"
+                href={`/org/${organizationSlug}/hyperlab`}
                 isLast
               />
             </IntegrationCategorySection>

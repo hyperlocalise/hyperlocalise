@@ -43,3 +43,4 @@ export * from "./schema/project-content-editor-segment-locks";
 export * from "./schema/billing";
 export * from "./schema/localisation-audits";
 export * from "./schema/linked-domains";
+export * from "./schema/experiments";

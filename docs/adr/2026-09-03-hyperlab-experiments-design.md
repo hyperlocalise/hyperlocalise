@@ -27,17 +27,22 @@ Ship a multi-tenant Hyperlab in three layers:
 3. **Web** — org-scoped CRUD APIs and a full management UI.
 
 Customers authenticate evaluate calls with a publishable client key
-(`hlk_...`). Secret org API keys stay for jobs and files.
+(`hlk_...`). That value is an opaque OFREP credential: official providers
+send it as `Authorization: Bearer` or `X-API-Key`. The `hlk_` prefix is
+for display and lookup, not a protocol requirement. Secret org API keys
+stay for jobs and files.
+
+Customers evaluate flags with the OpenFeature SDK and a community OFREP
+provider. They set the provider `baseUrl` to the go-svc origin and pass
+the publishable key. We do not ship a custom provider in v1.
 
 ### Product rules
 
 - Every row is owned by an organization. Flag keys are unique per org.
 - Flags are `experiment` or `config`. Experiments are `toggle` or `ab`.
-- Evaluate is OFREP. There is no custom `/decide`, `/evaluate`, or
-  `/remote-config` contract.
-- Audience targeting uses a criterion tree of `attribute` leaves only. We do
-  not store user profiles, so there is no `user_property` leaf and no
-  precomputed membership table.
+- Evaluate is OFREP.
+- Audience targeting uses a criterion tree of `attribute` leaves evaluated
+  against the OFREP context.
 - `targetingKey` is required for OFREP and is the bucket id. It is not a
   criterion field unless the caller also sends it as an attribute.
 - IDs are UUIDs. Rollout uses a 0–10000 scale and 10000 buckets.
@@ -101,14 +106,35 @@ it.
 ### Evaluate
 
 For each requested flag, go-svc loads active experiments in window, hashes
-`campaignId`-style key `experimentId + targetingKey + seed` into a bucket
-(murmurhash3, 10000 buckets), picks the first allocation that contains the
-bucket, then evaluates the variant or experiment audience criterion against
-the OFREP context. A `config` flag skips experiments and returns its JSON.
+`experimentId + targetingKey + seed` into a bucket (murmurhash3, 10000
+buckets), picks the first allocation that contains the bucket, then
+evaluates the variant or experiment audience criterion against the OFREP
+context. A `config` flag skips experiments and returns its JSON.
 
 ## Evaluate API (OFREP 0.3)
 
-Auth: `Authorization: Bearer hlk_...` or `X-API-Key: hlk_...`.
+Auth: `Authorization: Bearer hlk_...` or `X-API-Key: hlk_...`. Both match
+OFREP 0.3 (`BearerAuth` and `ApiKeyAuth`). A JWT is not required.
+
+Flag keys are URL-safe (`[a-z0-9._-]+`) so they can sit in
+`/ofrep/v1/evaluate/flags/{key}` without encoding surprises.
+
+Server SDK (dynamic context, one flag per call):
+
+```ts
+import { OpenFeature } from "@openfeature/server-sdk";
+import { OFREPProvider } from "@openfeature/ofrep-provider";
+
+OpenFeature.setProvider(
+  new OFREPProvider({
+    baseUrl: "https://app.hyperlocalise.com/api/go-svc",
+    headers: [["X-API-Key", "hlk_..."]],
+  }),
+);
+```
+
+Browser SDKs use the same base URL and key against
+`POST /ofrep/v1/evaluate/flags` (bulk, static context).
 
 | Method | Path | Use |
 |--------|------|-----|
@@ -193,5 +219,4 @@ state, detail form. No analytics in v1.
 
 ## Out of v1
 
-Exposure analytics, Redis, OFREP SSE, audience member sync, and
-presentation-specific payload types (banners, carousels, takeovers).
+Exposure analytics, Redis, and OFREP SSE.

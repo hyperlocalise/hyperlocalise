@@ -18,6 +18,7 @@ import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_DOMAINS_FLAG,
+  WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
@@ -32,6 +33,7 @@ import {
   Database01Icon,
   File01Icon,
   FlashIcon,
+  FlaskConicalIcon,
   Globe02Icon,
   InboxIcon,
   LanguageCircleIcon,
@@ -231,6 +233,21 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar description for the Domains navigation item",
           }),
           featureFlagKey: WORKSPACE_DOMAINS_FLAG,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Hyperlab",
+            id: "hyperlab.navItem",
+            description: "Sidebar navigation item for Hyperlab experiments",
+          }),
+          href: org("hyperlab"),
+          icon: FlaskConicalIcon,
+          description: intl.formatMessage({
+            defaultMessage: "Flags and experiments for your apps",
+            id: "hyperlab.navItemDescription",
+            description: "Sidebar description for the Hyperlab navigation item",
+          }),
+          featureFlagKey: WORKSPACE_HYPERLAB_FLAG,
         },
         {
           label: intl.formatMessage({

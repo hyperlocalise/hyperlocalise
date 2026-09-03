@@ -1,0 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { createHash, randomBytes } from "node:crypto";
+
+export const EXPERIMENT_CLIENT_KEY_PREFIX = "hlk_";
+
+export function generateExperimentClientKey(): string {
+  return `${EXPERIMENT_CLIENT_KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
+}
+
+export function hashExperimentClientKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+export function getExperimentClientKeyPrefix(key: string): string {
+  return key.slice(0, 8);
+}

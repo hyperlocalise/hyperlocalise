@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
 	"golang.org/x/text/language"
@@ -31,6 +32,7 @@ type validateSegmentResponse struct {
 type handler struct {
 	validate     func(segmentvalidate.Request) []segmentvalidate.Check
 	spellChecker SpellChecker
+	ofrep        *experiment.OFREPHandler
 }
 
 func newHandler() *handler {
@@ -46,6 +48,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
+	if h.ofrep != nil {
+		h.ofrep.Register(mux)
+	}
 }
 
 // withOptionalPrefix serves next at both its native paths and under prefix.

@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 )
 
 const (
@@ -66,6 +68,15 @@ func main() {
 
 	h := newHandler()
 	h.spellChecker = spellChecker
+
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		store, err := experiment.NewPGStore(context.Background(), databaseURL)
+		if err != nil {
+			log.Fatalf("configure experiment store: %v", err)
+		}
+		defer store.Close()
+		h.ofrep = experiment.NewOFREPHandler(store)
+	}
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)

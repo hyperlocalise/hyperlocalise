@@ -20,6 +20,11 @@ export const integrationRowMessages = defineMessages({
     id: "2Wk4xEwU1H",
     description: "Disabled button label for integrations not yet available",
   },
+  open: {
+    defaultMessage: "Open",
+    id: "hyperlab.integrationOpen",
+    description: "Button label to open a built-in product from Integrations",
+  },
   adminsCanConnect: {
     defaultMessage: "Admins can connect",
     id: "D9igbLAS2O",
