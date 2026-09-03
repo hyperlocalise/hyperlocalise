@@ -118,7 +118,7 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
 
   if (isLoading) {
     return (
-      <TypographyP className="text-sm text-muted-foreground">
+      <TypographyP size="small" tone="subtle">
         <FormattedMessage {...messages.saving} />
       </TypographyP>
     );
@@ -126,7 +126,7 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
 
   if (isError) {
     return (
-      <TypographyP className="text-sm text-destructive">
+      <TypographyP size="small" tone="critical">
         <FormattedMessage {...messages.loadError} />
       </TypographyP>
     );

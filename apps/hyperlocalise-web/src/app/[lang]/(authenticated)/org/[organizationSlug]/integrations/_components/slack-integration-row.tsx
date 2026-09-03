@@ -190,13 +190,13 @@ export function SlackIntegrationRow({
             <Columns spacing="1.5u" alignY="center" collapseBelow="small">
               <Column width="fluid">
                 <Rows spacing="0.5u">
-                  <TypographyP className="text-sm font-medium text-foreground">
+                  <TypographyP size="small" weight="medium" tone="content">
                     {isError
                       ? intl.formatMessage(slackIntegrationRowMessages.settingsUnavailable)
                       : viewModel.statusTitle}
                   </TypographyP>
                   {slackAgent?.teamId ? (
-                    <TypographyP className="text-xs text-muted-foreground">
+                    <TypographyP size="xsmall" tone="subtle">
                       {intl.formatMessage(slackIntegrationRowMessages.workspaceId, {
                         teamId: slackAgent.teamId,
                       })}

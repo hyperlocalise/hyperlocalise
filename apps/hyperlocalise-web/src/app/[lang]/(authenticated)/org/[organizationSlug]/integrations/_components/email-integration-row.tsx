@@ -174,7 +174,7 @@ export function EmailIntegrationRow({
         <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
           <Columns spacing="1.5u" alignY="center" collapseBelow="small">
             <Column width="fluid">
-              <TypographyP className="text-sm leading-6 text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 {intl.formatMessage(emailIntegrationRowMessages.panelInstructions)}
               </TypographyP>
             </Column>
@@ -192,7 +192,7 @@ export function EmailIntegrationRow({
         </Box>
 
         {isError ? (
-          <TypographyP className="text-sm text-destructive">
+          <TypographyP size="small" tone="critical">
             {intl.formatMessage(emailIntegrationRowMessages.loadError)}
           </TypographyP>
         ) : null}

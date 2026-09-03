@@ -43,7 +43,7 @@ function ThemeSpecimen({
       </p>
       <TypographyH1 className="text-3xl md:text-4xl">{title}</TypographyH1>
       <TypographyH2 className="mt-3 text-xl md:text-2xl">{subtitle}</TypographyH2>
-      <TypographyP className="mt-3 text-muted-foreground">
+      <TypographyP className="mt-3" tone="subtle">
         Headings use <code className="font-mono text-sm">font-heading</code>, which follows the
         brand theme.
       </TypographyP>
