@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unsafe"
 
 	"github.com/gobwas/glob"
 	"github.com/spf13/cobra"
@@ -291,12 +292,16 @@ func appendExtractFile(files *[]string, seen map[string]struct{}, path string, i
 }
 
 func isExtractSourceFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext != ".ts" && ext != ".tsx" {
+	ext := filepath.Ext(path)
+	if !strings.EqualFold(ext, ".ts") && !strings.EqualFold(ext, ".tsx") {
 		return false
 	}
 
-	return !strings.HasSuffix(strings.ToLower(path), ".d.ts")
+	if len(path) >= 5 && strings.EqualFold(path[len(path)-5:], ".d.ts") {
+		return false
+	}
+
+	return true
 }
 
 func shouldSkipExtractDir(name string) bool {
@@ -405,8 +410,12 @@ func extractGlobWalkRoot(pattern string) string {
 }
 
 func matchesExtractGlobPatterns(patterns []extractGlobPattern, path string, includeBase bool) bool {
+	if len(patterns) == 0 {
+		return false
+	}
+	candidates := extractGlobMatchCandidates(path, includeBase)
 	for _, pattern := range patterns {
-		if pattern.matchesPath(path, includeBase) {
+		if pattern.matchesCandidates(candidates) {
 			return true
 		}
 	}
@@ -414,8 +423,8 @@ func matchesExtractGlobPatterns(patterns []extractGlobPattern, path string, incl
 	return false
 }
 
-func (p extractGlobPattern) matchesPath(path string, includeBase bool) bool {
-	for _, candidate := range extractGlobMatchCandidates(path, includeBase) {
+func (p extractGlobPattern) matchesCandidates(candidates []string) bool {
+	for _, candidate := range candidates {
 		for _, matcher := range p.matchers {
 			if matcher.Match(candidate) {
 				return true
@@ -426,23 +435,38 @@ func (p extractGlobPattern) matchesPath(path string, includeBase bool) bool {
 	return false
 }
 
+func (p extractGlobPattern) matchesPath(path string, includeBase bool) bool {
+	return p.matchesCandidates(extractGlobMatchCandidates(path, includeBase))
+}
+
 func extractGlobMatchCandidates(path string, includeBase bool) []string {
 	clean := filepath.ToSlash(filepath.Clean(path))
-	candidates := []string{clean}
+	candidates := make([]string, 0, 4)
+	candidates = append(candidates, clean)
 	if rel, err := filepath.Rel(".", path); err == nil {
-		candidates = append(candidates, filepath.ToSlash(filepath.Clean(rel)))
+		relClean := filepath.ToSlash(filepath.Clean(rel))
+		if relClean != clean {
+			candidates = append(candidates, relClean)
+		}
 	}
 	if strings.HasPrefix(clean, "./") {
-		candidates = append(candidates, strings.TrimPrefix(clean, "./"))
+		candidates = append(candidates, clean[2:])
 	}
 	if includeBase {
-		candidates = append(candidates, filepath.Base(path))
+		base := filepath.Base(path)
+		if base != clean {
+			candidates = append(candidates, base)
+		}
 	}
 
 	return candidates
 }
 
 func extractMessagesFromReactIntlSource(src, file string) ([]extractMessage, error) {
+	if !strings.Contains(src, "Message") {
+		return nil, nil
+	}
+
 	messages, err := extractReactIntlCallMessages(src, file)
 	if err != nil {
 		return nil, err
@@ -454,13 +478,22 @@ func extractMessagesFromReactIntlSource(src, file string) ([]extractMessage, err
 	}
 	messages = append(messages, jsxMessages...)
 
-	for i := range messages {
-		messages[i].sourceLine = sourceLine(src, messages[i].sourcePos)
-	}
-
 	slices.SortStableFunc(messages, func(a, b extractMessage) int {
 		return a.sourcePos - b.sourcePos
 	})
+
+	currentLine := 1
+	currentPos := 0
+	for i := range messages {
+		if pos := messages[i].sourcePos; pos > currentPos {
+			if pos > len(src) {
+				pos = len(src)
+			}
+			currentLine += strings.Count(src[currentPos:pos], "\n")
+			currentPos = pos
+		}
+		messages[i].sourceLine = currentLine
+	}
 
 	return messages, nil
 }
@@ -479,6 +512,12 @@ func extractReactIntlCallMessagesRange(src, file string, start, end int) ([]extr
 
 	messages := make([]extractMessage, 0)
 	for i := start; i < end; {
+		pos := strings.IndexAny(src[i:end], "\"'`/df")
+		if pos < 0 {
+			break
+		}
+		i += pos
+
 		if src[i] == '`' {
 			next, expressions, ok := scanTemplateLiteral(src, i)
 			if !ok {
@@ -788,6 +827,12 @@ func extractReactIntlJSXMessagesRange(src, file string, start, end int) ([]extra
 
 	messages := make([]extractMessage, 0)
 	for i := start; i < end; {
+		pos := strings.IndexAny(src[i:end], "\"'`/<")
+		if pos < 0 {
+			break
+		}
+		i += pos
+
 		if src[i] == '`' {
 			next, expressions, ok := scanTemplateLiteral(src, i)
 			if !ok {
@@ -858,11 +903,13 @@ func extractReactIntlJSXMessagesRange(src, file string, start, end int) ([]extra
 }
 
 func generatedFormatJSMessageID(defaultMessage, description string) string {
-	content := defaultMessage
-	if description != "" {
-		content = defaultMessage + "#" + description
+	var sum [64]byte
+	if description == "" {
+		sum = sha512.Sum512(unsafe.Slice(unsafe.StringData(defaultMessage), len(defaultMessage)))
+	} else {
+		content := defaultMessage + "#" + description
+		sum = sha512.Sum512(unsafe.Slice(unsafe.StringData(content), len(content)))
 	}
-	sum := sha512.Sum512([]byte(content))
 	return base64.StdEncoding.EncodeToString(sum[:])[:6]
 }
 
@@ -913,7 +960,7 @@ func findJSXTagEnd(src string, index int) (int, bool) {
 }
 
 func parseJSXAttributes(src string, index, tagEnd int) (map[string]string, error) {
-	attrs := make(map[string]string)
+	attrs := make(map[string]string, 4)
 	for i := index; i < tagEnd; {
 		i = skipWhitespaceAndComments(src, i)
 		if i >= tagEnd || src[i] == '/' {
