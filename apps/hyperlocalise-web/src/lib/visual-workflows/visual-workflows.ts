@@ -251,36 +251,40 @@ export async function createVisualWorkflow(input: {
     }
   }
 
-  const [row] = await dbClient
-    .insert(schema.visualWorkflows)
-    .values({
-      organizationId: input.organizationId,
-      authorUserId: input.authorUserId ?? null,
-      projectId,
-      status,
-      name: validated.value.name,
-      definition: validated.value,
-      definitionVersion: 1,
-    })
-    .returning();
+  const created = await dbClient.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(schema.visualWorkflows)
+      .values({
+        organizationId: input.organizationId,
+        authorUserId: input.authorUserId ?? null,
+        projectId,
+        status,
+        name: validated.value.name,
+        definition: validated.value,
+        definitionVersion: 1,
+      })
+      .returning();
 
-  const scheduling = resolveWorkflowSchedulingMetadata({
-    workflowId: row.id,
-    status: row.status,
-    definition: validated.value,
+    const scheduling = resolveWorkflowSchedulingMetadata({
+      workflowId: row.id,
+      status: row.status,
+      definition: validated.value,
+    });
+
+    const [scheduledRow] = await tx
+      .update(schema.visualWorkflows)
+      .set({
+        triggerFingerprint: scheduling.triggerFingerprint,
+        nextRunAt: scheduling.nextRunAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.visualWorkflows.id, row.id))
+      .returning();
+
+    return scheduledRow;
   });
 
-  const [scheduledRow] = await dbClient
-    .update(schema.visualWorkflows)
-    .set({
-      triggerFingerprint: scheduling.triggerFingerprint,
-      nextRunAt: scheduling.nextRunAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.visualWorkflows.id, row.id))
-    .returning();
-
-  const mapped = mapVisualWorkflowRow(scheduledRow);
+  const mapped = mapVisualWorkflowRow(created);
   if (!mapped) {
     return err({
       code: "invalid_definition",

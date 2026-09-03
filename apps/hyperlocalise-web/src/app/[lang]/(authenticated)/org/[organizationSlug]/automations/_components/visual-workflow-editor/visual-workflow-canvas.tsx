@@ -27,8 +27,9 @@ import { Canvas } from "@/components/ai-elements/canvas";
 import { Controls } from "@/components/ai-elements/controls";
 import { Panel } from "@/components/ai-elements/panel";
 import { Button } from "@/components/ui/button";
-import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { isTriggerType, VISUAL_NODE_CATALOG } from "@/lib/visual-workflows/catalog/node-catalog";
 import type {
+  VisualCatalogType,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
@@ -36,13 +37,12 @@ import type {
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
-const nodeTypes = {
-  "trigger.manual": VisualWorkflowCompactNode,
-  "action.http": VisualWorkflowCompactNode,
-  "logic.if": VisualWorkflowCompactNode,
-  "ai.agent": VisualWorkflowCompactNode,
-  "logic.for_each": VisualWorkflowCompactNode,
-};
+const nodeTypes = Object.fromEntries(
+  VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => [
+    item.type,
+    VisualWorkflowCompactNode,
+  ]),
+) as Record<VisualCatalogType, typeof VisualWorkflowCompactNode>;
 
 export function VisualWorkflowCanvas({
   nodes,

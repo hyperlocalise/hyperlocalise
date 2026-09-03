@@ -365,6 +365,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "pyS8Vyq98T",
     description: "Validation message when a for-each loop contains another for-each loop",
   },
+  invalidNodeConfig: {
+    defaultMessage: "Fix the step configuration before saving this workflow.",
+    id: "2963Vncu1b",
+    description: "Validation message when a non-trigger node config is invalid",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",

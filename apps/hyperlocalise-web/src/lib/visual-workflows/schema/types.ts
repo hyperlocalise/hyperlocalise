@@ -101,6 +101,7 @@ export type VisualWorkflowValidationIssue = {
     | "orphan_node"
     | "invalid_edge"
     | "invalid_trigger_config"
+    | "invalid_node_config"
     | "nested_for_each";
   nodeId?: string;
   edgeId?: string;

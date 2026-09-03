@@ -180,6 +180,34 @@ describe("visualWorkflowDefinitionSchema", () => {
   });
 });
 
+describe("validateVisualWorkflowDefinition config", () => {
+  it("reports invalid trigger config for default github trigger", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "GitHub",
+      nodes: [node("t", "trigger.github")],
+      edges: [],
+    });
+
+    const issues = validateVisualWorkflowDefinition(definition);
+    expect(
+      issues.some((issue) => issue.code === "invalid_trigger_config" && issue.nodeId === "t"),
+    ).toBe(true);
+  });
+
+  it("reports invalid node config for default slack action", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Slack",
+      nodes: [node("t", "trigger.manual"), node("slack", "action.notify_slack")],
+      edges: [{ id: "e1", source: "t", target: "slack" }],
+    });
+
+    const issues = validateVisualWorkflowDefinition(definition);
+    expect(
+      issues.some((issue) => issue.code === "invalid_node_config" && issue.nodeId === "slack"),
+    ).toBe(true);
+  });
+});
+
 describe("fake-run ordering", () => {
   it("walks trigger then branches then remaining nodes", () => {
     const nodes = [
