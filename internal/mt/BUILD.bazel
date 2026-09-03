@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "mt",
+    srcs = [
+        "config.go",
+        "doc.go",
+        "engine.go",
+        "errors.go",
+        "types.go",
+        "validate.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/mt",
+    visibility = ["//:__subpackages__"],
+    deps = ["@org_golang_x_text//language"],
+)
+
+go_test(
+    name = "mt_test",
+    srcs = [
+        "config_test.go",
+        "errors_test.go",
+        "testhelpers_test.go",
+        "validate_test.go",
+    ],
+    embed = [":mt"],
+    deps = ["@com_github_stretchr_testify//require"],
+)
