@@ -70,6 +70,13 @@ client, err := gsc.NewClient(gsc.Config{
 
 GSC API calls are free and do not consume DataForSEO credits.
 
+### Machine translation client
+
+`internal/mt` defines the shared machine-translation client contract for
+go-svc, including the `Engine` interface, request and response types,
+configuration, and typed errors. Vendor MT integrations use this package as
+library clients; it does not expose an HTTP route.
+
 ## Local development
 
 From the repository root:
