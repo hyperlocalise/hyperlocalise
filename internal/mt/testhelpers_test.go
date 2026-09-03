@@ -27,7 +27,10 @@ func TestNewTestServerServesHandler(t *testing.T) {
 
 	resp, err := cfg.HTTPClient.Get(cfg.BaseURL + "/ping")
 	require.NoError(t, err)
-	defer resp.Body.Close()
+
+	defer func() {
+		require.NoError(t, resp.Body.Close())
+	}()
 
 	require.Equal(t, "/ping", gotPath)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
