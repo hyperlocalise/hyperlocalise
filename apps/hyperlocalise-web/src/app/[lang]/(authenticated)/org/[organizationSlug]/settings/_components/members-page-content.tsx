@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import Link from "next/link";
 import { useState } from "react";
 import { Add01Icon, Delete01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -313,17 +314,27 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
         title={intl.formatMessage(membersPageContentMessages.pageTitle)}
         description={intl.formatMessage(membersPageContentMessages.pageDescription)}
         actions={
-          canInvite ? (
+          <div className="flex w-full flex-col gap-2 sm:w-fit sm:flex-row sm:items-center">
             <Button
-              type="button"
-              onClick={() => setIsInviteOpen(true)}
+              nativeButton={false}
+              variant="ghost"
+              render={<Link href={`/org/${organizationSlug}/members/permissions`} />}
               className="w-full sm:w-fit"
-              disabled={inviteMember.isPending}
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              <FormattedMessage {...membersPageContentMessages.inviteMember} />
+              <FormattedMessage {...membersPageContentMessages.rolePermissions} />
             </Button>
-          ) : null
+            {canInvite ? (
+              <Button
+                type="button"
+                onClick={() => setIsInviteOpen(true)}
+                className="w-full sm:w-fit"
+                disabled={inviteMember.isPending}
+              >
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                <FormattedMessage {...membersPageContentMessages.inviteMember} />
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

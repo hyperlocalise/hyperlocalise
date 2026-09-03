@@ -51,6 +51,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/teams", "Teams"],
     ["/org/acme/teams/team_1", "team_1"],
     ["/org/acme/members", "Members"],
+    ["/org/acme/members/permissions", "Role permissions"],
     ["/org/acme/settings", "Settings"],
     ["/org/acme/settings/members", "Members"],
     ["/org/acme/settings/account", "Account"],
@@ -128,6 +129,10 @@ describe("getAppShellBreadcrumbs", () => {
 
   it("returns members breadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/members", intl)).toEqual([{ label: "Members" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/members/permissions", intl)).toEqual([
+      { label: "Members", href: "/org/acme/members" },
+      { label: "Role permissions" },
+    ]);
   });
 
   it("returns project breadcrumbs with the project name", () => {

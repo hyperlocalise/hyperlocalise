@@ -130,6 +130,7 @@ describe("workspace people navigation", () => {
 
     expect(isNavigationItemActive("/org/acme/members", membersHref)).toBe(true);
     expect(isNavigationItemActive("/en/org/acme/members", membersHref)).toBe(true);
+    expect(isNavigationItemActive("/org/acme/members/permissions", membersHref)).toBe(true);
     expect(isNavigationItemActive("/org/acme/teams", membersHref)).toBe(false);
     expect(isNavigationItemActive("/org/acme/teams/team_1", membersHref)).toBe(false);
   });

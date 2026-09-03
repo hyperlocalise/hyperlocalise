@@ -40,6 +40,7 @@ type RouteTitleKey =
   | "members"
   | "my-jobs"
   | "my-work"
+  | "permissions"
   | "personal-access-tokens"
   | "projects"
   | "qa"
@@ -91,6 +92,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "members" ||
     value === "my-jobs" ||
     value === "my-work" ||
+    value === "permissions" ||
     value === "personal-access-tokens" ||
     value === "projects" ||
     value === "qa" ||
@@ -267,6 +269,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "YM1jd5PwaY",
         description: "App shell breadcrumb title for the my jobs page",
       });
+    case "permissions":
+      return intl.formatMessage({
+        defaultMessage: "Role permissions",
+        id: "4C48CjJZ/y",
+        description: "App shell breadcrumb title for the role permissions page",
+      });
     case "personal-access-tokens":
       return intl.formatMessage({
         defaultMessage: "Personal access tokens",
@@ -399,7 +407,17 @@ export function getAppShellBreadcrumbs(
   }
 
   if (section === "members") {
-    return [{ label: formatRouteTitle(intl, "members") }];
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "members") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "members"),
+        href: buildOrgPath(organizationSlug, "members"),
+      },
+      { label: routeTitle(intl, subsection) },
+    ];
   }
 
   if (section === "projects" && subsection) {

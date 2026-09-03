@@ -75,6 +75,11 @@ export const membersPageContentMessages = defineMessages({
     id: "eW2eLsJu8K",
     description: "Button to open the invite member dialog",
   },
+  rolePermissions: {
+    defaultMessage: "Role permissions",
+    id: "wmiAe9jqdo",
+    description: "Link from the members page to the role permission matrix",
+  },
   sectionAriaLabel: {
     defaultMessage: "Workspace members",
     id: "zl55Vhhf0L",
