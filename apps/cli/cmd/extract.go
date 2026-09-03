@@ -548,6 +548,16 @@ func extractReactIntlCallMessagesRange(src, file string, start, end int) ([]extr
 			continue
 		}
 
+		// IndexAny can land on 'd'/'f' inside a longer identifier
+		// (myformatMessage, _defineMessage). Only treat a token as a
+		// call name when it starts at an identifier boundary.
+		if !startsAtIdentifierBoundary(src, i) {
+			for i < end && isIdentifierPart(src[i]) {
+				i++
+			}
+			continue
+		}
+
 		name, next := readIdentifier(src, i)
 		if next > end || !isReactIntlCallName(name) {
 			i = next
@@ -1493,6 +1503,10 @@ func skipWhitespaceAndComments(src string, index int) int {
 	}
 
 	return len(src)
+}
+
+func startsAtIdentifierBoundary(src string, index int) bool {
+	return index <= 0 || !isIdentifierPart(src[index-1])
 }
 
 func readIdentifier(src string, index int) (string, int) {
