@@ -514,6 +514,11 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "mKyo1eMyN6",
       description: "Heading for the top findings to fix on a localisation audit result",
     }),
+    fixFirstSubheading: intl.formatMessage({
+      defaultMessage: "Prioritised recommendations",
+      id: "7GiABZ6PqZ",
+      description: "Subheading under the fix-first section on a localisation audit result",
+    }),
     localesHeading: intl.formatMessage({
       defaultMessage: "Detected locales",
       id: "OJQchlMSC5",
