@@ -14,7 +14,7 @@ require (
 	github.com/crowdin/crowdin-api-client-go v0.18.0
 	github.com/gobwas/glob v1.0.0
 	github.com/invopop/jsonschema v0.14.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/openai/openai-go/v3 v3.54.0
@@ -260,7 +260,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260811152304-ee035b5b010f // indirect
 	golang.org/x/mod v0.40.0 // indirect
