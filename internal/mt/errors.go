@@ -13,7 +13,7 @@ const (
 	ErrorCodeUnsupportedLanguagePair ErrorCode = "mt_unsupported_language_pair"
 	ErrorCodeValidation              ErrorCode = "mt_validation_error"
 	ErrorCodeUpstreamUnavailable     ErrorCode = "mt_upstream_unavailable"
-	ErrorCodeUpstream ErrorCode = "mt_upstream_error"
+	ErrorCodeUpstream                ErrorCode = "mt_upstream_error"
 )
 
 type Error struct {

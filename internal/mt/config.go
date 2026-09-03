@@ -25,7 +25,7 @@ type Config struct {
 	// CustomModel is an optional Microsoft custom model ID.
 	CustomModel string
 
-	BaseURL string
+	BaseURL    string
 	HTTPClient *http.Client
 }
 
