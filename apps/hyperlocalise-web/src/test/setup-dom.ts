@@ -81,7 +81,7 @@ function installNoopWebAnimations() {
       dispatchEvent() {
         return true;
       },
-    } as Animation;
+    } as unknown as Animation;
     Object.defineProperty(animation, "finished", {
       value: Promise.resolve(animation),
     });
@@ -96,14 +96,4 @@ function installNoopWebAnimations() {
   };
   Element.prototype.getAnimations = () => [];
   document.getAnimations = () => [];
-
-  if (typeof Animation === "undefined") {
-    return;
-  }
-
-  const originalCancel = Animation.prototype.cancel;
-  Animation.prototype.cancel = function (this: Animation) {
-    void this.finished.catch(() => undefined);
-    originalCancel.call(this);
-  };
 }
