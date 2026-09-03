@@ -54,6 +54,7 @@ export function HyperlabExperimentDetail({
   const [rolloutPercentage, setRolloutPercentage] = useState("10000");
   const [audienceId, setAudienceId] = useState("");
   const [variantKey, setVariantKey] = useState("");
+  const [variantRolloutPercentage, setVariantRolloutPercentage] = useState("10000");
 
   const detailQuery = useQuery({
     queryKey: ["hyperlab-experiment", organizationSlug, experimentId],
@@ -116,14 +117,36 @@ export function HyperlabExperimentDetail({
     mutationFn: async () => {
       const response = await client.experiments[":experimentId"].variants.$post({
         param: { organizationSlug, experimentId },
-        json: { key: variantKey, isControl: (detailQuery.data?.variants.length ?? 0) === 0 },
+        json: {
+          key: variantKey,
+          isControl: (detailQuery.data?.variants.length ?? 0) === 0,
+          rolloutPercentage: Number(variantRolloutPercentage),
+        },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
       setVariantKey("");
+      setVariantRolloutPercentage("5000");
       await refresh();
     },
+  });
+
+  const saveVariantMutation = useMutation({
+    mutationFn: async ({
+      variantId,
+      rolloutPercentage,
+    }: {
+      variantId: string;
+      rolloutPercentage: number;
+    }) => {
+      const response = await client.variants[":variantId"].$put({
+        param: { organizationSlug, variantId },
+        json: { rolloutPercentage },
+      });
+      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
+    },
+    onSuccess: refresh,
   });
 
   const experiment = detailQuery.data?.experiment;
@@ -242,64 +265,67 @@ export function HyperlabExperimentDetail({
                     addVariantMutation.mutate();
                   }}
                 >
-                  <Columns spacing="1.5u" alignY="end" collapseBelow="small">
-                    <Column width="fluid">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-variant-key">
-                          <FormattedMessage {...messages.flagKeyLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-variant-key"
-                          value={variantKey}
-                          onChange={(event) => setVariantKey(event.target.value)}
-                          placeholder="treatment"
-                          required
-                        />
-                      </Field>
-                    </Column>
-                    <Column width="content">
-                      <Button type="submit" disabled={!variantKey || addVariantMutation.isPending}>
-                        <FormattedMessage {...messages.addVariant} />
-                      </Button>
-                    </Column>
-                  </Columns>
+                  <Rows spacing="1u">
+                    <Columns spacing="1.5u" alignY="end" collapseBelow="small">
+                      <Column width="fluid">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-variant-key">
+                            <FormattedMessage {...messages.flagKeyLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-variant-key"
+                            value={variantKey}
+                            onChange={(event) => setVariantKey(event.target.value)}
+                            placeholder="treatment"
+                            required
+                          />
+                        </Field>
+                      </Column>
+                      <Column width="content">
+                        <Field>
+                          <FieldLabel htmlFor="hyperlab-variant-rollout">
+                            <FormattedMessage {...messages.rolloutLabel} />
+                          </FieldLabel>
+                          <Input
+                            id="hyperlab-variant-rollout"
+                            type="number"
+                            min={0}
+                            max={10000}
+                            value={variantRolloutPercentage}
+                            onChange={(event) => setVariantRolloutPercentage(event.target.value)}
+                            required
+                          />
+                        </Field>
+                      </Column>
+                      <Column width="content">
+                        <Button type="submit" disabled={!variantKey || addVariantMutation.isPending}>
+                          <FormattedMessage {...messages.addVariant} />
+                        </Button>
+                      </Column>
+                    </Columns>
+                    <TypographyP className="text-pretty text-xs text-muted-foreground">
+                      <FormattedMessage {...messages.variantRolloutHint} />
+                    </TypographyP>
+                  </Rows>
                 </form>
               ) : null}
               <Box border="standard" borderRadius="standard">
                 <Rows spacing="0">
-                  {(detailQuery.data?.variants ?? []).map((variant) => {
-                    const allocation = allocationsByVariant.get(variant.id);
-                    return (
-                      <Box key={variant.id} paddingX="2u" paddingY="1.5u">
-                        <Row spacing="1.5u" align="spaceBetween" alignY="center">
-                          <Rows spacing="0.5u">
-                            <TypographyP className="font-medium">{variant.key}</TypographyP>
-                            <TypographyP className="text-xs text-muted-foreground">
-                              {variant.id}
-                            </TypographyP>
-                          </Rows>
-                          <Row spacing="1u" alignY="center">
-                            {variant.isControl ? (
-                              <Badge variant="outline">
-                                <FormattedMessage {...messages.control} />
-                              </Badge>
-                            ) : null}
-                            <TypographyP className="text-sm tabular-nums text-muted-foreground">
-                              {variant.rolloutPercentage}
-                            </TypographyP>
-                            {allocation ? (
-                              <TypographyP className="text-sm tabular-nums text-muted-foreground">
-                                <FormattedMessage
-                                  {...messages.allocation}
-                                  values={{ start: allocation.start, end: allocation.end }}
-                                />
-                              </TypographyP>
-                            ) : null}
-                          </Row>
-                        </Row>
-                      </Box>
-                    );
-                  })}
+                  {(detailQuery.data?.variants ?? []).map((variant) => (
+                    <HyperlabVariantRow
+                      key={variant.id}
+                      variant={variant}
+                      allocation={allocationsByVariant.get(variant.id)}
+                      canWrite={canWrite}
+                      isSaving={
+                        saveVariantMutation.isPending &&
+                        saveVariantMutation.variables?.variantId === variant.id
+                      }
+                      onSave={(rolloutPercentage) => {
+                        saveVariantMutation.mutate({ variantId: variant.id, rolloutPercentage });
+                      }}
+                    />
+                  ))}
                 </Rows>
               </Box>
             </Rows>
@@ -307,5 +333,80 @@ export function HyperlabExperimentDetail({
         ) : null}
       </Rows>
     </HyperlabPageShell>
+  );
+}
+
+function HyperlabVariantRow({
+  variant,
+  allocation,
+  canWrite,
+  isSaving,
+  onSave,
+}: {
+  variant: HyperlabVariant;
+  allocation: HyperlabAllocation | undefined;
+  canWrite: boolean;
+  isSaving: boolean;
+  onSave: (rolloutPercentage: number) => void;
+}) {
+  const [rolloutPercentage, setRolloutPercentage] = useState(String(variant.rolloutPercentage));
+
+  useEffect(() => {
+    setRolloutPercentage(String(variant.rolloutPercentage));
+  }, [variant.rolloutPercentage]);
+
+  return (
+    <Box paddingX="2u" paddingY="1.5u">
+      <Row spacing="1.5u" align="spaceBetween" alignY="center">
+        <Rows spacing="0.5u">
+          <TypographyP className="font-medium">{variant.key}</TypographyP>
+          <TypographyP className="text-xs text-muted-foreground">{variant.id}</TypographyP>
+        </Rows>
+        <Row spacing="1u" alignY="center">
+          {variant.isControl ? (
+            <Badge variant="outline">
+              <FormattedMessage {...messages.control} />
+            </Badge>
+          ) : null}
+          {canWrite ? (
+            <Field className="w-28 shrink-0">
+              <FieldLabel htmlFor={`hyperlab-variant-rollout-${variant.id}`} className="sr-only">
+                <FormattedMessage {...messages.rolloutLabel} />
+              </FieldLabel>
+              <Input
+                id={`hyperlab-variant-rollout-${variant.id}`}
+                type="number"
+                min={0}
+                max={10000}
+                value={rolloutPercentage}
+                onChange={(event) => setRolloutPercentage(event.target.value)}
+              />
+            </Field>
+          ) : (
+            <TypographyP className="text-sm tabular-nums text-muted-foreground">
+              {variant.rolloutPercentage}
+            </TypographyP>
+          )}
+          {allocation ? (
+            <TypographyP className="text-sm tabular-nums text-muted-foreground">
+              <FormattedMessage
+                {...messages.allocation}
+                values={{ start: allocation.start, end: allocation.end }}
+              />
+            </TypographyP>
+          ) : null}
+          {canWrite ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving || rolloutPercentage === String(variant.rolloutPercentage)}
+              onClick={() => onSave(Number(rolloutPercentage))}
+            >
+              <FormattedMessage {...messages.saveVariant} />
+            </Button>
+          ) : null}
+        </Row>
+      </Row>
+    </Box>
   );
 }

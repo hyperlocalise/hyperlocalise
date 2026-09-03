@@ -6,11 +6,12 @@ import (
 )
 
 type Resolution struct {
-	Key     string
-	Value   any
-	Reason  string
-	Variant string
-	Error   string
+	Key          string
+	Value        any
+	Reason       string
+	Variant      string
+	Error        string
+	ErrorDetails string
 }
 
 func evaluateFlags(ctx context.Context, store Store, organizationID string, flags []FlagRecord, targetingKey string, attributes map[string]any) ([]Resolution, error) {
@@ -43,11 +44,21 @@ func evaluateFlags(ctx context.Context, store Store, organizationID string, flag
 
 func resolveConfig(flag FlagRecord) Resolution {
 	if len(flag.ConfigValue) == 0 {
-		return Resolution{Key: flag.Key, Reason: "STATIC"}
+		return Resolution{
+			Key:          flag.Key,
+			Reason:       "ERROR",
+			Error:        "GENERAL",
+			ErrorDetails: "Config flag has no value",
+		}
 	}
 	var value any
 	if err := json.Unmarshal(flag.ConfigValue, &value); err != nil {
-		return Resolution{Key: flag.Key, Reason: "STATIC"}
+		return Resolution{
+			Key:          flag.Key,
+			Reason:       "ERROR",
+			Error:        "PARSE_ERROR",
+			ErrorDetails: "Config flag value is not valid JSON",
+		}
 	}
 	return Resolution{Key: flag.Key, Value: value, Reason: "STATIC"}
 }

@@ -95,3 +95,54 @@ func TestOFREPConfigAndExperiment(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, flags, 2)
 }
+
+func TestOFREPUnconfiguredConfigFlag(t *testing.T) {
+	store := NewMemoryStore("org-1")
+	store.AddKey("hlk_test")
+	store.SetFlags([]FlagRecord{
+		{ID: "f-empty", Key: "empty-config", Kind: "config"},
+	})
+	handler := NewOFREPHandler(store)
+	mux := http.NewServeMux()
+	handler.Register(mux)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags/empty-config", bytes.NewBufferString(`{"context":{"targetingKey":"u1"}}`))
+	req.Header.Set("X-API-Key", "hlk_test")
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	var one map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &one))
+	require.Equal(t, "GENERAL", one["errorCode"])
+	require.Equal(t, "ERROR", one["reason"])
+	_, hasValue := one["value"]
+	require.False(t, hasValue)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags", bytes.NewBufferString(`{"context":{"targetingKey":"u1"}}`))
+	req.Header.Set("X-API-Key", "hlk_test")
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var bulk map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &bulk))
+	flags, ok := bulk["flags"].([]any)
+	require.True(t, ok)
+	require.Len(t, flags, 1)
+	item, ok := flags[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "GENERAL", item["errorCode"])
+	require.Equal(t, "empty-config", item["key"])
+}
+
+func TestOFREPGeneralErrorIncludesCode(t *testing.T) {
+	handler := NewOFREPHandler(nil)
+	mux := http.NewServeMux()
+	handler.Register(mux)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags/checkout-cta", bytes.NewBufferString(`{"context":{"targetingKey":"u1"}}`))
+	req.Header.Set("X-API-Key", "hlk_test")
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Contains(t, rec.Body.String(), `"errorCode":"GENERAL"`)
+}

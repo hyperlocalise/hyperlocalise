@@ -38,3 +38,35 @@ func TestEvaluateCriterionNullMeansEveryone(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 }
+
+func TestEvaluateCriterionExactKeepsJSONTypes(t *testing.T) {
+	t.Parallel()
+
+	ok, err := evaluateCriterion(
+		[]byte(`{"type":"attribute","name":"enabled","match":"exact","value":true}`),
+		map[string]any{"enabled": true},
+	)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	ok, err = evaluateCriterion(
+		[]byte(`{"type":"attribute","name":"enabled","match":"exact","value":true}`),
+		map[string]any{"enabled": "true"},
+	)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	ok, err = evaluateCriterion(
+		[]byte(`{"type":"attribute","name":"count","match":"exact","value":1}`),
+		map[string]any{"count": "1"},
+	)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	ok, err = evaluateCriterion(
+		[]byte(`{"type":"attribute","name":"count","match":"exact","value":1}`),
+		map[string]any{"count": 1},
+	)
+	require.NoError(t, err)
+	require.True(t, ok)
+}

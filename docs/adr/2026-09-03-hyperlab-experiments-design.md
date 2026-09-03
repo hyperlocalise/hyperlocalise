@@ -63,8 +63,8 @@ Customer app                    Workspace admin
 
 `go-svc` gains `DATABASE_URL` and reads the same database as the web app. It
 validates the publishable key, scopes every query to that org, evaluates, and
-caches results in process (about 60s TTL). Admin writes do not bust the cache
-in v1.
+caches results in process (about 60s TTL, bounded to 4096 entries). Admin
+writes do not bust the cache in v1.
 
 The public evaluate URL is the existing go-svc rewrite:
 `/api/go-svc/ofrep/v1/evaluate/...`. Local and binding calls use the unprefixed
@@ -99,7 +99,8 @@ Logical nodes: `and`, `or`, `not`. One leaf type:
 ```
 
 Matches: `exact`, `gt`, `gte`, `lt`, `lte`, `is_null`, `is_not_null`, `in`,
-`contains_substring`, `contains_any`, `contains_substring_any`. Attribute
+`contains_substring`, `contains_any`, `contains_substring_any`. `exact` keeps
+JSON types: boolean `true` does not match the string `"true"`. Attribute
 names are caller-defined. `locale` is a normal attribute if the caller sends
 it.
 
@@ -170,7 +171,9 @@ off).
 
 Bulk returns `{ flags: [...] }`. Each item is a success or
 `{ key, errorCode }`. A `config` flag returns its JSON as `value` with
-`reason: STATIC`.
+`reason: STATIC`. A config flag with no value is an evaluation error
+(`GENERAL`), not a success without `value`. Request-level 500 bodies include
+`errorCode: GENERAL`.
 
 ## Admin API
 

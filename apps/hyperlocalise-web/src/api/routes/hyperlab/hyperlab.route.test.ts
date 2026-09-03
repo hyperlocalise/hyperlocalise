@@ -174,4 +174,77 @@ describe("hyperlabRoutes", () => {
     );
     expect(response.status).toBe(403);
   });
+
+  it("assigns buckets from variant rollout percentages", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+
+    const created = await hyperlab().experiments.$post(
+      { param: { organizationSlug: slug }, json: { name: "Checkout CTA", kind: "ab" } },
+      { headers },
+    );
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as { experiment: { id: string } };
+
+    const control = await hyperlab().experiments[":experimentId"].variants.$post(
+      {
+        param: { organizationSlug: slug, experimentId: createdBody.experiment.id },
+        json: { key: "control", isControl: true, rolloutPercentage: 5000 },
+      },
+      { headers },
+    );
+    expect(control.status).toBe(201);
+    const controlBody = (await control.json()) as { variant: { id: string } };
+
+    const treatment = await hyperlab().experiments[":experimentId"].variants.$post(
+      {
+        param: { organizationSlug: slug, experimentId: createdBody.experiment.id },
+        json: { key: "treatment", rolloutPercentage: 5000 },
+      },
+      { headers },
+    );
+    expect(treatment.status).toBe(201);
+
+    const updated = await hyperlab().variants[":variantId"].$put(
+      {
+        param: { organizationSlug: slug, variantId: controlBody.variant.id },
+        json: { rolloutPercentage: 2500 },
+      },
+      { headers },
+    );
+    expect(updated.status).toBe(200);
+
+    const detail = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId: createdBody.experiment.id } },
+      { headers },
+    );
+    expect(detail.status).toBe(200);
+    const detailBody = (await detail.json()) as {
+      variants: Array<{ id: string; key: string; rolloutPercentage: number }>;
+      allocations: Array<{ variantId: string; start: number; end: number }>;
+    };
+    const controlVariant = detailBody.variants.find((variant) => variant.key === "control");
+    const treatmentVariant = detailBody.variants.find((variant) => variant.key === "treatment");
+    expect(controlVariant?.rolloutPercentage).toBe(2500);
+    expect(treatmentVariant?.rolloutPercentage).toBe(5000);
+
+    const allocationsByVariant = new Map(
+      detailBody.allocations.map((allocation) => [allocation.variantId, allocation]),
+    );
+    const controlAllocation = allocationsByVariant.get(controlVariant?.id ?? "");
+    const treatmentAllocation = allocationsByVariant.get(treatmentVariant?.id ?? "");
+    expect(controlAllocation).toEqual({
+      variantId: controlVariant?.id,
+      start: 0,
+      end: 2499,
+      id: expect.any(String),
+    });
+    expect(treatmentAllocation).toEqual({
+      variantId: treatmentVariant?.id,
+      start: 2500,
+      end: 9999,
+      id: expect.any(String),
+    });
+  });
 });

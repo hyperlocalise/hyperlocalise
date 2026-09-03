@@ -129,7 +129,20 @@ func valuesEqual(left, right any) bool {
 	if left == nil || right == nil {
 		return left == right
 	}
-	return fmt.Sprint(left) == fmt.Sprint(right)
+	if leftNum, leftOK := asFloat(left); leftOK {
+		rightNum, rightOK := asFloat(right)
+		return rightOK && leftNum == rightNum
+	}
+	switch typed := left.(type) {
+	case bool:
+		rightBool, ok := right.(bool)
+		return ok && typed == rightBool
+	case string:
+		rightString, ok := right.(string)
+		return ok && typed == rightString
+	default:
+		return false
+	}
 }
 
 func asFloat(value any) (float64, bool) {

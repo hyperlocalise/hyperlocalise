@@ -94,7 +94,12 @@ func (h *OFREPHandler) evaluateOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go h.store.TouchClientKey(context.WithoutCancel(r.Context()), keyHash)
-	writeJSON(w, http.StatusOK, resolutionBody(resolutions[0]))
+	resolution := resolutions[0]
+	if resolution.Error != "" {
+		writeJSON(w, statusForEvaluationError(resolution.Error), resolutionBody(resolution))
+		return
+	}
+	writeJSON(w, http.StatusOK, resolutionBody(resolution))
 }
 
 func (h *OFREPHandler) evaluateAll(w http.ResponseWriter, r *http.Request) {
@@ -228,6 +233,9 @@ func resolutionBody(resolution Resolution) map[string]any {
 	}
 	if resolution.Error != "" {
 		body["errorCode"] = resolution.Error
+		if resolution.ErrorDetails != "" {
+			body["errorDetails"] = resolution.ErrorDetails
+		}
 		return body
 	}
 	if resolution.Value != nil {
@@ -251,7 +259,21 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 }
 
 func writeGeneralError(w http.ResponseWriter, status int) {
-	writeJSON(w, status, map[string]any{"errorDetails": "An internal server error occurred while processing the request"})
+	writeJSON(w, status, map[string]any{
+		"errorCode":    "GENERAL",
+		"errorDetails": "An internal server error occurred while processing the request",
+	})
+}
+
+func statusForEvaluationError(code string) int {
+	switch code {
+	case "FLAG_NOT_FOUND":
+		return http.StatusNotFound
+	case "PARSE_ERROR", "TARGETING_KEY_MISSING", "INVALID_CONTEXT":
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func hashAttributes(attributes map[string]any) string {
