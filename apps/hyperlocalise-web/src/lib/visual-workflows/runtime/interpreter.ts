@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { CanonicalVisualWorkflowEdge } from "../schema/types";
 import type { VisualWorkflowDefinition } from "../schema/types";
 import {
   createVisualWorkflowExecutionContext,
@@ -46,6 +47,74 @@ export type VisualWorkflowInterpreterResult =
       error: Record<string, unknown>;
     };
 
+function releasePredecessorEdge(input: {
+  pendingIncoming: Map<string, number>;
+  queue: string[];
+  targetNodeId: string;
+}) {
+  const remaining = (input.pendingIncoming.get(input.targetNodeId) ?? 1) - 1;
+  input.pendingIncoming.set(input.targetNodeId, remaining);
+  if (remaining === 0) {
+    input.queue.push(input.targetNodeId);
+  }
+}
+
+function propagateSkippedNode(input: {
+  nodeId: string;
+  graph: VisualWorkflowGraphIndex;
+  completed: Set<string>;
+  skipped: Set<string>;
+  pendingIncoming: Map<string, number>;
+  queue: string[];
+}) {
+  if (input.completed.has(input.nodeId) || input.skipped.has(input.nodeId)) {
+    return;
+  }
+
+  input.skipped.add(input.nodeId);
+
+  for (const outEdge of input.graph.outgoingByNodeId.get(input.nodeId) ?? []) {
+    releaseSkippedOutgoingEdge({
+      edge: outEdge,
+      graph: input.graph,
+      completed: input.completed,
+      skipped: input.skipped,
+      pendingIncoming: input.pendingIncoming,
+      queue: input.queue,
+    });
+  }
+}
+
+function releaseSkippedOutgoingEdge(input: {
+  edge: CanonicalVisualWorkflowEdge;
+  graph: VisualWorkflowGraphIndex;
+  completed: Set<string>;
+  skipped: Set<string>;
+  pendingIncoming: Map<string, number>;
+  queue: string[];
+}) {
+  const targetId = input.edge.target;
+  const remaining = (input.pendingIncoming.get(targetId) ?? 1) - 1;
+  input.pendingIncoming.set(targetId, remaining);
+
+  if (remaining > 0) {
+    return;
+  }
+
+  if (input.completed.has(targetId) || input.skipped.has(targetId)) {
+    return;
+  }
+
+  propagateSkippedNode({
+    nodeId: targetId,
+    graph: input.graph,
+    completed: input.completed,
+    skipped: input.skipped,
+    pendingIncoming: input.pendingIncoming,
+    queue: input.queue,
+  });
+}
+
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
@@ -66,12 +135,13 @@ export async function runVisualWorkflowInterpreter(input: {
   const context = createVisualWorkflowExecutionContext({ triggerInput: input.triggerInput });
   const nodeResults: Record<string, Record<string, unknown>> = {};
   const completed = new Set<string>();
+  const skipped = new Set<string>();
   const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
 
   while (queue.length > 0) {
     const nodeId = queue.shift();
-    if (!nodeId || completed.has(nodeId)) {
+    if (!nodeId || completed.has(nodeId) || skipped.has(nodeId)) {
       continue;
     }
     completed.add(nodeId);
@@ -122,17 +192,36 @@ export async function runVisualWorkflowInterpreter(input: {
       outputSnapshot: execution.output,
     });
 
+    const outgoing = graph.outgoingByNodeId.get(nodeId) ?? [];
     const nextEdges = selectNextEdges({
       nodeType: node.type,
       branchResult: execution.branchResult ?? null,
-      outgoing: graph.outgoingByNodeId.get(nodeId) ?? [],
+      outgoing,
     });
+    const selectedEdgeIds = new Set(nextEdges.map((edge) => edge.id));
 
     for (const edge of nextEdges) {
-      const remaining = (pendingIncoming.get(edge.target) ?? 1) - 1;
-      pendingIncoming.set(edge.target, remaining);
-      if (remaining === 0) {
-        queue.push(edge.target);
+      releasePredecessorEdge({
+        pendingIncoming,
+        queue,
+        targetNodeId: edge.target,
+      });
+    }
+
+    if (node.type === "logic.if") {
+      for (const edge of outgoing) {
+        if (selectedEdgeIds.has(edge.id)) {
+          continue;
+        }
+
+        releaseSkippedOutgoingEdge({
+          edge,
+          graph,
+          completed,
+          skipped,
+          pendingIncoming,
+          queue,
+        });
       }
     }
   }

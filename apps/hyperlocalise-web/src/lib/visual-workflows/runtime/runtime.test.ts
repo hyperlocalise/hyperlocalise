@@ -122,4 +122,46 @@ describe("visual workflow interpreter", () => {
     expect(started.indexOf("join")).toBeGreaterThan(started.indexOf("c"));
     expect(started.indexOf("join")).toBeGreaterThan(started.indexOf("a"));
   });
+
+  it("still reaches join nodes when untaken if branches reconverge", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Conditional join",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        { id: "iff", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "taken", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "skipped", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        {
+          id: "join",
+          type: "logic.if",
+          config: { kind: "logic.if", condition: "{{nodes.taken.result}} == true" },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "iff", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "iff", target: "taken", sourceHandle: "true", targetHandle: null },
+        { id: "e3", source: "iff", target: "skipped", sourceHandle: "false", targetHandle: null },
+        { id: "e4", source: "taken", target: "join", sourceHandle: "true", targetHandle: null },
+        { id: "e5", source: "skipped", target: "join", sourceHandle: "true", targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("join");
+    expect(started).not.toContain("skipped");
+    expect(started.indexOf("join")).toBeGreaterThan(started.indexOf("taken"));
+  });
 });
