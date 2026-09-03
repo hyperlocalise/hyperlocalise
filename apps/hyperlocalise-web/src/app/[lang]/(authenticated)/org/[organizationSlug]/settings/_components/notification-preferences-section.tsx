@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
@@ -118,17 +119,21 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
 
   if (isLoading) {
     return (
-      <TypographyP className="text-sm text-muted-foreground">
-        <FormattedMessage {...messages.saving} />
-      </TypographyP>
+      <Rows spacing="3u">
+        <TypographyP className="text-sm text-muted-foreground">
+          <FormattedMessage {...messages.saving} />
+        </TypographyP>
+      </Rows>
     );
   }
 
   if (isError) {
     return (
-      <TypographyP className="text-sm text-destructive">
-        <FormattedMessage {...messages.loadError} />
-      </TypographyP>
+      <Rows spacing="3u">
+        <TypographyP className="text-sm text-destructive">
+          <FormattedMessage {...messages.loadError} />
+        </TypographyP>
+      </Rows>
     );
   }
 

@@ -138,7 +138,7 @@ describe("PersonalAccessTokensPageContent", () => {
     expect(screen.queryByRole("button", { name: "Revoke" })).not.toBeInTheDocument();
   });
 
-  it("lists owned tokens with creation time, never-used state, and revocation status", async () => {
+  it("lists owned tokens with last-used state and revocation status", async () => {
     mockList([
       createToken(),
       createToken({
@@ -167,9 +167,9 @@ describe("PersonalAccessTokensPageContent", () => {
     });
     expect(screen.getByText("CI bot")).toBeInTheDocument();
     expect(screen.queryByText("Someone else")).not.toBeInTheDocument();
-    expect(screen.getByText(/Last used Never/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Created Aug 1, 2026/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Last used Aug 2, 2026/)).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.queryByText(/Created Aug 1, 2026/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Aug 2, 2026/)).toBeInTheDocument();
     expect(screen.getByText("Revoked")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Revoke" })).toBeInTheDocument();
   });

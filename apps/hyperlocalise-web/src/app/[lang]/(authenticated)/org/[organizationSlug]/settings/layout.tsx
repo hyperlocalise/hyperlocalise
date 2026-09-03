@@ -10,25 +10,25 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { AccountSettingsPageContent } from "../_components/settings-pages";
+import type { ReactNode } from "react";
 
-export default async function AccountSettingsPage({
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
+
+import { SettingsLayoutClient } from "./_components/settings-layout-client";
+
+export default async function SettingsLayout({
+  children,
   params,
 }: {
+  children: ReactNode;
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const userName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
 
   return (
-    <AccountSettingsPageContent
-      organizationSlug={organizationSlug}
-      userEmail={auth.sessionUser.email}
-      userName={userName}
-    />
+    <SettingsLayoutClient organizationSlug={organizationSlug} capabilities={auth.capabilities}>
+      {children}
+    </SettingsLayoutClient>
   );
 }

@@ -36,8 +36,8 @@ export const navUserMessages = defineMessages({
     description: "Workspace members link in the user menu",
   },
   apiKeys: {
-    defaultMessage: "API Keys",
-    id: "wsCg6j7Kx+",
+    defaultMessage: "API keys",
+    id: "iy6eNjNsls",
     description: "API keys settings link in the user menu",
   },
   billing: {

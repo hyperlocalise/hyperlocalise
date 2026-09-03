@@ -16,9 +16,9 @@ import { defineMessages } from "react-intl";
 
 export const billingSettingsContentMessages = defineMessages({
   pageLabel: {
-    defaultMessage: "Billing settings",
-    id: "eZ9Pa/eLoU",
-    description: "Breadcrumb-style label above the billing settings page title",
+    defaultMessage: "Workspace",
+    id: "Vp/eGd+cjb",
+    description: "Eyebrow label above the billing settings page title",
   },
   pageTitle: {
     defaultMessage: "Billing",
@@ -26,9 +26,8 @@ export const billingSettingsContentMessages = defineMessages({
     description: "Billing settings page heading",
   },
   pageDescription: {
-    defaultMessage:
-      "View your workspace plan, AI credit usage, workspace limits, and subscription billing.",
-    id: "Z4Eqaj5jk5",
+    defaultMessage: "Plan, usage, and payment. Admins can change plan or open the billing portal.",
+    id: "QMQ6fLk/Jf",
     description: "Billing settings page description",
   },
   billingUnavailableTitle: {
@@ -103,9 +102,19 @@ export const billingSettingsContentMessages = defineMessages({
     description: "Subscription card description when cancellation is scheduled",
   },
   subscriptionActiveDescription: {
-    defaultMessage: "Manage cancellation for this workspace subscription.",
-    id: "10wFUk/dew",
-    description: "Subscription card description when a subscription is active",
+    defaultMessage: "Cancel at period end if you need to leave.",
+    id: "LW8iVMYvaG",
+    description: "Hint under the current plan when a subscription is active",
+  },
+  renewsDate: {
+    defaultMessage: "Renews {date}",
+    id: "61ETFYprI6",
+    description: "Current plan renewal date on billing settings",
+  },
+  accessUntilDate: {
+    defaultMessage: "Access until {date}",
+    id: "Gy9Swg1os7",
+    description: "Current plan access end date when cancellation is scheduled",
   },
   subscriptionEmptyDescription: {
     defaultMessage: "Choose a plan below to start a subscription for this workspace.",
@@ -200,8 +209,8 @@ export const billingSettingsContentMessages = defineMessages({
     description: "Shown when a billing feature has unlimited usage",
   },
   usageUsed: {
-    defaultMessage: "{usage} / {granted} used",
-    id: "jXIBasnzrF",
+    defaultMessage: "{usage} / {granted}",
+    id: "fEvE7sN4RY",
     description: "Usage row showing consumed versus granted amount",
   },
   usageRemaining: {
@@ -231,8 +240,8 @@ export const billingSettingsContentMessages = defineMessages({
     description: "Fallback description when an Autumn plan has no description",
   },
   currentPlan: {
-    defaultMessage: "Current plan",
-    id: "AdQUjv5py7",
+    defaultMessage: "Current",
+    id: "ERuqzW99ts",
     description: "Badge for the workspace’s current subscription plan",
   },
   startingPlan: {
@@ -241,14 +250,19 @@ export const billingSettingsContentMessages = defineMessages({
     description: "Button label while attaching a subscription plan",
   },
   selectPlan: {
-    defaultMessage: "Select plan",
-    id: "cJIask/gHT",
+    defaultMessage: "Select",
+    id: "i7dxDvInjb",
     description: "Button to select and attach a subscription plan",
   },
   noPlansConfigured: {
     defaultMessage: "No plans are configured in Autumn yet.",
     id: "TcPLZlmUn0",
     description: "Empty state when Autumn has no plans configured",
+  },
+  noActivePlanTitle: {
+    defaultMessage: "No active plan",
+    id: "XA1/TEs2Rt",
+    description: "Title when the workspace has no active subscription",
   },
   featureAiCredit: {
     defaultMessage: "AI Credit",

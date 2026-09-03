@@ -56,8 +56,8 @@ describe("getAppShellTitle", () => {
     ["/org/acme/settings/members", "Members"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
-    ["/org/acme/settings/personal-access-tokens", "Personal access tokens"],
-    ["/org/acme/settings/api-keys", "API Keys"],
+    ["/org/acme/settings/personal-access-tokens", "Access tokens"],
+    ["/org/acme/settings/api-keys", "API keys"],
   ])("returns the route title for %s", (pathname, title) => {
     expect(getAppShellTitle(pathname, intl)).toBe(title);
   });
@@ -107,7 +107,7 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
     expect(getAppShellBreadcrumbs("/org/acme/settings/personal-access-tokens", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
-      { label: "Personal access tokens" },
+      { label: "Access tokens" },
     ]);
   });
 

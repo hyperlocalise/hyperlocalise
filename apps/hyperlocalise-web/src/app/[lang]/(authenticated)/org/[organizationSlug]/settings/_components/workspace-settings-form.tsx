@@ -14,15 +14,14 @@
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Edit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Rows } from "@/components/ui/layout/rows";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { workspaceSettingsFormMessages } from "./workspace-settings-form.messages";
@@ -131,7 +130,6 @@ export function WorkspaceSettingsForm({
 
   return (
     <form
-      className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
       onSubmit={(event) => {
         event.preventDefault();
         if (hasChanges) {
@@ -139,36 +137,48 @@ export function WorkspaceSettingsForm({
         }
       }}
     >
-      <div className="grid gap-2">
-        <Label htmlFor="workspace-name" className="text-xs font-medium text-muted-foreground">
-          <FormattedMessage {...workspaceSettingsFormMessages.organizationNameLabel} />
-        </Label>
-        <Input
-          id="workspace-name"
-          value={name}
-          readOnly={!canUpdateWorkspace}
-          onChange={(event) => setName(event.target.value)}
-          className="h-10 rounded-lg border-border bg-muted text-foreground"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="workspace-slug" className="text-xs font-medium text-muted-foreground">
-          <FormattedMessage {...workspaceSettingsFormMessages.workspaceSlugLabel} />
-        </Label>
-        <Input
-          id="workspace-slug"
-          value={slug}
-          readOnly={!canUpdateWorkspace}
-          onChange={(event) => setSlug(event.target.value)}
-          className="h-10 rounded-lg border-border bg-muted text-foreground"
-        />
-      </div>
-      {canUpdateWorkspace ? (
-        <Button type="submit" disabled={!hasChanges || updateWorkspace.isPending}>
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
-          <FormattedMessage {...workspaceSettingsFormMessages.save} />
-        </Button>
-      ) : null}
+      <FieldGroup>
+        <Rows spacing="3u">
+          <Field>
+            <FieldLabel
+              htmlFor="workspace-name"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              <FormattedMessage {...workspaceSettingsFormMessages.organizationNameLabel} />
+            </FieldLabel>
+            <Input
+              id="workspace-name"
+              value={name}
+              readOnly={!canUpdateWorkspace}
+              onChange={(event) => setName(event.target.value)}
+              className="h-10"
+            />
+          </Field>
+          <Field>
+            <FieldLabel
+              htmlFor="workspace-slug"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              <FormattedMessage {...workspaceSettingsFormMessages.workspaceSlugLabel} />
+            </FieldLabel>
+            <Input
+              id="workspace-slug"
+              value={slug}
+              readOnly={!canUpdateWorkspace}
+              onChange={(event) => setSlug(event.target.value)}
+              className="h-10"
+            />
+            <FieldDescription className="text-xs text-subtle-foreground">
+              <FormattedMessage {...workspaceSettingsFormMessages.slugHelp} />
+            </FieldDescription>
+          </Field>
+          {canUpdateWorkspace ? (
+            <Button type="submit" disabled={!hasChanges || updateWorkspace.isPending}>
+              <FormattedMessage {...workspaceSettingsFormMessages.save} />
+            </Button>
+          ) : null}
+        </Rows>
+      </FieldGroup>
     </form>
   );
 }

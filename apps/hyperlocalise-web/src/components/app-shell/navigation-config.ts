@@ -418,6 +418,10 @@ export function stripAppLocalePrefix(pathname: string | null | undefined) {
   return `/${rest.join("/")}`.replace(/\/+$/, "") || "/";
 }
 
+export function isOrganizationSettingsPath(pathname: string | null | undefined) {
+  return /^\/org\/[^/]+\/settings(?:\/|$)/.test(stripAppLocalePrefix(pathname));
+}
+
 export function parseProjectRoute(pathname: string | null) {
   if (!pathname) return null;
 

@@ -13,20 +13,13 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import {
-  Add01Icon,
-  Copy01Icon,
-  Delete01Icon,
-  Key01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ApiKeyPermission } from "@/api/routes/api-key/api-key.schema";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -39,18 +32,20 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { PageHeader } from "../../_components/workspace-resource-shared";
 import {
   ACCESS_TOKEN_PERMISSIONS,
   type AccessTokenSummary,
-  formatAccessTokenDate,
   selectOwnedAccessTokens,
   toggleAccessTokenPermission,
 } from "./access-token-lifecycle";
 import { personalAccessTokensPageContentMessages as messages } from "./personal-access-tokens-page-content.messages";
+import { SettingsAccessTokenTable } from "./settings-access-token-table";
+import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 
 const personalAccessTokensQueryKey = (organizationSlug: string) => [
   "personal-access-tokens",
@@ -193,119 +188,65 @@ export function PersonalAccessTokensPageContent({
   const neverUsedLabel = intl.formatMessage(messages.neverUsed);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <PageHeader
-        icon={Key01Icon}
-        label={intl.formatMessage(messages.pageLabel)}
-        title={intl.formatMessage(messages.pageTitle)}
-        description={intl.formatMessage(messages.pageDescription)}
-        descriptionDetail={intl.formatMessage(messages.pageDescriptionDetail)}
-        actions={
-          canManageTokens ? (
+    <SettingsPageBody width="wide">
+      <Rows spacing="4u">
+        <SettingsPageHeader
+          eyebrow={intl.formatMessage(messages.pageLabel)}
+          title={intl.formatMessage(messages.pageTitle)}
+          description={intl.formatMessage(messages.pageDescription)}
+        />
+
+        {canManageTokens ? (
+          <Row spacing="0" align="end">
             <Button
               type="button"
               onClick={() => setIsCreateOpen(true)}
-              className="w-full sm:w-fit"
               disabled={createToken.isPending}
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
               <FormattedMessage {...messages.createButton} />
             </Button>
-          ) : null
-        }
-      />
+          </Row>
+        ) : null}
 
-      <section
-        aria-label={intl.formatMessage(messages.sectionAriaLabel)}
-        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
-      >
-        {tokensQuery.isLoading ? (
-          <TypographyP className="px-5 py-8 text-sm text-muted-foreground">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
-        ) : tokensQuery.isError ? (
-          <div className="px-5 py-8">
-            <TypographyP className="text-sm font-medium text-destructive">
-              <FormattedMessage {...messages.loadErrorTitle} />
+        <section aria-label={intl.formatMessage(messages.sectionAriaLabel)}>
+          {tokensQuery.isLoading ? (
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...messages.loading} />
             </TypographyP>
-            <TypographyP className="mt-1 text-sm text-muted-foreground">
-              {tokensQuery.error instanceof Error
-                ? tokensQuery.error.message
-                : intl.formatMessage(messages.loadErrorFallback)}
-            </TypographyP>
-          </div>
-        ) : tokens.length === 0 ? (
-          <div className="px-5 py-10">
-            <TypographyP className="text-sm font-medium text-foreground">
-              <FormattedMessage {...messages.emptyTitle} />
-            </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              <FormattedMessage {...messages.emptyDescription} />
-            </TypographyP>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {tokens.map((token) => (
-              <div key={token.id} className="flex items-start justify-between gap-4 px-5 py-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TypographyP className="text-sm font-medium text-foreground">
-                      {token.name}
-                    </TypographyP>
-                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                      <FormattedMessage
-                        {...messages.maskedKeyPrefix}
-                        values={{ prefix: token.keyPrefix }}
-                      />
-                    </span>
-                    {token.revokedAt ? (
-                      <Badge variant="outline">
-                        <FormattedMessage {...messages.revokedStatus} />
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>
-                      <FormattedMessage
-                        {...messages.permissions}
-                        values={{ permissions: token.permissions.join(", ") }}
-                      />
-                    </span>
-                    <span>
-                      <FormattedMessage
-                        {...messages.createdAt}
-                        values={{
-                          date: formatAccessTokenDate(intl, token.createdAt, neverUsedLabel),
-                        }}
-                      />
-                    </span>
-                    <span>
-                      <FormattedMessage
-                        {...messages.lastUsed}
-                        values={{
-                          date: formatAccessTokenDate(intl, token.lastUsedAt, neverUsedLabel),
-                        }}
-                      />
-                    </span>
-                  </div>
-                </div>
-                {canManageTokens && !token.revokedAt ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => setRevokingToken(token)}
-                    disabled={revokeToken.isPending}
-                  >
-                    <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} className="size-4" />
-                    <FormattedMessage {...messages.revoke} />
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+          ) : tokensQuery.isError ? (
+            <Rows spacing="0.5u">
+              <TypographyP className="text-sm font-medium text-destructive">
+                <FormattedMessage {...messages.loadErrorTitle} />
+              </TypographyP>
+              <TypographyP className="text-sm text-muted-foreground">
+                {tokensQuery.error instanceof Error
+                  ? tokensQuery.error.message
+                  : intl.formatMessage(messages.loadErrorFallback)}
+              </TypographyP>
+            </Rows>
+          ) : tokens.length === 0 ? (
+            <Rows spacing="1u">
+              <TypographyP className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.emptyTitle} />
+              </TypographyP>
+              <TypographyP className="max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
+                <FormattedMessage {...messages.emptyDescription} />
+              </TypographyP>
+            </Rows>
+          ) : (
+            <SettingsAccessTokenTable
+              tokens={tokens}
+              canRevoke={canManageTokens}
+              neverUsedLabel={neverUsedLabel}
+              revokedLabel={intl.formatMessage(messages.revokedStatus)}
+              revokeLabel={intl.formatMessage(messages.revoke)}
+              onRevoke={setRevokingToken}
+              revokePending={revokeToken.isPending}
+            />
+          )}
+        </section>
+      </Rows>
 
       <Dialog
         open={isCreateOpen}
@@ -491,6 +432,6 @@ export function PersonalAccessTokensPageContent({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </SettingsPageBody>
   );
 }

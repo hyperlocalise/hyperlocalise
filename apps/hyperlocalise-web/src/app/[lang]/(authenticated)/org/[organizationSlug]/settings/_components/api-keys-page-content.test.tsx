@@ -93,7 +93,7 @@ afterEach(() => {
 });
 
 describe("ApiKeySettingsPageContent", () => {
-  it("shows creation time and a never-used state for organization API keys", async () => {
+  it("shows last-used state for organization API keys", async () => {
     getMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -113,9 +113,9 @@ describe("ApiKeySettingsPageContent", () => {
     await waitFor(() => {
       expect(screen.getByText("Production CI")).toBeInTheDocument();
     });
-    expect(screen.getAllByText(/Created Aug 1, 2026/)).toHaveLength(2);
-    expect(screen.getByText(/Last used Never/)).toBeInTheDocument();
-    expect(screen.getByText(/Last used Aug 2, 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/Created Aug 1, 2026/)).not.toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.getByText(/Aug 2, 2026/)).toBeInTheDocument();
   });
 
   it("keeps revoked organization API keys out of the compatibility list", async () => {

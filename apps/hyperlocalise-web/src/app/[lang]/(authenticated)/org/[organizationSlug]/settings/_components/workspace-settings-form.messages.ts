@@ -40,4 +40,9 @@ export const workspaceSettingsFormMessages = defineMessages({
     id: "AyLloycARU",
     description: "Submit button to save workspace settings",
   },
+  slugHelp: {
+    defaultMessage: "Used in URLs. Changing this redirects existing links.",
+    id: "/uv/JnZEm+",
+    description: "Helper text under the workspace slug field",
+  },
 });

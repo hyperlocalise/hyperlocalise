@@ -51,19 +51,18 @@ export const personalAccessTokensPageContentMessages = defineMessages({
     description: "Error toast when clipboard copy of a personal access token fails",
   },
   pageLabel: {
-    defaultMessage: "Account settings",
-    id: "TfZLiRg/Of",
-    description: "Breadcrumb-style label above the personal access tokens page title",
+    defaultMessage: "You",
+    id: "uYO+XhQ05b",
+    description: "Eyebrow label above the personal access tokens page title",
   },
   pageTitle: {
-    defaultMessage: "Personal access tokens",
-    id: "muDf9vplZF",
+    defaultMessage: "Access tokens",
+    id: "JjXQ6VXECt",
     description: "Personal access tokens settings page heading",
   },
   pageDescription: {
-    defaultMessage:
-      "Create tokens for the CLI, CI, and integrations. A token acts with your current workspace access and stops working if you leave the organization.",
-    id: "HiMjguB4KA",
+    defaultMessage: "Tokens that act with your current workspace access. Shown once at creation.",
+    id: "x/a9p4i+W5",
     description: "Personal access tokens settings page description",
   },
   pageDescriptionDetail: {

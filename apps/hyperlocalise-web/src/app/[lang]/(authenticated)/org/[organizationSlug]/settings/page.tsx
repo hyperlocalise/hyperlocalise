@@ -10,9 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { SettingsPageContent } from "./_components/settings-pages";
+import { GeneralSettingsPageContent } from "./_components/settings-pages";
 
 export default async function SettingsPage({
   params,
@@ -21,13 +20,12 @@ export default async function SettingsPage({
 }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const flags = await evaluateWorkspaceFeatureFlags(auth);
 
   return (
-    <SettingsPageContent
+    <GeneralSettingsPageContent
+      canUpdateWorkspace={auth.capabilities.includes("workspace:update")}
+      organizationName={auth.activeOrganization.name}
       organizationSlug={organizationSlug}
-      capabilities={auth.capabilities}
-      domainsEnabled={flags.domains}
     />
   );
 }

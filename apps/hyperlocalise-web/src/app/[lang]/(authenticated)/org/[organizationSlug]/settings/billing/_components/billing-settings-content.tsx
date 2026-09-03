@@ -12,9 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
-import { CreditCardIcon, Wallet03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AutumnClientError, useCustomer, useListPlans } from "autumn-js/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -22,10 +20,9 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { PlanUsageSummaryContent } from "@/components/billing/plan-usage-summary";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
+import { TypographyP } from "@/components/ui/typography";
 import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
 import {
   getActiveSubscription,
@@ -40,6 +37,7 @@ import { billingBalanceFeatureIds } from "@/lib/billing/usage-feature-labels";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { billingSettingsContentMessages } from "./billing-settings-content.messages";
+import { SettingsPageBody, SettingsPageHeader } from "../../_components/settings-page-chrome";
 
 const workspaceResourceFeatureIds = [
   autumnFeatureIds.seats,
@@ -52,22 +50,35 @@ type WorkspaceResourceFeatureId = (typeof workspaceResourceFeatureIds)[number];
 
 const workspaceResourceUsageFeatureIds = new Set<string>(workspaceResourceFeatureIds);
 
-function SurfaceCard({
-  children,
-  className = "",
-  id,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  id?: string;
-}) {
+function BillingNotice({ title, description }: { title: ReactNode; description: ReactNode }) {
   return (
-    <Card
-      id={id}
-      className={`rounded-lg border border-border bg-muted py-0 text-foreground ring-0 ${className}`}
-    >
-      {children}
-    </Card>
+    <Rows spacing="1u">
+      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
+      <TypographyP className="text-pretty text-sm text-muted-foreground">{description}</TypographyP>
+    </Rows>
+  );
+}
+
+function BillingUnavailableCard() {
+  return (
+    <BillingNotice
+      title={<FormattedMessage {...billingSettingsContentMessages.billingUnavailableTitle} />}
+      description={
+        <FormattedMessage {...billingSettingsContentMessages.billingUnavailableDescription} />
+      }
+    />
+  );
+}
+
+function BillingSettingsHeader() {
+  const intl = useIntl();
+
+  return (
+    <SettingsPageHeader
+      eyebrow={intl.formatMessage(billingSettingsContentMessages.pageLabel)}
+      title={intl.formatMessage(billingSettingsContentMessages.pageTitle)}
+      description={intl.formatMessage(billingSettingsContentMessages.pageDescription)}
+    />
   );
 }
 
@@ -153,40 +164,36 @@ function formatBillingError(intl: IntlShape, error: unknown): string {
   return intl.formatMessage(billingSettingsContentMessages.billingRequestFailed);
 }
 
-function BillingSettingsHeader() {
-  return (
-    <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="max-w-2xl">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
-          <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-4 shrink-0" />
-          <span>
-            <FormattedMessage {...billingSettingsContentMessages.pageLabel} />
-          </span>
-        </div>
-        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
-          <FormattedMessage {...billingSettingsContentMessages.pageTitle} />
-        </TypographyH1>
-        <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          <FormattedMessage {...billingSettingsContentMessages.pageDescription} />
-        </TypographyP>
-      </div>
-    </section>
-  );
-}
+function formatCurrentPlanCopy({
+  intl,
+  hasActiveSubscription,
+  isScheduledForCancel,
+  renewalLabel,
+}: {
+  intl: IntlShape;
+  hasActiveSubscription: boolean;
+  isScheduledForCancel: boolean;
+  renewalLabel: string | null;
+}) {
+  if (!hasActiveSubscription) {
+    return intl.formatMessage(billingSettingsContentMessages.subscriptionEmptyDescription);
+  }
 
-function BillingUnavailableCard() {
-  return (
-    <SurfaceCard>
-      <CardHeader className="px-5 py-5">
-        <CardTitle className="text-lg font-medium text-foreground">
-          <FormattedMessage {...billingSettingsContentMessages.billingUnavailableTitle} />
-        </CardTitle>
-        <CardDescription className="text-muted-foreground">
-          <FormattedMessage {...billingSettingsContentMessages.billingUnavailableDescription} />
-        </CardDescription>
-      </CardHeader>
-    </SurfaceCard>
+  const renewal = renewalLabel
+    ? intl.formatMessage(
+        isScheduledForCancel
+          ? billingSettingsContentMessages.accessUntilDate
+          : billingSettingsContentMessages.renewsDate,
+        { date: renewalLabel },
+      )
+    : null;
+  const hint = intl.formatMessage(
+    isScheduledForCancel
+      ? billingSettingsContentMessages.subscriptionCancelingDescription
+      : billingSettingsContentMessages.subscriptionActiveDescription,
   );
+
+  return renewal ? `${renewal}. ${hint}` : hint;
 }
 
 function BillingSettingsPanel({
@@ -339,72 +346,56 @@ function ConfiguredBillingSettingsPanel({
 
   if (isLoading) {
     return (
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.loadingTitle} />
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.loadingDescription} />
-          </CardDescription>
-        </CardHeader>
-      </SurfaceCard>
+      <BillingNotice
+        title={<FormattedMessage {...billingSettingsContentMessages.loadingTitle} />}
+        description={<FormattedMessage {...billingSettingsContentMessages.loadingDescription} />}
+      />
     );
   }
 
   if (billingError) {
     return (
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.loadErrorTitle} />
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            {formatBillingError(intl, billingError)}
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-skeleton" />
-        <CardContent className="px-5 py-4">
-          <Button variant="outline" onClick={() => void refetchCustomer()}>
+      <Rows spacing="3u">
+        <BillingNotice
+          title={<FormattedMessage {...billingSettingsContentMessages.loadErrorTitle} />}
+          description={formatBillingError(intl, billingError)}
+        />
+        <Row spacing="0">
+          <Button variant="outline" size="sm" onClick={() => void refetchCustomer()}>
             <FormattedMessage {...billingSettingsContentMessages.tryAgain} />
           </Button>
-        </CardContent>
-      </SurfaceCard>
+        </Row>
+      </Rows>
     );
   }
 
+  const planName =
+    planUsageSummary.activePlanName ??
+    intl.formatMessage(billingSettingsContentMessages.noActivePlanTitle);
+  const planCopy = formatCurrentPlanCopy({
+    intl,
+    hasActiveSubscription: Boolean(activeSubscription),
+    isScheduledForCancel,
+    renewalLabel: planUsageSummary.renewalLabel,
+  });
+
   return (
-    <>
-      <section className="grid gap-3 lg:grid-cols-[1fr_22rem]">
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg font-medium text-foreground">
-                  <FormattedMessage {...billingSettingsContentMessages.subscriptionTitle} />
-                </CardTitle>
-                <CardDescription className="mt-1 text-muted-foreground">
-                  {activeSubscription ? (
-                    isScheduledForCancel ? (
-                      <FormattedMessage
-                        {...billingSettingsContentMessages.subscriptionCancelingDescription}
-                      />
-                    ) : (
-                      <FormattedMessage
-                        {...billingSettingsContentMessages.subscriptionActiveDescription}
-                      />
-                    )
-                  ) : (
-                    <FormattedMessage
-                      {...billingSettingsContentMessages.subscriptionEmptyDescription}
-                    />
-                  )}
-                </CardDescription>
-              </div>
+    <Rows spacing="6u">
+      <div className="border-b border-border pb-8">
+        <Rows spacing="3u">
+          <Rows spacing="1u">
+            <Row spacing="1.5u" alignY="center">
+              <TypographyP className="text-sm leading-tight font-medium text-foreground">
+                {planName}
+              </TypographyP>
               {activeSubscription ? (
                 <Badge
-                  variant="outline"
-                  className="shrink-0 rounded-full border-bud-500/25 bg-bud-500/10 text-bud-100"
+                  variant="secondary"
+                  className={
+                    isScheduledForCancel
+                      ? undefined
+                      : "border-transparent bg-blue-100 text-blue-900"
+                  }
                 >
                   {isScheduledForCancel ? (
                     <FormattedMessage {...billingSettingsContentMessages.statusCanceling} />
@@ -413,60 +404,15 @@ function ConfiguredBillingSettingsPanel({
                   )}
                 </Badge>
               ) : null}
-            </div>
-          </CardHeader>
-          <Separator className="bg-skeleton" />
-          <CardContent className="px-5 py-5">
-            {canManageBilling && isScheduledForCancel ? (
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  disabled={actionPending !== null}
-                  onClick={() => void handleUncancelSubscription()}
-                >
-                  {actionPending === "uncancel" ? (
-                    <FormattedMessage {...billingSettingsContentMessages.restoringSubscription} />
-                  ) : (
-                    <FormattedMessage {...billingSettingsContentMessages.restoreSubscription} />
-                  )}
-                </Button>
-              </div>
-            ) : null}
-            {canManageBilling && activeSubscription && !isScheduledForCancel ? (
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  disabled={actionPending !== null}
-                  onClick={() => void handleCancelSubscription()}
-                >
-                  {actionPending === "cancel" ? (
-                    <FormattedMessage {...billingSettingsContentMessages.schedulingCancel} />
-                  ) : (
-                    <FormattedMessage {...billingSettingsContentMessages.cancelAtPeriodEnd} />
-                  )}
-                </Button>
-              </div>
-            ) : null}
-          </CardContent>
-        </SurfaceCard>
-
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted">
-              <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
-            </div>
-            <CardTitle className="text-base font-medium text-foreground">
-              <FormattedMessage {...billingSettingsContentMessages.billingPortalTitle} />
-            </CardTitle>
-            <CardDescription className="leading-6 text-muted-foreground">
-              <FormattedMessage {...billingSettingsContentMessages.billingPortalDescription} />
-            </CardDescription>
-          </CardHeader>
-          <Separator className="bg-skeleton" />
-          <CardContent className="px-5 py-4">
+            </Row>
+            <TypographyP className="text-sm leading-snug text-muted-foreground">
+              {planCopy}
+            </TypographyP>
+          </Rows>
+          <Row spacing="2u" alignY="center">
             <Button
               variant="outline"
-              className="border-border bg-transparent"
+              size="sm"
               disabled={!canManageBilling || actionPending !== null}
               onClick={() => void handleOpenPortal()}
             >
@@ -476,119 +422,132 @@ function ConfiguredBillingSettingsPanel({
                 <FormattedMessage {...billingSettingsContentMessages.manageBilling} />
               )}
             </Button>
-            {!canManageBilling ? (
-              <TypographyP className="mt-3 text-xs text-muted-foreground">
-                <FormattedMessage {...billingSettingsContentMessages.adminOnlyPortal} />
-              </TypographyP>
+            {canManageBilling && isScheduledForCancel ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                disabled={actionPending !== null}
+                onClick={() => void handleUncancelSubscription()}
+              >
+                {actionPending === "uncancel" ? (
+                  <FormattedMessage {...billingSettingsContentMessages.restoringSubscription} />
+                ) : (
+                  <FormattedMessage {...billingSettingsContentMessages.restoreSubscription} />
+                )}
+              </Button>
             ) : null}
-          </CardContent>
-        </SurfaceCard>
-      </section>
+            {canManageBilling && activeSubscription && !isScheduledForCancel ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                disabled={actionPending !== null}
+                onClick={() => void handleCancelSubscription()}
+              >
+                {actionPending === "cancel" ? (
+                  <FormattedMessage {...billingSettingsContentMessages.schedulingCancel} />
+                ) : (
+                  <FormattedMessage {...billingSettingsContentMessages.cancelAtPeriodEnd} />
+                )}
+              </Button>
+            ) : null}
+          </Row>
+          {!canManageBilling ? (
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...billingSettingsContentMessages.adminOnlyPortal} />
+            </TypographyP>
+          ) : null}
+        </Rows>
+      </div>
 
-      <SurfaceCard
+      <div
         id={planUsageSectionId}
         className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
       >
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">
+        <Rows spacing="1u">
+          <TypographyP className="pb-2 text-sm leading-tight font-medium text-foreground">
             <FormattedMessage {...billingSettingsContentMessages.planUsageTitle} />
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.planUsageDescription} />
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-skeleton" />
-        <div className="px-5 py-5">
-          <PlanUsageSummaryContent summary={planUsageSummary} />
-        </div>
-        <Separator className="bg-skeleton" />
-        <CardContent className="divide-y divide-border px-5 py-0">
+          </TypographyP>
           {usageRows.map((row) => (
-            <div key={row.featureId} className="flex items-center justify-between gap-4 py-4">
-              <div>
-                <TypographyP className="text-sm font-medium text-foreground">
-                  {row.label}
-                </TypographyP>
-                <TypographyP className="text-xs text-muted-foreground">
-                  <FormattedMessage
-                    {...billingSettingsContentMessages.resetsOn}
-                    values={{ date: formatResetDate(intl, row.nextResetAt) }}
-                  />
-                </TypographyP>
-              </div>
-              <div className="text-right">
-                <TypographyP className="text-sm font-medium text-foreground">
-                  {row.usageUnavailable ? (
-                    <FormattedMessage {...billingSettingsContentMessages.usageUnavailable} />
-                  ) : row.unlimited ? (
-                    <FormattedMessage {...billingSettingsContentMessages.unlimited} />
-                  ) : (
+            <div key={row.featureId} className="min-h-12 border-t border-border py-3">
+              <Row spacing="2u" align="spaceBetween" alignY="center">
+                <Rows spacing="0.5u">
+                  <TypographyP className="text-sm leading-tight font-medium text-foreground">
+                    {row.label}
+                  </TypographyP>
+                  <TypographyP className="text-xs leading-none text-subtle-foreground">
                     <FormattedMessage
-                      {...billingSettingsContentMessages.usageUsed}
-                      values={{
-                        usage: formatUsageValue(intl, row.usage),
-                        granted: formatUsageValue(intl, row.granted),
-                      }}
-                    />
-                  )}
-                </TypographyP>
-                {!row.unlimited && !row.usageUnavailable ? (
-                  <TypographyP className="text-xs text-muted-foreground">
-                    <FormattedMessage
-                      {...billingSettingsContentMessages.usageRemaining}
-                      values={{ remaining: formatUsageValue(intl, row.remaining) }}
+                      {...billingSettingsContentMessages.resetsOn}
+                      values={{ date: formatResetDate(intl, row.nextResetAt) }}
                     />
                   </TypographyP>
-                ) : row.usageUnavailable ? (
-                  <TypographyP className="text-xs text-muted-foreground">
-                    <FormattedMessage
-                      {...billingSettingsContentMessages.planLimit}
-                      values={{ granted: formatUsageValue(intl, row.granted) }}
-                    />
-                  </TypographyP>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </SurfaceCard>
-
-      <SurfaceCard
-        id={availablePlansSectionId}
-        className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
-      >
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.availablePlansTitle} />
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            <FormattedMessage {...billingSettingsContentMessages.availablePlansDescription} />
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-skeleton" />
-        <CardContent className="divide-y divide-border px-5 py-0">
-          {(plans ?? []).map((plan) => {
-            const isCurrentPlan = plan.id === activePlanId;
-            return (
-              <div key={plan.id} className="flex items-start justify-between gap-4 py-4">
-                <div>
-                  <TypographyP className="text-sm font-medium text-foreground">
-                    {plan.name}
-                  </TypographyP>
-                  <TypographyP className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-                    {plan.description ?? (
+                </Rows>
+                <Rows spacing="0.5u" align="end">
+                  <TypographyP className="text-sm leading-tight font-medium text-foreground tabular-nums">
+                    {row.usageUnavailable ? (
+                      <FormattedMessage {...billingSettingsContentMessages.usageUnavailable} />
+                    ) : row.unlimited ? (
+                      <FormattedMessage {...billingSettingsContentMessages.unlimited} />
+                    ) : (
                       <FormattedMessage
-                        {...billingSettingsContentMessages.planDescriptionFallback}
+                        {...billingSettingsContentMessages.usageUsed}
+                        values={{
+                          usage: formatUsageValue(intl, row.usage),
+                          granted: formatUsageValue(intl, row.granted),
+                        }}
                       />
                     )}
                   </TypographyP>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {!row.unlimited && !row.usageUnavailable ? (
+                    <TypographyP className="text-xs leading-none text-subtle-foreground">
+                      <FormattedMessage
+                        {...billingSettingsContentMessages.usageRemaining}
+                        values={{ remaining: formatUsageValue(intl, row.remaining) }}
+                      />
+                    </TypographyP>
+                  ) : row.usageUnavailable ? (
+                    <TypographyP className="text-xs leading-none text-subtle-foreground">
+                      <FormattedMessage
+                        {...billingSettingsContentMessages.planLimit}
+                        values={{ granted: formatUsageValue(intl, row.granted) }}
+                      />
+                    </TypographyP>
+                  ) : null}
+                </Rows>
+              </Row>
+            </div>
+          ))}
+        </Rows>
+      </div>
+
+      <div
+        id={availablePlansSectionId}
+        className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
+      >
+        <Rows spacing="1u">
+          <TypographyP className="pb-2 text-sm leading-tight font-medium text-foreground">
+            <FormattedMessage {...billingSettingsContentMessages.availablePlansTitle} />
+          </TypographyP>
+          {(plans ?? []).map((plan) => {
+            const isCurrentPlan = plan.id === activePlanId;
+            return (
+              <div key={plan.id} className="border-t border-border py-3.5">
+                <Row spacing="2u" align="spaceBetween" alignY="center">
+                  <Rows spacing="0.5u">
+                    <TypographyP className="text-sm leading-tight font-medium text-foreground">
+                      {plan.name}
+                    </TypographyP>
+                    <TypographyP className="text-sm leading-tight text-muted-foreground">
+                      {plan.description ?? (
+                        <FormattedMessage
+                          {...billingSettingsContentMessages.planDescriptionFallback}
+                        />
+                      )}
+                    </TypographyP>
+                  </Rows>
                   {isCurrentPlan ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border bg-muted text-muted-foreground"
-                    >
+                    <Badge variant="secondary">
                       <FormattedMessage {...billingSettingsContentMessages.currentPlan} />
                     </Badge>
                   ) : (
@@ -605,20 +564,18 @@ function ConfiguredBillingSettingsPanel({
                       )}
                     </Button>
                   )}
-                </div>
+                </Row>
               </div>
             );
           })}
           {!plans?.length ? (
-            <div className="py-4">
-              <TypographyP className="text-sm text-muted-foreground">
-                <FormattedMessage {...billingSettingsContentMessages.noPlansConfigured} />
-              </TypographyP>
-            </div>
+            <TypographyP className="border-t border-border py-3.5 text-sm text-muted-foreground">
+              <FormattedMessage {...billingSettingsContentMessages.noPlansConfigured} />
+            </TypographyP>
           ) : null}
-        </CardContent>
-      </SurfaceCard>
-    </>
+        </Rows>
+      </div>
+    </Rows>
   );
 }
 
@@ -632,14 +589,18 @@ export function BillingSettingsPageContent({
   organizationSlug: string;
 }) {
   return (
-    <main className="space-y-5">
-      <PlanUsageHashScroll organizationSlug={organizationSlug} />
-      <BillingSettingsHeader />
-      <BillingSettingsPanel
-        autumnConfigured={autumnConfigured}
-        canManageBilling={canManageBilling}
-        organizationSlug={organizationSlug}
-      />
-    </main>
+    <SettingsPageBody width="wide">
+      <div className="w-full max-w-[45rem]">
+        <PlanUsageHashScroll organizationSlug={organizationSlug} />
+        <Rows spacing="6u">
+          <BillingSettingsHeader />
+          <BillingSettingsPanel
+            autumnConfigured={autumnConfigured}
+            canManageBilling={canManageBilling}
+            organizationSlug={organizationSlug}
+          />
+        </Rows>
+      </div>
+    </SettingsPageBody>
   );
 }

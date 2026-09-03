@@ -42,8 +42,10 @@ describe("formatAccessTokenDate", () => {
     expect(formatAccessTokenDate(intl, null, "Never")).toBe("Never");
   });
 
-  it("formats a timestamp for creation and last-used metadata", () => {
-    expect(formatAccessTokenDate(intl, "2026-08-01T15:30:00.000Z", "Never")).toMatch(/Aug 1, 2026/);
+  it("formats a timestamp for last-used metadata", () => {
+    expect(formatAccessTokenDate(intl, "2026-08-01T15:30:00.000Z", "Never")).toBe(
+      intl.formatDate(new Date("2026-08-01T15:30:00.000Z"), { dateStyle: "medium" }),
+    );
   });
 });
 

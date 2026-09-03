@@ -13,13 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import {
-  Add01Icon,
-  Copy01Icon,
-  Delete01Icon,
-  Key01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -34,14 +28,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { PageHeader } from "../../_components/workspace-resource-shared";
-import { TypographyP } from "@/components/ui/typography";
-import { type AccessTokenSummary, formatAccessTokenDate } from "./access-token-lifecycle";
+import { type AccessTokenSummary } from "./access-token-lifecycle";
 import { apiKeysPageContentMessages } from "./api-keys-page-content.messages";
+import { SettingsAccessTokenTable } from "./settings-access-token-table";
+import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
+import { TypographyP } from "@/components/ui/typography";
 
 const apiKeysQueryKey = (organizationSlug: string) => ["api-keys", organizationSlug];
 
@@ -146,117 +143,63 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
   const activeKeys = apiKeys.filter((k) => !k.revokedAt);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <PageHeader
-        icon={Key01Icon}
-        label={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
-        title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
-        description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
-        actions={
+    <SettingsPageBody width="wide">
+      <Rows spacing="4u">
+        <SettingsPageHeader
+          eyebrow={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
+          title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
+          description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
+        />
+
+        <Row spacing="0" align="end">
           <Button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="w-full sm:w-fit"
             disabled={createKey.isPending}
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
             <FormattedMessage {...apiKeysPageContentMessages.createButton} />
           </Button>
-        }
-      />
+        </Row>
 
-      <section
-        aria-label={intl.formatMessage(apiKeysPageContentMessages.sectionAriaLabel)}
-        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
-      >
-        {apiKeysQuery.isLoading ? (
-          <TypographyP className="px-5 py-8 text-sm text-muted-foreground">
-            <FormattedMessage {...apiKeysPageContentMessages.loading} />
-          </TypographyP>
-        ) : apiKeysQuery.isError ? (
-          <div className="px-5 py-8">
-            <TypographyP className="text-sm font-medium text-destructive">
-              <FormattedMessage {...apiKeysPageContentMessages.loadErrorTitle} />
+        <section aria-label={intl.formatMessage(apiKeysPageContentMessages.sectionAriaLabel)}>
+          {apiKeysQuery.isLoading ? (
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...apiKeysPageContentMessages.loading} />
             </TypographyP>
-            <TypographyP className="mt-1 text-sm text-muted-foreground">
-              {apiKeysQuery.error instanceof Error
-                ? apiKeysQuery.error.message
-                : intl.formatMessage(apiKeysPageContentMessages.loadErrorFallback)}
-            </TypographyP>
-          </div>
-        ) : activeKeys.length === 0 ? (
-          <div className="px-5 py-10">
-            <TypographyP className="text-sm font-medium text-foreground">
-              <FormattedMessage {...apiKeysPageContentMessages.emptyTitle} />
-            </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              <FormattedMessage {...apiKeysPageContentMessages.emptyDescription} />
-            </TypographyP>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {activeKeys.map((key) => (
-              <div key={key.id} className="flex items-start justify-between gap-4 px-5 py-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TypographyP className="text-sm font-medium text-foreground">
-                      {key.name}
-                    </TypographyP>
-                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                      <FormattedMessage
-                        {...apiKeysPageContentMessages.maskedKeyPrefix}
-                        values={{ prefix: key.keyPrefix }}
-                      />
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>
-                      <FormattedMessage
-                        {...apiKeysPageContentMessages.permissions}
-                        values={{ permissions: key.permissions.join(", ") }}
-                      />
-                    </span>
-                    <span>
-                      <FormattedMessage
-                        {...apiKeysPageContentMessages.createdAt}
-                        values={{
-                          date: formatAccessTokenDate(
-                            intl,
-                            key.createdAt,
-                            intl.formatMessage(apiKeysPageContentMessages.neverUsed),
-                          ),
-                        }}
-                      />
-                    </span>
-                    <span>
-                      <FormattedMessage
-                        {...apiKeysPageContentMessages.lastUsed}
-                        values={{
-                          date: formatAccessTokenDate(
-                            intl,
-                            key.lastUsedAt,
-                            intl.formatMessage(apiKeysPageContentMessages.neverUsed),
-                          ),
-                        }}
-                      />
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setRevokingKeyId(key.id)}
-                  disabled={revokeKey.isPending}
-                >
-                  <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} className="size-4" />
-                  <FormattedMessage {...apiKeysPageContentMessages.revoke} />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+          ) : apiKeysQuery.isError ? (
+            <Rows spacing="0.5u">
+              <TypographyP className="text-sm font-medium text-destructive">
+                <FormattedMessage {...apiKeysPageContentMessages.loadErrorTitle} />
+              </TypographyP>
+              <TypographyP className="text-sm text-muted-foreground">
+                {apiKeysQuery.error instanceof Error
+                  ? apiKeysQuery.error.message
+                  : intl.formatMessage(apiKeysPageContentMessages.loadErrorFallback)}
+              </TypographyP>
+            </Rows>
+          ) : activeKeys.length === 0 ? (
+            <Rows spacing="1u">
+              <TypographyP className="text-sm font-medium text-foreground">
+                <FormattedMessage {...apiKeysPageContentMessages.emptyTitle} />
+              </TypographyP>
+              <TypographyP className="max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
+                <FormattedMessage {...apiKeysPageContentMessages.emptyDescription} />
+              </TypographyP>
+            </Rows>
+          ) : (
+            <SettingsAccessTokenTable
+              tokens={activeKeys}
+              canRevoke
+              neverUsedLabel={intl.formatMessage(apiKeysPageContentMessages.neverUsed)}
+              revokedLabel=""
+              revokeLabel={intl.formatMessage(apiKeysPageContentMessages.revoke)}
+              onRevoke={(token) => setRevokingKeyId(token.id)}
+              revokePending={revokeKey.isPending}
+            />
+          )}
+        </section>
+      </Rows>
 
       <Dialog
         open={isCreateOpen}
@@ -397,6 +340,6 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </SettingsPageBody>
   );
 }

@@ -31,6 +31,7 @@ import {
   buildProjectPath,
   isInboxNewRequestPath,
   isNavigationItemActive,
+  isOrganizationSettingsPath,
   parseProjectRoute,
   stripAppLocalePrefix,
 } from "./navigation-config";
@@ -375,5 +376,19 @@ describe("isInboxNewRequestPath", () => {
     expect(isInboxNewRequestPath("/en/org/acme/inbox/new")).toBe(true);
     expect(isInboxNewRequestPath("/org/acme/inbox")).toBe(false);
     expect(isInboxNewRequestPath("/org/acme/inbox/thread_1")).toBe(false);
+  });
+});
+
+describe("isOrganizationSettingsPath", () => {
+  it("matches org settings routes, including locale prefixes", () => {
+    expect(isOrganizationSettingsPath("/org/acme/settings")).toBe(true);
+    expect(isOrganizationSettingsPath("/org/acme/settings/billing")).toBe(true);
+    expect(isOrganizationSettingsPath("/en/org/acme/settings/account")).toBe(true);
+  });
+
+  it("does not match project settings or other org routes", () => {
+    expect(isOrganizationSettingsPath("/org/acme/projects/proj_1/settings")).toBe(false);
+    expect(isOrganizationSettingsPath("/org/acme/members")).toBe(false);
+    expect(isOrganizationSettingsPath(null)).toBe(false);
   });
 });

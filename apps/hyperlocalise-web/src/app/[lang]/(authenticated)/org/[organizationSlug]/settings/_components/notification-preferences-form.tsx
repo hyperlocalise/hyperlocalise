@@ -14,7 +14,11 @@
  */
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Rows } from "@/components/ui/layout/rows";
 import {
   Select,
   SelectContent,
@@ -27,6 +31,7 @@ import { TypographyP } from "@/components/ui/typography";
 import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
 
 import { notificationPreferencesFormMessages as messages } from "./notification-preferences-form.messages";
+import { SettingsSectionHeader } from "./settings-page-chrome";
 
 export type NotificationPreferencesFormValues = {
   emailEnabled: boolean;
@@ -52,42 +57,44 @@ export function NotificationPreferencesForm({
   const controlsDisabled = disabled || isSaving;
 
   return (
-    <div id="notifications" className="space-y-6">
-      <div>
-        <TypographyP className="text-sm font-medium text-foreground">
-          <FormattedMessage {...messages.sectionTitle} />
-        </TypographyP>
-        <TypographyP className="mt-1 text-sm text-muted-foreground">
-          <FormattedMessage {...messages.sectionDescription} />
-        </TypographyP>
-      </div>
+    <Rows spacing="3u">
+      <SettingsSectionHeader
+        title={intl.formatMessage(messages.sectionTitle)}
+        description={intl.formatMessage(messages.sectionDescription)}
+      />
 
-      <div className="flex items-start justify-between gap-4 rounded-lg border border-border px-4 py-3">
-        <div className="space-y-1">
-          <Label htmlFor="notification-email-enabled" className="text-sm font-medium">
-            <FormattedMessage {...messages.emailEnabledLabel} />
-          </Label>
-          <TypographyP className="text-sm text-muted-foreground">
-            <FormattedMessage {...messages.emailEnabledDescription} />
-          </TypographyP>
-        </div>
-        <Switch
-          id="notification-email-enabled"
-          checked={values.emailEnabled}
-          disabled={controlsDisabled}
-          onCheckedChange={onEmailEnabledChange}
-          aria-label={intl.formatMessage(messages.emailEnabledLabel)}
-        />
-      </div>
+      <Box paddingX="2u" paddingY="1.5u" border="standard" borderRadius="large">
+        <Columns spacing="2u" align="spaceBetween" alignY="center">
+          <Column width="fluid">
+            <Rows spacing="0.5u">
+              <FieldLabel htmlFor="notification-email-enabled" className="text-sm font-medium">
+                <FormattedMessage {...messages.emailEnabledLabel} />
+              </FieldLabel>
+              <TypographyP className="text-sm leading-tight text-muted-foreground">
+                <FormattedMessage {...messages.emailEnabledDescription} />
+              </TypographyP>
+            </Rows>
+          </Column>
+          <Column width="content">
+            <Switch
+              id="notification-email-enabled"
+              checked={values.emailEnabled}
+              disabled={controlsDisabled}
+              onCheckedChange={onEmailEnabledChange}
+              aria-label={intl.formatMessage(messages.emailEnabledLabel)}
+            />
+          </Column>
+        </Columns>
+      </Box>
 
       {values.emailEnabled ? (
-        <div className="space-y-2">
-          <Label htmlFor="notification-email-format" className="text-sm font-medium">
+        <Field>
+          <FieldLabel htmlFor="notification-email-format" className="text-sm font-medium">
             <FormattedMessage {...messages.emailFormatLabel} />
-          </Label>
-          <TypographyP className="text-sm text-muted-foreground">
+          </FieldLabel>
+          <FieldDescription>
             <FormattedMessage {...messages.emailFormatDescription} />
-          </TypographyP>
+          </FieldDescription>
           <Select
             value={values.emailFormat}
             items={[
@@ -102,7 +109,7 @@ export function NotificationPreferencesForm({
               onEmailFormatChange(value === "immediate" ? "immediate" : "digest");
             }}
           >
-            <SelectTrigger id="notification-email-format" className="w-full max-w-xs">
+            <SelectTrigger id="notification-email-format" className="w-[280px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +121,7 @@ export function NotificationPreferencesForm({
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </Field>
       ) : null}
 
       {isSaving ? (
@@ -122,6 +129,6 @@ export function NotificationPreferencesForm({
           <FormattedMessage {...messages.saving} />
         </TypographyP>
       ) : null}
-    </div>
+    </Rows>
   );
 }

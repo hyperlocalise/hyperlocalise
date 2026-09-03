@@ -26,13 +26,14 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/primitives/cn";
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import { TmsUserOAuthErrorToast } from "./tms-user-oauth-error-toast";
-import type { NavigationGroup } from "./navigation-config";
+import { isOrganizationSettingsPath, type NavigationGroup } from "./navigation-config";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
@@ -88,6 +89,7 @@ export function AppShellClient({
   const organizationSlug = activeOrganization.slug ?? "";
   const isContentEditorWorkspaceRoute =
     pathname.includes("/strings") || pathname.includes("/files/content-editor");
+  const isOrgSettingsRoute = isOrganizationSettingsPath(pathname);
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
     initialData: tmsUserConnectCta,
@@ -177,7 +179,12 @@ export function AppShellClient({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col",
+              isOrgSettingsRoute ? "overflow-hidden" : "overflow-y-auto px-4 py-5 sm:px-6 lg:px-8",
+            )}
+          >
             {children}
           </div>
         </SidebarInset>

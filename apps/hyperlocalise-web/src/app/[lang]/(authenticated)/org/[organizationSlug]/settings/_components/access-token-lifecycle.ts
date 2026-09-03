@@ -45,13 +45,7 @@ export function formatAccessTokenDate(
     return neverUsedLabel;
   }
 
-  return intl.formatDate(new Date(date), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return intl.formatDate(new Date(date), { dateStyle: "medium" });
 }
 
 export function toggleAccessTokenPermission(

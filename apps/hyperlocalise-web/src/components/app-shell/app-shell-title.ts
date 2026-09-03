@@ -174,8 +174,8 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "api-keys":
       return intl.formatMessage({
-        defaultMessage: "API Keys",
-        id: "BuW96vtm0m",
+        defaultMessage: "API keys",
+        id: "XRHW9DFjAT",
         description: "App shell breadcrumb title for the API keys settings page",
       });
     case "billing":
@@ -277,8 +277,8 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "personal-access-tokens":
       return intl.formatMessage({
-        defaultMessage: "Personal access tokens",
-        id: "n8n3wB0NdJ",
+        defaultMessage: "Access tokens",
+        id: "Wx9vtidYOj",
         description: "App shell breadcrumb title for the personal access tokens settings page",
       });
     case "projects":
