@@ -298,7 +298,10 @@ export function HyperlabExperimentDetail({
                         </Field>
                       </Column>
                       <Column width="content">
-                        <Button type="submit" disabled={!variantKey || addVariantMutation.isPending}>
+                        <Button
+                          type="submit"
+                          disabled={!variantKey || addVariantMutation.isPending}
+                        >
                           <FormattedMessage {...messages.addVariant} />
                         </Button>
                       </Column>

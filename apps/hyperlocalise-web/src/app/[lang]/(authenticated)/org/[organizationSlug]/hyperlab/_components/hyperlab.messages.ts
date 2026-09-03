@@ -211,12 +211,12 @@ export const hyperlabMessages = defineMessages({
   variantRolloutHint: {
     defaultMessage:
       "Earlier variants take buckets first. For a 50/50 A/B test, set both variants to 5000.",
-    id: "k3nR8wQp2L",
+    id: "vxTv2uN2SD",
     description: "Hint explaining how variant rollout percentages allocate buckets",
   },
   saveVariant: {
     defaultMessage: "Save rollout",
-    id: "p9Lm2xQe4T",
+    id: "oBCABtHXTR",
     description: "Button to save a variant rollout percentage",
   },
   control: {
