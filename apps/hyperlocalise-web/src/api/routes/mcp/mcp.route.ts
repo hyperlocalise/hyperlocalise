@@ -39,6 +39,11 @@ import {
   canAccessGlossary,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
+import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
+import {
+  findAccessiblePublicJob,
+  toMcpJobEnvelope,
+} from "@/api/routes/public-jobs/public-jobs.read";
 import {
   createAuthorizationCode,
   createMcpAuthorizationRequest,
@@ -77,6 +82,7 @@ import {
   filterProjectFiles,
   listProjectFilesForProject,
 } from "@/lib/projects/files/project-file-service";
+import { loadMcpProjectStatus } from "@/api/routes/mcp/mcp-project-status";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -519,6 +525,12 @@ const mcpCreateIssueInputSchema = z.object({
     ),
 });
 
+const mcpGetJobInputSchema = z.object({
+  jobId: jobIdParamsSchema.shape.jobId.describe(
+    "ID of the translation or workflow job to inspect, typically returned by run_workflow.",
+  ),
+});
+
 type McpCreateIssueInput = z.infer<typeof mcpCreateIssueInputSchema>;
 
 const MCP_CREATE_ISSUE_FINGERPRINT_KEY = "mcpCreateIssueFingerprint";
@@ -749,6 +761,51 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             }),
           },
         ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_project_status",
+    {
+      description:
+        "Get locale coverage counts for an accessible Hyperlocalise project. Returns CAT queue totals per target locale without source or target text. Counts use the native key overlay (the same filters as the Content Editor). Live TMS provider statistics are out of scope.",
+      inputSchema: z.object({
+        projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
+        sourcePath: z
+          .string()
+          .trim()
+          .min(1)
+          .max(2048)
+          .optional()
+          .describe("Optional source file path. When set, also returns counts for that file only."),
+      }),
+    },
+    async ({ projectId, sourcePath }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const status = await loadMcpProjectStatus({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        sourceLocale: project.sourceLocale,
+        targetLocales: project.targetLocales,
+        sourcePath,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
       };
     },
   );
@@ -1091,6 +1148,33 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ glossaries }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "get_job",
+    {
+      description:
+        "Get status and results for one accessible Hyperlocalise job. Poll after run_workflow until the job reaches a terminal status.",
+      inputSchema: mcpGetJobInputSchema,
+    },
+    async ({ jobId }) => {
+      const job = await findAccessiblePublicJob(apiAuth, jobId);
+
+      if (!job) {
+        return mcpToolError("job_not_found", "Job not found");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              job: toMcpJobEnvelope(job),
+            }),
+          },
+        ],
       };
     },
   );
