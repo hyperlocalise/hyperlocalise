@@ -42,6 +42,62 @@ describe("visual workflow expressions", () => {
     expect(evaluateVisualWorkflowCondition("{{nodes.check.value}} == 5", context)).toBe(true);
     expect(evaluateVisualWorkflowCondition("{{trigger.score}} > 5", context)).toBe(true);
   });
+
+  it("treats blank and falsey literals as false and unknown paths as empty", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { label: "alpha" },
+    });
+
+    expect(resolveVisualWorkflowTemplate("{{trigger.missing}}", context)).toBe("");
+    expect(evaluateVisualWorkflowCondition("{{trigger.missing}}", context)).toBe(false);
+    expect(evaluateVisualWorkflowCondition("false", context)).toBe(false);
+    expect(evaluateVisualWorkflowCondition("0", context)).toBe(false);
+    expect(evaluateVisualWorkflowCondition("{{trigger.label}} != beta", context)).toBe(true);
+    expect(evaluateVisualWorkflowCondition("{{trigger.label}} >= beta", context)).toBe(false);
+  });
+});
+
+describe("visual workflow node execution edges", () => {
+  it("rejects unsupported for_each nodes in Phase 1", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "loop",
+        type: "logic.for_each",
+        config: createDefaultConfig("logic.for_each"),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "unsupported_node",
+        message: "Loop nodes are not supported in Phase 1.",
+      },
+    });
+  });
+
+  it("rejects blank HTTP URLs before fetching", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: { kind: "action.http", method: "GET", url: "   " },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "missing_url", message: "HTTP URL is required." },
+    });
+  });
 });
 
 describe("visual workflow interpreter", () => {

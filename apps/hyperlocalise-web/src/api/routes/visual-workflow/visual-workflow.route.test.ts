@@ -16,16 +16,18 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const {
+  resolveApiAuthContextFromSessionMock,
+  visualWorkflowExecutionEnqueueMock,
+  workspaceVisualWorkflowsFlagRunMock,
+} = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-}));
-
-const { workspaceVisualWorkflowsFlagRunMock } = vi.hoisted(() => ({
+  visualWorkflowExecutionEnqueueMock: vi.fn(async () => ({ ids: ["visual-workflow-run-1"] })),
   workspaceVisualWorkflowsFlagRunMock: vi.fn(async () => true),
 }));
 
@@ -44,6 +46,16 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
     workspaceVisualWorkflowsFlag: {
       run: workspaceVisualWorkflowsFlagRunMock,
     },
+  };
+});
+
+vi.mock("@/workflows/adapters", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/workflows/adapters")>();
+  return {
+    ...actual,
+    createVisualWorkflowExecutionQueue: vi.fn(() => ({
+      enqueue: visualWorkflowExecutionEnqueueMock,
+    })),
   };
 });
 
@@ -167,5 +179,183 @@ describe("visual workflow routes", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("dispatches idempotent manual runs and returns run listings", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: "Manual run workflow" },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+
+    const runPayload = {
+      idempotencyKey: `manual:${created.visualWorkflow.id}:coverage`,
+      inputSnapshot: { reason: "operator_test" },
+    };
+
+    const firstRunResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs.$post(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: runPayload,
+      },
+      { headers },
+    );
+    expect(firstRunResponse.status).toBe(202);
+    const firstRun = (await firstRunResponse.json()) as {
+      run: { id: string; status: string; idempotencyKey: string };
+      dispatch: { runId: string; enqueued: boolean };
+    };
+    expect(firstRun.dispatch).toEqual({
+      runId: firstRun.run.id,
+      enqueued: true,
+    });
+    expect(firstRun.run).toMatchObject({
+      status: "queued",
+      idempotencyKey: runPayload.idempotencyKey,
+    });
+    expect(visualWorkflowExecutionEnqueueMock).toHaveBeenCalledWith({
+      visualWorkflowRunId: firstRun.run.id,
+      visualWorkflowId: created.visualWorkflow.id,
+      organizationId: expect.any(String),
+    });
+
+    const secondRunResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs.$post(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: runPayload,
+      },
+      { headers },
+    );
+    expect(secondRunResponse.status).toBe(202);
+    const secondRun = (await secondRunResponse.json()) as {
+      run: { id: string };
+      dispatch: { runId: string; enqueued: boolean };
+    };
+    expect(secondRun.run.id).toBe(firstRun.run.id);
+    expect(secondRun.dispatch).toEqual({
+      runId: firstRun.run.id,
+      enqueued: false,
+    });
+    expect(visualWorkflowExecutionEnqueueMock).toHaveBeenCalledTimes(1);
+
+    const listedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs.$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        query: { limit: "20", offset: "0" },
+      },
+      { headers },
+    );
+    expect(listedResponse.status).toBe(200);
+    const listed = (await listedResponse.json()) as { runs: Array<{ id: string }> };
+    expect(listed.runs.map((run) => run.id)).toEqual([firstRun.run.id]);
+
+    const readResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs[":runId"].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+          runId: firstRun.run.id,
+        },
+      },
+      { headers },
+    );
+    expect(readResponse.status).toBe(200);
+    const read = (await readResponse.json()) as {
+      run: { id: string; nodeRuns?: Array<{ nodeId: string }> };
+    };
+    expect(read.run.id).toBe(firstRun.run.id);
+    expect(Array.isArray(read.run.nodeRuns)).toBe(true);
+  });
+
+  it("validates run payloads and returns not found for missing workflows", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const missingWorkflowId = crypto.randomUUID();
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: "Validation workflow" },
+      },
+      { headers },
+    );
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+
+    const invalidPayloadResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs.$post(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: { idempotencyKey: "" },
+      },
+      { headers },
+    );
+    expect(invalidPayloadResponse.status).toBe(400);
+    await expect(invalidPayloadResponse.json()).resolves.toMatchObject({
+      error: "invalid_visual_workflow_run_payload",
+    });
+
+    const missingWorkflowResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs.$post(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: missingWorkflowId,
+        },
+        json: { idempotencyKey: "missing-workflow-run" },
+      },
+      { headers },
+    );
+    expect(missingWorkflowResponse.status).toBe(404);
+    await expect(missingWorkflowResponse.json()).resolves.toMatchObject({
+      error: "visual_workflow_not_found",
+    });
+
+    const missingRunResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].runs[":runId"].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+          runId: crypto.randomUUID(),
+        },
+      },
+      { headers },
+    );
+    expect(missingRunResponse.status).toBe(404);
+    await expect(missingRunResponse.json()).resolves.toMatchObject({
+      error: "visual_workflow_run_not_found",
+    });
   });
 });

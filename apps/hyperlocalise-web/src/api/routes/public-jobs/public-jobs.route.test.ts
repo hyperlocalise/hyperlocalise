@@ -16,9 +16,23 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+  ensureAiFeaturesAllowedMock: vi.fn(),
+}));
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
+import { err, ok } from "@/lib/primitives/result/results";
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
@@ -43,14 +57,50 @@ const client = testClient<AppType>(
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
 });
 
 afterEach(async () => {
   vi.clearAllMocks();
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   await cleanupPublicApiFixture();
 });
 
 describe("publicJobRoutes", () => {
+  it("rejects job creation when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { apiKey, project } = await createPublicApiFixture();
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "string",
+          projectId: project.id,
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: project.organizationId,
+    });
+  });
   it("creates a string job for a double-encoded external project id", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     const projectId = `ext:crowdin:${project.id}`;
