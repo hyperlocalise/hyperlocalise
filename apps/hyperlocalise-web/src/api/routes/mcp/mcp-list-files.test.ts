@@ -259,6 +259,7 @@ describe("MCP list_files", () => {
           projectId: stored.project.id,
         },
         query: {
+          limit: "500",
           origin: "repository",
         },
       },
@@ -397,13 +398,21 @@ describe("MCP list_files", () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);
 
-    const result = await readToolResult(
-      await callMcpTool(headers, {
-        projectId: stored.project.id,
-        ...args,
-      }),
-    );
+    const response = await callMcpTool(headers, {
+      projectId: stored.project.id,
+      ...args,
+    });
 
-    expect(result.isError).toBe(true);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ type: string; text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toBeDefined();
   });
 });

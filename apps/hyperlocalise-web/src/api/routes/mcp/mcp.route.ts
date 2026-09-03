@@ -385,13 +385,7 @@ const mcpListFilesInputSchema = z.object({
   projectId: projectIdSchema.describe(
     "ID of the accessible Hyperlocalise project whose source files to list.",
   ),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(50)
-    .default(20)
-    .describe("Maximum number of files to return."),
+  limit: z.number().int().min(1).max(50).default(20).describe("Maximum number of files to return."),
   offset: z
     .number()
     .int()
