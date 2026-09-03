@@ -21,9 +21,9 @@
     "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "4.0.45",
+    "@ai-sdk/anthropic": "4.0.46",
     "@ai-sdk/mcp": "^2.0.16",
-    "@ai-sdk/openai": "4.0.51",
+    "@ai-sdk/openai": "4.0.52",
     "@ai-sdk/react": "^4.0.40",
     "@base-ui/react": "1.7.0",
     "@chat-adapter/github": "4.35.0",
@@ -86,7 +86,7 @@
     "@workos-inc/authkit-nextjs": "4.3.1",
     "@workos-inc/node": "^10.7.0",
     "@xyflow/react": "^12.11.1",
-    "ai": "7.0.84",
+    "ai": "7.0.85",
     "ansi-to-react": "^6.2.6",
     "autumn-js": "^1.2.34",
     "botid": "^1.5.11",
@@ -126,7 +126,7 @@
     "react-dom": "19.2.8",
     "react-email": "^6.9.2",
     "react-error-boundary": "^6.1.2",
-    "react-hook-form": "7.86.0",
+    "react-hook-form": "7.87.0",
     "react-hotkeys-hook": "^5.3.3",
     "react-intersection-observer": "11.0.1",
     "react-intl": "^10.1.14",
@@ -158,7 +158,7 @@
     "xlsx": "npm:@e965/xlsx@0.20.3",
     "xmlbuilder2": "^4.0.3",
     "yaml": "^2.9.0",
-    "zod": "4.5.2"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^10.4.6",
@@ -194,7 +194,7 @@
     "typescript": "7.0.2",
     "vite-plus": "0.3.0"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@11.25.0",
   "msw": {
     "workerDirectory": [
       "public"

@@ -11,7 +11,7 @@ overrides:
   nanoid@^3.0.0: 6.0.1
   nanoid@^5.0.0: 6.0.1
   brace-expansion@^5.0.0: 5.0.9
-  ip-address@^10.0.0: 10.5.1
+  ip-address@^10.0.0: 10.7.0
   '@hono/node-server': 2.1.1
   shell-quote: 1.10.0
   postcss@^8.0.0: 8.5.26
@@ -26,7 +26,7 @@ importers:
         version: 0.0.0-beta.4(@canva/design@2.12.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.8)
       '@canva/app-i18n-kit':
         specifier: ^1.2.0
-        version: 1.3.0(@formatjs/intl@3.1.6(typescript@6.0.3))(intl-messageformat@10.7.18)(react-dom@19.2.8(react@19.2.8))(react-intl@10.1.24(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
+        version: 1.3.0(@formatjs/intl@3.1.6(typescript@6.0.3))(intl-messageformat@10.7.18)(react-dom@19.2.8(react@19.2.8))(react-intl@10.1.25(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
       '@canva/app-ui-kit':
         specifier: ^5.10.0
         version: 5.14.1(@types/react@19.2.18)(mobx@6.16.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -56,14 +56,14 @@ importers:
         version: 19.2.8(react@19.2.8)
       react-intl:
         specifier: ^10.0.0
-        version: 10.1.24(@types/react@19.2.18)(react@19.2.8)
+        version: 10.1.25(@types/react@19.2.18)(react@19.2.8)
     devDependencies:
       '@canva/cli':
         specifier: ^2.0.0
         version: 2.10.0(@types/react@19.2.18)(supports-color@5.5.0)(zod@4.4.3)
       '@formatjs/cli':
-        specifier: 6.16.21
-        version: 6.16.21
+        specifier: 6.16.22
+        version: 6.16.22
       '@formatjs/ts-transformer':
         specifier: 4.4.19
         version: 4.4.19
@@ -99,7 +99,7 @@ importers:
         version: 0.6.5
       css-loader:
         specifier: 7.1.5
-        version: 7.1.5(webpack@5.110.1)
+        version: 7.1.5(webpack@5.110.2)
       cssnano:
         specifier: 9.0.1
         version: 9.0.1(postcss@8.5.26)
@@ -114,7 +114,7 @@ importers:
         version: 30.0.1
       mini-css-extract-plugin:
         specifier: 2.10.2
-        version: 2.10.2(webpack@5.110.1)
+        version: 2.10.2(webpack@5.110.2)
       node-forge:
         specifier: 1.4.0
         version: 1.4.0
@@ -126,37 +126,37 @@ importers:
         version: 8.4.2
       postcss-loader:
         specifier: 8.2.1
-        version: 8.2.1(postcss@8.5.26)(typescript@6.0.3)(webpack@5.110.1)
+        version: 8.2.1(postcss@8.5.26)(typescript@6.0.3)(webpack@5.110.2)
       style-loader:
         specifier: 4.0.0
-        version: 4.0.0(webpack@5.110.1)
+        version: 4.0.0(webpack@5.110.2)
       terser-webpack-plugin:
         specifier: 5.6.1
-        version: 5.6.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.1)
+        version: 5.6.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.2)
       ts-loader:
         specifier: 9.6.2
-        version: 9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.110.1)
+        version: 9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.110.2)
       tsx:
-        specifier: 4.23.12
-        version: 4.23.12
+        specifier: 4.23.13
+        version: 4.23.13
       typescript:
         specifier: 6.0.3
         version: 6.0.3
       url-loader:
         specifier: 4.1.1
-        version: 4.1.1(webpack@5.110.1)
+        version: 4.1.1(webpack@5.110.2)
       vite-plus:
         specifier: 0.3.0
-        version: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+        version: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       webpack:
-        specifier: 5.110.1
-        version: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+        specifier: 5.110.2
+        version: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
       webpack-cli:
         specifier: 7.2.3
-        version: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.1)
+        version: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.2)
       webpack-dev-server:
         specifier: 6.0.0
-        version: 6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.1)
+        version: 6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.2)
       yargs:
         specifier: 18.1.0
         version: 18.1.0
@@ -1055,42 +1055,42 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@formatjs/cli-native-darwin-arm64@1.1.15':
-    resolution: {integrity: sha512-bVAkzlLJJrTM19WrXEktofSHF+wdXXcVCcx2kvfw2Il8mE4shrGiJ6w4kS5RPY5xoFsbQeEjqn4p/gDlgAHU4Q==}
+  '@formatjs/cli-native-darwin-arm64@1.1.16':
+    resolution: {integrity: sha512-ngpS7Wv0p56ZWD6NKfri/YDlY5zZftfPnBP5+CxqhvgeGh7raZF2KT1r6HUWGUU7YTyk4PIqMXctjP/XzM4Zxg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@formatjs/cli-native-linux-arm64-musl@1.0.13':
-    resolution: {integrity: sha512-Xi8eIHgfBLMi7eRQa7jaNk/DUPW8jwZkMR59h7KoScpXTuLcdP2QGF67HweGGudhN40N9tQJCPZpM3uyOc148w==}
+  '@formatjs/cli-native-linux-arm64-musl@1.0.14':
+    resolution: {integrity: sha512-t5KjkRAKas+75zHsUTKsJinE+zS0yAE/7pu0UZ8AEx185mNqqvLA7sYdqa1Nxh1M/QBWAKWkBGxJvZLCJorfNg==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@formatjs/cli-native-linux-arm64@1.2.15':
-    resolution: {integrity: sha512-Isl/sv+Zy/Zq3a4JgEis/rE9zYBog+chL+a2O8CMu5rIqSqUPRg9U10BQVTW+Z5o6M9x/WXCGKY4ktpcHXhWJw==}
+  '@formatjs/cli-native-linux-arm64@1.2.16':
+    resolution: {integrity: sha512-yo+gbVxL8zWMQPmZKfzjEzi4gBcajKzkImFT9/EakMZlYD1l0FWg9a48femjZI9C8nXcSMieYR7BjlqGbZ8rpQ==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@formatjs/cli-native-linux-x64-musl@1.0.13':
-    resolution: {integrity: sha512-jMe3BJSx3FObWTju7NSbC7nRN1vgPdADtq7OxsVrSrYwRS1IxEhQzPHsrBPSiObXQgEZcsTTSqTf+5kYiwkoHQ==}
+  '@formatjs/cli-native-linux-x64-musl@1.0.14':
+    resolution: {integrity: sha512-H0bBDibQQiZ0HwrW1FcXD64b25+uzKmafM/wk69UJ7mkXy2qDtqpW2Hz6BL2PbSP0cLkjOMXVHE9Hogg7y5NfQ==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@formatjs/cli-native-linux-x64@1.1.15':
-    resolution: {integrity: sha512-i66nb7iVeOvqwRiJKlAflbjSddVCbFMWHB8KA6GhgaGCYY52d0FsfQT7JsfF7slPPHmX1GrTdeDj9Boom4pILg==}
+  '@formatjs/cli-native-linux-x64@1.1.16':
+    resolution: {integrity: sha512-v7mjBx2CXUVsac5W2IOFWxam4ZV4NDsqfJf7rg35cpDU7+fnfeNB4M6xRH6KIQuZcrNLeYvRv0d8okUHq2xSgw==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@formatjs/cli-native-win32-x64@1.1.16':
-    resolution: {integrity: sha512-7HcdDvfbPD4pBHlNRjDH2FM3kCRKufhTNIdtwGb2Tdyovzihb+qTOmByiNYNIh4re2jvIYzt+f5H28+MtNcy8g==}
+  '@formatjs/cli-native-win32-x64@1.1.17':
+    resolution: {integrity: sha512-qmpxCEAS4srN35bId84gijmK7HsMv1YOWhkciKPjc3vtNcdpTeMwviD/boQB4goaFeRNi7RLx3EkJ+klhIKA9w==}
     cpu: [x64]
     os: [win32]
 
-  '@formatjs/cli@6.16.21':
-    resolution: {integrity: sha512-N10aDIqCz7OzmP4gRem0Lgck0C62khai2HwemZNtJE5TDiHTmXudk2az91pQIDsQzL2Qietf5D7DOZQ4PmjXhg==}
+  '@formatjs/cli@6.16.22':
+    resolution: {integrity: sha512-zRoYm8TDxDvYLR2xx9GKzmVhgTyhSyKTdbgbfLvnAL9HOW63GemVELayqEr9p/O+FlVg45PSQx2HjHJrgYEb+w==}
     engines: {node: '>= 20.12.0'}
     hasBin: true
     peerDependencies:
@@ -1161,8 +1161,8 @@ packages:
       typescript:
         optional: true
 
-  '@formatjs/intl@4.1.19':
-    resolution: {integrity: sha512-bZMROATl+rzfL8wsDZ53i8XWHx5e6rVr8QlGT5GDvHImEUro4WE9pxUd2dobzmI3CtD+zkt/wkEdqcb+3CK8Fg==}
+  '@formatjs/intl@4.1.20':
+    resolution: {integrity: sha512-q3gaFvc1mXrl0fcSY2QKSS+WzJxpbIXs48O+QLA3UsRtIwVhazvxtLrLGKEse5Mq4U8hAYyTB6Y9buU2ZRFz/w==}
 
   '@formatjs/ts-transformer@4.4.19':
     resolution: {integrity: sha512-TWxL1btx29333yEQc1/eJsU9SUjDJBruzkrR4TVXBLgPaCWbhxg7haOztGXTLgLx+X3ONat7F0kRzcCHksyJyA==}
@@ -3230,8 +3230,8 @@ packages:
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
 
-  ip-address@10.5.1:
-    resolution: {integrity: sha512-EXujUp9jyOI/chPgtqk6uy7fDq8AeCB/WlfEuPg9LN0fN9lzKAKfuDYi60SMhHwgUiEhZvVYsbGZN+RUU1INiA==}
+  ip-address@10.7.0:
+    resolution: {integrity: sha512-BGFsyJd5mpXp3rK6jIdADLNgpJUK1jnjzvYF8lK+VyDab9JAmqN0YOKDdP17HlgKb2+ehPgDc8EtnRLbGCAMhA==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -4122,8 +4122,8 @@ packages:
     peerDependencies:
       react: ^19.2.8
 
-  react-intl@10.1.24:
-    resolution: {integrity: sha512-8hiXRnnmOMEPvE5xb1T1Ce1AsmuSWX2voosCsmiyOEGEq83d1mbHy2M1DeoGKt4yF5oPPkzp+aUwSOtf+NYKPA==}
+  react-intl@10.1.25:
+    resolution: {integrity: sha512-otONc4Dqk0HNDdM1xVtjVm1pfeADRDZUnNMOiDZBYCYTz4FxYcid6Y2PrzeY3+FspW6ieObXtc3+VFUJYbDDGg==}
     peerDependencies:
       '@types/react': '>=18.0.0'
       react: '>=18.0.0'
@@ -4599,8 +4599,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  tsx@4.23.12:
-    resolution: {integrity: sha512-FDf4L4sYzKtzWYhU/Xm0AQFdTjdIxNo9ElTf2mxXM6k8YMHXzYUe4yODVaXP4V9uMFbVg8c0qyBccK2OOxb45Q==}
+  tsx@4.23.13:
+    resolution: {integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -4849,8 +4849,8 @@ packages:
     resolution: {integrity: sha512-jyuiGJdtvY434z5bUZrjz67v76/ePNvFZTp9Mdz29IlH4+GPsgyGjiv0fKI+M7BdkU6ADjulUcKAd3tUK3WlEw==}
     engines: {node: '>=10.13.0'}
 
-  webpack@5.110.1:
-    resolution: {integrity: sha512-gInQB+jxXxgnZyvPwuzT5NGQmECDqeu85oxcrjinrYHqPoBex0hCAN2SFTJVyPVrK0Pq9E44VFP+e89fAc10/w==}
+  webpack@5.110.2:
+    resolution: {integrity: sha512-TciLrfM7zgEjqGdY851HkirDsSPQgTFsWQpl9oHqMAMYsHhEC0bKjscvjpnz+pzx10hLC8qISApGrsnrCP4UtQ==}
     engines: {node: '>=10.13.0'}
     hasBin: true
     peerDependencies:
@@ -5737,14 +5737,14 @@ snapshots:
       '@canva/platform': 2.2.2(@canva/error@2.2.1)
       react: 19.2.8
 
-  '@canva/app-i18n-kit@1.3.0(@formatjs/intl@3.1.6(typescript@6.0.3))(intl-messageformat@10.7.18)(react-dom@19.2.8(react@19.2.8))(react-intl@10.1.24(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)':
+  '@canva/app-i18n-kit@1.3.0(@formatjs/intl@3.1.6(typescript@6.0.3))(intl-messageformat@10.7.18)(react-dom@19.2.8(react@19.2.8))(react-intl@10.1.25(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@formatjs/intl': 3.1.6(typescript@6.0.3)
       intl-messageformat: 10.7.18
     optionalDependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      react-intl: 10.1.24(@types/react@19.2.18)(react@19.2.8)
+      react-intl: 10.1.25(@types/react@19.2.18)(react@19.2.8)
 
   '@canva/app-ui-kit@5.14.1(@types/react@19.2.18)(mobx@6.16.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -5964,32 +5964,32 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@formatjs/cli-native-darwin-arm64@1.1.15':
+  '@formatjs/cli-native-darwin-arm64@1.1.16':
     optional: true
 
-  '@formatjs/cli-native-linux-arm64-musl@1.0.13':
+  '@formatjs/cli-native-linux-arm64-musl@1.0.14':
     optional: true
 
-  '@formatjs/cli-native-linux-arm64@1.2.15':
+  '@formatjs/cli-native-linux-arm64@1.2.16':
     optional: true
 
-  '@formatjs/cli-native-linux-x64-musl@1.0.13':
+  '@formatjs/cli-native-linux-x64-musl@1.0.14':
     optional: true
 
-  '@formatjs/cli-native-linux-x64@1.1.15':
+  '@formatjs/cli-native-linux-x64@1.1.16':
     optional: true
 
-  '@formatjs/cli-native-win32-x64@1.1.16':
+  '@formatjs/cli-native-win32-x64@1.1.17':
     optional: true
 
-  '@formatjs/cli@6.16.21':
+  '@formatjs/cli@6.16.22':
     optionalDependencies:
-      '@formatjs/cli-native-darwin-arm64': 1.1.15
-      '@formatjs/cli-native-linux-arm64': 1.2.15
-      '@formatjs/cli-native-linux-arm64-musl': 1.0.13
-      '@formatjs/cli-native-linux-x64': 1.1.15
-      '@formatjs/cli-native-linux-x64-musl': 1.0.13
-      '@formatjs/cli-native-win32-x64': 1.1.16
+      '@formatjs/cli-native-darwin-arm64': 1.1.16
+      '@formatjs/cli-native-linux-arm64': 1.2.16
+      '@formatjs/cli-native-linux-arm64-musl': 1.0.14
+      '@formatjs/cli-native-linux-x64': 1.1.16
+      '@formatjs/cli-native-linux-x64-musl': 1.0.14
+      '@formatjs/cli-native-win32-x64': 1.1.17
 
   '@formatjs/ecma402-abstract@2.3.4':
     dependencies:
@@ -6057,7 +6057,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@formatjs/intl@4.1.19':
+  '@formatjs/intl@4.1.20':
     dependencies:
       '@formatjs/fast-memoize': 3.1.7
       '@formatjs/icu-messageformat-parser': 3.5.17
@@ -6870,28 +6870,28 @@ snapshots:
     dependencies:
       '@types/node': 24.13.3
 
-  '@vitest/browser-preview@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)':
+  '@vitest/browser-preview@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)':
     dependencies:
       '@testing-library/dom': 10.4.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
-      '@vitest/browser': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)
-      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      '@vitest/browser': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)
+      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
     transitivePeerDependencies:
       - bufferutil
       - msw
       - utf-8-validate
       - vite
 
-  '@vitest/browser@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)':
+  '@vitest/browser@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)':
     dependencies:
       '@blazediff/core': 1.9.1
-      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       '@vitest/utils': 4.1.11
       magic-string: 0.30.21
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.1.0
-      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       ws: 8.21.3
     transitivePeerDependencies:
       - bufferutil
@@ -6908,13 +6908,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))':
+  '@vitest/mocker@4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)
+      vite: 8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -6940,7 +6940,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)':
+  '@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)':
     dependencies:
       '@oxc-project/runtime': 0.146.0
       '@oxc-project/types': 0.146.0
@@ -6962,7 +6962,7 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.7.0
       terser: 5.48.0
-      tsx: 4.23.12
+      tsx: 4.23.13
       typescript: 6.0.3
 
   '@voidzero-dev/vite-plus-darwin-arm64@0.3.0':
@@ -7477,7 +7477,7 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  css-loader@7.1.5(webpack@5.110.1):
+  css-loader@7.1.5(webpack@5.110.2):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.26)
       postcss: 8.5.26
@@ -7488,7 +7488,7 @@ snapshots:
       postcss-value-parser: 4.2.0
       semver: 7.8.2
     optionalDependencies:
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
 
   css-mediaquery@0.1.2: {}
 
@@ -7780,7 +7780,7 @@ snapshots:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       express: 5.2.1(supports-color@5.5.0)
-      ip-address: 10.5.1
+      ip-address: 10.7.0
     transitivePeerDependencies:
       - supports-color
 
@@ -8031,7 +8031,7 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
 
-  ip-address@10.5.1: {}
+  ip-address@10.7.0: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -8305,23 +8305,23 @@ snapshots:
 
   mimic-fn@2.1.0: {}
 
-  mini-css-extract-plugin@2.10.2(webpack@5.110.1):
+  mini-css-extract-plugin@2.10.2(webpack@5.110.2):
     dependencies:
       schema-utils: 4.3.3
       tapable: 2.3.3
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
 
   minimatch@10.2.5:
     dependencies:
       brace-expansion: 5.0.9
 
-  minimizer-webpack-plugin@5.8.0(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.1):
+  minimizer-webpack-plugin@5.8.0(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.2):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.51.2
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
     optionalDependencies:
       cssnano: 9.0.1(postcss@8.5.26)
       csso: 5.0.5
@@ -8431,7 +8431,7 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  oxfmt@0.64.0(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))):
+  oxfmt@0.64.0(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -8454,7 +8454,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.64.0
       '@oxfmt/binding-win32-ia32-msvc': 0.64.0
       '@oxfmt/binding-win32-x64-msvc': 0.64.0
-      vite-plus: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      vite-plus: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
 
   oxlint-tsgolint@7.0.2001:
     optionalDependencies:
@@ -8465,7 +8465,7 @@ snapshots:
       '@oxlint-tsgolint/win32-arm64': 7.0.2001
       '@oxlint-tsgolint/win32-x64': 7.0.2001
 
-  oxlint@1.79.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))):
+  oxlint@1.79.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.79.0
       '@oxlint/binding-android-arm64': 1.79.0
@@ -8487,7 +8487,7 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.79.0
       '@oxlint/binding-win32-x64-msvc': 1.79.0
       oxlint-tsgolint: 7.0.2001
-      vite-plus: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      vite-plus: 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
 
   p-limit@2.3.0:
     dependencies:
@@ -8596,14 +8596,14 @@ snapshots:
     dependencies:
       postcss: 8.5.26
 
-  postcss-loader@8.2.1(postcss@8.5.26)(typescript@6.0.3)(webpack@5.110.1):
+  postcss-loader@8.2.1(postcss@8.5.26)(typescript@6.0.3)(webpack@5.110.2):
     dependencies:
       cosmiconfig: 9.0.1(typescript@6.0.3)
       jiti: 2.7.0
       postcss: 8.5.26
       semver: 7.8.2
     optionalDependencies:
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
     transitivePeerDependencies:
       - typescript
 
@@ -8823,10 +8823,10 @@ snapshots:
       react: 19.2.8
       scheduler: 0.27.0
 
-  react-intl@10.1.24(@types/react@19.2.18)(react@19.2.8):
+  react-intl@10.1.25(@types/react@19.2.18)(react@19.2.8):
     dependencies:
       '@formatjs/icu-messageformat-parser': 3.5.17
-      '@formatjs/intl': 4.1.19
+      '@formatjs/intl': 4.1.20
       '@types/react': 19.2.18
       intl-messageformat: 11.2.14
       react: 19.2.8
@@ -9154,9 +9154,9 @@ snapshots:
     dependencies:
       ansi-regex: 6.2.2
 
-  style-loader@4.0.0(webpack@5.110.1):
+  style-loader@4.0.0(webpack@5.110.2):
     dependencies:
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
 
   stylehacks@9.0.1(postcss@8.5.26):
     dependencies:
@@ -9208,13 +9208,13 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  terser-webpack-plugin@5.6.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.1):
+  terser-webpack-plugin@5.6.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.2):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.48.0
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
     optionalDependencies:
       cssnano: 9.0.1(postcss@8.5.26)
       csso: 5.0.5
@@ -9283,13 +9283,13 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  ts-loader@9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.110.1):
+  ts-loader@9.6.2(loader-utils@2.0.4)(typescript@6.0.3)(webpack@5.110.2):
     dependencies:
       chalk: 4.1.2
       picomatch: 4.0.4
       source-map: 0.7.6
       typescript: 6.0.3
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
     optionalDependencies:
       loader-utils: 2.0.4
 
@@ -9297,7 +9297,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsx@4.23.12:
+  tsx@4.23.13:
     dependencies:
       esbuild: 0.28.0
     optionalDependencies:
@@ -9348,12 +9348,12 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  url-loader@4.1.1(webpack@5.110.1):
+  url-loader@4.1.1(webpack@5.110.2):
     dependencies:
       loader-utils: 2.0.4
       mime-types: 2.1.35
       schema-utils: 3.3.0
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
 
   use-sync-external-store@1.6.0(react@19.2.8):
     dependencies:
@@ -9363,24 +9363,24 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)):
+  vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)):
     dependencies:
       '@oxc-project/types': 0.146.0
       '@oxlint/plugins': 1.79.0
-      '@vitest/browser': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)
-      '@vitest/browser-preview': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)
+      '@vitest/browser': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)
+      '@vitest/browser-preview': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
       '@vitest/spy': 4.1.11
       '@vitest/utils': 4.1.11
-      '@voidzero-dev/vite-plus-core': 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)
-      oxfmt: 0.64.0(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)))
-      oxlint: 1.79.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.12)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)))
+      '@voidzero-dev/vite-plus-core': 0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)
+      oxfmt: 0.64.0(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)))
+      oxlint: 1.79.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.3.0(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.48.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)))
       oxlint-tsgolint: 7.0.2001
-      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      vitest: 4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
     optionalDependencies:
       '@voidzero-dev/vite-plus-darwin-arm64': 0.3.0
       '@voidzero-dev/vite-plus-darwin-x64': 0.3.0
@@ -9421,7 +9421,7 @@ snapshots:
       - vite
       - yaml
 
-  vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12):
+  vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
@@ -9434,12 +9434,12 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.7.0
       terser: 5.51.2
-      tsx: 4.23.12
+      tsx: 4.23.13
 
-  vitest@4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)):
+  vitest@4.1.11(@types/node@24.13.3)(@vitest/browser-preview@4.1.11)(jsdom@30.0.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))
+      '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -9456,11 +9456,11 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)
+      vite: 8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.13.3
-      '@vitest/browser-preview': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12))(vitest@4.1.11)
+      '@vitest/browser-preview': 4.1.11(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))(vitest@4.1.11)
       jsdom: 30.0.1
     transitivePeerDependencies:
       - msw
@@ -9475,7 +9475,7 @@ snapshots:
 
   webidl-conversions@8.0.1: {}
 
-  webpack-cli@7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.1):
+  webpack-cli@7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.2):
     dependencies:
       '@discoveryjs/json-ext': 1.1.0
       commander: 14.0.3
@@ -9484,25 +9484,25 @@ snapshots:
       import-local: 3.2.0
       interpret: 3.1.1
       rechoir: 0.8.0
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
       webpack-merge: 6.0.1
     optionalDependencies:
       js-yaml: 4.3.2
       json5: 2.2.3
-      webpack-dev-server: 6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.1)
+      webpack-dev-server: 6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.2)
 
-  webpack-dev-middleware@8.1.0(tslib@2.8.1)(webpack@5.110.1):
+  webpack-dev-middleware@8.1.0(tslib@2.8.1)(webpack@5.110.2):
     dependencies:
       memfs: 4.57.6(tslib@2.8.1)
       mime-types: 3.0.2
       range-parser: 1.3.0
       schema-utils: 4.3.3
     optionalDependencies:
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
     transitivePeerDependencies:
       - tslib
 
-  webpack-dev-server@6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.1):
+  webpack-dev-server@6.0.0(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@7.2.3)(webpack@5.110.2):
     dependencies:
       '@types/bonjour': 3.5.13
       '@types/connect-history-api-fallback': 1.5.4
@@ -9527,11 +9527,11 @@ snapshots:
       selfsigned: 5.5.0
       serve-index: 1.9.2(supports-color@5.5.0)
       tinyglobby: 0.2.17
-      webpack-dev-middleware: 8.1.0(tslib@2.8.1)(webpack@5.110.1)
+      webpack-dev-middleware: 8.1.0(tslib@2.8.1)(webpack@5.110.2)
       ws: 8.21.1
     optionalDependencies:
-      webpack: 5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
-      webpack-cli: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.1)
+      webpack: 5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3)
+      webpack-cli: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.2)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -9546,7 +9546,7 @@ snapshots:
 
   webpack-sources@3.5.1: {}
 
-  webpack@5.110.1(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3):
+  webpack@5.110.2(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack-cli@7.2.3):
     dependencies:
       '@types/estree': 1.0.9
       '@types/json-schema': 7.0.15
@@ -9561,14 +9561,14 @@ snapshots:
       events: 3.3.0
       graceful-fs: 4.2.11
       mime-db: 1.54.0
-      minimizer-webpack-plugin: 5.8.0(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.1)
+      minimizer-webpack-plugin: 5.8.0(cssnano@9.0.1(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.0)(lightningcss@1.33.0)(postcss@8.5.26)(webpack@5.110.2)
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
       watchpack: 2.5.2
       webpack-sources: 3.5.1
     optionalDependencies:
-      webpack-cli: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.1)
+      webpack-cli: 7.2.3(js-yaml@4.3.2)(json5@2.2.3)(webpack-dev-server@6.0.0)(webpack@5.110.2)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@swc/core'
