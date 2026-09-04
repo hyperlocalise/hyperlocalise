@@ -14,16 +14,16 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { sql } from "drizzle-orm";
+import { start } from "workflow/api";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { createLogger, type Logger } from "@/lib/log";
 import {
   assertSafeActivityLogPayload,
   type ActivityLogEventInput,
-  type ActivityLogEventRecord,
-  type ActivityLogWriteError,
+  type ActivityLogEnqueueError,
+  type ActivityLogWorkflowEvent,
 } from "@/lib/activity-log/activity-log-contract";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("activity-log-writer");
@@ -32,7 +32,6 @@ export type ActivityLogWriterLogger = Pick<Logger, "error">;
 
 export type ActivityLogWriterOptions = {
   correlationId?: string;
-  database?: DatabaseClient;
   logger?: ActivityLogWriterLogger;
 };
 
@@ -40,7 +39,7 @@ function logWriteFailure(
   log: ActivityLogWriterLogger,
   input: ActivityLogEventInput,
   correlationId: string,
-  failure: "payload_validation" | "database_insert",
+  failure: "payload_validation" | "workflow_enqueue",
 ): void {
   log.error(
     {
@@ -51,19 +50,20 @@ function logWriteFailure(
       targetId: input.targetId,
       targetKind: input.targetKind,
     },
-    "workspace activity log write failed",
+    "workspace activity log enqueue failed",
   );
 }
 
-/**
- * Persists one workspace activity event. When called with an existing
- * transaction, Drizzle uses a savepoint so an activity failure does not abort
- * the user mutation that owns the transaction.
- */
-export async function writeActivityLogEvent(
+export type ActivityLogEnqueueRecord = {
+  createdAt: Date;
+  id: string;
+};
+
+/** Enqueues one validated activity event without writing to the database. */
+export async function enqueueActivityLogEvent(
   input: ActivityLogEventInput,
   options: ActivityLogWriterOptions = {},
-): Promise<Result<ActivityLogEventRecord, ActivityLogWriteError>> {
+): Promise<Result<ActivityLogEnqueueRecord, ActivityLogEnqueueError>> {
   const correlationId = options.correlationId ?? randomUUID();
   const log = options.logger ?? logger;
 
@@ -71,40 +71,29 @@ export async function writeActivityLogEvent(
     assertSafeActivityLogPayload(input.payload);
   } catch {
     logWriteFailure(log, input, correlationId, "payload_validation");
-    return err({ code: "activity_log_write_failed" });
+    return err({ code: "activity_log_enqueue_failed" });
   }
 
   try {
-    const database = options.database ?? db;
-    const [event] = await database.transaction(async (transaction) =>
-      transaction
-        .insert(schema.organizationActivityEvents)
-        .values({
-          actorCredentialId: input.actorCredentialId,
-          actorKind: input.actorKind,
-          actorUserId: input.actorUserId,
-          createdAt: sql`clock_timestamp()`,
-          eventType: input.eventType,
-          organizationId: input.organizationId,
-          payload: input.payload,
-          targetId: input.targetId,
-          targetKind: input.targetKind,
-        })
-        .returning(),
-    );
-
-    if (!event) {
-      logWriteFailure(log, input, correlationId, "database_insert");
-      return err({ code: "activity_log_write_failed" });
-    }
-
-    return ok({
+    const event: ActivityLogWorkflowEvent = {
       ...input,
-      createdAt: event.createdAt,
-      id: event.id,
-    });
+      createdAt: new Date().toISOString(),
+      id: randomUUID(),
+    };
+    const { activityLogWorkflow } = await import("@/workflows/activity-log");
+    await start(activityLogWorkflow, [event]);
+
+    return ok({ createdAt: new Date(event.createdAt), id: event.id });
   } catch {
-    logWriteFailure(log, input, correlationId, "database_insert");
-    return err({ code: "activity_log_write_failed" });
+    logWriteFailure(log, input, correlationId, "workflow_enqueue");
+    return err({ code: "activity_log_enqueue_failed" });
   }
+}
+
+/** Enqueues a bounded number of activity events without blocking on delivery. */
+export async function enqueueActivityLogEvents(
+  inputs: ActivityLogEventInput[],
+  options: ActivityLogWriterOptions = {},
+): Promise<Array<Result<ActivityLogEnqueueRecord, ActivityLogEnqueueError>>> {
+  return mapWithConcurrency(inputs, 5, (input) => enqueueActivityLogEvent(input, options));
 }

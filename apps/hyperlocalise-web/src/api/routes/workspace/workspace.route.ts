@@ -25,7 +25,7 @@ import {
   internalErrorResponse,
   notFoundResponse,
 } from "@/api/response.schema";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
 import { activeOrganizationCookieName } from "@/lib/workos/active-organization";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
@@ -222,7 +222,7 @@ export function createWorkspaceRoutes() {
 
       storeActiveOrganizationSlug(c, updatedOrganization.slug);
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,

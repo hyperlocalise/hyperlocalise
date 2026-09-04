@@ -10,35 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { asc, eq, inArray, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { isErr, isOk } from "@/lib/primitives/result/results";
+import { start } from "workflow/api";
+
 import type { ActivityLogEventInput } from "./activity-log-contract";
+import { enqueueActivityLogEvent, enqueueActivityLogEvents } from "./activity-log-writer";
 
-import { writeActivityLogEvent } from "./activity-log-writer";
+vi.mock("workflow/api", () => ({
+  start: vi.fn(),
+}));
 
-const organizationIds: string[] = [];
+const startMock = vi.mocked(start);
 
-async function seedOrganization() {
-  const organizationId = crypto.randomUUID();
-  organizationIds.push(organizationId);
-
-  await db.insert(schema.organizations).values({
-    id: organizationId,
-    name: "Activity Log Test Org",
-    slug: `activity-log-${organizationId.slice(0, 8)}`,
-    workosOrganizationId: `org_${organizationId}`,
-  });
-
-  return organizationId;
+function workflowRun() {
+  return { runId: "workflow-run-1" } as Awaited<ReturnType<typeof start>>;
 }
 
-function projectCreatedEvent(
-  organizationId: string,
-  projectId = crypto.randomUUID(),
-): ActivityLogEventInput {
+function projectCreatedEvent(organizationId = "org-1"): ActivityLogEventInput {
   return {
     actorCredentialId: null,
     actorKind: "user",
@@ -48,172 +37,90 @@ function projectCreatedEvent(
     payload: {
       name: "Website",
       providerKind: "native",
-      resourceId: projectId,
+      resourceId: "project-1",
     },
-    targetId: projectId,
+    targetId: "project-1",
     targetKind: "project",
   };
 }
 
-describe("writeActivityLogEvent", () => {
-  afterEach(async () => {
-    for (const organizationId of organizationIds.splice(0)) {
-      await db.delete(schema.organizations).where(eq(schema.organizations.id, organizationId));
-    }
+describe("enqueueActivityLogEvent", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("inserts and returns a persisted event with a database timestamp", async () => {
-    const organizationId = await seedOrganization();
+  it("enqueues a serialized workflow event without writing to the database", async () => {
+    startMock.mockResolvedValue(workflowRun());
 
-    const result = await writeActivityLogEvent(projectCreatedEvent(organizationId));
+    const result = await enqueueActivityLogEvent(projectCreatedEvent());
 
-    expect(isOk(result)).toBe(true);
-    if (isErr(result)) return;
-
-    expect(result.value.id).toBeTruthy();
-    expect(result.value.createdAt).toBeInstanceOf(Date);
-
-    const [stored] = await db
-      .select()
-      .from(schema.organizationActivityEvents)
-      .where(eq(schema.organizationActivityEvents.id, result.value.id));
-
-    expect(stored).toMatchObject({
-      actorKind: "user",
-      eventType: "project_created",
-      organizationId,
-      targetKind: "project",
-      targetId: result.value.targetId,
-    });
-    expect(stored?.payload).toEqual(result.value.payload);
+    expect(result).toMatchObject({ ok: true });
+    expect(startMock).toHaveBeenCalledTimes(1);
+    expect(startMock).toHaveBeenCalledWith(expect.anything(), [
+      expect.objectContaining({
+        createdAt: expect.any(String),
+        eventType: "project_created",
+        id: expect.any(String),
+        organizationId: "org-1",
+        targetId: "project-1",
+      }),
+    ]);
   });
 
-  it("does not expose events from another organization", async () => {
-    const firstOrganizationId = await seedOrganization();
-    const secondOrganizationId = await seedOrganization();
-    const first = await writeActivityLogEvent(projectCreatedEvent(firstOrganizationId));
-    const second = await writeActivityLogEvent(projectCreatedEvent(secondOrganizationId));
-
-    expect(isOk(first)).toBe(true);
-    expect(isOk(second)).toBe(true);
-    if (isErr(first) || isErr(second)) return;
-
-    const firstOrganizationEvents = await db
-      .select({ id: schema.organizationActivityEvents.id })
-      .from(schema.organizationActivityEvents)
-      .where(eq(schema.organizationActivityEvents.organizationId, firstOrganizationId));
-
-    expect(firstOrganizationEvents).toEqual([{ id: first.value.id }]);
-    expect(firstOrganizationEvents).not.toContainEqual({ id: second.value.id });
-  });
-
-  it("keeps sequential writes ordered by clock_timestamp inside a transaction", async () => {
-    const organizationId = await seedOrganization();
-
-    const eventIds = await db.transaction(async (transaction) => {
-      const first = await writeActivityLogEvent(projectCreatedEvent(organizationId), {
-        database: transaction,
-      });
-      await transaction.execute(sql`select pg_sleep(0.001)`);
-      const second = await writeActivityLogEvent(projectCreatedEvent(organizationId), {
-        database: transaction,
-      });
-
-      expect(isOk(first)).toBe(true);
-      expect(isOk(second)).toBe(true);
-      if (isErr(first) || isErr(second)) return [];
-      return [first.value.id, second.value.id];
-    });
-
-    const orderedEvents = await db
-      .select({ id: schema.organizationActivityEvents.id })
-      .from(schema.organizationActivityEvents)
-      .where(inArray(schema.organizationActivityEvents.id, eventIds))
-      .orderBy(
-        asc(schema.organizationActivityEvents.createdAt),
-        asc(schema.organizationActivityEvents.id),
-      );
-
-    expect(orderedEvents.map((event) => event.id)).toEqual(eventIds);
-  });
-
-  it("rejects unsafe payloads before inserting", async () => {
-    const organizationId = await seedOrganization();
+  it("rejects unsafe payloads before enqueueing", async () => {
     const error = vi.fn();
     const input = {
-      ...projectCreatedEvent(organizationId),
-      payload: {
-        secret: "must-not-persist",
-      } as unknown as ActivityLogEventInput["payload"],
+      ...projectCreatedEvent(),
+      payload: { secret: "must-not-leave-the-request" },
     } as unknown as ActivityLogEventInput;
 
-    const result = await writeActivityLogEvent(input, {
+    const result = await enqueueActivityLogEvent(input, {
       correlationId: "activity-log-test-validation",
       logger: { error },
     });
 
-    expect(isErr(result)).toBe(true);
+    expect(result).toEqual({ ok: false, error: { code: "activity_log_enqueue_failed" } });
+    expect(startMock).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
       expect.objectContaining({
         correlationId: "activity-log-test-validation",
         failure: "payload_validation",
       }),
-      "workspace activity log write failed",
+      "workspace activity log enqueue failed",
     );
-
-    const stored = await db
-      .select()
-      .from(schema.organizationActivityEvents)
-      .where(eq(schema.organizationActivityEvents.organizationId, organizationId));
-
-    expect(stored).toEqual([]);
-    expect(JSON.stringify(error.mock.calls)).not.toContain("must-not-persist");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("must-not-leave-the-request");
   });
 
-  it("returns a safe typed failure when the database insert fails", async () => {
-    const organizationId = await seedOrganization();
+  it("contains workflow enqueue failures and returns a safe typed error", async () => {
+    startMock.mockRejectedValue(new Error("workflow infrastructure failure"));
     const error = vi.fn();
-    const database = {
-      transaction: vi.fn().mockRejectedValue(new Error("database failure")),
-    } as unknown as DatabaseClient;
 
-    const result = await writeActivityLogEvent(projectCreatedEvent(organizationId), {
-      correlationId: "activity-log-test-database",
-      database,
+    const result = await enqueueActivityLogEvent(projectCreatedEvent(), {
+      correlationId: "activity-log-test-workflow",
       logger: { error },
     });
 
-    expect(result).toEqual({ ok: false, error: { code: "activity_log_write_failed" } });
+    expect(result).toEqual({ ok: false, error: { code: "activity_log_enqueue_failed" } });
     expect(error).toHaveBeenCalledWith(
       expect.objectContaining({
-        correlationId: "activity-log-test-database",
-        failure: "database_insert",
+        correlationId: "activity-log-test-workflow",
+        failure: "workflow_enqueue",
       }),
-      "workspace activity log write failed",
+      "workspace activity log enqueue failed",
     );
-    expect(JSON.stringify(error.mock.calls)).not.toContain("database failure");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("workflow infrastructure failure");
   });
 
-  it("rolls back the event when the owning transaction rolls back", async () => {
-    const organizationId = await seedOrganization();
-    const projectId = crypto.randomUUID();
+  it("enqueues multiple events with bounded fan-out", async () => {
+    startMock.mockResolvedValue(workflowRun());
 
-    await expect(
-      db.transaction(async (transaction) => {
-        const result = await writeActivityLogEvent(projectCreatedEvent(organizationId, projectId), {
-          database: transaction,
-        });
+    const result = await enqueueActivityLogEvents([
+      projectCreatedEvent("org-1"),
+      projectCreatedEvent("org-2"),
+    ]);
 
-        expect(isOk(result)).toBe(true);
-        throw new Error("rollback owning mutation");
-      }),
-    ).rejects.toThrow("rollback owning mutation");
-
-    const stored = await db
-      .select()
-      .from(schema.organizationActivityEvents)
-      .where(eq(schema.organizationActivityEvents.targetId, projectId));
-
-    expect(stored).toEqual([]);
+    expect(result).toHaveLength(2);
+    expect(result.every((entry) => entry.ok)).toBe(true);
+    expect(startMock).toHaveBeenCalledTimes(2);
   });
 });

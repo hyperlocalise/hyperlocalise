@@ -21,7 +21,7 @@ import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
@@ -2276,7 +2276,7 @@ export function createExternalTmsProviderCredentialRoutes() {
 
         const providerCredential = credentialResult.value;
 
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -2409,7 +2409,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         });
 
         if (!deleted) return c.json({ error: "provider_credential_not_found" }, 404);
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,

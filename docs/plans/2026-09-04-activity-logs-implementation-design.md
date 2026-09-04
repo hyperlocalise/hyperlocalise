@@ -4,7 +4,7 @@
 
 Build a privacy-safe, organization-scoped audit trail. The existing accepted ADR at
 `docs/adr/2026-09-04-workspace-activity-log-contract.md` remains the contract record; this document
-describes the implementation sequence.
+describes the implementation sequence and asynchronous Workflow delivery.
 
 The work is organized as storage and writing, permissioned API access, lifecycle instrumentation,
 and the Settings viewer with server-side filters. Job and automation events are an explicit post-v1
@@ -15,12 +15,16 @@ phase.
 - Keep the typed catalog in `src/lib/activity-log/activity-log-contract.ts` as the only source of
   v1 event, actor, target, and safe-payload types.
 - Add append-only `organization_activity_events` storage with organization, actor, credential,
-  event, target, safe JSON payload, and PostgreSQL `clock_timestamp()` columns.
+  event, target, safe JSON payload, and an occurrence timestamp column.
 - Add the `(organization_id, created_at, id)` index and generate the Drizzle migration through
   `vp run db:generate`.
-- Route every insert through one writer. Validate forbidden payload keys recursively, use a
-  transaction savepoint when called inside an owning transaction, return a typed failure, and log
-  only safe correlation metadata. Activity failure must not fail the owning mutation.
+- Route every event through `enqueueActivityLogEvent`. Validate forbidden payload keys recursively,
+  assign an event ID and occurrence timestamp, and enqueue the event with Vercel Workflow. The
+  request waits only for Workflow enqueueing; it never waits for the activity-table insert.
+- Persist the final row in a Workflow step with the supplied event ID and `ON CONFLICT DO NOTHING`
+  so retries are idempotent. Enqueue and Workflow failures return safe diagnostics and never fail
+  the owning mutation. Events can be lost if Workflow enqueueing fails because no outbox or other
+  durable application-side buffer is used.
 
 ## Permissioned API
 
@@ -56,8 +60,8 @@ have no link. Invalid or filter-mismatched cursors use the standard error envelo
 
 ## Verification
 
-- Test contract safety, migration/writer behavior, organization isolation, rollback, timestamp
-  ordering, and non-blocking failures.
+- Test contract safety, Workflow payload construction, idempotent delivery, organization isolation,
+  timestamp ordering, retry behavior, and non-blocking enqueue failures.
 - Test role access, authentication, tenant isolation, cursor ties, invalid cursors, each filter,
   and combined filtering.
 - Test every instrumented mutation for event type, actor, target, payload safety, and failure
@@ -70,4 +74,5 @@ have no link. Invalid or filter-mismatched cursors use the standard error envelo
 
 - No historical backfill, export, SIEM integration, or retention automation is included.
 - Events are retained indefinitely in v1.
+- One Workflow run is started per activity event; true database batching is intentionally excluded.
 - New source files include the repository BSL header.

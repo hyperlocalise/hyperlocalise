@@ -27,6 +27,8 @@ import {
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
+import { enqueueActivityLogEvents } from "@/lib/activity-log/activity-log-writer";
+import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-contract";
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
@@ -187,14 +189,17 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     const workosOrganizationId = readString(data, "organization_id");
     const workosUserId = readString(data, "user_id");
 
+    const activityLogEvents: ActivityLogEventInput[] = [];
     await db.transaction((tx) =>
       revokeOrganizationMembershipAccess(tx, {
         workosMembershipId: readString(data, "id", "membership_id"),
         workosOrganizationId,
         workosUserId,
         actor: { type: "system", id: "workos_webhook" },
+        activityLogEvents,
       }),
     );
+    await enqueueActivityLogEvents(activityLogEvents);
 
     return;
   }
@@ -271,14 +276,17 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
           workosMembershipId,
           workosOrganizationId,
         });
+        const activityLogEvents: ActivityLogEventInput[] = [];
         await db.transaction((tx) =>
           revokeOrganizationMembershipAccess(tx, {
             workosMembershipId,
             workosOrganizationId,
             workosUserId,
             actor: { type: "system", id: "workos_webhook" },
+            activityLogEvents,
           }),
         );
+        await enqueueActivityLogEvents(activityLogEvents);
         return;
       }
 

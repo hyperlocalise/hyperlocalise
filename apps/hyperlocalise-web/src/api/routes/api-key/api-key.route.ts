@@ -17,7 +17,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { apiErrorResponse, internalErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   ACCESS_TOKEN_REVOKE_REASONS,
@@ -172,7 +172,7 @@ export function createApiKeyRoutes() {
         );
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -246,7 +246,7 @@ export function createApiKeyRoutes() {
           reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
         });
 
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,

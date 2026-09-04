@@ -34,7 +34,7 @@ import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-forma
 import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
 import { getStoredFileContent } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   queryNativeGlossaryLanguages,
   queryNativeGlossaryLanguagesForGlossary,
@@ -468,7 +468,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       c.header("X-Content-Type-Options", "nosniff");
       c.header("X-Download-Options", "noopen");
       c.header("X-Hyperlocalise-Export-Warning-Count", String(serialized.warnings.length));
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -556,7 +556,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           return glossaryTeamMembershipRequiredResponse(c);
         case "created": {
           const teamNamesById = await queryGlossaryTeamNamesById([createResult.glossary]);
-          void writeActivityLogEvent({
+          await enqueueActivityLogEvent({
             actorCredentialId: null,
             actorKind: "user",
             actorUserId: c.var.auth.user.localUserId,
@@ -724,7 +724,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           await product.attachProject(project.id, payload.priority);
         }
 
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -767,7 +767,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         await product.detachProject(project.id);
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -814,7 +814,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           case "not_found":
             return glossaryNotFoundResponse(c);
           case "updated": {
-            void writeActivityLogEvent({
+            await enqueueActivityLogEvent({
               actorCredentialId: null,
               actorKind: "user",
               actorUserId: c.var.auth.user.localUserId,
@@ -853,7 +853,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         return glossaryNotFoundResponse(c);
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -907,7 +907,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         return glossaryNotFoundResponse(c);
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,

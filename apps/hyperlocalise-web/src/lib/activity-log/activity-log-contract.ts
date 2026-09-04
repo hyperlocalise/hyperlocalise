@@ -229,12 +229,17 @@ export type ActivityLogEventRecord = ActivityLogEventInput & {
   id: string;
 };
 
+export type ActivityLogWorkflowEvent = ActivityLogEventInput & {
+  createdAt: string;
+  id: string;
+};
+
 export type ActivityLogCursor = {
   createdAt: Date;
   id: string;
 };
 
-export type ActivityLogWriteError = { code: "activity_log_write_failed" };
+export type ActivityLogEnqueueError = { code: "activity_log_enqueue_failed" };
 
 export const FORBIDDEN_ACTIVITY_PAYLOAD_KEYS = [
   "authorization",

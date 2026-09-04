@@ -23,8 +23,8 @@ import { organizations, users } from "./organizations";
 
 /**
  * Append-only organization activity events. Product code writes through the
- * activity-log writer so payload validation and best-effort error handling stay
- * consistent across instrumentation paths.
+ * activity-log Workflow so payload validation and best-effort error handling
+ * stay consistent across instrumentation paths.
  */
 export const organizationActivityEvents = pgTable(
   "organization_activity_events",

@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. This document defines the workspace activity-log contract. Follow-up implementation work
-covers storage, the writer, permissions, API access, and event instrumentation.
+Accepted. This document defines the workspace activity-log contract and its asynchronous delivery
+boundary.
 
 ## Context
 
@@ -19,9 +19,14 @@ or glossary-term history.
 
 The shared contract lives in
 `apps/hyperlocalise-web/src/lib/activity-log/activity-log-contract.ts`. It contains the v1 event
-catalog, typed payload mappings, actor and target kinds, the writer input shape, the persisted record
-shape, and the safe-payload guard. It remains independent of Drizzle so the storage layer can map
-these types to columns without creating a schema-layer dependency on application code.
+catalog, typed payload mappings, actor and target kinds, the enqueue input shape, the Workflow
+event shape, the persisted record shape, and the safe-payload guard. It remains independent of
+Drizzle so the storage layer can map these types to columns without creating a schema-layer
+dependency on application code.
+
+The request path validates an event, assigns its ID and occurrence timestamp, and enqueues it with
+Vercel Workflow. The request never inserts into `organization_activity_events`. A Workflow step
+performs the final insert asynchronously using the supplied event ID for idempotent retries.
 
 ### Event catalog
 
@@ -63,7 +68,7 @@ Each event has these fields:
 | `targetKind` | Organization, invitation, membership, credential, integration, project, glossary, or translation memory. |
 | `targetId` | Opaque ID of the affected target. |
 | `payload` | Event-specific safe metadata defined by the typed contract. |
-| `createdAt` | PostgreSQL timestamp supplied with `clock_timestamp()`. |
+| `createdAt` | Event occurrence timestamp assigned before Workflow enqueueing. |
 
 Human session mutations use `actorKind: user`. WorkOS-driven membership removal uses
 `actorKind: system`. Agent and API-key actors are reserved for paths that already identify those
@@ -86,8 +91,9 @@ payloads remain the primary restriction; the guard is a defensive boundary for f
 
 ### Ordering and query shape
 
-The writer supplies `clock_timestamp()` for every insert. PostgreSQL provides the authoritative
-clock and allows sequential inserts in one transaction to receive advancing timestamps.
+The enqueue path supplies an ISO timestamp for every event before Workflow delivery. The Workflow
+persists that occurrence timestamp, so delayed delivery does not reorder events based on worker
+execution time. PostgreSQL remains authoritative for the stored timestamp value.
 
 The future list API reads only the requested organization and orders newest first by
 `created_at DESC, id DESC`. Its opaque cursor represents the `(created_at, id)` tuple, so events
@@ -102,13 +108,15 @@ matrix.
 
 V1 keeps events indefinitely. Export and external retention controls are later work.
 
-Activity writes are best effort. A failed insert never fails the user mutation. The writer returns
-the typed `activity_log_write_failed` result and logs a safe correlation ID with event and target
+Activity delivery is best effort. A failed Workflow enqueue never fails the user mutation, but the
+event may be missing because there is no durable application-side buffer. Workflow retries
+transient insert failures and uses the event ID to avoid duplicates. The enqueue helper returns the
+typed `activity_log_enqueue_failed` result and logs a safe correlation ID with event and target
 status. It never logs the payload, request body, secret, hash, token, email, or provider content.
 
 ## Follow-up boundaries
 
-- Map this contract to append-only storage and the single writer.
+- Map this contract to append-only storage and the Workflow enqueue/consumer pair.
 - Add `activity_logs:read` and the organization-scoped list API.
 - Instrument membership and workspace-admin mutations.
 - Instrument credential and integration lifecycle mutations.
@@ -119,5 +127,5 @@ status. It never logs the payload, request body, secret, hash, token, email, or 
 
 The contract module tests cover the actor and target constants, v1 versus reserved/later catalogs,
 event-type recognition, and recursive rejection of forbidden payload keys. Follow-up tests must
-cover database ordering, organization isolation, writer failure behavior, permission checks, and
-each instrumented mutation.
+cover Workflow payload construction, retry-safe insertion, organization isolation, enqueue failure
+behavior, permission checks, and each instrumented mutation.

@@ -35,7 +35,11 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import {
+  enqueueActivityLogEvent,
+  enqueueActivityLogEvents,
+} from "@/lib/activity-log/activity-log-writer";
+import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-contract";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
@@ -633,7 +637,7 @@ export function createMemberRoutes() {
       }
 
       if (isResend) {
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -644,7 +648,7 @@ export function createMemberRoutes() {
           targetKind: "invitation",
         });
       } else {
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -824,7 +828,7 @@ export function createMemberRoutes() {
       });
 
       if (roleChanged) {
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -951,6 +955,7 @@ export function createMemberRoutes() {
         }
       }
 
+      const activityLogEvents: ActivityLogEventInput[] = [];
       const deletionResult = await db.transaction(async (tx) => {
         if (member.role === "admin") {
           const adminCount = await lockOrganizationAdminsAndCount(tx, organizationId);
@@ -964,6 +969,7 @@ export function createMemberRoutes() {
           workosOrganizationId,
           workosUserId: member.workosUserId,
           actor: { type: "user", id: c.var.auth.user.localUserId },
+          activityLogEvents,
           log: c.get("log"),
         });
 
@@ -974,11 +980,13 @@ export function createMemberRoutes() {
         return lastAdminProtectedResponse(c);
       }
 
+      await enqueueActivityLogEvents(activityLogEvents);
+
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,

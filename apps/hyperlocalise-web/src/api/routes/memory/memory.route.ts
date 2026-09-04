@@ -30,7 +30,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
-import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { applyMemoryImport, parseMemoryImportContent } from "@/lib/memory/import-memory-entries";
 import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
@@ -427,7 +427,7 @@ export function createMemoryRoutes() {
 
       const payload = c.req.valid("json");
       const memory = await memoryStore.create(c.var.auth, payload);
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -500,7 +500,7 @@ export function createMemoryRoutes() {
           },
         });
 
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -590,7 +590,7 @@ export function createMemoryRoutes() {
         });
 
         if (!dryRun) {
-          void writeActivityLogEvent({
+          await enqueueActivityLogEvent({
             actorCredentialId: null,
             actorKind: "user",
             actorUserId: c.var.auth.user.localUserId,
@@ -843,7 +843,7 @@ export function createMemoryRoutes() {
             set: { priority: payload.priority },
           });
 
-        void writeActivityLogEvent({
+        await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
@@ -885,7 +885,7 @@ export function createMemoryRoutes() {
           ),
         );
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
@@ -945,7 +945,7 @@ export function createMemoryRoutes() {
         return memoryNotFoundResponse(c);
       }
 
-      void writeActivityLogEvent({
+      await enqueueActivityLogEvent({
         actorCredentialId: null,
         actorKind: "user",
         actorUserId: c.var.auth.user.localUserId,
