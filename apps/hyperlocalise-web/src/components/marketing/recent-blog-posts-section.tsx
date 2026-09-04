@@ -16,8 +16,11 @@ import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { PostSummary } from "@/lib/blog/blog-post";
-import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
+import { BlogPostGrid } from "@/components/marketing/blog/blog-post-grid";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Rows } from "@/components/ui/layout/rows";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import { recentBlogPostsSectionMessages } from "./recent-blog-posts-section.messages";
@@ -32,57 +35,57 @@ export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionPr
   const blogIndexHref = `/${lang}/blog`;
 
   return (
-    <section id="blog" className="relative">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-2xl">
-          <TypographyP
-            className="text-[0.68rem] tracking-[0.22em]"
-            weight="bold"
-            capitalization="uppercase"
-            tone="subtle"
-          >
-            <FormattedMessage {...recentBlogPostsSectionMessages.eyebrow} />
-          </TypographyP>
-          <TypographyH2
-            className="pt-3 pb-0 text-4xl tracking-[-0.04em] normal-case sm:text-5xl md:text-5xl"
-            weight="bold"
-            tone="content"
-          >
-            <FormattedMessage {...recentBlogPostsSectionMessages.heading} />
-          </TypographyH2>
-          <TypographyP
-            className="mt-4 max-w-xl leading-6 sm:text-[0.95rem]"
-            wrapStyle="pretty"
-            size="small"
-            tone="subtle"
-          >
-            <FormattedMessage {...recentBlogPostsSectionMessages.description} />
-          </TypographyP>
-        </div>
+    <section id="blog">
+      <Rows spacing="6u">
+        <Columns spacing="3u" alignY="end" collapseBelow="small">
+          <Column width="fluid">
+            <Rows spacing="1u">
+              <TypographyP
+                className="text-[0.68rem] tracking-[0.22em]"
+                weight="bold"
+                capitalization="uppercase"
+                tone="subtle"
+              >
+                <FormattedMessage {...recentBlogPostsSectionMessages.eyebrow} />
+              </TypographyP>
+              <TypographyH2
+                className="pt-3 pb-0 text-4xl tracking-[-0.04em] normal-case sm:text-5xl md:text-5xl"
+                weight="bold"
+                tone="content"
+              >
+                <FormattedMessage {...recentBlogPostsSectionMessages.heading} />
+              </TypographyH2>
+              <TypographyP
+                className="max-w-xl leading-6 sm:text-[0.95rem]"
+                wrapStyle="pretty"
+                size="small"
+                tone="subtle"
+              >
+                <FormattedMessage {...recentBlogPostsSectionMessages.description} />
+              </TypographyP>
+            </Rows>
+          </Column>
+
+          {posts.length > 0 ? (
+            <Column width="content">
+              <Link
+                className="inline-flex min-h-11 shrink-0 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                href={blogIndexHref}
+              >
+                <FormattedMessage {...recentBlogPostsSectionMessages.viewAllPosts} />
+              </Link>
+            </Column>
+          ) : null}
+        </Columns>
 
         {posts.length > 0 ? (
-          <Link
-            className="inline-flex min-h-11 shrink-0 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            href={blogIndexHref}
-          >
-            <FormattedMessage {...recentBlogPostsSectionMessages.viewAllPosts} />
-          </Link>
-        ) : null}
-      </div>
-
-      <div className="mt-10">
-        {posts.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-            {posts.map((post) => (
-              <BlogPostCard key={post.slug} lang={lang} post={post} />
-            ))}
-          </div>
+          <BlogPostGrid columns={4} lang={lang} posts={posts} />
         ) : (
           <TypographyP className="text-center" size="small" tone="subtle">
             {intl.formatMessage(blogMessages.indexEmptyState)}
           </TypographyP>
         )}
-      </div>
+      </Rows>
     </section>
   );
 }

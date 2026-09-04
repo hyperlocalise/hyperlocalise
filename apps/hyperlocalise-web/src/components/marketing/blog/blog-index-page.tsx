@@ -15,8 +15,11 @@
 import type { Post } from "@/lib/blog/blog-post";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
-import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
+import { BlogPostGrid } from "@/components/marketing/blog/blog-post-grid";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
+import { Box } from "@/components/ui/layout/box";
+import { Rows } from "@/components/ui/layout/rows";
+import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography";
 import { useIntl } from "react-intl";
 
@@ -29,35 +32,36 @@ export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
   const intl = useIntl();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto max-w-7xl">
-        <section className="px-5 pb-10 pt-12 text-center sm:px-8 lg:px-10 lg:pt-16">
-          <TypographyH1 className="text-4xl sm:text-5xl">
-            {intl.formatMessage(blogMessages.indexTitle)}
-          </TypographyH1>
-          <TypographyMuted className="mx-auto mt-4 max-w-2xl sm:text-lg" size="medium">
-            {intl.formatMessage(blogMessages.indexTagline)}
-          </TypographyMuted>
-        </section>
+    <Box background="canvas" width="full">
+      <main className="mx-auto min-h-screen max-w-7xl text-foreground">
+        <Rows spacing="0">
+          <Box paddingX="3u" paddingTop="6u" paddingBottom="4u">
+            <Rows spacing="2u" align="center">
+              <TypographyH1 className="text-center text-4xl sm:text-5xl">
+                {intl.formatMessage(blogMessages.indexTitle)}
+              </TypographyH1>
+              <TypographyMuted className="max-w-2xl text-center sm:text-lg" size="medium">
+                {intl.formatMessage(blogMessages.indexTagline)}
+              </TypographyMuted>
+            </Rows>
+          </Box>
 
-        <section className="px-5 pb-20 sm:px-8 lg:px-10">
-          {posts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-              {posts.map((post) => (
-                <BlogPostCard key={post.slug} lang={lang} post={post} />
-              ))}
-            </div>
-          ) : (
-            <TypographyMuted className="text-center" size="medium">
-              {intl.formatMessage(blogMessages.indexEmptyState)}
-            </TypographyMuted>
-          )}
-        </section>
+          <Box paddingX="3u" paddingBottom="8u">
+            {posts.length > 0 ? (
+              <BlogPostGrid lang={lang} posts={posts} />
+            ) : (
+              <TypographyMuted className="text-center" size="medium">
+                {intl.formatMessage(blogMessages.indexEmptyState)}
+              </TypographyMuted>
+            )}
+          </Box>
 
-        <section className="border-t border-border px-5 pt-16 sm:px-8 lg:px-10">
-          <MarketingFooter columns={footerColumns} />
-        </section>
+          <Separator />
+          <Box paddingX="3u" paddingTop="6u">
+            <MarketingFooter columns={footerColumns} />
+          </Box>
+        </Rows>
       </main>
-    </div>
+    </Box>
   );
 }
