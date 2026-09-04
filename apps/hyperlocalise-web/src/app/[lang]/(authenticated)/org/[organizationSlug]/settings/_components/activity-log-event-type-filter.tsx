@@ -157,7 +157,8 @@ export function ActivityLogEventTypeFilter({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[min(24rem,calc(100vw-2rem))] gap-3 p-2">
           <PopoverHeader className="flex-row items-center justify-between px-2 pt-1">
-            <PopoverTitle className="text-sm font-medium">
+            <PopoverTitle className="flex items-center gap-2 text-sm font-medium">
+              <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5 text-primary" />
               <FormattedMessage {...messages.eventTypePickerTitle} />
             </PopoverTitle>
             <div className="flex items-center gap-1">
