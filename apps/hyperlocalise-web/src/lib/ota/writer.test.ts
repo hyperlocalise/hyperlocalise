@@ -260,6 +260,19 @@ describe("otaDistributionWriter", () => {
       .from(schema.otaReleases)
       .where(eq(schema.otaReleases.id, firstRelease.value.id));
     expect(persistedFirstRelease?.manifest.format).toBe("ios_strings");
+
+    const ignoredFormatOverride = await otaDistributionWriter.release({
+      distributionId: created.value.id,
+      actorUserId: user.id,
+      manifest: {
+        // @ts-expect-error format is taken from the locked distribution
+        format: "android_xml",
+      },
+    });
+    expect(isOk(ignoredFormatOverride)).toBe(true);
+    if (isOk(ignoredFormatOverride)) {
+      expect(ignoredFormatOverride.value.manifest.format).toBe("json");
+    }
   });
 
   it("keeps rows on revoke and refuses further writes", async () => {

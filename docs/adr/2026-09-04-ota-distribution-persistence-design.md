@@ -61,10 +61,10 @@ Later API tickets call `otaDistributionWriter` in
   and always returns the persisted revoked row
 
 `release` builds a Crowdin-shaped snapshot (`files`, `languages`, `content`,
-`timestamp`, `format`) from the current selection. `format` is copied onto
-the release so a later distribution update cannot change what that release
-was. CDN upload may overwrite `content` or `artifact_pointer` later. The
-writer does not upload bytes or serve files.
+`timestamp`, `format`) from the locked distribution. `format` always comes
+from that row. A caller override may fill `files`, `languages`, `content`, or
+`timestamp`, never `format`. CDN upload may overwrite `content` or
+`artifact_pointer` later. The writer does not upload bytes or serve files.
 
 ### Out of scope
 

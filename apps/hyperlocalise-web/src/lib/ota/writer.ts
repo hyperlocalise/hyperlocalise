@@ -62,11 +62,13 @@ export type UpdateOtaDistributionInput = {
   db?: DatabaseClient;
 };
 
+export type OtaManifestSnapshotOverride = Omit<Partial<OtaManifestSnapshot>, "format">;
+
 export type ReleaseOtaDistributionInput = {
   distributionId: string;
   actorUserId: string;
   artifactPointer?: string | null;
-  manifest?: Partial<OtaManifestSnapshot>;
+  manifest?: OtaManifestSnapshotOverride;
   db?: DatabaseClient;
 };
 
@@ -202,7 +204,7 @@ function buildManifestSnapshot(input: {
   filePaths: readonly string[];
   locales: readonly string[];
   format: OtaDistributionFormat;
-  override?: Partial<OtaManifestSnapshot>;
+  override?: OtaManifestSnapshotOverride;
 }): OtaManifestSnapshot {
   const files = input.override?.files ?? input.filePaths.map(manifestFilePath);
   const languages = input.override?.languages ?? [...input.locales];
@@ -212,9 +214,8 @@ function buildManifestSnapshot(input: {
       languages.map((locale) => [locale, files.map((file) => `/content/${locale}${file}`)]),
     );
   const timestamp = input.override?.timestamp ?? unixTimestampSeconds();
-  const format = input.override?.format ?? input.format;
 
-  return { files, languages, content, timestamp, format };
+  return { files, languages, content, timestamp, format: input.format };
 }
 
 async function loadNativeProject(
