@@ -28,6 +28,10 @@ describe("buildGlossaryTsQuery", () => {
   it("matches any source-text token when finding glossary candidates", () => {
     expect(buildGlossaryTsQuery("Login button")).toBe("Login:* | button:*");
   });
+
+  it("adds singular candidates for plural source-text tokens", () => {
+    expect(buildGlossaryTsQuery("refunds")).toBe("refunds:* | refund:*");
+  });
 });
 
 describe("glossaryTermFlagsFromStatus", () => {
@@ -116,6 +120,45 @@ describe("concordanceSourceContainsTerm", () => {
         caseSensitive: false,
       }),
     ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("Book a ticket", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("book xyz", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("Choose a nearby airport", {
+        sourceTerm: "nearby airports",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("refunds", {
+        sourceTerm: "refund",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not match unsupported suffixes or gerund plurals", () => {
+    expect(
+      concordanceSourceContainsTerm("ticketing", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("bookings", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
   });
 
   it("matches hyphenated terms case-insensitively", () => {

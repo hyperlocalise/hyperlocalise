@@ -30,12 +30,18 @@ export type GlossaryConcordanceContext = {
 const maxConcordanceSearchTerms = 50;
 
 export function buildGlossaryTsQuery(input: string): string | null {
-  const tsQuery = input
+  const words = input
     .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .slice(0, maxConcordanceSearchTerms)
+    .slice(0, maxConcordanceSearchTerms);
+
+  const tsQuery = words
+    .flatMap((word) => [
+      word,
+      ...(word.length > 3 && word.endsWith("s") ? [word.slice(0, -1)] : []),
+    ])
     .map((word) => `${word}:*`)
     .join(" | ");
 

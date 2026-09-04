@@ -104,6 +104,38 @@ function isConcordanceTermCharacter(character: string | undefined) {
   return character !== undefined && /[\p{L}\p{N}_-]/u.test(character);
 }
 
+function concordanceTokens(value: string) {
+  return value.match(/[\p{L}\p{N}_-]+/gu) ?? [];
+}
+
+function concordanceTokensMatch(sourceTextToken: string, sourceTermToken: string) {
+  if (sourceTextToken === sourceTermToken) {
+    return true;
+  }
+
+  // Crowdin's concordance search accepts a source-text prefix for longer terms,
+  // such as "book" for the glossary term "booking".
+  if (
+    sourceTextToken.length >= 3 &&
+    sourceTermToken.endsWith("ing") &&
+    sourceTermToken.startsWith(sourceTextToken)
+  ) {
+    return true;
+  }
+
+  // It also accepts a simple singular/plural variation. Preserve Crowdin's
+  // observed boundary for gerunds: "refunds" matches "refund", while
+  // "bookings" does not match "booking".
+  if (sourceTermToken === `${sourceTextToken}s`) {
+    return true;
+  }
+  if (sourceTextToken === `${sourceTermToken}s` && !sourceTermToken.endsWith("ing")) {
+    return true;
+  }
+
+  return false;
+}
+
 export function concordanceSourceContainsTerm(
   sourceText: string,
   input: { sourceTerm: string; caseSensitive: boolean },
@@ -121,7 +153,7 @@ export function concordanceSourceContainsTerm(
   while (searchStart < normalizedSourceText.length) {
     const matchStart = normalizedSourceText.indexOf(normalizedSourceTerm, searchStart);
     if (matchStart < 0) {
-      return false;
+      break;
     }
 
     const matchEnd = matchStart + normalizedSourceTerm.length;
@@ -135,6 +167,23 @@ export function concordanceSourceContainsTerm(
     }
 
     searchStart = matchEnd;
+  }
+
+  const sourceTextTokens = concordanceTokens(normalizedSourceText);
+  const sourceTermTokens = concordanceTokens(normalizedSourceTerm);
+  if (sourceTermTokens.length === 0 || sourceTextTokens.length < sourceTermTokens.length) {
+    return false;
+  }
+
+  for (let index = 0; index <= sourceTextTokens.length - sourceTermTokens.length; index++) {
+    const candidate = sourceTextTokens.slice(index, index + sourceTermTokens.length);
+    if (
+      candidate.every((sourceTextToken, tokenIndex) =>
+        concordanceTokensMatch(sourceTextToken, sourceTermTokens[tokenIndex] ?? ""),
+      )
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -1129,16 +1178,11 @@ export class NativeGlossary extends Glossary {
           isNotNull(concordanceSourceTerms.term),
           eq(concordanceSourceTerms.reviewStatus, "approved"),
           sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-          sql`case
-            when coalesce(${concordanceSourceTerms.caseSensitive}, false)
-              then position(${concordanceSourceTerms.term} in ${query.sourceText}) > 0
-            else position(lower(${concordanceSourceTerms.term}) in lower(${query.sourceText})) > 0
-          end`,
         ),
       )
-      // Apply the result limit only after the exact boundary filter below. The SQL predicate is
-      // intentionally a broad indexed candidate filter because PostgreSQL tokenizes hyphenated
-      // terms such as "e-ticket" into separate full-text tokens.
+      // Apply the result limit only after the source-text matcher below. The SQL predicate is
+      // intentionally a broad indexed candidate filter because concordance accepts source-text
+      // prefixes and simple singular/plural variations.
       .orderBy(desc(sql`rank`));
 
     const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>

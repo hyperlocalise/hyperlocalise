@@ -24,12 +24,18 @@ const MAX_NATIVE_GLOSSARY_SEARCH_TERMS = 50;
  * OR so glossary entries can match words within a longer source sentence.
  */
 export function buildNativeGlossaryTsQuery(input: string): string {
-  return input
+  const words = input
     .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .slice(0, MAX_NATIVE_GLOSSARY_SEARCH_TERMS)
+    .slice(0, MAX_NATIVE_GLOSSARY_SEARCH_TERMS);
+
+  return words
+    .flatMap((word) => [
+      word,
+      ...(word.length > 3 && word.endsWith("s") ? [word.slice(0, -1)] : []),
+    ])
     .map((word) => `${word}:*`)
     .join(" | ");
 }

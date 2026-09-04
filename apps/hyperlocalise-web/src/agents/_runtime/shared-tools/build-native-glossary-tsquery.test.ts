@@ -27,6 +27,10 @@ describe("buildNativeGlossaryTsQuery", () => {
     );
   });
 
+  it("adds singular candidates for plural source-text tokens", () => {
+    expect(buildNativeGlossaryTsQuery("refunds")).toBe("refunds:* | refund:*");
+  });
+
   it("returns an empty string when input is only punctuation", () => {
     expect(buildNativeGlossaryTsQuery("!!!")).toBe("");
     expect(buildNativeGlossaryTsQuery("'-\"")).toBe("");
