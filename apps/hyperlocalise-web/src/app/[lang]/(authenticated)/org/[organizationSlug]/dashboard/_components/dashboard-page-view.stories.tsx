@@ -97,12 +97,14 @@ export const SlackConnectInvite: Story = {
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Connect agent" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
+    await expect(canvas.getByText("2 P1 on Board")).toBeInTheDocument();
     await expect(canvas.getByText("Activity")).toBeInTheDocument();
     await expect(canvas.getByText("Projects")).toBeInTheDocument();
     await expect(canvas.getByText("Board")).toBeInTheDocument();
     await expect(canvas.getByText("View automations")).toBeInTheDocument();
-    await expect(canvas.getByText("WEB-1 Missing CTA on checkout")).toBeInTheDocument();
+    await expect(canvas.getByText("WEB-1")).toBeInTheDocument();
+    await expect(canvas.getByText("Missing CTA on checkout")).toBeInTheDocument();
     await expect(canvas.queryByText("My jobs")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Integrations")).not.toBeInTheDocument();
   },

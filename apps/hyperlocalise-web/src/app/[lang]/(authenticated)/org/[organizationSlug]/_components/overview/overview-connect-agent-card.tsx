@@ -140,8 +140,14 @@ export function OverviewConnectAgentCard({
   );
 
   return (
-    <Card className={cn("rounded-2xl border border-border bg-card py-0 ring-0", className)}>
-      <CardContent className={cn("flex flex-col gap-4 px-6", compact ? "py-5" : "py-6")}>
+    <Card
+      className={cn(
+        "border border-border bg-card py-0 ring-0",
+        compact ? "rounded-xl" : "rounded-2xl",
+        className,
+      )}
+    >
+      <CardContent className={cn("flex flex-col", compact ? "gap-3 px-4 py-4" : "gap-4 px-6 py-6")}>
         <Tabs
           onValueChange={(value) => {
             if (isMcpAgentClient(value)) {
@@ -153,11 +159,11 @@ export function OverviewConnectAgentCard({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2
               className={cn(
-                "font-heading font-medium text-balance text-foreground",
-                compact ? "text-lg" : "text-xl",
+                "text-balance text-foreground",
+                compact ? "text-sm leading-5 font-semibold" : "font-heading text-xl font-medium",
               )}
             >
-              <FormattedMessage {...(compact ? messages.compactTitle : messages.title)} />
+              <FormattedMessage {...messages.title} />
             </h2>
             <TabsList className="h-8 self-start rounded-full p-0.5 sm:self-auto">
               {CLIENT_TABS.map((tab) => (

@@ -88,7 +88,7 @@ describe("OverviewConnectAgentCard", () => {
       </IntlProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "Connect agent" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
     expect(
       screen.queryByText("Access your Hyperlocalise workspace from MCP clients."),
     ).not.toBeInTheDocument();

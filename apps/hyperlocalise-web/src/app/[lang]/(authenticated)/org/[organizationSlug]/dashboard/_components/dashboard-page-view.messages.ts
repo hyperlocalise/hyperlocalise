@@ -76,9 +76,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Automations metric subtitle showing how many automations are paused",
   },
   p1Count: {
-    defaultMessage: "{count} P1",
-    id: "izGIodNiZK",
-    description: "Open issues metric subtitle showing P1 issue count",
+    defaultMessage: "{count} P1 on Board",
+    id: '51tdxkVdu+',
+    description: "Open issues metric subtitle showing P1 issue count on the board",
   },
   activityLabel: {
     defaultMessage: "Activity",

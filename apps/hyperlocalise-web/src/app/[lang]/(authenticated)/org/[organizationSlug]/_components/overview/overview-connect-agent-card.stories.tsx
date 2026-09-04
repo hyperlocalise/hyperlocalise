@@ -61,7 +61,7 @@ export const Compact: Story = {
     compact: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Connect agent" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
     await expect(
       canvas.queryByText("Access your Hyperlocalise workspace from MCP clients."),
     ).not.toBeInTheDocument();

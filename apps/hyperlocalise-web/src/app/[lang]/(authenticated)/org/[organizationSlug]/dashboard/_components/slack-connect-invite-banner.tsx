@@ -68,30 +68,35 @@ export function SlackConnectInviteBannerView({
   onRequest: () => void;
 }) {
   return (
-    <div className="flex h-full w-full flex-col justify-between gap-5 rounded-2xl border border-border bg-card p-6 lg:w-[380px] lg:shrink-0">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-          <IntegrationLogo src="/images/slack-logo.svg" className="size-5" />
+    <div className="flex h-full w-full flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 lg:w-[380px] lg:shrink-0">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+          <IntegrationLogo src="/images/slack-logo.svg" className="size-4" />
         </div>
-        <div className="min-w-0">
-          <TypographyP size="small" weight="medium" tone="content">
-            {invited ? (
-              <FormattedMessage {...slackConnectInviteBannerMessages.invitedTitle} />
-            ) : (
-              <FormattedMessage {...slackConnectInviteBannerMessages.createTitle} />
-            )}
-          </TypographyP>
-          <TypographyP className="mt-1" size="small" tone="subtle">
-            {invited ? (
-              <FormattedMessage {...slackConnectInviteBannerMessages.invitedDescription} />
-            ) : (
-              <FormattedMessage {...slackConnectInviteBannerMessages.createDescription} />
-            )}
-          </TypographyP>
-        </div>
+        <TypographyP className="min-w-0 font-semibold" size="small" tone="content">
+          {invited ? (
+            <FormattedMessage {...slackConnectInviteBannerMessages.invitedTitle} />
+          ) : (
+            <FormattedMessage {...slackConnectInviteBannerMessages.createTitle} />
+          )}
+        </TypographyP>
       </div>
+      <TypographyP size="small" tone="subtle">
+        {invited ? (
+          <FormattedMessage {...slackConnectInviteBannerMessages.invitedDescription} />
+        ) : (
+          <FormattedMessage {...slackConnectInviteBannerMessages.createDescription} />
+        )}
+      </TypographyP>
       {canManage ? (
         <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" disabled={isRequesting || isDismissing} onClick={onRequest}>
+            {isRequesting ? (
+              <FormattedMessage {...slackConnectInviteBannerMessages.requesting} />
+            ) : (
+              <FormattedMessage {...slackConnectInviteBannerMessages.requestInvite} />
+            )}
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -99,13 +104,6 @@ export function SlackConnectInviteBannerView({
             onClick={onDismiss}
           >
             <FormattedMessage {...slackConnectInviteBannerMessages.dismiss} />
-          </Button>
-          <Button type="button" disabled={isRequesting || isDismissing} onClick={onRequest}>
-            {isRequesting ? (
-              <FormattedMessage {...slackConnectInviteBannerMessages.requesting} />
-            ) : (
-              <FormattedMessage {...slackConnectInviteBannerMessages.requestInvite} />
-            )}
           </Button>
         </div>
       ) : null}
@@ -172,7 +170,7 @@ export function SlackConnectInviteBanner({ organizationSlug }: { organizationSlu
   if (inviteQuery.isLoading) {
     return (
       <div
-        className="flex h-full w-full flex-col gap-4 rounded-2xl border border-border bg-card p-6 lg:w-[380px] lg:shrink-0"
+        className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card p-4 lg:w-[380px] lg:shrink-0"
         aria-busy="true"
         aria-label={intl.formatMessage(slackConnectInviteBannerMessages.loadingLabel)}
       >
