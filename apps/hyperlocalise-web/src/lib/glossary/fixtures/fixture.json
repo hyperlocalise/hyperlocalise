@@ -1,71 +1,835 @@
 {
-    "schemaVersion": 1,
-    "domain": "online-travel-agent",
-    "name": "OTA Concordance Fixture",
-    "description": "A concept-based glossary for online travel booking terminology.",
-    "sourceLanguageId": "en",
-    "targetLanguageIds": ["vi", "ja", "de", "ko"],
-    "concepts": [
-        {"id":"ota-001","subject":"search","definition":"The place a traveler plans to visit.","terms":[{"locale":"en","text":"destination","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"điểm đến","status":"preferred"},{"locale":"ja","text":"目的地","status":"preferred"},{"locale":"de","text":"Reiseziel","status":"preferred"},{"locale":"ko","text":"목적지","status":"preferred"}]},
-        {"id":"ota-002","subject":"search","definition":"The place from which a traveler begins a journey.","terms":[{"locale":"en","text":"origin","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"điểm khởi hành","status":"preferred"},{"locale":"ja","text":"出発地","status":"preferred"},{"locale":"de","text":"Abflugort","status":"preferred"},{"locale":"ko","text":"출발지","status":"preferred"}]},
-        {"id":"ota-003","subject":"search","definition":"The calendar date on which a journey begins.","terms":[{"locale":"en","text":"departure date","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"ngày khởi hành","status":"preferred"},{"locale":"ja","text":"出発日","status":"preferred"},{"locale":"de","text":"Abreisedatum","status":"preferred"},{"locale":"ko","text":"출발일","status":"preferred"}]},
-        {"id":"ota-004","subject":"search","definition":"The calendar date on which a return journey begins.","terms":[{"locale":"en","text":"return date","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"return day","status":"admitted","forbidden":true,"description":"Use return date in product copy."},{"locale":"vi","text":"ngày về","status":"preferred"},{"locale":"ja","text":"復路出発日","status":"preferred"},{"locale":"de","text":"Rückreisedatum","status":"preferred"},{"locale":"ko","text":"귀국일","status":"preferred"}]},
-        {"id":"ota-005","subject":"search","definition":"A search option that allows travel dates to vary around the selected period.","terms":[{"locale":"en","text":"flexible dates","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"ngày linh hoạt","status":"preferred"},{"locale":"ja","text":"日付を柔軟に設定","status":"preferred"},{"locale":"de","text":"flexible Reisedaten","status":"preferred"},{"locale":"ko","text":"유연한 날짜","status":"preferred"}]},
-        {"id":"ota-006","subject":"search","definition":"Airports located close enough to the selected airport to be included in search results.","terms":[{"locale":"en","text":"nearby airports","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"sân bay lân cận","status":"preferred"},{"locale":"ja","text":"近隣の空港","status":"preferred"},{"locale":"de","text":"Flughäfen in der Nähe","status":"preferred"},{"locale":"ko","text":"인근 공항","status":"preferred"}]},
-        {"id":"ota-007","subject":"flight","definition":"A flight that travels from origin to destination without landing at an intermediate airport.","terms":[{"locale":"en","text":"nonstop flight","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"direct flight","status":"admitted","description":"Allowed in informal copy, but prefer nonstop flight when no landing occurs."},{"locale":"vi","text":"chuyến bay thẳng","status":"preferred"},{"locale":"ja","text":"直行便","status":"preferred"},{"locale":"de","text":"Nonstop-Flug","status":"preferred"},{"locale":"ko","text":"직항편","status":"preferred"}]},
-        {"id":"ota-008","subject":"flight","definition":"A scheduled stop between the origin and final destination of a journey.","terms":[{"locale":"en","text":"layover","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"thời gian quá cảnh","status":"preferred"},{"locale":"ja","text":"乗り継ぎ時間","status":"preferred"},{"locale":"de","text":"Aufenthalt beim Umstieg","status":"preferred"},{"locale":"ko","text":"경유 시간","status":"preferred"}]},
-        {"id":"ota-009","subject":"accommodation","definition":"A place where a traveler stays overnight during a trip.","terms":[{"locale":"en","text":"accommodation","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"lodging","status":"admitted"},{"locale":"vi","text":"chỗ ở","status":"preferred"},{"locale":"ja","text":"宿泊施設","status":"preferred"},{"locale":"de","text":"Unterkunft","status":"preferred"},{"locale":"ko","text":"숙박 시설","status":"preferred"}]},
-        {"id":"ota-010","subject":"accommodation","definition":"The category or configuration of a room offered by a property.","terms":[{"locale":"en","text":"room type","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"loại phòng","status":"preferred"},{"locale":"ja","text":"部屋タイプ","status":"preferred"},{"locale":"de","text":"Zimmertyp","status":"preferred"},{"locale":"ko","text":"객실 유형","status":"preferred"}]},
-        {"id":"ota-011","subject":"booking","definition":"A journey that includes travel in one direction only.","terms":[{"locale":"en","text":"one-way","status":"preferred","partOfSpeech":"adjective"},{"locale":"vi","text":"một chiều","status":"preferred"},{"locale":"ja","text":"片道","status":"preferred"},{"locale":"de","text":"einfache Strecke","status":"preferred"},{"locale":"ko","text":"편도","status":"preferred"}]},
-        {"id":"ota-012","subject":"booking","definition":"A journey that includes travel to a destination and back to the origin.","terms":[{"locale":"en","text":"round trip","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"return trip","status":"admitted"},{"locale":"vi","text":"khứ hồi","status":"preferred"},{"locale":"ja","text":"往復","status":"preferred"},{"locale":"de","text":"Hin- und Rückflug","status":"preferred"},{"locale":"ko","text":"왕복","status":"preferred"}]},
-        {"id":"ota-013","subject":"booking","definition":"A journey that uses more than one origin-destination pair in one reservation.","terms":[{"locale":"en","text":"multi-city","status":"preferred","partOfSpeech":"adjective"},{"locale":"vi","text":"nhiều thành phố","status":"preferred"},{"locale":"ja","text":"複数都市","status":"preferred"},{"locale":"de","text":"Mehrere Städte","status":"preferred"},{"locale":"ko","text":"다구간","status":"preferred"}]},
-        {"id":"ota-014","subject":"booking","definition":"A confirmed arrangement for travel or accommodation.","terms":[{"locale":"en","text":"booking","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"reservation","status":"admitted"},{"locale":"vi","text":"đặt chỗ","status":"preferred"},{"locale":"ja","text":"予約","status":"preferred"},{"locale":"de","text":"Buchung","status":"preferred"},{"locale":"ko","text":"예약","status":"preferred"}]},
-        {"id":"ota-015","subject":"booking","definition":"The unique code used to identify a travel reservation.","terms":[{"locale":"en","text":"booking reference","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"reservation code","status":"admitted"},{"locale":"en","text":"PNR","status":"admitted","description":"Common industry abbreviation for passenger name record."},{"locale":"vi","text":"mã đặt chỗ","status":"preferred"},{"locale":"ja","text":"予約番号","status":"preferred"},{"locale":"de","text":"Buchungsnummer","status":"preferred"},{"locale":"ko","text":"예약 번호","status":"preferred"}]},
-        {"id":"ota-016","subject":"booking","definition":"The complete sequence of travel arrangements in a reservation.","terms":[{"locale":"en","text":"itinerary","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hành trình","status":"preferred"},{"locale":"ja","text":"旅程","status":"preferred"},{"locale":"de","text":"Reiseplan","status":"preferred"},{"locale":"ko","text":"여정","status":"preferred"}]},
-        {"id":"ota-017","subject":"booking","definition":"A person who travels or is included in a travel reservation.","terms":[{"locale":"en","text":"traveler","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"traveller","status":"admitted"},{"locale":"vi","text":"du khách","status":"preferred"},{"locale":"ja","text":"旅行者","status":"preferred"},{"locale":"de","text":"Reisende Person","status":"preferred"},{"locale":"ko","text":"여행자","status":"preferred"}]},
-        {"id":"ota-018","subject":"booking","definition":"A person occupying a room or included in a hotel reservation.","terms":[{"locale":"en","text":"guest","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"khách","status":"preferred"},{"locale":"ja","text":"宿泊者","status":"preferred"},{"locale":"de","text":"Gast","status":"preferred"},{"locale":"ko","text":"투숙객","status":"preferred"}]},
-        {"id":"ota-019","subject":"accommodation","definition":"The date on which a guest is scheduled to arrive at a property.","terms":[{"locale":"en","text":"check-in date","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"ngày nhận phòng","status":"preferred"},{"locale":"ja","text":"チェックイン日","status":"preferred"},{"locale":"de","text":"Check-in-Datum","status":"preferred"},{"locale":"ko","text":"체크인 날짜","status":"preferred"}]},
-        {"id":"ota-020","subject":"accommodation","definition":"The date on which a guest is scheduled to leave a property.","terms":[{"locale":"en","text":"check-out date","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"ngày trả phòng","status":"preferred"},{"locale":"ja","text":"チェックアウト日","status":"preferred"},{"locale":"de","text":"Check-out-Datum","status":"preferred"},{"locale":"ko","text":"체크아웃 날짜","status":"preferred"}]},
-        {"id":"ota-021","subject":"flight","definition":"The direction or class of service selected for an airline journey.","terms":[{"locale":"en","text":"cabin class","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hạng khoang","status":"preferred"},{"locale":"ja","text":"客室クラス","status":"preferred"},{"locale":"de","text":"Kabinenklasse","status":"preferred"},{"locale":"ko","text":"객실 등급","status":"preferred"}]},
-        {"id":"ota-022","subject":"flight","definition":"The standard airline cabin with the lowest typical service level.","terms":[{"locale":"en","text":"economy class","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"coach","status":"admitted"},{"locale":"vi","text":"hạng phổ thông","status":"preferred"},{"locale":"ja","text":"エコノミークラス","status":"preferred"},{"locale":"de","text":"Economy Class","status":"preferred"},{"locale":"ko","text":"이코노미 클래스","status":"preferred"}]},
-        {"id":"ota-023","subject":"flight","definition":"An airline cabin positioned above economy and below business class.","terms":[{"locale":"en","text":"premium economy","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hạng phổ thông đặc biệt","status":"preferred"},{"locale":"ja","text":"プレミアムエコノミー","status":"preferred"},{"locale":"de","text":"Premium Economy","status":"preferred"},{"locale":"ko","text":"프리미엄 이코노미","status":"preferred"}]},
-        {"id":"ota-024","subject":"flight","definition":"An airline cabin offering enhanced service and space above economy.","terms":[{"locale":"en","text":"business class","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hạng thương gia","status":"preferred"},{"locale":"ja","text":"ビジネスクラス","status":"preferred"},{"locale":"de","text":"Business Class","status":"preferred"},{"locale":"ko","text":"비즈니스 클래스","status":"preferred"}]},
-        {"id":"ota-025","subject":"flight","definition":"The highest standard airline cabin with the most extensive service offering.","terms":[{"locale":"en","text":"first class","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hạng nhất","status":"preferred"},{"locale":"ja","text":"ファーストクラス","status":"preferred"},{"locale":"de","text":"First Class","status":"preferred"},{"locale":"ko","text":"퍼스트 클래스","status":"preferred"}]},
-        {"id":"ota-026","subject":"flight","definition":"A named group of fare conditions and included benefits sold by an airline.","terms":[{"locale":"en","text":"fare family","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"nhóm giá vé","status":"preferred"},{"locale":"ja","text":"運賃ファミリー","status":"preferred"},{"locale":"de","text":"Tariffamilie","status":"preferred"},{"locale":"ko","text":"운임 패밀리","status":"preferred"}]},
-        {"id":"ota-027","subject":"flight","definition":"The option to choose a particular seat on a flight.","terms":[{"locale":"en","text":"seat selection","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"chọn chỗ ngồi","status":"preferred"},{"locale":"ja","text":"座席指定","status":"preferred"},{"locale":"de","text":"Sitzplatzauswahl","status":"preferred"},{"locale":"ko","text":"좌석 선택","status":"preferred"}]},
-        {"id":"ota-028","subject":"flight","definition":"The document or digital credential that allows a passenger to board a flight.","terms":[{"locale":"en","text":"boarding pass","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"thẻ lên máy bay","status":"preferred"},{"locale":"ja","text":"搭乗券","status":"preferred"},{"locale":"de","text":"Bordkarte","status":"preferred"},{"locale":"ko","text":"탑승권","status":"preferred"}]},
-        {"id":"ota-029","subject":"flight","definition":"A document or record that confirms a passenger's right to travel.","terms":[{"locale":"en","text":"ticket","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"vé","status":"preferred"},{"locale":"ja","text":"航空券","status":"preferred"},{"locale":"de","text":"Flugticket","status":"preferred"},{"locale":"ko","text":"항공권","status":"preferred"}]},
-        {"id":"ota-030","subject":"flight","definition":"An electronic version of a travel ticket stored digitally rather than printed.","terms":[{"locale":"en","text":"e-ticket","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"electronic ticket","status":"admitted"},{"locale":"vi","text":"vé điện tử","status":"preferred"},{"locale":"ja","text":"電子航空券","status":"preferred"},{"locale":"de","text":"E-Ticket","status":"preferred"},{"locale":"ko","text":"전자 항공권","status":"preferred"}]},
-        {"id":"ota-031","subject":"traveler-data","definition":"The full name of the person traveling, as it appears on an identity document.","terms":[{"locale":"en","text":"passenger name","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"tên hành khách","status":"preferred"},{"locale":"ja","text":"搭乗者名","status":"preferred"},{"locale":"de","text":"Name der reisenden Person","status":"preferred"},{"locale":"ko","text":"승객 이름","status":"preferred"}]},
-        {"id":"ota-032","subject":"traveler-data","definition":"The calendar date on which a traveler was born.","terms":[{"locale":"en","text":"date of birth","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"ngày sinh","status":"preferred"},{"locale":"ja","text":"生年月日","status":"preferred"},{"locale":"de","text":"Geburtsdatum","status":"preferred"},{"locale":"ko","text":"생년월일","status":"preferred"}]},
-        {"id":"ota-033","subject":"traveler-data","definition":"The identifying number printed on a traveler's passport.","terms":[{"locale":"en","text":"passport number","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"số hộ chiếu","status":"preferred"},{"locale":"ja","text":"パスポート番号","status":"preferred"},{"locale":"de","text":"Reisepassnummer","status":"preferred"},{"locale":"ko","text":"여권 번호","status":"preferred"}]},
-        {"id":"ota-034","subject":"traveler-data","definition":"The membership identifier for an airline loyalty program.","terms":[{"locale":"en","text":"frequent flyer number","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"số hội viên hàng không thường xuyên","status":"preferred"},{"locale":"ja","text":"マイレージ番号","status":"preferred"},{"locale":"de","text":"Vielfliegernummer","status":"preferred"},{"locale":"ko","text":"상용 고객 번호","status":"preferred"}]},
-        {"id":"ota-035","subject":"traveler-data","definition":"A requested service or accommodation for a traveler with accessibility or health needs.","terms":[{"locale":"en","text":"special assistance","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hỗ trợ đặc biệt","status":"preferred"},{"locale":"ja","text":"特別サポート","status":"preferred"},{"locale":"de","text":"besondere Unterstützung","status":"preferred"},{"locale":"ko","text":"특별 지원","status":"preferred"}]},
-        {"id":"ota-036","subject":"baggage","definition":"A small bag that a passenger may bring into the aircraft cabin.","terms":[{"locale":"en","text":"carry-on baggage","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"hand luggage","status":"admitted"},{"locale":"vi","text":"hành lý xách tay","status":"preferred"},{"locale":"ja","text":"機内持ち込み手荷物","status":"preferred"},{"locale":"de","text":"Handgepäck","status":"preferred"},{"locale":"ko","text":"기내 수하물","status":"preferred"}]},
-        {"id":"ota-037","subject":"baggage","definition":"Baggage handed to the airline for transport in the aircraft hold.","terms":[{"locale":"en","text":"checked baggage","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"checked luggage","status":"admitted"},{"locale":"vi","text":"hành lý ký gửi","status":"preferred"},{"locale":"ja","text":"受託手荷物","status":"preferred"},{"locale":"de","text":"Aufgabegepäck","status":"preferred"},{"locale":"ko","text":"위탁 수하물","status":"preferred"}]},
-        {"id":"ota-038","subject":"baggage","definition":"The amount, size, or weight of baggage included in a fare.","terms":[{"locale":"en","text":"baggage allowance","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hạn mức hành lý","status":"preferred"},{"locale":"ja","text":"手荷物許容量","status":"preferred"},{"locale":"de","text":"Freigepäckmenge","status":"preferred"},{"locale":"ko","text":"수하물 허용량","status":"preferred"}]},
-        {"id":"ota-039","subject":"pricing","definition":"The price of travel before taxes, fees, and optional extras are added.","terms":[{"locale":"en","text":"base fare","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"giá vé cơ bản","status":"preferred"},{"locale":"ja","text":"基本運賃","status":"preferred"},{"locale":"de","text":"Grundtarif","status":"preferred"},{"locale":"ko","text":"기본 운임","status":"preferred"}]},
-        {"id":"ota-040","subject":"pricing","definition":"Mandatory government charges and service costs added to the base fare.","terms":[{"locale":"en","text":"taxes and fees","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"taxes & fees","status":"admitted"},{"locale":"vi","text":"thuế và phí","status":"preferred"},{"locale":"ja","text":"税金および手数料","status":"preferred"},{"locale":"de","text":"Steuern und Gebühren","status":"preferred"},{"locale":"ko","text":"세금 및 수수료","status":"preferred"}]},
-        {"id":"ota-041","subject":"pricing","definition":"The complete amount payable for a booking, including mandatory charges.","terms":[{"locale":"en","text":"total price","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"tổng giá","status":"preferred"},{"locale":"ja","text":"合計料金","status":"preferred"},{"locale":"de","text":"Gesamtpreis","status":"preferred"},{"locale":"ko","text":"총 가격","status":"preferred"}]},
-        {"id":"ota-042","subject":"pricing","definition":"The conversion of a displayed or charged amount from one currency to another.","terms":[{"locale":"en","text":"currency conversion","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"quy đổi tiền tệ","status":"preferred"},{"locale":"ja","text":"通貨換算","status":"preferred"},{"locale":"de","text":"Währungsumrechnung","status":"preferred"},{"locale":"ko","text":"통화 환산","status":"preferred"}]},
-        {"id":"ota-043","subject":"payment","definition":"The instrument or service used to pay for a booking.","terms":[{"locale":"en","text":"payment method","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"phương thức thanh toán","status":"preferred"},{"locale":"ja","text":"支払い方法","status":"preferred"},{"locale":"de","text":"Zahlungsmethode","status":"preferred"},{"locale":"ko","text":"결제 수단","status":"preferred"}]},
-        {"id":"ota-044","subject":"pricing","definition":"A notification that informs a traveler when the price of a tracked trip changes.","terms":[{"locale":"en","text":"price alert","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"cảnh báo giá","status":"preferred"},{"locale":"ja","text":"料金アラート","status":"preferred"},{"locale":"de","text":"Preisalarm","status":"preferred"},{"locale":"ko","text":"가격 알림","status":"preferred"}]},
-        {"id":"ota-045","subject":"accommodation","definition":"The cost charged for one night at an accommodation property.","terms":[{"locale":"en","text":"nightly rate","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"giá mỗi đêm","status":"preferred"},{"locale":"ja","text":"1泊料金","status":"preferred"},{"locale":"de","text":"Preis pro Nacht","status":"preferred"},{"locale":"ko","text":"1박 요금","status":"preferred"}]},
-        {"id":"ota-046","subject":"accommodation","definition":"A mandatory property charge that is separate from the advertised room rate.","terms":[{"locale":"en","text":"resort fee","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"phí khu nghỉ dưỡng","status":"preferred"},{"locale":"ja","text":"リゾート料金","status":"preferred"},{"locale":"de","text":"Resortgebühr","status":"preferred"},{"locale":"ko","text":"리조트 요금","status":"preferred"}]},
-        {"id":"ota-047","subject":"changes","definition":"Describing a fare or booking that permits money to be returned under its conditions.","terms":[{"locale":"en","text":"refundable","status":"preferred","partOfSpeech":"adjective"},{"locale":"vi","text":"có thể hoàn tiền","status":"preferred"},{"locale":"ja","text":"払い戻し可能","status":"preferred"},{"locale":"de","text":"erstattungsfähig","status":"preferred"},{"locale":"ko","text":"환불 가능","status":"preferred"}]},
-        {"id":"ota-048","subject":"changes","definition":"The rules that explain when and how a booking may be canceled.","terms":[{"locale":"en","text":"cancellation policy","status":"preferred","partOfSpeech":"noun"},{"locale":"en","text":"cancelation policy","status":"admitted","forbidden":true,"description":"Use the double-l spelling cancellation in product copy."},{"locale":"vi","text":"chính sách hủy","status":"preferred"},{"locale":"ja","text":"キャンセルポリシー","status":"preferred"},{"locale":"de","text":"Stornierungsbedingungen","status":"preferred"},{"locale":"ko","text":"취소 정책","status":"preferred"}]},
-        {"id":"ota-049","subject":"changes","definition":"A charge applied when a traveler changes an eligible part of a booking.","terms":[{"locale":"en","text":"change fee","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"phí thay đổi","status":"preferred"},{"locale":"ja","text":"変更手数料","status":"preferred"},{"locale":"de","text":"Änderungsgebühr","status":"preferred"},{"locale":"ko","text":"변경 수수료","status":"preferred"}]},
-        {"id":"ota-050","subject":"changes","definition":"Money returned to a traveler after an eligible cancellation or adjustment.","terms":[{"locale":"en","text":"refund","status":"preferred","partOfSpeech":"noun"},{"locale":"vi","text":"hoàn tiền","status":"preferred"},{"locale":"ja","text":"払い戻し","status":"preferred"},{"locale":"de","text":"Rückerstattung","status":"preferred"},{"locale":"ko","text":"환불","status":"preferred"}]}
-    ],
-    "queryCases": [
-        {"id":"exact-primary","description":"Exact primary source terms.","expressions":["destination","round trip","booking reference","total price","refund"]},
-        {"id":"phrases-and-punctuation","description":"Multi-word terms with casing and punctuation variants.","expressions":["Flexible dates","Check-in date","Taxes and fees","one-way","Baggage allowance"]},
-        {"id":"aliases-and-case","description":"Admitted aliases and case variants.","expressions":["reservation code","RETURN DATE","direct flight","lodging","hand luggage"]},
-        {"id":"controls","description":"A proper noun, a known untranslatable-style code, a target-language expression, and an unknown term.","expressions":["PNR","TravelReady","予約番号","not-a-real-ota-term","cancellation policy"]},
-        {"id":"mixed-batch","description":"A representative batch spanning search, air, hotel, traveler, pricing, and changes.","expressions":["origin","departure date","nonstop flight","layover","accommodation","room type","one-way","itinerary","guest","boarding pass","e-ticket","passport number","carry-on baggage","base fare","taxes & fees","currency conversion","payment method","price alert","resort fee","refund"]},
-        {"id":"contextual-sentences","description":"Terms embedded in realistic OTA product-copy sentences, including multiple matches in one expression.","expressions":["Book a ticket for tomorrow.","Download your e-ticket after booking.","Compare a refundable fare with the base fare.","Your booking reference and reservation code are required.","Check-in date and check-out date are required.","Carry-on baggage is included in the baggage allowance.","Choose a nearby airport for your departure date.","A nonstop flight may still have a long layover.","Review the cancellation policy before requesting a refund.","Set a price alert when the total price changes."]},
-        {"id":"term-boundaries","description":"Standalone, embedded, hyphenated, and overlapping terms used to verify concordance boundaries.","expressions":["ticketing","bookings","refunds","non-refundable","e-ticket","Book a ticket","e-ticket ticket","reservationcode","pricealert","one-wayflight"]},
-        {"id":"statuses-and-overlap","description":"Preferred terms, admitted aliases, forbidden aliases, and nested concepts that can produce overlapping matches.","expressions":["return day","cancelation policy","reservation code","booking reference","direct flight","lodging","PNR","RETURN DATE","taxes & fees","return trip"]},
-        {"id":"locale-and-negative","description":"Target-language text, proper nouns, identifiers, dates, and unknown text that should not produce English-source matches.","expressions":["予約番号","Reiseziel","목적지","vé điện tử","TravelReady","not-a-real-ota-term","2026-09-04","OTA-12345","book xyz","mysterious-ota-token"]}
-    ]
+  "schemaVersion": 1,
+  "domain": "online-travel-agent",
+  "name": "OTA Concordance Fixture",
+  "description": "A concept-based glossary for online travel booking terminology.",
+  "sourceLanguageId": "en",
+  "targetLanguageIds": ["vi", "ja", "de", "ko"],
+  "concepts": [
+    {
+      "id": "ota-001",
+      "subject": "search",
+      "definition": "The place a traveler plans to visit.",
+      "terms": [
+        { "locale": "en", "text": "destination", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "điểm đến", "status": "preferred" },
+        { "locale": "ja", "text": "目的地", "status": "preferred" },
+        { "locale": "de", "text": "Reiseziel", "status": "preferred" },
+        { "locale": "ko", "text": "목적지", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-002",
+      "subject": "search",
+      "definition": "The place from which a traveler begins a journey.",
+      "terms": [
+        { "locale": "en", "text": "origin", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "điểm khởi hành", "status": "preferred" },
+        { "locale": "ja", "text": "出発地", "status": "preferred" },
+        { "locale": "de", "text": "Abflugort", "status": "preferred" },
+        { "locale": "ko", "text": "출발지", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-003",
+      "subject": "search",
+      "definition": "The calendar date on which a journey begins.",
+      "terms": [
+        { "locale": "en", "text": "departure date", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "ngày khởi hành", "status": "preferred" },
+        { "locale": "ja", "text": "出発日", "status": "preferred" },
+        { "locale": "de", "text": "Abreisedatum", "status": "preferred" },
+        { "locale": "ko", "text": "출발일", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-004",
+      "subject": "search",
+      "definition": "The calendar date on which a return journey begins.",
+      "terms": [
+        { "locale": "en", "text": "return date", "status": "preferred", "partOfSpeech": "noun" },
+        {
+          "locale": "en",
+          "text": "return day",
+          "status": "admitted",
+          "forbidden": true,
+          "description": "Use return date in product copy."
+        },
+        { "locale": "vi", "text": "ngày về", "status": "preferred" },
+        { "locale": "ja", "text": "復路出発日", "status": "preferred" },
+        { "locale": "de", "text": "Rückreisedatum", "status": "preferred" },
+        { "locale": "ko", "text": "귀국일", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-005",
+      "subject": "search",
+      "definition": "A search option that allows travel dates to vary around the selected period.",
+      "terms": [
+        { "locale": "en", "text": "flexible dates", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "ngày linh hoạt", "status": "preferred" },
+        { "locale": "ja", "text": "日付を柔軟に設定", "status": "preferred" },
+        { "locale": "de", "text": "flexible Reisedaten", "status": "preferred" },
+        { "locale": "ko", "text": "유연한 날짜", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-006",
+      "subject": "search",
+      "definition": "Airports located close enough to the selected airport to be included in search results.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "nearby airports",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "sân bay lân cận", "status": "preferred" },
+        { "locale": "ja", "text": "近隣の空港", "status": "preferred" },
+        { "locale": "de", "text": "Flughäfen in der Nähe", "status": "preferred" },
+        { "locale": "ko", "text": "인근 공항", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-007",
+      "subject": "flight",
+      "definition": "A flight that travels from origin to destination without landing at an intermediate airport.",
+      "terms": [
+        { "locale": "en", "text": "nonstop flight", "status": "preferred", "partOfSpeech": "noun" },
+        {
+          "locale": "en",
+          "text": "direct flight",
+          "status": "admitted",
+          "description": "Allowed in informal copy, but prefer nonstop flight when no landing occurs."
+        },
+        { "locale": "vi", "text": "chuyến bay thẳng", "status": "preferred" },
+        { "locale": "ja", "text": "直行便", "status": "preferred" },
+        { "locale": "de", "text": "Nonstop-Flug", "status": "preferred" },
+        { "locale": "ko", "text": "직항편", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-008",
+      "subject": "flight",
+      "definition": "A scheduled stop between the origin and final destination of a journey.",
+      "terms": [
+        { "locale": "en", "text": "layover", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "thời gian quá cảnh", "status": "preferred" },
+        { "locale": "ja", "text": "乗り継ぎ時間", "status": "preferred" },
+        { "locale": "de", "text": "Aufenthalt beim Umstieg", "status": "preferred" },
+        { "locale": "ko", "text": "경유 시간", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-009",
+      "subject": "accommodation",
+      "definition": "A place where a traveler stays overnight during a trip.",
+      "terms": [
+        { "locale": "en", "text": "accommodation", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "lodging", "status": "admitted" },
+        { "locale": "vi", "text": "chỗ ở", "status": "preferred" },
+        { "locale": "ja", "text": "宿泊施設", "status": "preferred" },
+        { "locale": "de", "text": "Unterkunft", "status": "preferred" },
+        { "locale": "ko", "text": "숙박 시설", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-010",
+      "subject": "accommodation",
+      "definition": "The category or configuration of a room offered by a property.",
+      "terms": [
+        { "locale": "en", "text": "room type", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "loại phòng", "status": "preferred" },
+        { "locale": "ja", "text": "部屋タイプ", "status": "preferred" },
+        { "locale": "de", "text": "Zimmertyp", "status": "preferred" },
+        { "locale": "ko", "text": "객실 유형", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-011",
+      "subject": "booking",
+      "definition": "A journey that includes travel in one direction only.",
+      "terms": [
+        { "locale": "en", "text": "one-way", "status": "preferred", "partOfSpeech": "adjective" },
+        { "locale": "vi", "text": "một chiều", "status": "preferred" },
+        { "locale": "ja", "text": "片道", "status": "preferred" },
+        { "locale": "de", "text": "einfache Strecke", "status": "preferred" },
+        { "locale": "ko", "text": "편도", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-012",
+      "subject": "booking",
+      "definition": "A journey that includes travel to a destination and back to the origin.",
+      "terms": [
+        { "locale": "en", "text": "round trip", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "return trip", "status": "admitted" },
+        { "locale": "vi", "text": "khứ hồi", "status": "preferred" },
+        { "locale": "ja", "text": "往復", "status": "preferred" },
+        { "locale": "de", "text": "Hin- und Rückflug", "status": "preferred" },
+        { "locale": "ko", "text": "왕복", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-013",
+      "subject": "booking",
+      "definition": "A journey that uses more than one origin-destination pair in one reservation.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "multi-city",
+          "status": "preferred",
+          "partOfSpeech": "adjective"
+        },
+        { "locale": "vi", "text": "nhiều thành phố", "status": "preferred" },
+        { "locale": "ja", "text": "複数都市", "status": "preferred" },
+        { "locale": "de", "text": "Mehrere Städte", "status": "preferred" },
+        { "locale": "ko", "text": "다구간", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-014",
+      "subject": "booking",
+      "definition": "A confirmed arrangement for travel or accommodation.",
+      "terms": [
+        { "locale": "en", "text": "booking", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "reservation", "status": "admitted" },
+        { "locale": "vi", "text": "đặt chỗ", "status": "preferred" },
+        { "locale": "ja", "text": "予約", "status": "preferred" },
+        { "locale": "de", "text": "Buchung", "status": "preferred" },
+        { "locale": "ko", "text": "예약", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-015",
+      "subject": "booking",
+      "definition": "The unique code used to identify a travel reservation.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "booking reference",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "en", "text": "reservation code", "status": "admitted" },
+        {
+          "locale": "en",
+          "text": "PNR",
+          "status": "admitted",
+          "description": "Common industry abbreviation for passenger name record."
+        },
+        { "locale": "vi", "text": "mã đặt chỗ", "status": "preferred" },
+        { "locale": "ja", "text": "予約番号", "status": "preferred" },
+        { "locale": "de", "text": "Buchungsnummer", "status": "preferred" },
+        { "locale": "ko", "text": "예약 번호", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-016",
+      "subject": "booking",
+      "definition": "The complete sequence of travel arrangements in a reservation.",
+      "terms": [
+        { "locale": "en", "text": "itinerary", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "hành trình", "status": "preferred" },
+        { "locale": "ja", "text": "旅程", "status": "preferred" },
+        { "locale": "de", "text": "Reiseplan", "status": "preferred" },
+        { "locale": "ko", "text": "여정", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-017",
+      "subject": "booking",
+      "definition": "A person who travels or is included in a travel reservation.",
+      "terms": [
+        { "locale": "en", "text": "traveler", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "traveller", "status": "admitted" },
+        { "locale": "vi", "text": "du khách", "status": "preferred" },
+        { "locale": "ja", "text": "旅行者", "status": "preferred" },
+        { "locale": "de", "text": "Reisende Person", "status": "preferred" },
+        { "locale": "ko", "text": "여행자", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-018",
+      "subject": "booking",
+      "definition": "A person occupying a room or included in a hotel reservation.",
+      "terms": [
+        { "locale": "en", "text": "guest", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "khách", "status": "preferred" },
+        { "locale": "ja", "text": "宿泊者", "status": "preferred" },
+        { "locale": "de", "text": "Gast", "status": "preferred" },
+        { "locale": "ko", "text": "투숙객", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-019",
+      "subject": "accommodation",
+      "definition": "The date on which a guest is scheduled to arrive at a property.",
+      "terms": [
+        { "locale": "en", "text": "check-in date", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "ngày nhận phòng", "status": "preferred" },
+        { "locale": "ja", "text": "チェックイン日", "status": "preferred" },
+        { "locale": "de", "text": "Check-in-Datum", "status": "preferred" },
+        { "locale": "ko", "text": "체크인 날짜", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-020",
+      "subject": "accommodation",
+      "definition": "The date on which a guest is scheduled to leave a property.",
+      "terms": [
+        { "locale": "en", "text": "check-out date", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "ngày trả phòng", "status": "preferred" },
+        { "locale": "ja", "text": "チェックアウト日", "status": "preferred" },
+        { "locale": "de", "text": "Check-out-Datum", "status": "preferred" },
+        { "locale": "ko", "text": "체크아웃 날짜", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-021",
+      "subject": "flight",
+      "definition": "The direction or class of service selected for an airline journey.",
+      "terms": [
+        { "locale": "en", "text": "cabin class", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "hạng khoang", "status": "preferred" },
+        { "locale": "ja", "text": "客室クラス", "status": "preferred" },
+        { "locale": "de", "text": "Kabinenklasse", "status": "preferred" },
+        { "locale": "ko", "text": "객실 등급", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-022",
+      "subject": "flight",
+      "definition": "The standard airline cabin with the lowest typical service level.",
+      "terms": [
+        { "locale": "en", "text": "economy class", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "coach", "status": "admitted" },
+        { "locale": "vi", "text": "hạng phổ thông", "status": "preferred" },
+        { "locale": "ja", "text": "エコノミークラス", "status": "preferred" },
+        { "locale": "de", "text": "Economy Class", "status": "preferred" },
+        { "locale": "ko", "text": "이코노미 클래스", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-023",
+      "subject": "flight",
+      "definition": "An airline cabin positioned above economy and below business class.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "premium economy",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "hạng phổ thông đặc biệt", "status": "preferred" },
+        { "locale": "ja", "text": "プレミアムエコノミー", "status": "preferred" },
+        { "locale": "de", "text": "Premium Economy", "status": "preferred" },
+        { "locale": "ko", "text": "프리미엄 이코노미", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-024",
+      "subject": "flight",
+      "definition": "An airline cabin offering enhanced service and space above economy.",
+      "terms": [
+        { "locale": "en", "text": "business class", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "hạng thương gia", "status": "preferred" },
+        { "locale": "ja", "text": "ビジネスクラス", "status": "preferred" },
+        { "locale": "de", "text": "Business Class", "status": "preferred" },
+        { "locale": "ko", "text": "비즈니스 클래스", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-025",
+      "subject": "flight",
+      "definition": "The highest standard airline cabin with the most extensive service offering.",
+      "terms": [
+        { "locale": "en", "text": "first class", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "hạng nhất", "status": "preferred" },
+        { "locale": "ja", "text": "ファーストクラス", "status": "preferred" },
+        { "locale": "de", "text": "First Class", "status": "preferred" },
+        { "locale": "ko", "text": "퍼스트 클래스", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-026",
+      "subject": "flight",
+      "definition": "A named group of fare conditions and included benefits sold by an airline.",
+      "terms": [
+        { "locale": "en", "text": "fare family", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "nhóm giá vé", "status": "preferred" },
+        { "locale": "ja", "text": "運賃ファミリー", "status": "preferred" },
+        { "locale": "de", "text": "Tariffamilie", "status": "preferred" },
+        { "locale": "ko", "text": "운임 패밀리", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-027",
+      "subject": "flight",
+      "definition": "The option to choose a particular seat on a flight.",
+      "terms": [
+        { "locale": "en", "text": "seat selection", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "chọn chỗ ngồi", "status": "preferred" },
+        { "locale": "ja", "text": "座席指定", "status": "preferred" },
+        { "locale": "de", "text": "Sitzplatzauswahl", "status": "preferred" },
+        { "locale": "ko", "text": "좌석 선택", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-028",
+      "subject": "flight",
+      "definition": "The document or digital credential that allows a passenger to board a flight.",
+      "terms": [
+        { "locale": "en", "text": "boarding pass", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "thẻ lên máy bay", "status": "preferred" },
+        { "locale": "ja", "text": "搭乗券", "status": "preferred" },
+        { "locale": "de", "text": "Bordkarte", "status": "preferred" },
+        { "locale": "ko", "text": "탑승권", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-029",
+      "subject": "flight",
+      "definition": "A document or record that confirms a passenger's right to travel.",
+      "terms": [
+        { "locale": "en", "text": "ticket", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "vé", "status": "preferred" },
+        { "locale": "ja", "text": "航空券", "status": "preferred" },
+        { "locale": "de", "text": "Flugticket", "status": "preferred" },
+        { "locale": "ko", "text": "항공권", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-030",
+      "subject": "flight",
+      "definition": "An electronic version of a travel ticket stored digitally rather than printed.",
+      "terms": [
+        { "locale": "en", "text": "e-ticket", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "electronic ticket", "status": "admitted" },
+        { "locale": "vi", "text": "vé điện tử", "status": "preferred" },
+        { "locale": "ja", "text": "電子航空券", "status": "preferred" },
+        { "locale": "de", "text": "E-Ticket", "status": "preferred" },
+        { "locale": "ko", "text": "전자 항공권", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-031",
+      "subject": "traveler-data",
+      "definition": "The full name of the person traveling, as it appears on an identity document.",
+      "terms": [
+        { "locale": "en", "text": "passenger name", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "tên hành khách", "status": "preferred" },
+        { "locale": "ja", "text": "搭乗者名", "status": "preferred" },
+        { "locale": "de", "text": "Name der reisenden Person", "status": "preferred" },
+        { "locale": "ko", "text": "승객 이름", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-032",
+      "subject": "traveler-data",
+      "definition": "The calendar date on which a traveler was born.",
+      "terms": [
+        { "locale": "en", "text": "date of birth", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "ngày sinh", "status": "preferred" },
+        { "locale": "ja", "text": "生年月日", "status": "preferred" },
+        { "locale": "de", "text": "Geburtsdatum", "status": "preferred" },
+        { "locale": "ko", "text": "생년월일", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-033",
+      "subject": "traveler-data",
+      "definition": "The identifying number printed on a traveler's passport.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "passport number",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "số hộ chiếu", "status": "preferred" },
+        { "locale": "ja", "text": "パスポート番号", "status": "preferred" },
+        { "locale": "de", "text": "Reisepassnummer", "status": "preferred" },
+        { "locale": "ko", "text": "여권 번호", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-034",
+      "subject": "traveler-data",
+      "definition": "The membership identifier for an airline loyalty program.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "frequent flyer number",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "số hội viên hàng không thường xuyên", "status": "preferred" },
+        { "locale": "ja", "text": "マイレージ番号", "status": "preferred" },
+        { "locale": "de", "text": "Vielfliegernummer", "status": "preferred" },
+        { "locale": "ko", "text": "상용 고객 번호", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-035",
+      "subject": "traveler-data",
+      "definition": "A requested service or accommodation for a traveler with accessibility or health needs.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "special assistance",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "hỗ trợ đặc biệt", "status": "preferred" },
+        { "locale": "ja", "text": "特別サポート", "status": "preferred" },
+        { "locale": "de", "text": "besondere Unterstützung", "status": "preferred" },
+        { "locale": "ko", "text": "특별 지원", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-036",
+      "subject": "baggage",
+      "definition": "A small bag that a passenger may bring into the aircraft cabin.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "carry-on baggage",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "en", "text": "hand luggage", "status": "admitted" },
+        { "locale": "vi", "text": "hành lý xách tay", "status": "preferred" },
+        { "locale": "ja", "text": "機内持ち込み手荷物", "status": "preferred" },
+        { "locale": "de", "text": "Handgepäck", "status": "preferred" },
+        { "locale": "ko", "text": "기내 수하물", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-037",
+      "subject": "baggage",
+      "definition": "Baggage handed to the airline for transport in the aircraft hold.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "checked baggage",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "en", "text": "checked luggage", "status": "admitted" },
+        { "locale": "vi", "text": "hành lý ký gửi", "status": "preferred" },
+        { "locale": "ja", "text": "受託手荷物", "status": "preferred" },
+        { "locale": "de", "text": "Aufgabegepäck", "status": "preferred" },
+        { "locale": "ko", "text": "위탁 수하물", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-038",
+      "subject": "baggage",
+      "definition": "The amount, size, or weight of baggage included in a fare.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "baggage allowance",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "hạn mức hành lý", "status": "preferred" },
+        { "locale": "ja", "text": "手荷物許容量", "status": "preferred" },
+        { "locale": "de", "text": "Freigepäckmenge", "status": "preferred" },
+        { "locale": "ko", "text": "수하물 허용량", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-039",
+      "subject": "pricing",
+      "definition": "The price of travel before taxes, fees, and optional extras are added.",
+      "terms": [
+        { "locale": "en", "text": "base fare", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "giá vé cơ bản", "status": "preferred" },
+        { "locale": "ja", "text": "基本運賃", "status": "preferred" },
+        { "locale": "de", "text": "Grundtarif", "status": "preferred" },
+        { "locale": "ko", "text": "기본 운임", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-040",
+      "subject": "pricing",
+      "definition": "Mandatory government charges and service costs added to the base fare.",
+      "terms": [
+        { "locale": "en", "text": "taxes and fees", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "en", "text": "taxes & fees", "status": "admitted" },
+        { "locale": "vi", "text": "thuế và phí", "status": "preferred" },
+        { "locale": "ja", "text": "税金および手数料", "status": "preferred" },
+        { "locale": "de", "text": "Steuern und Gebühren", "status": "preferred" },
+        { "locale": "ko", "text": "세금 및 수수료", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-041",
+      "subject": "pricing",
+      "definition": "The complete amount payable for a booking, including mandatory charges.",
+      "terms": [
+        { "locale": "en", "text": "total price", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "tổng giá", "status": "preferred" },
+        { "locale": "ja", "text": "合計料金", "status": "preferred" },
+        { "locale": "de", "text": "Gesamtpreis", "status": "preferred" },
+        { "locale": "ko", "text": "총 가격", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-042",
+      "subject": "pricing",
+      "definition": "The conversion of a displayed or charged amount from one currency to another.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "currency conversion",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        { "locale": "vi", "text": "quy đổi tiền tệ", "status": "preferred" },
+        { "locale": "ja", "text": "通貨換算", "status": "preferred" },
+        { "locale": "de", "text": "Währungsumrechnung", "status": "preferred" },
+        { "locale": "ko", "text": "통화 환산", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-043",
+      "subject": "payment",
+      "definition": "The instrument or service used to pay for a booking.",
+      "terms": [
+        { "locale": "en", "text": "payment method", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "phương thức thanh toán", "status": "preferred" },
+        { "locale": "ja", "text": "支払い方法", "status": "preferred" },
+        { "locale": "de", "text": "Zahlungsmethode", "status": "preferred" },
+        { "locale": "ko", "text": "결제 수단", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-044",
+      "subject": "pricing",
+      "definition": "A notification that informs a traveler when the price of a tracked trip changes.",
+      "terms": [
+        { "locale": "en", "text": "price alert", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "cảnh báo giá", "status": "preferred" },
+        { "locale": "ja", "text": "料金アラート", "status": "preferred" },
+        { "locale": "de", "text": "Preisalarm", "status": "preferred" },
+        { "locale": "ko", "text": "가격 알림", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-045",
+      "subject": "accommodation",
+      "definition": "The cost charged for one night at an accommodation property.",
+      "terms": [
+        { "locale": "en", "text": "nightly rate", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "giá mỗi đêm", "status": "preferred" },
+        { "locale": "ja", "text": "1泊料金", "status": "preferred" },
+        { "locale": "de", "text": "Preis pro Nacht", "status": "preferred" },
+        { "locale": "ko", "text": "1박 요금", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-046",
+      "subject": "accommodation",
+      "definition": "A mandatory property charge that is separate from the advertised room rate.",
+      "terms": [
+        { "locale": "en", "text": "resort fee", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "phí khu nghỉ dưỡng", "status": "preferred" },
+        { "locale": "ja", "text": "リゾート料金", "status": "preferred" },
+        { "locale": "de", "text": "Resortgebühr", "status": "preferred" },
+        { "locale": "ko", "text": "리조트 요금", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-047",
+      "subject": "changes",
+      "definition": "Describing a fare or booking that permits money to be returned under its conditions.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "refundable",
+          "status": "preferred",
+          "partOfSpeech": "adjective"
+        },
+        { "locale": "vi", "text": "có thể hoàn tiền", "status": "preferred" },
+        { "locale": "ja", "text": "払い戻し可能", "status": "preferred" },
+        { "locale": "de", "text": "erstattungsfähig", "status": "preferred" },
+        { "locale": "ko", "text": "환불 가능", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-048",
+      "subject": "changes",
+      "definition": "The rules that explain when and how a booking may be canceled.",
+      "terms": [
+        {
+          "locale": "en",
+          "text": "cancellation policy",
+          "status": "preferred",
+          "partOfSpeech": "noun"
+        },
+        {
+          "locale": "en",
+          "text": "cancelation policy",
+          "status": "admitted",
+          "forbidden": true,
+          "description": "Use the double-l spelling cancellation in product copy."
+        },
+        { "locale": "vi", "text": "chính sách hủy", "status": "preferred" },
+        { "locale": "ja", "text": "キャンセルポリシー", "status": "preferred" },
+        { "locale": "de", "text": "Stornierungsbedingungen", "status": "preferred" },
+        { "locale": "ko", "text": "취소 정책", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-049",
+      "subject": "changes",
+      "definition": "A charge applied when a traveler changes an eligible part of a booking.",
+      "terms": [
+        { "locale": "en", "text": "change fee", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "phí thay đổi", "status": "preferred" },
+        { "locale": "ja", "text": "変更手数料", "status": "preferred" },
+        { "locale": "de", "text": "Änderungsgebühr", "status": "preferred" },
+        { "locale": "ko", "text": "변경 수수료", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-050",
+      "subject": "changes",
+      "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+      "terms": [
+        { "locale": "en", "text": "refund", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "hoàn tiền", "status": "preferred" },
+        { "locale": "ja", "text": "払い戻し", "status": "preferred" },
+        { "locale": "de", "text": "Rückerstattung", "status": "preferred" },
+        { "locale": "ko", "text": "환불", "status": "preferred" }
+      ]
+    }
+  ],
+  "queryCases": [
+    {
+      "id": "exact-primary",
+      "description": "Exact primary source terms.",
+      "expressions": ["destination", "round trip", "booking reference", "total price", "refund"]
+    },
+    {
+      "id": "phrases-and-punctuation",
+      "description": "Multi-word terms with casing and punctuation variants.",
+      "expressions": [
+        "Flexible dates",
+        "Check-in date",
+        "Taxes and fees",
+        "one-way",
+        "Baggage allowance"
+      ]
+    },
+    {
+      "id": "aliases-and-case",
+      "description": "Admitted aliases and case variants.",
+      "expressions": ["reservation code", "RETURN DATE", "direct flight", "lodging", "hand luggage"]
+    },
+    {
+      "id": "controls",
+      "description": "A proper noun, a known untranslatable-style code, a target-language expression, and an unknown term.",
+      "expressions": [
+        "PNR",
+        "TravelReady",
+        "予約番号",
+        "not-a-real-ota-term",
+        "cancellation policy"
+      ]
+    },
+    {
+      "id": "mixed-batch",
+      "description": "A representative batch spanning search, air, hotel, traveler, pricing, and changes.",
+      "expressions": [
+        "origin",
+        "departure date",
+        "nonstop flight",
+        "layover",
+        "accommodation",
+        "room type",
+        "one-way",
+        "itinerary",
+        "guest",
+        "boarding pass",
+        "e-ticket",
+        "passport number",
+        "carry-on baggage",
+        "base fare",
+        "taxes & fees",
+        "currency conversion",
+        "payment method",
+        "price alert",
+        "resort fee",
+        "refund"
+      ]
+    },
+    {
+      "id": "contextual-sentences",
+      "description": "Terms embedded in realistic OTA product-copy sentences, including multiple matches in one expression.",
+      "expressions": [
+        "Book a ticket for tomorrow.",
+        "Download your e-ticket after booking.",
+        "Compare a refundable fare with the base fare.",
+        "Your booking reference and reservation code are required.",
+        "Check-in date and check-out date are required.",
+        "Carry-on baggage is included in the baggage allowance.",
+        "Choose a nearby airport for your departure date.",
+        "A nonstop flight may still have a long layover.",
+        "Review the cancellation policy before requesting a refund.",
+        "Set a price alert when the total price changes."
+      ]
+    },
+    {
+      "id": "term-boundaries",
+      "description": "Standalone, embedded, hyphenated, and overlapping terms used to verify concordance boundaries.",
+      "expressions": [
+        "ticketing",
+        "bookings",
+        "refunds",
+        "non-refundable",
+        "e-ticket",
+        "Book a ticket",
+        "e-ticket ticket",
+        "reservationcode",
+        "pricealert",
+        "one-wayflight"
+      ]
+    },
+    {
+      "id": "statuses-and-overlap",
+      "description": "Preferred terms, admitted aliases, forbidden aliases, and nested concepts that can produce overlapping matches.",
+      "expressions": [
+        "return day",
+        "cancelation policy",
+        "reservation code",
+        "booking reference",
+        "direct flight",
+        "lodging",
+        "PNR",
+        "RETURN DATE",
+        "taxes & fees",
+        "return trip"
+      ]
+    },
+    {
+      "id": "locale-and-negative",
+      "description": "Target-language text, proper nouns, identifiers, dates, and unknown text that should not produce English-source matches.",
+      "expressions": [
+        "予約番号",
+        "Reiseziel",
+        "목적지",
+        "vé điện tử",
+        "TravelReady",
+        "not-a-real-ota-term",
+        "2026-09-04",
+        "OTA-12345",
+        "book xyz",
+        "mysterious-ota-token"
+      ]
+    }
+  ]
 }

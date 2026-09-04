@@ -3,12 +3,7 @@
   "capturedAt": "2026-09-03T18:41:00Z",
   "domain": "online-travel-agent",
   "sourceLanguageId": "en",
-  "targetLanguageIds": [
-    "vi",
-    "ja",
-    "de",
-    "ko"
-  ],
+  "targetLanguageIds": ["vi", "ja", "de", "ko"],
   "glossary": {
     "id": 724133,
     "name": "OTA Concordance Fixture",
@@ -22,9 +17,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "destination"
-        ]
+        "expressions": ["destination"]
       },
       "httpStatus": 200,
       "output": {
@@ -99,9 +92,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "round trip"
-        ]
+        "expressions": ["round trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -176,9 +167,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -310,9 +299,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "total price"
-        ]
+        "expressions": ["total price"]
       },
       "httpStatus": 200,
       "output": {
@@ -387,9 +374,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -464,9 +449,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Flexible dates"
-        ]
+        "expressions": ["Flexible dates"]
       },
       "httpStatus": 200,
       "output": {
@@ -541,9 +524,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Check-in date"
-        ]
+        "expressions": ["Check-in date"]
       },
       "httpStatus": 200,
       "output": {
@@ -618,9 +599,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Taxes and fees"
-        ]
+        "expressions": ["Taxes and fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -695,9 +674,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -772,9 +749,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Baggage allowance"
-        ]
+        "expressions": ["Baggage allowance"]
       },
       "httpStatus": 200,
       "output": {
@@ -849,9 +824,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -983,9 +956,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -1060,9 +1031,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -1137,9 +1106,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -1214,9 +1181,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "hand luggage"
-        ]
+        "expressions": ["hand luggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -1291,9 +1256,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -1368,9 +1331,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -1387,9 +1348,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -1406,9 +1365,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -1425,9 +1382,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "cancellation policy"
-        ]
+        "expressions": ["cancellation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -1502,9 +1457,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "origin"
-        ]
+        "expressions": ["origin"]
       },
       "httpStatus": 200,
       "output": {
@@ -1579,9 +1532,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "departure date"
-        ]
+        "expressions": ["departure date"]
       },
       "httpStatus": 200,
       "output": {
@@ -1656,9 +1607,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "nonstop flight"
-        ]
+        "expressions": ["nonstop flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -1733,9 +1682,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "layover"
-        ]
+        "expressions": ["layover"]
       },
       "httpStatus": 200,
       "output": {
@@ -1810,9 +1757,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "accommodation"
-        ]
+        "expressions": ["accommodation"]
       },
       "httpStatus": 200,
       "output": {
@@ -1887,9 +1832,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "room type"
-        ]
+        "expressions": ["room type"]
       },
       "httpStatus": 200,
       "output": {
@@ -1964,9 +1907,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -2041,9 +1982,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "itinerary"
-        ]
+        "expressions": ["itinerary"]
       },
       "httpStatus": 200,
       "output": {
@@ -2118,9 +2057,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "guest"
-        ]
+        "expressions": ["guest"]
       },
       "httpStatus": 200,
       "output": {
@@ -2195,9 +2132,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "boarding pass"
-        ]
+        "expressions": ["boarding pass"]
       },
       "httpStatus": 200,
       "output": {
@@ -2272,9 +2207,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -2349,9 +2282,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "passport number"
-        ]
+        "expressions": ["passport number"]
       },
       "httpStatus": 200,
       "output": {
@@ -2426,9 +2357,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "carry-on baggage"
-        ]
+        "expressions": ["carry-on baggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -2503,9 +2432,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "base fare"
-        ]
+        "expressions": ["base fare"]
       },
       "httpStatus": 200,
       "output": {
@@ -2580,9 +2507,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -2657,9 +2582,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "currency conversion"
-        ]
+        "expressions": ["currency conversion"]
       },
       "httpStatus": 200,
       "output": {
@@ -2734,9 +2657,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "payment method"
-        ]
+        "expressions": ["payment method"]
       },
       "httpStatus": 200,
       "output": {
@@ -2811,9 +2732,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "price alert"
-        ]
+        "expressions": ["price alert"]
       },
       "httpStatus": 200,
       "output": {
@@ -2888,9 +2807,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "resort fee"
-        ]
+        "expressions": ["resort fee"]
       },
       "httpStatus": 200,
       "output": {
@@ -2965,9 +2882,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -3042,9 +2957,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Book a ticket for tomorrow."
-        ]
+        "expressions": ["Book a ticket for tomorrow."]
       },
       "httpStatus": 200,
       "output": {
@@ -3176,9 +3089,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Download your e-ticket after booking."
-        ]
+        "expressions": ["Download your e-ticket after booking."]
       },
       "httpStatus": 200,
       "output": {
@@ -3310,9 +3221,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Compare a refundable fare with the base fare."
-        ]
+        "expressions": ["Compare a refundable fare with the base fare."]
       },
       "httpStatus": 200,
       "output": {
@@ -3444,9 +3353,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Your booking reference and reservation code are required."
-        ]
+        "expressions": ["Your booking reference and reservation code are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -3614,9 +3521,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Check-in date and check-out date are required."
-        ]
+        "expressions": ["Check-in date and check-out date are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -3748,9 +3653,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Carry-on baggage is included in the baggage allowance."
-        ]
+        "expressions": ["Carry-on baggage is included in the baggage allowance."]
       },
       "httpStatus": 200,
       "output": {
@@ -3882,9 +3785,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Choose a nearby airport for your departure date."
-        ]
+        "expressions": ["Choose a nearby airport for your departure date."]
       },
       "httpStatus": 200,
       "output": {
@@ -4016,9 +3917,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "A nonstop flight may still have a long layover."
-        ]
+        "expressions": ["A nonstop flight may still have a long layover."]
       },
       "httpStatus": 200,
       "output": {
@@ -4150,9 +4049,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Review the cancellation policy before requesting a refund."
-        ]
+        "expressions": ["Review the cancellation policy before requesting a refund."]
       },
       "httpStatus": 200,
       "output": {
@@ -4284,9 +4181,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Set a price alert when the total price changes."
-        ]
+        "expressions": ["Set a price alert when the total price changes."]
       },
       "httpStatus": 200,
       "output": {
@@ -4418,9 +4313,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "ticketing"
-        ]
+        "expressions": ["ticketing"]
       },
       "httpStatus": 200,
       "output": {
@@ -4437,9 +4330,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "bookings"
-        ]
+        "expressions": ["bookings"]
       },
       "httpStatus": 200,
       "output": {
@@ -4456,9 +4347,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "refunds"
-        ]
+        "expressions": ["refunds"]
       },
       "httpStatus": 200,
       "output": {
@@ -4533,9 +4422,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "non-refundable"
-        ]
+        "expressions": ["non-refundable"]
       },
       "httpStatus": 200,
       "output": {
@@ -4552,9 +4439,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -4629,9 +4514,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Book a ticket"
-        ]
+        "expressions": ["Book a ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -4763,9 +4646,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "e-ticket ticket"
-        ]
+        "expressions": ["e-ticket ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -4897,9 +4778,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "reservationcode"
-        ]
+        "expressions": ["reservationcode"]
       },
       "httpStatus": 200,
       "output": {
@@ -4916,9 +4795,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "pricealert"
-        ]
+        "expressions": ["pricealert"]
       },
       "httpStatus": 200,
       "output": {
@@ -4935,9 +4812,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "one-wayflight"
-        ]
+        "expressions": ["one-wayflight"]
       },
       "httpStatus": 200,
       "output": {
@@ -4954,9 +4829,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "return day"
-        ]
+        "expressions": ["return day"]
       },
       "httpStatus": 200,
       "output": {
@@ -5031,9 +4904,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "cancelation policy"
-        ]
+        "expressions": ["cancelation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -5108,9 +4979,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -5242,9 +5111,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -5376,9 +5243,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -5453,9 +5318,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -5530,9 +5393,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -5607,9 +5468,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -5684,9 +5543,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -5761,9 +5618,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "return trip"
-        ]
+        "expressions": ["return trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -5838,9 +5693,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -5857,9 +5710,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "Reiseziel"
-        ]
+        "expressions": ["Reiseziel"]
       },
       "httpStatus": 200,
       "output": {
@@ -5876,9 +5727,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "목적지"
-        ]
+        "expressions": ["목적지"]
       },
       "httpStatus": 200,
       "output": {
@@ -5895,9 +5744,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "vé điện tử"
-        ]
+        "expressions": ["vé điện tử"]
       },
       "httpStatus": 200,
       "output": {
@@ -5914,9 +5761,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -5933,9 +5778,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -5952,9 +5795,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "2026-09-04"
-        ]
+        "expressions": ["2026-09-04"]
       },
       "httpStatus": 200,
       "output": {
@@ -5971,9 +5812,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "OTA-12345"
-        ]
+        "expressions": ["OTA-12345"]
       },
       "httpStatus": 200,
       "output": {
@@ -5990,9 +5829,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "book xyz"
-        ]
+        "expressions": ["book xyz"]
       },
       "httpStatus": 200,
       "output": {
@@ -6067,9 +5904,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
-        "expressions": [
-          "mysterious-ota-token"
-        ]
+        "expressions": ["mysterious-ota-token"]
       },
       "httpStatus": 200,
       "output": {
@@ -6086,9 +5921,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "destination"
-        ]
+        "expressions": ["destination"]
       },
       "httpStatus": 200,
       "output": {
@@ -6163,9 +5996,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "round trip"
-        ]
+        "expressions": ["round trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -6240,9 +6071,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -6374,9 +6203,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "total price"
-        ]
+        "expressions": ["total price"]
       },
       "httpStatus": 200,
       "output": {
@@ -6451,9 +6278,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -6528,9 +6353,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Flexible dates"
-        ]
+        "expressions": ["Flexible dates"]
       },
       "httpStatus": 200,
       "output": {
@@ -6605,9 +6428,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Check-in date"
-        ]
+        "expressions": ["Check-in date"]
       },
       "httpStatus": 200,
       "output": {
@@ -6682,9 +6503,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Taxes and fees"
-        ]
+        "expressions": ["Taxes and fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -6759,9 +6578,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -6836,9 +6653,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Baggage allowance"
-        ]
+        "expressions": ["Baggage allowance"]
       },
       "httpStatus": 200,
       "output": {
@@ -6913,9 +6728,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -7047,9 +6860,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -7124,9 +6935,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -7201,9 +7010,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -7278,9 +7085,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "hand luggage"
-        ]
+        "expressions": ["hand luggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -7355,9 +7160,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -7432,9 +7235,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -7451,9 +7252,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -7470,9 +7269,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -7489,9 +7286,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "cancellation policy"
-        ]
+        "expressions": ["cancellation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -7566,9 +7361,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "origin"
-        ]
+        "expressions": ["origin"]
       },
       "httpStatus": 200,
       "output": {
@@ -7643,9 +7436,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "departure date"
-        ]
+        "expressions": ["departure date"]
       },
       "httpStatus": 200,
       "output": {
@@ -7720,9 +7511,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "nonstop flight"
-        ]
+        "expressions": ["nonstop flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -7797,9 +7586,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "layover"
-        ]
+        "expressions": ["layover"]
       },
       "httpStatus": 200,
       "output": {
@@ -7874,9 +7661,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "accommodation"
-        ]
+        "expressions": ["accommodation"]
       },
       "httpStatus": 200,
       "output": {
@@ -7951,9 +7736,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "room type"
-        ]
+        "expressions": ["room type"]
       },
       "httpStatus": 200,
       "output": {
@@ -8028,9 +7811,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -8105,9 +7886,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "itinerary"
-        ]
+        "expressions": ["itinerary"]
       },
       "httpStatus": 200,
       "output": {
@@ -8182,9 +7961,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "guest"
-        ]
+        "expressions": ["guest"]
       },
       "httpStatus": 200,
       "output": {
@@ -8259,9 +8036,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "boarding pass"
-        ]
+        "expressions": ["boarding pass"]
       },
       "httpStatus": 200,
       "output": {
@@ -8336,9 +8111,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -8413,9 +8186,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "passport number"
-        ]
+        "expressions": ["passport number"]
       },
       "httpStatus": 200,
       "output": {
@@ -8490,9 +8261,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "carry-on baggage"
-        ]
+        "expressions": ["carry-on baggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -8567,9 +8336,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "base fare"
-        ]
+        "expressions": ["base fare"]
       },
       "httpStatus": 200,
       "output": {
@@ -8644,9 +8411,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -8721,9 +8486,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "currency conversion"
-        ]
+        "expressions": ["currency conversion"]
       },
       "httpStatus": 200,
       "output": {
@@ -8798,9 +8561,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "payment method"
-        ]
+        "expressions": ["payment method"]
       },
       "httpStatus": 200,
       "output": {
@@ -8875,9 +8636,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "price alert"
-        ]
+        "expressions": ["price alert"]
       },
       "httpStatus": 200,
       "output": {
@@ -8952,9 +8711,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "resort fee"
-        ]
+        "expressions": ["resort fee"]
       },
       "httpStatus": 200,
       "output": {
@@ -9029,9 +8786,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -9106,9 +8861,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Book a ticket for tomorrow."
-        ]
+        "expressions": ["Book a ticket for tomorrow."]
       },
       "httpStatus": 200,
       "output": {
@@ -9240,9 +8993,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Download your e-ticket after booking."
-        ]
+        "expressions": ["Download your e-ticket after booking."]
       },
       "httpStatus": 200,
       "output": {
@@ -9374,9 +9125,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Compare a refundable fare with the base fare."
-        ]
+        "expressions": ["Compare a refundable fare with the base fare."]
       },
       "httpStatus": 200,
       "output": {
@@ -9508,9 +9257,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Your booking reference and reservation code are required."
-        ]
+        "expressions": ["Your booking reference and reservation code are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -9678,9 +9425,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Check-in date and check-out date are required."
-        ]
+        "expressions": ["Check-in date and check-out date are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -9812,9 +9557,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Carry-on baggage is included in the baggage allowance."
-        ]
+        "expressions": ["Carry-on baggage is included in the baggage allowance."]
       },
       "httpStatus": 200,
       "output": {
@@ -9946,9 +9689,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Choose a nearby airport for your departure date."
-        ]
+        "expressions": ["Choose a nearby airport for your departure date."]
       },
       "httpStatus": 200,
       "output": {
@@ -10080,9 +9821,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "A nonstop flight may still have a long layover."
-        ]
+        "expressions": ["A nonstop flight may still have a long layover."]
       },
       "httpStatus": 200,
       "output": {
@@ -10214,9 +9953,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Review the cancellation policy before requesting a refund."
-        ]
+        "expressions": ["Review the cancellation policy before requesting a refund."]
       },
       "httpStatus": 200,
       "output": {
@@ -10348,9 +10085,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Set a price alert when the total price changes."
-        ]
+        "expressions": ["Set a price alert when the total price changes."]
       },
       "httpStatus": 200,
       "output": {
@@ -10482,9 +10217,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "ticketing"
-        ]
+        "expressions": ["ticketing"]
       },
       "httpStatus": 200,
       "output": {
@@ -10501,9 +10234,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "bookings"
-        ]
+        "expressions": ["bookings"]
       },
       "httpStatus": 200,
       "output": {
@@ -10520,9 +10251,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "refunds"
-        ]
+        "expressions": ["refunds"]
       },
       "httpStatus": 200,
       "output": {
@@ -10597,9 +10326,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "non-refundable"
-        ]
+        "expressions": ["non-refundable"]
       },
       "httpStatus": 200,
       "output": {
@@ -10616,9 +10343,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -10693,9 +10418,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Book a ticket"
-        ]
+        "expressions": ["Book a ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -10827,9 +10550,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "e-ticket ticket"
-        ]
+        "expressions": ["e-ticket ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -10961,9 +10682,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "reservationcode"
-        ]
+        "expressions": ["reservationcode"]
       },
       "httpStatus": 200,
       "output": {
@@ -10980,9 +10699,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "pricealert"
-        ]
+        "expressions": ["pricealert"]
       },
       "httpStatus": 200,
       "output": {
@@ -10999,9 +10716,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "one-wayflight"
-        ]
+        "expressions": ["one-wayflight"]
       },
       "httpStatus": 200,
       "output": {
@@ -11018,9 +10733,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "return day"
-        ]
+        "expressions": ["return day"]
       },
       "httpStatus": 200,
       "output": {
@@ -11095,9 +10808,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "cancelation policy"
-        ]
+        "expressions": ["cancelation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -11172,9 +10883,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -11306,9 +11015,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -11440,9 +11147,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -11517,9 +11222,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -11594,9 +11297,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -11671,9 +11372,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -11748,9 +11447,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -11825,9 +11522,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "return trip"
-        ]
+        "expressions": ["return trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -11902,9 +11597,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -11921,9 +11614,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "Reiseziel"
-        ]
+        "expressions": ["Reiseziel"]
       },
       "httpStatus": 200,
       "output": {
@@ -11940,9 +11631,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "목적지"
-        ]
+        "expressions": ["목적지"]
       },
       "httpStatus": 200,
       "output": {
@@ -11959,9 +11648,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "vé điện tử"
-        ]
+        "expressions": ["vé điện tử"]
       },
       "httpStatus": 200,
       "output": {
@@ -11978,9 +11665,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -11997,9 +11682,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -12016,9 +11699,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "2026-09-04"
-        ]
+        "expressions": ["2026-09-04"]
       },
       "httpStatus": 200,
       "output": {
@@ -12035,9 +11716,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "OTA-12345"
-        ]
+        "expressions": ["OTA-12345"]
       },
       "httpStatus": 200,
       "output": {
@@ -12054,9 +11733,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "book xyz"
-        ]
+        "expressions": ["book xyz"]
       },
       "httpStatus": 200,
       "output": {
@@ -12131,9 +11808,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ja",
-        "expressions": [
-          "mysterious-ota-token"
-        ]
+        "expressions": ["mysterious-ota-token"]
       },
       "httpStatus": 200,
       "output": {
@@ -12150,9 +11825,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "destination"
-        ]
+        "expressions": ["destination"]
       },
       "httpStatus": 200,
       "output": {
@@ -12227,9 +11900,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "round trip"
-        ]
+        "expressions": ["round trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -12304,9 +11975,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -12438,9 +12107,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "total price"
-        ]
+        "expressions": ["total price"]
       },
       "httpStatus": 200,
       "output": {
@@ -12515,9 +12182,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -12592,9 +12257,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Flexible dates"
-        ]
+        "expressions": ["Flexible dates"]
       },
       "httpStatus": 200,
       "output": {
@@ -12669,9 +12332,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Check-in date"
-        ]
+        "expressions": ["Check-in date"]
       },
       "httpStatus": 200,
       "output": {
@@ -12746,9 +12407,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Taxes and fees"
-        ]
+        "expressions": ["Taxes and fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -12823,9 +12482,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -12900,9 +12557,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Baggage allowance"
-        ]
+        "expressions": ["Baggage allowance"]
       },
       "httpStatus": 200,
       "output": {
@@ -12977,9 +12632,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -13111,9 +12764,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -13188,9 +12839,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -13265,9 +12914,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -13342,9 +12989,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "hand luggage"
-        ]
+        "expressions": ["hand luggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -13419,9 +13064,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -13496,9 +13139,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -13515,9 +13156,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -13534,9 +13173,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -13553,9 +13190,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "cancellation policy"
-        ]
+        "expressions": ["cancellation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -13630,9 +13265,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "origin"
-        ]
+        "expressions": ["origin"]
       },
       "httpStatus": 200,
       "output": {
@@ -13707,9 +13340,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "departure date"
-        ]
+        "expressions": ["departure date"]
       },
       "httpStatus": 200,
       "output": {
@@ -13784,9 +13415,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "nonstop flight"
-        ]
+        "expressions": ["nonstop flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -13861,9 +13490,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "layover"
-        ]
+        "expressions": ["layover"]
       },
       "httpStatus": 200,
       "output": {
@@ -13938,9 +13565,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "accommodation"
-        ]
+        "expressions": ["accommodation"]
       },
       "httpStatus": 200,
       "output": {
@@ -14015,9 +13640,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "room type"
-        ]
+        "expressions": ["room type"]
       },
       "httpStatus": 200,
       "output": {
@@ -14092,9 +13715,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -14169,9 +13790,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "itinerary"
-        ]
+        "expressions": ["itinerary"]
       },
       "httpStatus": 200,
       "output": {
@@ -14246,9 +13865,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "guest"
-        ]
+        "expressions": ["guest"]
       },
       "httpStatus": 200,
       "output": {
@@ -14323,9 +13940,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "boarding pass"
-        ]
+        "expressions": ["boarding pass"]
       },
       "httpStatus": 200,
       "output": {
@@ -14400,9 +14015,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -14477,9 +14090,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "passport number"
-        ]
+        "expressions": ["passport number"]
       },
       "httpStatus": 200,
       "output": {
@@ -14554,9 +14165,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "carry-on baggage"
-        ]
+        "expressions": ["carry-on baggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -14631,9 +14240,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "base fare"
-        ]
+        "expressions": ["base fare"]
       },
       "httpStatus": 200,
       "output": {
@@ -14708,9 +14315,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -14785,9 +14390,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "currency conversion"
-        ]
+        "expressions": ["currency conversion"]
       },
       "httpStatus": 200,
       "output": {
@@ -14862,9 +14465,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "payment method"
-        ]
+        "expressions": ["payment method"]
       },
       "httpStatus": 200,
       "output": {
@@ -14939,9 +14540,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "price alert"
-        ]
+        "expressions": ["price alert"]
       },
       "httpStatus": 200,
       "output": {
@@ -15016,9 +14615,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "resort fee"
-        ]
+        "expressions": ["resort fee"]
       },
       "httpStatus": 200,
       "output": {
@@ -15093,9 +14690,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -15170,9 +14765,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Book a ticket for tomorrow."
-        ]
+        "expressions": ["Book a ticket for tomorrow."]
       },
       "httpStatus": 200,
       "output": {
@@ -15304,9 +14897,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Download your e-ticket after booking."
-        ]
+        "expressions": ["Download your e-ticket after booking."]
       },
       "httpStatus": 200,
       "output": {
@@ -15438,9 +15029,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Compare a refundable fare with the base fare."
-        ]
+        "expressions": ["Compare a refundable fare with the base fare."]
       },
       "httpStatus": 200,
       "output": {
@@ -15572,9 +15161,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Your booking reference and reservation code are required."
-        ]
+        "expressions": ["Your booking reference and reservation code are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -15742,9 +15329,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Check-in date and check-out date are required."
-        ]
+        "expressions": ["Check-in date and check-out date are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -15876,9 +15461,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Carry-on baggage is included in the baggage allowance."
-        ]
+        "expressions": ["Carry-on baggage is included in the baggage allowance."]
       },
       "httpStatus": 200,
       "output": {
@@ -16010,9 +15593,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Choose a nearby airport for your departure date."
-        ]
+        "expressions": ["Choose a nearby airport for your departure date."]
       },
       "httpStatus": 200,
       "output": {
@@ -16144,9 +15725,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "A nonstop flight may still have a long layover."
-        ]
+        "expressions": ["A nonstop flight may still have a long layover."]
       },
       "httpStatus": 200,
       "output": {
@@ -16278,9 +15857,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Review the cancellation policy before requesting a refund."
-        ]
+        "expressions": ["Review the cancellation policy before requesting a refund."]
       },
       "httpStatus": 200,
       "output": {
@@ -16412,9 +15989,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Set a price alert when the total price changes."
-        ]
+        "expressions": ["Set a price alert when the total price changes."]
       },
       "httpStatus": 200,
       "output": {
@@ -16546,9 +16121,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "ticketing"
-        ]
+        "expressions": ["ticketing"]
       },
       "httpStatus": 200,
       "output": {
@@ -16565,9 +16138,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "bookings"
-        ]
+        "expressions": ["bookings"]
       },
       "httpStatus": 200,
       "output": {
@@ -16584,9 +16155,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "refunds"
-        ]
+        "expressions": ["refunds"]
       },
       "httpStatus": 200,
       "output": {
@@ -16661,9 +16230,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "non-refundable"
-        ]
+        "expressions": ["non-refundable"]
       },
       "httpStatus": 200,
       "output": {
@@ -16680,9 +16247,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -16757,9 +16322,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Book a ticket"
-        ]
+        "expressions": ["Book a ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -16891,9 +16454,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "e-ticket ticket"
-        ]
+        "expressions": ["e-ticket ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -17025,9 +16586,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "reservationcode"
-        ]
+        "expressions": ["reservationcode"]
       },
       "httpStatus": 200,
       "output": {
@@ -17044,9 +16603,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "pricealert"
-        ]
+        "expressions": ["pricealert"]
       },
       "httpStatus": 200,
       "output": {
@@ -17063,9 +16620,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "one-wayflight"
-        ]
+        "expressions": ["one-wayflight"]
       },
       "httpStatus": 200,
       "output": {
@@ -17082,9 +16637,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "return day"
-        ]
+        "expressions": ["return day"]
       },
       "httpStatus": 200,
       "output": {
@@ -17159,9 +16712,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "cancelation policy"
-        ]
+        "expressions": ["cancelation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -17236,9 +16787,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -17370,9 +16919,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -17504,9 +17051,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -17581,9 +17126,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -17658,9 +17201,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -17735,9 +17276,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -17812,9 +17351,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -17889,9 +17426,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "return trip"
-        ]
+        "expressions": ["return trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -17966,9 +17501,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -17985,9 +17518,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "Reiseziel"
-        ]
+        "expressions": ["Reiseziel"]
       },
       "httpStatus": 200,
       "output": {
@@ -18004,9 +17535,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "목적지"
-        ]
+        "expressions": ["목적지"]
       },
       "httpStatus": 200,
       "output": {
@@ -18023,9 +17552,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "vé điện tử"
-        ]
+        "expressions": ["vé điện tử"]
       },
       "httpStatus": 200,
       "output": {
@@ -18042,9 +17569,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -18061,9 +17586,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -18080,9 +17603,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "2026-09-04"
-        ]
+        "expressions": ["2026-09-04"]
       },
       "httpStatus": 200,
       "output": {
@@ -18099,9 +17620,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "OTA-12345"
-        ]
+        "expressions": ["OTA-12345"]
       },
       "httpStatus": 200,
       "output": {
@@ -18118,9 +17637,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "book xyz"
-        ]
+        "expressions": ["book xyz"]
       },
       "httpStatus": 200,
       "output": {
@@ -18195,9 +17712,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "de",
-        "expressions": [
-          "mysterious-ota-token"
-        ]
+        "expressions": ["mysterious-ota-token"]
       },
       "httpStatus": 200,
       "output": {
@@ -18214,9 +17729,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "destination"
-        ]
+        "expressions": ["destination"]
       },
       "httpStatus": 200,
       "output": {
@@ -18291,9 +17804,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "round trip"
-        ]
+        "expressions": ["round trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -18368,9 +17879,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -18502,9 +18011,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "total price"
-        ]
+        "expressions": ["total price"]
       },
       "httpStatus": 200,
       "output": {
@@ -18579,9 +18086,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -18656,9 +18161,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Flexible dates"
-        ]
+        "expressions": ["Flexible dates"]
       },
       "httpStatus": 200,
       "output": {
@@ -18733,9 +18236,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Check-in date"
-        ]
+        "expressions": ["Check-in date"]
       },
       "httpStatus": 200,
       "output": {
@@ -18810,9 +18311,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Taxes and fees"
-        ]
+        "expressions": ["Taxes and fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -18887,9 +18386,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -18964,9 +18461,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Baggage allowance"
-        ]
+        "expressions": ["Baggage allowance"]
       },
       "httpStatus": 200,
       "output": {
@@ -19041,9 +18536,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -19175,9 +18668,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -19252,9 +18743,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -19329,9 +18818,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -19406,9 +18893,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "hand luggage"
-        ]
+        "expressions": ["hand luggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -19483,9 +18968,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -19560,9 +19043,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -19579,9 +19060,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -19598,9 +19077,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -19617,9 +19094,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "cancellation policy"
-        ]
+        "expressions": ["cancellation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -19694,9 +19169,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "origin"
-        ]
+        "expressions": ["origin"]
       },
       "httpStatus": 200,
       "output": {
@@ -19771,9 +19244,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "departure date"
-        ]
+        "expressions": ["departure date"]
       },
       "httpStatus": 200,
       "output": {
@@ -19848,9 +19319,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "nonstop flight"
-        ]
+        "expressions": ["nonstop flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -19925,9 +19394,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "layover"
-        ]
+        "expressions": ["layover"]
       },
       "httpStatus": 200,
       "output": {
@@ -20002,9 +19469,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "accommodation"
-        ]
+        "expressions": ["accommodation"]
       },
       "httpStatus": 200,
       "output": {
@@ -20079,9 +19544,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "room type"
-        ]
+        "expressions": ["room type"]
       },
       "httpStatus": 200,
       "output": {
@@ -20156,9 +19619,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "one-way"
-        ]
+        "expressions": ["one-way"]
       },
       "httpStatus": 200,
       "output": {
@@ -20233,9 +19694,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "itinerary"
-        ]
+        "expressions": ["itinerary"]
       },
       "httpStatus": 200,
       "output": {
@@ -20310,9 +19769,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "guest"
-        ]
+        "expressions": ["guest"]
       },
       "httpStatus": 200,
       "output": {
@@ -20387,9 +19844,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "boarding pass"
-        ]
+        "expressions": ["boarding pass"]
       },
       "httpStatus": 200,
       "output": {
@@ -20464,9 +19919,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -20541,9 +19994,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "passport number"
-        ]
+        "expressions": ["passport number"]
       },
       "httpStatus": 200,
       "output": {
@@ -20618,9 +20069,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "carry-on baggage"
-        ]
+        "expressions": ["carry-on baggage"]
       },
       "httpStatus": 200,
       "output": {
@@ -20695,9 +20144,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "base fare"
-        ]
+        "expressions": ["base fare"]
       },
       "httpStatus": 200,
       "output": {
@@ -20772,9 +20219,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -20849,9 +20294,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "currency conversion"
-        ]
+        "expressions": ["currency conversion"]
       },
       "httpStatus": 200,
       "output": {
@@ -20926,9 +20369,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "payment method"
-        ]
+        "expressions": ["payment method"]
       },
       "httpStatus": 200,
       "output": {
@@ -21003,9 +20444,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "price alert"
-        ]
+        "expressions": ["price alert"]
       },
       "httpStatus": 200,
       "output": {
@@ -21080,9 +20519,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "resort fee"
-        ]
+        "expressions": ["resort fee"]
       },
       "httpStatus": 200,
       "output": {
@@ -21157,9 +20594,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "refund"
-        ]
+        "expressions": ["refund"]
       },
       "httpStatus": 200,
       "output": {
@@ -21234,9 +20669,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Book a ticket for tomorrow."
-        ]
+        "expressions": ["Book a ticket for tomorrow."]
       },
       "httpStatus": 200,
       "output": {
@@ -21368,9 +20801,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Download your e-ticket after booking."
-        ]
+        "expressions": ["Download your e-ticket after booking."]
       },
       "httpStatus": 200,
       "output": {
@@ -21502,9 +20933,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Compare a refundable fare with the base fare."
-        ]
+        "expressions": ["Compare a refundable fare with the base fare."]
       },
       "httpStatus": 200,
       "output": {
@@ -21636,9 +21065,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Your booking reference and reservation code are required."
-        ]
+        "expressions": ["Your booking reference and reservation code are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -21806,9 +21233,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Check-in date and check-out date are required."
-        ]
+        "expressions": ["Check-in date and check-out date are required."]
       },
       "httpStatus": 200,
       "output": {
@@ -21940,9 +21365,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Carry-on baggage is included in the baggage allowance."
-        ]
+        "expressions": ["Carry-on baggage is included in the baggage allowance."]
       },
       "httpStatus": 200,
       "output": {
@@ -22074,9 +21497,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Choose a nearby airport for your departure date."
-        ]
+        "expressions": ["Choose a nearby airport for your departure date."]
       },
       "httpStatus": 200,
       "output": {
@@ -22208,9 +21629,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "A nonstop flight may still have a long layover."
-        ]
+        "expressions": ["A nonstop flight may still have a long layover."]
       },
       "httpStatus": 200,
       "output": {
@@ -22342,9 +21761,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Review the cancellation policy before requesting a refund."
-        ]
+        "expressions": ["Review the cancellation policy before requesting a refund."]
       },
       "httpStatus": 200,
       "output": {
@@ -22476,9 +21893,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Set a price alert when the total price changes."
-        ]
+        "expressions": ["Set a price alert when the total price changes."]
       },
       "httpStatus": 200,
       "output": {
@@ -22610,9 +22025,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "ticketing"
-        ]
+        "expressions": ["ticketing"]
       },
       "httpStatus": 200,
       "output": {
@@ -22629,9 +22042,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "bookings"
-        ]
+        "expressions": ["bookings"]
       },
       "httpStatus": 200,
       "output": {
@@ -22648,9 +22059,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "refunds"
-        ]
+        "expressions": ["refunds"]
       },
       "httpStatus": 200,
       "output": {
@@ -22725,9 +22134,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "non-refundable"
-        ]
+        "expressions": ["non-refundable"]
       },
       "httpStatus": 200,
       "output": {
@@ -22744,9 +22151,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "e-ticket"
-        ]
+        "expressions": ["e-ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -22821,9 +22226,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Book a ticket"
-        ]
+        "expressions": ["Book a ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -22955,9 +22358,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "e-ticket ticket"
-        ]
+        "expressions": ["e-ticket ticket"]
       },
       "httpStatus": 200,
       "output": {
@@ -23089,9 +22490,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "reservationcode"
-        ]
+        "expressions": ["reservationcode"]
       },
       "httpStatus": 200,
       "output": {
@@ -23108,9 +22507,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "pricealert"
-        ]
+        "expressions": ["pricealert"]
       },
       "httpStatus": 200,
       "output": {
@@ -23127,9 +22524,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "one-wayflight"
-        ]
+        "expressions": ["one-wayflight"]
       },
       "httpStatus": 200,
       "output": {
@@ -23146,9 +22541,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "return day"
-        ]
+        "expressions": ["return day"]
       },
       "httpStatus": 200,
       "output": {
@@ -23223,9 +22616,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "cancelation policy"
-        ]
+        "expressions": ["cancelation policy"]
       },
       "httpStatus": 200,
       "output": {
@@ -23300,9 +22691,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "reservation code"
-        ]
+        "expressions": ["reservation code"]
       },
       "httpStatus": 200,
       "output": {
@@ -23434,9 +22823,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "booking reference"
-        ]
+        "expressions": ["booking reference"]
       },
       "httpStatus": 200,
       "output": {
@@ -23568,9 +22955,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "direct flight"
-        ]
+        "expressions": ["direct flight"]
       },
       "httpStatus": 200,
       "output": {
@@ -23645,9 +23030,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "lodging"
-        ]
+        "expressions": ["lodging"]
       },
       "httpStatus": 200,
       "output": {
@@ -23722,9 +23105,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "PNR"
-        ]
+        "expressions": ["PNR"]
       },
       "httpStatus": 200,
       "output": {
@@ -23799,9 +23180,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "RETURN DATE"
-        ]
+        "expressions": ["RETURN DATE"]
       },
       "httpStatus": 200,
       "output": {
@@ -23876,9 +23255,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "taxes \u0026 fees"
-        ]
+        "expressions": ["taxes \u0026 fees"]
       },
       "httpStatus": 200,
       "output": {
@@ -23953,9 +23330,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "return trip"
-        ]
+        "expressions": ["return trip"]
       },
       "httpStatus": 200,
       "output": {
@@ -24030,9 +23405,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "予約番号"
-        ]
+        "expressions": ["予約番号"]
       },
       "httpStatus": 200,
       "output": {
@@ -24049,9 +23422,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "Reiseziel"
-        ]
+        "expressions": ["Reiseziel"]
       },
       "httpStatus": 200,
       "output": {
@@ -24068,9 +23439,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "목적지"
-        ]
+        "expressions": ["목적지"]
       },
       "httpStatus": 200,
       "output": {
@@ -24087,9 +23456,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "vé điện tử"
-        ]
+        "expressions": ["vé điện tử"]
       },
       "httpStatus": 200,
       "output": {
@@ -24106,9 +23473,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "TravelReady"
-        ]
+        "expressions": ["TravelReady"]
       },
       "httpStatus": 200,
       "output": {
@@ -24125,9 +23490,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "not-a-real-ota-term"
-        ]
+        "expressions": ["not-a-real-ota-term"]
       },
       "httpStatus": 200,
       "output": {
@@ -24144,9 +23507,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "2026-09-04"
-        ]
+        "expressions": ["2026-09-04"]
       },
       "httpStatus": 200,
       "output": {
@@ -24163,9 +23524,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "OTA-12345"
-        ]
+        "expressions": ["OTA-12345"]
       },
       "httpStatus": 200,
       "output": {
@@ -24182,9 +23541,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "book xyz"
-        ]
+        "expressions": ["book xyz"]
       },
       "httpStatus": 200,
       "output": {
@@ -24259,9 +23616,7 @@
       "input": {
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
-        "expressions": [
-          "mysterious-ota-token"
-        ]
+        "expressions": ["mysterious-ota-token"]
       },
       "httpStatus": 200,
       "output": {
