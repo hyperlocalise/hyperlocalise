@@ -22,6 +22,7 @@ import {
 import { AutomationsMockUI } from "@/components/marketing/product/automations-mock-ui";
 import { DomainsMockUI } from "@/components/marketing/product/domains-mock-ui";
 import { GuidelineMockUI } from "@/components/marketing/product/guideline-mock-ui";
+import { HyperlabMockUI } from "@/components/marketing/product/hyperlab-mock-ui";
 import type { MarketingMockMeshPosition } from "@/components/marketing/product/marketing-mock-shell";
 
 import { FeatureTeaserCtaPanel } from "./feature-teaser-cta-panel";
@@ -48,6 +49,8 @@ function FeatureTeaserShowcase({ feature, aside }: { feature: FeatureTeaserId; a
       return <GuidelineMockUI {...teaserMockProps} aside={aside} />;
     case "domains":
       return <DomainsMockUI {...teaserMockProps} aside={aside} />;
+    case "hyperlab":
+      return <HyperlabMockUI {...teaserMockProps} aside={aside} />;
   }
 }
 

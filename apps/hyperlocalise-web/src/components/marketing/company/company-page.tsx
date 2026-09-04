@@ -41,7 +41,7 @@ export function CompanyPage({ locale }: CompanyPageProps) {
         <section className="px-5 pt-16 pb-16 sm:px-8 sm:pt-20 sm:pb-20 lg:px-10">
           <div className="max-w-4xl space-y-6">
             <TypographyH1>{copy.headline}</TypographyH1>
-            <TypographyP className="max-w-2xl text-lg text-muted-foreground">
+            <TypographyP className="max-w-2xl" size="large" tone="subtle">
               {copy.subcopy}
             </TypographyP>
             <div className="pt-2">
@@ -71,7 +71,8 @@ export function CompanyPage({ locale }: CompanyPageProps) {
           <div className="px-5 py-16 sm:px-8 sm:py-20 lg:px-10">
             <TypographyH2
               id="company-backed-by-heading"
-              className="pb-0 text-3xl leading-tight tracking-[-0.03em] text-muted-foreground sm:text-4xl md:text-5xl"
+              className="pb-0 text-3xl leading-tight tracking-[-0.03em] sm:text-4xl md:text-5xl"
+              tone="subtle"
             >
               {copy.backedByHeading}
             </TypographyH2>
@@ -106,10 +107,7 @@ export function CompanyPage({ locale }: CompanyPageProps) {
             </TypographyH2>
             <div className="space-y-5">
               {copy.foundersNoteParagraphs.map((paragraph) => (
-                <TypographyP
-                  key={paragraph}
-                  className="text-base leading-7 text-muted-foreground sm:text-lg"
-                >
+                <TypographyP key={paragraph} className="sm:text-lg" tone="subtle">
                   {paragraph}
                 </TypographyP>
               ))}

@@ -81,9 +81,13 @@ export function PlanUsageSummaryContent({ summary }: { summary: ResolvedPlanUsag
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <TypographyP className="text-sm font-medium text-foreground">{planName}</TypographyP>
+        <TypographyP size="small" weight="medium" tone="content">
+          {planName}
+        </TypographyP>
         {renewalCopy ? (
-          <TypographyP className="text-sm text-muted-foreground">{renewalCopy}</TypographyP>
+          <TypographyP size="small" tone="subtle">
+            {renewalCopy}
+          </TypographyP>
         ) : null}
       </div>
       {summary.usageProgressPercent !== null ? (
@@ -93,7 +97,7 @@ export function PlanUsageSummaryContent({ summary }: { summary: ResolvedPlanUsag
           className="[&_[data-slot=progress-track]]:h-2"
         />
       ) : null}
-      <TypographyP className="text-sm text-subtle-foreground tabular-nums">
+      <TypographyP className="tabular-nums" size="small" tone="subtlest">
         {summary.usageSummary}
       </TypographyP>
     </div>
@@ -143,7 +147,6 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
         render={
           <Button
             variant="outline"
-            size="xs"
             aria-label={intl.formatMessage(planUsageSummaryMessages.openPlanUsageAriaLabel, {
               planName,
             })}
@@ -168,7 +171,7 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
 
         {isLoading ? <PlanUsageSummarySkeleton /> : null}
         {hasError ? (
-          <TypographyP className="text-sm text-destructive">
+          <TypographyP size="small" tone="critical">
             <FormattedMessage {...planUsageSummaryMessages.loadError} />
           </TypographyP>
         ) : null}

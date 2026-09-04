@@ -211,15 +211,15 @@ export function PersonalAccessTokensPageContent({
 
         <section aria-label={intl.formatMessage(messages.sectionAriaLabel)}>
           {tokensQuery.isLoading ? (
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...messages.loading} />
             </TypographyP>
           ) : tokensQuery.isError ? (
             <Rows spacing="0.5u">
-              <TypographyP className="text-sm font-medium text-destructive">
+              <TypographyP size="small" weight="medium" tone="critical">
                 <FormattedMessage {...messages.loadErrorTitle} />
               </TypographyP>
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 {tokensQuery.error instanceof Error
                   ? tokensQuery.error.message
                   : intl.formatMessage(messages.loadErrorFallback)}
@@ -227,10 +227,15 @@ export function PersonalAccessTokensPageContent({
             </Rows>
           ) : tokens.length === 0 ? (
             <Rows spacing="1u">
-              <TypographyP className="text-sm font-medium text-foreground">
+              <TypographyP size="small" weight="medium" tone="content">
                 <FormattedMessage {...messages.emptyTitle} />
               </TypographyP>
-              <TypographyP className="max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
+              <TypographyP
+                className="max-w-xl leading-6"
+                wrapStyle="pretty"
+                size="small"
+                tone="subtle"
+              >
                 <FormattedMessage {...messages.emptyDescription} />
               </TypographyP>
             </Rows>

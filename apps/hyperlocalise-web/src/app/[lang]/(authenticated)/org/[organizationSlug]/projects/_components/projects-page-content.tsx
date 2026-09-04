@@ -77,8 +77,12 @@ function useProjectSearch(projects: ProjectListRow[]) {
 function ProjectsSectionHeader({ title, description }: { title: string; description: string }) {
   return (
     <div className="space-y-1">
-      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
-      <TypographyP className="text-sm leading-6 text-muted-foreground">{description}</TypographyP>
+      <TypographyP size="small" weight="medium" tone="content">
+        {title}
+      </TypographyP>
+      <TypographyP className="leading-6" size="small" tone="subtle">
+        {description}
+      </TypographyP>
     </div>
   );
 }
@@ -98,7 +102,13 @@ function RecentProjectsStrip({
 
   return (
     <section className="space-y-3">
-      <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+      <TypographyP
+        className="tracking-[0.08em]"
+        size="xsmall"
+        weight="medium"
+        tone="subtle"
+        capitalization="uppercase"
+      >
         <FormattedMessage {...projectsPageContentMessages.recentlyOpened} />
       </TypographyP>
       <div className="flex flex-wrap gap-2">

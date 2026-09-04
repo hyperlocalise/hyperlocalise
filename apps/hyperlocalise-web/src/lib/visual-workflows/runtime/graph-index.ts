@@ -61,16 +61,32 @@ export function buildVisualWorkflowGraphIndex(
 export function selectNextEdges(input: {
   nodeType: VisualCatalogType;
   branchResult: boolean | null;
+  switchCase: string | null;
+  useErrorBranch: boolean;
   outgoing: readonly CanonicalVisualWorkflowEdge[];
 }): CanonicalVisualWorkflowEdge[] {
+  if (input.useErrorBranch) {
+    return input.outgoing.filter((edge) => edge.sourceHandle === "error");
+  }
+
   if (input.nodeType === "logic.if") {
     const handle = input.branchResult ? "true" : "false";
     return input.outgoing.filter((edge) => edge.sourceHandle === handle);
   }
 
-  if (input.outgoing.length <= 1) {
-    return [...input.outgoing];
+  if (input.nodeType === "logic.switch") {
+    const handle = input.switchCase ?? "default";
+    const matched = input.outgoing.filter((edge) => edge.sourceHandle === handle);
+    if (matched.length > 0) {
+      return matched;
+    }
+    return input.outgoing.filter((edge) => edge.sourceHandle === "default");
   }
 
-  return [...input.outgoing].toSorted((left, right) => left.target.localeCompare(right.target));
+  const successEdges = input.outgoing.filter((edge) => edge.sourceHandle !== "error");
+  if (successEdges.length <= 1) {
+    return [...successEdges];
+  }
+
+  return [...successEdges].toSorted((left, right) => left.target.localeCompare(right.target));
 }

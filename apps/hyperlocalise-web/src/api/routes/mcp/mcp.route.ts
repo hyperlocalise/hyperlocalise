@@ -42,6 +42,7 @@ import {
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
 import {
   findAccessiblePublicJob,
+  listAccessiblePublicJobs,
   toMcpJobEnvelope,
 } from "@/api/routes/public-jobs/public-jobs.read";
 import {
@@ -78,7 +79,10 @@ import {
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  projectFileCatQueueSortSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import {
   filterProjectFiles,
   listProjectFilesForProject,
@@ -89,6 +93,9 @@ import {
   type IssueSheetComment,
 } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { issueSheetCommentCreateBodySchema } from "@/api/routes/project/issue-sheet-comments.schema";
+  loadMcpListTranslations,
+  mcpListTranslationsQueueFilters,
+} from "@/api/routes/mcp/mcp-list-translations";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -412,6 +419,56 @@ const mcpListFilesInputSchema = z.object({
     .describe("Optional case-insensitive filter on source path or filename."),
 });
 
+const mcpListTranslationsInputSchema = z.object({
+  projectId: projectIdSchema.describe(
+    "ID of the accessible Hyperlocalise project whose translation keys to list.",
+  ),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. Use * for every file. When omitted, lists keys across the project.",
+    ),
+  targetLocale: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .optional()
+    .describe("Optional target locale. When omitted, returns one row per project target locale."),
+  search: z
+    .string()
+    .trim()
+    .max(256)
+    .optional()
+    .describe("Optional case-insensitive match on key, source text, context, or target text."),
+  queueFilter: z
+    .enum(mcpListTranslationsQueueFilters)
+    .optional()
+    .describe(
+      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, or other Content Editor filters.",
+    ),
+  queueSort: projectFileCatQueueSortSchema
+    .optional()
+    .describe("CAT queue sort: file_order (default) or untranslated_first."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe("Maximum number of translation rows to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of translation rows to skip before returning results."),
+});
+
 const mcpGetIssueInputSchema = z.object({
   projectId: z
     .string()
@@ -584,6 +641,30 @@ const mcpCreateIssueCommentInputSchema = z.object({
   mentionedIssueIds: createCommentShape.mentionedIssueIds.describe(
     "UUIDs of accessible issues mentioned in the comment.",
   ),
+const mcpListJobsInputSchema = z.object({
+  projectId: projectIdSchema
+    .optional()
+    .describe("Optional ID of an accessible Hyperlocalise project to list jobs for."),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. When set, returns the latest file translation jobs for that path, matching GET /v1/jobs/latest.",
+    ),
+  status: z
+    .enum(schema.jobStatusEnum.enumValues)
+    .optional()
+    .describe("Optional job status filter such as queued, running, succeeded, or failed."),
+  limit: z.number().int().min(1).max(50).default(20).describe("Maximum number of jobs to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of jobs to skip before returning results."),
 });
 
 const mcpGetJobInputSchema = z.object({
@@ -835,6 +916,55 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             }),
           },
         ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "list_translations",
+    {
+      description:
+        "List translation keys in an accessible Hyperlocalise project. Returns compact CAT queue rows (id, key, sourcePath, sourceText, targetLocale, targetText, status, maxLength, isHidden) with total and pagination. Filters match the Content Editor queue. Read-only roles may list. Results use the native key overlay; live TMS provider listing is out of scope.",
+      inputSchema: mcpListTranslationsInputSchema,
+    },
+    async ({
+      projectId,
+      sourcePath,
+      targetLocale,
+      search,
+      queueFilter,
+      queueSort,
+      limit,
+      offset,
+    }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const result = await loadMcpListTranslations({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        projectTargetLocales: project.targetLocales,
+        sourcePath,
+        targetLocale,
+        search,
+        queueFilter,
+        queueSort,
+        limit,
+        offset,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
       };
     },
   );
@@ -1360,6 +1490,49 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   );
 
   server.registerTool(
+    "list_jobs",
+    {
+      description:
+        "List recent translation jobs visible to the caller. Use this to find a job id, then call get_job. Defaults to translation jobs. Optional sourcePath uses the latest-job-for-path lookup.",
+      inputSchema: mcpListJobsInputSchema,
+    },
+    async ({ projectId, sourcePath, status, limit, offset }) => {
+      const result = await listAccessiblePublicJobs(apiAuth, {
+        projectId,
+        sourcePath,
+        status,
+        limit,
+        offset,
+      });
+
+      if (isErr(result)) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const nextOffset = offset + result.value.jobs.length;
+      const hasMore = nextOffset < result.value.total;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              total: result.value.total,
+              pagination: {
+                limit,
+                offset,
+                hasMore,
+                nextOffset: hasMore ? nextOffset : null,
+              },
+              jobs: result.value.jobs,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
     "get_job",
     {
       description:
@@ -1443,12 +1616,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of [
-    "list_translations",
-    "upload_sources",
-    "download_translations",
-    "run_workflow",
-  ] as const) {
+  for (const name of ["upload_sources", "download_translations", "run_workflow"] as const) {
     server.registerTool(
       name,
       {

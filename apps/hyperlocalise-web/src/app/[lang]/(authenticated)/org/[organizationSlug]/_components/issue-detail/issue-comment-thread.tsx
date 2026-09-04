@@ -669,7 +669,7 @@ export function IssueCommentThread({
 
   return (
     <section className="mt-2 grid gap-3 border-t border-border pt-4">
-      <TypographyP className="text-sm font-medium text-foreground">
+      <TypographyP size="small" weight="medium" tone="content">
         <FormattedMessage {...messages.sectionTitle} />
       </TypographyP>
 
@@ -681,13 +681,13 @@ export function IssueCommentThread({
       ) : null}
 
       {isError ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       ) : null}
 
       {isEmpty ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.empty} />
         </TypographyP>
       ) : null}

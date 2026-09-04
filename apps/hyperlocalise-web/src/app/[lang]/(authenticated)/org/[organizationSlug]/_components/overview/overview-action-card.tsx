@@ -54,7 +54,7 @@ export function OverviewActionCard({
           >
             {category}
           </Badge>
-          <TypographyP className="line-clamp-2 text-sm font-medium text-foreground">
+          <TypographyP lineClamp={2} size="small" weight="medium" tone="content">
             {title}
           </TypographyP>
           <Badge

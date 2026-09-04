@@ -21,6 +21,9 @@ import { ChatDockEmptyState } from "@/components/app-shell/chat-dock/chat-dock-e
 import { chatDockMessages } from "@/components/app-shell/chat-dock/chat-dock.messages";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Badge } from "@/components/ui/badge";
+import { Box } from "@/components/ui/layout/box";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
@@ -55,8 +58,10 @@ function InboxAiComposer({
 
   if (access.status === "denied") {
     return (
-      <div className="border-t border-border px-4 py-3 sm:px-6">
-        <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+      <div className="border-t border-border">
+        <Box paddingX="3u" paddingY="1.5u">
+          <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+        </Box>
       </div>
     );
   }
@@ -110,22 +115,24 @@ export function ConversationPanel({
         ref={panelRef}
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
       >
-        <header className="flex min-h-16 items-center border-b border-border px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <HugeiconsIcon
-              icon={Chat01Icon}
-              strokeWidth={1.8}
-              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-            />
-            <div className="min-w-0">
-              <TypographyH4 className="truncate text-base">
-                <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
-              </TypographyH4>
-              <TypographyMuted className="mt-1.5 text-xs">
-                <FormattedMessage {...conversationPanelMessages.newRequestSubtitle} />
-              </TypographyMuted>
-            </div>
-          </div>
+        <header className="border-b border-border">
+          <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
+            <Row spacing="1.5u" alignY="center">
+              <HugeiconsIcon
+                icon={Chat01Icon}
+                strokeWidth={1.8}
+                className="size-5 shrink-0 text-muted-foreground"
+              />
+              <Rows spacing="0.5u">
+                <TypographyH4 lineClamp={1} size="medium">
+                  <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
+                </TypographyH4>
+                <TypographyMuted size="xsmall">
+                  <FormattedMessage {...conversationPanelMessages.newRequestSubtitle} />
+                </TypographyMuted>
+              </Rows>
+            </Row>
+          </Box>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -164,11 +171,17 @@ export function ConversationPanel({
   if (!conversation) {
     return (
       <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-        <div className="flex flex-1 items-center justify-center text-muted-foreground">
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          height="full"
+          background="canvas"
+        >
           <TypographyMuted>
             <FormattedMessage {...conversationPanelMessages.selectConversation} />
           </TypographyMuted>
-        </div>
+        </Box>
       </section>
     );
   }
@@ -229,44 +242,48 @@ function ConversationHeader({
   const intl = useIntl();
 
   return (
-    <header className="flex min-h-16 items-center border-b border-border px-4 py-3 sm:px-6">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        <HugeiconsIcon
-          icon={BubbleChatNotificationIcon}
-          strokeWidth={1.8}
-          className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-        />
-        <div className="min-w-0">
-          <TypographyH4 className="truncate text-base">{conversation.title}</TypographyH4>
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline" className="border-border bg-muted text-foreground">
-              {getSourceLabel(conversation.source, intl)}
-            </Badge>
-            <Badge variant="outline" className={statusStyles[conversation.status]}>
-              {getStatusLabel(conversation.status, intl)}
-            </Badge>
-            <span>
-              <FormattedMessage
-                {...conversationPanelMessages.createdAt}
-                values={{ relativeTime: formatRelativeTime(conversation.createdAt, intl) }}
-              />
-            </span>
-            {jobsIsLoading ? (
-              <span>
-                <FormattedMessage {...conversationPanelMessages.checkingLinkedJobs} />
-              </span>
-            ) : null}
-            {!jobsIsLoading && jobs.length > 0 ? (
-              <span>
+    <header className="border-b border-border">
+      <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
+        <Row spacing="1.5u" alignY="start">
+          <HugeiconsIcon
+            icon={BubbleChatNotificationIcon}
+            strokeWidth={1.8}
+            className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+          />
+          <Rows spacing="1u">
+            <TypographyH4 lineClamp={1} size="medium">
+              {conversation.title}
+            </TypographyH4>
+            <Box display="flex" flexWrap="wrap" alignItems="center" gap="1u">
+              <Badge variant="outline" className="border-border bg-muted text-foreground">
+                {getSourceLabel(conversation.source, intl)}
+              </Badge>
+              <Badge variant="outline" className={statusStyles[conversation.status]}>
+                {getStatusLabel(conversation.status, intl)}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
                 <FormattedMessage
-                  {...conversationPanelMessages.linkedJobsCount}
-                  values={{ count: jobs.length }}
+                  {...conversationPanelMessages.createdAt}
+                  values={{ relativeTime: formatRelativeTime(conversation.createdAt, intl) }}
                 />
               </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
+              {jobsIsLoading ? (
+                <span className="text-xs text-muted-foreground">
+                  <FormattedMessage {...conversationPanelMessages.checkingLinkedJobs} />
+                </span>
+              ) : null}
+              {!jobsIsLoading && jobs.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    {...conversationPanelMessages.linkedJobsCount}
+                    values={{ count: jobs.length }}
+                  />
+                </span>
+              ) : null}
+            </Box>
+          </Rows>
+        </Row>
+      </Box>
     </header>
   );
 }

@@ -176,7 +176,9 @@ export const ContextContentHeader = ({
         <>
           <div className="flex items-center justify-between gap-3 text-xs">
             <TypographyP>{displayPct}</TypographyP>
-            <TypographyP className="font-mono text-muted-foreground">{usedOfTotal}</TypographyP>
+            <TypographyP className="font-mono" tone="subtle">
+              {usedOfTotal}
+            </TypographyP>
           </div>
           <div className="space-y-2">
             <Progress className="bg-muted" value={usedPercent * PERCENT_MAX} />

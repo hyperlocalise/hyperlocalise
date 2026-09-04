@@ -56,7 +56,7 @@ export const TaskTrigger = ({ children, className, title, ...props }: TaskTrigge
     {children ?? (
       <div className="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground">
         <HugeiconsIcon icon={SearchIcon} className="size-4" />
-        <TypographyP className="text-sm">{title}</TypographyP>
+        <TypographyP size="small">{title}</TypographyP>
         <HugeiconsIcon
           icon={ArrowDown01Icon}
           className="size-4 transition-transform group-data-[state=open]:rotate-180"

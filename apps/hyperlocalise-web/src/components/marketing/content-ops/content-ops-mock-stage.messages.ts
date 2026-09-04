@@ -77,18 +77,13 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Header breadcrumb in marketing app shell mock",
   },
   mockBreadcrumbSeo: {
-    defaultMessage: "Acme · SEO blog run",
-    id: "Iu1s0Q/uDs",
+    defaultMessage: "Acme · Multilingual blog workflow",
+    id: "k5tXS6aCpT",
     description: "Header breadcrumb in marketing app shell mock",
   },
   mockBreadcrumbBrand: {
     defaultMessage: "Acme · Brand review",
     id: "nn0iMJAwx4",
-    description: "Header breadcrumb in marketing app shell mock",
-  },
-  mockBreadcrumbWorkflow: {
-    defaultMessage: "Acme · Workflows",
-    id: "O8WdOBz8MN",
     description: "Header breadcrumb in marketing app shell mock",
   },
   mockBreadcrumbEditor: {
@@ -132,14 +127,9 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "Cef/Y5xN6Q",
     description: "Content ops mock tab label for brand governance",
   },
-  tabBriefToPublish: {
-    defaultMessage: "Automate brief to publish",
-    id: "h/nQhr+VQ1",
-    description: "Content ops mock tab label for brief-to-publish workflow",
-  },
   tabEditor: {
-    defaultMessage: "Editor",
-    id: "rQDAKZnTf9",
+    defaultMessage: "Content Studio",
+    id: "B5P0vwqbH1",
     description: "Content ops mock tab label for the CAT file content editor",
   },
 
@@ -689,8 +679,8 @@ export const contentOpsMockStageMessages = defineMessages({
   },
 
   flowTitle: {
-    defaultMessage: "Brief to publish · workflow",
-    id: "+TDSJ1bdrZ",
+    defaultMessage: "Multilingual blog · workflow",
+    id: "7DodroC7Kp",
     description: "Flow panel title",
   },
   flowNodeKindTrigger: {
@@ -704,9 +694,10 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Workflow node type label for actions in content ops flow mock",
   },
   flowBriefDescription: {
-    defaultMessage: "From approved brief to CMS publish across every market.",
-    id: "M4wiL9knTM",
-    description: "Workflow description for brief-to-publish template in content ops mock",
+    defaultMessage:
+      "On schedule, research keywords, draft content, localise, review, then notify Slack and publish to CMS.",
+    id: "zVfLTcACWy",
+    description: "Workflow description for multilingual blog template in content ops mock",
   },
   flowCampaignDescription: {
     defaultMessage: "Launch copy to staging and notify the team when review clears.",
@@ -734,9 +725,9 @@ export const contentOpsMockStageMessages = defineMessages({
     description: "Flow template pill for SEO blog",
   },
   flowTemplateBrief: {
-    defaultMessage: "Brief to publish",
-    id: "Unt4qWzIK1",
-    description: "Flow template pill for brief to publish",
+    defaultMessage: "Multilingual blog",
+    id: "1rvztL9O9G",
+    description: "Flow template pill for multilingual blog publishing",
   },
   flowNodeBrief: {
     defaultMessage: "GTM brief",
@@ -773,6 +764,11 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "3wOLsPOjf5",
     description: "Flow node label",
   },
+  flowNodeCreateContent: {
+    defaultMessage: "Create content draft",
+    id: "B5M7/Y7enl",
+    description: "Flow node label for content creation in brief-to-publish workflow",
+  },
   flowNodeDraft: {
     defaultMessage: "CMS draft",
     id: "DN35BCM/UE",
@@ -790,10 +786,4 @@ export const contentOpsMockStageMessages = defineMessages({
   },
 });
 
-export type ContentOpsMockTabId =
-  | "triage"
-  | "campaign"
-  | "seo-blog"
-  | "brand"
-  | "brief-to-publish"
-  | "editor";
+export type ContentOpsMockTabId = "triage" | "campaign" | "seo-blog" | "brand" | "editor";

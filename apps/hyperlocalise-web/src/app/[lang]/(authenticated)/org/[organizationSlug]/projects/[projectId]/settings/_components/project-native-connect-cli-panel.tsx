@@ -56,16 +56,22 @@ export function ProjectNativeConnectCliPanel({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <div>
-        <TypographyP className="text-sm font-medium text-foreground">
+        <TypographyP size="small" weight="medium" tone="content">
           <FormattedMessage {...projectNativeConnectCliPanelMessages.title} />
         </TypographyP>
-        <TypographyP className="mt-1 text-sm text-muted-foreground">
+        <TypographyP className="mt-1" size="small" tone="subtle">
           <FormattedMessage {...projectNativeConnectCliPanelMessages.description} />
         </TypographyP>
       </div>
 
       <div className="space-y-2">
-        <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+        <TypographyP
+          className="tracking-[0.08em]"
+          size="xsmall"
+          weight="medium"
+          tone="subtle"
+          capitalization="uppercase"
+        >
           <FormattedMessage {...projectNativeConnectCliPanelMessages.projectIdLabel} />
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
@@ -90,7 +96,13 @@ export function ProjectNativeConnectCliPanel({
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+          <TypographyP
+            className="tracking-[0.08em]"
+            size="xsmall"
+            weight="medium"
+            tone="subtle"
+            capitalization="uppercase"
+          >
             <FormattedMessage {...projectNativeConnectCliPanelMessages.sampleConfigLabel} />
           </TypographyP>
           <Button

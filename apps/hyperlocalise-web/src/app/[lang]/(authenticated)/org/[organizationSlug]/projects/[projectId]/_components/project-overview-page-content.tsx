@@ -124,10 +124,14 @@ function TriageRow({
       className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-4 py-3 transition-colors hover:border-border hover:bg-background/90"
     >
       <div className="min-w-0">
-        <TypographyP className="truncate text-sm font-medium text-foreground">{title}</TypographyP>
-        <TypographyP className="mt-0.5 text-xs text-muted-foreground">{description}</TypographyP>
+        <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
+          {title}
+        </TypographyP>
+        <TypographyP className="mt-0.5" size="xsmall" tone="subtle">
+          {description}
+        </TypographyP>
         {meta ? (
-          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">
+          <TypographyP className="mt-0.5" lineClamp={1} size="xsmall" tone="subtle">
             {meta}
           </TypographyP>
         ) : null}
@@ -205,19 +209,19 @@ export function ProjectOverviewPageContentView({
             </>
           ) : isProjectError ? (
             <>
-              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+              <TypographyH1 className="text-2xl" weight="medium" tone="content">
                 <FormattedMessage {...messages.projectOverviewFallbackTitle} />
               </TypographyH1>
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.loadProjectError} />
               </TypographyP>
             </>
           ) : (
             <>
-              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+              <TypographyH1 className="text-2xl" weight="medium" tone="content">
                 {project?.name ?? intl.formatMessage(messages.projectFallbackName)}
               </TypographyH1>
-              <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
                 {projectDescription}
               </TypographyP>
             </>
@@ -259,11 +263,11 @@ export function ProjectOverviewPageContentView({
         <ProjectOverviewMeshStage tone={meshTone}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <TypographyP className="font-heading text-xl font-medium text-foreground">
+              <TypographyP className="font-heading" size="xlarge" weight="medium" tone="content">
                 <FormattedMessage {...messages.needsYouNowTitle} />
               </TypographyP>
               {triageItems.length > 0 ? (
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small" tone="subtle">
                   <FormattedMessage
                     {...messages.needsYouNowCount}
                     values={{ count: triageItems.length }}
@@ -309,10 +313,10 @@ export function ProjectOverviewPageContentView({
               </div>
             ) : isJobsError ? (
               <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-4">
-                <TypographyP className="text-sm font-medium text-foreground">
+                <TypographyP size="small" weight="medium" tone="content">
                   <FormattedMessage {...messages.jobsUnavailable} />
                 </TypographyP>
-                <TypographyP className="mt-1 text-sm text-muted-foreground">
+                <TypographyP className="mt-1" size="small" tone="subtle">
                   <FormattedMessage {...messages.jobsUnavailableDescription} />
                 </TypographyP>
                 <Button
@@ -327,10 +331,10 @@ export function ProjectOverviewPageContentView({
               </div>
             ) : (
               <div className="space-y-2">
-                <TypographyP className="text-sm font-medium text-foreground">
+                <TypographyP size="small" weight="medium" tone="content">
                   <FormattedMessage {...messages.triageEmptyTitle} />
                 </TypographyP>
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small" tone="subtle">
                   <FormattedMessage {...messages.triageEmptyDescription} />
                 </TypographyP>
               </div>
@@ -344,10 +348,10 @@ export function ProjectOverviewPageContentView({
           <OverviewSectionHeader title={intl.formatMessage(messages.signalsTitle)} />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-border px-5 py-4">
-              <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <TypographyP size="xsmall" weight="medium" tone="subtle" capitalization="uppercase">
                 <FormattedMessage {...messages.signalsLocales} />
               </TypographyP>
-              <TypographyP className="mt-2 font-mono text-sm text-foreground">
+              <TypographyP className="mt-2 font-mono" size="small" tone="content">
                 {project.targetLocales.length > 0 ? (
                   localeRoute
                 ) : (
@@ -369,10 +373,10 @@ export function ProjectOverviewPageContentView({
 
             {isNative ? (
               <div className="rounded-2xl border border-border px-5 py-4">
-                <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <TypographyP size="xsmall" weight="medium" tone="subtle" capitalization="uppercase">
                   <FormattedMessage {...messages.shipTitle} />
                 </TypographyP>
-                <TypographyP className="mt-2 text-sm text-foreground">
+                <TypographyP className="mt-2" size="small" tone="content">
                   {project.lastSyncedAt ? (
                     <FormattedMessage
                       {...messages.shipLastSynced}
@@ -382,7 +386,7 @@ export function ProjectOverviewPageContentView({
                     <FormattedMessage {...messages.shipNeverSynced} />
                   )}
                 </TypographyP>
-                <TypographyP className="mt-1 text-sm text-muted-foreground">
+                <TypographyP className="mt-1" size="small" tone="subtle">
                   <FormattedMessage
                     {...messages.shipCliHint}
                     values={{
@@ -410,7 +414,7 @@ export function ProjectOverviewPageContentView({
       {isNative && hasTranslationGuidance ? (
         <section className="space-y-3 rounded-2xl border border-border bg-muted/30 px-5 py-5">
           <div className="flex items-center justify-between gap-3">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...messages.guidanceTitle} />
             </TypographyP>
             <Button
@@ -423,7 +427,12 @@ export function ProjectOverviewPageContentView({
               <FormattedMessage {...messages.guidanceEdit} />
             </Button>
           </div>
-          <TypographyP className="line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+          <TypographyP
+            className="whitespace-pre-wrap leading-6"
+            lineClamp={3}
+            size="small"
+            tone="subtle"
+          >
             {project?.translationContextValue}
           </TypographyP>
         </section>

@@ -164,15 +164,15 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
 
         <section aria-label={intl.formatMessage(apiKeysPageContentMessages.sectionAriaLabel)}>
           {apiKeysQuery.isLoading ? (
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...apiKeysPageContentMessages.loading} />
             </TypographyP>
           ) : apiKeysQuery.isError ? (
             <Rows spacing="0.5u">
-              <TypographyP className="text-sm font-medium text-destructive">
+              <TypographyP size="small" weight="medium" tone="critical">
                 <FormattedMessage {...apiKeysPageContentMessages.loadErrorTitle} />
               </TypographyP>
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 {apiKeysQuery.error instanceof Error
                   ? apiKeysQuery.error.message
                   : intl.formatMessage(apiKeysPageContentMessages.loadErrorFallback)}
@@ -180,10 +180,15 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
             </Rows>
           ) : activeKeys.length === 0 ? (
             <Rows spacing="1u">
-              <TypographyP className="text-sm font-medium text-foreground">
+              <TypographyP size="small" weight="medium" tone="content">
                 <FormattedMessage {...apiKeysPageContentMessages.emptyTitle} />
               </TypographyP>
-              <TypographyP className="max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
+              <TypographyP
+                className="max-w-xl leading-6"
+                wrapStyle="pretty"
+                size="small"
+                tone="subtle"
+              >
                 <FormattedMessage {...apiKeysPageContentMessages.emptyDescription} />
               </TypographyP>
             </Rows>

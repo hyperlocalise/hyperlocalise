@@ -36,7 +36,7 @@ export const SourcesTrigger = ({ className, count, children, ...props }: Sources
   <CollapsibleTrigger className={cn("flex items-center gap-2", className)} {...props}>
     {children ?? (
       <>
-        <TypographyP className="font-medium">
+        <TypographyP weight="medium">
           <FormattedMessage {...sourcesMessages.usedSources} values={{ count }} />
         </TypographyP>
         <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4" />

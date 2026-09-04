@@ -79,13 +79,13 @@ export const ArtifactClose = ({
 export type ArtifactTitleProps = HTMLAttributes<HTMLParagraphElement>;
 
 export const ArtifactTitle = ({ className, ...props }: ArtifactTitleProps) => (
-  <TypographyP className={cn("font-medium text-foreground text-sm", className)} {...props} />
+  <TypographyP {...props} weight="medium" tone="content" size="small" />
 );
 
 export type ArtifactDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 
 export const ArtifactDescription = ({ className, ...props }: ArtifactDescriptionProps) => (
-  <TypographyP className={cn("text-muted-foreground text-sm", className)} {...props} />
+  <TypographyP {...props} tone="subtle" size="small" />
 );
 
 export type ArtifactActionsProps = HTMLAttributes<HTMLDivElement>;

@@ -74,14 +74,14 @@ export function SlackConnectInviteBannerView({
           <IntegrationLogo src="/images/slack-logo.svg" className="size-5" />
         </div>
         <div className="min-w-0">
-          <TypographyP className="text-sm font-medium text-foreground">
+          <TypographyP size="small" weight="medium" tone="content">
             {invited ? (
               <FormattedMessage {...slackConnectInviteBannerMessages.invitedTitle} />
             ) : (
               <FormattedMessage {...slackConnectInviteBannerMessages.createTitle} />
             )}
           </TypographyP>
-          <TypographyP className="mt-1 text-sm text-muted-foreground">
+          <TypographyP className="mt-1" size="small" tone="subtle">
             {invited ? (
               <FormattedMessage {...slackConnectInviteBannerMessages.invitedDescription} />
             ) : (

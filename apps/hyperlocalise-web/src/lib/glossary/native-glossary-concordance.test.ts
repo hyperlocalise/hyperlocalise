@@ -18,6 +18,7 @@ import {
 } from "@/lib/providers/contracts/glossary-term-status";
 import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import {
+  concordanceSourceContainsTerm,
   pickPreferredTermForLocale,
   filterConcordanceTargetTerms,
 } from "@/lib/glossary/native-glossary";
@@ -26,6 +27,15 @@ import type { NormalizedGlossaryConceptTerm } from "@/lib/providers/contracts/gl
 describe("buildGlossaryTsQuery", () => {
   it("matches any source-text token when finding glossary candidates", () => {
     expect(buildGlossaryTsQuery("Login button")).toBe("Login:* | button:*");
+  });
+
+  it("adds singular candidates for plural source-text tokens", () => {
+    expect(buildGlossaryTsQuery("refunds")).toBe("refunds:* | refund:*");
+    expect(buildGlossaryTsQuery("REFUNDS")).toBe("REFUNDS:* | REFUND:*");
+  });
+
+  it("does not add a singular candidate for a short word ending in s", () => {
+    expect(buildGlossaryTsQuery("news")).toBe("news:*");
   });
 });
 
@@ -89,6 +99,119 @@ describe("filterConcordanceTargetTerms", () => {
 
   it("returns no target terms when the query requests none", () => {
     expect(filterConcordanceTargetTerms(terms, [])).toEqual([]);
+  });
+});
+
+describe("concordanceSourceContainsTerm", () => {
+  it("does not match a term embedded in a hyphenated term", () => {
+    expect(
+      concordanceSourceContainsTerm("e-ticket", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("matches a standalone term and a term inside a phrase", () => {
+    expect(
+      concordanceSourceContainsTerm("Book a ticket", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("booking reference", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("Book a ticket", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("book xyz", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("Choose a nearby airport", {
+        sourceTerm: "nearby airports",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("refunds", {
+        sourceTerm: "refund",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("tickets", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not match unsupported suffixes or gerund plurals", () => {
+    expect(
+      concordanceSourceContainsTerm("ticketing", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("bookings", {
+        sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("new", {
+        sourceTerm: "news",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("news", {
+        sourceTerm: "new",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("e-tickets", {
+        sourceTerm: "e-ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("matches hyphenated terms case-insensitively", () => {
+    expect(
+      concordanceSourceContainsTerm("E-TICKET", {
+        sourceTerm: "e-ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("preserves case-sensitive matching", () => {
+    expect(
+      concordanceSourceContainsTerm("E-TICKET", {
+        sourceTerm: "e-ticket",
+        caseSensitive: true,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("e-ticket", {
+        sourceTerm: "e-ticket",
+        caseSensitive: true,
+      }),
+    ).toBe(true);
   });
 });
 

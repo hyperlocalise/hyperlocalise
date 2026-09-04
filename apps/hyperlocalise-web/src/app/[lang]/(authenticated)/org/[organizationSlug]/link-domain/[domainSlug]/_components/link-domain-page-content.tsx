@@ -155,7 +155,7 @@ export function LinkDomainPageContent({
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
         <TypographyH1>Domain linked</TypographyH1>
-        <TypographyP className="text-muted-foreground">
+        <TypographyP tone="subtle">
           {linkedDomain.domainKey} is verified for this workspace.
         </TypographyP>
         <div className="flex flex-wrap gap-3">
@@ -192,7 +192,7 @@ export function LinkDomainPageContent({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10">
       <div>
         <TypographyH1>Link domain</TypographyH1>
-        <TypographyP className="mt-3 text-muted-foreground">
+        <TypographyP className="mt-3" tone="subtle">
           Prove you control this domain to attach the localisation audit to your workspace, then
           link it to a project for deeper work.
         </TypographyP>
@@ -207,14 +207,14 @@ export function LinkDomainPageContent({
       ) : (
         <>
           <section className="space-y-2">
-            <TypographyH2 className="pb-0 text-lg">{linkedDomain.domainKey}</TypographyH2>
+            <TypographyH2 className="pb-0">{linkedDomain.domainKey}</TypographyH2>
             <p className="text-sm text-muted-foreground">
               Status: {linkedDomain.status.replaceAll("_", " ")}
             </p>
           </section>
 
           <section className="space-y-4">
-            <TypographyH2 className="pb-0 text-lg">Project</TypographyH2>
+            <TypographyH2 className="pb-0">Project</TypographyH2>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -262,7 +262,7 @@ export function LinkDomainPageContent({
           </section>
 
           <section className="space-y-4">
-            <TypographyH2 className="pb-0 text-lg">Choose a verification method</TypographyH2>
+            <TypographyH2 className="pb-0">Choose a verification method</TypographyH2>
             <div className="flex flex-wrap gap-2">
               {(
                 [

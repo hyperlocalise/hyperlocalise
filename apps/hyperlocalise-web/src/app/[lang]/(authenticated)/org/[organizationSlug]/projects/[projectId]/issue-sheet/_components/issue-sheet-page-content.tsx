@@ -254,10 +254,10 @@ export function IssueSheetPageContent({
           }}
           empty={
             <div>
-              <TypographyP className="text-sm font-medium">
+              <TypographyP size="small" weight="medium">
                 <FormattedMessage {...messages.emptyTitle} />
               </TypographyP>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <TypographyP className="mt-1" size="small" tone="subtle">
                 <FormattedMessage {...messages.emptyDescription} />
               </TypographyP>
             </div>

@@ -59,7 +59,7 @@ function storyFilesTree({
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="min-w-0">
           <ProjectSectionTitle>Project files</ProjectSectionTitle>
-          <TypographyP className="mt-0.5 text-sm text-muted-foreground">
+          <TypographyP className="mt-0.5" size="small" tone="subtle">
             {files.length} file{files.length === 1 ? "" : "s"}
           </TypographyP>
         </div>

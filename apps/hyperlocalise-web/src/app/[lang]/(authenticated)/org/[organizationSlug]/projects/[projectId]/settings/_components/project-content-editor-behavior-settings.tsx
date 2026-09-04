@@ -125,7 +125,7 @@ export function ProjectContentEditorBehaviorSettings({
         <ProjectSectionTitle>
           <FormattedMessage {...projectContentEditorBehaviorMessages.title} />
         </ProjectSectionTitle>
-        <TypographyP className="mt-1 text-sm text-muted-foreground">
+        <TypographyP className="mt-1" size="small" tone="subtle">
           <FormattedMessage {...projectContentEditorBehaviorMessages.description} />
         </TypographyP>
       </div>
@@ -134,11 +134,11 @@ export function ProjectContentEditorBehaviorSettings({
           <label htmlFor="automatic-identical-string-grouping" className="text-sm font-medium">
             <FormattedMessage {...projectContentEditorBehaviorMessages.settingLabel} />
           </label>
-          <TypographyP className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
             <FormattedMessage {...projectContentEditorBehaviorMessages.settingDescription} />
           </TypographyP>
           {!canManage ? (
-            <TypographyP className="mt-2 text-xs text-muted-foreground">
+            <TypographyP className="mt-2" size="xsmall" tone="subtle">
               <FormattedMessage {...projectContentEditorBehaviorMessages.managerOnly} />
             </TypographyP>
           ) : null}

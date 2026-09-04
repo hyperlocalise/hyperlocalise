@@ -109,19 +109,19 @@ export function HyperlabAudiencesPage({
         ) : null}
 
         {audiencesQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {audiencesQuery.error instanceof Error
               ? audiencesQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {audiencesQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
         {!audiencesQuery.isLoading && audiences.length === 0 ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.audiencesEmpty} />
           </TypographyP>
         ) : null}

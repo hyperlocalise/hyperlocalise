@@ -740,7 +740,7 @@ export function ProjectFileContentEditorWorkspace({
 
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
     return (
-      <TypographyP className="text-sm text-muted-foreground">
+      <TypographyP size="small" tone="subtle">
         <FormattedMessage {...projectFileCatWorkspaceMessages.noTargetLocales} />
       </TypographyP>
     );
@@ -769,7 +769,7 @@ export function ProjectFileContentEditorWorkspace({
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-flame-100">
         <HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
-        <TypographyP className="text-sm">
+        <TypographyP size="small">
           {contentEditorQuery.error instanceof Error
             ? contentEditorQuery.error.message
             : intl.formatMessage(projectFileCatWorkspaceMessages.failedToLoadWorkspace)}
@@ -792,7 +792,12 @@ export function ProjectFileContentEditorWorkspace({
     >
       {showLocaleSelector ? (
         <div className="flex w-full flex-col gap-1.5 sm:max-w-44">
-          <TypographyP className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          <TypographyP
+            className="text-[10px]"
+            weight="medium"
+            tone="subtle"
+            capitalization="uppercase"
+          >
             <FormattedMessage {...projectFileCatWorkspaceMessages.targetLocaleLabel} />
           </TypographyP>
           <Select

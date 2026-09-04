@@ -32,10 +32,10 @@ export function SettingsPageHeader({
       <span className="text-xs font-medium tracking-wider text-subtle-foreground uppercase">
         {eyebrow}
       </span>
-      <TypographyH1 className="font-sans text-2xl font-medium tracking-tight text-foreground md:text-2xl">
+      <TypographyH1 className="text-2xl tracking-tight md:text-2xl" weight="medium" tone="content">
         {title}
       </TypographyH1>
-      <TypographyP className="text-pretty text-sm leading-snug text-muted-foreground">
+      <TypographyP className="leading-snug" wrapStyle="pretty" size="small" tone="subtle">
         {description}
       </TypographyP>
     </Rows>
@@ -65,10 +65,10 @@ export function SettingsSectionHeader({
 }) {
   return (
     <Rows spacing="0.5u">
-      <TypographyP className="text-sm leading-tight font-medium text-foreground">
+      <TypographyP className="leading-tight" size="small" weight="medium" tone="content">
         {title}
       </TypographyP>
-      <TypographyP className="text-pretty text-sm leading-tight text-muted-foreground">
+      <TypographyP className="leading-tight" wrapStyle="pretty" size="small" tone="subtle">
         {description}
       </TypographyP>
     </Rows>

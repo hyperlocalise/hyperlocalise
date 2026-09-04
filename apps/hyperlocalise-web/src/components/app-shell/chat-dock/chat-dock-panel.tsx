@@ -32,6 +32,8 @@ import type {
 import { ReplyComposer } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/reply-composer";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Row } from "@/components/ui/layout/row";
 import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
@@ -296,48 +298,56 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       className="fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[30rem]"
       aria-label={tab.title}
     >
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{tab.title}</p>
-        </div>
-        {!tab.isPending ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1 px-2 text-xs"
-            render={<Link href={`/org/${organizationSlug}/inbox/${tab.id}`} />}
-          >
-            <FormattedMessage {...chatDockMessages.openInInbox} />
-            <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={2} className="size-3.5" />
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label={intl.formatMessage(chatDockMessages.collapsePanel)}
-          onClick={() => store.setPanelOpen(false)}
-        >
-          <span aria-hidden className="text-base leading-none">
-            {COLLAPSE_GLYPH}
-          </span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label={intl.formatMessage(chatDockMessages.closeTab)}
-          onClick={() => {
-            store.closeTab(tab.id);
-          }}
-        >
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
-        </Button>
+      <header className="h-12 shrink-0 border-b border-border">
+        <Box paddingX="1.5u" display="flex" alignItems="center" height="full">
+          <Row spacing="1u" alignY="center">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              {tab.title}
+            </p>
+            {!tab.isPending ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs"
+                render={<Link href={`/org/${organizationSlug}/inbox/${tab.id}`} />}
+              >
+                <FormattedMessage {...chatDockMessages.openInInbox} />
+                <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={2} className="size-3.5" />
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={intl.formatMessage(chatDockMessages.collapsePanel)}
+              onClick={() => store.setPanelOpen(false)}
+            >
+              <span aria-hidden className="text-base leading-none">
+                {COLLAPSE_GLYPH}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={intl.formatMessage(chatDockMessages.closeTab)}
+              onClick={() => {
+                store.closeTab(tab.id);
+              }}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+            </Button>
+          </Row>
+        </Box>
       </header>
 
       {tab.lastError ? (
-        <div className="border-b border-border bg-destructive/5 px-3 py-2">
-          <TypographyMuted className="text-xs text-destructive">{tab.lastError}</TypographyMuted>
+        <div className="border-b border-border bg-destructive/5">
+          <Box paddingX="1.5u" paddingY="1u">
+            <TypographyMuted size="xsmall" tone="critical">
+              {tab.lastError}
+            </TypographyMuted>
+          </Box>
         </div>
       ) : null}
 
@@ -370,8 +380,10 @@ export const ChatDockPanel = observer(function ChatDockPanel({
         )}
 
         {aiFeaturesAccess.status === "denied" ? (
-          <div className="border-t border-border px-3 py-2">
-            <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+          <div className="border-t border-border">
+            <Box paddingX="1.5u" paddingY="1u">
+              <UpgradePlanButton organizationSlug={organizationSlug} size="sm" />
+            </Box>
           </div>
         ) : aiFeaturesAccess.status === "allowed" ? (
           <ReplyComposer

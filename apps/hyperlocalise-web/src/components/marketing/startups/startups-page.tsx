@@ -74,7 +74,9 @@ export function StartupsPage({ locale }: StartupsPageProps) {
           aria-hidden
         />
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-5xl flex-col items-center justify-center px-5 py-28 text-center sm:px-8 lg:px-10">
-          <TypographyH1 className="max-w-3xl text-balance text-white">{copy.headline}</TypographyH1>
+          <TypographyH1 className="max-w-3xl text-white" wrapStyle="balance">
+            {copy.headline}
+          </TypographyH1>
           <p className="mt-5 text-lg text-white/80 sm:text-xl">{copy.offerLine}</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button
@@ -108,7 +110,9 @@ export function StartupsPage({ locale }: StartupsPageProps) {
               >
                 {copy.whyHeading}
               </TypographyH2>
-              <TypographyP className="text-lg text-muted-foreground">{copy.whySubcopy}</TypographyP>
+              <TypographyP size="large" tone="subtle">
+                {copy.whySubcopy}
+              </TypographyP>
             </div>
             <ol className="mt-14 grid gap-4 sm:gap-5 md:grid-cols-3 md:gap-6">
               {copy.benefits.map((benefit, index) => {
@@ -185,7 +189,7 @@ export function StartupsPage({ locale }: StartupsPageProps) {
                   </li>
                 ))}
               </ul>
-              <TypographyP className="max-w-2xl text-lg text-muted-foreground">
+              <TypographyP className="max-w-2xl" size="large" tone="subtle">
                 {copy.tourfinderResult}
               </TypographyP>
             </div>
@@ -251,7 +255,7 @@ export function StartupsPage({ locale }: StartupsPageProps) {
               >
                 {copy.programHeading}
               </TypographyH2>
-              <TypographyP className="max-w-xl text-lg text-muted-foreground">
+              <TypographyP className="max-w-xl" size="large" tone="subtle">
                 {copy.programSubcopy}
               </TypographyP>
               <div className="pt-2">
@@ -296,11 +300,12 @@ export function StartupsPage({ locale }: StartupsPageProps) {
           <div className="px-5 py-20 text-center sm:px-8 sm:py-24 lg:px-10">
             <TypographyH2
               id="startups-final-cta-heading"
-              className="pb-0 text-4xl leading-[1.04] font-semibold tracking-[-0.04em] normal-case sm:text-5xl"
+              className="pb-0 text-4xl leading-[1.04] tracking-[-0.04em] normal-case sm:text-5xl"
+              weight="bold"
             >
               {copy.finalHeading}
             </TypographyH2>
-            <TypographyP className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+            <TypographyP className="mx-auto mt-4 max-w-xl" size="large" tone="subtle">
               {copy.finalSubcopy}
             </TypographyP>
             <div className="mt-8 flex justify-center">

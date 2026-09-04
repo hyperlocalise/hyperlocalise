@@ -433,19 +433,27 @@ export function ChatDockMockSection({
 
         <aside className="flex flex-col justify-between gap-10 px-6 py-8 sm:px-8 sm:py-10 lg:py-12">
           <div className="space-y-4">
-            <TypographyMuted className="text-[0.72rem] font-medium tracking-[0.18em] uppercase">
+            <TypographyMuted
+              className="text-[0.72rem] tracking-[0.18em]"
+              weight="medium"
+              capitalization="uppercase"
+            >
               <FormattedMessage {...chatDockMockMessages.sectionEyebrow} />
             </TypographyMuted>
             <TypographyH2 className="pb-0 text-3xl leading-[1.04] tracking-[-0.045em] sm:text-4xl">
               <FormattedMessage {...chatDockMockMessages.sectionTitle} />
             </TypographyH2>
-            <TypographyP className="max-w-sm text-muted-foreground">
+            <TypographyP className="max-w-sm" tone="subtle">
               <FormattedMessage {...chatDockMockMessages.sectionBody} />
             </TypographyP>
           </div>
 
           <div className="space-y-4">
-            <TypographyMuted className="text-[0.72rem] font-medium tracking-[0.18em] uppercase">
+            <TypographyMuted
+              className="text-[0.72rem] tracking-[0.18em]"
+              weight="medium"
+              capitalization="uppercase"
+            >
               <FormattedMessage {...chatDockMockMessages.featuresLabel} />
             </TypographyMuted>
             <ul className="space-y-3 font-mono text-[0.78rem] tracking-[0.08em] text-muted-foreground uppercase">

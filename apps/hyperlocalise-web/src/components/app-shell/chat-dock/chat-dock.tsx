@@ -164,21 +164,14 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
 
   if (!chatDock.hasTabs) {
     return (
-      <AiFeatureAction
-        organizationSlug={organizationSlug}
-        variant="ghost"
-        size="xs"
-        className="gap-1.5 px-2"
-      >
+      <AiFeatureAction organizationSlug={organizationSlug} variant="ghost">
         <Button
           type="button"
           variant="ghost"
-          size="xs"
-          className="gap-1.5 px-2"
           aria-label={intl.formatMessage(chatDockMessages.newChat)}
           onClick={() => chatDock.openNewTab()}
         >
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
+          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} data-icon="inline-start" />
           <FormattedMessage {...chatDockMessages.newChat} />
         </Button>
       </AiFeatureAction>

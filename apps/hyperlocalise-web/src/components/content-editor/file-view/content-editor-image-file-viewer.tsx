@@ -15,6 +15,7 @@
 import { useIntl } from "react-intl";
 
 import { ContentEditorImagePreview } from "@/components/content-editor/editor/content-editor-image-preview";
+import { Spinner } from "@/components/ui/spinner";
 
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
 
@@ -41,13 +42,20 @@ export function ContentEditorImageFileViewerPane({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-56 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
-        <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+      <div className="flex h-full min-h-full flex-1 items-center justify-center p-6">
+        <Spinner className="size-5 text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <ContentEditorImagePreview src={src} alt={alt} emptyLabel={emptyLabel} className="min-h-56" />
+    <div className="flex h-full min-h-full flex-1 flex-col p-6">
+      <ContentEditorImagePreview
+        src={src}
+        alt={alt}
+        emptyLabel={emptyLabel}
+        className="h-full min-h-full flex-1"
+      />
+    </div>
   );
 }

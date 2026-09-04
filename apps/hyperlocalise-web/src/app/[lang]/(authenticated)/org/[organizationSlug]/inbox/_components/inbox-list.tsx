@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useMemo } from "react";
-import { Chat01Icon } from "@hugeicons/core-free-icons";
+import { memo, useMemo, type ReactNode } from "react";
+import { Chat01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
@@ -24,13 +24,17 @@ import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { stripMarkdown } from "@/lib/markdown/strip-markdown";
 import { cn } from "@/lib/primitives/cn";
 
+import {
+  getConversationListItemVisual,
+  getNotificationListItemVisual,
+  type InboxListItemVisual,
+} from "./inbox-list-item-visuals";
 import { inboxListMessages } from "./inbox-list.messages";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import {
   formatRelativeTime,
   getConversationParticipantAvatar,
-  getSourceLabel,
   type Conversation,
   type InboxCurrentUser,
 } from "./inbox-types";
@@ -223,30 +227,95 @@ export const InboxList = memo(function InboxList({
   );
 });
 
-function listItemClassName(isSelected: boolean) {
+function listItemClassName(isSelected: boolean, isUnread = false) {
   return cn(
-    "grid w-full text-left transition-colors",
-    "grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md px-2 py-2.5",
+    "grid w-full grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md px-2 py-2.5 text-left transition-colors",
     isSelected
       ? "bg-accent text-foreground"
       : "text-foreground hover:bg-muted hover:text-foreground",
+    isUnread && !isSelected && "bg-muted/40",
+  );
+}
+
+function InboxListItemAvatar({
+  visual,
+  children,
+}: {
+  visual: InboxListItemVisual;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative shrink-0">
+      <Avatar className="bg-muted">{children}</Avatar>
+      <span
+        className="absolute -end-0.5 -bottom-0.5 z-10 flex size-[18px] items-center justify-center rounded-full bg-card shadow-sm ring-2 ring-background"
+        aria-label={visual.typeIconLabel}
+      >
+        <HugeiconsIcon
+          icon={visual.typeIcon}
+          strokeWidth={2}
+          size={12}
+          className={cn("shrink-0", visual.badgeClassName)}
+        />
+      </span>
+    </div>
+  );
+}
+
+function InboxListItemContent({
+  title,
+  subtitle,
+  timestamp,
+  titleWeight = "regular",
+  showMeta = true,
+}: {
+  title: ReactNode;
+  subtitle: ReactNode;
+  timestamp: string;
+  titleWeight?: "regular" | "bold";
+  showMeta?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <TypographySmall lineClamp={1} weight={titleWeight === "bold" ? "bold" : undefined}>
+          {title}
+        </TypographySmall>
+        {showMeta && timestamp ? (
+          <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+            {timestamp}
+          </span>
+        ) : null}
+      </div>
+      <TypographyMuted className="mt-0.5" lineClamp={1}>
+        {subtitle}
+      </TypographyMuted>
+    </div>
   );
 }
 
 const NewRequestListItem = memo(function NewRequestListItem() {
+  const intl = useIntl();
+  const visual: InboxListItemVisual = {
+    typeIcon: SparklesIcon,
+    typeIconLabel: intl.formatMessage(inboxListMessages.newRequestTitle),
+    badgeClassName: "text-primary",
+  };
+
   return (
     <div aria-current="page" className={listItemClassName(true)}>
-      <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
-      </div>
-      <div className="min-w-0">
-        <TypographySmall className="truncate">
-          <FormattedMessage {...inboxListMessages.newRequestTitle} />
-        </TypographySmall>
-        <TypographyMuted className="mt-1 truncate">
-          <FormattedMessage {...inboxListMessages.newRequestPreview} />
-        </TypographyMuted>
-      </div>
+      <InboxListItemAvatar visual={visual}>
+        <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
+          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
+        </AvatarFallback>
+      </InboxListItemAvatar>
+      <InboxListItemContent
+        title={<FormattedMessage {...inboxListMessages.newRequestTitle} />}
+        subtitle={<FormattedMessage {...inboxListMessages.newRequestPreview} />}
+        timestamp=""
+        titleWeight="bold"
+        showMeta={false}
+      />
     </div>
   );
 });
@@ -255,11 +324,17 @@ function ConversationListSkeleton() {
   return (
     <div className="flex flex-col gap-2">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex gap-3 rounded-lg px-3 py-3">
-          <Skeleton className="size-10 shrink-0 rounded-full bg-muted" />
+        <div
+          key={index}
+          className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md px-2 py-2.5"
+        >
+          <Skeleton className="size-8 shrink-0 rounded-full bg-muted" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <Skeleton className="h-4 w-3/4 bg-muted" />
-            <Skeleton className="h-3 w-1/2 bg-muted" />
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-4 w-3/4 bg-muted" />
+              <Skeleton className="h-3 w-10 bg-muted" />
+            </div>
+            <Skeleton className="h-3 w-full bg-muted" />
           </div>
         </div>
       ))}
@@ -287,6 +362,7 @@ const ConversationListItem = memo(function ConversationListItem({
   const preview = conversation.lastMessage
     ? stripMarkdown(conversation.lastMessage.text) || conversation.lastMessage.text
     : intl.formatMessage(inboxListMessages.noMessagesYet);
+  const visual = getConversationListItemVisual(conversation.source, intl);
 
   return (
     <button
@@ -295,25 +371,19 @@ const ConversationListItem = memo(function ConversationListItem({
       onClick={() => onSelect(conversation.id)}
       className={listItemClassName(isSelected)}
     >
-      <Avatar className="size-8 bg-muted">
+      <InboxListItemAvatar visual={visual}>
         {participantAvatar.imageUrl ? (
           <AvatarImage src={participantAvatar.imageUrl} alt={participantAvatar.alt} />
         ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
           {participantAvatar.label}
         </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <TypographySmall className="truncate">{conversation.title}</TypographySmall>
-        </div>
-        <TypographyMuted className="mt-1 truncate">{preview}</TypographyMuted>
-        <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">{getSourceLabel(conversation.source, intl)}</span>
-          <span className="size-1 rounded-full bg-muted" />
-          <span>{formatRelativeTime(conversation.lastMessageAt, intl)}</span>
-        </div>
-      </div>
+      </InboxListItemAvatar>
+      <InboxListItemContent
+        title={conversation.title}
+        subtitle={preview}
+        timestamp={formatRelativeTime(conversation.lastMessageAt, intl)}
+      />
     </button>
   );
 });
@@ -337,45 +407,29 @@ const NotificationListItem = memo(function NotificationListItem({
   const secondary = notificationSecondaryText(notification.payload.commentExcerpt, preview);
   const isUnread = !notification.readAt;
   const avatarLabel = actorName.slice(0, 1).toUpperCase() || "?";
+  const visual = getNotificationListItemVisual(notification.type, intl);
 
   return (
     <button
       type="button"
       aria-pressed={isSelected}
       onClick={() => onSelect(notification.id)}
-      className={cn(
-        "grid w-full text-left transition-colors",
-        "grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md px-2 py-2.5",
-        isSelected
-          ? "bg-accent text-foreground"
-          : "text-foreground hover:bg-muted hover:text-foreground",
-        isUnread && !isSelected && "bg-muted/40",
-      )}
+      className={listItemClassName(isSelected, isUnread)}
     >
-      <Avatar className="size-8 bg-muted">
+      <InboxListItemAvatar visual={visual}>
         {notification.actor?.avatarUrl ? (
           <AvatarImage src={notification.actor.avatarUrl} alt={actorName} />
         ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
           {avatarLabel}
         </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <TypographySmall className={cn("truncate", isUnread && "font-semibold")}>
-            {notification.payload.issueTitle}
-          </TypographySmall>
-          {isUnread ? <span className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
-        </div>
-        <TypographyMuted className="mt-1 truncate">{secondary}</TypographyMuted>
-        <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">
-            <FormattedMessage {...inboxNotificationsMessages.issueNotification} />
-          </span>
-          <span className="size-1 rounded-full bg-muted" />
-          <span>{formatRelativeTime(notification.createdAt, intl)}</span>
-        </div>
-      </div>
+      </InboxListItemAvatar>
+      <InboxListItemContent
+        title={notification.payload.issueTitle}
+        subtitle={secondary}
+        timestamp={formatRelativeTime(notification.createdAt, intl)}
+        titleWeight={isUnread ? "bold" : "regular"}
+      />
     </button>
   );
 });

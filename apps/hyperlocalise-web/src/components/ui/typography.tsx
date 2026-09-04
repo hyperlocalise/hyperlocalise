@@ -152,7 +152,7 @@ export type TitleProps = SharedTypographyProps & {
   weight?: TypographyWeight;
 };
 
-const textSizeClassNames = {
+const textSizeClasses = {
   xxlarge: "font-sans text-2xl leading-8",
   xlarge: "font-sans text-xl",
   large: "font-sans text-lg",
@@ -161,7 +161,7 @@ const textSizeClassNames = {
   xsmall: "font-sans text-xs",
 } as const satisfies Record<TextTypographySize, string>;
 
-const titleSizeClassNames = {
+const titleSizeClasses = {
   xlarge: "font-heading scroll-m-20 text-3xl tracking-[-0.04em] font-semibold md:text-6xl",
   large: "font-heading scroll-m-20 text-2xl font-semibold md:text-5xl",
   medium: "scroll-m-20 font-sans text-xl font-semibold tracking-wide md:text-3xl",
@@ -170,20 +170,20 @@ const titleSizeClassNames = {
   xxsmall: "scroll-m-20 font-sans text-sm font-semibold",
 } as const satisfies Record<TitleTypographySize, string>;
 
-const weightClassNames = {
+const weightClasses = {
   regular: "font-normal",
   medium: "font-medium",
   bold: "font-semibold",
 } as const satisfies Record<TypographyWeight, string>;
 
-const alignmentClassNames = {
+const alignmentClasses = {
   start: "text-start",
   center: "text-center",
   end: "text-end",
   inherit: undefined,
 } as const satisfies Record<TypographyAlignment, string | undefined>;
 
-const toneClassNames = {
+const toneClasses = {
   content: "text-foreground",
   subtle: "text-muted-foreground",
   subtlest: "text-subtle-foreground",
@@ -194,13 +194,13 @@ const toneClassNames = {
   inherit: undefined,
 } as const satisfies Record<TypographyTone, string | undefined>;
 
-const wrapStyleClassNames = {
+const wrapStyleClasses = {
   unset: undefined,
   balance: "text-balance",
   pretty: "text-pretty",
 } as const satisfies Record<TypographyWrapStyle, string | undefined>;
 
-const lineClampClassNames = {
+const lineClampClasses = {
   1: "truncate",
   2: "line-clamp-2",
   3: "line-clamp-3",
@@ -226,13 +226,13 @@ function defaultTitleTagName(size: TitleTypographySize): TitleTagName {
   }
 }
 
-function lineClampClassName(lineClamp: number | undefined) {
+function lineClampClass(lineClamp: number | undefined) {
   if (lineClamp == null || lineClamp < 1) {
     return undefined;
   }
 
-  if (lineClamp in lineClampClassNames) {
-    return lineClampClassNames[lineClamp as keyof typeof lineClampClassNames];
+  if (lineClamp in lineClampClasses) {
+    return lineClampClasses[lineClamp as keyof typeof lineClampClasses];
   }
 
   return "overflow-hidden";
@@ -255,7 +255,7 @@ function lineClampStyle(
   };
 }
 
-function typographyUtilityClassName({
+function typographyUtilityClasses({
   alignment,
   capitalization = "default",
   lineClamp,
@@ -266,10 +266,10 @@ function typographyUtilityClassName({
   "alignment" | "capitalization" | "lineClamp" | "tone" | "wrapStyle"
 >) {
   return cn(
-    alignment ? alignmentClassNames[alignment] : undefined,
-    tone ? toneClassNames[tone] : undefined,
-    wrapStyle ? wrapStyleClassNames[wrapStyle] : undefined,
-    lineClampClassName(lineClamp),
+    alignment ? alignmentClasses[alignment] : undefined,
+    tone ? toneClasses[tone] : undefined,
+    wrapStyle ? wrapStyleClasses[wrapStyle] : undefined,
+    lineClampClass(lineClamp),
     capitalization === "uppercase" ? "uppercase" : undefined,
   );
 }
@@ -316,9 +316,9 @@ function Text({
       data-slot="text"
       data-size={size}
       className={cn(
-        textSizeClassNames[size],
-        weight ? weightClassNames[weight] : undefined,
-        typographyUtilityClassName({
+        textSizeClasses[size],
+        weight ? weightClasses[weight] : undefined,
+        typographyUtilityClasses({
           alignment,
           capitalization,
           lineClamp,
@@ -356,9 +356,9 @@ function Title({
       data-slot="title"
       data-size={size}
       className={cn(
-        titleSizeClassNames[size],
-        weight ? weightClassNames[weight] : undefined,
-        typographyUtilityClassName({
+        titleSizeClasses[size],
+        weight ? weightClasses[weight] : undefined,
+        typographyUtilityClasses({
           alignment,
           capitalization,
           lineClamp,
@@ -407,7 +407,7 @@ function TypographyBlockquote({
     <Text
       tagName={tagName}
       wrapStyle={wrapStyle}
-      className={cn("mt-6 border-l-2 pl-6 font-sans italic", className)}
+      className="mt-6 border-l-2 pl-6 italic"
       {...props}
     />
   );
@@ -428,7 +428,7 @@ function TypographyInlineCode({
       data-slot="inline-code"
       className={cn(
         "bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm font-normal",
-        typographyUtilityClassName({
+        typographyUtilityClasses({
           alignment,
           capitalization,
           lineClamp,

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   ArrowLeft01Icon,
@@ -21,6 +20,8 @@ import {
   Loading03Icon,
   SparklesIcon,
   Upload01Icon,
+  ViewIcon,
+  ViewOffSlashIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -35,11 +36,28 @@ import {
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 import { Button } from "@/components/ui/button";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Row } from "@/components/ui/layout/row";
 import { Spinner } from "@/components/ui/spinner";
+import { Title } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
+import {
+  readCatFileViewSourcePaneVisible,
+  writeCatFileViewSourcePaneVisible,
+} from "./content-editor-file-view-source-pane";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
+import {
+  FileViewHeader,
+  FileViewLocalePill,
+  FileViewPane,
+  FileViewPaneColumn,
+  FileViewUnsupportedPreview,
+  FileViewWorkspace,
+  FileViewWorkspaceContent,
+} from "./content-editor-file-view-layout";
 import {
   CAT_IMAGE_FILE_UPLOAD_ACCEPT,
   ContentEditorImageFileViewerPane,
@@ -63,8 +81,8 @@ const ContentEditorOfficeFileViewerPane = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex min-h-56 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
-        <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+      <div className="flex min-h-56 items-center justify-center border border-dashed border-border">
+        <Spinner className="size-5 text-muted-foreground" />
       </div>
     ),
   },
@@ -114,7 +132,11 @@ export function ContentEditorFileViewPanel({
   className?: string;
 }) {
   const intl = useIntl();
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
+    readCatFileViewSourcePaneVisible(),
+  );
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
@@ -154,189 +176,258 @@ export function ContentEditorFileViewPanel({
     }
   }
 
+  function toggleSourcePane() {
+    setSourcePaneVisible((current) => {
+      const next = !current;
+      writeCatFileViewSourcePaneVisible(next);
+      return next;
+    });
+  }
+
+  const targetFileActions = (
+    <>
+      {onRegenerate ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          disabled={!canEdit || isImageBusy}
+          onClick={() => setGenerateDialogOpen(true)}
+        >
+          {isImageBusy ? (
+            <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
+          ) : (
+            <HugeiconsIcon icon={SparklesIcon} data-icon="inline-start" aria-hidden />
+          )}
+          <FormattedMessage
+            {...(hasTarget
+              ? contentEditorFileViewMessages.regenerate
+              : contentEditorFileViewMessages.generate)}
+          />
+        </Button>
+      ) : null}
+      {onUpload && uploadAccept ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={!canEdit || isImageBusy}
+            onClick={() => uploadInputRef.current?.click()}
+          >
+            <HugeiconsIcon icon={Upload01Icon} data-icon="inline-start" aria-hidden />
+            <FormattedMessage {...contentEditorFileViewMessages.uploadFile} />
+          </Button>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept={uploadAccept}
+            className="sr-only"
+            disabled={!canEdit || isImageBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                onUpload(file);
+              }
+              event.currentTarget.value = "";
+            }}
+          />
+        </>
+      ) : null}
+    </>
+  );
+
+  const hasTargetFileActions = Boolean(onRegenerate || (onUpload && uploadAccept));
+
+  const sourcePane = (
+    <FileViewPane
+      title={
+        <FormattedMessage
+          {...contentEditorFileViewMessages.sourceHeading}
+          values={{ locale: segment.sourceLocale }}
+        />
+      }
+    >
+      {viewerId === "image" ? (
+        <ContentEditorImageFileViewerPane role="source" src={sourceSrc} />
+      ) : viewerId === "video" ? (
+        <ContentEditorVideoFileViewerPane role="source" src={sourceSrc} />
+      ) : officeKind ? (
+        <ContentEditorOfficeFileViewerPane
+          kind={officeKind}
+          role="source"
+          src={sourceSrc}
+          filename={displayName}
+          canEdit={false}
+        />
+      ) : isDocumentViewer ? (
+        <ContentEditorDocumentFileViewerPane
+          role="source"
+          src={sourceSrc}
+          filename={displayName}
+          canEdit={false}
+        />
+      ) : (
+        <FileViewUnsupportedPreview />
+      )}
+    </FileViewPane>
+  );
+
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-background", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-5">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
-              <SegmentStatusBadge status={segment.status} />
-            ) : null}
-            {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
-            {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
-            <p className="truncate font-mono text-xs text-muted-foreground">{displayName}</p>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {segment.sourceLocale} → {segment.targetLocale}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <FileViewHeader>
+        <Row spacing="1.5u" alignY="center">
           {onPrevious || onNext ? (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onPrevious}
-                disabled={!hasPreviousSegment || !onPrevious}
-                aria-label={intl.formatMessage(contentEditorFileViewMessages.previousFileAria)}
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onNext}
-                disabled={!hasNextSegment || !onNext}
-                aria-label={intl.formatMessage(contentEditorFileViewMessages.nextFileAria)}
-              >
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
-              </Button>
-            </div>
+            <Column width="content">
+              <Row spacing="1u" alignY="center">
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={onPrevious}
+                  disabled={!hasPreviousSegment || !onPrevious}
+                  aria-label={intl.formatMessage(contentEditorFileViewMessages.previousFileAria)}
+                >
+                  <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={onNext}
+                  disabled={!hasNextSegment || !onNext}
+                  aria-label={intl.formatMessage(contentEditorFileViewMessages.nextFileAria)}
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden />
+                </Button>
+              </Row>
+            </Column>
           ) : null}
-          <ContentEditorWorkspaceViewSwitcherConnected />
-          {onApprove ? (
-            <Button variant="default" size="sm" disabled={!canTriggerApprove} onClick={onApprove}>
-              {isApproving ? <Spinner className="size-4 text-primary-foreground" /> : null}
-              {resolvedPrimaryActionLabel}
-            </Button>
-          ) : null}
-        </div>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid h-full min-h-0 gap-4 p-4 lg:grid-cols-2 lg:gap-6 lg:p-6">
-          <FileViewPane
-            title={
-              <FormattedMessage
-                {...contentEditorFileViewMessages.sourceHeading}
-                values={{ locale: segment.sourceLocale }}
-              />
-            }
-          >
-            {viewerId === "image" ? (
-              <ContentEditorImageFileViewerPane role="source" src={sourceSrc} />
-            ) : viewerId === "video" ? (
-              <ContentEditorVideoFileViewerPane role="source" src={sourceSrc} />
-            ) : officeKind ? (
-              <ContentEditorOfficeFileViewerPane
-                kind={officeKind}
-                role="source"
-                src={sourceSrc}
-                filename={displayName}
-                canEdit={false}
-              />
-            ) : isDocumentViewer ? (
-              <ContentEditorDocumentFileViewerPane
-                role="source"
-                src={sourceSrc}
-                filename={displayName}
-                canEdit={false}
-              />
-            ) : (
-              <UnsupportedPreview />
-            )}
-          </FileViewPane>
+          <Column width="fluid">
+            <Row spacing="1u" alignY="center">
+              <Title tagName="h1" size="xxsmall" weight="medium" lineClamp={1} title={displayName}>
+                {displayName}
+              </Title>
+              <FileViewLocalePill>
+                {segment.sourceLocale} → {segment.targetLocale}
+              </FileViewLocalePill>
+              {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
+                <SegmentStatusBadge status={segment.status} />
+              ) : null}
+              {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
+              {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
+            </Row>
+          </Column>
 
-          <FileViewPane
-            title={
-              <FormattedMessage
-                {...contentEditorFileViewMessages.targetHeading}
-                values={{ locale: segment.targetLocale }}
-              />
-            }
-            toolbar={
-              <div className="flex flex-wrap items-center gap-2">
-                {onRegenerate ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    disabled={!canEdit || isImageBusy}
-                    onClick={() => setGenerateDialogOpen(true)}
+          <Column width="content">
+            <Row spacing="1u" alignY="center">
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                aria-pressed={sourcePaneVisible}
+                onClick={toggleSourcePane}
+              >
+                <HugeiconsIcon
+                  icon={sourcePaneVisible ? ViewOffSlashIcon : ViewIcon}
+                  data-icon="inline-start"
+                  aria-hidden
+                />
+                <FormattedMessage
+                  {...(sourcePaneVisible
+                    ? contentEditorFileViewMessages.hideSource
+                    : contentEditorFileViewMessages.showSource)}
+                />
+              </Button>
+              <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
+              {onApprove ? (
+                <Button
+                  variant="default"
+                  size="xs"
+                  disabled={!canTriggerApprove}
+                  onClick={onApprove}
+                >
+                  {isApproving ? <Spinner className="size-3 text-primary-foreground" /> : null}
+                  {resolvedPrimaryActionLabel}
+                </Button>
+              ) : null}
+            </Row>
+          </Column>
+        </Row>
+      </FileViewHeader>
+
+      <FileViewWorkspace>
+        <FileViewWorkspaceContent layout={sourcePaneVisible ? "split" : "single"}>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <Columns
+              spacing="3u"
+              height="full"
+              alignY="stretch"
+              align={sourcePaneVisible ? "start" : "center"}
+              collapseBelow="large"
+            >
+              {sourcePaneVisible ? (
+                <Column width="1/2">
+                  <FileViewPaneColumn>{sourcePane}</FileViewPaneColumn>
+                </Column>
+              ) : null}
+              <Column width={sourcePaneVisible ? "1/2" : "containedContent"}>
+                <FileViewPaneColumn>
+                  <FileViewPane
+                    title={
+                      <FormattedMessage
+                        {...contentEditorFileViewMessages.targetHeading}
+                        values={{ locale: segment.targetLocale }}
+                      />
+                    }
+                    footer={
+                      !isDocumentViewer && hasTargetFileActions ? targetFileActions : undefined
+                    }
                   >
-                    {isImageBusy ? (
-                      <HugeiconsIcon
-                        icon={Loading03Icon}
-                        className="size-3 animate-spin"
-                        aria-hidden
+                    {viewerId === "image" ? (
+                      <ContentEditorImageFileViewerPane
+                        role="target"
+                        src={targetSrc}
+                        isLoading={isSegmentTargetLoading}
+                      />
+                    ) : viewerId === "video" ? (
+                      <ContentEditorVideoFileViewerPane
+                        role="target"
+                        src={targetSrc}
+                        isLoading={isSegmentTargetLoading}
+                      />
+                    ) : officeKind ? (
+                      <ContentEditorOfficeFileViewerPane
+                        kind={officeKind}
+                        role="target"
+                        src={targetSrc}
+                        filename={displayName}
+                        isLoading={isSegmentTargetLoading}
+                        canEdit={canEdit}
+                        isBusy={isImageBusy}
+                        onSave={onUpload}
+                      />
+                    ) : isDocumentViewer ? (
+                      <ContentEditorDocumentFileViewerPane
+                        role="target"
+                        src={targetSrc}
+                        seedSrc={sourceSrc}
+                        filename={displayName}
+                        isLoading={isSegmentTargetLoading}
+                        canEdit={canEdit}
+                        isBusy={isImageBusy}
+                        onSave={onUpload}
+                        footerActions={hasTargetFileActions ? targetFileActions : undefined}
                       />
                     ) : (
-                      <HugeiconsIcon icon={SparklesIcon} className="size-3" aria-hidden />
+                      <FileViewUnsupportedPreview />
                     )}
-                    <FormattedMessage
-                      {...(hasTarget
-                        ? contentEditorFileViewMessages.regenerate
-                        : contentEditorFileViewMessages.generate)}
-                    />
-                  </Button>
-                ) : null}
-                {onUpload && uploadAccept ? (
-                  <label
-                    className={cn(
-                      "inline-flex h-6 cursor-pointer items-center gap-1 rounded border border-input bg-background px-2.5 text-xs font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground",
-                      !canEdit || isImageBusy ? "pointer-events-none opacity-50" : "",
-                    )}
-                  >
-                    <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
-                    <FormattedMessage {...contentEditorFileViewMessages.uploadFile} />
-                    <input
-                      type="file"
-                      accept={uploadAccept}
-                      className="sr-only"
-                      disabled={!canEdit || isImageBusy}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          onUpload(file);
-                        }
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                ) : null}
-              </div>
-            }
-          >
-            {viewerId === "image" ? (
-              <ContentEditorImageFileViewerPane
-                role="target"
-                src={targetSrc}
-                isLoading={isSegmentTargetLoading}
-              />
-            ) : viewerId === "video" ? (
-              <ContentEditorVideoFileViewerPane
-                role="target"
-                src={targetSrc}
-                isLoading={isSegmentTargetLoading}
-              />
-            ) : officeKind ? (
-              <ContentEditorOfficeFileViewerPane
-                kind={officeKind}
-                role="target"
-                src={targetSrc}
-                filename={displayName}
-                isLoading={isSegmentTargetLoading}
-                canEdit={canEdit}
-                isBusy={isImageBusy}
-                onSave={onUpload}
-              />
-            ) : isDocumentViewer ? (
-              <ContentEditorDocumentFileViewerPane
-                role="target"
-                src={targetSrc}
-                seedSrc={sourceSrc}
-                filename={displayName}
-                isLoading={isSegmentTargetLoading}
-                canEdit={canEdit}
-                isBusy={isImageBusy}
-                onSave={onUpload}
-              />
-            ) : (
-              <UnsupportedPreview />
-            )}
-          </FileViewPane>
-        </div>
-      </div>
+                  </FileViewPane>
+                </FileViewPaneColumn>
+              </Column>
+            </Columns>
+          </div>
+        </FileViewWorkspaceContent>
+      </FileViewWorkspace>
       {onRegenerate ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
@@ -347,34 +438,6 @@ export function ContentEditorFileViewPanel({
           onSubmit={handleGenerateSubmit}
         />
       ) : null}
-    </div>
-  );
-}
-
-function FileViewPane({
-  title,
-  toolbar,
-  children,
-}: {
-  title: ReactNode;
-  toolbar?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
-        {toolbar}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function UnsupportedPreview() {
-  return (
-    <div className="flex min-h-56 items-center justify-center border border-dashed border-border bg-muted/30 px-4 text-center text-sm text-muted-foreground">
-      <FormattedMessage {...contentEditorFileViewMessages.previewUnsupported} />
     </div>
   );
 }

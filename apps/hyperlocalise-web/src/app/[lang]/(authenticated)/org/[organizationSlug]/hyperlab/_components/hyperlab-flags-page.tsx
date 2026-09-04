@@ -129,19 +129,19 @@ export function HyperlabFlagsPage({
         ) : null}
 
         {flagsQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {flagsQuery.error instanceof Error
               ? flagsQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {flagsQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
         {!flagsQuery.isLoading && flags.length === 0 ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.flagsEmpty} />
           </TypographyP>
         ) : null}
@@ -157,7 +157,9 @@ export function HyperlabFlagsPage({
                     >
                       {flag.key}
                     </Link>
-                    <TypographyP className="text-sm text-muted-foreground">{flag.kind}</TypographyP>
+                    <TypographyP size="small" tone="subtle">
+                      {flag.kind}
+                    </TypographyP>
                   </Rows>
                 </Box>
               ))}

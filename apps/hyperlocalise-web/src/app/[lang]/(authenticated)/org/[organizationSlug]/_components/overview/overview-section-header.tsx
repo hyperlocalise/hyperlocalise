@@ -31,7 +31,9 @@ export function OverviewSectionHeader({
 }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <TypographyP className="text-base font-medium text-foreground">{title}</TypographyP>
+      <TypographyP weight="medium" tone="content">
+        {title}
+      </TypographyP>
       {count !== undefined && count > 0 ? (
         <Badge
           variant="outline"

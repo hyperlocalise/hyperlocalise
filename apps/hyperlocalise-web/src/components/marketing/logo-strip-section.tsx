@@ -97,11 +97,14 @@ export function LogoStripSection() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <TypographyP
           id="supported-llm-providers"
-          className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
+          className="text-[0.68rem] tracking-[0.22em]"
+          weight="bold"
+          capitalization="uppercase"
+          tone="subtle"
         >
           <FormattedMessage {...logoStripSectionMessages.title} />
         </TypographyP>
-        <TypographyP className="hidden text-xs text-muted-foreground sm:block">
+        <TypographyP className="hidden sm:block" size="xsmall" tone="subtle">
           <FormattedMessage {...logoStripSectionMessages.subtitle} />
         </TypographyP>
       </div>

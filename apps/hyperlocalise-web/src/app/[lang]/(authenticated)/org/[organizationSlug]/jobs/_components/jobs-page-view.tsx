@@ -413,10 +413,10 @@ export function JobsPageErrorMessage({ error }: { error: unknown }) {
 
   return (
     <>
-      <TypographyP className="text-sm font-medium text-flame-100">
+      <TypographyP className="text-flame-100" size="small" weight="medium">
         <FormattedMessage {...jobsPageViewMessages.loadErrorTitle} />
       </TypographyP>
-      <TypographyP className="mt-1 text-sm text-muted-foreground">
+      <TypographyP className="mt-1" size="small" tone="subtle">
         {error instanceof Error
           ? error.message
           : intl.formatMessage(jobsPageViewMessages.loadErrorFallback)}
@@ -448,13 +448,15 @@ function JobsList({
 
   if (isLoading)
     return (
-      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">
+      <TypographyP className="px-3 py-8" size="small" tone="subtle">
         <FormattedMessage {...jobsPageViewMessages.loadingJobs} />
       </TypographyP>
     );
   if (jobs.length === 0) {
     return (
-      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">{emptyLabel}</TypographyP>
+      <TypographyP className="px-3 py-8" size="small" tone="subtle">
+        {emptyLabel}
+      </TypographyP>
     );
   }
 
@@ -504,7 +506,7 @@ function JobsList({
                   </div>
                 )}
                 <JobSourceLabel job={job} />
-                <TypographyP className="truncate text-sm text-muted-foreground">
+                <TypographyP lineClamp={1} size="small" tone="subtle">
                   {job.projectName ??
                     job.projectId ??
                     intl.formatMessage(jobsPageViewMessages.workspaceFallback)}
@@ -516,10 +518,10 @@ function JobsList({
                   {intl.formatMessage(getJobStatusMessage(job.status))}
                 </Badge>
                 <div className="min-w-0">
-                  <TypographyP className="truncate text-sm text-subtle-foreground">
+                  <TypographyP lineClamp={1} size="small" tone="subtlest">
                     {taskDetailSummary(job, intl)}
                   </TypographyP>
-                  <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
+                  <TypographyP className="mt-1" lineClamp={1} size="xsmall" tone="subtle">
                     <FormattedMessage
                       {...jobsPageViewMessages.dueMeta}
                       values={{
@@ -654,9 +656,13 @@ function JobsCollection({
 function JobsSectionHeader({ title, description }: { title: string; description?: string }) {
   return (
     <div className="space-y-1">
-      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
+      <TypographyP size="small" weight="medium" tone="content">
+        {title}
+      </TypographyP>
       {description ? (
-        <TypographyP className="text-sm leading-6 text-muted-foreground">{description}</TypographyP>
+        <TypographyP className="leading-6" size="small" tone="subtle">
+          {description}
+        </TypographyP>
       ) : null}
     </div>
   );

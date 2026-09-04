@@ -16,10 +16,13 @@ import type { Post } from "@/lib/blog/blog-post";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
-import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
+import { BlogPostGrid } from "@/components/marketing/blog/blog-post-grid";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
+import { Box } from "@/components/ui/layout/box";
+import { Rows } from "@/components/ui/layout/rows";
+import { Separator } from "@/components/ui/separator";
 import {
   TypographyH1,
   TypographyH2,
@@ -41,62 +44,71 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
   const intl = useIntl();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto max-w-7xl">
-        <article className="px-5 pb-20 pt-12 sm:px-8 lg:px-10 lg:pt-16">
-          <header className="mx-auto max-w-3xl text-center">
-            <TypographyH1 className="text-3xl tracking-tight sm:text-4xl lg:text-5xl">
-              {post.title}
-            </TypographyH1>
-            <TypographyP className="mt-4 text-base text-muted-foreground sm:text-lg">
-              {post.excerpt}
-            </TypographyP>
-            <TypographyMuted className="mt-4 text-sm">
-              {formatBlogPostDate(intl, post.date)}
-            </TypographyMuted>
-          </header>
+    <Box background="canvas" width="full">
+      <main className="mx-auto min-h-screen max-w-7xl text-foreground">
+        <Rows spacing="0">
+          <Box paddingX="3u" paddingTop="6u" paddingBottom="8u">
+            <article className="mx-auto max-w-3xl">
+              <Rows spacing="4u" align="center">
+                <Rows spacing="2u" align="center">
+                  <TypographyH1 className="text-center text-3xl sm:text-4xl lg:text-5xl">
+                    {post.title}
+                  </TypographyH1>
+                  <TypographyP className="text-center sm:text-lg" tone="subtle">
+                    {post.excerpt}
+                  </TypographyP>
+                  <TypographyMuted className="text-center">
+                    {formatBlogPostDate(intl, post.date)}
+                  </TypographyMuted>
+                </Rows>
 
-          <div className="mx-auto mt-10 max-w-3xl overflow-hidden rounded-xl">
-            <BlogPostCover
-              alt={post.title}
-              className="aspect-[16/10] w-full object-cover"
-              lang={lang}
-              post={post}
-              priority
-            />
-          </div>
+                <Box borderRadius="large" width="full">
+                  <div className="overflow-hidden rounded-2xl">
+                    <BlogPostCover
+                      alt={post.title}
+                      className="aspect-[16/10] w-full object-cover"
+                      lang={lang}
+                      post={post}
+                      priority
+                    />
+                  </div>
+                </Box>
 
-          <div
-            className={`${markdownStyles.markdown} mx-auto mt-12 max-w-3xl`}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-          />
-        </article>
+                <div
+                  className={markdownStyles.markdown}
+                  dangerouslySetInnerHTML={{ __html: htmlContent }}
+                />
+              </Rows>
+            </article>
+          </Box>
 
-        {relatedPosts.length > 0 ? (
-          <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
-            <div className="mx-auto max-w-3xl">
-              <TypographyH2 className="text-2xl tracking-tight">
-                {intl.formatMessage(blogMessages.relatedPostsTitle)}
-              </TypographyH2>
-              <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-                {relatedPosts.map((relatedPost) => (
-                  <BlogPostCard key={relatedPost.slug} lang={lang} post={relatedPost} />
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
+          {relatedPosts.length > 0 ? (
+            <>
+              <Separator />
+              <Box paddingX="3u" paddingY="6u">
+                <div className="mx-auto max-w-3xl">
+                  <Rows spacing="4u">
+                    <TypographyH2 className="text-2xl tracking-tight">
+                      {intl.formatMessage(blogMessages.relatedPostsTitle)}
+                    </TypographyH2>
+                    <BlogPostGrid lang={lang} posts={relatedPosts} />
+                  </Rows>
+                </div>
+              </Box>
+            </>
+          ) : null}
 
-        <section className="border-t border-border">
-          <div className="px-5 py-24 sm:px-8 lg:px-10">
+          <Separator />
+          <Box paddingX="3u" paddingY="8u">
             <FinalCtaSection />
-          </div>
-        </section>
+          </Box>
 
-        <section className="border-t border-border px-5 pt-16 sm:px-8 lg:px-10">
-          <MarketingFooter columns={footerColumns} />
-        </section>
+          <Separator />
+          <Box paddingX="3u" paddingTop="6u">
+            <MarketingFooter columns={footerColumns} />
+          </Box>
+        </Rows>
       </main>
-    </div>
+    </Box>
   );
 }

@@ -50,6 +50,11 @@ export const navbarMessages = defineMessages({
     id: "Qmtq3rDIqg",
     description: "Marketing navbar link to the blog",
   },
+  navIntegrations: {
+    defaultMessage: "Integrations",
+    id: "jyBKcmaw9B",
+    description: "Marketing navbar link to the integrations marketplace",
+  },
   navPricing: {
     defaultMessage: "Pricing",
     id: "H02egE79hp",

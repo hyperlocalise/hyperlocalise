@@ -18,22 +18,18 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
+import { executeLogicVisualWorkflowNode } from "./execute-logic-node";
+import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
+import { resolveVisualWorkflowTemplate } from "./expressions";
 import {
-  evaluateVisualWorkflowCondition,
-  resolveVisualWorkflowCollection,
-  resolveVisualWorkflowTemplate,
-} from "./expressions";
+  appendQueryParams,
+  buildHttpRequestHeaders,
+  parseHttpResponseBody,
+  resolveHttpRequestBody,
+  resolveKeyValuePairs,
+} from "./http-request";
 
-export type VisualWorkflowNodeExecutionResult =
-  | {
-      ok: true;
-      output: Record<string, unknown>;
-      branchResult?: boolean;
-    }
-  | {
-      ok: false;
-      error: { message: string; code?: string };
-    };
+export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
 const MAX_HTTP_BODY_CHARS = 8_000;
 
@@ -43,41 +39,69 @@ export async function executeVisualWorkflowNode(input: {
   organizationId: string;
 }): Promise<VisualWorkflowNodeExecutionResult> {
   const { node, context } = input;
+  const logicResult = executeLogicVisualWorkflowNode({ node, context });
+  if (logicResult.ok || logicResult.error.code !== "not_logic_node") {
+    return logicResult;
+  }
 
   switch (node.config.kind) {
-    case "trigger.manual":
-    case "trigger.scheduled":
-    case "trigger.github":
-    case "trigger.source_upload":
-      return {
-        ok: true,
-        output: {
-          ...context.trigger,
-        },
-      };
     case "action.http": {
-      const url = resolveVisualWorkflowTemplate(node.config.url, context).trim();
+      const httpConfig = node.config;
+      const url = resolveVisualWorkflowTemplate(httpConfig.url, context).trim();
       if (!url) {
         return { ok: false, error: { code: "missing_url", message: "HTTP URL is required." } };
       }
 
+      const queryParams = resolveKeyValuePairs(httpConfig.queryParams, context);
+      const resolvedUrl = appendQueryParams(url, queryParams);
+      const bodyType = httpConfig.bodyType ?? "none";
+      const requestBody = resolveHttpRequestBody({
+        body: httpConfig.body,
+        bodyType,
+        context,
+        method: httpConfig.method,
+      });
+      const headers = buildHttpRequestHeaders({
+        headers: resolveKeyValuePairs(httpConfig.headers, context),
+        auth: httpConfig.auth
+          ? {
+              type: httpConfig.auth.type,
+              token: httpConfig.auth.token
+                ? resolveVisualWorkflowTemplate(httpConfig.auth.token, context)
+                : undefined,
+              headerName: httpConfig.auth.headerName,
+            }
+          : undefined,
+        bodyType,
+        hasBody: Boolean(requestBody),
+      });
+      const parseJsonBody = httpConfig.parseJsonBody ?? true;
+
       try {
         const result = await withPublicHttpFetch(
-          url,
-          { method: node.config.method, redirect: "manual" },
+          resolvedUrl,
+          {
+            method: httpConfig.method,
+            redirect: "manual",
+            headers,
+            body: requestBody,
+          },
           async (response) => {
             const bodyBytes = await readBoundedResponseBody(response);
             const bodyText = new TextDecoder().decode(bodyBytes).slice(0, MAX_HTTP_BODY_CHARS);
+            const json = parseHttpResponseBody(bodyText, parseJsonBody);
             return {
               status: response.status,
               statusText: response.statusText,
               ok: response.ok,
               body: bodyText,
+              json,
             };
           },
         );
 
-        if (!result.ok) {
+        const failOnHttpError = httpConfig.failOnHttpError ?? true;
+        if (failOnHttpError && !result.ok) {
           return {
             ok: false,
             error: {
@@ -138,18 +162,6 @@ export async function executeVisualWorkflowNode(input: {
         },
       };
     }
-    case "logic.if": {
-      const resolvedCondition = resolveVisualWorkflowTemplate(node.config.condition, context);
-      const branchResult = evaluateVisualWorkflowCondition(node.config.condition, context);
-      return {
-        ok: true,
-        output: {
-          condition: resolvedCondition,
-          result: branchResult,
-        },
-        branchResult,
-      };
-    }
     case "ai.agent": {
       const prompt = resolveVisualWorkflowTemplate(node.config.prompt, context).trim();
       if (!prompt) {
@@ -179,16 +191,6 @@ export async function executeVisualWorkflowNode(input: {
           },
         };
       }
-    }
-    case "logic.for_each": {
-      const items = resolveVisualWorkflowCollection(node.config.collection, context);
-      return {
-        ok: true,
-        output: {
-          items,
-          count: items.length,
-        },
-      };
     }
     default:
       return {

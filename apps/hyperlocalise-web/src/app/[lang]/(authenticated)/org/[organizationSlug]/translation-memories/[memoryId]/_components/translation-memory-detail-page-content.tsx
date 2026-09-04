@@ -229,14 +229,14 @@ export function TranslationMemoryDetailPageContent({
 
   if (memoryQuery.isLoading) {
     return (
-      <TypographyP className="py-8 text-sm text-muted-foreground">
+      <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.loading} />
       </TypographyP>
     );
   }
   if (!memory) {
     return (
-      <TypographyP className="py-8 text-sm text-muted-foreground">
+      <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.notFound} />
       </TypographyP>
     );
@@ -254,7 +254,9 @@ export function TranslationMemoryDetailPageContent({
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <TypographyH1 className="font-sans text-2xl font-medium">{memory.name}</TypographyH1>
+          <TypographyH1 className="text-2xl" weight="medium">
+            {memory.name}
+          </TypographyH1>
           <Badge variant="outline">
             {memory.source === "native" ? (
               <FormattedMessage {...messages.sourceWorkspace} />
@@ -264,7 +266,7 @@ export function TranslationMemoryDetailPageContent({
           </Badge>
         </div>
         {memory.description ? (
-          <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
             {memory.description}
           </TypographyP>
         ) : null}
@@ -460,7 +462,7 @@ export function TranslationMemoryDetailPageContent({
               </div>
             ))}
             {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.noProjectsAssigned} />
               </TypographyP>
             ) : null}

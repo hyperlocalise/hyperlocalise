@@ -33,7 +33,7 @@ export default async function IssuesPage({
   return (
     <Suspense
       fallback={
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           {intl.formatMessage({
             defaultMessage: "Loading board...",
             id: "wZsNKEWooe",

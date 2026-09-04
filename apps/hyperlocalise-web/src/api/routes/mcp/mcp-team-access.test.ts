@@ -566,6 +566,34 @@ describe("MCP team-scoped access", () => {
       error: "project_not_found",
     });
 
+    const accessibleTranslationsResponse = await callMcpTool(accessToken, "list_translations", {
+      projectId: alphaProjectBody.project.id,
+    });
+    expect(accessibleTranslationsResponse.status).toBe(200);
+    expect(parseToolResultText(await accessibleTranslationsResponse.json())).toMatchObject({
+      total: 0,
+      translations: [],
+    });
+
+    for (const lookup of inaccessibleFileLookups) {
+      const response = await callMcpTool(accessToken, "list_translations", {
+        projectId: lookup.projectId,
+      });
+
+      expect(response.status, lookup.label).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(
+        (responseBody as { result?: { isError?: boolean } }).result?.isError,
+        lookup.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(responseBody), lookup.label).toMatchObject({
+        error: "project_not_found",
+      });
+    }
+
     const createDeniedResponse = await callMcpTool(accessToken, "create_issue", {
       projectId: alphaProjectBody.project.id,
       title: "Member must not create this issue",
@@ -860,5 +888,129 @@ describe("MCP team-scoped access", () => {
         error: "job_not_found",
       });
     }
+  });
+
+  it("scopes list_jobs to accessible projects and hides other organizations", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
+
+    await projectFixture.authHeadersFor(admin);
+    const adminAuth = globalThis.__testApiAuthContext;
+    if (!adminAuth) {
+      throw new Error("expected admin auth context");
+    }
+
+    await projectFixture.authHeadersFor(member);
+    const memberAuth = globalThis.__testApiAuthContext;
+    if (!memberAuth) {
+      throw new Error("expected member auth context");
+    }
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, {
+      name: "MCP List Jobs Alpha",
+    });
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, {
+      name: "MCP List Jobs Beta",
+    });
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    trackedMemberLocalUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: trackedMemberLocalUserId,
+      role: "member",
+    });
+
+    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "MCP List Jobs Alpha Project",
+          teamId: teamAlphaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(admin) },
+    );
+    expect(alphaProjectResponse.status).toBe(201);
+    const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
+
+    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "MCP List Jobs Beta Project",
+          teamId: teamBetaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["de-DE"],
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(admin) },
+    );
+    expect(betaProjectResponse.status).toBe(201);
+    const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
+
+    const { organization: externalOrganization, project: externalProject } =
+      await projectFixture.createStoredProjectFixture();
+
+    const [alphaJob, betaJob, externalJob] = await Promise.all([
+      insertPublicTranslationJob({
+        organizationId: memberAuth.organization.localOrganizationId,
+        projectId: alphaProjectBody.project.id,
+        status: "queued",
+      }),
+      insertPublicTranslationJob({
+        organizationId: memberAuth.organization.localOrganizationId,
+        projectId: betaProjectBody.project.id,
+        status: "running",
+      }),
+      insertPublicTranslationJob({
+        organizationId: externalOrganization.id,
+        projectId: externalProject.id,
+        status: "succeeded",
+      }),
+    ]);
+
+    const accessToken = await mcpAccessTokenForAuth(memberAuth);
+    const adminAccessToken = await mcpAccessTokenForAuth(adminAuth);
+
+    const memberList = await callMcpTool(accessToken, "list_jobs", {});
+    expect(memberList.status).toBe(200);
+    expect(parseToolResultText(await memberList.json())).toMatchObject({
+      total: 1,
+      jobs: [{ id: alphaJob.id, projectId: alphaProjectBody.project.id, status: "queued" }],
+    });
+
+    const adminList = await callMcpTool(adminAccessToken, "list_jobs", {});
+    expect(adminList.status).toBe(200);
+    const adminOutput = parseToolResultText(await adminList.json()) as {
+      jobs?: Array<{ id: string }>;
+    };
+    expect(adminOutput.jobs?.map((job) => job.id).sort()).toEqual([alphaJob.id, betaJob.id].sort());
+
+    const inaccessibleProject = await callMcpTool(accessToken, "list_jobs", {
+      projectId: betaProjectBody.project.id,
+    });
+    expect(inaccessibleProject.status).toBe(200);
+    const inaccessibleBody = await inaccessibleProject.json();
+    expect((inaccessibleBody as { result?: { isError?: boolean } }).result?.isError).toBe(true);
+    expect(parseToolResultText(inaccessibleBody)).toMatchObject({
+      error: "project_not_found",
+    });
+
+    const externalProjectList = await callMcpTool(accessToken, "list_jobs", {
+      projectId: externalProject.id,
+    });
+    expect(externalProjectList.status).toBe(200);
+    const externalBody = await externalProjectList.json();
+    expect((externalBody as { result?: { isError?: boolean } }).result?.isError).toBe(true);
+    expect(parseToolResultText(externalBody)).toMatchObject({
+      error: "project_not_found",
+    });
+    expect(parseToolResultText(externalBody)).not.toMatchObject({
+      jobs: expect.arrayContaining([{ id: externalJob.id }]),
+    });
   });
 });

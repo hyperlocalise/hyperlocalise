@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -28,9 +28,8 @@ import {
   type NormalizedGlossaryConceptTerm,
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
-import { buildGlossaryTsQuery } from "./glossary";
+import { buildGlossaryTsQuery, isValidatedTrailingSVariant } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
-import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
   Glossary,
   normalizeGlossaryGender,
@@ -50,6 +49,7 @@ import type {
 } from "./glossary";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
+const NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE = 200;
 
 type GlossaryTermRow = typeof schema.glossaryTerms.$inferSelect;
 type GlossaryConceptRow = typeof schema.glossaryConcepts.$inferSelect;
@@ -99,6 +99,103 @@ function toNativeConcordanceConceptTerm(row: GlossaryTermRow): NormalizedGlossar
     partOfSpeech: row.partOfSpeech,
     gender: row.gender,
   };
+}
+
+function isConcordanceTermCharacter(character: string | undefined) {
+  return character !== undefined && /[\p{L}\p{N}_-]/u.test(character);
+}
+
+function concordanceTokens(value: string) {
+  return value.match(/[\p{L}\p{N}_-]+/gu) ?? [];
+}
+
+function concordanceTokensMatch(sourceTextToken: string, sourceTermToken: string) {
+  if (sourceTextToken === sourceTermToken) {
+    return true;
+  }
+
+  // Crowdin's concordance search accepts a source-text prefix for longer terms,
+  // such as "book" for the glossary term "booking".
+  if (
+    sourceTextToken.length >= 3 &&
+    sourceTermToken.endsWith("ing") &&
+    sourceTermToken.startsWith(sourceTextToken)
+  ) {
+    return true;
+  }
+
+  // It also accepts validated singular/plural variations. Crowdin accepts
+  // regular alphabetic terms such as "refunds"/"refund" and
+  // "nearby airport"/"nearby airports", but not short words such as
+  // "new"/"news" or hyphenated terms such as "e-ticket"/"e-tickets".
+  if (isValidatedTrailingSVariant(sourceTextToken, sourceTermToken)) {
+    return true;
+  }
+  if (
+    !sourceTermToken.endsWith("ing") &&
+    isValidatedTrailingSVariant(sourceTermToken, sourceTextToken)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isPreferredConcordanceSourceStatus(status: string | null) {
+  return status?.trim().toLowerCase().replaceAll("_", " ") === "preferred";
+}
+
+export function concordanceSourceContainsTerm(
+  sourceText: string,
+  input: { sourceTerm: string; caseSensitive: boolean },
+) {
+  const normalizedSourceText = input.caseSensitive ? sourceText : sourceText.toLocaleLowerCase();
+  const normalizedSourceTerm = input.caseSensitive
+    ? input.sourceTerm
+    : input.sourceTerm.toLocaleLowerCase();
+
+  if (!normalizedSourceTerm) {
+    return false;
+  }
+
+  let searchStart = 0;
+  while (searchStart < normalizedSourceText.length) {
+    const matchStart = normalizedSourceText.indexOf(normalizedSourceTerm, searchStart);
+    if (matchStart < 0) {
+      break;
+    }
+
+    const matchEnd = matchStart + normalizedSourceTerm.length;
+    const characterBefore = normalizedSourceText[matchStart - 1];
+    const characterAfter = normalizedSourceText[matchEnd];
+    if (
+      !isConcordanceTermCharacter(characterBefore) &&
+      !isConcordanceTermCharacter(characterAfter)
+    ) {
+      return true;
+    }
+
+    searchStart = matchEnd;
+  }
+
+  const sourceTextTokens = concordanceTokens(normalizedSourceText);
+  const sourceTermTokens = concordanceTokens(normalizedSourceTerm);
+  if (sourceTermTokens.length === 0 || sourceTextTokens.length < sourceTermTokens.length) {
+    return false;
+  }
+
+  for (let index = 0; index <= sourceTextTokens.length - sourceTermTokens.length; index++) {
+    const candidate = sourceTextTokens.slice(index, index + sourceTermTokens.length);
+    if (
+      candidate.every((sourceTextToken, tokenIndex) =>
+        concordanceTokensMatch(sourceTextToken, sourceTermTokens[tokenIndex] ?? ""),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function filterConcordanceTargetTerms<T extends { locale: string }>(
@@ -1057,76 +1154,95 @@ export class NativeGlossary extends Glossary {
       return [];
     }
 
-    const limit = query.limit ?? 20;
+    const limit = Math.max(query.limit ?? 20, 0);
+    if (limit === 0) {
+      return [];
+    }
     const glossaryId = this.input.glossary.id;
     const sourceLocale = query.sourceLocale;
 
-    const sourceHits = await db
-      .select({
-        conceptId: concordanceSourceTerms.conceptId,
-        glossaryId: concordanceSourceTerms.glossaryId,
-        glossaryName: schema.glossaries.name,
-        matchedSourceTermId: concordanceSourceTerms.id,
-        matchedSourceTerm: sql<string>`${concordanceSourceTerms.term}`,
-        caseSensitive: concordanceSourceTerms.caseSensitive,
-        sourceStatus: concordanceSourceTerms.status,
-        rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-          "rank",
-        ),
-        externalGlossaryUrl: schema.glossaries.externalUrl,
-      })
-      .from(concordanceSourceTerms)
-      .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
-      .where(
-        and(
-          eq(concordanceSourceTerms.glossaryId, glossaryId),
-          eq(schema.glossaries.source, "native"),
-          eq(schema.glossaries.sourceLocale, sourceLocale),
-          eq(schema.glossaries.status, "active"),
-          eq(concordanceSourceTerms.locale, sourceLocale),
-          // Concordance is concept-backed only. Leftover term-based rows (conceptId = null)
-          // are intentionally excluded.
-          isNotNull(concordanceSourceTerms.conceptId),
-          isNotNull(concordanceSourceTerms.term),
-          eq(concordanceSourceTerms.reviewStatus, "approved"),
-          sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-          sql`case
-            when coalesce(${concordanceSourceTerms.caseSensitive}, false)
-              then position(${concordanceSourceTerms.term} in ${query.sourceText}) > 0
-            else position(lower(${concordanceSourceTerms.term}) in lower(${query.sourceText})) > 0
-          end`,
-        ),
-      )
-      .orderBy(desc(sql`rank`))
-      .limit(limit);
-
-    const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>
-      row.conceptId &&
-      sourceContainsTerm(query.sourceText, {
-        sourceTerm: row.matchedSourceTerm,
-        caseSensitive: row.caseSensitive ?? false,
-      })
-        ? [
-            {
-              conceptId: row.conceptId,
-              glossaryId: row.glossaryId,
-              glossaryName: row.glossaryName,
-              matchedSourceTermId: row.matchedSourceTermId,
-              matchedSourceTerm: row.matchedSourceTerm,
-              caseSensitive: row.caseSensitive,
-              sourceStatus: row.sourceStatus,
-              rank: Number(row.rank) || 0,
-              externalGlossaryUrl: row.externalGlossaryUrl,
-            },
-          ]
-        : [],
-    );
-
     const bestHitByConcept = new Map<string, NativeConceptSourceHit>();
-    for (const hit of filteredHits) {
-      const existing = bestHitByConcept.get(hit.conceptId);
-      if (!existing || hit.rank > existing.rank) {
-        bestHitByConcept.set(hit.conceptId, hit);
+    let candidateOffset = 0;
+    while (bestHitByConcept.size < limit) {
+      const sourceHits = await db
+        .select({
+          conceptId: concordanceSourceTerms.conceptId,
+          glossaryId: concordanceSourceTerms.glossaryId,
+          glossaryName: schema.glossaries.name,
+          matchedSourceTermId: concordanceSourceTerms.id,
+          matchedSourceTerm: sql<string>`${concordanceSourceTerms.term}`,
+          caseSensitive: concordanceSourceTerms.caseSensitive,
+          sourceStatus: concordanceSourceTerms.status,
+          rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+            "rank",
+          ),
+          externalGlossaryUrl: schema.glossaries.externalUrl,
+        })
+        .from(concordanceSourceTerms)
+        .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
+        .where(
+          and(
+            eq(concordanceSourceTerms.glossaryId, glossaryId),
+            eq(schema.glossaries.source, "native"),
+            eq(schema.glossaries.sourceLocale, sourceLocale),
+            eq(schema.glossaries.status, "active"),
+            eq(concordanceSourceTerms.locale, sourceLocale),
+            // Concordance is concept-backed only. Leftover term-based rows (conceptId = null)
+            // are intentionally excluded.
+            isNotNull(concordanceSourceTerms.conceptId),
+            isNotNull(concordanceSourceTerms.term),
+            eq(concordanceSourceTerms.reviewStatus, "approved"),
+            sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          ),
+        )
+        // The SQL predicate is intentionally broad because PostgreSQL tokenizes hyphenated
+        // terms such as "e-ticket" into separate full-text tokens. Fetch bounded pages and
+        // apply the exact source-text matcher below before accepting a concept.
+        .orderBy(desc(sql`rank`), asc(concordanceSourceTerms.id))
+        .limit(NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE)
+        .offset(candidateOffset);
+
+      if (sourceHits.length === 0) {
+        break;
+      }
+
+      candidateOffset += sourceHits.length;
+      for (const row of sourceHits) {
+        if (
+          !row.conceptId ||
+          !concordanceSourceContainsTerm(query.sourceText, {
+            sourceTerm: row.matchedSourceTerm,
+            caseSensitive: row.caseSensitive ?? false,
+          })
+        ) {
+          continue;
+        }
+
+        const hit: NativeConceptSourceHit = {
+          conceptId: row.conceptId,
+          glossaryId: row.glossaryId,
+          glossaryName: row.glossaryName,
+          matchedSourceTermId: row.matchedSourceTermId,
+          matchedSourceTerm: row.matchedSourceTerm,
+          caseSensitive: row.caseSensitive,
+          sourceStatus: row.sourceStatus,
+          rank: Number(row.rank) || 0,
+          externalGlossaryUrl: row.externalGlossaryUrl,
+        };
+        const existing = bestHitByConcept.get(hit.conceptId);
+        if (
+          !existing ||
+          hit.rank > existing.rank ||
+          (hit.rank === existing.rank &&
+            isPreferredConcordanceSourceStatus(hit.sourceStatus) &&
+            !isPreferredConcordanceSourceStatus(existing.sourceStatus))
+        ) {
+          bestHitByConcept.set(hit.conceptId, hit);
+        }
+      }
+
+      if (sourceHits.length < NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE) {
+        break;
       }
     }
 

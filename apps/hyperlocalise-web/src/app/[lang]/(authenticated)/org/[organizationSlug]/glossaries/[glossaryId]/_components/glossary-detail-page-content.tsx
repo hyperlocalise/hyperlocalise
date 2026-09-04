@@ -920,7 +920,7 @@ export function GlossaryDetailPageContent({
     return conceptPageMode ? <ConceptDetailSkeleton /> : <ConceptListSkeleton />;
   if (!glossary)
     return (
-      <TypographyP className="py-8 text-sm text-muted-foreground">
+      <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.notFound} />
       </TypographyP>
     );
@@ -1012,7 +1012,7 @@ export function GlossaryDetailPageContent({
     conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
   if (conceptPageMode && !isCreatingConcept && conceptsQuery.isSuccess && !selected) {
     return (
-      <TypographyP className="py-8 text-sm text-muted-foreground">
+      <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.notFound} />
       </TypographyP>
     );
@@ -1113,11 +1113,15 @@ export function GlossaryDetailPageContent({
                 />
               </>
             ) : (
-              <TypographyH1 className="font-sans text-3xl font-semibold text-balance md:text-5xl lg:text-6xl">
+              <TypographyH1
+                className="text-3xl md:text-5xl lg:text-6xl"
+                weight="bold"
+                wrapStyle="balance"
+              >
                 {glossary.name}
               </TypographyH1>
             )}
-            <TypographyP className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
               {glossary.description || intl.formatMessage(messages.descriptionFallback)}
             </TypographyP>
             {canManage && isNative ? (
@@ -1139,10 +1143,10 @@ export function GlossaryDetailPageContent({
             <section className="grid gap-4 rounded-lg border border-border p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <TypographyP className="text-sm font-medium text-foreground">
+                  <TypographyP size="small" weight="medium" tone="content">
                     <FormattedMessage {...messages.conceptsTitle} />
                   </TypographyP>
-                  <TypographyP className="text-xs text-muted-foreground">
+                  <TypographyP size="xsmall" tone="subtle">
                     <FormattedMessage {...messages.conceptsDescription} />
                   </TypographyP>
                 </div>
@@ -1276,7 +1280,7 @@ export function GlossaryDetailPageContent({
                 ) : null}
               </div>
               {conceptsQuery.isError ? (
-                <TypographyP className="text-sm text-destructive">
+                <TypographyP size="small" tone="critical">
                   {conceptsQuery.error.message}
                 </TypographyP>
               ) : null}
@@ -1391,7 +1395,7 @@ export function GlossaryDetailPageContent({
                 </table>
                 {conceptsQuery.isSuccess && filteredConcepts.length === 0 ? (
                   <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
-                    <TypographyP className="text-sm text-muted-foreground">
+                    <TypographyP size="small" tone="subtle">
                       <FormattedMessage {...messages.noConcepts} />
                     </TypographyP>
                     {canContribute || canManage ? (
@@ -1431,7 +1435,7 @@ export function GlossaryDetailPageContent({
             </section>
           ) : (
             <section className="rounded-lg border border-border p-4">
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.providerReadOnly} />
               </TypographyP>
             </section>
@@ -1444,14 +1448,14 @@ export function GlossaryDetailPageContent({
             <>
               {conceptPageMode ? (
                 <div className="grid gap-1">
-                  <TypographyH1 className="font-sans text-2xl font-medium">
+                  <TypographyH1 className="text-2xl" weight="medium">
                     {isCreatingConcept ? (
                       <FormattedMessage {...messages.addConcept} />
                     ) : (
                       sourceTermText || selectedConceptId
                     )}
                   </TypographyH1>
-                  <TypographyP className="text-sm text-muted-foreground">
+                  <TypographyP size="small" tone="subtle">
                     {sourceLanguage.name} · {sourceLanguage.locale}
                   </TypographyP>
                 </div>
@@ -2268,7 +2272,11 @@ export function GlossaryDetailPageContent({
                                                   />
                                                 </Field>
                                                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-                                                  <TypographyP className="text-xs text-muted-foreground tabular-nums">
+                                                  <TypographyP
+                                                    className="tabular-nums"
+                                                    size="xsmall"
+                                                    tone="subtle"
+                                                  >
                                                     ID {term.id} · {formatDate(term.createdAt)} ·{" "}
                                                     {formatDate(term.updatedAt)}
                                                   </TypographyP>
@@ -2539,12 +2547,12 @@ export function GlossaryDetailPageContent({
       {!conceptPageMode && (isNative || isLiveCrowdin) ? (
         <section className="grid gap-4 rounded-lg border border-border p-4">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage
                 {...(isLiveCrowdin ? messages.linkedProjectTitle : messages.assignedProjectsTitle)}
               />
             </TypographyP>
-            <TypographyP className="text-xs text-muted-foreground">
+            <TypographyP size="xsmall" tone="subtle">
               <FormattedMessage
                 {...(isLiveCrowdin
                   ? messages.linkedProjectDescription
@@ -2621,7 +2629,7 @@ export function GlossaryDetailPageContent({
               </div>
             ))}
             {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.noProjectsAssigned} />
               </TypographyP>
             ) : null}

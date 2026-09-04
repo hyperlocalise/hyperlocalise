@@ -162,14 +162,14 @@ export function HyperlabFlagDetail({
     >
       <Rows spacing="2u">
         {detailQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {detailQuery.error instanceof Error
               ? detailQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {detailQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
@@ -247,7 +247,7 @@ export function HyperlabFlagDetail({
                 <Rows spacing="0">
                   {(assignmentsQuery.data ?? []).map((assignment) => (
                     <Box key={assignment.id} paddingX="2u" paddingY="1.5u">
-                      <TypographyP className="text-sm">
+                      <TypographyP size="small">
                         {assignment.variantId} · {assignment.enabled ? "on" : "off"}
                       </TypographyP>
                     </Box>

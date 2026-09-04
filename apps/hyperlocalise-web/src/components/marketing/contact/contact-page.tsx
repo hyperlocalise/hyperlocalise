@@ -30,7 +30,7 @@ export function ContactPage({ locale }: ContactPageProps) {
         <section className="px-5 pt-16 pb-24 sm:px-8 sm:pt-20 sm:pb-28 lg:px-10">
           <div className="max-w-4xl space-y-6">
             <TypographyH1>{copy.headline}</TypographyH1>
-            <TypographyP className="max-w-2xl text-lg text-muted-foreground">
+            <TypographyP className="max-w-2xl" size="large" tone="subtle">
               {copy.subcopy}
             </TypographyP>
             <div className="pt-2">

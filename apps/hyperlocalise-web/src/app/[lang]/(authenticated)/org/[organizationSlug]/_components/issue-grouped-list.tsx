@@ -144,51 +144,56 @@ export function IssueListRow({
         onClick={() => onActivate(issue)}
         onKeyDown={(event) => onActivateKeyDown(event, issue)}
       >
-        <IssuePriorityIcon priority={issue.priority} size="sm" />
-        <Link
-          href={buildIssueDetailHref({
-            organizationSlug,
-            projectId: issue.projectId,
-            issueId: issue.identifier,
-          })}
-          className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
-          onClick={stopPropagation}
-          onKeyDown={stopPropagation}
-        >
-          <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
-            {issue.identifier}
-          </span>
-          {issue.title}
-        </Link>
-        {showProject && issue.projectName ? (
+        <IssuePriorityIcon priority={issue.priority} size="sm" className="shrink-0" />
+        <div className="min-w-0 flex-1 overflow-hidden">
           <Link
-            href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
-            className="hidden max-w-[10rem] truncate text-muted-foreground hover:text-foreground hover:underline md:inline"
+            href={buildIssueDetailHref({
+              organizationSlug,
+              projectId: issue.projectId,
+              issueId: issue.identifier,
+            })}
+            className="block truncate font-medium text-foreground hover:underline"
             onClick={stopPropagation}
             onKeyDown={stopPropagation}
           >
-            {issue.projectName}
+            <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
+              {issue.identifier}
+            </span>
+            {issue.title}
           </Link>
-        ) : null}
-        <span className="hidden w-16 shrink-0 truncate text-muted-foreground sm:inline">
-          {issue.targetLocale ?? emptyValue}
-        </span>
-        <div className="shrink-0" onClick={stopPropagation} onKeyDown={stopPropagation}>
-          <IssueAssigneeTableCell
-            organizationSlug={organizationSlug}
-            projectId={issue.projectId}
-            issueId={issue.identifier}
-            assigneeUserId={issue.assigneeUserId}
-            assigneeLabel={issue.assignee}
-            disabled={disableInlineEdits}
-          />
         </div>
-        <span
-          className="w-10 shrink-0 text-end text-muted-foreground tabular-nums"
-          title={formatRelativeTimestamp(issue.updatedAt)}
-        >
-          {formatCompactRelativeTimestamp(issue.updatedAt)}
-        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          {showProject && issue.projectName ? (
+            <Link
+              href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
+              className="hidden max-w-[7rem] min-w-0 truncate text-muted-foreground hover:text-foreground hover:underline md:inline"
+              onClick={stopPropagation}
+              onKeyDown={stopPropagation}
+            >
+              {issue.projectName}
+            </Link>
+          ) : null}
+          <span className="hidden w-14 shrink-0 truncate text-muted-foreground sm:inline">
+            {issue.targetLocale ?? emptyValue}
+          </span>
+          <div onClick={stopPropagation} onKeyDown={stopPropagation}>
+            <IssueAssigneeTableCell
+              organizationSlug={organizationSlug}
+              projectId={issue.projectId}
+              issueId={issue.identifier}
+              assigneeUserId={issue.assigneeUserId}
+              assigneeLabel={issue.assignee}
+              disabled={disableInlineEdits}
+            />
+          </div>
+          <time
+            className="min-w-[4.75rem] shrink-0 text-end text-muted-foreground tabular-nums"
+            dateTime={issue.updatedAt}
+            title={formatRelativeTimestamp(issue.updatedAt)}
+          >
+            {formatCompactRelativeTimestamp(issue.updatedAt)}
+          </time>
+        </div>
       </div>
     </div>
   );

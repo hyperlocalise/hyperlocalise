@@ -40,10 +40,10 @@ export function UseCaseHero({ content }: UseCaseHeroProps) {
         <p className="text-sm font-medium tracking-[0.14em] text-muted-foreground uppercase">
           <UseCaseMessage messageKey={content.hero.eyebrowKey} />
         </p>
-        <TypographyH1 className="text-left text-balance">
+        <TypographyH1 className="text-left" wrapStyle="balance">
           <UseCaseMessage messageKey={content.hero.headlineKey} />
         </TypographyH1>
-        <TypographyP className="max-w-2xl text-muted-foreground">
+        <TypographyP className="max-w-2xl" tone="subtle">
           <UseCaseMessage messageKey={content.hero.subheadlineKey} />
         </TypographyP>
         <Button
@@ -57,7 +57,7 @@ export function UseCaseHero({ content }: UseCaseHeroProps) {
       <div className="mt-12 overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:rounded-[2rem]">
         <div className="grid divide-y divide-border lg:grid-cols-[1.05fr_1.7fr] lg:divide-x lg:divide-y-0">
           <div className="px-6 py-7 sm:px-8 sm:py-9">
-            <TypographyP className="text-[0.95rem] tracking-[-0.02em] text-muted-foreground">
+            <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
               <UseCaseMessage messageKey="problemPanelEyebrow" />
             </TypographyP>
             <TypographyH2 className="mt-8 max-w-xl text-3xl leading-[1.04] tracking-[-0.045em] sm:text-4xl">
@@ -67,10 +67,10 @@ export function UseCaseHero({ content }: UseCaseHeroProps) {
           <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {content.problem.painKeys.slice(0, 3).map((painKey, index) => (
               <article key={painKey} className="flex flex-col gap-8 px-6 py-7 sm:px-7 sm:py-8">
-                <TypographyP className="text-[0.95rem] tracking-[-0.02em] text-muted-foreground">
+                <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
                   {formatStepLabel(index)}
                 </TypographyP>
-                <TypographyP className="text-sm leading-relaxed text-muted-foreground">
+                <TypographyP className="leading-relaxed" size="small" tone="subtle">
                   <UseCaseMessage messageKey={painKey} />
                 </TypographyP>
               </article>
@@ -105,10 +105,10 @@ export function UseCaseOverviewSection({ content }: UseCaseOverviewSectionProps)
               <div className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
                 {formatStepLabel(index)}
               </div>
-              <TypographyH3 className="mt-3 text-xl font-medium tracking-[-0.03em]">
+              <TypographyH3 className="mt-3 tracking-[-0.03em]" size="xlarge" weight="medium">
                 <UseCaseMessage messageKey={item.titleKey} />
               </TypographyH3>
-              <TypographyP className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              <TypographyP className="mt-3 leading-relaxed" size="small" tone="subtle">
                 <UseCaseMessage messageKey={item.descriptionKey} />
               </TypographyP>
             </article>
@@ -133,7 +133,7 @@ export function UseCaseWorkflowSection({ content }: UseCaseWorkflowSectionProps)
         <TypographyH2 className="text-4xl sm:text-5xl">
           <UseCaseMessage messageKey={content.titleKey} />
         </TypographyH2>
-        <TypographyP className="text-muted-foreground">
+        <TypographyP tone="subtle">
           <UseCaseMessage messageKey={content.descriptionKey} />
         </TypographyP>
       </div>
@@ -142,14 +142,19 @@ export function UseCaseWorkflowSection({ content }: UseCaseWorkflowSectionProps)
         <div className="grid divide-y divide-border sm:grid-cols-2 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {content.steps.map((step, index) => (
             <article key={step.labelKey} className="flex flex-col gap-3 px-6 py-7 sm:px-7 sm:py-8">
-              <TypographyP className="text-[0.95rem] tracking-[-0.02em] text-muted-foreground">
+              <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
                 {formatStepLabel(index)}
               </TypographyP>
-              <TypographyH3 className="text-xl font-medium tracking-[-0.03em] text-foreground">
+              <TypographyH3
+                className="tracking-[-0.03em]"
+                size="xlarge"
+                weight="medium"
+                tone="content"
+              >
                 <UseCaseMessage messageKey={step.labelKey} />
               </TypographyH3>
               {step.descriptionKey ? (
-                <TypographyP className="text-sm leading-relaxed text-muted-foreground">
+                <TypographyP className="leading-relaxed" size="small" tone="subtle">
                   <UseCaseMessage messageKey={step.descriptionKey} />
                 </TypographyP>
               ) : null}
@@ -184,10 +189,10 @@ export function UseCaseCapabilitiesSection({ content }: UseCaseCapabilitiesSecti
               <div className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
                 {formatStepLabel(index, 4)}
               </div>
-              <TypographyH3 className="mt-3 text-xl font-medium tracking-[-0.03em]">
+              <TypographyH3 className="mt-3 tracking-[-0.03em]" size="xlarge" weight="medium">
                 <UseCaseMessage messageKey={item.titleKey} />
               </TypographyH3>
-              <TypographyP className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              <TypographyP className="mt-3 leading-relaxed" size="small" tone="subtle">
                 <UseCaseMessage messageKey={item.descriptionKey} />
               </TypographyP>
             </article>
@@ -210,10 +215,10 @@ export function UseCaseDifferentiatorSection({ content }: UseCaseDifferentiatorS
           <div className="text-sm text-muted-foreground">
             <UseCaseMessage messageKey={content.labelKey} />
           </div>
-          <TypographyH2 className="text-4xl text-balance sm:text-5xl">
+          <TypographyH2 className="text-4xl sm:text-5xl" wrapStyle="balance">
             <UseCaseMessage messageKey={content.titleKey} />
           </TypographyH2>
-          <TypographyP className="max-w-2xl text-muted-foreground">
+          <TypographyP className="max-w-2xl" tone="subtle">
             <UseCaseMessage messageKey={content.descriptionKey} />
           </TypographyP>
         </div>
@@ -253,7 +258,11 @@ export function UseCaseScenarioSection({ content }: UseCaseScenarioSectionProps)
           </TypographyH2>
         </div>
 
-        <TypographyP className="max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl sm:leading-8">
+        <TypographyP
+          className="max-w-3xl leading-relaxed sm:text-xl sm:leading-8"
+          size="large"
+          tone="subtle"
+        >
           <UseCaseMessage messageKey={content.narrativeKey} />
         </TypographyP>
       </div>
@@ -268,10 +277,13 @@ type UseCaseCtaSectionProps = {
 export function UseCaseCtaSection({ content }: UseCaseCtaSectionProps) {
   return (
     <section id="waitlist" className="text-center">
-      <TypographyH2 className="pb-0 text-4xl leading-[1.04] font-semibold tracking-[-0.04em] normal-case sm:text-5xl">
+      <TypographyH2
+        className="pb-0 text-4xl leading-[1.04] tracking-[-0.04em] normal-case sm:text-5xl"
+        weight="bold"
+      >
         <UseCaseMessage messageKey={content.headlineKey} />
       </TypographyH2>
-      <TypographyP className="mx-auto mt-5 max-w-2xl text-muted-foreground">
+      <TypographyP className="mx-auto mt-5 max-w-2xl" tone="subtle">
         <UseCaseMessage messageKey={content.descriptionKey} />
       </TypographyP>
       <div className="mt-8 flex justify-center">

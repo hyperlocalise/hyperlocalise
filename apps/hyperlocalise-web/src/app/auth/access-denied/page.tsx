@@ -207,7 +207,9 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
           <CardDescription className="text-muted-foreground">{copy.description}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <TypographyP className="text-sm leading-6 text-muted-foreground">{copy.body}</TypographyP>
+          <TypographyP className="leading-6" size="small" tone="subtle">
+            {copy.body}
+          </TypographyP>
 
           <div className="flex flex-wrap gap-3">
             {reason === "pending-invite" ? (

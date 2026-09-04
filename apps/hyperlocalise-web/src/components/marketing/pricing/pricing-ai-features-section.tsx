@@ -34,7 +34,7 @@ export function PricingAiFeaturesSection({
         >
           {heading}
         </TypographyH2>
-        <TypographyP className="mt-3 text-base text-muted-foreground sm:text-lg">
+        <TypographyP className="mt-3 sm:text-lg" tone="subtle">
           {subcopy}
         </TypographyP>
       </div>

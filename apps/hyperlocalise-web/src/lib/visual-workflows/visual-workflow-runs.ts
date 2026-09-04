@@ -766,7 +766,7 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
 
-  const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter");
+  const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter-server");
   const result = await runVisualWorkflowInterpreter({
     definition,
     organizationId: input.organizationId,

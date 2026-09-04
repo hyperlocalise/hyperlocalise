@@ -168,7 +168,7 @@ export function JobProviderDetailSectionView({
       {showProviderMetadata ? (
         <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+            <TypographyH2 className="font-heading md:text-lg" weight="medium" tone="content">
               <FormattedMessage {...messages.providerDetailsHeading} />
             </TypographyH2>
             <Badge variant="outline" className="rounded-full capitalize">
@@ -261,7 +261,7 @@ export function JobProviderDetailSectionView({
       {projectId && renderSourceFiles ? (
         <section className="rounded-lg border border-border bg-muted p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+            <TypographyH2 className="font-heading md:text-lg" weight="medium" tone="content">
               <FormattedMessage {...messages.sourceFilesHeading} />
             </TypographyH2>
             {!sourceFilesExpanded ? (
@@ -282,7 +282,7 @@ export function JobProviderDetailSectionView({
 
       {showAgentActions && visibleActions.length > 0 ? (
         <section className="rounded-lg border border-border bg-muted p-5">
-          <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+          <TypographyH2 className="font-heading md:text-lg" weight="medium" tone="content">
             <FormattedMessage {...messages.agentActionsHeading} />
           </TypographyH2>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -317,7 +317,7 @@ export function JobProviderDetailSectionView({
         : null}
 
       <section className="rounded-lg border border-border bg-muted p-5">
-        <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        <TypographyH2 className="font-heading md:text-lg" weight="medium" tone="content">
           <FormattedMessage {...messages.agentActivityHeading} />
         </TypographyH2>
         {agentRunsLoading ? <Skeleton className="mt-4 h-20 w-full bg-skeleton" /> : null}

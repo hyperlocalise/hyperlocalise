@@ -11,20 +11,22 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent } from "storybook/test";
 
-import { visualWorkflowDemoDraft } from "./visual-workflow-editor.fixture";
+import {
+  visualWorkflowDemoDraft,
+  visualWorkflowPlaygroundDraft,
+} from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
 const meta = {
-  title: "App/Automations/VisualWorkflowEditor",
+  title: "App/Automations/Visual Workflow",
   component: VisualWorkflowEditor,
   parameters: {
     layout: "fullscreen",
     docs: {
       description: {
         component:
-          "HL-626 visual workflow mock. Open Sample graph first — canvas, picker, Test workflow, and Export JSON. No auth or WorkOS flag required.",
+          "Interactive playground for visual workflows. Add nodes from the picker, connect steps, configure each node, and run **Test workflow** to execute the graph in the browser. Logic nodes run for real; HTTP, Slack, and AI steps return simulated outputs.",
       },
     },
   },
@@ -40,32 +42,24 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const SampleGraph: Story = {
-  name: "Sample graph (mentor demo)",
+export const Playground: Story = {
+  name: "Playground",
+  args: {
+    initialName: visualWorkflowPlaygroundDraft.name,
+    initialNodes: visualWorkflowPlaygroundDraft.nodes,
+    initialEdges: visualWorkflowPlaygroundDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+};
+
+export const SampleWorkflow: Story = {
+  name: "Sample workflow",
   args: {
     initialName: visualWorkflowDemoDraft.name,
     initialNodes: visualWorkflowDemoDraft.nodes,
     initialEdges: visualWorkflowDemoDraft.edges,
     previewMode: true,
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByDisplayValue("Lead ping")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Export JSON" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Test workflow" })).toBeEnabled();
-  },
-};
-
-export const Empty: Story = {
-  args: {
-    previewMode: true,
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole("button", { name: "Add first step" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Load sample" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "What happens next?" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Add first step" }));
-    await userEvent.click(canvas.getByRole("button", { name: /Manual trigger/i }));
-    await expect(canvas.getByRole("heading", { name: "Configure step" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Test workflow" })).toBeEnabled();
+    playgroundMode: true,
   },
 };

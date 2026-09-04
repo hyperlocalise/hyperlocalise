@@ -130,19 +130,19 @@ export function HyperlabExperimentsPage({
         ) : null}
 
         {experimentsQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {experimentsQuery.error instanceof Error
               ? experimentsQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {experimentsQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
         {!experimentsQuery.isLoading && experiments.length === 0 ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.experimentsEmpty} />
           </TypographyP>
         ) : null}
@@ -160,7 +160,7 @@ export function HyperlabExperimentsPage({
                     </Link>
                     <Row spacing="1u" alignY="center">
                       <Badge variant="outline">{experiment.status}</Badge>
-                      <TypographyP className="text-sm text-muted-foreground">
+                      <TypographyP size="small" tone="subtle">
                         {experiment.kind}
                       </TypographyP>
                     </Row>

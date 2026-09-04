@@ -70,7 +70,7 @@ export function NotificationPreferencesForm({
               <FieldLabel htmlFor="notification-email-enabled" className="text-sm font-medium">
                 <FormattedMessage {...messages.emailEnabledLabel} />
               </FieldLabel>
-              <TypographyP className="text-sm leading-tight text-muted-foreground">
+              <TypographyP className="leading-tight" size="small" tone="subtle">
                 <FormattedMessage {...messages.emailEnabledDescription} />
               </TypographyP>
             </Rows>
@@ -125,7 +125,7 @@ export function NotificationPreferencesForm({
       ) : null}
 
       {isSaving ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.saving} />
         </TypographyP>
       ) : null}

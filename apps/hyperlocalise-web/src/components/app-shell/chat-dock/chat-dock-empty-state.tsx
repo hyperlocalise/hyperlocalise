@@ -18,6 +18,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Rows } from "@/components/ui/layout/rows";
 
 import { chatDockMessages } from "./chat-dock.messages";
 import type { ChatDockPageContext } from "./chat-dock-store";
@@ -98,35 +100,64 @@ export function ChatDockEmptyState({
   const suggestions = buildChatDockSuggestions(pageContext, intl.formatMessage);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 py-8 text-center">
-      <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
-      </div>
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        gap="3u"
+        paddingX="3u"
+        paddingY="4u"
+        height="full"
+      >
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          background="muted"
+          borderRadius="standard"
+          padding="1u"
+        >
+          <HugeiconsIcon
+            icon={Chat01Icon}
+            strokeWidth={1.8}
+            className="size-5 text-muted-foreground"
+          />
+        </Box>
 
-      <div className="max-w-sm space-y-1">
-        <h2 className="text-balance text-sm font-semibold text-foreground">
-          <FormattedMessage {...chatDockMessages.emptyTitle} />
-        </h2>
-        <p className="text-pretty text-sm text-muted-foreground">
-          <FormattedMessage {...chatDockMessages.emptySubtitle} />
-        </p>
-      </div>
+        <Rows spacing="0.5u" align="center">
+          <h2 className="max-w-sm text-balance text-sm font-semibold text-foreground">
+            <FormattedMessage {...chatDockMessages.emptyTitle} />
+          </h2>
+          <p className="max-w-sm text-pretty text-sm text-muted-foreground">
+            <FormattedMessage {...chatDockMessages.emptySubtitle} />
+          </p>
+        </Rows>
 
-      <div className="flex max-w-sm flex-wrap justify-center gap-2">
-        {suggestions.map((suggestion) => (
-          <Button
-            key={suggestion.id}
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
-            onClick={() => onSelectSuggestion(suggestion.prompt)}
-          >
-            <HugeiconsIcon icon={suggestion.icon} strokeWidth={1.8} className="size-3.5" />
-            {suggestion.label}
-          </Button>
-        ))}
-      </div>
+        <Box
+          display="flex"
+          flexWrap="wrap"
+          alignItems="center"
+          justifyContent="center"
+          gap="1u"
+          width="full"
+        >
+          {suggestions.map((suggestion) => (
+            <Button
+              key={suggestion.id}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
+              onClick={() => onSelectSuggestion(suggestion.prompt)}
+            >
+              <HugeiconsIcon icon={suggestion.icon} strokeWidth={1.8} className="size-3.5" />
+              {suggestion.label}
+            </Button>
+          ))}
+        </Box>
+      </Box>
     </div>
   );
 }

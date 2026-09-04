@@ -313,7 +313,7 @@ export function ProjectIssueColumnsSettings({
             ) : (
               <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
             )}
-            <TypographyP className="truncate text-sm font-medium text-foreground">
+            <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
               {column.label}
             </TypographyP>
             <Badge variant="outline">
@@ -330,7 +330,7 @@ export function ProjectIssueColumnsSettings({
               </Badge>
             ) : null}
           </div>
-          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">
+          <TypographyP className="mt-0.5" lineClamp={1} size="xsmall" tone="subtle">
             {column.key}
           </TypographyP>
         </div>
@@ -414,7 +414,7 @@ export function ProjectIssueColumnsSettings({
           <ProjectSectionTitle>
             <FormattedMessage {...messages.title} />
           </ProjectSectionTitle>
-          <TypographyP className="mt-1 text-sm text-muted-foreground">
+          <TypographyP className="mt-1" size="small" tone="subtle">
             <FormattedMessage {...messages.description} />
           </TypographyP>
         </div>
@@ -424,13 +424,13 @@ export function ProjectIssueColumnsSettings({
       </div>
 
       {columnsQuery.isLoading ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
       ) : null}
 
       {columnsQuery.isError ? (
-        <TypographyP className="text-sm text-flame-100">
+        <TypographyP className="text-flame-100" size="small">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       ) : null}
@@ -438,10 +438,10 @@ export function ProjectIssueColumnsSettings({
       {columnsQuery.isSuccess ? (
         <div className="grid gap-5">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...messages.systemTitle} />
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-muted-foreground">
+            <TypographyP className="mt-1" size="xsmall" tone="subtle">
               <FormattedMessage {...messages.systemDescription} />
             </TypographyP>
             <div className="mt-2 grid gap-2">
@@ -450,7 +450,9 @@ export function ProjectIssueColumnsSettings({
                   key={field.key}
                   className="flex items-center justify-between gap-2 border-b border-border py-2 last:border-b-0"
                 >
-                  <TypographyP className="text-sm text-foreground">{field.label}</TypographyP>
+                  <TypographyP size="small" tone="content">
+                    {field.label}
+                  </TypographyP>
                   <Badge variant="outline">
                     <FormattedMessage {...messages.builtInBadge} />
                   </Badge>
@@ -460,7 +462,7 @@ export function ProjectIssueColumnsSettings({
           </div>
 
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...messages.builtInTitle} />
             </TypographyP>
             <div className="mt-1">
@@ -469,11 +471,11 @@ export function ProjectIssueColumnsSettings({
           </div>
 
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...messages.customTitle} />
             </TypographyP>
             {customColumns.length === 0 ? (
-              <TypographyP className="mt-2 text-sm text-muted-foreground">
+              <TypographyP className="mt-2" size="small" tone="subtle">
                 <FormattedMessage {...messages.emptyCustom} />
               </TypographyP>
             ) : (

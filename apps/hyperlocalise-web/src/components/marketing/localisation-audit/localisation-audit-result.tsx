@@ -419,7 +419,7 @@ function AuditCriteriaList({
 
   return (
     <div>
-      <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+      <TypographyP className="mt-4 max-w-2xl" tone="subtle">
         {copy.criteriaSummary({
           passed: passed.length,
           failed: failed.length,
@@ -759,7 +759,9 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.staleTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">{copy.staleBody}</TypographyP>
+        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
+          {copy.staleBody}
+        </TypographyP>
         <p className="mt-6 text-sm text-white/65">{audit.domainKey}</p>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
@@ -779,7 +781,7 @@ export function LocalisationAuditResult({
       <>
         <MeshWash>
           <TypographyH1 className="border-none text-white">{copy.runningTitle}</TypographyH1>
-          <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
+          <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
             {copy.runningBody}
           </TypographyP>
           <p className="mt-2 text-sm text-white/65">{copy.expectedDuration}</p>
@@ -789,8 +791,10 @@ export function LocalisationAuditResult({
           <AuditProgressTrack activeIndex={activeIndex} copy={copy} />
 
           <div className="mt-12 max-w-md">
-            <TypographyH2 className="pb-0 text-xl">{copy.emailWhenReadyHeading}</TypographyH2>
-            <TypographyP className="mt-3 text-muted-foreground">
+            <TypographyH2 className="pb-0" size="xlarge">
+              {copy.emailWhenReadyHeading}
+            </TypographyH2>
+            <TypographyP className="mt-3" tone="subtle">
               {copy.emailWhenReadyBody}
             </TypographyP>
             <form onSubmit={requestReportEmail} className="mt-6 space-y-4">
@@ -824,7 +828,7 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.failedTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
+        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
           {copy.failedBody}
         </TypographyP>
         <TypographyP className="mt-2 max-w-2xl text-white/70">
@@ -846,7 +850,7 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.blockedTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
+        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
           {copy.blockedBody}
         </TypographyP>
         <TypographyP className="mt-2 max-w-2xl text-white/70">{copy.blockedGuidance}</TypographyP>
@@ -978,7 +982,7 @@ export function LocalisationAuditResult({
               {ratingLabel}
             </Badge>
           ) : null}
-          <TypographyP className="mt-4 max-w-2xl text-pretty text-lg text-white/80">
+          <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
             {interpretation}
           </TypographyP>
           {dimensionScores ? (
@@ -1044,7 +1048,7 @@ export function LocalisationAuditResult({
       {standing && !isWorkspace ? (
         <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl text-lg text-muted-foreground">
+          <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
             {copy.standingRank({ rank: standing.rank, total: standing.total })}
           </TypographyP>
           <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
@@ -1143,7 +1147,7 @@ export function LocalisationAuditResult({
       {isWorkspace ? null : (
         <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.unlockHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
             {copy.unlockBody}
           </TypographyP>
           <form onSubmit={requestReportEmail} className="mt-8 max-w-md space-y-4">
@@ -1173,7 +1177,9 @@ export function LocalisationAuditResult({
       {isWorkspace ? null : (
         <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{ctaBody}</TypographyP>
+          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
+            {ctaBody}
+          </TypographyP>
           <div className="mt-6 flex flex-wrap gap-3">
             {audit.rerunnable ? (
               <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>

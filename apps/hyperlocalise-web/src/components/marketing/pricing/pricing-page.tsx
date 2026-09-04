@@ -44,7 +44,9 @@ export function PricingPage({ locale, faqItems }: PricingPageProps) {
         <section className="px-5 pt-16 pb-10 sm:px-8 sm:pt-20 sm:pb-12 lg:px-10">
           <div className="max-w-3xl space-y-5">
             <TypographyH1>{copy.headline}</TypographyH1>
-            <TypographyP className="text-lg text-muted-foreground">{copy.subcopy}</TypographyP>
+            <TypographyP size="large" tone="subtle">
+              {copy.subcopy}
+            </TypographyP>
           </div>
         </section>
 

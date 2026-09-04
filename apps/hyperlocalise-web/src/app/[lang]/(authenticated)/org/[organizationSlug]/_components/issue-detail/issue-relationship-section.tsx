@@ -130,7 +130,12 @@ export function IssueRelationshipSection({
   return (
     <section className="mt-2 grid gap-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
-        <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <TypographyP
+          className="inline-flex items-center gap-1.5"
+          size="small"
+          weight="medium"
+          tone="content"
+        >
           <HugeiconsIcon
             icon={LinkSquare02Icon}
             strokeWidth={1.8}
@@ -156,11 +161,11 @@ export function IssueRelationshipSection({
       {isLoading ? (
         <RelationshipSkeleton />
       ) : isError ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       ) : relationships.length === 0 ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.empty} />
         </TypographyP>
       ) : (

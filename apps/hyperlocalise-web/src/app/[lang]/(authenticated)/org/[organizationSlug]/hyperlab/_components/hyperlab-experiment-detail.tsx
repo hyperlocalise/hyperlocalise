@@ -183,14 +183,14 @@ export function HyperlabExperimentDetail({
     >
       <Rows spacing="2u">
         {detailQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {detailQuery.error instanceof Error
               ? detailQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {detailQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
@@ -198,7 +198,9 @@ export function HyperlabExperimentDetail({
           <Rows spacing="2u">
             <Row spacing="1u" alignY="center">
               <Badge variant="outline">{experiment.status}</Badge>
-              <TypographyP className="text-sm text-muted-foreground">{experiment.kind}</TypographyP>
+              <TypographyP size="small" tone="subtle">
+                {experiment.kind}
+              </TypographyP>
             </Row>
             <Field>
               <FieldLabel htmlFor="hyperlab-experiment-name">
@@ -306,7 +308,7 @@ export function HyperlabExperimentDetail({
                         </Button>
                       </Column>
                     </Columns>
-                    <TypographyP className="text-pretty text-xs text-muted-foreground">
+                    <TypographyP wrapStyle="pretty" size="xsmall" tone="subtle">
                       <FormattedMessage {...messages.variantRolloutHint} />
                     </TypographyP>
                   </Rows>
@@ -362,8 +364,10 @@ function HyperlabVariantRow({
     <Box paddingX="2u" paddingY="1.5u">
       <Row spacing="1.5u" align="spaceBetween" alignY="center">
         <Rows spacing="0.5u">
-          <TypographyP className="font-medium">{variant.key}</TypographyP>
-          <TypographyP className="text-xs text-muted-foreground">{variant.id}</TypographyP>
+          <TypographyP weight="medium">{variant.key}</TypographyP>
+          <TypographyP size="xsmall" tone="subtle">
+            {variant.id}
+          </TypographyP>
         </Rows>
         <Row spacing="1u" alignY="center">
           {variant.isControl ? (
@@ -386,12 +390,12 @@ function HyperlabVariantRow({
               />
             </Field>
           ) : (
-            <TypographyP className="text-sm tabular-nums text-muted-foreground">
+            <TypographyP className="tabular-nums" size="small" tone="subtle">
               {variant.rolloutPercentage}
             </TypographyP>
           )}
           {allocation ? (
-            <TypographyP className="text-sm tabular-nums text-muted-foreground">
+            <TypographyP className="tabular-nums" size="small" tone="subtle">
               <FormattedMessage
                 {...messages.allocation}
                 values={{ start: allocation.start, end: allocation.end }}

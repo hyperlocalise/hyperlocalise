@@ -188,7 +188,7 @@ function DashboardPanel({
                 strokeWidth={1.8}
                 className="mt-0.5 size-5 text-flame-100"
               />
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 {errorMessage ??
                   intl.formatMessage(dashboardPageViewMessages.panelLoadError, { title })}
               </TypographyP>
@@ -197,7 +197,7 @@ function DashboardPanel({
         ) : (
           <>
             {isEmpty && emptyMessage ? (
-              <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
+              <TypographyP className="px-5 py-4" size="small" tone="subtle">
                 {emptyMessage}
               </TypographyP>
             ) : (
@@ -211,7 +211,7 @@ function DashboardPanel({
                     strokeWidth={1.8}
                     className="mt-0.5 size-4 text-warning"
                   />
-                  <TypographyP className="text-sm text-warning-foreground">
+                  <TypographyP className="text-warning-foreground" size="small">
                     {warningMessage}
                   </TypographyP>
                 </div>
@@ -252,7 +252,7 @@ function DashboardSetupHero({
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] lg:items-end">
           <div>
-            <TypographyP className="text-sm font-medium text-subtle-foreground">
+            <TypographyP size="small" weight="medium" tone="subtlest">
               <FormattedMessage
                 {...dashboardPageViewMessages.setupProgressLabel}
                 values={{
@@ -261,10 +261,15 @@ function DashboardSetupHero({
                 }}
               />
             </TypographyP>
-            <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
+            <TypographyP
+              className="mt-2 font-heading"
+              size="xxlarge"
+              weight="medium"
+              tone="content"
+            >
               {hero.title}
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="mt-2 max-w-xl leading-6" size="small" tone="subtle">
               {hero.description}
             </TypographyP>
             <div className="mt-5 flex flex-wrap gap-2">
@@ -431,10 +436,10 @@ function DashboardIntegrationsSection({
                           <DashboardIntegrationMark item={item} />
                         </div>
                         <div className="min-w-0">
-                          <TypographyP className="text-sm font-medium text-foreground">
+                          <TypographyP size="small" weight="medium" tone="content">
                             {item.label}
                           </TypographyP>
-                          <TypographyP className="mt-1 text-sm text-subtle-foreground">
+                          <TypographyP className="mt-1" size="small" tone="subtlest">
                             {item.description}
                           </TypographyP>
                         </div>
@@ -537,14 +542,14 @@ function DashboardAutomationsSection({
                   strokeWidth={1.8}
                   className="mt-0.5 size-5 text-flame-100"
                 />
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small" tone="subtle">
                   <FormattedMessage {...dashboardPageViewMessages.automationRunsLoadError} />
                 </TypographyP>
               </div>
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-border">
-              <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
+              <TypographyP className="px-5 py-4" size="small" tone="subtle">
                 <FormattedMessage
                   {...dashboardPageViewMessages.automationStats}
                   values={{
@@ -555,7 +560,7 @@ function DashboardAutomationsSection({
                 />
               </TypographyP>
               {runs.length === 0 ? (
-                <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
+                <TypographyP className="px-5 py-4" size="small" tone="subtle">
                   <FormattedMessage {...dashboardPageViewMessages.noAutomationRuns} />
                 </TypographyP>
               ) : (
@@ -571,7 +576,13 @@ function DashboardAutomationsSection({
                         children: (
                           <>
                             <div className="flex flex-wrap items-center gap-2">
-                              <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
+                              <TypographyP
+                                className="min-w-0"
+                                lineClamp={1}
+                                size="small"
+                                weight="medium"
+                                tone="content"
+                              >
                                 {run.automationName}
                               </TypographyP>
                               <Badge
@@ -581,7 +592,7 @@ function DashboardAutomationsSection({
                                 {formatAutomationRunStatus(run.status, intl)}
                               </Badge>
                             </div>
-                            <TypographyP className="mt-1 text-xs text-muted-foreground">
+                            <TypographyP className="mt-1" size="xsmall" tone="subtle">
                               {run.completedAt
                                 ? intl.formatMessage(dashboardPageViewMessages.runCompleted, {
                                     triggerSource: triggerSourceLabel,
@@ -649,7 +660,13 @@ function DashboardJobsPanel({
         const content = (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
+              <TypographyP
+                className="min-w-0"
+                lineClamp={1}
+                size="small"
+                weight="medium"
+                tone="content"
+              >
                 {job.name}
               </TypographyP>
               <Badge
@@ -659,7 +676,7 @@ function DashboardJobsPanel({
                 {formatJobStatusLabel(job.status)}
               </Badge>
             </div>
-            <TypographyP className="mt-1 text-xs text-muted-foreground">
+            <TypographyP className="mt-1" size="xsmall" tone="subtle">
               {intl.formatMessage(dashboardPageViewMessages.jobMeta, {
                 projectName,
                 kindLabel: job.kindLabel,
@@ -740,7 +757,13 @@ function DashboardProjectsPanel({
             children: (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <TypographyP className="min-w-0 truncate text-sm font-medium text-foreground">
+                  <TypographyP
+                    className="min-w-0"
+                    lineClamp={1}
+                    size="small"
+                    weight="medium"
+                    tone="content"
+                  >
                     {project.name}
                   </TypographyP>
                   {project.pendingActionCount > 0 ? (
@@ -763,7 +786,7 @@ function DashboardProjectsPanel({
                     </Badge>
                   )}
                 </div>
-                <TypographyP className="mt-1 text-xs text-muted-foreground">
+                <TypographyP className="mt-1" size="xsmall" tone="subtle">
                   {project.updatedAt
                     ? intl.formatMessage(dashboardPageViewMessages.projectMetaWithUpdate, {
                         sourceLabel: project.sourceLabel,
@@ -893,13 +916,18 @@ export function DashboardPageView({
             <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
               <CardContent className="flex h-full flex-col justify-between gap-4 px-6 py-6">
                 <div>
-                  <TypographyP className="text-sm font-medium text-subtle-foreground">
+                  <TypographyP size="small" weight="medium" tone="subtlest">
                     <FormattedMessage {...dashboardPageViewMessages.quickStartLabel} />
                   </TypographyP>
-                  <TypographyP className="mt-2 font-heading text-xl font-medium text-foreground">
+                  <TypographyP
+                    className="mt-2 font-heading"
+                    size="xlarge"
+                    weight="medium"
+                    tone="content"
+                  >
                     <FormattedMessage {...dashboardPageViewMessages.quickStartTitle} />
                   </TypographyP>
-                  <TypographyP className="mt-2 text-sm leading-6 text-muted-foreground">
+                  <TypographyP className="mt-2 leading-6" size="small" tone="subtle">
                     <FormattedMessage {...dashboardPageViewMessages.quickStartDescription} />
                   </TypographyP>
                 </div>

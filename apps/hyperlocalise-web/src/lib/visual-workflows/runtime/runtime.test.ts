@@ -15,7 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createDefaultConfig } from "../catalog/node-catalog";
 import { createVisualWorkflowExecutionContext } from "./context";
 import { evaluateVisualWorkflowCondition, resolveVisualWorkflowTemplate } from "./expressions";
-import { runVisualWorkflowInterpreter } from "./interpreter";
+import { runVisualWorkflowInterpreter } from "./interpreter-server";
 import type { VisualWorkflowDefinition } from "../schema/types";
 
 describe("visual workflow expressions", () => {
@@ -89,13 +89,76 @@ describe("visual workflow node execution edges", () => {
       node: {
         id: "http",
         type: "action.http",
-        config: { kind: "action.http", method: "GET", url: "   " },
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "   ",
+          onError: "stop",
+        },
       },
     });
 
     expect(result).toEqual({
       ok: false,
       error: { code: "missing_url", message: "HTTP URL is required." },
+    });
+  });
+
+  it("assigns fields in logic.set nodes", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { name: "Ada" },
+    });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "set",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [
+            { key: "greeting", value: "Hello {{trigger.name}}" },
+            { key: "count", value: "3" },
+          ],
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        greeting: "Hello Ada",
+        count: 3,
+      },
+    });
+  });
+
+  it("routes switch nodes to the matching case", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    context.nodes.http = { json: { status: "ready" } };
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "switch",
+        type: "logic.switch",
+        config: {
+          kind: "logic.switch",
+          expression: "{{nodes.http.json.status}}",
+          cases: [{ value: "pending" }, { value: "ready" }],
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        expression: "ready",
+        matchedCase: "1",
+      },
+      switchCase: "1",
     });
   });
 });
@@ -382,6 +445,89 @@ describe("visual workflow interpreter", () => {
 
     expect(result.ok).toBe(true);
     expect(started.filter((nodeId) => nodeId === "join")).toHaveLength(1);
+  });
+
+  it("continues after a failed node when onError is continue", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Continue on error",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "GET",
+            url: "",
+            onError: "continue",
+          },
+        },
+        { id: "after", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "http", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "http", target: "after", sourceHandle: null, targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("after");
+  });
+
+  it("follows error branches when onError is branch", async () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 1,
+      name: "Error branch",
+      nodes: [
+        { id: "t", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        {
+          id: "http",
+          type: "action.http",
+          config: {
+            kind: "action.http",
+            method: "GET",
+            url: "",
+            onError: "branch",
+          },
+        },
+        { id: "success", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+        { id: "error", type: "logic.if", config: { kind: "logic.if", condition: "true" } },
+      ],
+      edges: [
+        { id: "e1", source: "t", target: "http", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "http", target: "success", sourceHandle: null, targetHandle: null },
+        { id: "e3", source: "http", target: "error", sourceHandle: "error", targetHandle: null },
+      ],
+      editor: { positions: {} },
+    };
+
+    const started: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      onNodeUpdate: async (update) => {
+        if (update.status === "running") {
+          started.push(update.nodeId);
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(started).toContain("error");
+    expect(started).not.toContain("success");
   });
 
   it("runs nested for-each loops for every outer and inner item", async () => {

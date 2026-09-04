@@ -142,7 +142,7 @@ export function applyVisualWorkflowConnection(
   return addEdge(
     {
       ...connection,
-      label: sourceHandle === "true" || sourceHandle === "false" ? sourceHandle : undefined,
+      label: sourceHandle ?? undefined,
     },
     edges,
   );

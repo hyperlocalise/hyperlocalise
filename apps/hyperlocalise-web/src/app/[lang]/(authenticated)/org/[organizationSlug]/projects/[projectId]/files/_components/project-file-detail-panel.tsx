@@ -224,13 +224,13 @@ export function ProjectFileDetailPanelView({
     if (requestedSourcePath) {
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-          <TypographyP className="text-sm font-medium text-foreground">
+          <TypographyP size="small" weight="medium" tone="content">
             <FormattedMessage {...messages.fileNotFound} />
           </TypographyP>
-          <TypographyP className="max-w-sm font-mono text-sm text-muted-foreground">
+          <TypographyP className="max-w-sm font-mono" size="small" tone="subtle">
             {requestedSourcePath}
           </TypographyP>
-          <TypographyP className="max-w-sm text-sm text-muted-foreground">
+          <TypographyP className="max-w-sm" size="small" tone="subtle">
             <FormattedMessage {...messages.fileNotFoundDescription} />
           </TypographyP>
         </div>
@@ -239,10 +239,10 @@ export function ProjectFileDetailPanelView({
 
     return (
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-        <TypographyP className="text-sm font-medium text-foreground">
+        <TypographyP size="small" weight="medium" tone="content">
           <FormattedMessage {...messages.selectFile} />
         </TypographyP>
-        <TypographyP className="max-w-sm text-sm text-muted-foreground">
+        <TypographyP className="max-w-sm" size="small" tone="subtle">
           <FormattedMessage {...messages.selectFileDescription} />
         </TypographyP>
       </div>
@@ -253,7 +253,7 @@ export function ProjectFileDetailPanelView({
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 px-6 py-10">
         <Spinner />
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loadingFile} />
         </TypographyP>
       </div>
@@ -263,7 +263,7 @@ export function ProjectFileDetailPanelView({
   if (error) {
     return (
       <div className="flex h-full min-h-48 flex-col justify-center gap-2 px-6 py-10">
-        <TypographyP className="text-sm text-flame-100">
+        <TypographyP className="text-flame-100" size="small">
           {error instanceof Error ? error.message : intl.formatMessage(messages.loadDetailsFailed)}
         </TypographyP>
       </div>
@@ -314,7 +314,7 @@ export function ProjectFileDetailPanelView({
         />
       ) : null}
       <header className="space-y-2 border-b border-border pb-4">
-        <TypographyP className="font-mono text-sm font-medium text-foreground">
+        <TypographyP className="font-mono" size="small" weight="medium" tone="content">
           {sourcePath}
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
@@ -334,24 +334,24 @@ export function ProjectFileDetailPanelView({
               <FormattedMessage {...messages.uploaded} />
             </Badge>
           )}
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt, intl)}
           </TypographyP>
         </div>
         {latestVersion?.sourceHash ? (
-          <TypographyP className="font-mono text-xs text-muted-foreground">
+          <TypographyP className="font-mono" size="xsmall" tone="subtle">
             <FormattedMessage {...messages.hash} values={{ hash: latestVersion.sourceHash }} />
           </TypographyP>
         ) : null}
         {provider ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
             {provider.format ? (
-              <TypographyP className="text-xs text-muted-foreground">
+              <TypographyP size="xsmall" tone="subtle">
                 <FormattedMessage {...messages.format} values={{ format: provider.format }} />
               </TypographyP>
             ) : null}
             {provider.sourceLocale ? (
-              <TypographyP className="text-xs text-muted-foreground">
+              <TypographyP size="xsmall" tone="subtle">
                 <FormattedMessage
                   {...messages.sourceLocale}
                   values={{ locale: provider.sourceLocale }}
@@ -359,7 +359,7 @@ export function ProjectFileDetailPanelView({
               </TypographyP>
             ) : null}
             {provider.targetLocales.length > 0 ? (
-              <TypographyP className="text-xs text-muted-foreground">
+              <TypographyP size="xsmall" tone="subtle">
                 <FormattedMessage
                   {...messages.targets}
                   values={{ locales: provider.targetLocales.join(", ") }}
@@ -369,7 +369,9 @@ export function ProjectFileDetailPanelView({
           </div>
         ) : null}
         {!provider && readinessSummary ? (
-          <TypographyP className="text-xs text-muted-foreground">{readinessSummary}</TypographyP>
+          <TypographyP size="xsmall" tone="subtle">
+            {readinessSummary}
+          </TypographyP>
         ) : null}
         {!provider ? (
           <div className="flex flex-wrap gap-2 pt-1">
@@ -408,7 +410,7 @@ export function ProjectFileDetailPanelView({
 
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
-          <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <TypographyP size="xsmall" weight="medium" tone="subtle" capitalization="uppercase">
             <FormattedMessage {...messages.jobsByLocale} />
           </TypographyP>
           <div className="flex flex-col gap-3">
@@ -420,7 +422,7 @@ export function ProjectFileDetailPanelView({
                   highlightLocale === group.locale && "border-primary bg-muted",
                 )}
               >
-                <TypographyP className="mb-2 text-sm font-medium text-foreground">
+                <TypographyP className="mb-2" size="small" weight="medium" tone="content">
                   {group.locale}
                 </TypographyP>
                 <ul className="flex flex-col gap-1.5">

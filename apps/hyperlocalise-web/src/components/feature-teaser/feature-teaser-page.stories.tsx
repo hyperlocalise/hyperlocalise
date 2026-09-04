@@ -147,3 +147,29 @@ export const ProjectGuideline: Story = {
     ).toBeInTheDocument();
   },
 };
+
+export const Hyperlab: Story = {
+  args: {
+    feature: "hyperlab",
+    scope: "workspace",
+  },
+  parameters: {
+    nextjs: {
+      navigation: {
+        pathname: "/org/acme/hyperlab",
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Hyperlab" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Target, split, and ship without another vendor"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("checkout-cta")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Create experiment and config flags unique to your workspace"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Request a demo" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Contact us" })).toBeInTheDocument();
+  },
+};

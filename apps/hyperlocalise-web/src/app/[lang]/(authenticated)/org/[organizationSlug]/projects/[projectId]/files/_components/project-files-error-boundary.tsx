@@ -72,14 +72,16 @@ function ProjectFilesPanelFallback({
           aria-hidden
         />
         <div className="space-y-1">
-          <TypographyP className="text-sm font-medium text-flame-100">
+          <TypographyP className="text-flame-100" size="small" weight="medium">
             {scope === "tree" ? (
               <FormattedMessage {...messages.treeFailed} />
             ) : (
               <FormattedMessage {...messages.detailFailed} />
             )}
           </TypographyP>
-          <TypographyP className="text-sm text-muted-foreground">{errorMessage}</TypographyP>
+          <TypographyP size="small" tone="subtle">
+            {errorMessage}
+          </TypographyP>
         </div>
       </div>
       <Button

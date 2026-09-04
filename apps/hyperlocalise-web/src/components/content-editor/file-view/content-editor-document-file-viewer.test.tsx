@@ -139,11 +139,14 @@ Translate this paragraph.
     );
 
     const titleField = await screen.findByLabelText("title");
+    const saveButton = screen.getByRole("button", { name: /save edits/i });
+    expect(saveButton).toBeDisabled();
     expect(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
     await screen.findByRole("heading", { level: 1, name: "Guide" });
     await user.clear(titleField);
     await user.type(titleField, "Updated Guide");
-    await user.click(screen.getByRole("button", { name: /save edits/i }));
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1);
@@ -177,10 +180,13 @@ Translate this paragraph.
     );
 
     const editor = await screen.findByLabelText("Translated document");
+    const saveButton = screen.getByRole("button", { name: /save edits/i });
     expect(editor).toHaveValue(mdxBody);
+    expect(saveButton).toBeDisabled();
 
     await user.type(editor, " Updated.");
-    await user.click(screen.getByRole("button", { name: /save edits/i }));
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1);
@@ -193,6 +199,40 @@ Translate this paragraph.
     expect(savedText).not.toContain("&lt;Callout");
     expect(savedText).not.toContain("&lt;kbd");
     expect(savedText).toContain("Updated.");
+  });
+
+  it("collapses and expands document frontmatter fields", async () => {
+    const user = userEvent.setup();
+    const markdownBody = `---
+title: Guide
+description: Intro
+---
+
+# Guide
+`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(markdownBody, { status: 200 })),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorDocumentFileViewerPane
+          role="target"
+          src="https://example.com/guide.md"
+          filename="guide.md"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const titleField = await screen.findByLabelText("title");
+    expect(titleField).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Document properties/i }));
+    expect(titleField).not.toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Document properties/i }));
+    expect(screen.getByLabelText("title")).toBeVisible();
   });
 
   it("renders read-only panes as a formatted preview instead of raw markup", async () => {
