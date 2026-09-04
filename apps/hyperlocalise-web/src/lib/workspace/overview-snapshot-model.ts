@@ -150,7 +150,7 @@ export function resolveOverviewJobTitle(job: OverviewJobTitleInput): OverviewRes
   if (job.kind === "sync" && job.syncConnectorKind) {
     return {
       kind: "sync",
-      direction: job.syncDirection,
+      direction: job.syncDirection ?? null,
       connectorKind: job.syncConnectorKind,
     };
   }
@@ -166,10 +166,10 @@ export function resolveOverviewJobTitle(job: OverviewJobTitleInput): OverviewRes
   return { kind: "id", id: job.id };
 }
 
-export function overviewJobKindValue(job: {
-  kind: string;
-  type?: string | null;
-}): { jobKind: OverviewJobKind | null; jobType: string | null } {
+export function overviewJobKindValue(job: { kind: string; type?: string | null }): {
+  jobKind: OverviewJobKind | null;
+  jobType: string | null;
+} {
   const jobKind = isOverviewJobKind(job.kind) ? job.kind : null;
   if (jobKind === "translation" && job.type) {
     return { jobKind, jobType: job.type };

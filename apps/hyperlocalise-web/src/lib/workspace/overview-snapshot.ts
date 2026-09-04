@@ -181,7 +181,9 @@ async function countWorkspaceAutomationStatuses(organizationId: string) {
   return countOverviewAutomationStatuses(rows);
 }
 
-async function listAuthorizedLiveTmsProjects(auth: ApiAuthContext): Promise<OverviewProjectSource[]> {
+async function listAuthorizedLiveTmsProjects(
+  auth: ApiAuthContext,
+): Promise<OverviewProjectSource[]> {
   if (!hasCapability(auth.membership.role, "projects:read")) {
     return [];
   }

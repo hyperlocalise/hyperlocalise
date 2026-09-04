@@ -28,9 +28,7 @@ export default async function OrganizationDashboardPage({
   return (
     <DashboardPageContent
       organizationSlug={organizationSlug}
-      automationsEnabled={
-        flags.automations && isWorkspaceOperatorRole(auth.membership.role)
-      }
+      automationsEnabled={flags.automations && isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

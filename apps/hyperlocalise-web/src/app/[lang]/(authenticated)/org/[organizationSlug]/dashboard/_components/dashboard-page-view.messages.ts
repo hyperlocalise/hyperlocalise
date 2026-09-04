@@ -82,12 +82,12 @@ export const dashboardPageViewMessages = defineMessages({
   },
   automationActivityKind: {
     defaultMessage: "Automation",
-    id: "n8Kq2pLm0A",
+    id: "f01aYrKnGZ",
     description: "Activity subtitle for an automation run on the overview",
   },
   nativeProjectSource: {
     defaultMessage: "Native",
-    id: "b4Rt9sVx1C",
+    id: "JNJTudsDqz",
     description: "Project source label when the project is a native Hyperlocalise project",
   },
   activityLabel: {
