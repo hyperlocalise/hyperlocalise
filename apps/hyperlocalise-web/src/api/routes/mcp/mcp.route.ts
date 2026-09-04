@@ -568,13 +568,7 @@ const mcpListJobsInputSchema = z.object({
     .enum(schema.jobStatusEnum.enumValues)
     .optional()
     .describe("Optional job status filter such as queued, running, succeeded, or failed."),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(50)
-    .default(20)
-    .describe("Maximum number of jobs to return."),
+  limit: z.number().int().min(1).max(50).default(20).describe("Maximum number of jobs to return."),
   offset: z
     .number()
     .int()

@@ -921,9 +921,7 @@ describe("MCP team-scoped access", () => {
     const adminOutput = parseToolResultText(await adminList.json()) as {
       jobs?: Array<{ id: string }>;
     };
-    expect(adminOutput.jobs?.map((job) => job.id).sort()).toEqual(
-      [alphaJob.id, betaJob.id].sort(),
-    );
+    expect(adminOutput.jobs?.map((job) => job.id).sort()).toEqual([alphaJob.id, betaJob.id].sort());
 
     const inaccessibleProject = await callMcpTool(accessToken, "list_jobs", {
       projectId: betaProjectBody.project.id,

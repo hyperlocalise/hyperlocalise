@@ -276,7 +276,10 @@ export async function listAccessiblePublicJobs(
     db
       .select(compactSelect)
       .from(schema.jobs)
-      .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+      .leftJoin(
+        schema.translationJobDetails,
+        eq(schema.translationJobDetails.jobId, schema.jobs.id),
+      )
       .where(where)
       .orderBy(desc(schema.jobs.createdAt))
       .limit(query.limit)
@@ -284,7 +287,10 @@ export async function listAccessiblePublicJobs(
     db
       .select({ value: count() })
       .from(schema.jobs)
-      .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+      .leftJoin(
+        schema.translationJobDetails,
+        eq(schema.translationJobDetails.jobId, schema.jobs.id),
+      )
       .where(where),
   ]);
 

@@ -345,10 +345,12 @@ describe("MCP list_jobs", () => {
       total: 2,
       pagination: { limit: 1, offset: 1, hasMore: false, nextOffset: null },
     });
-    expect([
-      ...(firstPage.output.jobs ?? []).map((job) => job.id),
-      ...(secondPage.output.jobs ?? []).map((job) => job.id),
-    ].sort()).toEqual([queued.id, succeeded.id].sort());
+    expect(
+      [
+        ...(firstPage.output.jobs ?? []).map((job) => job.id),
+        ...(secondPage.output.jobs ?? []).map((job) => job.id),
+      ].sort(),
+    ).toEqual([queued.id, succeeded.id].sort());
   });
 
   it("maps sourcePath to the latest succeeded file job for that path", async () => {
