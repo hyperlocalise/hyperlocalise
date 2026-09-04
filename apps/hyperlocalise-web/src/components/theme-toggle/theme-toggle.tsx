@@ -28,9 +28,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { cn } from "@/lib/primitives/cn";
+
 import { themeToggleMessages } from "./theme-toggle.messages";
 
 type ThemeOption = "light" | "dark" | "system";
+
+const THEME_OPTIONS: ThemeOption[] = ["light", "dark", "system"];
 
 function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
   if (theme === "dark") {
@@ -44,8 +48,7 @@ function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
   return <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />;
 }
 
-export function ThemeToggle() {
-  const intl = useIntl();
+function useThemeToggleState() {
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -61,6 +64,65 @@ export function ThemeToggle() {
       ? ((resolvedTheme as "light" | "dark" | undefined) ?? "light")
       : activeTheme
     : "system";
+
+  return { activeTheme, mounted, setTheme, triggerTheme };
+}
+
+function ThemeMenuControl() {
+  const intl = useIntl();
+  const { activeTheme, mounted, setTheme } = useThemeToggleState();
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
+      className="flex gap-1"
+    >
+      {THEME_OPTIONS.map((option) => {
+        const isActive = mounted && activeTheme === option;
+        const label = intl.formatMessage(
+          option === "light"
+            ? themeToggleMessages.light
+            : option === "dark"
+              ? themeToggleMessages.dark
+              : themeToggleMessages.system,
+        );
+
+        return (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={label}
+            disabled={!mounted}
+            onClick={() => setTheme(option)}
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-md p-2 transition-colors",
+              isActive
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <ThemeToggleIcon theme={option} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type ThemeToggleProps = {
+  variant?: "dropdown" | "menu";
+};
+
+export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
+  const intl = useIntl();
+  const { activeTheme, setTheme, triggerTheme } = useThemeToggleState();
+
+  if (variant === "menu") {
+    return <ThemeMenuControl />;
+  }
 
   return (
     <DropdownMenu>

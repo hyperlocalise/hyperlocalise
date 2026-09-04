@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { fromVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
 import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
@@ -39,6 +40,7 @@ export function VisualWorkflowEditorPageContent({
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  useAppShellSidebar({ forceCollapsed: true });
   const editorState = fromVisualWorkflowDefinition({
     ...workflow.definition,
     name: workflow.name,

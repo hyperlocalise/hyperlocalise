@@ -16,6 +16,10 @@ import { expect, fn, userEvent, within } from "storybook/test";
 
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import {
+  APP_SHELL_STORY_ORGANIZATION_SLUG,
+  appShellStoryUser,
+} from "@/components/app-shell/app-shell.stories.fixture";
+import {
   CAT_ISSUE_GUIDANCE_OPEN_EVENT,
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
@@ -27,13 +31,12 @@ import {
   type ContentEditorGlossaryGuidanceStatus,
 } from "@/components/content-editor/intelligence/content-editor-glossary-guidance-event";
 
-import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { AppShellFooter } from "./app-shell-footer";
 
-const currentUser: InboxCurrentUser = {
+const currentUser = {
   avatarUrl: null,
-  email: "storybook@example.com",
-  name: "Storybook User",
+  email: appShellStoryUser.email,
+  name: appShellStoryUser.name,
 };
 
 function FooterStoryFrame({ children }: { children: ReactNode }) {
@@ -104,7 +107,7 @@ const meta = {
     ),
   ],
   args: {
-    organizationSlug: "acme",
+    organizationSlug: APP_SHELL_STORY_ORGANIZATION_SLUG,
     showPlan: false,
     showGlossaryGuidance: false,
     showIssueGuidance: false,

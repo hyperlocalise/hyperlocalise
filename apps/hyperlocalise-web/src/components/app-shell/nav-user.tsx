@@ -41,6 +41,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import LocaleToggle from "@/components/locale-toggle/locale-toggle";
+import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { buildOrganizationSwitchHref } from "@/components/team-switcher";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 
@@ -52,7 +54,6 @@ type OrganizationOption = {
 };
 
 export function NavUser({
-  organizationName,
   organizationSlug,
   organizations,
   showApiKeysLink = false,
@@ -60,7 +61,6 @@ export function NavUser({
   showMembersLink = false,
   user,
 }: {
-  organizationName: string;
   organizationSlug: string;
   organizations: OrganizationOption[];
   showApiKeysLink?: boolean;
@@ -68,6 +68,7 @@ export function NavUser({
   showMembersLink?: boolean;
   user: {
     name: string;
+    email: string;
     avatar: string;
   };
 }) {
@@ -115,21 +116,27 @@ export function NavUser({
           <FormattedMessage {...navUserMessages.accountTooltip} />
         </TooltipContent>
       </Tooltip>
-      <DropdownMenuContent className="min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+      <DropdownMenuContent className="min-w-64 rounded-lg" side="bottom" align="end" sideOffset={4}>
         <DropdownMenuGroup>
           <DropdownMenuLabel className="p-0 font-normal">
             <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <Avatar className="h-8 w-8 rounded-lg">
+              <Avatar className="size-8 rounded-full">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                <AvatarFallback className="rounded-full">{initials}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{organizationName}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
+        <div className="px-1 py-1">
+          <div className="flex flex-col gap-1 rounded-lg bg-muted p-1">
+            <ThemeToggle variant="menu" />
+            <LocaleToggle variant="menu" />
+          </div>
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/account`} />}>
@@ -164,37 +171,39 @@ export function NavUser({
                 <FormattedMessage {...navUserMessages.switchWorkspace} />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  <FormattedMessage {...navUserMessages.workspaces} />
-                </DropdownMenuLabel>
-                {switchableOrganizations.map((organization) => {
-                  const isActive = organization.slug === organizationSlug;
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    <FormattedMessage {...navUserMessages.workspaces} />
+                  </DropdownMenuLabel>
+                  {switchableOrganizations.map((organization) => {
+                    const isActive = organization.slug === organizationSlug;
 
-                  return (
-                    <DropdownMenuItem
-                      key={organization.slug}
-                      className="gap-2 p-2"
-                      render={
-                        <Link
-                          href={buildOrganizationSwitchHref(
-                            organization.slug,
-                            pathname,
-                            organizationSlug,
-                          )}
-                        />
-                      }
-                    >
-                      <span className="flex-1 truncate">{organization.name}</span>
-                      {isActive ? (
-                        <HugeiconsIcon
-                          icon={CheckmarkCircle01Icon}
-                          strokeWidth={1.8}
-                          className="size-4 text-bud-400"
-                        />
-                      ) : null}
-                    </DropdownMenuItem>
-                  );
-                })}
+                    return (
+                      <DropdownMenuItem
+                        key={organization.slug}
+                        className="gap-2 p-2"
+                        render={
+                          <Link
+                            href={buildOrganizationSwitchHref(
+                              organization.slug,
+                              pathname,
+                              organizationSlug,
+                            )}
+                          />
+                        }
+                      >
+                        <span className="flex-1 truncate">{organization.name}</span>
+                        {isActive ? (
+                          <HugeiconsIcon
+                            icon={CheckmarkCircle01Icon}
+                            strokeWidth={1.8}
+                            className="size-4 text-bud-400"
+                          />
+                        ) : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem render={<Link href="/auth/select-organization" />}>
                   <FormattedMessage {...navUserMessages.viewAllWorkspaces} />

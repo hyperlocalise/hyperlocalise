@@ -32,12 +32,68 @@ import {
   rewriteAppLocalePath,
 } from "@/lib/app-i18n/rewrite-app-locale-path";
 
+import { cn } from "@/lib/primitives/cn";
+
 import { localeToggleMessages } from "./locale-toggle.messages";
 
-export function LocaleToggle() {
+function LocaleMenuControl() {
   const intl = useIntl();
   const pathname = usePathname() ?? "/";
   const activeLocale = getAppLocaleFromPathname(pathname);
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={intl.formatMessage(localeToggleMessages.languageAria)}
+      className="flex gap-1"
+    >
+      {SUPPORTED_APP_LOCALES.map((locale) => {
+        const isActive = locale === activeLocale;
+        const label = getNativeLocaleDisplayName(locale);
+
+        return (
+          <button
+            key={locale}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={label}
+            onClick={() => {
+              if (locale === activeLocale) {
+                return;
+              }
+
+              const search = window.location.search;
+              const hash = window.location.hash;
+              window.location.assign(rewriteAppLocalePath(`${pathname}${search}${hash}`, locale));
+            }}
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-md p-2 text-base leading-none transition-colors",
+              isActive
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span aria-hidden="true">{getAppLocaleFlagEmoji(locale)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type LocaleToggleProps = {
+  variant?: "dropdown" | "menu";
+};
+
+export function LocaleToggle({ variant = "dropdown" }: LocaleToggleProps) {
+  const intl = useIntl();
+  const pathname = usePathname() ?? "/";
+  const activeLocale = getAppLocaleFromPathname(pathname);
+
+  if (variant === "menu") {
+    return <LocaleMenuControl />;
+  }
 
   return (
     <DropdownMenu>

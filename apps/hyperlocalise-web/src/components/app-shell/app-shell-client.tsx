@@ -27,8 +27,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/primitives/cn";
-import LocaleToggle from "@/components/locale-toggle/locale-toggle";
-import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
@@ -169,16 +167,17 @@ export function AppShellClient({
                     connectMethod={resolvedTmsUserConnectCta.connectMethod}
                   />
                 ) : null}
-                <LocaleToggle />
-                <ThemeToggle />
                 <NavUser
-                  organizationName={activeOrganization.name}
                   organizationSlug={activeOrganization.slug ?? ""}
                   organizations={organizations}
                   showApiKeysLink={showApiKeysLink}
                   showBillingLink={showBillingLink}
                   showMembersLink={showMembersLink}
-                  user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
+                  user={{
+                    name: user.name,
+                    email: user.email,
+                    avatar: user.avatarUrl ?? "",
+                  }}
                 />
               </div>
             </div>
