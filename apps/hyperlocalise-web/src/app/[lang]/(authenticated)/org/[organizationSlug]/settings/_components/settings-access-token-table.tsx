@@ -17,19 +17,30 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
-import { Rows } from "@/components/ui/layout/rows";
-import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
 
 import type { AccessTokenSummary } from "./access-token-lifecycle";
 import { formatAccessTokenDate } from "./access-token-lifecycle";
 import { settingsAccessTokenTableMessages as messages } from "./settings-access-token-table.messages";
 
-function TableHeaderCell({ children }: { children: ReactNode }) {
+const TABLE_GRID =
+  "md:grid-cols-[minmax(7rem,1.1fr)_minmax(10.5rem,auto)_minmax(0,1.6fr)_7.5rem_auto]";
+
+function TableHeaderCell({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+    <div
+      role="columnheader"
+      className={cn("text-xs font-medium text-muted-foreground uppercase", className)}
+    >
+      {children}
+    </div>
+  );
+}
+
+function MobileColumnLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-xs font-medium text-muted-foreground uppercase md:hidden">
       {children}
     </span>
   );
@@ -55,85 +66,98 @@ export function SettingsAccessTokenTable({
   const intl = useIntl();
 
   return (
-    <Rows spacing="0" role="table">
-      <Columns spacing="2u" alignY="center" collapseBelow="medium" role="row">
-        <Column width="3/12" role="columnheader">
-          <TableHeaderCell>
-            <FormattedMessage {...messages.columnName} />
-          </TableHeaderCell>
-        </Column>
-        <Column width="2/12" role="columnheader">
-          <TableHeaderCell>
-            <FormattedMessage {...messages.columnPrefix} />
-          </TableHeaderCell>
-        </Column>
-        <Column width="4/12" role="columnheader">
-          <TableHeaderCell>
-            <FormattedMessage {...messages.columnPermissions} />
-          </TableHeaderCell>
-        </Column>
-        <Column width="2/12" role="columnheader">
-          <TableHeaderCell>
-            <FormattedMessage {...messages.columnLastUsed} />
-          </TableHeaderCell>
-        </Column>
-        <Column width="content" role="columnheader">
-          <span className="sr-only">{revokeLabel}</span>
-        </Column>
-      </Columns>
-      <Separator />
+    <div role="table" className="min-w-0">
+      <div
+        role="row"
+        className={cn("hidden gap-4 px-1 py-2.5 md:grid md:items-center", TABLE_GRID)}
+      >
+        <TableHeaderCell>
+          <FormattedMessage {...messages.columnName} />
+        </TableHeaderCell>
+        <TableHeaderCell>
+          <FormattedMessage {...messages.columnPrefix} />
+        </TableHeaderCell>
+        <TableHeaderCell>
+          <FormattedMessage {...messages.columnPermissions} />
+        </TableHeaderCell>
+        <TableHeaderCell>
+          <FormattedMessage {...messages.columnLastUsed} />
+        </TableHeaderCell>
+        <TableHeaderCell className="sr-only">{revokeLabel}</TableHeaderCell>
+      </div>
       {tokens.map((token) => (
-        <Rows key={token.id} spacing="0">
-          <Columns spacing="2u" alignY="center" collapseBelow="medium" role="row">
-            <Column width="3/12" role="cell">
-              <Rows spacing="0.5u">
-                <TypographyP
-                  className="leading-tight"
-                  lineClamp={1}
-                  size="small"
-                  weight="medium"
-                  tone="content"
-                >
-                  {token.name}
-                </TypographyP>
-                {token.revokedAt ? <Badge variant="outline">{revokedLabel}</Badge> : null}
-              </Rows>
-            </Column>
-            <Column width="2/12" role="cell">
-              <span className="font-mono text-xs text-muted-foreground">
+        <div
+          key={token.id}
+          role="row"
+          className={cn(
+            "grid gap-3 border-t border-border px-1 py-4 md:items-center md:gap-4",
+            TABLE_GRID,
+          )}
+        >
+          <div role="cell" className="min-w-0">
+            <TypographyP
+              className="leading-tight"
+              lineClamp={1}
+              size="small"
+              weight="medium"
+              tone="content"
+            >
+              {token.name}
+            </TypographyP>
+            {token.revokedAt ? <Badge variant="outline">{revokedLabel}</Badge> : null}
+          </div>
+          <div role="cell" className="min-w-0">
+            <div className="flex items-center justify-between gap-3 md:block">
+              <MobileColumnLabel>
+                <FormattedMessage {...messages.columnPrefix} />
+              </MobileColumnLabel>
+              <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
                 <FormattedMessage
                   {...messages.startsWithPrefix}
                   values={{ prefix: token.keyPrefix }}
                 />
               </span>
-            </Column>
-            <Column width="4/12" role="cell">
-              <span className="truncate font-mono text-sm text-muted-foreground">
+            </div>
+          </div>
+          <div role="cell" className="min-w-0">
+            <div className="flex items-start justify-between gap-3 md:block">
+              <MobileColumnLabel>
+                <FormattedMessage {...messages.columnPermissions} />
+              </MobileColumnLabel>
+              <p className="min-w-0 text-pretty font-mono text-xs break-words text-muted-foreground">
                 {token.permissions.join(", ")}
-              </span>
-            </Column>
-            <Column width="2/12" role="cell">
-              <TypographyP className="leading-tight" size="small" tone="subtle">
+              </p>
+            </div>
+          </div>
+          <div role="cell" className="min-w-0">
+            <div className="flex items-center justify-between gap-3 md:block">
+              <MobileColumnLabel>
+                <FormattedMessage {...messages.columnLastUsed} />
+              </MobileColumnLabel>
+              <TypographyP
+                className="leading-tight whitespace-nowrap tabular-nums"
+                size="small"
+                tone="subtle"
+              >
                 {formatAccessTokenDate(intl, token.lastUsedAt, neverUsedLabel)}
               </TypographyP>
-            </Column>
-            <Column width="content" role="cell">
-              {canRevoke && !token.revokedAt ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => onRevoke(token)}
-                  disabled={revokePending}
-                >
-                  {revokeLabel}
-                </Button>
-              ) : null}
-            </Column>
-          </Columns>
-          <Separator />
-        </Rows>
+            </div>
+          </div>
+          <div role="cell" className="flex items-center justify-end">
+            {canRevoke && !token.revokedAt ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => onRevoke(token)}
+                disabled={revokePending}
+              >
+                {revokeLabel}
+              </Button>
+            ) : null}
+          </div>
+        </div>
       ))}
-    </Rows>
+    </div>
   );
 }

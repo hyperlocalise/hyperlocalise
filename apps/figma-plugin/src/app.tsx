@@ -654,8 +654,8 @@ export function App() {
               placeholder="hl_…"
             />
             <p className="hint">
-              Create a token in Hyperlocalise under Settings → Personal access tokens. Include
-              files:read and jobs:read, plus files:write and jobs:write to create jobs.
+              Create a token in Hyperlocalise under Settings → API keys. Include files:read and
+              jobs:read, plus files:write and jobs:write to create jobs.
             </p>
           </label>
           <button

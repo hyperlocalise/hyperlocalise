@@ -42,7 +42,6 @@ const itemMessages = {
   billing: messages.billing,
   "activity-logs": messages.activityLogs,
   account: messages.account,
-  "access-tokens": messages.accessTokens,
   "api-keys": messages.apiKeys,
 } as const satisfies Record<SettingsNavItemId, typeof messages.general>;
 

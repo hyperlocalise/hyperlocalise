@@ -41,7 +41,6 @@ type RouteTitleKey =
   | "my-jobs"
   | "my-work"
   | "permissions"
-  | "personal-access-tokens"
   | "projects"
   | "qa"
   | "reviews"
@@ -93,7 +92,6 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "my-jobs" ||
     value === "my-work" ||
     value === "permissions" ||
-    value === "personal-access-tokens" ||
     value === "projects" ||
     value === "qa" ||
     value === "reviews" ||
@@ -274,12 +272,6 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Role permissions",
         id: "4C48CjJZ/y",
         description: "App shell breadcrumb title for the role permissions page",
-      });
-    case "personal-access-tokens":
-      return intl.formatMessage({
-        defaultMessage: "Access tokens",
-        id: "Wx9vtidYOj",
-        description: "App shell breadcrumb title for the personal access tokens settings page",
       });
     case "projects":
       return intl.formatMessage({

@@ -32,13 +32,13 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
+import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { type AccessTokenSummary } from "./access-token-lifecycle";
 import { apiKeysPageContentMessages } from "./api-keys-page-content.messages";
 import { SettingsAccessTokenTable } from "./settings-access-token-table";
 import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
-import { TypographyP } from "@/components/ui/typography";
 
 const apiKeysQueryKey = (organizationSlug: string) => ["api-keys", organizationSlug];
 
@@ -145,15 +145,17 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
   return (
     <SettingsPageBody width="wide">
       <Rows spacing="4u">
-        <SettingsPageHeader
-          eyebrow={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
-          title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
-          description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
-        />
-
-        <Row spacing="0" align="end">
+        <Row spacing="2u" align="spaceBetween" alignY="start">
+          <div className="min-w-0 flex-1">
+            <SettingsPageHeader
+              eyebrow={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
+              title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
+              description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
+            />
+          </div>
           <Button
             type="button"
+            className="shrink-0"
             onClick={() => setIsCreateOpen(true)}
             disabled={createKey.isPending}
           >

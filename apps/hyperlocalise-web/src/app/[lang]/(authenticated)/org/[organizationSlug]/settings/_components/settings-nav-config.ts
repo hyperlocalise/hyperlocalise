@@ -19,7 +19,6 @@ export const settingsNavItemIds = [
   "billing",
   "activity-logs",
   "account",
-  "access-tokens",
   "api-keys",
 ] as const;
 
@@ -55,10 +54,7 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
   },
   {
     id: "you",
-    items: [
-      { id: "account", href: "account" },
-      { id: "access-tokens", href: "personal-access-tokens" },
-    ],
+    items: [{ id: "account", href: "account" }],
   },
   {
     id: "developer",
@@ -111,10 +107,6 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath.startsWith(`${settingsRoot}/account`)) {
     return "account";
-  }
-
-  if (normalizedPath.startsWith(`${settingsRoot}/personal-access-tokens`)) {
-    return "access-tokens";
   }
 
   if (normalizedPath.startsWith(`${settingsRoot}/api-keys`)) {

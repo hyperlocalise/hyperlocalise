@@ -15,27 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-import {
-  formatAccessTokenDate,
-  selectOwnedAccessTokens,
-  toggleAccessTokenPermission,
-} from "./access-token-lifecycle";
+import { formatAccessTokenDate } from "./access-token-lifecycle";
 
 const intl = getIntlShape("en");
-
-describe("selectOwnedAccessTokens", () => {
-  it("keeps only tokens owned by the current user", () => {
-    const tokens = [
-      { id: "mine", owner: { userId: "user_1" } },
-      { id: "theirs", owner: { userId: "user_2" } },
-      { id: "legacy", owner: null },
-    ];
-
-    expect(selectOwnedAccessTokens(tokens, "user_1")).toEqual([
-      { id: "mine", owner: { userId: "user_1" } },
-    ]);
-  });
-});
 
 describe("formatAccessTokenDate", () => {
   it("returns the never-used label when lastUsedAt is null", () => {
@@ -46,17 +28,5 @@ describe("formatAccessTokenDate", () => {
     expect(formatAccessTokenDate(intl, "2026-08-01T15:30:00.000Z", "Never")).toBe(
       intl.formatDate(new Date("2026-08-01T15:30:00.000Z"), { dateStyle: "medium" }),
     );
-  });
-});
-
-describe("toggleAccessTokenPermission", () => {
-  it("adds and removes scopes without reordering the supported set", () => {
-    expect(toggleAccessTokenPermission(["jobs:read"], "files:read", true)).toEqual([
-      "jobs:read",
-      "files:read",
-    ]);
-    expect(toggleAccessTokenPermission(["jobs:read", "files:read"], "jobs:read", false)).toEqual([
-      "files:read",
-    ]);
   });
 });

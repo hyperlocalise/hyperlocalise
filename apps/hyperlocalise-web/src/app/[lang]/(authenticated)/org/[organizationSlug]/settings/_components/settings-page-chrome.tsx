@@ -51,7 +51,7 @@ export function SettingsPageBody({
 }) {
   return (
     <Box paddingTop="4u" paddingBottom="6u" paddingStart="4u" paddingEnd="6u">
-      <div className={width === "form" ? "w-full max-w-xl" : "w-full max-w-4xl"}>{children}</div>
+      <div className={width === "form" ? "w-full max-w-xl" : "w-full max-w-5xl"}>{children}</div>
     </Box>
   );
 }

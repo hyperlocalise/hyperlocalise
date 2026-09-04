@@ -26,7 +26,7 @@ Vite writes `dist/ui.html` and `dist/code.js`. Import the plugin in Figma using 
 1. In Figma, go to **Plugins → Development → Import plugin from manifest…**
 2. Select `apps/figma-plugin/manifest.json`.
 3. Run **Plugins → Development → Hyperlocalise**.
-4. Paste a personal access token from Hyperlocalise **Settings → Personal access tokens**, choose a project, extract text, then create a job or pull translations.
+4. Paste a personal access token from Hyperlocalise **Settings → API keys**, choose a project, extract text, then create a job or pull translations.
 
 Use `vp check --fix` for formatting, oxlint, and TypeScript checks. Use `vp test` for Vitest.
 

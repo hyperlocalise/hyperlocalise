@@ -20,14 +20,13 @@ import {
 } from "./settings-nav-config";
 
 describe("settings nav config", () => {
-  it("shows general, account, and access tokens without extra capabilities", () => {
+  it("shows general and account without extra capabilities", () => {
     const visible = filterVisibleSettingsNavGroups(settingsNavGroups, []);
 
     expect(visible.map((group) => group.id)).toEqual(["workspace", "you"]);
     expect(visible.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "general",
       "account",
-      "access-tokens",
     ]);
   });
 
@@ -43,7 +42,6 @@ describe("settings nav config", () => {
       "billing",
       "activity-logs",
       "account",
-      "access-tokens",
       "api-keys",
     ]);
   });
@@ -55,9 +53,6 @@ describe("settings nav config", () => {
       "activity-logs",
     );
     expect(resolveActiveSettingsNavItem("/org/acme/settings/account", "acme")).toBe("account");
-    expect(resolveActiveSettingsNavItem("/org/acme/settings/personal-access-tokens", "acme")).toBe(
-      "access-tokens",
-    );
     expect(resolveActiveSettingsNavItem("/org/acme/settings/api-keys", "acme")).toBe("api-keys");
   });
 });

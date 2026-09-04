@@ -55,11 +55,6 @@ export const settingsNavMessages = defineMessages({
     id: "nFBjAAjkF0",
     description: "Settings nav item for account settings",
   },
-  accessTokens: {
-    defaultMessage: "Access tokens",
-    id: "Gj6DvlbaIh",
-    description: "Settings nav item for personal access tokens",
-  },
   apiKeys: {
     defaultMessage: "API keys",
     id: "lPfrAUX2bp",
