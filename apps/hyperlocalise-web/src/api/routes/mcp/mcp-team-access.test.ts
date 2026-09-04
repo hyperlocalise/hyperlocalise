@@ -392,6 +392,27 @@ describe("MCP team-scoped access", () => {
       nextCursor: null,
     });
 
+    const createCommentResponse = await callMcpTool(accessToken, "create_issue_comment", {
+      projectId: alphaProjectBody.project.id,
+      issueId: alphaIssue.id,
+      body: "Created by an authenticated Team Alpha member",
+    });
+
+    expect(createCommentResponse.status).toBe(200);
+
+    const createCommentResponseBody = await createCommentResponse.json();
+
+    expect(
+      (createCommentResponseBody as { result?: { isError?: boolean } }).result?.isError,
+    ).not.toBe(true);
+    expect(parseToolResultText(createCommentResponseBody)).toMatchObject({
+      body: "Created by an authenticated Team Alpha member",
+      author: {
+        userId: memberAuth.user.localUserId,
+      },
+      parentId: null,
+    });
+
     const accessibleIssueResponseBody = await accessibleIssueResponse.json();
 
     expect(parseToolResultText(accessibleIssueResponseBody)).toMatchObject({
@@ -462,6 +483,24 @@ describe("MCP team-scoped access", () => {
       ).toBe(true);
 
       expect(parseToolResultText(commentsResponseBody), lookup.label).toMatchObject({
+        error: "issue_not_found",
+      });
+
+      const createCommentResponse = await callMcpTool(accessToken, "create_issue_comment", {
+        projectId: lookup.projectId,
+        issueId: lookup.issueId,
+        body: `Must not create a comment for ${lookup.label}`,
+      });
+
+      expect(createCommentResponse.status, lookup.label).toBe(200);
+
+      const createCommentResponseBody = await createCommentResponse.json();
+
+      expect(
+        (createCommentResponseBody as { result?: { isError?: boolean } }).result?.isError,
+        lookup.label,
+      ).toBe(true);
+      expect(parseToolResultText(createCommentResponseBody), lookup.label).toMatchObject({
         error: "issue_not_found",
       });
     }

@@ -1151,31 +1151,43 @@ describe("mcpRoutes", () => {
         ],
       });
 
-      const auth = globalThis.__testApiAuthContext;
-
-      if (!auth) {
-        throw new Error("expected test auth context");
-      }
-
-      const commentService = new IssueSheetCommentService();
-
-      const sdkComment = await commentService.create({
-        organizationId: auth.organization.localOrganizationId,
-        projectId: stored.project.id,
-        issueId: createdIssue.id,
-        actorUserId: auth.user.localUserId,
-        role: auth.membership.role,
-        auth,
-        body: {
+      const createCommentResult = await client.callTool({
+        name: "create_issue_comment",
+        arguments: {
+          projectId: stored.project.id,
+          issueId: createdIssue.identifier,
           body: "Comment created for MCP SDK coverage",
         },
       });
 
-      expect(sdkComment.ok).toBe(true);
+      const createCommentContent = (
+        createCommentResult as {
+          content?: Array<{
+            type?: string;
+            text?: string;
+          }>;
+        }
+      ).content?.find((item) => item.type === "text");
 
-      if (!sdkComment.ok) {
-        throw new Error("expected SDK comment fixture creation to succeed");
+      if (!createCommentContent?.text) {
+        throw new Error("expected create_issue_comment text content");
       }
+
+      const sdkComment = JSON.parse(createCommentContent.text) as {
+        id: string;
+        body: string;
+        author: { userId: string } | null;
+        parentId: string | null;
+      };
+
+      expect(sdkComment).toMatchObject({
+        id: expect.any(String),
+        body: "Comment created for MCP SDK coverage",
+        author: {
+          userId: expect.any(String),
+        },
+        parentId: null,
+      });
 
       const commentsResult = await client.callTool({
         name: "list_issue_comments",
@@ -1210,7 +1222,7 @@ describe("mcpRoutes", () => {
       expect(commentsOutput).toEqual({
         comments: [
           expect.objectContaining({
-            id: sdkComment.value.id,
+            id: sdkComment.id,
             body: "Comment created for MCP SDK coverage",
             parentId: null,
           }),
@@ -1219,7 +1231,7 @@ describe("mcpRoutes", () => {
       });
 
       expect(result.content).toEqual(expect.any(Array));
-      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(9);
+      expect(requestMethods.filter((method) => method === "POST")).toHaveLength(10);
       expect(requestMethods.filter((method) => method === "GET")).toHaveLength(1);
       expect(requestMethods.every((method) => method === "POST" || method === "GET")).toBe(true);
       expect(transportErrors).toEqual([]);
@@ -3181,6 +3193,584 @@ describe("mcpRoutes", () => {
       expect(listFeedSpy).not.toHaveBeenCalled();
     } finally {
       listFeedSpy.mockRestore();
+    }
+  });
+
+  it("advertises the create_issue_comment tool with bounded input", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "create_issue_comment");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("issue");
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["projectId", "issueId", "body"]),
+    );
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+        description: expect.any(String),
+      },
+      issueId: {
+        type: "string",
+        description: expect.any(String),
+      },
+      body: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32_000,
+        description: expect.any(String),
+      },
+      parentId: {
+        type: "string",
+        format: "uuid",
+        description: expect.any(String),
+      },
+      mentionedUserIds: {
+        type: "array",
+        maxItems: 50,
+        items: {
+          type: "string",
+          format: "uuid",
+        },
+        description: expect.any(String),
+      },
+      mentionedIssueIds: {
+        type: "array",
+        maxItems: 50,
+        items: {
+          type: "string",
+          format: "uuid",
+        },
+        description: expect.any(String),
+      },
+    });
+
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("author");
+    expect(tool?.inputSchema?.properties).not.toHaveProperty("authorUserId");
+  });
+
+  it("creates a root issue comment as the MCP-authenticated user", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue receiving an MCP comment",
+        issueType: "general_question",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "create_issue_comment",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+            body: "**Please review this translation.**",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const responseBody = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(responseBody.result?.isError).not.toBe(true);
+
+    const text = responseBody.result?.content?.[0]?.text;
+
+    expect(text).toBeDefined();
+
+    const comment = JSON.parse(text!) as {
+      id: string;
+      body: string;
+      author: {
+        userId: string;
+        displayName: string;
+      } | null;
+      parentId: string | null;
+      mentionedUserIds: string[];
+      mentionedIssueIds: string[];
+      createdAt: string;
+      updatedAt: string;
+    };
+
+    expect(comment).toMatchObject({
+      id: expect.any(String),
+      body: "**Please review this translation.**",
+      author: {
+        userId: auth.user.localUserId,
+        displayName: expect.any(String),
+      },
+      parentId: null,
+      mentionedUserIds: [],
+      mentionedIssueIds: [],
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+    });
+  });
+
+  it("creates a reply to an existing issue comment", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+    const commentService = new IssueSheetCommentService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue with a reply",
+        issueType: "general_question",
+      },
+    });
+
+    const root = await commentService.create({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      issueId: issue.id,
+      actorUserId: auth.user.localUserId,
+      role: auth.membership.role,
+      auth,
+      body: {
+        body: "Root comment",
+      },
+    });
+
+    expect(root.ok).toBe(true);
+
+    if (!root.ok) {
+      throw new Error("expected root comment creation to succeed");
+    }
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "create_issue_comment",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+            body: "Reply created through MCP",
+            parentId: root.value.id,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const responseBody = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+      };
+    };
+
+    expect(responseBody.result?.isError).not.toBe(true);
+
+    const text = responseBody.result?.content?.[0]?.text;
+    expect(text).toBeDefined();
+
+    const comment = JSON.parse(text!) as {
+      id: string;
+      body: string;
+      author: {
+        userId: string;
+        displayName: string;
+      } | null;
+      parentId: string | null;
+      mentionedUserIds: string[];
+      mentionedIssueIds: string[];
+      createdAt: string;
+      updatedAt: string;
+    };
+
+    expect(comment).toMatchObject({
+      id: expect.any(String),
+      body: "Reply created through MCP",
+      author: {
+        userId: auth.user.localUserId,
+        displayName: expect.any(String),
+      },
+      parentId: root.value.id,
+      mentionedUserIds: [],
+      mentionedIssueIds: [],
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+    });
+
+    expect(comment).not.toHaveProperty("path");
+    expect(comment).not.toHaveProperty("depth");
+    expect(comment).not.toHaveProperty("organizationId");
+    expect(comment).not.toHaveProperty("projectId");
+    expect(comment).not.toHaveProperty("issueId");
+  });
+
+  it("creates an issue comment with user and issue mentions", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issueService = new IssueSheetService();
+
+    const issue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue receiving an MCP comment with mentions",
+        issueType: "general_question",
+      },
+    });
+
+    const createCommentSpy = vi.spyOn(IssueSheetCommentService.prototype, "create");
+
+    try {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue_comment",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: issue.identifier,
+              body: "Please review this mentioned issue.",
+              mentionedUserIds: [auth.user.localUserId],
+              mentionedIssueIds: [issue.id],
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const responseBody = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{
+            type: string;
+            text?: string;
+          }>;
+        };
+      };
+
+      expect(responseBody.result?.isError).not.toBe(true);
+
+      const text = responseBody.result?.content?.[0]?.text;
+      expect(text).toBeDefined();
+
+      const comment = JSON.parse(text!) as {
+        id: string;
+        body: string;
+        author: {
+          userId: string;
+          displayName: string;
+        } | null;
+        parentId: string | null;
+        mentionedUserIds: string[];
+        mentionedIssueIds: string[];
+        createdAt: string;
+        updatedAt: string;
+      };
+
+      expect(comment).toMatchObject({
+        id: expect.any(String),
+        body: "Please review this mentioned issue.",
+        author: {
+          userId: auth.user.localUserId,
+          displayName: expect.any(String),
+        },
+        parentId: null,
+        mentionedUserIds: [auth.user.localUserId],
+        mentionedIssueIds: [issue.id],
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      });
+
+      expect(createCommentSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: auth.organization.localOrganizationId,
+          projectId: stored.project.id,
+          issueId: issue.identifier,
+          actorUserId: auth.user.localUserId,
+          role: auth.membership.role,
+          auth: expect.objectContaining({
+            organization: expect.objectContaining({
+              localOrganizationId: auth.organization.localOrganizationId,
+            }),
+            user: expect.objectContaining({
+              localUserId: auth.user.localUserId,
+            }),
+          }),
+          body: {
+            body: "Please review this mentioned issue.",
+            mentionedUserIds: [auth.user.localUserId],
+            mentionedIssueIds: [issue.id],
+          },
+        }),
+      );
+    } finally {
+      createCommentSpy.mockRestore();
+    }
+  });
+
+  it.each([
+    {
+      label: "missing parent",
+      extraArguments: {
+        parentId: "00000000-0000-4000-8000-000000000000",
+      },
+      expectedError: "parent_not_found",
+    },
+    {
+      label: "invalid mentioned user",
+      extraArguments: {
+        mentionedUserIds: ["00000000-0000-4000-8000-000000000001"],
+      },
+      expectedError: "invalid_mentioned_users",
+    },
+    {
+      label: "invalid mentioned issue",
+      extraArguments: {
+        mentionedIssueIds: ["00000000-0000-4000-8000-000000000002"],
+      },
+      expectedError: "invalid_mentioned_issues",
+    },
+  ])("returns a stable error for a $label", async ({ extraArguments, expectedError }) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const issue = await new IssueSheetService().createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Issue rejecting an invalid comment reference",
+        issueType: "general_question",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "create_issue_comment",
+          arguments: {
+            projectId: stored.project.id,
+            issueId: issue.identifier,
+            body: "Comment with an invalid reference",
+            ...extraArguments,
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const responseBody = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ type: string; text?: string }>;
+      };
+    };
+
+    expect(responseBody.result?.isError).toBe(true);
+    expect(responseBody.result?.content?.[0]?.text).toContain(expectedError);
+  });
+
+  it.each([
+    { label: "empty", body: "   " },
+    { label: "oversized", body: "x".repeat(32_001) },
+  ])("rejects an $label issue comment body", async ({ body: commentBody }) => {
+    const headers = await authenticatedMcpHeaders();
+    const createCommentSpy = vi.spyOn(IssueSheetCommentService.prototype, "create");
+
+    try {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue_comment",
+            arguments: {
+              projectId: "project-id",
+              issueId: "HL-1",
+              body: commentBody,
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const responseBody = (await response.json()) as {
+        result?: { isError?: boolean };
+      };
+
+      expect(responseBody.result?.isError).toBe(true);
+      expect(createCommentSpy).not.toHaveBeenCalled();
+    } finally {
+      createCommentSpy.mockRestore();
+    }
+  });
+
+  it("maps a forbidden comment creation to comment_not_allowed", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const createCommentSpy = vi
+      .spyOn(IssueSheetCommentService.prototype, "create")
+      .mockResolvedValueOnce({ ok: false, error: { code: "forbidden" } });
+
+    try {
+      const response = await app.request("http://localhost/mcp", {
+        method: "POST",
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "create_issue_comment",
+            arguments: {
+              projectId: stored.project.id,
+              issueId: "HL-1",
+              body: "Comment creation must be rejected",
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+
+      const responseBody = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          content?: Array<{ type: string; text?: string }>;
+        };
+      };
+
+      expect(responseBody.result?.isError).toBe(true);
+      expect(responseBody.result?.content?.[0]?.text).toContain("comment_not_allowed");
+    } finally {
+      createCommentSpy.mockRestore();
     }
   });
 

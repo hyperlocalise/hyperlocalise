@@ -77,7 +77,6 @@ import {
   IssueSheetService,
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
-import type { IssueSheetComment } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import {
@@ -85,6 +84,11 @@ import {
   listProjectFilesForProject,
 } from "@/lib/projects/files/project-file-service";
 import { loadMcpProjectStatus } from "@/api/routes/mcp/mcp-project-status";
+import {
+  IssueSheetCommentService,
+  type IssueSheetComment,
+} from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
+import { issueSheetCommentCreateBodySchema } from "@/api/routes/project/issue-sheet-comments.schema";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -444,6 +448,7 @@ const mcpListIssueCommentsInputSchema = z.object({
 });
 
 const issueSheetService = new IssueSheetService();
+const issueSheetCommentService = new IssueSheetCommentService();
 const createIssueShape = issueSheetCreateIssueBodySchema.shape;
 const updateIssueShape = issueSheetUpdateIssueBodySchema.shape;
 const invalidIssueUpdate = Symbol("invalid_issue_update");
@@ -548,6 +553,37 @@ const mcpCreateIssueInputSchema = z.object({
     .describe(
       "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
     ),
+});
+
+const createCommentShape = issueSheetCommentCreateBodySchema.shape;
+
+const mcpCreateIssueCommentInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible project containing the issue."),
+
+  issueId: issueIdSchema.describe(
+    "Canonical issue identifier such as HL-123, or a legacy issue UUID.",
+  ),
+
+  body: createCommentShape.body.describe(
+    "Markdown content for the comment, from 1 to 32,000 characters.",
+  ),
+
+  parentId: createCommentShape.parentId.describe(
+    "UUID of the parent comment when creating a reply.",
+  ),
+
+  mentionedUserIds: createCommentShape.mentionedUserIds.describe(
+    "UUIDs of organization users mentioned in the comment.",
+  ),
+
+  mentionedIssueIds: createCommentShape.mentionedIssueIds.describe(
+    "UUIDs of accessible issues mentioned in the comment.",
+  ),
 });
 
 const mcpGetJobInputSchema = z.object({
@@ -947,6 +983,72 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
         throw error;
       }
+    },
+  );
+
+  server.registerTool(
+    "create_issue_comment",
+    {
+      description: "Create a Markdown comment or reply on an accessible Hyperlocalise issue.",
+      inputSchema: mcpCreateIssueCommentInputSchema,
+    },
+    async ({ projectId, issueId, ...commentBody }) => {
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const result = await issueSheetCommentService.create({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId,
+        actorUserId: apiAuth.user.localUserId,
+        role: apiAuth.membership.role,
+        auth: apiAuth,
+        body: commentBody,
+      });
+
+      if (!result.ok) {
+        switch (result.error.code) {
+          case "issue_not_found":
+            return mcpToolError("issue_not_found", "Issue not found");
+
+          case "parent_not_found":
+            return mcpToolError("parent_not_found", "Parent comment not found");
+
+          case "invalid_mentioned_users":
+            return mcpToolError(
+              "invalid_mentioned_users",
+              "One or more mentioned users are invalid",
+            );
+
+          case "invalid_mentioned_issues":
+            return mcpToolError(
+              "invalid_mentioned_issues",
+              "One or more mentioned issues are invalid",
+            );
+
+          case "forbidden":
+          case "comment_not_found":
+            return mcpToolError("comment_not_allowed", "Comment creation is not allowed");
+        }
+
+        return mcpToolError("comment_not_allowed", "Comment creation is not allowed");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(mcpIssueComment(result.value)),
+          },
+        ],
+      };
     },
   );
 
