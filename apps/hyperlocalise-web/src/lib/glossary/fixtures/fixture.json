@@ -706,6 +706,30 @@
         { "locale": "de", "text": "Rückerstattung", "status": "preferred" },
         { "locale": "ko", "text": "환불", "status": "preferred" }
       ]
+    },
+    {
+      "id": "ota-051",
+      "subject": "booking",
+      "definition": "A booking that has been created recently and did not previously exist.",
+      "terms": [
+        { "locale": "en", "text": "new", "status": "preferred", "partOfSpeech": "adjective" },
+        { "locale": "vi", "text": "mới", "status": "preferred" },
+        { "locale": "ja", "text": "新規", "status": "preferred" },
+        { "locale": "de", "text": "neu", "status": "preferred" },
+        { "locale": "ko", "text": "신규", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "ota-052",
+      "subject": "content",
+      "definition": "Information about travel products, destinations, or booking updates.",
+      "terms": [
+        { "locale": "en", "text": "news", "status": "preferred", "partOfSpeech": "noun" },
+        { "locale": "vi", "text": "tin tức", "status": "preferred" },
+        { "locale": "ja", "text": "ニュース", "status": "preferred" },
+        { "locale": "de", "text": "Neuigkeiten", "status": "preferred" },
+        { "locale": "ko", "text": "뉴스", "status": "preferred" }
+      ]
     }
   ],
   "queryCases": [
@@ -797,6 +821,24 @@
         "reservationcode",
         "pricealert",
         "one-wayflight"
+      ]
+    },
+    {
+      "id": "trailing-s-variants",
+      "description": "Trailing-s variants, non-plural words ending in s, punctuation, and hyphenated terms used to characterize Crowdin matching.",
+      "expressions": [
+        "refund",
+        "refunds",
+        "booking",
+        "bookings",
+        "nearby airport",
+        "nearby airports",
+        "ticket",
+        "tickets",
+        "new",
+        "news",
+        "e-ticket",
+        "e-tickets"
       ]
     },
     {

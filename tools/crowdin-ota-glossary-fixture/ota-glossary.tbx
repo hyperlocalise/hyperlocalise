@@ -1932,6 +1932,80 @@
           </termSec>
         </langSec>
       </conceptEntry>
+      <conceptEntry id="c-ota-051">
+        <descrip type="subjectField">booking</descrip>
+        <descrip type="definition">A booking that has been created recently and did not previously exist.</descrip>
+        <note>[Hyperlocalise::translatable]::true</note>
+        <langSec xml:lang="en">
+          <descrip type="definition">A booking that has been created recently and did not previously exist.</descrip>
+          <termSec id="t-ota-051-en-0">
+            <term>new</term>
+            <termNote type="partOfSpeech">adjective</termNote>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="vi">
+          <termSec id="t-ota-051-vi-0">
+            <term>mới</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="ja">
+          <termSec id="t-ota-051-ja-0">
+            <term>新規</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="de">
+          <termSec id="t-ota-051-de-0">
+            <term>neu</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="ko">
+          <termSec id="t-ota-051-ko-0">
+            <term>신규</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-ota-052">
+        <descrip type="subjectField">content</descrip>
+        <descrip type="definition">Information about travel products, destinations, or booking updates.</descrip>
+        <note>[Hyperlocalise::translatable]::true</note>
+        <langSec xml:lang="en">
+          <descrip type="definition">Information about travel products, destinations, or booking updates.</descrip>
+          <termSec id="t-ota-052-en-0">
+            <term>news</term>
+            <termNote type="partOfSpeech">noun</termNote>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="vi">
+          <termSec id="t-ota-052-vi-0">
+            <term>tin tức</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="ja">
+          <termSec id="t-ota-052-ja-0">
+            <term>ニュース</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="de">
+          <termSec id="t-ota-052-de-0">
+            <term>Neuigkeiten</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+        <langSec xml:lang="ko">
+          <termSec id="t-ota-052-ko-0">
+            <term>뉴스</term>
+            <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+          </termSec>
+        </langSec>
+      </conceptEntry>
     </body>
   </text>
 </tbx>

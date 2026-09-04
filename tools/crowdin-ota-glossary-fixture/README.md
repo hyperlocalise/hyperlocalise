@@ -1,10 +1,11 @@
 # Crowdin OTA glossary fixture
 
-This tool generates a 50-concept online-travel-agent glossary for English,
+This tool generates a 52-concept online-travel-agent glossary for English,
 Vietnamese, Japanese, German, and Korean. It can import the generated TBX into
-Crowdin and record organization glossary concordance responses for nine query
+Crowdin and record organization glossary concordance responses for ten query
 cases per target language. The fixture includes contextual sentences, boundary
-negatives, overlaps, and locale negative cases.
+negatives, overlaps, locale negative cases, and a dedicated trailing-s variant
+matrix.
 
 The source fixture is shared with the web-app tests at
 `apps/hyperlocalise-web/src/lib/glossary/fixtures/fixture.json`.
@@ -31,7 +32,7 @@ go run ./tools/crowdin-ota-glossary-fixture --glossary-id 123 --import
 ```
 
 The recording contains the exact request body, HTTP status, and raw JSON
-response for each of the 320 one-expression concordance calls. By default it is written to
+response for each of the 368 one-expression concordance calls. By default it is written to
 `apps/hyperlocalise-web/src/lib/glossary/fixtures/ota-concordance-recording.json`
 so web-app replay tests can import it directly. It does not contain credentials
 or request headers.

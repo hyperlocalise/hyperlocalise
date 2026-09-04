@@ -28,7 +28,7 @@ import {
   type NormalizedGlossaryConceptTerm,
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
-import { buildGlossaryTsQuery } from "./glossary";
+import { buildGlossaryTsQuery, isValidatedTrailingSVariant } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import {
   Glossary,
@@ -125,13 +125,17 @@ function concordanceTokensMatch(sourceTextToken: string, sourceTermToken: string
     return true;
   }
 
-  // It also accepts a simple singular/plural variation. Preserve Crowdin's
-  // observed boundary for gerunds: "refunds" matches "refund", while
-  // "bookings" does not match "booking".
-  if (sourceTermToken === `${sourceTextToken}s`) {
+  // It also accepts validated singular/plural variations. Crowdin accepts
+  // regular alphabetic terms such as "refunds"/"refund" and
+  // "nearby airport"/"nearby airports", but not short words such as
+  // "new"/"news" or hyphenated terms such as "e-ticket"/"e-tickets".
+  if (isValidatedTrailingSVariant(sourceTextToken, sourceTermToken)) {
     return true;
   }
-  if (sourceTextToken === `${sourceTermToken}s` && !sourceTermToken.endsWith("ing")) {
+  if (
+    !sourceTermToken.endsWith("ing") &&
+    isValidatedTrailingSVariant(sourceTermToken, sourceTextToken)
+  ) {
     return true;
   }
 

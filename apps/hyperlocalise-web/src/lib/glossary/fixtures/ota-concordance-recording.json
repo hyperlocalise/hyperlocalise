@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-09-03T18:41:00Z",
+  "capturedAt": "2026-09-04T02:53:21Z",
   "domain": "online-travel-agent",
   "sourceLanguageId": "en",
   "targetLanguageIds": ["vi", "ja", "de", "ko"],
   "glossary": {
     "id": 724133,
     "name": "OTA Concordance Fixture",
-    "conceptCount": 50,
+    "conceptCount": 52,
     "seedFile": "tools/crowdin-ota-glossary-fixture/ota-glossary.tbx"
   },
   "runs": [
@@ -4813,6 +4813,790 @@
         "sourceLanguageId": "en",
         "targetLanguageId": "vi",
         "expressions": ["one-wayflight"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["refund"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 615,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "ho\u00e0n ti\u1ec1n",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["refunds"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 615,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "ho\u00e0n ti\u1ec1n",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["booking"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 57,
+                "subject": "booking",
+                "definition": "A confirmed arrangement for travel or accommodation.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 233,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "booking",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "book",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 237,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "\u0111\u1eb7t ch\u1ed7",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["bookings"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["nearby airport"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 149,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "s\u00e2n bay l\u00e2n c\u1eadn",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["nearby airports"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 149,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "s\u00e2n bay l\u00e2n c\u1eadn",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 395,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "v\u00e9",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 395,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "v\u00e9",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["new"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 131,
+                "subject": "booking",
+                "definition": "A booking that has been created recently and did not previously exist.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 623,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "new",
+                  "description": null,
+                  "partOfSpeech": "adjective",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "new",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 625,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "m\u1edbi",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": null,
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["news"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 133,
+                "subject": "content",
+                "definition": "Information about travel products, destinations, or booking updates.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 633,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "news",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "news",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 635,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "tin t\u1ee9c",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": null,
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["e-ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 89,
+                "subject": "flight",
+                "definition": "An electronic version of a travel ticket stored digitally rather than printed.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 403,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "e-ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "e-ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 407,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "vi",
+                  "text": "v\u00e9 \u0111i\u1ec7n t\u1eed",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": null,
+                  "createdAt": "2026-09-03T17:18:28+00:00",
+                  "updatedAt": "2026-09-03T17:18:28+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "vi",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "vi",
+        "expressions": ["e-tickets"]
       },
       "httpStatus": 200,
       "output": {
@@ -10728,6 +11512,790 @@
       }
     },
     {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["refund"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 617,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u6255\u3044\u623b\u3057",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "\u6255\u3044 \u30a4 \u30ec\u30a4 \u304d",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["refunds"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 617,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u6255\u3044\u623b\u3057",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "\u6255\u3044 \u30a4 \u30ec\u30a4 \u304d",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["booking"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 57,
+                "subject": "booking",
+                "definition": "A confirmed arrangement for travel or accommodation.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 233,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "booking",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "book",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 239,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u4e88\u7d04",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "\u4f59-\u4ee3\u540d\u8a5e \u7d04",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["bookings"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["nearby airport"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 151,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u8fd1\u96a3\u306e\u7a7a\u6e2f",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "\u8fd1 \u96a3\u308a \u306e \u7a7a \u6e2f",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["nearby airports"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 151,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u8fd1\u96a3\u306e\u7a7a\u6e2f",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "\u8fd1 \u96a3\u308a \u306e \u7a7a \u6e2f",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 397,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u822a\u7a7a\u5238",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "\u822a \u7a7a \u5238",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 397,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u822a\u7a7a\u5238",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "\u822a \u7a7a \u5238",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["new"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 131,
+                "subject": "booking",
+                "definition": "A booking that has been created recently and did not previously exist.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 623,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "new",
+                  "description": null,
+                  "partOfSpeech": "adjective",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "new",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 627,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u65b0\u898f",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "\u30b7\u30f3 \u30bf\u30c0\u30b7",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["news"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 133,
+                "subject": "content",
+                "definition": "Information about travel products, destinations, or booking updates.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 633,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "news",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "news",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 637,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u30cb\u30e5\u30fc\u30b9",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "\u4e8c \u30e5 \u30fc \u3067\u3059",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["e-ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 89,
+                "subject": "flight",
+                "definition": "An electronic version of a travel ticket stored digitally rather than printed.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 403,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "e-ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "e-ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 409,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ja",
+                  "text": "\u96fb\u5b50\u822a\u7a7a\u5238",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "\u30c7\u30f3 \u5b50 \u822a \u7a7a \u5238",
+                  "createdAt": "2026-09-03T17:18:28+00:00",
+                  "updatedAt": "2026-09-03T17:18:28+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ja",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ja",
+        "expressions": ["e-tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
       "caseId": "statuses-and-overlap",
       "targetLanguageId": "ja",
       "input": {
@@ -16632,6 +18200,790 @@
       }
     },
     {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["refund"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 619,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "R\u00fcckerstattung",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "r\u00fcckerstattung",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["refunds"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 619,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "R\u00fcckerstattung",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "r\u00fcckerstattung",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["booking"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 57,
+                "subject": "booking",
+                "definition": "A confirmed arrangement for travel or accommodation.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 233,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "booking",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "book",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 241,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Buchung",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "buchung",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["bookings"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["nearby airport"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 153,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Flugh\u00e4fen in der N\u00e4he",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "flughafen in der n\u00e4he",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["nearby airports"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 153,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Flugh\u00e4fen in der N\u00e4he",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "flughafen in der n\u00e4he",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 399,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Flugticket",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "flugticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 399,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Flugticket",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "flugticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["new"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 131,
+                "subject": "booking",
+                "definition": "A booking that has been created recently and did not previously exist.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 623,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "new",
+                  "description": null,
+                  "partOfSpeech": "adjective",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "new",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 629,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "neu",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "neu",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["news"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 133,
+                "subject": "content",
+                "definition": "Information about travel products, destinations, or booking updates.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 633,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "news",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "news",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 639,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "Neuigkeiten",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "neuigkeit",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["e-ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 89,
+                "subject": "flight",
+                "definition": "An electronic version of a travel ticket stored digitally rather than printed.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 403,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "e-ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "e-ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 411,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "de",
+                  "text": "E-Ticket",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "e-ticken",
+                  "createdAt": "2026-09-03T17:18:28+00:00",
+                  "updatedAt": "2026-09-03T17:18:28+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "de",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "de",
+        "expressions": ["e-tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
       "caseId": "statuses-and-overlap",
       "targetLanguageId": "de",
       "input": {
@@ -22525,6 +24877,790 @@
         "sourceLanguageId": "en",
         "targetLanguageId": "ko",
         "expressions": ["one-wayflight"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["refund"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 621,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\ud658\ubd88",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "\ud658\ubd88",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["refunds"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 129,
+                "subject": "changes",
+                "definition": "Money returned to a traveler after an eligible cancellation or adjustment.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 613,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "refund",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "refund",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 621,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\ud658\ubd88",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 129,
+                  "lemma": "\ud658\ubd88",
+                  "createdAt": "2026-09-03T17:18:29+00:00",
+                  "updatedAt": "2026-09-03T17:18:29+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["booking"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 57,
+                "subject": "booking",
+                "definition": "A confirmed arrangement for travel or accommodation.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 233,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "booking",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "book",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 243,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\uc608\uc57d",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 57,
+                  "lemma": "\uc608\uc57d",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["bookings"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [],
+        "pagination": {
+          "offset": 0,
+          "limit": 0
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["nearby airport"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 155,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\uc778\uadfc \uacf5\ud56d",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "\uc778\uadfc \uacf5\ud56d",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["nearby airports"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 41,
+                "subject": "search",
+                "definition": "Airports located close enough to the selected airport to be included in search results.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 147,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "nearby airports",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "nearby airport",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 155,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\uc778\uadfc \uacf5\ud56d",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 41,
+                  "lemma": "\uc778\uadfc \uacf5\ud56d",
+                  "createdAt": "2026-09-03T17:18:26+00:00",
+                  "updatedAt": "2026-09-03T17:18:26+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 401,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\ud56d\uacf5\uad8c",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "\ud56d\uacf5\uad8c",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["tickets"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 87,
+                "subject": "flight",
+                "definition": "A document or record that confirms a passenger's right to travel.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 393,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 401,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\ud56d\uacf5\uad8c",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 87,
+                  "lemma": "\ud56d\uacf5\uad8c",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["new"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 131,
+                "subject": "booking",
+                "definition": "A booking that has been created recently and did not previously exist.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 623,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "new",
+                  "description": null,
+                  "partOfSpeech": "adjective",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "new",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 631,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\uc2e0\uaddc",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 131,
+                  "lemma": "\uc2e0\uaddc",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["news"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 133,
+                "subject": "content",
+                "definition": "Information about travel products, destinations, or booking updates.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 633,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "news",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "news",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 641,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\ub274\uc2a4",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 133,
+                  "lemma": "\ub274\uc2a4",
+                  "createdAt": "2026-09-04T02:51:12+00:00",
+                  "updatedAt": "2026-09-04T02:51:12+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["e-ticket"]
+      },
+      "httpStatus": 200,
+      "output": {
+        "data": [
+          {
+            "data": {
+              "glossary": {
+                "id": 724133,
+                "name": "OTA Concordance Fixture"
+              },
+              "concept": {
+                "id": 89,
+                "subject": "flight",
+                "definition": "An electronic version of a travel ticket stored digitally rather than printed.",
+                "translatable": true,
+                "note": "[Hyperlocalise::translatable]::true",
+                "url": null,
+                "figure": null
+              },
+              "sourceTerms": [
+                {
+                  "id": 403,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "en",
+                  "text": "e-ticket",
+                  "description": null,
+                  "partOfSpeech": "noun",
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "e-ticket",
+                  "createdAt": "2026-09-03T17:18:27+00:00",
+                  "updatedAt": "2026-09-03T17:18:27+00:00"
+                }
+              ],
+              "targetTerms": [
+                {
+                  "id": 413,
+                  "userId": 17837823,
+                  "glossaryId": 724133,
+                  "languageId": "ko",
+                  "text": "\uc804\uc790 \ud56d\uacf5\uad8c",
+                  "description": null,
+                  "partOfSpeech": null,
+                  "status": "preferred",
+                  "type": null,
+                  "gender": null,
+                  "note": null,
+                  "url": null,
+                  "conceptId": 89,
+                  "lemma": "\uc804\uc790 \ud56d\uacf5\uad8c",
+                  "createdAt": "2026-09-03T17:18:28+00:00",
+                  "updatedAt": "2026-09-03T17:18:28+00:00"
+                }
+              ]
+            }
+          }
+        ],
+        "pagination": {
+          "offset": 0,
+          "limit": 1
+        }
+      }
+    },
+    {
+      "caseId": "trailing-s-variants",
+      "targetLanguageId": "ko",
+      "input": {
+        "sourceLanguageId": "en",
+        "targetLanguageId": "ko",
+        "expressions": ["e-tickets"]
       },
       "httpStatus": 200,
       "output": {

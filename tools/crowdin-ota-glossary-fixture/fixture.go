@@ -23,8 +23,8 @@ const (
 	defaultFixturePath   = "apps/hyperlocalise-web/src/lib/glossary/fixtures/fixture.json"
 	defaultSeedOutput    = "tools/crowdin-ota-glossary-fixture/ota-glossary.tbx"
 	defaultRecordOutput  = "apps/hyperlocalise-web/src/lib/glossary/fixtures/ota-concordance-recording.json"
-	expectedConceptCount = 50
-	expectedQueryCases   = 9
+	expectedConceptCount = 52
+	expectedQueryCases   = 10
 	maxExpressions       = 20
 )
 

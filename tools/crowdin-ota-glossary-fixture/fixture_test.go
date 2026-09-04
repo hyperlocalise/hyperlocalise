@@ -54,6 +54,7 @@ func TestFixtureHasConcordanceCoverageCases(t *testing.T) {
 		"mixed-batch",
 		"contextual-sentences",
 		"term-boundaries",
+		"trailing-s-variants",
 		"statuses-and-overlap",
 		"locale-and-negative",
 	} {
@@ -88,6 +89,9 @@ func TestWriteTBX(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "<term>PNR</term>") {
 		t.Fatal("TBX does not contain the PNR alias")
+	}
+	if !strings.Contains(string(content), "<term>new</term>") || !strings.Contains(string(content), "<term>news</term>") {
+		t.Fatal("TBX does not contain the trailing-s control terms")
 	}
 	if !strings.Contains(string(content), `<descrip type="context">`) {
 		t.Fatal("TBX term descriptions must use the DCA context data category")

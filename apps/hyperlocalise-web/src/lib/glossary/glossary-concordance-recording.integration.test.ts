@@ -27,6 +27,7 @@ import recording from "./fixtures/ota-concordance-recording.json";
 type OtaFixture = {
   name: string;
   sourceLanguageId: string;
+  targetLanguageIds: string[];
   concepts: Array<{
     id: string;
     subject: string;
@@ -40,11 +41,19 @@ type OtaFixture = {
       forbidden?: boolean;
     }>;
   }>;
+  queryCases: Array<{
+    id: string;
+    expressions: string[];
+  }>;
 };
 
 const otaFixture = JSON.parse(
   readFileSync(fileURLToPath(new URL("./fixtures/fixture.json", import.meta.url)), "utf8"),
 ) as OtaFixture;
+
+const trailingSQueryCase = otaFixture.queryCases.find(
+  (queryCase) => queryCase.id === "trailing-s-variants",
+);
 
 const fixture = createGlossaryTestFixture();
 let createdGlossaryId: string | undefined;
@@ -149,6 +158,56 @@ const concordanceCases: ConcordanceCase[] = recording.runs.flatMap((run) =>
   })),
 );
 
+describe("Crowdin trailing-s recording characterization", () => {
+  it("records consistent source-term behavior across target locales", () => {
+    if (!trailingSQueryCase) {
+      throw new Error("Fixture is missing the trailing-s-variants query case");
+    }
+
+    const runsByLocaleAndExpression = new Map(
+      recording.runs.map((run) => [
+        `${run.targetLanguageId}\u0000${run.input.expressions[0] ?? ""}`,
+        run,
+      ]),
+    );
+    const observations = trailingSQueryCase.expressions.map((expression) => {
+      const sourceTermsByLocale = otaFixture.targetLanguageIds.map((targetLanguageId) => {
+        const run = runsByLocaleAndExpression.get(`${targetLanguageId}\u0000${expression}`);
+        if (!run) {
+          throw new Error(
+            `Recording is missing ${targetLanguageId}/trailing-s-variants/${expression}`,
+          );
+        }
+
+        return {
+          targetLanguageId,
+          sourceTerms: recordedResultsForRun(run)
+            .flatMap((result) =>
+              result.sourceTerms
+                .filter((term) => term.languageId === otaFixture.sourceLanguageId)
+                .map((term) => term.text),
+            )
+            .toSorted(),
+        };
+      });
+
+      return { expression, sourceTermsByLocale };
+    });
+
+    console.info("Crowdin trailing-s observations", observations);
+
+    for (const observation of observations) {
+      const [first, ...rest] = observation.sourceTermsByLocale;
+      if (!first) {
+        throw new Error(`No locale observations for ${observation.expression}`);
+      }
+      for (const current of rest) {
+        expect(current.sourceTerms, observation.expression).toEqual(first.sourceTerms);
+      }
+    }
+  });
+});
+
 describe("native glossary concordance against Crowdin recording", () => {
   beforeAll(async () => {
     expect(concordanceCases.length).toBeGreaterThan(0);
@@ -176,7 +235,7 @@ describe("native glossary concordance against Crowdin recording", () => {
       document: importDocument(),
     });
 
-    expect(importResult.counts.conceptsCreated).toBe(50);
+    expect(importResult.counts.conceptsCreated).toBe(otaFixture.concepts.length);
     expect(importResult.counts.termsCreated).toBeGreaterThanOrEqual(250);
     console.info("seeded native glossary concordance fixture", {
       organizationId: glossary.organizationId,

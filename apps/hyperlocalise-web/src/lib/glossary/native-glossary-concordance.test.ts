@@ -31,6 +31,11 @@ describe("buildGlossaryTsQuery", () => {
 
   it("adds singular candidates for plural source-text tokens", () => {
     expect(buildGlossaryTsQuery("refunds")).toBe("refunds:* | refund:*");
+    expect(buildGlossaryTsQuery("REFUNDS")).toBe("REFUNDS:* | REFUND:*");
+  });
+
+  it("does not add a singular candidate for a short word ending in s", () => {
+    expect(buildGlossaryTsQuery("news")).toBe("news:*");
   });
 });
 
@@ -144,6 +149,12 @@ describe("concordanceSourceContainsTerm", () => {
         caseSensitive: false,
       }),
     ).toBe(true);
+    expect(
+      concordanceSourceContainsTerm("tickets", {
+        sourceTerm: "ticket",
+        caseSensitive: false,
+      }),
+    ).toBe(true);
   });
 
   it("does not match unsupported suffixes or gerund plurals", () => {
@@ -156,6 +167,24 @@ describe("concordanceSourceContainsTerm", () => {
     expect(
       concordanceSourceContainsTerm("bookings", {
         sourceTerm: "booking",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("new", {
+        sourceTerm: "news",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("news", {
+        sourceTerm: "new",
+        caseSensitive: false,
+      }),
+    ).toBe(false);
+    expect(
+      concordanceSourceContainsTerm("e-tickets", {
+        sourceTerm: "e-ticket",
         caseSensitive: false,
       }),
     ).toBe(false);
