@@ -20,6 +20,11 @@ export const overviewConnectAgentCardMessages = defineMessages({
     id: "OY5+Uf7y9y",
     description: "Overview card title for connecting an MCP client to the workspace",
   },
+  compactTitle: {
+    defaultMessage: "Connect agent",
+    id: "dp8lrm07um",
+    description: "Compact overview card title beside the Slack channel request card",
+  },
   description: {
     defaultMessage: "Access your Hyperlocalise workspace from MCP clients.",
     id: "I3Xom21N//",

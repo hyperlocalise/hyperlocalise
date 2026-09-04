@@ -92,6 +92,7 @@ function createOrgSlugClient(origin: string) {
       "billing",
       "api-keys",
       "hyperlab",
+      "overview",
     ]),
   };
 }

@@ -14,6 +14,7 @@ import type { IntlShape } from "react-intl";
 
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import type { WorkspaceOverviewSnapshot } from "@/lib/workspace/overview-snapshot-model";
 
 import { automationsFixture } from "../../automations/_components/automations.fixture";
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
@@ -248,6 +249,142 @@ export const dashboardAutomationRunsFixture: DashboardAutomationRunItem[] =
     runs: automationRunsFixture,
     limit: 5,
   });
+
+export const dashboardOverviewFixture: WorkspaceOverviewSnapshot = {
+  metrics: {
+    jobs: { count: 48, series: [4, 6, 5, 8, 7, 9, 9] },
+    translations: { count: 312, series: [20, 35, 40, 48, 52, 55, 62] },
+    automations: { total: 6, paused: 1 },
+    issues: { open: 9, p1: 2 },
+  },
+  activity: [
+    {
+      id: "job_failed_sync",
+      kind: "job",
+      title: "push github",
+      subtitle: "Help center · sync",
+      status: "failed",
+      href: `/org/${organizationSlug}/projects/project_docs/jobs/job_failed_sync`,
+      updatedAt: "2026-03-17T18:00:00.000Z",
+      attention: true,
+    },
+    {
+      id: "job_review_fr",
+      kind: "job",
+      title: "Review: terminology consistency",
+      subtitle: "Website localization · review",
+      status: "waiting_for_review",
+      href: `/org/${organizationSlug}/projects/project_website/jobs/job_review_fr`,
+      updatedAt: "2026-03-18T12:15:00.000Z",
+      attention: false,
+    },
+    {
+      id: "job_translate_home",
+      kind: "job",
+      title: "marketing/home.json",
+      subtitle: "Website localization · file",
+      status: "running",
+      href: `/org/${organizationSlug}/projects/project_website/jobs/job_translate_home`,
+      updatedAt: "2026-03-18T10:30:00.000Z",
+      attention: false,
+    },
+    {
+      id: "run_001",
+      kind: "automation",
+      title: automationsFixture[0]!.name,
+      subtitle: "Automation",
+      status: "succeeded",
+      href: `/org/${organizationSlug}/automations/${automationsFixture[0]!.id}`,
+      updatedAt: "2026-06-07T12:00:00.000Z",
+      attention: false,
+    },
+  ],
+  projects: dashboardProjectsItemsFixture.slice(0, 2).map((project) => ({
+    id: project.id,
+    name: project.name,
+    subtitle: `${project.sourceLabel}`,
+    localeRoute: project.localeRoute,
+    latestJobTitle: "Review: terminology consistency",
+    latestJobAt: "2026-03-18T12:15:00.000Z",
+    openCount: project.pendingActionCount,
+    failedCount: project.id === "project_docs" ? 1 : 0,
+    href: project.href,
+  })),
+  board: [
+    {
+      id: "issue_1",
+      identifier: "WEB-1",
+      title: "Missing CTA on checkout",
+      projectName: "Website localization",
+      locale: "fr-FR",
+      priority: "P1",
+      updatedAt: "2026-03-18T11:45:00.000Z",
+      href: `/org/${organizationSlug}/projects/project_website/issue-sheet/issue_1`,
+    },
+    {
+      id: "issue_2",
+      identifier: "WEB-2",
+      title: "Date format uses US month-first",
+      projectName: "Website localization",
+      locale: "ja-JP",
+      priority: "P2",
+      updatedAt: "2026-03-18T09:00:00.000Z",
+      href: `/org/${organizationSlug}/projects/project_website/issue-sheet/issue_2`,
+    },
+    {
+      id: "issue_3",
+      identifier: "MOB-4",
+      title: "Truncated string in onboarding",
+      projectName: "Mobile app strings",
+      locale: "ko-KR",
+      priority: "P1",
+      updatedAt: "2026-03-17T16:20:00.000Z",
+      href: `/org/${organizationSlug}/projects/project_mobile/issue-sheet/issue_3`,
+    },
+  ],
+  automations: [
+    {
+      id: "run_001",
+      automationId: automationsFixture[0]!.id,
+      name: automationsFixture[0]!.name,
+      triggerSource: "github",
+      status: "succeeded",
+      updatedAt: "2026-06-07T12:00:00.000Z",
+      href: `/org/${organizationSlug}/automations/${automationsFixture[0]!.id}`,
+    },
+    {
+      id: "run_002",
+      automationId: automationsFixture[1]!.id,
+      name: automationsFixture[1]!.name,
+      triggerSource: "scheduled",
+      status: "failed",
+      updatedAt: "2026-06-06T09:04:00.000Z",
+      href: `/org/${organizationSlug}/automations/${automationsFixture[1]!.id}`,
+    },
+    {
+      id: "run_003",
+      automationId: automationsFixture[0]!.id,
+      name: automationsFixture[0]!.name,
+      triggerSource: "manual",
+      status: "running",
+      updatedAt: "2026-06-05T14:00:00.000Z",
+      href: `/org/${organizationSlug}/automations/${automationsFixture[0]!.id}`,
+    },
+  ],
+};
+
+export const dashboardOverviewEmptyFixture: WorkspaceOverviewSnapshot = {
+  metrics: {
+    jobs: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+    translations: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+    automations: { total: 0, paused: 0 },
+    issues: { open: 0, p1: 0 },
+  },
+  activity: [],
+  projects: [],
+  board: [],
+  automations: [],
+};
 
 export const dashboardJobsSourceFixture = dashboardJobsFixture.map((job) =>
   createDashboardJob({

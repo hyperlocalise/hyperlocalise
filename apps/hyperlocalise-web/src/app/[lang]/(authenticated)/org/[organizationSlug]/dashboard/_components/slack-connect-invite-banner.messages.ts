@@ -16,15 +16,14 @@ import { defineMessages } from "react-intl";
 
 export const slackConnectInviteBannerMessages = defineMessages({
   createTitle: {
-    defaultMessage: "Create a shared Slack channel",
-    id: "+t1jpGe0aj",
-    description: "Dashboard Slack Connect banner title before the first invite",
+    defaultMessage: "Request Slack channel",
+    id: "vT66VB97HW",
+    description: "Overview Slack Connect card title before the first invite",
   },
   createDescription: {
-    defaultMessage:
-      "Talk with Hyperlocalise in Slack. We'll email you an invitation to a shared channel.",
-    id: "rUZsunvsmU",
-    description: "Dashboard Slack Connect banner description before the first invite",
+    defaultMessage: "We'll email you an invite to a shared channel with Hyperlocalise.",
+    id: "LezQD0Jh9+",
+    description: "Overview Slack Connect card description before the first invite",
   },
   invitedTitle: {
     defaultMessage: "We've invited your team to a shared Slack channel",
@@ -42,9 +41,9 @@ export const slackConnectInviteBannerMessages = defineMessages({
     description: "Dashboard Slack Connect banner dismiss action",
   },
   requestInvite: {
-    defaultMessage: "Request Slack invite",
-    id: "WwBtcmgwYn",
-    description: "Dashboard Slack Connect banner primary action",
+    defaultMessage: "Request invite",
+    id: "dS3dXvwF6f",
+    description: "Overview Slack Connect card primary action",
   },
   requesting: {
     defaultMessage: "Sending…",

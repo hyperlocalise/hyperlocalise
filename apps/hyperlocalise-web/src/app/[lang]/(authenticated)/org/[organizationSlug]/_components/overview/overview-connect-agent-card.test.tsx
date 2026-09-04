@@ -78,4 +78,20 @@ describe("OverviewConnectAgentCard", () => {
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(writeText).toHaveBeenCalledWith(`claude mcp add -t http hyperlocalise ${mcpUrl}`);
   });
+
+  it("hides setup copy in compact mode", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TooltipProvider>
+          <OverviewConnectAgentCard compact mcpUrl={mcpUrl} />
+        </TooltipProvider>
+      </IntlProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Connect agent" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Access your Hyperlocalise workspace from MCP clients."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Then run")).not.toBeInTheDocument();
+  });
 });

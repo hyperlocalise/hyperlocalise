@@ -68,8 +68,8 @@ export function SlackConnectInviteBannerView({
   onRequest: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-start gap-4">
+    <div className="flex h-full w-full flex-col justify-between gap-5 rounded-2xl border border-border bg-card p-6 lg:w-[380px] lg:shrink-0">
+      <div className="flex min-w-0 items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
           <IntegrationLogo src="/images/slack-logo.svg" className="size-5" />
         </div>
@@ -91,7 +91,7 @@ export function SlackConnectInviteBannerView({
         </div>
       </div>
       {canManage ? (
-        <div className="flex shrink-0 items-center justify-end gap-2 pl-14 sm:pl-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -172,15 +172,18 @@ export function SlackConnectInviteBanner({ organizationSlug }: { organizationSlu
   if (inviteQuery.isLoading) {
     return (
       <div
-        className="flex items-center gap-4 rounded-lg border border-border bg-card px-5 py-4"
+        className="flex h-full w-full flex-col gap-4 rounded-2xl border border-border bg-card p-6 lg:w-[380px] lg:shrink-0"
         aria-busy="true"
         aria-label={intl.formatMessage(slackConnectInviteBannerMessages.loadingLabel)}
       >
-        <Skeleton className="size-10 shrink-0 rounded-lg" />
-        <div className="flex flex-1 flex-col gap-2">
-          <Skeleton className="h-4 w-72 max-w-full" />
-          <Skeleton className="h-3 w-96 max-w-full" />
+        <div className="flex items-start gap-3">
+          <Skeleton className="size-10 shrink-0 rounded-lg" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-40 max-w-full" />
+            <Skeleton className="h-3 w-56 max-w-full" />
+          </div>
         </div>
+        <Skeleton className="h-9 w-32" />
       </div>
     );
   }

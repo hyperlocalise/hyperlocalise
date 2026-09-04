@@ -26,25 +26,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Dashboard page heading",
   },
   pageDescription: {
-    defaultMessage:
-      "Your workspace at a glance — assigned work, latest activity, and recent projects.",
-    id: "0fORPZlrsy",
+    defaultMessage: "A top-down view of localization operations in this workspace.",
+    id: "AIaaCgpWdC",
     description: "Dashboard page description under the heading",
-  },
-  setupProgressLabel: {
-    defaultMessage: "Workspace setup · {completedCount} of {totalCount} complete",
-    id: "yX53I7eVol",
-    description: "Dashboard setup hero progress summary",
-  },
-  setupProgressMeter: {
-    defaultMessage: "Setup progress",
-    id: "szGONLZ/cQ",
-    description: "Label above the workspace setup progress bar",
-  },
-  setupProgressPercent: {
-    defaultMessage: "{value}%",
-    id: "tT+/GoDfXt",
-    description: "Workspace setup progress percentage value",
   },
   newRequest: {
     defaultMessage: "New request",
@@ -53,219 +37,128 @@ export const dashboardPageViewMessages = defineMessages({
   },
   loadingWorkspaceOverview: {
     defaultMessage: "Loading workspace overview",
-    id: "28e0S0f2HW",
-    description: "Accessible label while the dashboard hero is loading",
+    id: "nhcw8sOpqz",
+    description: "Accessible label while the dashboard overview is loading",
   },
-  loadingPanel: {
-    defaultMessage: "Loading {title}",
-    id: "GpQTuQOUij",
-    description: "Accessible label while a dashboard panel is loading",
+  overviewLoadError: {
+    defaultMessage: "Workspace overview could not be loaded.",
+    id: "LpAm1eoUb6",
+    description: "Error when the overview snapshot fails to load",
   },
-  panelLoadError: {
-    defaultMessage: "{title} could not be loaded.",
-    id: "IvJJwlEgW1",
-    description: "Generic error when a dashboard panel fails to load",
+  jobsMetric: {
+    defaultMessage: "Jobs",
+    id: "WpT4MqV5Ti",
+    description: "Overview metric card title for jobs created in the last 7 days",
   },
-  quickStartLabel: {
-    defaultMessage: "Quick start",
-    id: "xg+IeoG5GL",
-    description: "Label above the dashboard quick-start card",
+  translationsMetric: {
+    defaultMessage: "Translations",
+    id: "XrHgNqTVDc",
+    description: "Overview metric card title for translations updated in the last 7 days",
   },
-  quickStartTitle: {
-    defaultMessage: "Ask the localization agent",
-    id: "YM9k2kDsM2",
-    description: "Dashboard quick-start card title",
+  automationsMetric: {
+    defaultMessage: "Automations",
+    id: "EQDi5wnuJu",
+    description: "Overview metric card title for workspace automations",
   },
-  quickStartDescription: {
-    defaultMessage:
-      "Describe what you need translated, researched, or reviewed and Hyperlocalise will prepare the work.",
-    id: "mrsptKTM1v",
-    description: "Dashboard quick-start card description",
+  issuesMetric: {
+    defaultMessage: "Open issues",
+    id: "cgDZYF+DDY",
+    description: "Overview metric card title for open issues",
   },
-  myJobsTitle: {
-    defaultMessage: "My jobs",
-    id: "PZP/M3m1NM",
-    description: "Dashboard panel title for jobs assigned to the current user",
+  lastSevenDays: {
+    defaultMessage: "Last 7 days",
+    id: "21rpYl9weA",
+    description: "Metric card subtitle for a 7-day lookback",
   },
-  myJobsDescription: {
-    defaultMessage: "The latest work assigned to you, prioritized by what needs action.",
-    id: "YlRGuiYchN",
-    description: "Dashboard panel description for assigned jobs",
+  pausedCount: {
+    defaultMessage: "{count} paused",
+    id: "iN7gragIFi",
+    description: "Automations metric subtitle showing how many automations are paused",
   },
-  myJobsEmpty: {
-    defaultMessage: "No jobs assigned to you yet.",
-    id: "Q38XCcr+cJ",
-    description: "Empty state when the user has no assigned jobs",
+  p1Count: {
+    defaultMessage: "{count} P1",
+    id: "izGIodNiZK",
+    description: "Open issues metric subtitle showing P1 issue count",
   },
-  latestJobsTitle: {
-    defaultMessage: "Latest jobs",
-    id: "ENDjImu9Gr",
-    description: "Dashboard panel title for recently updated workspace jobs",
+  activityLabel: {
+    defaultMessage: "Activity",
+    id: "2Z3HVQXs5m",
+    description: "Overview section label for recent jobs and automation runs",
   },
-  latestJobsDescription: {
-    defaultMessage: "The most recently updated work across this workspace.",
-    id: "u7mPxFIRkS",
-    description: "Dashboard panel description for latest jobs",
+  projectsLabel: {
+    defaultMessage: "Projects",
+    id: "VYzt977Ihg",
+    description: "Overview section label for workspace projects",
   },
-  latestJobsEmpty: {
-    defaultMessage: "No workspace jobs yet.",
-    id: "8MmPpIGj4f",
-    description: "Empty state when the workspace has no jobs",
+  boardLabel: {
+    defaultMessage: "Board",
+    id: "MQYav5C7q6",
+    description: "Overview section label for open issues",
   },
-  recentProjectsTitle: {
-    defaultMessage: "Recent projects",
-    id: "YUeo87Wdbn",
-    description: "Dashboard panel title for recently opened projects",
+  automationsLabel: {
+    defaultMessage: "Automations",
+    id: "+0IukqAGBP",
+    description: "Overview section label for recent automation runs",
   },
-  recentProjectsDescription: {
-    defaultMessage: "Projects you opened recently, followed by active workspace projects.",
-    id: "IQiUadYsfM",
-    description: "Dashboard panel description for recent projects",
+  viewJobs: {
+    defaultMessage: "View jobs",
+    id: "S9c8QG8bF2",
+    description: "Link from overview activity to the jobs page",
   },
-  recentProjectsEmpty: {
-    defaultMessage: "No projects yet. Create a project to get started.",
-    id: "6NGN+mn8CD",
-    description: "Empty state when there are no workspace projects",
+  viewAll: {
+    defaultMessage: "View all",
+    id: "ZCcOS0o7o1",
+    description: "Link from overview projects to the projects page",
   },
-  tmsJobsTitle: {
-    defaultMessage: "{providerName} jobs",
-    id: "mhdxPi6b4a",
-    description: "Dashboard panel title for live TMS jobs",
-  },
-  tmsJobsDescription: {
-    defaultMessage: "Live jobs fetched from {providerName}.",
-    id: "nqMa1yML6t",
-    description: "Dashboard panel description for live TMS jobs",
-  },
-  tmsJobsEmpty: {
-    defaultMessage: "No jobs found in {providerName}.",
-    id: "IgBvohPlHZ",
-    description: "Empty state when a TMS provider has no jobs",
-  },
-  tmsProjectsTitle: {
-    defaultMessage: "{providerName} projects",
-    id: "CfAFoekPz1",
-    description: "Dashboard panel title for live TMS projects",
-  },
-  tmsProjectsDescription: {
-    defaultMessage: "Live projects fetched from {providerName}.",
-    id: "s8Aqn1fSU6",
-    description: "Dashboard panel description for live TMS projects",
-  },
-  tmsProjectsEmpty: {
-    defaultMessage: "No projects found in {providerName}.",
-    id: "EURqQwIzfO",
-    description: "Empty state when a TMS provider has no projects",
-  },
-  viewAllJobs: {
-    defaultMessage: "View all jobs",
-    id: "Z4DRhv/lJb",
-    description: "Footer link to open the full jobs list from a dashboard panel",
-  },
-  viewAllProjects: {
-    defaultMessage: "View all projects",
-    id: "GlOm2GgrZG",
-    description: "Footer link to open the full projects list from a dashboard panel",
-  },
-  workspaceFallbackProject: {
-    defaultMessage: "Workspace",
-    id: "0bdrX6gjre",
-    description: "Fallback project name when a job has no project",
-  },
-  jobMeta: {
-    defaultMessage: "{projectName} · {kindLabel} · updated {updatedAt}",
-    id: "EO0pk2ty3D",
-    description: "Secondary metadata line for a job row on the dashboard",
-  },
-  projectOpenBadge: {
-    defaultMessage: "{count} open",
-    id: "IQHhkgmw8g",
-    description: "Badge showing how many open actions a project has",
-  },
-  projectUpToDate: {
-    defaultMessage: "Up to date",
-    id: "JIuT2aW94P",
-    description: "Badge when a project has no open actions",
-  },
-  projectMetaWithUpdate: {
-    defaultMessage: "{sourceLabel} · {localeRoute} · updated {updatedAt}",
-    id: "aFSdZ6B2XX",
-    description: "Secondary metadata line for a project row with a last-updated time",
-  },
-  projectMeta: {
-    defaultMessage: "{sourceLabel} · {localeRoute}",
-    id: "w1P9m9KNH8",
-    description: "Secondary metadata line for a project row without a last-updated time",
-  },
-  integrationsTitle: {
-    defaultMessage: "Integrations",
-    id: "JYTpmBUkk7",
-    description: "Dashboard section heading for workspace integrations",
-  },
-  loadingIntegrations: {
-    defaultMessage: "Loading integrations",
-    id: "7YQmBHx9HV",
-    description: "Accessible label while dashboard integrations are loading",
-  },
-  connected: {
-    defaultMessage: "Connected",
-    id: "ykK86HWH4K",
-    description: "Badge when an integration is connected",
-  },
-  notConnected: {
-    defaultMessage: "Not connected",
-    id: "Mo3KUqU9mk",
-    description: "Badge when an integration is not connected",
-  },
-  manage: {
-    defaultMessage: "Manage",
-    id: "0ZnjVna/1A",
-    description: "Link label to manage a connected integration",
-  },
-  connect: {
-    defaultMessage: "Connect",
-    id: "kRgGKX2G/s",
-    description: "Link label to connect an integration",
-  },
-  automationRunsTitle: {
-    defaultMessage: "Automation runs",
-    id: "xCfBoLh9Rp",
-    description: "Dashboard section heading for recent automation runs",
+  viewBoard: {
+    defaultMessage: "View Board",
+    id: "M+PhLBJ7kK",
+    description: "Link from overview board to the issues page",
   },
   viewAutomations: {
     defaultMessage: "View automations",
     id: "vynGfdRurY",
     description: "Button to open the automations page from the dashboard",
   },
-  loadingAutomationRuns: {
-    defaultMessage: "Loading automation runs",
-    id: "M1OWEzMawd",
-    description: "Accessible label while automation runs are loading",
+  activityEmpty: {
+    defaultMessage: "No recent activity yet.",
+    id: "X4Hw6VR6Ws",
+    description: "Empty state for overview activity",
   },
-  automationRunsLoadError: {
-    defaultMessage: "Automation runs could not be loaded.",
-    id: "RHVJ0v0DYf",
-    description: "Error when dashboard automation runs fail to load",
+  projectsEmpty: {
+    defaultMessage: "No projects yet. Create a project to get started.",
+    id: "6NGN+mn8CD",
+    description: "Empty state when there are no workspace projects",
   },
-  automationStats: {
-    defaultMessage: "{total} automations · {active} active · {paused} paused",
-    id: "qPUZCfT/yV",
-    description: "Summary counts for workspace automations on the dashboard",
+  boardEmpty: {
+    defaultMessage: "No open issues.",
+    id: "XNK40wY8Cc",
+    description: "Empty state for overview board issues",
   },
-  noAutomationRuns: {
+  automationsEmpty: {
     defaultMessage: "No automation runs yet.",
     id: "yF+d/IbGFc",
     description: "Empty state when there are no automation runs",
   },
-  runCompleted: {
-    defaultMessage: "{triggerSource} · completed {completedAt}",
-    id: "6QjQu7ZEVO",
-    description: "Automation run metadata when the run has completed",
+  openAction: {
+    defaultMessage: "Open",
+    id: "Wm5TT1di5J",
+    description: "Link to open a failed activity item",
   },
-  runInProgress: {
-    defaultMessage: "{triggerSource} · in progress",
-    id: "FNTVTGlcTd",
-    description: "Automation run metadata while the run is still in progress",
+  projectOpenCount: {
+    defaultMessage: "{count} open",
+    id: "ho4WUcnmEe",
+    description: "Badge showing how many open jobs a project has",
+  },
+  projectFailedCount: {
+    defaultMessage: "{count} failed",
+    id: "18aFSqdbKb",
+    description: "Badge showing how many failed jobs a project has",
+  },
+  workspaceFallbackProject: {
+    defaultMessage: "Workspace",
+    id: "0bdrX6gjre",
+    description: "Fallback project name when a job has no project",
   },
   runStatusQueued: {
     defaultMessage: "Queued",
@@ -296,6 +189,11 @@ export const dashboardPageViewMessages = defineMessages({
     defaultMessage: "Skipped",
     id: "Qklvn9azHF",
     description: "Automation run status badge for skipped runs",
+  },
+  jobStatusWaiting: {
+    defaultMessage: "Waiting",
+    id: "NcIdsG0LSX",
+    description: "Status pill for jobs waiting for review on the overview",
   },
   triggerManual: {
     defaultMessage: "Manual",
