@@ -80,12 +80,19 @@ import {
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import type { IssueSheetComment } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  projectFileCatQueueSortSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import {
   filterProjectFiles,
   listProjectFilesForProject,
 } from "@/lib/projects/files/project-file-service";
 import { loadMcpProjectStatus } from "@/api/routes/mcp/mcp-project-status";
+import {
+  loadMcpListTranslations,
+  mcpListTranslationsQueueFilters,
+} from "@/api/routes/mcp/mcp-list-translations";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -407,6 +414,58 @@ const mcpListFilesInputSchema = z.object({
     .max(256)
     .optional()
     .describe("Optional case-insensitive filter on source path or filename."),
+});
+
+const mcpListTranslationsInputSchema = z.object({
+  projectId: projectIdSchema.describe(
+    "ID of the accessible Hyperlocalise project whose translation keys to list.",
+  ),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. Use * for every file. When omitted, lists keys across the project.",
+    ),
+  targetLocale: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .optional()
+    .describe(
+      "Optional target locale. When omitted, returns one row per project target locale.",
+    ),
+  search: z
+    .string()
+    .trim()
+    .max(256)
+    .optional()
+    .describe("Optional case-insensitive match on key, source text, context, or target text."),
+  queueFilter: z
+    .enum(mcpListTranslationsQueueFilters)
+    .optional()
+    .describe(
+      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, or other Content Editor filters.",
+    ),
+  queueSort: projectFileCatQueueSortSchema
+    .optional()
+    .describe("CAT queue sort: file_order (default) or untranslated_first."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe("Maximum number of translation rows to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of translation rows to skip before returning results."),
 });
 
 const mcpGetIssueInputSchema = z.object({
@@ -826,6 +885,55 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
             }),
           },
         ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "list_translations",
+    {
+      description:
+        "List translation keys in an accessible Hyperlocalise project. Returns compact CAT queue rows (id, key, sourcePath, sourceText, targetLocale, targetText, status, maxLength, isHidden) with total and pagination. Filters match the Content Editor queue. Read-only roles may list. Results use the native key overlay; live TMS provider listing is out of scope.",
+      inputSchema: mcpListTranslationsInputSchema,
+    },
+    async ({
+      projectId,
+      sourcePath,
+      targetLocale,
+      search,
+      queueFilter,
+      queueSort,
+      limit,
+      offset,
+    }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const result = await loadMcpListTranslations({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        projectTargetLocales: project.targetLocales,
+        sourcePath,
+        targetLocale,
+        search,
+        queueFilter,
+        queueSort,
+        limit,
+        offset,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
       };
     },
   );
@@ -1411,12 +1519,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of [
-    "list_translations",
-    "upload_sources",
-    "download_translations",
-    "run_workflow",
-  ] as const) {
+  for (const name of ["upload_sources", "download_translations", "run_workflow"] as const) {
     server.registerTool(
       name,
       {

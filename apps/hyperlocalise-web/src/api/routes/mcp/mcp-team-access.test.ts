@@ -527,6 +527,34 @@ describe("MCP team-scoped access", () => {
       error: "project_not_found",
     });
 
+    const accessibleTranslationsResponse = await callMcpTool(accessToken, "list_translations", {
+      projectId: alphaProjectBody.project.id,
+    });
+    expect(accessibleTranslationsResponse.status).toBe(200);
+    expect(parseToolResultText(await accessibleTranslationsResponse.json())).toMatchObject({
+      total: 0,
+      translations: [],
+    });
+
+    for (const lookup of inaccessibleFileLookups) {
+      const response = await callMcpTool(accessToken, "list_translations", {
+        projectId: lookup.projectId,
+      });
+
+      expect(response.status, lookup.label).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(
+        (responseBody as { result?: { isError?: boolean } }).result?.isError,
+        lookup.label,
+      ).toBe(true);
+
+      expect(parseToolResultText(responseBody), lookup.label).toMatchObject({
+        error: "project_not_found",
+      });
+    }
+
     const createDeniedResponse = await callMcpTool(accessToken, "create_issue", {
       projectId: alphaProjectBody.project.id,
       title: "Member must not create this issue",
