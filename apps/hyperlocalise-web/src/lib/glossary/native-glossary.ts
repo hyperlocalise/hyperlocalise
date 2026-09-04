@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -49,8 +49,7 @@ import type {
 } from "./glossary";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
-const NATIVE_CONCORDANCE_CANDIDATE_MULTIPLIER = 20;
-const MAX_NATIVE_CONCORDANCE_CANDIDATES = 1000;
+const NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE = 200;
 
 type GlossaryTermRow = typeof schema.glossaryTerms.$inferSelect;
 type GlossaryConceptRow = typeof schema.glossaryConcepts.$inferSelect;
@@ -140,6 +139,10 @@ function concordanceTokensMatch(sourceTextToken: string, sourceTermToken: string
   }
 
   return false;
+}
+
+function isPreferredConcordanceSourceStatus(status: string | null) {
+  return status?.trim().toLowerCase().replaceAll("_", " ") === "preferred";
 }
 
 export function concordanceSourceContainsTerm(
@@ -1151,79 +1154,95 @@ export class NativeGlossary extends Glossary {
       return [];
     }
 
-    const limit = query.limit ?? 20;
+    const limit = Math.max(query.limit ?? 20, 0);
+    if (limit === 0) {
+      return [];
+    }
     const glossaryId = this.input.glossary.id;
     const sourceLocale = query.sourceLocale;
 
-    const sourceHits = await db
-      .select({
-        conceptId: concordanceSourceTerms.conceptId,
-        glossaryId: concordanceSourceTerms.glossaryId,
-        glossaryName: schema.glossaries.name,
-        matchedSourceTermId: concordanceSourceTerms.id,
-        matchedSourceTerm: sql<string>`${concordanceSourceTerms.term}`,
-        caseSensitive: concordanceSourceTerms.caseSensitive,
-        sourceStatus: concordanceSourceTerms.status,
-        rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-          "rank",
-        ),
-        externalGlossaryUrl: schema.glossaries.externalUrl,
-      })
-      .from(concordanceSourceTerms)
-      .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
-      .where(
-        and(
-          eq(concordanceSourceTerms.glossaryId, glossaryId),
-          eq(schema.glossaries.source, "native"),
-          eq(schema.glossaries.sourceLocale, sourceLocale),
-          eq(schema.glossaries.status, "active"),
-          eq(concordanceSourceTerms.locale, sourceLocale),
-          // Concordance is concept-backed only. Leftover term-based rows (conceptId = null)
-          // are intentionally excluded.
-          isNotNull(concordanceSourceTerms.conceptId),
-          isNotNull(concordanceSourceTerms.term),
-          eq(concordanceSourceTerms.reviewStatus, "approved"),
-          sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        ),
-      )
-      // Apply the result limit only after the source-text matcher below. The SQL predicate is
-      // intentionally a broad indexed candidate filter because concordance accepts source-text
-      // prefixes and simple singular/plural variations.
-      .orderBy(desc(sql`rank`))
-      .limit(
-        Math.min(
-          Math.max(limit, 1) * NATIVE_CONCORDANCE_CANDIDATE_MULTIPLIER,
-          MAX_NATIVE_CONCORDANCE_CANDIDATES,
-        ),
-      );
-
-    const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>
-      row.conceptId &&
-      concordanceSourceContainsTerm(query.sourceText, {
-        sourceTerm: row.matchedSourceTerm,
-        caseSensitive: row.caseSensitive ?? false,
-      })
-        ? [
-            {
-              conceptId: row.conceptId,
-              glossaryId: row.glossaryId,
-              glossaryName: row.glossaryName,
-              matchedSourceTermId: row.matchedSourceTermId,
-              matchedSourceTerm: row.matchedSourceTerm,
-              caseSensitive: row.caseSensitive,
-              sourceStatus: row.sourceStatus,
-              rank: Number(row.rank) || 0,
-              externalGlossaryUrl: row.externalGlossaryUrl,
-            },
-          ]
-        : [],
-    );
-
     const bestHitByConcept = new Map<string, NativeConceptSourceHit>();
-    for (const hit of filteredHits) {
-      const existing = bestHitByConcept.get(hit.conceptId);
-      if (!existing || hit.rank > existing.rank) {
-        bestHitByConcept.set(hit.conceptId, hit);
+    let candidateOffset = 0;
+    while (bestHitByConcept.size < limit) {
+      const sourceHits = await db
+        .select({
+          conceptId: concordanceSourceTerms.conceptId,
+          glossaryId: concordanceSourceTerms.glossaryId,
+          glossaryName: schema.glossaries.name,
+          matchedSourceTermId: concordanceSourceTerms.id,
+          matchedSourceTerm: sql<string>`${concordanceSourceTerms.term}`,
+          caseSensitive: concordanceSourceTerms.caseSensitive,
+          sourceStatus: concordanceSourceTerms.status,
+          rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+            "rank",
+          ),
+          externalGlossaryUrl: schema.glossaries.externalUrl,
+        })
+        .from(concordanceSourceTerms)
+        .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
+        .where(
+          and(
+            eq(concordanceSourceTerms.glossaryId, glossaryId),
+            eq(schema.glossaries.source, "native"),
+            eq(schema.glossaries.sourceLocale, sourceLocale),
+            eq(schema.glossaries.status, "active"),
+            eq(concordanceSourceTerms.locale, sourceLocale),
+            // Concordance is concept-backed only. Leftover term-based rows (conceptId = null)
+            // are intentionally excluded.
+            isNotNull(concordanceSourceTerms.conceptId),
+            isNotNull(concordanceSourceTerms.term),
+            eq(concordanceSourceTerms.reviewStatus, "approved"),
+            sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          ),
+        )
+        // The SQL predicate is intentionally broad because PostgreSQL tokenizes hyphenated
+        // terms such as "e-ticket" into separate full-text tokens. Fetch bounded pages and
+        // apply the exact source-text matcher below before accepting a concept.
+        .orderBy(desc(sql`rank`), asc(concordanceSourceTerms.id))
+        .limit(NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE)
+        .offset(candidateOffset);
+
+      if (sourceHits.length === 0) {
+        break;
+      }
+
+      candidateOffset += sourceHits.length;
+      for (const row of sourceHits) {
+        if (
+          !row.conceptId ||
+          !concordanceSourceContainsTerm(query.sourceText, {
+            sourceTerm: row.matchedSourceTerm,
+            caseSensitive: row.caseSensitive ?? false,
+          })
+        ) {
+          continue;
+        }
+
+        const hit: NativeConceptSourceHit = {
+          conceptId: row.conceptId,
+          glossaryId: row.glossaryId,
+          glossaryName: row.glossaryName,
+          matchedSourceTermId: row.matchedSourceTermId,
+          matchedSourceTerm: row.matchedSourceTerm,
+          caseSensitive: row.caseSensitive,
+          sourceStatus: row.sourceStatus,
+          rank: Number(row.rank) || 0,
+          externalGlossaryUrl: row.externalGlossaryUrl,
+        };
+        const existing = bestHitByConcept.get(hit.conceptId);
+        if (
+          !existing ||
+          hit.rank > existing.rank ||
+          (hit.rank === existing.rank &&
+            isPreferredConcordanceSourceStatus(hit.sourceStatus) &&
+            !isPreferredConcordanceSourceStatus(existing.sourceStatus))
+        ) {
+          bestHitByConcept.set(hit.conceptId, hit);
+        }
+      }
+
+      if (sourceHits.length < NATIVE_CONCORDANCE_CANDIDATE_PAGE_SIZE) {
+        break;
       }
     }
 

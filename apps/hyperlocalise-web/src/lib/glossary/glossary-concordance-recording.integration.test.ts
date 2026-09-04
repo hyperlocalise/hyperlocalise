@@ -303,4 +303,88 @@ describe("native glossary concordance against Crowdin recording", () => {
       expect(pair.output.native, JSON.stringify(pair.input)).toEqual(pair.output.crowdin);
     },
   );
+
+  it("continues past a page of rejected candidates to find a valid match", async () => {
+    if (!seededGlossary) {
+      throw new Error("Native glossary fixture was not seeded");
+    }
+
+    const rejectedCandidateCount = 220;
+    const document: GlossaryImportDocument = {
+      diagnostics: [],
+      concepts: [
+        ...Array.from({ length: rejectedCandidateCount }, (_, index) => {
+          const sourceTerm = `needleable-${String(index).padStart(3, "0")}`;
+          return {
+            id: `candidate-page-noise-${index}`,
+            primaryTerm: sourceTerm,
+            subject: "candidate-page-noise",
+            definition: "needle ".repeat(20),
+            terms: [
+              {
+                id: `candidate-page-noise-${index}:en`,
+                locale: "en",
+                term: sourceTerm,
+                status: "preferred",
+                reviewStatus: "approved",
+                caseSensitive: false,
+              },
+              {
+                id: `candidate-page-noise-${index}:vi`,
+                locale: "vi",
+                term: `nhiễu ${index}`,
+                status: "preferred",
+                reviewStatus: "approved",
+                caseSensitive: false,
+              },
+            ],
+          };
+        }),
+        {
+          id: "candidate-page-valid",
+          primaryTerm: "needle",
+          subject: "candidate-page-valid",
+          definition: "The exact candidate retained after broad full-text filtering.",
+          terms: [
+            {
+              id: "candidate-page-valid:en",
+              locale: "en",
+              term: "needle",
+              status: "preferred",
+              reviewStatus: "approved",
+              caseSensitive: false,
+            },
+            {
+              id: "candidate-page-valid:vi",
+              locale: "vi",
+              term: "kim",
+              status: "preferred",
+              reviewStatus: "approved",
+              caseSensitive: false,
+            },
+          ],
+        },
+      ],
+    };
+
+    const importResult = await applyNativeGlossaryImport({
+      glossaryId: seededGlossary.id,
+      mode: "create",
+      document,
+    });
+    expect(importResult.counts.conceptsCreated).toBe(rejectedCandidateCount + 1);
+
+    const native = await searchGlossaryConcordance({
+      organizationId: seededGlossary.organizationId,
+      glossaryIds: [seededGlossary.id],
+      sourceLocale: "en",
+      targetLocales: ["vi"],
+      sourceText: "needle",
+      limit: 1,
+    });
+
+    expect(native).toHaveLength(1);
+    expect(native[0]?.sourceTerm).toBe("needle");
+    expect(native[0]?.targetTerm).toBe("kim");
+  });
 });
