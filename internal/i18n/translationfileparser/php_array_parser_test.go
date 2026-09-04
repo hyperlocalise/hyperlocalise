@@ -162,6 +162,7 @@ func TestPHPArrayParserDecodesDoubleQuotedOctalEscapes(t *testing.T) {
 	content := []byte(`<?php return [
     'letter' => "\101",
     'newline' => "\12",
+    'max_byte' => "\377",
 ];`)
 
 	got, err := (PHPArrayParser{}).Parse(content)
@@ -174,23 +175,30 @@ func TestPHPArrayParserDecodesDoubleQuotedOctalEscapes(t *testing.T) {
 	if got["newline"] != "\n" {
 		t.Fatalf("newline = %q, want newline", got["newline"])
 	}
-}
-
-func TestPHPArrayParserTruncatesOverRangeOctalEscapes(t *testing.T) {
-	content := []byte(`<?php return [
-    'nul' => "\400",
-    'max_byte' => "\777",
-];`)
-
-	got, err := (PHPArrayParser{}).Parse(content)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	if got["nul"] != "\x00" {
-		t.Fatalf("nul = %q, want NUL", got["nul"])
-	}
 	if got["max_byte"] != "\xff" {
 		t.Fatalf("max_byte = %q, want 0xff", got["max_byte"])
+	}
+}
+
+func TestPHPArrayParserRejectsOverRangeOctalEscapes(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{name: "256", content: `<?php return ['nul' => "\400"];`},
+		{name: "511", content: `<?php return ['max' => "\777"];`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (PHPArrayParser{}).Parse([]byte(tt.content))
+			if err == nil {
+				t.Fatalf("expected invalid octal escape error")
+			}
+			if !strings.Contains(err.Error(), "invalid octal escape") {
+				t.Fatalf("expected invalid octal escape error, got %v", err)
+			}
+		})
 	}
 }
 
