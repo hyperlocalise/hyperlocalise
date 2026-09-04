@@ -11,19 +11,21 @@
  * Version 2.0 or later.
  */
 import type { CanonicalVisualWorkflowEdge } from "../schema/types";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type { CanonicalVisualWorkflowNode, VisualWorkflowDefinition } from "../schema/types";
 import {
   createVisualWorkflowExecutionContext,
   setNodeOutput,
   type VisualWorkflowExecutionContext,
 } from "./context";
 import { executeVisualWorkflowNode } from "./execute-node";
+import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import {
   buildVisualWorkflowGraphIndex,
   selectNextEdges,
   type VisualWorkflowGraphIndex,
 } from "./graph-index";
 import { findForEachLoopRegion, incomingEdgesForNode, sortLoopBodyNodes } from "./loop-region";
+import { resolveNodeErrorBehavior } from "./node-options";
 
 export type VisualWorkflowInterpreterNodeUpdate = {
   nodeId: string;
@@ -117,8 +119,93 @@ function releaseSkippedOutgoingEdge(input: {
 }
 
 type RunNodeResult =
-  | { ok: true; branchResult?: boolean; nodeType: string; executedNodeIds?: string[] }
+  | {
+      ok: true;
+      branchResult?: boolean;
+      switchCase?: string;
+      useErrorBranch?: boolean;
+      nodeType: string;
+      executedNodeIds?: string[];
+    }
   | { ok: false; error: Record<string, unknown> };
+
+function releaseBranchingOutgoingEdges(input: {
+  node: { type: string };
+  outgoing: readonly CanonicalVisualWorkflowEdge[];
+  nextEdges: readonly CanonicalVisualWorkflowEdge[];
+  graph: VisualWorkflowGraphIndex;
+  completed: Set<string>;
+  skipped: Set<string>;
+  pendingIncoming: Map<string, number>;
+  queue: string[];
+  scope?: Set<string>;
+}) {
+  if (input.node.type !== "logic.if" && input.node.type !== "logic.switch") {
+    return;
+  }
+
+  const selectedEdgeIds = new Set(input.nextEdges.map((edge) => edge.id));
+  for (const edge of input.outgoing) {
+    if (selectedEdgeIds.has(edge.id)) {
+      continue;
+    }
+    if (input.scope && !input.scope.has(edge.target)) {
+      continue;
+    }
+
+    releaseSkippedOutgoingEdge({
+      edge,
+      graph: input.graph,
+      completed: input.completed,
+      skipped: input.skipped,
+      pendingIncoming: input.pendingIncoming,
+      queue: input.queue,
+    });
+  }
+}
+
+function releaseNodeOutgoingEdges(input: {
+  node: { id: string; type: string };
+  execution: Extract<RunNodeResult, { ok: true }>;
+  graph: VisualWorkflowGraphIndex;
+  pendingIncoming: Map<string, number>;
+  queue: string[];
+  completed: Set<string>;
+  skipped: Set<string>;
+  scope?: Set<string>;
+}) {
+  const outgoing = input.graph.outgoingByNodeId.get(input.node.id) ?? [];
+  const nextEdges = selectNextEdges({
+    nodeType: input.node.type as import("../schema/types").VisualCatalogType,
+    branchResult: input.execution.branchResult ?? null,
+    switchCase: input.execution.switchCase ?? null,
+    useErrorBranch: input.execution.useErrorBranch ?? false,
+    outgoing,
+  });
+
+  for (const edge of nextEdges) {
+    if (input.scope && !input.scope.has(edge.target)) {
+      continue;
+    }
+    releasePredecessorEdge({
+      pendingIncoming: input.pendingIncoming,
+      queue: input.queue,
+      targetNodeId: edge.target,
+    });
+  }
+
+  releaseBranchingOutgoingEdges({
+    node: input.node,
+    outgoing,
+    nextEdges,
+    graph: input.graph,
+    completed: input.completed,
+    skipped: input.skipped,
+    pendingIncoming: input.pendingIncoming,
+    queue: input.queue,
+    scope: input.scope,
+  });
+}
 
 function clearLoopBodyState(input: {
   context: VisualWorkflowExecutionContext;
@@ -175,41 +262,16 @@ async function runScopedSubgraph(input: {
       continue;
     }
 
-    const outgoing = input.graph.outgoingByNodeId.get(nodeId) ?? [];
-    const nextEdges = selectNextEdges({
-      nodeType: node.type,
-      branchResult: execution.branchResult ?? null,
-      outgoing,
+    releaseNodeOutgoingEdges({
+      node,
+      execution,
+      graph: input.graph,
+      pendingIncoming,
+      queue,
+      completed,
+      skipped,
+      scope,
     });
-    const selectedEdgeIds = new Set(nextEdges.map((edge) => edge.id));
-
-    for (const edge of nextEdges) {
-      if (!scope.has(edge.target)) {
-        continue;
-      }
-      releasePredecessorEdge({
-        pendingIncoming,
-        queue,
-        targetNodeId: edge.target,
-      });
-    }
-
-    if (node.type === "logic.if") {
-      for (const edge of outgoing) {
-        if (selectedEdgeIds.has(edge.id) || !scope.has(edge.target)) {
-          continue;
-        }
-
-        releaseSkippedOutgoingEdge({
-          edge,
-          graph: input.graph,
-          completed,
-          skipped,
-          pendingIncoming,
-          queue,
-        });
-      }
-    }
   }
 
   return { ok: true, lastCompletedNodeId };
@@ -306,6 +368,11 @@ export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
   triggerInput?: Record<string, unknown>;
+  executeNode?: (args: {
+    node: CanonicalVisualWorkflowNode;
+    context: VisualWorkflowExecutionContext;
+    organizationId: string;
+  }) => Promise<VisualWorkflowNodeExecutionResult>;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
 }): Promise<VisualWorkflowInterpreterResult> {
   const graph = buildVisualWorkflowGraphIndex(input.definition);
@@ -325,6 +392,7 @@ export async function runVisualWorkflowInterpreter(input: {
   const skipped = new Set<string>();
   const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
+  const executeNodeFn = input.executeNode ?? executeVisualWorkflowNode;
 
   const runNode = async (nodeId: string): Promise<RunNodeResult> => {
     const node = graph.nodesById.get(nodeId);
@@ -341,13 +409,40 @@ export async function runVisualWorkflowInterpreter(input: {
       },
     });
 
-    const execution = await executeVisualWorkflowNode({
+    const execution = await executeNodeFn({
       node,
       context,
       organizationId: input.organizationId,
     });
 
     if (!execution.ok) {
+      const errorBehavior = resolveNodeErrorBehavior(node.config);
+      if (errorBehavior === "continue") {
+        const errorOutput = { failed: true, error: execution.error };
+        setNodeOutput(context, nodeId, errorOutput);
+        nodeResults[nodeId] = errorOutput;
+        await input.onNodeUpdate?.({
+          nodeId,
+          nodeType: node.type,
+          status: "succeeded",
+          outputSnapshot: errorOutput,
+        });
+        return { ok: true, nodeType: node.type };
+      }
+      if (errorBehavior === "branch") {
+        const errorOutput = { failed: true, error: execution.error };
+        setNodeOutput(context, nodeId, errorOutput);
+        nodeResults[nodeId] = errorOutput;
+        await input.onNodeUpdate?.({
+          nodeId,
+          nodeType: node.type,
+          status: "failed",
+          error: execution.error,
+          outputSnapshot: errorOutput,
+        });
+        return { ok: true, nodeType: node.type, useErrorBranch: true };
+      }
+
       await input.onNodeUpdate?.({
         nodeId,
         nodeType: node.type,
@@ -367,7 +462,12 @@ export async function runVisualWorkflowInterpreter(input: {
       outputSnapshot: execution.output,
     });
 
-    return { ok: true, branchResult: execution.branchResult, nodeType: node.type };
+    return {
+      ok: true,
+      branchResult: execution.branchResult,
+      switchCase: execution.switchCase,
+      nodeType: node.type,
+    };
   };
 
   const forEachContext: ForEachExecutionContext = {
@@ -438,38 +538,15 @@ export async function runVisualWorkflowInterpreter(input: {
       };
     }
 
-    const outgoing = graph.outgoingByNodeId.get(nodeId) ?? [];
-    const nextEdges = selectNextEdges({
-      nodeType: node.type,
-      branchResult: execution.branchResult ?? null,
-      outgoing,
+    releaseNodeOutgoingEdges({
+      node,
+      execution,
+      graph,
+      pendingIncoming,
+      queue,
+      completed,
+      skipped,
     });
-    const selectedEdgeIds = new Set(nextEdges.map((edge) => edge.id));
-
-    for (const edge of nextEdges) {
-      releasePredecessorEdge({
-        pendingIncoming,
-        queue,
-        targetNodeId: edge.target,
-      });
-    }
-
-    if (node.type === "logic.if") {
-      for (const edge of outgoing) {
-        if (selectedEdgeIds.has(edge.id)) {
-          continue;
-        }
-
-        releaseSkippedOutgoingEdge({
-          edge,
-          graph,
-          completed,
-          skipped,
-          pendingIncoming,
-          queue,
-        });
-      }
-    }
   }
 
   return {

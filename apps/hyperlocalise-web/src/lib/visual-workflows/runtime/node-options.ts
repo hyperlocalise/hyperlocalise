@@ -10,5 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-export { visualWorkflowPlaygroundDraft } from "@/lib/visual-workflows/fixtures/playground-draft";
+import type { VisualNodeConfig, VisualNodeErrorBehavior } from "../schema/types";
+
+export function resolveNodeErrorBehavior(config: VisualNodeConfig): VisualNodeErrorBehavior {
+  if ("onError" in config && config.onError) {
+    return config.onError;
+  }
+  return "stop";
+}
+
+export function nodeSupportsErrorBranch(config: VisualNodeConfig): boolean {
+  return resolveNodeErrorBehavior(config) === "branch";
+}

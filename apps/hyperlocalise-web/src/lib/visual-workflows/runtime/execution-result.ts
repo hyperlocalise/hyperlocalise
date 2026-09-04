@@ -10,5 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-export { visualWorkflowPlaygroundDraft } from "@/lib/visual-workflows/fixtures/playground-draft";
+export type VisualWorkflowNodeExecutionResult =
+  | {
+      ok: true;
+      output: Record<string, unknown>;
+      branchResult?: boolean;
+      switchCase?: string;
+    }
+  | {
+      ok: false;
+      error: { message: string; code?: string };
+    };

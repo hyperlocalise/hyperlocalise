@@ -25,6 +25,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "4LzDIQaYVP",
     description: "Badge indicating the visual editor is a prototype",
   },
+  playgroundBadge: {
+    defaultMessage: "Playground",
+    id: "TzH92UpIsI",
+    description: "Badge indicating the visual editor is an interactive playground",
+  },
   editorTab: {
     defaultMessage: "Editor",
     id: "sHEScxEFix",
@@ -205,6 +210,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "N80yyF08UZ",
     description: "Catalog description for the if/else node",
   },
+  nodeSwitch: {
+    defaultMessage: "Switch",
+    id: "Qb8e9HBTwT",
+    description: "Catalog title for the switch node",
+  },
+  nodeSwitchHint: {
+    defaultMessage: "Route to one of several branches.",
+    id: "eGggF69cbr",
+    description: "Catalog description for the switch node",
+  },
+  nodeSet: {
+    defaultMessage: "Set fields",
+    id: "DQLb5tVkm8",
+    description: "Catalog title for the set fields node",
+  },
+  nodeSetHint: {
+    defaultMessage: "Assign values into the workflow context.",
+    id: "ZXPdUvtPkF",
+    description: "Catalog description for the set fields node",
+  },
   nodeAi: {
     defaultMessage: "AI Agent",
     id: "mHug8Cyl7z",
@@ -289,6 +314,171 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "URL",
     id: "k66v97xuuE",
     description: "HTTP node URL field label",
+  },
+  httpQueryParams: {
+    defaultMessage: "Query parameters",
+    id: "ZlYq8eSzg2",
+    description: "HTTP node query parameters label",
+  },
+  httpHeaders: {
+    defaultMessage: "Headers",
+    id: "UPSrigC8qi",
+    description: "HTTP node headers label",
+  },
+  httpBodyType: {
+    defaultMessage: "Body type",
+    id: "gXUXFoSBuO",
+    description: "HTTP node body type label",
+  },
+  httpBodyNone: {
+    defaultMessage: "None",
+    id: "jtMuzhGEyo",
+    description: "HTTP node body type none option",
+  },
+  httpBodyJson: {
+    defaultMessage: "JSON",
+    id: "n5goMj2vzm",
+    description: "HTTP node body type json option",
+  },
+  httpBodyText: {
+    defaultMessage: "Text",
+    id: "8Xv6VRwnt8",
+    description: "HTTP node body type text option",
+  },
+  httpBody: {
+    defaultMessage: "Body",
+    id: "Ajr/yjqPyf",
+    description: "HTTP node body field label",
+  },
+  httpAuthType: {
+    defaultMessage: "Authentication",
+    id: "YHVrBzelKI",
+    description: "HTTP node auth type label",
+  },
+  httpAuthNone: {
+    defaultMessage: "None",
+    id: "LfRnarhSYl",
+    description: "HTTP node auth none option",
+  },
+  httpAuthBearer: {
+    defaultMessage: "Bearer token",
+    id: "VaBWbObFr8",
+    description: "HTTP node bearer auth option",
+  },
+  httpAuthApiKey: {
+    defaultMessage: "API key",
+    id: "JxY8wqGfw1",
+    description: "HTTP node api key auth option",
+  },
+  httpAuthToken: {
+    defaultMessage: "Token",
+    id: "M872sYIDd7",
+    description: "HTTP node auth token label",
+  },
+  httpAuthHeaderName: {
+    defaultMessage: "Header name",
+    id: "GYOEi48Bxv",
+    description: "HTTP node api key header name label",
+  },
+  httpParseJson: {
+    defaultMessage: "Parse JSON response",
+    id: "2tQhE9LloD",
+    description: "HTTP node parse json checkbox label",
+  },
+  httpFailOnError: {
+    defaultMessage: "Fail on HTTP error status",
+    id: "HCpKchokfS",
+    description: "HTTP node fail on error checkbox label",
+  },
+  onErrorLabel: {
+    defaultMessage: "On error",
+    id: "NFSiCA4x/F",
+    description: "Label for node error behavior select",
+  },
+  onErrorStop: {
+    defaultMessage: "Stop workflow",
+    id: "lPNvi3t9/d",
+    description: "Stop workflow on node error",
+  },
+  onErrorContinue: {
+    defaultMessage: "Continue workflow",
+    id: "1GLSyoUT4Z",
+    description: "Continue workflow on node error",
+  },
+  onErrorBranch: {
+    defaultMessage: "Error branch",
+    id: "UJFX+3Y3fz",
+    description: "Route to error branch on node error",
+  },
+  errorHandle: {
+    defaultMessage: "error",
+    id: "nYOxYYV5jF",
+    description: "Label on error output handle",
+  },
+  switchExpression: {
+    defaultMessage: "Expression",
+    id: "vKVR+7LwqC",
+    description: "Switch node expression field label",
+  },
+  switchCases: {
+    defaultMessage: "Cases",
+    id: "0vaHgLAQkS",
+    description: "Switch node cases section label",
+  },
+  switchCaseValue: {
+    defaultMessage: "Case {index}",
+    id: "bE+/1fvD7l",
+    description: "Placeholder for switch case value input",
+  },
+  addSwitchCase: {
+    defaultMessage: "Add case",
+    id: "n4hpRZLl37",
+    description: "Button to add a switch case",
+  },
+  switchCaseHandle: {
+    defaultMessage: "Case {index}",
+    id: "04QgRuZsOk",
+    description: "Label for numbered switch output handle",
+  },
+  switchDefaultHandle: {
+    defaultMessage: "default",
+    id: "F9TbntyBsV",
+    description: "Label for switch default output handle",
+  },
+  setAssignments: {
+    defaultMessage: "Field assignments",
+    id: "VMyrNr9Y/C",
+    description: "Set node assignments section label",
+  },
+  setFieldName: {
+    defaultMessage: "Field name",
+    id: "UWp9ixlYUw",
+    description: "Set node field name placeholder",
+  },
+  setFieldValue: {
+    defaultMessage: "Value",
+    id: "B6FNmz1hFv",
+    description: "Set node field value placeholder",
+  },
+  keyValueKey: {
+    defaultMessage: "Key",
+    id: "Is9VBW0Pl3",
+    description: "Key placeholder for key-value editor",
+  },
+  keyValueValue: {
+    defaultMessage: "Value",
+    id: "umK6yIapNV",
+    description: "Value placeholder for key-value editor",
+  },
+  addKeyValuePair: {
+    defaultMessage: "Add row",
+    id: "fYm7crAvvb",
+    description: "Button to add key-value row",
+  },
+  nodeOutputTitle: {
+    defaultMessage: "Last output",
+    id: "I4MDdItT7N",
+    description: "Heading for inline node output inspector",
   },
   ifCondition: {
     defaultMessage: "Condition",
@@ -430,10 +620,90 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "IsFQvqwJAO",
     description: "Label for GitHub branch patterns on trigger node",
   },
+  githubEvents: {
+    defaultMessage: "Events",
+    id: "BFGbjLDQqh",
+    description: "Label for GitHub events on trigger node",
+  },
+  githubEventPush: {
+    defaultMessage: "Push",
+    id: "h+QA+7BAPb",
+    description: "GitHub push event checkbox label",
+  },
+  githubEventPullRequest: {
+    defaultMessage: "Pull request",
+    id: "qxdCTJo5wL",
+    description: "GitHub pull request event checkbox label",
+  },
   scheduleCadence: {
     defaultMessage: "Cadence",
     id: "+KX/fjdtO4",
     description: "Label for schedule cadence on scheduled trigger node",
+  },
+  scheduleHourly: {
+    defaultMessage: "Hourly",
+    id: "fB8k9m+qMa",
+    description: "Hourly schedule cadence option",
+  },
+  scheduleDaily: {
+    defaultMessage: "Daily",
+    id: "yoc2jz/v8a",
+    description: "Daily schedule cadence option",
+  },
+  scheduleWeekly: {
+    defaultMessage: "Weekly",
+    id: "xM1UVGq/9v",
+    description: "Weekly schedule cadence option",
+  },
+  scheduleHour: {
+    defaultMessage: "Hour (UTC)",
+    id: "f30lOJsKLX",
+    description: "Label for schedule hour field",
+  },
+  scheduleDayOfWeek: {
+    defaultMessage: "Day of week",
+    id: "2HD/xUOuDn",
+    description: "Label for weekly schedule day field",
+  },
+  scheduleTimezone: {
+    defaultMessage: "Timezone",
+    id: "TQPbZg8LsO",
+    description: "Label for schedule timezone field",
+  },
+  scheduleSunday: {
+    defaultMessage: "Sunday",
+    id: "IDmuYPzcIE",
+    description: "Sunday option for weekly schedule",
+  },
+  scheduleMonday: {
+    defaultMessage: "Monday",
+    id: "vy+5ISEhNS",
+    description: "Monday option for weekly schedule",
+  },
+  scheduleTuesday: {
+    defaultMessage: "Tuesday",
+    id: "aewkbG6Jn7",
+    description: "Tuesday option for weekly schedule",
+  },
+  scheduleWednesday: {
+    defaultMessage: "Wednesday",
+    id: "QVQzu9FFdo",
+    description: "Wednesday option for weekly schedule",
+  },
+  scheduleThursday: {
+    defaultMessage: "Thursday",
+    id: "oF3U8SKzm3",
+    description: "Thursday option for weekly schedule",
+  },
+  scheduleFriday: {
+    defaultMessage: "Friday",
+    id: "JLv9f0uEE2",
+    description: "Friday option for weekly schedule",
+  },
+  scheduleSaturday: {
+    defaultMessage: "Saturday",
+    id: "yN3IaRAmIM",
+    description: "Saturday option for weekly schedule",
   },
   sourceUploadProjectId: {
     defaultMessage: "Project ID (optional)",
