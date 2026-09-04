@@ -16,5 +16,6 @@ export type {
   OverviewBoardItem,
   OverviewMetricSeries,
   OverviewProjectItem,
+  OverviewResolvedTitle,
   WorkspaceOverviewSnapshot,
 } from "@/lib/workspace/overview-snapshot-model";

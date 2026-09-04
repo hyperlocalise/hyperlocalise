@@ -227,16 +227,20 @@ export class OrganizationProjectService extends ProjectServiceBase {
     return result.value;
   }
 
-  /** Returns native workspace projects from the local database only. */
-  async list(auth: ApiAuthContext): Promise<OrganizationProjectListItem[]> {
+  /** Returns workspace projects from the local database for one source. */
+  async list(
+    auth: ApiAuthContext,
+    options: { source?: "native" | "external_tms" } = {},
+  ): Promise<OrganizationProjectListItem[]> {
     const organizationId = auth.organization.localOrganizationId;
+    const source = options.source ?? "native";
     const databaseProjects = await this.database
       .select()
       .from(schema.projects)
       .where(
         and(
           await buildAccessibleProjectsWhere(auth),
-          eq(schema.projects.source, "native"),
+          eq(schema.projects.source, source),
           or(isNull(schema.projects.isActive), eq(schema.projects.isActive, true)),
         ),
       )
@@ -295,5 +299,7 @@ export const unwrapOrganizationProjectRecord = (
   result: Parameters<OrganizationProjectService["unwrapRecord"]>[0],
 ) => organizationProjectService.unwrapRecord(result);
 
-export const listOrganizationProjects = (auth: ApiAuthContext) =>
-  organizationProjectService.list(auth);
+export const listOrganizationProjects = (
+  auth: ApiAuthContext,
+  options?: { source?: "native" | "external_tms" },
+) => organizationProjectService.list(auth, options);

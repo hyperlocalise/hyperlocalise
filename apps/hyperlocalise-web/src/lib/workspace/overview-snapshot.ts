@@ -14,16 +14,22 @@ import "server-only";
 
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   buildAccessibleProjectsWhere,
   buildOrganizationJobsListWhere,
 } from "@/api/auth/team-access";
-import { listWorkspaceAutomations } from "@/lib/agents/workspace-automations";
+import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database/client";
+import {
+  getWorkspaceFeatureFlagEnabled,
+  workspaceAutomationsFlag,
+} from "@/lib/flags/workspace-flags";
 import { listOrganizationJobs } from "@/lib/projects/jobs/organization-job-query-service";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
+import { listTmsProviderLiveProjects } from "@/lib/providers/jobs/tms-provider-live";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
@@ -31,11 +37,14 @@ import {
   OVERVIEW_BOARD_LIMIT,
   OVERVIEW_LOOKBACK_DAYS,
   OVERVIEW_PROJECT_LIMIT,
+  countOverviewAutomationStatuses,
   fillDailySeries,
   formatOverviewLocaleRoute,
-  overviewJobKindLabel,
-  overviewJobTitle,
+  mergeOverviewProjectSources,
+  overviewJobKindValue,
   rankOverviewActivity,
+  resolveOverviewJobTitle,
+  shouldIncludeOverviewAutomations,
   type OverviewActivityItem,
   type OverviewJobTitleInput,
   type WorkspaceOverviewSnapshot,
@@ -43,11 +52,14 @@ import {
 
 export type { WorkspaceOverviewSnapshot } from "./overview-snapshot-model";
 
-const PROVIDER_LABELS: Record<string, string> = {
-  crowdin: "Crowdin",
-  smartling: "Smartling",
-  phrase: "Phrase",
-  lokalise: "Lokalise",
+type OverviewProjectSource = {
+  id: string;
+  name: string;
+  source: "native" | "external_tms";
+  externalProviderKind: string | null;
+  sourceLocale: string | null;
+  targetLocales: string[] | null;
+  openJobCount: number;
 };
 
 function toIso(value: Date | string): string {
@@ -69,13 +81,6 @@ function overviewJobHref(
 
 function overviewIssueHref(organizationSlug: string, projectId: string, issueId: string): string {
   return `/org/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(issueId)}`;
-}
-
-function providerLabel(kind: string | null | undefined): string | null {
-  if (!kind) {
-    return null;
-  }
-  return PROVIDER_LABELS[kind] ?? kind;
 }
 
 type LatestProjectJob = OverviewJobTitleInput & {
@@ -158,10 +163,53 @@ async function loadRecentAutomationRuns(organizationId: string) {
     .limit(8);
 }
 
+async function countWorkspaceAutomationStatuses(organizationId: string) {
+  const rows = await db
+    .select({
+      status: schema.workspaceAutomations.status,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.organizationId, organizationId),
+        inArray(schema.workspaceAutomations.status, ["active", "paused"]),
+      ),
+    )
+    .groupBy(schema.workspaceAutomations.status);
+
+  return countOverviewAutomationStatuses(rows);
+}
+
+async function listAuthorizedLiveTmsProjects(auth: ApiAuthContext): Promise<OverviewProjectSource[]> {
+  if (!hasCapability(auth.membership.role, "projects:read")) {
+    return [];
+  }
+
+  try {
+    const liveProjects = await listTmsProviderLiveProjects(auth.organization.localOrganizationId, {
+      actorUserId: auth.user.localUserId,
+    });
+
+    return liveProjects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      source: "external_tms" as const,
+      externalProviderKind: project.externalProviderKind,
+      sourceLocale: project.sourceLocale,
+      targetLocales: project.targetLocales,
+      openJobCount: 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function loadProjectExtras(auth: ApiAuthContext, projectIds: readonly string[]) {
   const empty = {
     latestByProject: new Map<string, LatestProjectJob>(),
     failedCounts: new Map<string, number>(),
+    openCounts: new Map<string, number>(),
     domains: new Map<string, string>(),
   };
 
@@ -172,7 +220,7 @@ async function loadProjectExtras(auth: ApiAuthContext, projectIds: readonly stri
   const organizationId = auth.organization.localOrganizationId;
   const accessibleJobsWhere = await buildOrganizationJobsListWhere(auth);
 
-  const [latestJobRows, failedRows, domainRows] = await Promise.all([
+  const [latestJobRows, failedRows, openRows, domainRows] = await Promise.all([
     db
       .selectDistinctOn([schema.jobs.projectId], {
         id: schema.jobs.id,
@@ -212,6 +260,20 @@ async function loadProjectExtras(auth: ApiAuthContext, projectIds: readonly stri
       .groupBy(schema.jobs.projectId),
     db
       .select({
+        projectId: schema.jobs.projectId,
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(schema.jobs)
+      .where(
+        and(
+          accessibleJobsWhere,
+          inArray(schema.jobs.projectId, [...projectIds]),
+          inArray(schema.jobs.status, [...openJobStatusValues]),
+        ),
+      )
+      .groupBy(schema.jobs.projectId),
+    db
+      .select({
         projectId: schema.linkedDomains.projectId,
         domainKey: schema.linkedDomains.domainKey,
       })
@@ -237,6 +299,9 @@ async function loadProjectExtras(auth: ApiAuthContext, projectIds: readonly stri
     failedCounts: new Map(
       failedRows.flatMap((row) => (row.projectId ? [[row.projectId, row.count] as const] : [])),
     ),
+    openCounts: new Map(
+      openRows.flatMap((row) => (row.projectId ? [[row.projectId, row.count] as const] : [])),
+    ),
     domains: new Map(
       domainRows.flatMap((row) => (row.projectId ? [[row.projectId, row.domainKey] as const] : [])),
     ),
@@ -249,31 +314,58 @@ export async function getWorkspaceOverviewSnapshot(
   const organizationId = auth.organization.localOrganizationId;
   const organizationSlug = auth.organization.slug ?? "";
   const since = new Date(Date.now() - OVERVIEW_LOOKBACK_DAYS * 86_400_000);
+  const canReadAutomations = isWorkspaceOperatorRole(auth.membership.role);
 
-  const [dailyCounts, automations, openIssues, p1Issues, recentJobs, projects, recentRuns] =
-    await Promise.all([
-      loadDailyCounts(auth, since),
-      listWorkspaceAutomations({ organizationId, limit: 50 }),
-      organizationIssueService.list(auth, {
-        view: "all_open",
-        sort: "status",
-        limit: OVERVIEW_BOARD_LIMIT,
-        offset: 0,
-      }),
-      organizationIssueService.list(auth, {
-        view: "all_open",
-        priority: "P1",
-        sort: "status",
-        limit: 1,
-        offset: 0,
-      }),
-      listOrganizationJobs(auth, { limit: 8 }),
-      listOrganizationProjects(auth),
-      loadRecentAutomationRuns(organizationId),
-    ]);
+  const [
+    dailyCounts,
+    openIssues,
+    p1Issues,
+    recentJobs,
+    nativeProjects,
+    liveProjects,
+    materializedProjects,
+    automationsEnabled,
+  ] = await Promise.all([
+    loadDailyCounts(auth, since),
+    organizationIssueService.list(auth, {
+      view: "all_open",
+      sort: "status",
+      limit: OVERVIEW_BOARD_LIMIT,
+      offset: 0,
+    }),
+    organizationIssueService.list(auth, {
+      view: "all_open",
+      priority: "P1",
+      sort: "status",
+      limit: 1,
+      offset: 0,
+    }),
+    listOrganizationJobs(auth, { limit: 8 }),
+    listOrganizationProjects(auth),
+    listAuthorizedLiveTmsProjects(auth),
+    listOrganizationProjects(auth, { source: "external_tms" }),
+    canReadAutomations
+      ? getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth)
+      : Promise.resolve(false),
+  ]);
 
-  const visibleAutomations = automations.filter((automation) => automation.status !== "archived");
-  const previewProjects = projects.slice(0, OVERVIEW_PROJECT_LIMIT);
+  const includeAutomations = shouldIncludeOverviewAutomations({
+    isWorkspaceOperator: canReadAutomations,
+    automationsEnabled,
+  });
+
+  const [automationCounts, recentRuns] = includeAutomations
+    ? await Promise.all([
+        countWorkspaceAutomationStatuses(organizationId),
+        loadRecentAutomationRuns(organizationId),
+      ])
+    : [{ total: 0, paused: 0 }, []];
+
+  const previewProjects = mergeOverviewProjectSources({
+    live: liveProjects,
+    materialized: materializedProjects,
+    native: nativeProjects,
+  }).slice(0, OVERVIEW_PROJECT_LIMIT);
   const projectExtras = await loadProjectExtras(
     auth,
     previewProjects.map((project) => project.id),
@@ -282,26 +374,29 @@ export async function getWorkspaceOverviewSnapshot(
   const jobActivity: OverviewActivityItem[] = recentJobs.map((job) => ({
     id: job.id,
     kind: "job",
-    title: overviewJobTitle(job),
-    subtitle: [job.projectName ?? "Workspace", overviewJobKindLabel(job)]
-      .filter(Boolean)
-      .join(" · "),
+    title: resolveOverviewJobTitle(job),
+    projectName: job.projectName,
+    ...overviewJobKindValue(job),
     status: job.status,
     href: overviewJobHref(organizationSlug, job.projectId, job.id),
     updatedAt: toIso(job.updatedAt),
     attention: job.status === "failed",
   }));
 
-  const automationActivity: OverviewActivityItem[] = recentRuns.map((run) => ({
-    id: run.id,
-    kind: "automation",
-    title: run.automationName,
-    subtitle: "Automation",
-    status: run.status,
-    href: `/org/${organizationSlug}/automations/${encodeURIComponent(run.automationId)}`,
-    updatedAt: toIso(run.completedAt ?? run.createdAt),
-    attention: run.status === "failed",
-  }));
+  const automationActivity: OverviewActivityItem[] = includeAutomations
+    ? recentRuns.map((run) => ({
+        id: run.id,
+        kind: "automation" as const,
+        title: { kind: "text" as const, text: run.automationName },
+        projectName: null,
+        jobKind: null,
+        jobType: null,
+        status: run.status,
+        href: `/org/${organizationSlug}/automations/${encodeURIComponent(run.automationId)}`,
+        updatedAt: toIso(run.completedAt ?? run.createdAt),
+        attention: run.status === "failed",
+      }))
+    : [];
 
   const jobSeries = fillDailySeries(dailyCounts.jobs);
   const translationSeries = fillDailySeries(dailyCounts.translations);
@@ -316,10 +411,7 @@ export async function getWorkspaceOverviewSnapshot(
         count: translationSeries.reduce((total, value) => total + value, 0),
         series: translationSeries,
       },
-      automations: {
-        total: visibleAutomations.length,
-        paused: visibleAutomations.filter((automation) => automation.status === "paused").length,
-      },
+      automations: includeAutomations ? automationCounts : null,
       issues: {
         open: openIssues.total,
         p1: p1Issues.total,
@@ -328,21 +420,17 @@ export async function getWorkspaceOverviewSnapshot(
     activity: rankOverviewActivity([...jobActivity, ...automationActivity]),
     projects: previewProjects.map((project) => {
       const latestJob = projectExtras.latestByProject.get(project.id);
-      const provider = providerLabel(project.externalProviderKind);
-      const domain = projectExtras.domains.get(project.id);
-      const subtitleParts = [
-        domain,
-        provider ?? (project.source === "native" ? "Native" : null),
-      ].filter((part): part is string => Boolean(part));
 
       return {
         id: project.id,
         name: project.name,
-        subtitle: subtitleParts.join(" · "),
+        source: project.source,
+        providerKind: project.externalProviderKind,
+        domain: projectExtras.domains.get(project.id) ?? null,
         localeRoute: formatOverviewLocaleRoute(project.sourceLocale, project.targetLocales),
-        latestJobTitle: latestJob ? overviewJobTitle(latestJob) : null,
+        latestJobTitle: latestJob ? resolveOverviewJobTitle(latestJob) : null,
         latestJobAt: latestJob ? toIso(latestJob.updatedAt) : null,
-        openCount: project.openJobCount,
+        openCount: projectExtras.openCounts.get(project.id) ?? project.openJobCount,
         failedCount: projectExtras.failedCounts.get(project.id) ?? 0,
         href: `/org/${organizationSlug}/projects/${encodeURIComponent(project.id)}`,
       };
@@ -357,14 +445,16 @@ export async function getWorkspaceOverviewSnapshot(
       updatedAt: issue.updatedAt,
       href: overviewIssueHref(organizationSlug, issue.projectId, issue.id),
     })),
-    automations: recentRuns.slice(0, OVERVIEW_AUTOMATION_LIMIT).map((run) => ({
-      id: run.id,
-      automationId: run.automationId,
-      name: run.automationName,
-      triggerSource: run.triggerSource,
-      status: run.status,
-      updatedAt: toIso(run.completedAt ?? run.createdAt),
-      href: `/org/${organizationSlug}/automations/${encodeURIComponent(run.automationId)}`,
-    })),
+    automations: includeAutomations
+      ? recentRuns.slice(0, OVERVIEW_AUTOMATION_LIMIT).map((run) => ({
+          id: run.id,
+          automationId: run.automationId,
+          name: run.automationName,
+          triggerSource: run.triggerSource,
+          status: run.status,
+          updatedAt: toIso(run.completedAt ?? run.createdAt),
+          href: `/org/${organizationSlug}/automations/${encodeURIComponent(run.automationId)}`,
+        }))
+      : [],
   };
 }

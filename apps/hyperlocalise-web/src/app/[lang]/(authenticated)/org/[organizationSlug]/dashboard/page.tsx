@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -27,7 +28,9 @@ export default async function OrganizationDashboardPage({
   return (
     <DashboardPageContent
       organizationSlug={organizationSlug}
-      automationsEnabled={flags.automations}
+      automationsEnabled={
+        flags.automations && isWorkspaceOperatorRole(auth.membership.role)
+      }
     />
   );
 }

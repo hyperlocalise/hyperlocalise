@@ -22,11 +22,27 @@ export type OverviewMetricSeries = {
   series: number[];
 };
 
+export type OverviewJobKind =
+  | "translation"
+  | "research"
+  | "review"
+  | "proofread"
+  | "sync"
+  | "asset_management";
+
+export type OverviewResolvedTitle =
+  | { kind: "text"; text: string }
+  | { kind: "review"; criteria: string }
+  | { kind: "sync"; direction: string | null; connectorKind: string }
+  | { kind: "id"; id: string };
+
 export type OverviewActivityItem = {
   id: string;
   kind: "job" | "automation";
-  title: string;
-  subtitle: string;
+  title: OverviewResolvedTitle;
+  projectName: string | null;
+  jobKind: OverviewJobKind | null;
+  jobType: string | null;
   status: string;
   href: string | null;
   updatedAt: string;
@@ -36,9 +52,11 @@ export type OverviewActivityItem = {
 export type OverviewProjectItem = {
   id: string;
   name: string;
-  subtitle: string;
+  source: "native" | "external_tms";
+  providerKind: string | null;
+  domain: string | null;
   localeRoute: string;
-  latestJobTitle: string | null;
+  latestJobTitle: OverviewResolvedTitle | null;
   latestJobAt: string | null;
   openCount: number;
   failedCount: number;
@@ -70,7 +88,7 @@ export type WorkspaceOverviewSnapshot = {
   metrics: {
     jobs: OverviewMetricSeries;
     translations: OverviewMetricSeries;
-    automations: { total: number; paused: number };
+    automations: { total: number; paused: number } | null;
     issues: { open: number; p1: number };
   };
   activity: OverviewActivityItem[];
@@ -114,41 +132,61 @@ export function fillDailySeries(
   return series;
 }
 
-export function overviewJobTitle(job: OverviewJobTitleInput): string {
+export function resolveOverviewJobTitle(job: OverviewJobTitleInput): OverviewResolvedTitle {
   if (job.externalTitle?.trim()) {
-    return job.externalTitle.trim();
+    return { kind: "text", text: job.externalTitle.trim() };
   }
 
   const payload = isRecord(job.inputPayload) ? job.inputPayload : {};
   const metadata = isRecord(payload.metadata) ? payload.metadata : {};
   if (typeof metadata.title === "string" && metadata.title.trim()) {
-    return metadata.title.trim();
+    return { kind: "text", text: metadata.title.trim() };
   }
 
   if (job.kind === "review" && job.reviewCriteria?.trim()) {
-    return `Review: ${job.reviewCriteria.trim()}`;
+    return { kind: "review", criteria: job.reviewCriteria.trim() };
   }
 
   if (job.kind === "sync" && job.syncConnectorKind) {
-    return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`;
+    return {
+      kind: "sync",
+      direction: job.syncDirection,
+      connectorKind: job.syncConnectorKind,
+    };
   }
 
   if (typeof payload.sourceText === "string" && payload.sourceText.trim()) {
-    return payload.sourceText.trim().slice(0, 80);
+    return { kind: "text", text: payload.sourceText.trim().slice(0, 80) };
   }
 
   if (typeof payload.sourceFileId === "string" && payload.sourceFileId.trim()) {
-    return payload.sourceFileId.trim();
+    return { kind: "text", text: payload.sourceFileId.trim() };
   }
 
-  return job.id;
+  return { kind: "id", id: job.id };
 }
 
-export function overviewJobKindLabel(job: { kind: string; type?: string | null }): string {
-  if (job.kind === "translation" && job.type) {
-    return job.type;
+export function overviewJobKindValue(job: {
+  kind: string;
+  type?: string | null;
+}): { jobKind: OverviewJobKind | null; jobType: string | null } {
+  const jobKind = isOverviewJobKind(job.kind) ? job.kind : null;
+  if (jobKind === "translation" && job.type) {
+    return { jobKind, jobType: job.type };
   }
-  return job.kind.replaceAll("_", " ");
+
+  return { jobKind, jobType: null };
+}
+
+export function isOverviewJobKind(value: string): value is OverviewJobKind {
+  return (
+    value === "translation" ||
+    value === "research" ||
+    value === "review" ||
+    value === "proofread" ||
+    value === "sync" ||
+    value === "asset_management"
+  );
 }
 
 export function formatOverviewLocaleRoute(
@@ -180,4 +218,51 @@ export function rankOverviewActivity(
       return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
     })
     .slice(0, OVERVIEW_ACTIVITY_LIMIT);
+}
+
+export function shouldIncludeOverviewAutomations(input: {
+  isWorkspaceOperator: boolean;
+  automationsEnabled: boolean;
+}): boolean {
+  return input.isWorkspaceOperator && input.automationsEnabled;
+}
+
+export function countOverviewAutomationStatuses(
+  rows: readonly { status: string; count: number }[],
+): { total: number; paused: number } {
+  let total = 0;
+  let paused = 0;
+
+  for (const row of rows) {
+    if (row.status !== "active" && row.status !== "paused") {
+      continue;
+    }
+
+    total += row.count;
+    if (row.status === "paused") {
+      paused += row.count;
+    }
+  }
+
+  return { total, paused };
+}
+
+export function mergeOverviewProjectSources<T extends { id: string }>(input: {
+  live: readonly T[];
+  materialized: readonly T[];
+  native: readonly T[];
+}): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+
+  for (const project of [...input.live, ...input.materialized, ...input.native]) {
+    if (seen.has(project.id)) {
+      continue;
+    }
+
+    seen.add(project.id);
+    merged.push(project);
+  }
+
+  return merged;
 }

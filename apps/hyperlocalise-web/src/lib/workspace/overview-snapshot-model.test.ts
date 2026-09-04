@@ -13,11 +13,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  countOverviewAutomationStatuses,
   fillDailySeries,
   formatOverviewLocaleRoute,
-  overviewJobKindLabel,
-  overviewJobTitle,
+  mergeOverviewProjectSources,
+  overviewJobKindValue,
   rankOverviewActivity,
+  resolveOverviewJobTitle,
+  shouldIncludeOverviewAutomations,
   utcDayKey,
   type OverviewActivityItem,
 } from "./overview-snapshot-model";
@@ -28,8 +31,10 @@ function activity(
 ): OverviewActivityItem {
   return {
     kind: "job",
-    title: overrides.id,
-    subtitle: "Website",
+    title: { kind: "text", text: overrides.id },
+    projectName: "Website",
+    jobKind: "translation",
+    jobType: "file",
     href: "/jobs/1",
     attention: overrides.status === "failed",
     ...overrides,
@@ -53,44 +58,50 @@ describe("overview snapshot helpers", () => {
     ).toEqual([0, 0, 0, 0, 4, 0, 2]);
   });
 
-  it("prefers external title, then metadata, then review or sync labels", () => {
+  it("resolves external title, then metadata, then review or sync fallbacks", () => {
     expect(
-      overviewJobTitle({
+      resolveOverviewJobTitle({
         id: "job_1",
         kind: "translation",
         inputPayload: { metadata: { title: "Home page" } },
         externalTitle: " Crowdin job ",
       }),
-    ).toBe("Crowdin job");
+    ).toEqual({ kind: "text", text: "Crowdin job" });
     expect(
-      overviewJobTitle({
+      resolveOverviewJobTitle({
         id: "job_2",
         kind: "review",
         inputPayload: {},
         reviewCriteria: "terminology",
       }),
-    ).toBe("Review: terminology");
+    ).toEqual({ kind: "review", criteria: "terminology" });
     expect(
-      overviewJobTitle({
+      resolveOverviewJobTitle({
         id: "job_3",
         kind: "sync",
         inputPayload: {},
         syncConnectorKind: "github",
         syncDirection: "push",
       }),
-    ).toBe("push github");
+    ).toEqual({ kind: "sync", direction: "push", connectorKind: "github" });
     expect(
-      overviewJobTitle({
+      resolveOverviewJobTitle({
         id: "job_4",
         kind: "translation",
         inputPayload: { sourceFileId: "marketing/home.json" },
       }),
-    ).toBe("marketing/home.json");
+    ).toEqual({ kind: "text", text: "marketing/home.json" });
   });
 
-  it("labels translation jobs by type and formats locale routes", () => {
-    expect(overviewJobKindLabel({ kind: "translation", type: "file" })).toBe("file");
-    expect(overviewJobKindLabel({ kind: "asset_management" })).toBe("asset management");
+  it("keeps job kind and translation type structured for the client", () => {
+    expect(overviewJobKindValue({ kind: "translation", type: "file" })).toEqual({
+      jobKind: "translation",
+      jobType: "file",
+    });
+    expect(overviewJobKindValue({ kind: "asset_management" })).toEqual({
+      jobKind: "asset_management",
+      jobType: null,
+    });
     expect(formatOverviewLocaleRoute("en-US", ["fr-FR", "de-DE", "ja-JP"])).toBe(
       "en-US → fr-FR, de-DE +1",
     );
@@ -107,5 +118,42 @@ describe("overview snapshot helpers", () => {
     ]);
 
     expect(ranked.map((item) => item.id)).toEqual(["fail-new", "fail-old", "ok-new", "ok-old"]);
+  });
+
+  it("gates automation data on both operator role and the feature flag", () => {
+    expect(
+      shouldIncludeOverviewAutomations({ isWorkspaceOperator: true, automationsEnabled: true }),
+    ).toBe(true);
+    expect(
+      shouldIncludeOverviewAutomations({ isWorkspaceOperator: false, automationsEnabled: true }),
+    ).toBe(false);
+    expect(
+      shouldIncludeOverviewAutomations({ isWorkspaceOperator: true, automationsEnabled: false }),
+    ).toBe(false);
+  });
+
+  it("counts active and paused automations without archived rows", () => {
+    expect(
+      countOverviewAutomationStatuses([
+        { status: "active", count: 12 },
+        { status: "paused", count: 3 },
+        { status: "archived", count: 50 },
+      ]),
+    ).toEqual({ total: 15, paused: 3 });
+  });
+
+  it("merges live TMS projects ahead of materialized and native rows", () => {
+    const merged = mergeOverviewProjectSources({
+      live: [{ id: "ext:crowdin:100" }, { id: "ext:crowdin:200" }],
+      materialized: [{ id: "ext:crowdin:100" }, { id: "ext:crowdin:300" }],
+      native: [{ id: "project_native" }, { id: "ext:crowdin:200" }],
+    });
+
+    expect(merged.map((project) => project.id)).toEqual([
+      "ext:crowdin:100",
+      "ext:crowdin:200",
+      "ext:crowdin:300",
+      "project_native",
+    ]);
   });
 });

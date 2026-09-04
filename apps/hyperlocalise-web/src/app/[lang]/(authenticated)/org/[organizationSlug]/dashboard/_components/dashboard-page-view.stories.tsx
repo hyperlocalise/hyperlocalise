@@ -117,6 +117,7 @@ export const AutomationsDisabled: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Board")).toBeInTheDocument();
     await expect(canvas.queryByText("View automations")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("1 paused")).not.toBeInTheDocument();
   },
 };
 

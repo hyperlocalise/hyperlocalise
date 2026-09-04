@@ -27,7 +27,9 @@ import type {
   OverviewActivityItem,
   OverviewAutomationItem,
   OverviewBoardItem,
+  OverviewJobKind,
   OverviewProjectItem,
+  OverviewResolvedTitle,
   WorkspaceOverviewSnapshot,
 } from "@/lib/workspace/overview-snapshot-model";
 
@@ -36,11 +38,22 @@ import { IssuePriorityIcon } from "../../_components/issue-detail/issue-priority
 import {
   formatCompactRelativeTimestamp,
   formatRelativeTimestamp,
+  providerLabel,
 } from "../../_components/workspace-files-shared";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { jobsPageViewMessages } from "../../jobs/_components/jobs-page-view.messages";
 import { PROJECT_OVERVIEW_CALM_MESH_SRC } from "../../projects/[projectId]/_components/project-overview-mesh-stage";
 import { recordRecentProjectVisit } from "../../projects/_components/recent-projects";
 import { dashboardPageViewMessages } from "./dashboard-page-view.messages";
+
+const JOB_KIND_MESSAGES = {
+  translation: jobsPageViewMessages.kindTranslation,
+  research: jobsPageViewMessages.kindResearch,
+  review: jobsPageViewMessages.kindReview,
+  proofread: jobsPageViewMessages.kindProofread,
+  sync: jobsPageViewMessages.kindSync,
+  asset_management: jobsPageViewMessages.kindAssetManagement,
+} as const;
 
 const SPARKLINE_MIN_HEIGHT_PX = 10;
 const SPARKLINE_MAX_HEIGHT_PX = 40;
@@ -120,6 +133,61 @@ function formatTriggerSource(triggerSource: string, intl: IntlShape) {
       triggerSource as keyof typeof AUTOMATION_TRIGGER_SOURCE_MESSAGES
     ];
   return message ? intl.formatMessage(message) : triggerSource.replaceAll("_", " ");
+}
+
+function formatOverviewTitle(title: OverviewResolvedTitle, intl: IntlShape) {
+  switch (title.kind) {
+    case "text":
+      return title.text;
+    case "review":
+      return intl.formatMessage(jobsPageViewMessages.reviewJobName, { criteria: title.criteria });
+    case "sync":
+      return intl.formatMessage(jobsPageViewMessages.syncJobName, {
+        direction:
+          title.direction ?? intl.formatMessage(jobsPageViewMessages.syncDirectionFallback),
+        connector: title.connectorKind,
+      });
+    case "id":
+      return title.id;
+  }
+}
+
+function formatOverviewJobKind(
+  jobKind: OverviewJobKind | null,
+  jobType: string | null,
+  intl: IntlShape,
+) {
+  if (!jobKind) {
+    return null;
+  }
+
+  if (jobKind === "translation" && jobType) {
+    return intl.formatMessage(jobsPageViewMessages.kindTranslationWithType, { type: jobType });
+  }
+
+  return intl.formatMessage(JOB_KIND_MESSAGES[jobKind]);
+}
+
+function formatOverviewActivitySubtitle(item: OverviewActivityItem, intl: IntlShape) {
+  if (item.kind === "automation") {
+    return intl.formatMessage(dashboardPageViewMessages.automationActivityKind);
+  }
+
+  const projectName =
+    item.projectName ?? intl.formatMessage(dashboardPageViewMessages.workspaceFallbackProject);
+  const jobKindLabel = formatOverviewJobKind(item.jobKind, item.jobType, intl);
+  return [projectName, jobKindLabel].filter(Boolean).join(" · ");
+}
+
+function formatOverviewProjectSubtitle(project: OverviewProjectItem, intl: IntlShape) {
+  const sourceLabel =
+    project.providerKind != null
+      ? providerLabel(project.providerKind)
+      : project.source === "native"
+        ? intl.formatMessage(dashboardPageViewMessages.nativeProjectSource)
+        : null;
+
+  return [project.domain, sourceLabel].filter((part): part is string => Boolean(part)).join(" · ");
 }
 
 function Sparkline({ series }: { series: readonly number[] }) {
@@ -252,14 +320,17 @@ function OverviewMetricCard({
 
 function OverviewMetricsTray({
   overview,
+  automationsVisible,
   isLoading,
   loadingLabel,
 }: {
   overview: WorkspaceOverviewSnapshot;
+  automationsVisible: boolean;
   isLoading: boolean;
   loadingLabel: string;
 }) {
   const intl = useIntl();
+  const metricCount = automationsVisible ? 4 : 3;
 
   return (
     <section
@@ -276,14 +347,16 @@ function OverviewMetricsTray({
         className="object-cover object-center"
         priority
       />
-      <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={cn(
+          "relative grid grid-cols-1 gap-3 sm:grid-cols-2",
+          automationsVisible ? "xl:grid-cols-4" : "xl:grid-cols-3",
+        )}
+      >
         {isLoading ? (
-          <>
-            <Skeleton className="min-h-[148px] rounded-xl" />
-            <Skeleton className="min-h-[148px] rounded-xl" />
-            <Skeleton className="min-h-[148px] rounded-xl" />
-            <Skeleton className="min-h-[148px] rounded-xl" />
-          </>
+          Array.from({ length: metricCount }, (_, index) => (
+            <Skeleton key={index} className="min-h-[148px] rounded-xl" />
+          ))
         ) : (
           <>
             <OverviewMetricCard
@@ -298,13 +371,15 @@ function OverviewMetricsTray({
               detail={intl.formatMessage(dashboardPageViewMessages.lastSevenDays)}
               series={overview.metrics.translations.series}
             />
-            <OverviewMetricCard
-              label={intl.formatMessage(dashboardPageViewMessages.automationsMetric)}
-              value={overview.metrics.automations.total}
-              detail={intl.formatMessage(dashboardPageViewMessages.pausedCount, {
-                count: overview.metrics.automations.paused,
-              })}
-            />
+            {automationsVisible && overview.metrics.automations ? (
+              <OverviewMetricCard
+                label={intl.formatMessage(dashboardPageViewMessages.automationsMetric)}
+                value={overview.metrics.automations.total}
+                detail={intl.formatMessage(dashboardPageViewMessages.pausedCount, {
+                  count: overview.metrics.automations.paused,
+                })}
+              />
+            ) : null}
             <OverviewMetricCard
               label={intl.formatMessage(dashboardPageViewMessages.issuesMetric)}
               value={overview.metrics.issues.open}
@@ -343,6 +418,8 @@ export function DashboardPageView({
   const projectsHref = `/org/${organizationSlug}/projects`;
   const issuesHref = `/org/${organizationSlug}/issues`;
   const automationsHref = `/org/${organizationSlug}/automations`;
+  const automationsVisible =
+    automationsEnabled && (isLoading || overview.metrics.automations !== null);
   const loadingLabel = intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview);
   const errorMessage = intl.formatMessage(dashboardPageViewMessages.overviewLoadError);
 
@@ -361,7 +438,12 @@ export function DashboardPageView({
         }
       />
 
-      <OverviewMetricsTray overview={overview} isLoading={isLoading} loadingLabel={loadingLabel} />
+      <OverviewMetricsTray
+        overview={overview}
+        automationsVisible={automationsVisible}
+        isLoading={isLoading}
+        loadingLabel={loadingLabel}
+      />
 
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="flex w-full min-w-0 flex-col gap-3 lg:w-[420px] lg:shrink-0">
@@ -415,7 +497,7 @@ export function DashboardPageView({
       <section
         className={cn(
           "flex flex-col gap-4",
-          automationsEnabled ? "lg:flex-row lg:items-start" : "",
+          automationsVisible ? "lg:flex-row lg:items-start" : "",
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -439,7 +521,7 @@ export function DashboardPageView({
           </OverviewFeed>
         </div>
 
-        {automationsEnabled ? (
+        {automationsVisible ? (
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <OverviewSectionHeader
               label={intl.formatMessage(dashboardPageViewMessages.automationsLabel)}
@@ -481,8 +563,12 @@ function OverviewActivityRow({
   const intl = useIntl();
   const title = (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <p className="truncate text-[13px] leading-5 font-medium text-foreground">{item.title}</p>
-      <p className="truncate text-xs leading-4 text-muted-foreground">{item.subtitle}</p>
+      <p className="truncate text-[13px] leading-5 font-medium text-foreground">
+        {formatOverviewTitle(item.title, intl)}
+      </p>
+      <p className="truncate text-xs leading-4 text-muted-foreground">
+        {formatOverviewActivitySubtitle(item, intl)}
+      </p>
     </div>
   );
 
@@ -548,7 +634,7 @@ function OverviewProjectRow({
               {project.name}
             </p>
             <p className="truncate text-[13px] leading-5 text-muted-foreground">
-              {project.subtitle}
+              {formatOverviewProjectSubtitle(project, intl)}
             </p>
           </div>
           {project.failedCount > 0 ? (
@@ -568,7 +654,7 @@ function OverviewProjectRow({
         {project.latestJobTitle ? (
           <div className="flex flex-col gap-1">
             <p className="truncate text-[13px] leading-5 font-medium text-foreground">
-              {project.latestJobTitle}
+              {formatOverviewTitle(project.latestJobTitle, intl)}
             </p>
             {latestMeta ? (
               <p className="truncate text-xs leading-4 text-muted-foreground">{latestMeta}</p>

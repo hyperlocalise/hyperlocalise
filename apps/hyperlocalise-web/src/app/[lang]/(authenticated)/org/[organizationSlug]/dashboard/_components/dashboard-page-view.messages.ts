@@ -77,8 +77,18 @@ export const dashboardPageViewMessages = defineMessages({
   },
   p1Count: {
     defaultMessage: "{count} P1 on Board",
-    id: '51tdxkVdu+',
+    id: "51tdxkVdu+",
     description: "Open issues metric subtitle showing P1 issue count on the board",
+  },
+  automationActivityKind: {
+    defaultMessage: "Automation",
+    id: "n8Kq2pLm0A",
+    description: "Activity subtitle for an automation run on the overview",
+  },
+  nativeProjectSource: {
+    defaultMessage: "Native",
+    id: "b4Rt9sVx1C",
+    description: "Project source label when the project is a native Hyperlocalise project",
   },
   activityLabel: {
     defaultMessage: "Activity",
