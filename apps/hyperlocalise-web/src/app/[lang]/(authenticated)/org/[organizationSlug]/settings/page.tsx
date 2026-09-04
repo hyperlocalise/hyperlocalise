@@ -12,12 +12,21 @@
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { GeneralSettingsPageContent } from "./_components/settings-pages";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function SettingsPage({
+export default function SettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
+  return (
+    <OrgPageSuspense>
+      <SettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function SettingsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
 

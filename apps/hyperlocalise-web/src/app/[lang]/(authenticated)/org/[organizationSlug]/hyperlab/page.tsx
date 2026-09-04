@@ -11,12 +11,21 @@
  * Version 2.0 or later.
  */
 import { HyperlabOverview } from "./_components/hyperlab-overview";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function HyperlabPage({
+export default function HyperlabPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
+  return (
+    <OrgPageSuspense>
+      <HyperlabPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function HyperlabPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   return <HyperlabOverview organizationSlug={organizationSlug} />;
 }

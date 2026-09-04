@@ -19,12 +19,21 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { KnowledgePageContent } from "./_components/knowledge-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function KnowledgePage({
+export default function KnowledgePage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
+  return (
+    <OrgPageSuspense>
+      <KnowledgePageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function KnowledgePageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const knowledgeEnabled = await getWorkspaceFeatureFlagEnabled(workspaceKnowledgeFlag, auth);

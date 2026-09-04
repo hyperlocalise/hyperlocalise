@@ -12,8 +12,21 @@
  */
 import { requireAppCapability } from "@/lib/workos/app-auth";
 import { ApiKeySettingsPageContent } from "../_components/api-keys-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function ApiKeySettingsPage({
+export default function ApiKeySettingsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ApiKeySettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ApiKeySettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

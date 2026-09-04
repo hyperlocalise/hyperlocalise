@@ -22,8 +22,21 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { db, schema } from "@/lib/database/client";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
 
-export default async function GithubRepositoryAutomationPage({
+export default function GithubRepositoryAutomationPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; githubRepositoryId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <GithubRepositoryAutomationPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function GithubRepositoryAutomationPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; githubRepositoryId: string }>;

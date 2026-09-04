@@ -13,8 +13,23 @@
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { IntegrationsPageContent } from "./_components/integrations-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function IntegrationsPage({
+export default function IntegrationsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <IntegrationsPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function IntegrationsPageLoader({
   params,
   searchParams,
 }: {

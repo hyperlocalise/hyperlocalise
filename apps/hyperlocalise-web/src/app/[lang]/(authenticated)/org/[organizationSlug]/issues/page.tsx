@@ -10,39 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { hasCapability } from "@/api/auth/policy";
-import { TypographyP } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { IssuesPageContent } from "./_components/issues-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function IssuesPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function IssuesPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <IssuesPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function IssuesPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const intl = getIntlShape(await getAppLocale());
   const canEditIssues = hasCapability(auth.membership.role, "write_back:translation");
 
-  return (
-    <Suspense
-      fallback={
-        <TypographyP size="small" tone="subtle">
-          {intl.formatMessage({
-            defaultMessage: "Loading board...",
-            id: "wZsNKEWooe",
-            description: "Suspense fallback while workspace board content loads",
-          })}
-        </TypographyP>
-      }
-    >
-      <IssuesPageContent organizationSlug={organizationSlug} canEditIssues={canEditIssues} />
-    </Suspense>
-  );
+  return <IssuesPageContent organizationSlug={organizationSlug} canEditIssues={canEditIssues} />;
 }

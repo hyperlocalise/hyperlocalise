@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
@@ -21,8 +19,21 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { AutomationsPageContent } from "../../../automations/_components/automations-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function ProjectAutomationsPage({
+export default function ProjectAutomationsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectAutomationsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectAutomationsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
@@ -38,12 +49,10 @@ export default async function ProjectAutomationsPage({
   const templates = getMergedWorkspaceAutomationTemplates();
 
   return (
-    <Suspense fallback={null}>
-      <AutomationsPageContent
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        templates={templates}
-      />
-    </Suspense>
+    <AutomationsPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      templates={templates}
+    />
   );
 }

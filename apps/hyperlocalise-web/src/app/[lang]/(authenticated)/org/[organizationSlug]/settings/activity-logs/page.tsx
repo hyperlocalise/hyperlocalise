@@ -13,8 +13,21 @@
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { ActivityLogsPageContent } from "../_components/activity-logs-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function ActivityLogsSettingsPage({
+export default function ActivityLogsSettingsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ActivityLogsSettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ActivityLogsSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

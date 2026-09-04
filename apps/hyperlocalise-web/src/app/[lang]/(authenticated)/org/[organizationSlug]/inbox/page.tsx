@@ -13,12 +13,17 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { InboxPageContent } from "./_components/inbox-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function InboxPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function InboxPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <InboxPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function InboxPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const currentUserName =

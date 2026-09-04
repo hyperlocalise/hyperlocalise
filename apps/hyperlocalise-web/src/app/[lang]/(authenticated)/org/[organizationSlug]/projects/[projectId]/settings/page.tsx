@@ -10,42 +10,37 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
-import { TypographyP } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { ProjectSettingsPageContent } from "./_components/project-settings-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function ProjectSettingsPage({
+export default function ProjectSettingsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectSettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const intl = getIntlShape(await getAppLocale());
 
   return (
-    <Suspense
-      fallback={
-        <TypographyP size="small" tone="subtle">
-          {intl.formatMessage({
-            defaultMessage: "Loading settings...",
-            id: "M1rJJm5ext",
-            description: "Suspense fallback while project settings content loads",
-          })}
-        </TypographyP>
-      }
-    >
-      <ProjectSettingsPageContent
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        canManageCatBehavior={isWorkspaceOperatorRole(auth.membership.role)}
-      />
-    </Suspense>
+    <ProjectSettingsPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canManageCatBehavior={isWorkspaceOperatorRole(auth.membership.role)}
+    />
   );
 }

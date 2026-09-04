@@ -10,20 +10,22 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { ProjectsPageContent } from "./_components/projects-page-content";
 
-export default async function ProjectsPage({
+export default function ProjectsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  const { organizationSlug } = await params;
-
   return (
-    <Suspense fallback={null}>
-      <ProjectsPageContent organizationSlug={organizationSlug} />
-    </Suspense>
+    <OrgPageSuspense>
+      <ProjectsPageLoader params={params} />
+    </OrgPageSuspense>
   );
+}
+
+async function ProjectsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  const { organizationSlug } = await params;
+  return <ProjectsPageContent organizationSlug={organizationSlug} />;
 }

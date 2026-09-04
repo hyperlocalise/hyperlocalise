@@ -13,12 +13,17 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { MembersPageContent } from "../settings/_components/members-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function MembersPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function MembersPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <MembersPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function MembersPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   await requireAppAuthContext({ organizationSlug });
 

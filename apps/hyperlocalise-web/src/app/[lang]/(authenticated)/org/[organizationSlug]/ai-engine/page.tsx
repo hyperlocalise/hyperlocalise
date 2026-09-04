@@ -14,12 +14,21 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { AiEnginePageContent } from "./_components/ai-engine-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function AiEnginePage({
+export default function AiEnginePage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
+  return (
+    <OrgPageSuspense>
+      <AiEnginePageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function AiEnginePageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
 

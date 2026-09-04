@@ -10,13 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { TranslationMemoryDetailPageContent } from "./_components/translation-memory-detail-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function TranslationMemoryDetailPage({
+export default function TranslationMemoryDetailPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; memoryId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <TranslationMemoryDetailPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function TranslationMemoryDetailPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; memoryId: string }>;
@@ -25,12 +36,10 @@ export default async function TranslationMemoryDetailPage({
   const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
-    <Suspense fallback={null}>
-      <TranslationMemoryDetailPageContent
-        organizationSlug={organizationSlug}
-        memoryId={memoryId}
-        canManageMemories={hasCapability(auth.membership.role, "memories:write")}
-      />
-    </Suspense>
+    <TranslationMemoryDetailPageContent
+      organizationSlug={organizationSlug}
+      memoryId={memoryId}
+      canManageMemories={hasCapability(auth.membership.role, "memories:write")}
+    />
   );
 }

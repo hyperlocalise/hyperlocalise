@@ -10,9 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { AppShellSkeleton } from "@/components/app-shell/app-shell-skeleton";
 import { AutumnBillingProvider } from "@/lib/billing/autumn-billing-provider";
 import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 
@@ -23,9 +24,32 @@ type OrganizationLayoutProps = {
   }>;
 };
 
-export default async function OrganizationLayout({ children, params }: OrganizationLayoutProps) {
-  const { organizationSlug } = await params;
+export default function OrganizationLayout({ children, params }: OrganizationLayoutProps) {
   const autumnConfigured = isAutumnConfigured();
+
+  return (
+    <Suspense fallback={<AppShellSkeleton>{children}</AppShellSkeleton>}>
+      <OrganizationLayoutContent autumnConfigured={autumnConfigured} params={params}>
+        {children}
+      </OrganizationLayoutContent>
+    </Suspense>
+  );
+}
+
+type OrganizationLayoutContentProps = {
+  autumnConfigured: boolean;
+  children: ReactNode;
+  params: Promise<{
+    organizationSlug: string;
+  }>;
+};
+
+async function OrganizationLayoutContent({
+  autumnConfigured,
+  children,
+  params,
+}: OrganizationLayoutContentProps) {
+  const { organizationSlug } = await params;
   const appShell = (
     <AppShell autumnConfigured={autumnConfigured} organizationSlug={organizationSlug}>
       {children}

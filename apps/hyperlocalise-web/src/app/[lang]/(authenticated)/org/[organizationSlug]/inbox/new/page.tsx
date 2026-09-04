@@ -13,8 +13,21 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { InboxPageContent } from "../_components/inbox-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function InboxNewRequestPage({
+export default function InboxNewRequestPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <InboxNewRequestPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function InboxNewRequestPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

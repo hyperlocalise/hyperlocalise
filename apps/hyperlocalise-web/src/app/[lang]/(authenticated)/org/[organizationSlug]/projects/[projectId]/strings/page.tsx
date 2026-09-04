@@ -25,8 +25,34 @@ import {
 } from "@/api/routes/project/project.shared";
 
 import { ProjectFileContentEditorPageContent } from "../files/_components/project-file-content-editor-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function ProjectStringsPage({
+export default function ProjectStringsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+  searchParams: Promise<{
+    sourcePath?: string;
+    locale?: string;
+    segment?: string;
+    externalResourceId?: string;
+    resourceType?: string;
+    branch?: string;
+    sourcePaths?: string;
+    queueFilter?: string;
+    queueSort?: string;
+    search?: string;
+  }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectStringsPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectStringsPageLoader({
   params,
   searchParams,
 }: {

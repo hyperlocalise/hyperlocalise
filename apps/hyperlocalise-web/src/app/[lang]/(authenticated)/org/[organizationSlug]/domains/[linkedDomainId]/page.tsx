@@ -15,8 +15,21 @@ import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flag
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { DomainDetailPageContent } from "./_components/domain-detail-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function DomainDetailPage({
+export default function DomainDetailPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <DomainDetailPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function DomainDetailPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;

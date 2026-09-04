@@ -10,20 +10,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { JobsPageContent } from "../jobs/_components/jobs-page-content";
 
-export default async function MyJobsPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  const { organizationSlug } = await params;
-
+export default function MyJobsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
   return (
-    <Suspense fallback={null}>
-      <JobsPageContent organizationSlug={organizationSlug} scope="personal" />
-    </Suspense>
+    <OrgPageSuspense>
+      <MyJobsPageLoader params={params} />
+    </OrgPageSuspense>
   );
+}
+
+async function MyJobsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  const { organizationSlug } = await params;
+  return <JobsPageContent organizationSlug={organizationSlug} scope="personal" />;
 }

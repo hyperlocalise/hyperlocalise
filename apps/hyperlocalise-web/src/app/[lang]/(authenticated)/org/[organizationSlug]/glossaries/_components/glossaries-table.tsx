@@ -297,6 +297,7 @@ function GlossaryRow({
           {detailId ? (
             <Link
               href={`/org/${organizationSlug}/glossaries/${detailId}`}
+              prefetch
               className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em] text-foreground underline-offset-2 hover:underline"
             >
               {glossary.name}

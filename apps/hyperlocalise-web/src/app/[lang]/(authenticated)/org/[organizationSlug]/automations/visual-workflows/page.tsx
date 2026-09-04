@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
@@ -23,8 +22,21 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { VisualWorkflowsPageContent } from "../_components/visual-workflows-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function VisualWorkflowsPage({
+export default function VisualWorkflowsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <VisualWorkflowsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function VisualWorkflowsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
@@ -48,9 +60,5 @@ export default async function VisualWorkflowsPage({
     notFound();
   }
 
-  return (
-    <Suspense fallback={null}>
-      <VisualWorkflowsPageContent organizationSlug={organizationSlug} />
-    </Suspense>
-  );
+  return <VisualWorkflowsPageContent organizationSlug={organizationSlug} />;
 }

@@ -14,8 +14,23 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { CanvaClaimPageContent } from "./canva-claim-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function CanvaClaimPage({
+export default function CanvaClaimPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ claimId?: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <CanvaClaimPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function CanvaClaimPageLoader({
   params,
   searchParams,
 }: {

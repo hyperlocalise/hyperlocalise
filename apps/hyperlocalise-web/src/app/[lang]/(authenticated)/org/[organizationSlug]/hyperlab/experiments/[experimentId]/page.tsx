@@ -14,8 +14,21 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { HyperlabExperimentDetail } from "../../_components/hyperlab-experiment-detail";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function HyperlabExperimentDetailRoute({
+export default function HyperlabExperimentDetailRoute({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; experimentId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <HyperlabExperimentDetailRouteLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function HyperlabExperimentDetailRouteLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; experimentId: string }>;

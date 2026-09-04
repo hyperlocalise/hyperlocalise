@@ -10,34 +10,27 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { ProjectOverviewPageContent } from "./_components/project-overview-page-content";
-import { TypographyP } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function ProjectOverviewPage({
+export default function ProjectOverviewPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectOverviewPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectOverviewPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
-  const intl = getIntlShape(await getAppLocale());
 
-  return (
-    <Suspense
-      fallback={
-        <TypographyP size="small" tone="subtle">
-          {intl.formatMessage({
-            defaultMessage: "Loading project…",
-            id: "PtTtkKUG7c",
-            description: "Suspense fallback while project overview content loads",
-          })}
-        </TypographyP>
-      }
-    >
-      <ProjectOverviewPageContent organizationSlug={organizationSlug} projectId={projectId} />
-    </Suspense>
-  );
+  return <ProjectOverviewPageContent organizationSlug={organizationSlug} projectId={projectId} />;
 }

@@ -23,8 +23,32 @@ import {
 } from "@/api/routes/project/project.shared";
 
 import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
+import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
 
-export default async function ProjectJobStringsPage({
+export default function ProjectJobStringsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string; jobId: string }>;
+  searchParams: Promise<{
+    sourcePath?: string;
+    storedFileId?: string;
+    sourcePaths?: string;
+    targetLocale?: string;
+    segment?: string;
+    queueFilter?: string;
+    queueSort?: string;
+    search?: string;
+  }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectJobStringsPageLoader({
   params,
   searchParams,
 }: {

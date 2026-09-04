@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { hasCapability } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
@@ -27,8 +25,23 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { AutomationsNewPageContent } from "../_components/automations-new-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function NewAutomationPage({
+export default function NewAutomationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+  searchParams: Promise<{ template?: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <NewAutomationPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function NewAutomationPageLoader({
   params,
   searchParams,
 }: {
@@ -52,13 +65,11 @@ export default async function NewAutomationPage({
     : createDefaultWorkspaceAutomationFormState();
 
   return (
-    <Suspense fallback={null}>
-      <AutomationsNewPageContent
-        organizationSlug={organizationSlug}
-        initialForm={initialForm}
-        knowledgeAvailable={flags.knowledge}
-        canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
-      />
-    </Suspense>
+    <AutomationsNewPageContent
+      organizationSlug={organizationSlug}
+      initialForm={initialForm}
+      knowledgeAvailable={flags.knowledge}
+      canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
+    />
   );
 }

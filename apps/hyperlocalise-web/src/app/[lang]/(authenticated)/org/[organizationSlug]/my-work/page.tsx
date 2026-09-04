@@ -11,12 +11,17 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function MyWorkPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function MyWorkPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <MyWorkPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function MyWorkPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  redirect(`/org/${organizationSlug}/my-jobs`);
+  return redirect(`/org/${organizationSlug}/my-jobs`);
 }

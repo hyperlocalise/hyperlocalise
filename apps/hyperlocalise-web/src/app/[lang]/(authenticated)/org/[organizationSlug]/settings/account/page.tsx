@@ -12,8 +12,21 @@
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AccountSettingsPageContent } from "../_components/settings-pages";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function AccountSettingsPage({
+export default function AccountSettingsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <AccountSettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function AccountSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

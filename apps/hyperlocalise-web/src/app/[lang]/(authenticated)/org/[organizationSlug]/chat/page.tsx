@@ -11,12 +11,17 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function ChatPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function ChatPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <ChatPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ChatPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  redirect(`/org/${organizationSlug}/inbox/new`);
+  return redirect(`/org/${organizationSlug}/inbox/new`);
 }

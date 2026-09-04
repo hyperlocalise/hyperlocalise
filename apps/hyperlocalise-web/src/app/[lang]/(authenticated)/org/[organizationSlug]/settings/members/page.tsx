@@ -11,12 +11,25 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function MembersSettingsRedirectPage({
+export default function MembersSettingsRedirectPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <MembersSettingsRedirectPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function MembersSettingsRedirectPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  redirect(`/org/${organizationSlug}/members`);
+  return redirect(`/org/${organizationSlug}/members`);
 }

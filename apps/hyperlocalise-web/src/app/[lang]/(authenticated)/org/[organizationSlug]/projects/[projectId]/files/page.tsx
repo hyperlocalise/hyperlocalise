@@ -10,37 +10,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
-import { TypographyP } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { ProjectFilesPageContent } from "./_components/project-files-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function ProjectFilesPage({
+export default function ProjectFilesPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectFilesPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectFilesPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
   await requireAppAuthContext({ organizationSlug });
-  const intl = getIntlShape(await getAppLocale());
 
-  return (
-    <Suspense
-      fallback={
-        <TypographyP size="small" tone="subtle">
-          {intl.formatMessage({
-            defaultMessage: "Loading files...",
-            id: "KWzlpvb4xC",
-            description: "Suspense fallback while project files content loads",
-          })}
-        </TypographyP>
-      }
-    >
-      <ProjectFilesPageContent organizationSlug={organizationSlug} projectId={projectId} />
-    </Suspense>
-  );
+  return <ProjectFilesPageContent organizationSlug={organizationSlug} projectId={projectId} />;
 }

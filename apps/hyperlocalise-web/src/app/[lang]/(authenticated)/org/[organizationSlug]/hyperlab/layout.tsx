@@ -16,7 +16,23 @@ import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-pa
 import { getWorkspaceFeatureFlagEnabled, workspaceHyperlabFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
-export default async function HyperlabLayout({
+import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export default function HyperlabLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <HyperlabLayoutLoader params={params}>{children}</HyperlabLayoutLoader>
+    </OrgPageSuspense>
+  );
+}
+
+async function HyperlabLayoutLoader({
   children,
   params,
 }: {

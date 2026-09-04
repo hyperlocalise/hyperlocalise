@@ -18,8 +18,21 @@ import {
   workspaceKnowledgeFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function ProjectKnowledgePage({
+export default function ProjectKnowledgePage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectKnowledgePageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectKnowledgePageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;

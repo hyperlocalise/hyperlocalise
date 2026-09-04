@@ -15,8 +15,21 @@ import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flag
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { LinkDomainPageContent } from "./_components/link-domain-page-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function LinkDomainPage({
+export default function LinkDomainPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; domainSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <LinkDomainPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function LinkDomainPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; domainSlug: string }>;

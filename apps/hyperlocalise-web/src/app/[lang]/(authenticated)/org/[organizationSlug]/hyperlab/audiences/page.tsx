@@ -14,8 +14,21 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { HyperlabAudiencesPage } from "../_components/hyperlab-audiences-page";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function HyperlabAudiencesRoute({
+export default function HyperlabAudiencesRoute({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <HyperlabAudiencesRouteLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function HyperlabAudiencesRouteLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

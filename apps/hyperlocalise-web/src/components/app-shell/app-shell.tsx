@@ -10,10 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
+import { AppShellSkeleton } from "@/components/app-shell/app-shell-skeleton";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
@@ -36,11 +37,27 @@ export type AppShellProps = {
   organizationSlug: string;
 };
 
-export async function AppShell({
-  autumnConfigured = false,
+export function AppShell({ autumnConfigured = false, children, organizationSlug }: AppShellProps) {
+  return (
+    <Suspense fallback={<AppShellSkeleton>{children}</AppShellSkeleton>}>
+      <AppShellWithData autumnConfigured={autumnConfigured} organizationSlug={organizationSlug}>
+        {children}
+      </AppShellWithData>
+    </Suspense>
+  );
+}
+
+type AppShellWithDataProps = {
+  autumnConfigured: boolean;
+  children: ReactNode;
+  organizationSlug: string;
+};
+
+async function AppShellWithData({
+  autumnConfigured,
   children,
   organizationSlug,
-}: AppShellProps) {
+}: AppShellWithDataProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
   const intl = getIntlShape(await getAppLocale()) as IntlShape;

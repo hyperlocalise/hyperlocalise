@@ -13,8 +13,21 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { RolePermissionsPageView } from "../../settings/_components/role-permissions-page-view";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function RolePermissionsPage({
+export default function RolePermissionsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <RolePermissionsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function RolePermissionsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

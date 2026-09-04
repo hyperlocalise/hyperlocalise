@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { hasCapability } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
@@ -27,8 +25,23 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { AutomationsNewPageContent } from "../../../../automations/_components/automations-new-page-content";
+import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 
-export default async function ProjectNewAutomationPage({
+export default function ProjectNewAutomationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+  searchParams: Promise<{ template?: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectNewAutomationPageLoader params={params} searchParams={searchParams} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectNewAutomationPageLoader({
   params,
   searchParams,
 }: {
@@ -55,14 +68,12 @@ export default async function ProjectNewAutomationPage({
   };
 
   return (
-    <Suspense fallback={null}>
-      <AutomationsNewPageContent
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        initialForm={initialForm}
-        knowledgeAvailable={flags.knowledge}
-        canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
-      />
-    </Suspense>
+    <AutomationsNewPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      initialForm={initialForm}
+      knowledgeAvailable={flags.knowledge}
+      canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
+    />
   );
 }

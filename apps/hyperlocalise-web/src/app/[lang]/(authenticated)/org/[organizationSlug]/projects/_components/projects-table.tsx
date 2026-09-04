@@ -146,6 +146,7 @@ function ProjectCard({
       <div className="flex items-start justify-between gap-4">
         <Link
           href={projectHref}
+          prefetch
           onClick={() => onOpenProject?.(project.id)}
           className="min-w-0 flex flex-1 items-start gap-3"
         >
@@ -225,7 +226,7 @@ function ProjectCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuGroup>
-                  <DropdownMenuItem render={<Link href={projectHref} />}>
+                  <DropdownMenuItem render={<Link href={projectHref} prefetch />}>
                     <FormattedMessage {...projectsTableMessages.openProject} />
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -273,6 +274,7 @@ function ProjectCard({
             {project.openJobCount > 0 ? (
               <Link
                 href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
+                prefetch
                 className="text-subtle-foreground hover:text-foreground hover:underline"
               >
                 {intl.formatMessage(projectsTableMessages.openJobsCount, {

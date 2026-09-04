@@ -14,8 +14,21 @@ import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { HyperlabKeysPage } from "../_components/hyperlab-keys-page";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function HyperlabKeysRoute({
+export default function HyperlabKeysRoute({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <HyperlabKeysRouteLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function HyperlabKeysRouteLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

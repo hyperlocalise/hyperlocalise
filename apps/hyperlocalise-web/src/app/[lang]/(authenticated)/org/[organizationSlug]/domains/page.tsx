@@ -15,12 +15,17 @@ import { getWorkspaceFeatureFlagEnabled, workspaceDomainsFlag } from "@/lib/flag
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { DomainsPageContent } from "./_components/domains-page-content";
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 
-export default async function DomainsPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
+export default function DomainsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
+  return (
+    <OrgPageSuspense>
+      <DomainsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function DomainsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppCapability("projects:read", { organizationSlug });
   const domainsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceDomainsFlag, auth);

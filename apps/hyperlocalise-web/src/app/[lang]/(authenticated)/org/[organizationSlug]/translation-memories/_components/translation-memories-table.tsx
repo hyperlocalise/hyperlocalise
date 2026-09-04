@@ -106,6 +106,7 @@ function MemoryRow({
           ) : (
             <Link
               href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
+              prefetch
               className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
             >
               {memory.name}
@@ -120,6 +121,7 @@ function MemoryRow({
           {memory.projectLinkId ? (
             <Link
               href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
+              prefetch
               className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               <FormattedMessage {...translationMemoriesTableMessages.viewLinkedProject} />

@@ -10,17 +10,25 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
-import { TypographyP } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { IssueDetailPageContent } from "./_components/issue-detail-page-content";
+import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 
-export default async function IssueDetailPage({
+export default function IssueDetailPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string; issueId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <IssueDetailPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function IssueDetailPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; issueId: string }>;
@@ -28,25 +36,12 @@ export default async function IssueDetailPage({
   const { organizationSlug, projectId: rawProjectId, issueId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
   await requireAppAuthContext({ organizationSlug });
-  const intl = getIntlShape(await getAppLocale());
 
   return (
-    <Suspense
-      fallback={
-        <TypographyP size="small" tone="subtle">
-          {intl.formatMessage({
-            defaultMessage: "Loading issue...",
-            id: "JxSxJmFns3",
-            description: "Suspense fallback while the issue detail page loads",
-          })}
-        </TypographyP>
-      }
-    >
-      <IssueDetailPageContent
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        issueId={issueId}
-      />
-    </Suspense>
+    <IssueDetailPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      issueId={issueId}
+    />
   );
 }

@@ -10,26 +10,32 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense } from "react";
-
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { GlossariesPageContent } from "./_components/glossaries-page-content";
 
-export default async function GlossariesPage({
+export default function GlossariesPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
+  return (
+    <OrgPageSuspense>
+      <GlossariesPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function GlossariesPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
-    <Suspense fallback={null}>
-      <GlossariesPageContent
-        organizationSlug={organizationSlug}
-        canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
-      />
-    </Suspense>
+    <GlossariesPageContent
+      organizationSlug={organizationSlug}
+      canManageGlossaries={hasCapability(auth.membership.role, "glossaries:write")}
+    />
   );
 }

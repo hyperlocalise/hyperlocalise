@@ -15,8 +15,21 @@ import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { JobDetailPageContent } from "./_components/job-detail-page-content";
+import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 
-export default async function ProjectJobDetailPage({
+export default function ProjectJobDetailPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string; jobId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <ProjectJobDetailPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function ProjectJobDetailPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; jobId: string }>;

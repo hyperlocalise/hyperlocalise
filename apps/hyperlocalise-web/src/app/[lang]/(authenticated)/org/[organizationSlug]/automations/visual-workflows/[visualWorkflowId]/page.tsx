@@ -24,8 +24,21 @@ import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { VisualWorkflowEditorPageContent } from "../../_components/visual-workflow-editor-page-content";
+import { OrgPageSuspense } from "../../../_components/org-page-suspense";
 
-export default async function VisualWorkflowEditorPage({
+export default function VisualWorkflowEditorPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; visualWorkflowId: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <VisualWorkflowEditorPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function VisualWorkflowEditorPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string; visualWorkflowId: string }>;

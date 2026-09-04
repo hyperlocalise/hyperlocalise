@@ -15,8 +15,21 @@ import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 import { requireAppAuthContext, requireAppCapability } from "@/lib/workos/app-auth";
 
 import { BillingSettingsPageContent } from "./_components/billing-settings-content";
+import { OrgPageSuspense } from "../../_components/org-page-suspense";
 
-export default async function BillingSettingsPage({
+export default function BillingSettingsPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <BillingSettingsPageLoader params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function BillingSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;

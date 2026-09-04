@@ -14,9 +14,22 @@ import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
+import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { DashboardPageContent } from "./_components/dashboard-page-content";
 
-export default async function OrganizationDashboardPage({
+export default function OrganizationDashboardPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string }>;
+}) {
+  return (
+    <OrgPageSuspense>
+      <OrganizationDashboardPageContent params={params} />
+    </OrgPageSuspense>
+  );
+}
+
+async function OrganizationDashboardPageContent({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
