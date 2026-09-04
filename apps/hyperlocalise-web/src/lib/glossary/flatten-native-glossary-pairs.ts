@@ -20,6 +20,7 @@ import { pickPreferredTermForLocale } from "./native-glossary";
 
 export type GlossaryTermQueryRow = {
   id: string;
+  conceptId: string;
   glossaryId: string;
   glossaryName: string;
   sourceTerm: string;
@@ -27,6 +28,7 @@ export type GlossaryTermQueryRow = {
   targetLocale: string;
   description: string;
   partOfSpeech: string;
+  status: string;
   forbidden: boolean;
   caseSensitive: boolean;
   provenance: string;
@@ -71,15 +73,18 @@ function toNormalizedConceptTerm(row: NativeConceptTermRow): NormalizedGlossaryC
 
 function buildPairRow(input: {
   id: string;
+  conceptId: string;
   glossaryId: string;
   glossaryName: string;
   sourceTerm: NativeConceptTermRow;
   targetTerm: string;
   targetLocale: string;
+  status: string;
   forbidden: boolean;
 }): GlossaryTermQueryRow {
   return {
     id: input.id,
+    conceptId: input.conceptId,
     glossaryId: input.glossaryId,
     glossaryName: input.glossaryName,
     sourceTerm: input.sourceTerm.term,
@@ -87,6 +92,7 @@ function buildPairRow(input: {
     targetLocale: input.targetLocale,
     description: input.sourceTerm.description,
     partOfSpeech: input.sourceTerm.partOfSpeech,
+    status: input.status,
     forbidden: input.forbidden,
     caseSensitive: input.sourceTerm.caseSensitive,
     provenance: input.sourceTerm.provenance,
@@ -119,11 +125,13 @@ export function flattenNativeConceptTermsToPairs(input: {
           pairs.push(
             buildPairRow({
               id: sourceTerm.id,
+              conceptId: concept.conceptId,
               glossaryId: concept.glossaryId,
               glossaryName: concept.glossaryName,
               sourceTerm,
               targetTerm: sourceTerm.term,
               targetLocale,
+              status: sourceTerm.status,
               forbidden: sourceStatus.forbidden,
             }),
           );
@@ -140,11 +148,13 @@ export function flattenNativeConceptTermsToPairs(input: {
             pairs.push(
               buildPairRow({
                 id: preferredRow.id,
+                conceptId: concept.conceptId,
                 glossaryId: concept.glossaryId,
                 glossaryName: concept.glossaryName,
                 sourceTerm,
                 targetTerm: preferred.text,
                 targetLocale,
+                status: preferredRow.status,
                 forbidden: targetStatus.forbidden,
               }),
             );
@@ -161,11 +171,13 @@ export function flattenNativeConceptTermsToPairs(input: {
           pairs.push(
             buildPairRow({
               id: targetRow.id,
+              conceptId: concept.conceptId,
               glossaryId: concept.glossaryId,
               glossaryName: concept.glossaryName,
               sourceTerm,
               targetTerm: targetRow.term,
               targetLocale,
+              status: targetRow.status,
               forbidden: true,
             }),
           );

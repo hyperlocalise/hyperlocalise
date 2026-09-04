@@ -93,6 +93,10 @@ import {
   loadMcpListTranslations,
   mcpListTranslationsQueueFilters,
 } from "@/api/routes/mcp/mcp-list-translations";
+import { glossaryIdParamsSchema } from "@/api/routes/glossary/glossary.schema";
+import type { ApiAuthContext } from "@/api/auth/workos";
+import { queryGlossaryTerms, type QueryGlossaryHit } from "@/lib/tools/asset-tools";
+import type { ToolContext } from "@/lib/tools/types";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -633,6 +637,59 @@ const mcpListJobsInputSchema = z.object({
     .default(0)
     .describe("Number of jobs to skip before returning results."),
 });
+
+const MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH = 500;
+
+const mcpQueryGlossaryInputSchema = z.object({
+  sourceText: z.string().describe("Source string to look up in accessible glossaries."),
+  sourceLocale: z.string().min(1).max(50).describe("BCP-47 source locale tag."),
+  targetLocale: z.string().min(1).max(50).describe("BCP-47 target locale tag."),
+  projectId: projectIdSchema
+    .optional()
+    .describe("Optional project ID. When set, search only glossaries linked to that project."),
+  glossaryId: glossaryIdParamsSchema.shape.glossaryId
+    .optional()
+    .describe("Optional glossary ID. Inaccessible glossaries return glossary_not_found."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(20)
+    .default(10)
+    .describe("Maximum number of ranked hits to return."),
+});
+
+function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
+  return {
+    conversationId: "mcp",
+    organizationId: apiAuth.organization.localOrganizationId,
+    localUserId: apiAuth.user.localUserId,
+    membershipRole: apiAuth.membership.role,
+    projectId: null,
+    db,
+  };
+}
+
+function truncateMcpGlossaryDescription(description: string) {
+  if (description.length <= MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH) {
+    return description;
+  }
+
+  return description.slice(0, MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH);
+}
+
+function compactMcpGlossaryHit(hit: QueryGlossaryHit) {
+  return {
+    glossaryId: hit.glossaryId,
+    conceptId: hit.conceptId,
+    sourceTerm: hit.sourceTerm,
+    targetTerm: hit.targetTerm,
+    forbidden: hit.forbidden,
+    status: hit.status,
+    partOfSpeech: hit.partOfSpeech,
+    description: truncateMcpGlossaryDescription(hit.description),
+  };
+}
 
 const mcpGetJobInputSchema = z.object({
   jobId: jobIdParamsSchema.shape.jobId.describe(
@@ -1513,6 +1570,42 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ entries }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "query_glossary",
+    {
+      description:
+        "Search concept-linked glossary terms for a source string and locale pair. Prefer this over get_glossary_entries when you need a hit while translating. Forbidden terms are marked so agents can avoid them.",
+      inputSchema: mcpQueryGlossaryInputSchema,
+    },
+    async ({ sourceText, sourceLocale, targetLocale, projectId, glossaryId, limit }) => {
+      if (glossaryId) {
+        const glossary = await canAccessGlossary(apiAuth, glossaryId);
+
+        if (!glossary) {
+          return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+        }
+      }
+
+      const result = await queryGlossaryTerms(mcpToolContext(apiAuth), {
+        sourceText,
+        sourceLocale,
+        targetLocale,
+        projectId,
+        glossaryId,
+        limit,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ terms: result.terms.map(compactMcpGlossaryHit) }),
+          },
+        ],
       };
     },
   );

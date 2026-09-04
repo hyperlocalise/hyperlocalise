@@ -70,15 +70,19 @@ describe("flattenNativeConceptTermsToPairs", () => {
 
     expect(pairs).toEqual([
       expect.objectContaining({
+        conceptId: "concept-1",
         sourceTerm: "checkout",
         targetTerm: "paiement",
         targetLocale: "fr",
+        status: "preferred",
         forbidden: false,
       }),
       expect.objectContaining({
+        conceptId: "concept-1",
         sourceTerm: "checkout",
         targetTerm: "caisse",
         targetLocale: "fr",
+        status: "not_recommended",
         forbidden: true,
       }),
     ]);

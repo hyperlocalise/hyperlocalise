@@ -51,6 +51,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `get_project_status` | Locale coverage counts by `projectId`, with optional `sourcePath` |
 | `list_glossaries` | List glossaries linked to accessible projects |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100) |
+| `query_glossary` | Ranked concept-linked hits for a source string and locale pair |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -75,6 +76,12 @@ When you pass `sourcePath`, the tool still returns project-wide locale totals an
 For TMS-backed projects the tool still returns native overlay counts (`coverageSource: "native_overlay"`). It does not fetch live provider statistics. Use the provider CAT or CLI for Crowdin, Phrase, Lokalise, or Smartling progress.
 
 Inaccessible projects return `project_not_found`.
+
+`query_glossary` looks up a source string instead of paging a whole glossary. Pass `sourceText`, `sourceLocale`, and `targetLocale`. Optional `projectId` limits the search to glossaries linked to that project. Optional `glossaryId` searches one glossary. `limit` defaults to 10 and maxes at 20.
+
+Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, and a description truncated to 500 characters. Use `forbidden` to avoid rejected terms.
+
+Native pairs come from concept-linked terms. Leftover `source_term` / `target_term` rows are ignored. Provider glossaries stay read-only; an inaccessible or provider `glossaryId` returns `glossary_not_found`. An inaccessible `projectId` returns `{ "terms": [] }`.
 
 ### Board (issues)
 
@@ -152,6 +159,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `invalid_comment_cursor` | Stale or malformed `cursor` on `list_issue_comments` |
 | `job_not_found` | Wrong `jobId`, missing project access, or a job from another organization |
 | `project_not_found` | Wrong `projectId` or missing project access on `list_files`, `list_translations`, `get_project_status`, or `list_jobs` |
+| `glossary_not_found` | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next
