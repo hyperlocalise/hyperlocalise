@@ -38,7 +38,6 @@ const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target
   glossary_deleted: "glossary",
   glossary_imported: "glossary",
   glossary_exported: "glossary",
-  glossary_ownership_changed: "glossary",
   glossary_project_attached: "project",
   glossary_project_detached: "project",
   translation_memory_created: "translation_memory",
@@ -61,6 +60,11 @@ const allCategoryActivityLogs: ActivityLogItem[] = V1_ACTIVITY_EVENT_TYPES.map(
     createdAt: new Date(storyNow - (index + 1) * 60 * 60 * 1000).toISOString(),
     eventType,
     id: `activity_${eventType}`,
+    payload: eventType.includes("integration")
+      ? { integrationKind: "GitHub" }
+      : eventType.includes("token")
+        ? { keyPrefix: "hl_prod" }
+        : {},
     target: {
       displayName:
         eventType === "workspace_updated"
@@ -71,11 +75,9 @@ const allCategoryActivityLogs: ActivityLogItem[] = V1_ACTIVITY_EVENT_TYPES.map(
               ? "Product terminology"
               : eventType.includes("translation_memory")
                 ? "Approved translations"
-                : eventType.includes("integration")
-                  ? "GitHub"
-                  : eventType.includes("token")
-                    ? "Production access"
-                    : "Alex Johnson",
+                : eventType.includes("integration") || eventType.includes("token")
+                  ? null
+                  : "Alex Johnson",
       href: "/settings",
       kind: targetKindByEventType[eventType],
     },
@@ -106,6 +108,6 @@ export const AllEventCategories: Story = {
     await expect(canvas.getByText(/created a project/)).toBeInTheDocument();
     await expect(canvas.getByText(/created a glossary/)).toBeInTheDocument();
     await expect(canvas.getByText(/created translation memory/)).toBeInTheDocument();
-    await expect(canvas.getAllByRole("listitem")).toHaveLength(26);
+    await expect(canvas.getAllByRole("listitem")).toHaveLength(25);
   },
 };

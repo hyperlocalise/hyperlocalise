@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -45,6 +45,7 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
   const intl = useIntl();
   const [eventTypes, setEventTypes] = useState<V1ActivityEventType[]>([]);
   const [actor, setActor] = useState("");
+  const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
   const [range, setRange] = useState<"24h" | "7d" | "30d" | "all">("all");
   const [now] = useState(() => Date.now());
 
@@ -75,13 +76,35 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     [activityQuery.data?.pages],
   );
 
+  useEffect(() => {
+    const discoveredActors = activityLogs.filter(
+      (item) => item.actor.userId && item.actor.displayName,
+    );
+    if (!discoveredActors.length) return;
+
+    setActorLabels((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const item of discoveredActors) {
+        const value = `user:${item.actor.userId}`;
+        if (next[value] === item.actor.displayName) continue;
+        next[value] = item.actor.displayName;
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [activityLogs]);
+
   const actorOptions = useMemo(() => {
-    const options = new Map<string, string>();
+    const options = new Map(Object.entries(actorLabels));
     for (const item of activityLogs) {
       if (item.actor.userId) options.set(`user:${item.actor.userId}`, item.actor.displayName);
     }
+    if (actor.startsWith("user:") && !options.has(actor)) {
+      options.set(actor, intl.formatMessage(messages.selectedActor));
+    }
     return [...options.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [activityLogs]);
+  }, [activityLogs, actor, actorLabels, intl]);
 
   const clearFilters = () => {
     setEventTypes([]);

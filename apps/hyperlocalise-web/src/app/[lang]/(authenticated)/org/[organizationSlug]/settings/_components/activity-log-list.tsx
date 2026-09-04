@@ -38,6 +38,7 @@ export type ActivityLogItem = {
   createdAt: string;
   eventType: V1ActivityEventType;
   id: string;
+  payload: Record<string, unknown>;
   target: { displayName: string | null; href: string | null; kind: string };
 };
 
@@ -59,7 +60,6 @@ const eventActions = {
   glossary_deleted: messages.glossaryDeletedAction,
   glossary_imported: messages.glossaryImportedAction,
   glossary_exported: messages.glossaryExportedAction,
-  glossary_ownership_changed: messages.glossaryOwnershipChangedAction,
   glossary_project_attached: messages.glossaryProjectAttachedAction,
   glossary_project_detached: messages.glossaryProjectDetachedAction,
   translation_memory_created: messages.translationMemoryCreatedAction,
@@ -111,6 +111,24 @@ function relativeTime(
   return { value: Math.round(hours / 24), unit: "day" };
 }
 
+function targetDisplayName(item: ActivityLogItem): string | null {
+  if (item.target.displayName) return item.target.displayName;
+  if (
+    (item.eventType === "integration_connected" || item.eventType === "integration_disconnected") &&
+    typeof item.payload.integrationKind === "string"
+  ) {
+    return item.payload.integrationKind;
+  }
+  if (
+    (item.eventType === "personal_access_token_created" ||
+      item.eventType === "personal_access_token_revoked") &&
+    typeof item.payload.keyPrefix === "string"
+  ) {
+    return item.payload.keyPrefix;
+  }
+  return null;
+}
+
 export function ActivityLogList({
   activityLogs,
   now = Date.now(),
@@ -125,7 +143,8 @@ export function ActivityLogList({
       <CardContent className="p-0">
         <ol className="divide-y divide-border">
           {activityLogs.map((item) => {
-            const target = item.target.displayName ? ` · ${item.target.displayName}` : "";
+            const displayName = targetDisplayName(item);
+            const target = displayName ? ` · ${displayName}` : "";
             const relative = relativeTime(item.createdAt, now);
             const visual = activityVisual(item.eventType);
             return (
@@ -151,12 +170,12 @@ export function ActivityLogList({
                     <Badge variant="outline">{item.actor.kind}</Badge>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    {item.target.href && item.target.displayName ? (
+                    {item.target.href && displayName ? (
                       <Link
                         className="underline underline-offset-2 hover:text-foreground"
                         href={item.target.href}
                       >
-                        {item.target.displayName}
+                        {displayName}
                       </Link>
                     ) : null}
                     <span title={new Date(item.createdAt).toLocaleString()}>

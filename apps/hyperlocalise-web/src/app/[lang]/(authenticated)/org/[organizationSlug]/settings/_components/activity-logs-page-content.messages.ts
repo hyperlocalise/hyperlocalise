@@ -125,6 +125,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "wA5BTp/Pxl",
     description: "Option for showing activity from every actor",
   },
+  selectedActor: {
+    defaultMessage: "Selected user",
+    id: "8wYoCh75Yk",
+    description: "Fallback label for a selected user absent from the current activity page",
+  },
   systemActor: {
     defaultMessage: "System",
     id: "hG2aICUYGv",
@@ -299,11 +304,6 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "exported a glossary",
     id: "mYvtIxq6nm",
     description: "Action for a glossary export activity",
-  },
-  glossaryOwnershipChangedAction: {
-    defaultMessage: "changed glossary ownership",
-    id: "N84k8CXWM3",
-    description: "Action for a glossary ownership activity",
   },
   glossaryProjectAttachedAction: {
     defaultMessage: "attached a glossary to a project",

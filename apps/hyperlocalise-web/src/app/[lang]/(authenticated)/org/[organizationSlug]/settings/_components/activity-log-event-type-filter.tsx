@@ -94,7 +94,6 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "glossary_deleted",
       "glossary_imported",
       "glossary_exported",
-      "glossary_ownership_changed",
       "glossary_project_attached",
       "glossary_project_detached",
     ],

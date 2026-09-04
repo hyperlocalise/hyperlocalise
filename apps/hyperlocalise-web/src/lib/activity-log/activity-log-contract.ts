@@ -45,7 +45,6 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "glossary_deleted",
   "glossary_imported",
   "glossary_exported",
-  "glossary_ownership_changed",
   "glossary_project_attached",
   "glossary_project_detached",
   "translation_memory_created",
@@ -162,13 +161,6 @@ export type ActivityPayloadByEventType = {
   glossary_deleted: SafeResourcePayload;
   glossary_imported: ImportExportPayload;
   glossary_exported: ImportExportPayload;
-  glossary_ownership_changed: {
-    glossaryId: string;
-    nextControlLevel: string;
-    nextTeamId?: string | null;
-    previousControlLevel: string;
-    previousTeamId?: string | null;
-  };
   glossary_project_attached: AttachmentPayload;
   glossary_project_detached: AttachmentPayload;
   translation_memory_created: SafeResourcePayload;
@@ -197,7 +189,6 @@ export type ActivityTargetKindByEventType = {
   glossary_deleted: "glossary";
   glossary_imported: "glossary";
   glossary_exported: "glossary";
-  glossary_ownership_changed: "glossary";
   glossary_project_attached: "project";
   glossary_project_detached: "project";
   translation_memory_created: "translation_memory";

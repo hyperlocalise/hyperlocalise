@@ -44,6 +44,7 @@ describe("activity log contract", () => {
   it("keeps the v1 catalog separate from reserved and later events", () => {
     expect(V1_ACTIVITY_EVENT_TYPES).toContain("personal_access_token_created");
     expect(V1_ACTIVITY_EVENT_TYPES).toContain("glossary_project_attached");
+    expect(V1_ACTIVITY_EVENT_TYPES).not.toContain("glossary_ownership_changed");
     expect(V1_ACTIVITY_EVENT_TYPES).not.toContain("organization_api_key_created");
     expect(RESERVED_ACTIVITY_EVENT_TYPES).toEqual([
       "organization_api_key_created",

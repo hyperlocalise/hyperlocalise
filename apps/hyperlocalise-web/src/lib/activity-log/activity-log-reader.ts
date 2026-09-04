@@ -13,6 +13,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { z } from "zod";
 
 import { and, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
@@ -105,7 +106,7 @@ function decodeCursor(cursor: string, fingerprint: string): { createdAt: Date; i
       !createdAt ||
       Number.isNaN(createdAt.getTime()) ||
       typeof decoded.id !== "string" ||
-      !decoded.id ||
+      !z.string().uuid().safeParse(decoded.id).success ||
       decoded.filterFingerprint !== fingerprint
     ) {
       throw new InvalidActivityLogCursorError();
