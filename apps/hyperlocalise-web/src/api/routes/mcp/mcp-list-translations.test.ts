@@ -418,9 +418,9 @@ describe("MCP list_translations", () => {
     );
     expect(scoped.output.total).toBe(2);
     expect(scoped.output.translations?.map((row) => row.key)).toEqual(["cta", "hero"]);
-    expect(scoped.output.translations?.every((row) => row.sourcePath === "locales/marketing.json")).toBe(
-      true,
-    );
+    expect(
+      scoped.output.translations?.every((row) => row.sourcePath === "locales/marketing.json"),
+    ).toBe(true);
 
     const firstPage = await readToolResult(
       await callMcpTool(headers, {
@@ -596,7 +596,10 @@ describe("MCP list_translations", () => {
 
   it("lets a read-only member list keys", async () => {
     const stored = await fixture.createStoredProjectFixture();
-    const member = fixture.createWorkosIdentityForOrganization(stored.identity.organization, "member");
+    const member = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "member",
+    );
 
     if (!stored.project.teamId) {
       throw new Error("expected project team");

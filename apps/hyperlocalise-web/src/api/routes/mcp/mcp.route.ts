@@ -435,9 +435,7 @@ const mcpListTranslationsInputSchema = z.object({
     .min(1)
     .max(32)
     .optional()
-    .describe(
-      "Optional target locale. When omitted, returns one row per project target locale.",
-    ),
+    .describe("Optional target locale. When omitted, returns one row per project target locale."),
   search: z
     .string()
     .trim()
