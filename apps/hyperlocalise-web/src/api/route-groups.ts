@@ -68,6 +68,7 @@ import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createHyperlabRoutes } from "./routes/hyperlab/hyperlab.route";
 import { createActivityLogRoutes } from "./routes/activity-log/activity-log.route";
+import { createOverviewRoutes } from "./routes/overview/overview.route";
 
 export type OrgScopedRouteOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -187,7 +188,8 @@ export function createOrgWorkspaceRoutes() {
     .route("/billing", createBillingRoutes())
     .route("/api-keys", createApiKeyRoutes())
     .route("/activity-logs", createActivityLogRoutes())
-    .route("/hyperlab", createHyperlabRoutes());
+    .route("/hyperlab", createHyperlabRoutes())
+    .route("/overview", createOverviewRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {

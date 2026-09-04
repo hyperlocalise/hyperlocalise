@@ -124,9 +124,11 @@ function ClientNextStep({ client }: { client: McpAgentClient }) {
 export function OverviewConnectAgentCard({
   mcpUrl: mcpUrlProp,
   className,
+  compact = false,
 }: {
   mcpUrl?: string;
   className?: string;
+  compact?: boolean;
 }) {
   const intl = useIntl();
   const origin = useBrowserOrigin();
@@ -138,8 +140,14 @@ export function OverviewConnectAgentCard({
   );
 
   return (
-    <Card className={cn("rounded-2xl border border-border bg-card py-0 ring-0", className)}>
-      <CardContent className="flex flex-col gap-4 px-6 py-6">
+    <Card
+      className={cn(
+        "border border-border bg-card py-0 ring-0",
+        compact ? "rounded-xl" : "rounded-2xl",
+        className,
+      )}
+    >
+      <CardContent className={cn("flex flex-col", compact ? "gap-3 px-4 py-4" : "gap-4 px-6 py-6")}>
         <Tabs
           onValueChange={(value) => {
             if (isMcpAgentClient(value)) {
@@ -149,7 +157,12 @@ export function OverviewConnectAgentCard({
           value={client}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-heading text-xl font-medium text-balance text-foreground">
+            <h2
+              className={cn(
+                "text-balance text-foreground",
+                compact ? "text-sm leading-5 font-semibold" : "font-heading text-xl font-medium",
+              )}
+            >
               <FormattedMessage {...messages.title} />
             </h2>
             <TabsList className="h-8 self-start rounded-full p-0.5 sm:self-auto">
@@ -167,20 +180,22 @@ export function OverviewConnectAgentCard({
           </div>
         </Tabs>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.description} />
-          </TypographyP>
-          <a
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            href={mcpClientSetupGuideUrls[client]}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <FormattedMessage {...messages.setupGuide} />
-            <HugeiconsIcon className="size-3.5" icon={LinkSquare02Icon} strokeWidth={1.8} />
-          </a>
-        </div>
+        {compact ? null : (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+              <FormattedMessage {...messages.description} />
+            </TypographyP>
+            <a
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+              href={mcpClientSetupGuideUrls[client]}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <FormattedMessage {...messages.setupGuide} />
+              <HugeiconsIcon className="size-3.5" icon={LinkSquare02Icon} strokeWidth={1.8} />
+            </a>
+          </div>
+        )}
 
         <Snippet className={cn(client === "cursor" && "h-auto items-start")} code={snippet}>
           {mcpAgentSnippetUsesShellPrompt(client) ? <SnippetText>$</SnippetText> : null}
@@ -206,9 +221,11 @@ export function OverviewConnectAgentCard({
           </SnippetAddon>
         </Snippet>
 
-        <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-          <ClientNextStep client={client} />
-        </TypographyP>
+        {compact ? null : (
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+            <ClientNextStep client={client} />
+          </TypographyP>
+        )}
       </CardContent>
     </Card>
   );

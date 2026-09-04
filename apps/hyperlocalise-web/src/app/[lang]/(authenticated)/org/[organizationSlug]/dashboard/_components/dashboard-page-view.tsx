@@ -14,75 +14,68 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import {
-  AlertCircleIcon,
-  ArrowRight01Icon,
-  Chat01Icon,
-  CheckmarkCircle02Icon,
-  DashboardSquare01Icon,
-  CubeIcon,
-  SlackIcon,
-  TaskDone01Icon,
-  TranslationIcon,
-} from "@hugeicons/core-free-icons";
+import { Chat01Icon, DashboardSquare01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
-import { siGithub } from "simple-icons";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import type {
+  OverviewActivityItem,
+  OverviewAutomationItem,
+  OverviewBoardItem,
+  OverviewJobKind,
+  OverviewProjectItem,
+  OverviewResolvedTitle,
+  WorkspaceOverviewSnapshot,
+} from "@/lib/workspace/overview-snapshot-model";
 
 import { OverviewConnectAgentCard } from "../../_components/overview/overview-connect-agent-card";
-import { OverviewHeroCard } from "../../_components/overview/overview-hero-card";
-import { OverviewSectionHeader } from "../../_components/overview/overview-section-header";
-import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
+import { IssuePriorityIcon } from "../../_components/issue-detail/issue-priority-icon";
 import {
-  PageHeader,
-  WorkspacePageShell,
-  toneClass,
-} from "../../_components/workspace-resource-shared";
-import { formatJobStatusLabel, jobTone } from "../../jobs/_components/jobs-page-view";
-import { formatPendingActionCount } from "../../_components/overview/overview-attention";
-import { SimpleBrandIcon } from "../../integrations/_components/simple-brand-icon";
+  formatCompactRelativeTimestamp,
+  formatRelativeTimestamp,
+  providerLabel,
+} from "../../_components/workspace-files-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { jobsPageViewMessages } from "../../jobs/_components/jobs-page-view.messages";
+import { PROJECT_OVERVIEW_CALM_MESH_SRC } from "../../projects/[projectId]/_components/project-overview-mesh-stage";
 import { recordRecentProjectVisit } from "../../projects/_components/recent-projects";
-import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
-
-import type {
-  DashboardAutomationRunItem,
-  DashboardHeroState,
-  DashboardIntegrationItem,
-  DashboardJobItem,
-  DashboardProjectItem,
-} from "./dashboard-page-view-model";
 import { dashboardPageViewMessages } from "./dashboard-page-view.messages";
 
-type AutomationRunStatus = DashboardAutomationRunItem["status"];
-type AutomationRunBadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
-type AutomationRunTriggerSource = DashboardAutomationRunItem["triggerSource"];
-
-const AUTOMATION_RUN_BADGE_VARIANTS: Record<AutomationRunStatus, AutomationRunBadgeVariant> = {
-  queued: "warning",
-  running: "warning",
-  succeeded: "success",
-  failed: "destructive",
-  cancelled: "warning",
-  skipped: "warning",
-};
-
-const AUTOMATION_RUN_STATUS_MESSAGES = {
-  queued: dashboardPageViewMessages.runStatusQueued,
-  running: dashboardPageViewMessages.runStatusRunning,
-  succeeded: dashboardPageViewMessages.runStatusSucceeded,
-  failed: dashboardPageViewMessages.runStatusFailed,
-  cancelled: dashboardPageViewMessages.runStatusCancelled,
-  skipped: dashboardPageViewMessages.runStatusSkipped,
+const JOB_KIND_MESSAGES = {
+  translation: jobsPageViewMessages.kindTranslation,
+  research: jobsPageViewMessages.kindResearch,
+  review: jobsPageViewMessages.kindReview,
+  proofread: jobsPageViewMessages.kindProofread,
+  sync: jobsPageViewMessages.kindSync,
+  asset_management: jobsPageViewMessages.kindAssetManagement,
 } as const;
+
+const SPARKLINE_MIN_HEIGHT_PX = 10;
+const SPARKLINE_MAX_HEIGHT_PX = 40;
+const SPARKLINE_BAR_CLASSES = [
+  "bg-dew-100",
+  "bg-dew-500",
+  "bg-dew-500",
+  "bg-primary",
+  "bg-dew-700",
+  "bg-dew-100",
+  "bg-dew-700",
+] as const;
+
+const STATUS_PILL_CLASSES: Record<string, string> = {
+  succeeded: "bg-green-100 text-green-900",
+  failed: "bg-red-100 text-red-900",
+  running: "bg-blue-100 text-dew-900",
+  queued: "bg-amber-100 text-amber-900",
+  waiting_for_review: "bg-amber-100 text-amber-900",
+  cancelled: "bg-amber-100 text-amber-900",
+  skipped: "bg-amber-100 text-amber-900",
+};
 
 const AUTOMATION_TRIGGER_SOURCE_MESSAGES = {
   manual: dashboardPageViewMessages.triggerManual,
@@ -113,770 +106,322 @@ function defaultRenderLink({
   );
 }
 
-function formatAutomationRunStatus(status: AutomationRunStatus, intl: IntlShape) {
-  return intl.formatMessage(AUTOMATION_RUN_STATUS_MESSAGES[status]);
+function formatStatusLabel(status: string, intl: IntlShape) {
+  switch (status) {
+    case "queued":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusQueued);
+    case "running":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusRunning);
+    case "succeeded":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusSucceeded);
+    case "failed":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusFailed);
+    case "cancelled":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusCancelled);
+    case "skipped":
+      return intl.formatMessage(dashboardPageViewMessages.runStatusSkipped);
+    case "waiting_for_review":
+      return intl.formatMessage(dashboardPageViewMessages.jobStatusWaiting);
+    default:
+      return status.replaceAll("_", " ");
+  }
 }
 
-function formatAutomationTriggerSource(triggerSource: AutomationRunTriggerSource, intl: IntlShape) {
-  return intl.formatMessage(AUTOMATION_TRIGGER_SOURCE_MESSAGES[triggerSource]);
+function formatTriggerSource(triggerSource: string, intl: IntlShape) {
+  const message =
+    AUTOMATION_TRIGGER_SOURCE_MESSAGES[
+      triggerSource as keyof typeof AUTOMATION_TRIGGER_SOURCE_MESSAGES
+    ];
+  return message ? intl.formatMessage(message) : triggerSource.replaceAll("_", " ");
 }
 
-function DashboardPanel({
-  title,
-  description,
-  icon,
-  footerHref,
-  footerLabel,
-  isLoading,
-  isError,
-  errorMessage,
-  warningMessage,
-  emptyMessage,
-  isEmpty = false,
-  children,
-  renderLink = defaultRenderLink,
-}: {
-  title: string;
-  description: string;
-  icon: typeof TaskDone01Icon;
-  footerHref: string;
-  footerLabel: string;
-  isLoading?: boolean;
-  isError?: boolean;
-  errorMessage?: string;
-  warningMessage?: string;
-  emptyMessage?: string;
-  isEmpty?: boolean;
-  children: ReactNode;
-  renderLink?: DashboardLinkRenderer;
-}) {
-  const intl = useIntl();
+function formatOverviewTitle(title: OverviewResolvedTitle, intl: IntlShape) {
+  switch (title.kind) {
+    case "text":
+      return title.text;
+    case "review":
+      return intl.formatMessage(jobsPageViewMessages.reviewJobName, { criteria: title.criteria });
+    case "sync":
+      return intl.formatMessage(jobsPageViewMessages.syncJobName, {
+        direction:
+          title.direction ?? intl.formatMessage(jobsPageViewMessages.syncDirectionFallback),
+        connector: title.connectorKind,
+      });
+    case "id":
+      return title.id;
+  }
+}
+
+function formatOverviewJobKind(
+  jobKind: OverviewJobKind | null,
+  jobType: string | null,
+  intl: IntlShape,
+) {
+  if (!jobKind) {
+    return null;
+  }
+
+  if (jobKind === "translation" && jobType) {
+    return intl.formatMessage(jobsPageViewMessages.kindTranslationWithType, { type: jobType });
+  }
+
+  return intl.formatMessage(JOB_KIND_MESSAGES[jobKind]);
+}
+
+function formatOverviewActivitySubtitle(item: OverviewActivityItem, intl: IntlShape) {
+  if (item.kind === "automation") {
+    return intl.formatMessage(dashboardPageViewMessages.automationActivityKind);
+  }
+
+  const projectName =
+    item.projectName ?? intl.formatMessage(dashboardPageViewMessages.workspaceFallbackProject);
+  const jobKindLabel = formatOverviewJobKind(item.jobKind, item.jobType, intl);
+  return [projectName, jobKindLabel].filter(Boolean).join(" · ");
+}
+
+function formatOverviewProjectSubtitle(project: OverviewProjectItem, intl: IntlShape) {
+  const sourceLabel =
+    project.providerKind != null
+      ? providerLabel(project.providerKind)
+      : project.source === "native"
+        ? intl.formatMessage(dashboardPageViewMessages.nativeProjectSource)
+        : null;
+
+  return [project.domain, sourceLabel].filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+function Sparkline({ series }: { series: readonly number[] }) {
+  const peak = Math.max(...series, 1);
 
   return (
-    <Card className="rounded-lg border border-border bg-card py-0 text-foreground ring-0">
-      <CardHeader className="border-b border-border px-5 pt-5 pb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg text-foreground">{title}</CardTitle>
-            <CardDescription className="mt-1">{description}</CardDescription>
-          </div>
-          <HugeiconsIcon
-            icon={icon}
-            strokeWidth={1.8}
-            className="mt-1 size-5 text-muted-foreground"
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
-        {isLoading ? (
-          <div
-            className="flex flex-col divide-y divide-border"
-            aria-busy="true"
-            aria-label={intl.formatMessage(dashboardPageViewMessages.loadingPanel, {
-              title: title.toLowerCase(),
-            })}
-          >
-            {Array.from({ length: 3 }).map((_, index) => (
-              <DashboardPanelCardSkeleton key={index} />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="flex items-start gap-3 px-5 py-4">
-            <div className="flex flex-1 items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
-              <HugeiconsIcon
-                icon={AlertCircleIcon}
-                strokeWidth={1.8}
-                className="mt-0.5 size-5 text-flame-100"
-              />
-              <TypographyP size="small" tone="subtle">
-                {errorMessage ??
-                  intl.formatMessage(dashboardPageViewMessages.panelLoadError, { title })}
-              </TypographyP>
-            </div>
-          </div>
-        ) : (
-          <>
-            {isEmpty && emptyMessage ? (
-              <TypographyP className="px-5 py-4" size="small" tone="subtle">
-                {emptyMessage}
-              </TypographyP>
-            ) : (
-              <div className="flex flex-col divide-y divide-border">{children}</div>
-            )}
-            {warningMessage ? (
-              <div className="border-t border-border px-5 py-3">
-                <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-3">
-                  <HugeiconsIcon
-                    icon={AlertCircleIcon}
-                    strokeWidth={1.8}
-                    className="mt-0.5 size-4 text-warning"
-                  />
-                  <TypographyP className="text-warning-foreground" size="small">
-                    {warningMessage}
-                  </TypographyP>
-                </div>
-              </div>
-            ) : null}
-          </>
-        )}
-
-        {renderLink({
-          href: footerHref,
-          className:
-            "flex items-center gap-2 border-t border-border px-5 py-4 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-          children: (
-            <>
-              <span>{footerLabel}</span>
-              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
-            </>
-          ),
-        })}
-      </CardContent>
-    </Card>
-  );
-}
-
-function DashboardSetupHero({
-  hero,
-  onNewRequest,
-  renderLink = defaultRenderLink,
-}: {
-  hero: Extract<DashboardHeroState, { mode: "setup" }>;
-  onNewRequest: () => void;
-  renderLink?: DashboardLinkRenderer;
-}) {
-  const progressValue = Math.round((hero.completedCount / hero.totalCount) * 100);
-
-  return (
-    <Card className="rounded-2xl border border-border bg-gradient-to-br from-amber-100 via-muted to-muted py-0 text-foreground ring-0 lg:col-span-2">
-      <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] lg:items-end">
-          <div>
-            <TypographyP size="small" weight="medium" tone="subtlest">
-              <FormattedMessage
-                {...dashboardPageViewMessages.setupProgressLabel}
-                values={{
-                  completedCount: hero.completedCount,
-                  totalCount: hero.totalCount,
-                }}
-              />
-            </TypographyP>
-            <TypographyP
-              className="mt-2 font-heading"
-              size="xxlarge"
-              weight="medium"
-              tone="content"
-            >
-              {hero.title}
-            </TypographyP>
-            <TypographyP className="mt-2 max-w-xl leading-6" size="small" tone="subtle">
-              {hero.description}
-            </TypographyP>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {renderLink({
-                href: hero.ctaHref,
-                children: (
-                  <Button className="rounded-full">
-                    {hero.ctaLabel}
-                    <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
-                  </Button>
-                ),
-              })}
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={onNewRequest}
-              >
-                <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                <FormattedMessage {...dashboardPageViewMessages.newRequest} />
-              </Button>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                <FormattedMessage {...dashboardPageViewMessages.setupProgressMeter} />
-              </span>
-              <span>
-                <FormattedMessage
-                  {...dashboardPageViewMessages.setupProgressPercent}
-                  values={{ value: progressValue }}
-                />
-              </span>
-            </div>
-            <Progress value={progressValue} className="h-2" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DashboardHeroSkeleton() {
-  const intl = useIntl();
-
-  return (
-    <>
-      <Card
-        className="rounded-2xl border border-border bg-card py-0 ring-0"
-        aria-busy="true"
-        aria-label={intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview)}
-      >
-        <CardContent className="flex h-full min-h-52 flex-col justify-between gap-6 px-6 py-6">
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-8 w-72 max-w-full" />
-            <Skeleton className="h-4 w-full max-w-xl" />
-            <Skeleton className="h-4 w-4/5 max-w-lg" />
-            <Skeleton className="mt-2 h-9 w-32 rounded-full" />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="rounded-2xl border border-border bg-muted py-0 ring-0" aria-hidden>
-        <CardContent className="flex h-full min-h-52 flex-col justify-between gap-4 px-6 py-6">
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-7 w-56 max-w-full" />
-            <Skeleton className="h-4 w-full max-w-sm" />
-            <Skeleton className="h-4 w-4/5 max-w-xs" />
-          </div>
-          <Skeleton className="h-9 w-32 rounded-full" />
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function DashboardPanelCardSkeleton() {
-  return (
-    <div className="px-5 py-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-5 w-16 rounded-full" />
-      </div>
-      <Skeleton className="mt-2 h-3 w-full max-w-xs" />
+    <div className="flex h-10 w-full shrink-0 items-end gap-[5px]" aria-hidden>
+      {series.map((value, index) => (
+        <div
+          key={index}
+          className={cn(
+            "grow rounded-[2px]",
+            SPARKLINE_BAR_CLASSES[index % SPARKLINE_BAR_CLASSES.length],
+          )}
+          style={{
+            height: `${SPARKLINE_MIN_HEIGHT_PX + (value / peak) * (SPARKLINE_MAX_HEIGHT_PX - SPARKLINE_MIN_HEIGHT_PX)}px`,
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function DashboardIntegrationMark({ item }: { item: DashboardIntegrationItem }) {
-  if (item.id === "github") {
-    return <SimpleBrandIcon icon={siGithub} colored={item.connected} />;
-  }
+function StatusPill({ status }: { status: string }) {
+  const intl = useIntl();
 
-  if (item.id === "slack") {
-    return <HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5" />;
-  }
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium capitalize",
+        STATUS_PILL_CLASSES[status] ?? "bg-muted text-muted-foreground",
+      )}
+    >
+      {formatStatusLabel(status, intl)}
+    </span>
+  );
+}
 
-  if (item.providerKind) {
-    const branding = getTmsProviderBranding(item.providerKind);
-    if (branding.icon) {
-      return <SimpleBrandIcon icon={branding.icon} colored={item.connected} />;
-    }
+function OverviewSectionHeader({
+  label,
+  href,
+  hrefLabel,
+  renderLink,
+}: {
+  label: string;
+  href: string;
+  hrefLabel: string;
+  renderLink: DashboardLinkRenderer;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[13px] leading-5 font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      {renderLink({
+        href,
+        className: "text-[13px] leading-5 font-medium text-foreground hover:underline",
+        children: hrefLabel,
+      })}
+    </div>
+  );
+}
 
+function OverviewFeed({
+  isLoading,
+  isError,
+  isEmpty,
+  emptyMessage,
+  errorMessage,
+  loadingLabel,
+  children,
+}: {
+  isLoading?: boolean;
+  isError?: boolean;
+  isEmpty?: boolean;
+  emptyMessage: string;
+  errorMessage: string;
+  loadingLabel: string;
+  children: ReactNode;
+}) {
+  if (isLoading) {
     return (
-      <Image src={branding.logo} alt="" width={24} height={24} className="size-6 object-contain" />
+      <div className="flex flex-col gap-3" aria-busy="true" aria-label={loadingLabel}>
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+      </div>
     );
   }
 
-  return <HugeiconsIcon icon={TranslationIcon} strokeWidth={1.8} className="size-5" />;
-}
-
-function DashboardIntegrationsSection({
-  integrations,
-  integrationsHref,
-  isLoading,
-  renderLink = defaultRenderLink,
-}: {
-  integrations: DashboardIntegrationItem[];
-  integrationsHref: string;
-  isLoading?: boolean;
-  renderLink?: DashboardLinkRenderer;
-}) {
-  const intl = useIntl();
-  const connectedCount = integrations.filter((item) => item.connected).length;
-
-  return (
-    <section className="flex flex-col gap-4">
-      <OverviewSectionHeader
-        title={intl.formatMessage(dashboardPageViewMessages.integrationsTitle)}
-        count={integrations.length - connectedCount}
-      />
-      <Card className="overflow-hidden rounded-lg border border-border bg-card py-0 ring-0">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div
-              className="flex flex-col divide-y divide-border"
-              aria-busy="true"
-              aria-label={intl.formatMessage(dashboardPageViewMessages.loadingIntegrations)}
-            >
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-4 px-5 py-4">
-                  <Skeleton className="size-10 shrink-0 rounded-lg" />
-                  <div className="flex flex-1 flex-col gap-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-64 max-w-full" />
-                  </div>
-                  <Skeleton className="h-5 w-20" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {integrations.map((item) => (
-                <div key={item.id}>
-                  {renderLink({
-                    href: integrationsHref,
-                    className:
-                      "group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:grid-cols-[auto_minmax(0,1fr)_auto]",
-                    children: (
-                      <>
-                        <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground group-hover:text-foreground">
-                          <DashboardIntegrationMark item={item} />
-                        </div>
-                        <div className="min-w-0">
-                          <TypographyP size="small" weight="medium" tone="content">
-                            {item.label}
-                          </TypographyP>
-                          <TypographyP className="mt-1" size="small" tone="subtlest">
-                            {item.description}
-                          </TypographyP>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-between gap-3 pl-14 sm:col-span-1 sm:pl-0">
-                          <Badge variant={item.connected ? "success" : "outline"}>
-                            {item.connected ? (
-                              <HugeiconsIcon
-                                icon={CheckmarkCircle02Icon}
-                                strokeWidth={2}
-                                data-icon="inline-start"
-                              />
-                            ) : null}
-                            {item.connected ? (
-                              <FormattedMessage {...dashboardPageViewMessages.connected} />
-                            ) : (
-                              <FormattedMessage {...dashboardPageViewMessages.notConnected} />
-                            )}
-                          </Badge>
-                          <span className="inline-flex items-center gap-1 text-sm font-medium text-foreground">
-                            {item.connected ? (
-                              <FormattedMessage {...dashboardPageViewMessages.manage} />
-                            ) : (
-                              <FormattedMessage {...dashboardPageViewMessages.connect} />
-                            )}
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-4"
-                            />
-                          </span>
-                        </div>
-                      </>
-                    ),
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
-
-function DashboardAutomationsSection({
-  organizationSlug,
-  stats,
-  runs,
-  isLoading,
-  isError,
-  renderLink = defaultRenderLink,
-}: {
-  organizationSlug: string;
-  stats: { total: number; active: number; paused: number };
-  runs: DashboardAutomationRunItem[];
-  isLoading?: boolean;
-  isError?: boolean;
-  renderLink?: DashboardLinkRenderer;
-}) {
-  const intl = useIntl();
-  const automationsHref = `/org/${organizationSlug}/automations`;
-
-  return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <OverviewSectionHeader
-          title={intl.formatMessage(dashboardPageViewMessages.automationRunsTitle)}
-        />
-        {renderLink({
-          href: automationsHref,
-          children: (
-            <Button variant="outline" size="sm" className="rounded-full">
-              <FormattedMessage {...dashboardPageViewMessages.viewAutomations} />
-              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
-            </Button>
-          ),
-        })}
+  if (isError || isEmpty) {
+    return (
+      <div className="rounded-xl border border-border px-4 py-5">
+        <TypographyP size="small" tone="subtle">
+          {isError ? errorMessage : emptyMessage}
+        </TypographyP>
       </div>
+    );
+  }
 
-      <Card className="overflow-hidden rounded-lg border border-border bg-card py-0 ring-0">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div
-              className="flex flex-col divide-y divide-border"
-              aria-busy="true"
-              aria-label={intl.formatMessage(dashboardPageViewMessages.loadingAutomationRuns)}
-            >
-              <div className="px-5 py-4">
-                <Skeleton className="h-4 w-48" />
-              </div>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <DashboardPanelCardSkeleton key={index} />
-              ))}
-            </div>
-          ) : isError ? (
-            <div className="flex items-start gap-3 px-5 py-4">
-              <div className="flex flex-1 items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
-                <HugeiconsIcon
-                  icon={AlertCircleIcon}
-                  strokeWidth={1.8}
-                  className="mt-0.5 size-5 text-flame-100"
-                />
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...dashboardPageViewMessages.automationRunsLoadError} />
-                </TypographyP>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col divide-y divide-border">
-              <TypographyP className="px-5 py-4" size="small" tone="subtle">
-                <FormattedMessage
-                  {...dashboardPageViewMessages.automationStats}
-                  values={{
-                    total: stats.total,
-                    active: stats.active,
-                    paused: stats.paused,
-                  }}
-                />
-              </TypographyP>
-              {runs.length === 0 ? (
-                <TypographyP className="px-5 py-4" size="small" tone="subtle">
-                  <FormattedMessage {...dashboardPageViewMessages.noAutomationRuns} />
-                </TypographyP>
-              ) : (
-                runs.map((run) => {
-                  const triggerSourceLabel = formatAutomationTriggerSource(run.triggerSource, intl);
-
-                  return (
-                    <div key={run.id}>
-                      {renderLink({
-                        href: run.href,
-                        className:
-                          "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                        children: (
-                          <>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <TypographyP
-                                className="min-w-0"
-                                lineClamp={1}
-                                size="small"
-                                weight="medium"
-                                tone="content"
-                              >
-                                {run.automationName}
-                              </TypographyP>
-                              <Badge
-                                variant={AUTOMATION_RUN_BADGE_VARIANTS[run.status]}
-                                className="rounded-full"
-                              >
-                                {formatAutomationRunStatus(run.status, intl)}
-                              </Badge>
-                            </div>
-                            <TypographyP className="mt-1" size="xsmall" tone="subtle">
-                              {run.completedAt
-                                ? intl.formatMessage(dashboardPageViewMessages.runCompleted, {
-                                    triggerSource: triggerSourceLabel,
-                                    completedAt: formatRelativeTimestamp(run.completedAt),
-                                  })
-                                : intl.formatMessage(dashboardPageViewMessages.runInProgress, {
-                                    triggerSource: triggerSourceLabel,
-                                  })}
-                            </TypographyP>
-                          </>
-                        ),
-                      })}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
-  );
+  return <div className="flex flex-col gap-3">{children}</div>;
 }
 
-function DashboardJobsPanel({
-  title,
-  description,
-  jobs,
-  footerHref,
-  isLoading,
-  isError,
-  warningMessage,
-  emptyMessage,
-  renderLink,
+function OverviewMetricCard({
+  label,
+  value,
+  detail,
+  series,
 }: {
-  title: string;
-  description: string;
-  jobs: DashboardJobItem[];
-  footerHref: string;
-  isLoading: boolean;
-  isError: boolean;
-  warningMessage?: string;
-  emptyMessage: string;
-  renderLink: DashboardLinkRenderer;
+  label: string;
+  value: number;
+  detail: string;
+  series?: readonly number[];
 }) {
   const intl = useIntl();
 
   return (
-    <DashboardPanel
-      title={title}
-      description={description}
-      icon={TaskDone01Icon}
-      footerHref={footerHref}
-      footerLabel={intl.formatMessage(dashboardPageViewMessages.viewAllJobs)}
-      isLoading={isLoading}
-      isError={isError}
-      warningMessage={warningMessage}
-      isEmpty={jobs.length === 0}
-      emptyMessage={emptyMessage}
-      renderLink={renderLink}
+    <div className="flex min-h-[148px] min-w-0 flex-1 basis-0 flex-col gap-4 rounded-xl border border-border bg-card px-4 pt-4 pb-[18px]">
+      <p className="text-[13px] leading-5 font-medium text-muted-foreground">{label}</p>
+      <div className="flex flex-col gap-1">
+        <p className="text-3xl/loose font-medium tracking-[-0.03em] text-foreground tabular-nums">
+          {intl.formatNumber(value)}
+        </p>
+        <p className="text-[13px] leading-5 text-muted-foreground">{detail}</p>
+      </div>
+      {series ? <Sparkline series={series} /> : null}
+    </div>
+  );
+}
+
+function OverviewMetricsTray({
+  overview,
+  automationsVisible,
+  isLoading,
+  loadingLabel,
+}: {
+  overview: WorkspaceOverviewSnapshot;
+  automationsVisible: boolean;
+  isLoading: boolean;
+  loadingLabel: string;
+}) {
+  const intl = useIntl();
+  const metricCount = automationsVisible ? 4 : 3;
+
+  return (
+    <section
+      className="relative overflow-clip rounded-3xl border border-border p-3"
+      aria-busy={isLoading || undefined}
+      aria-label={isLoading ? loadingLabel : undefined}
     >
-      {jobs.map((job) => {
-        const projectName =
-          job.projectName ?? intl.formatMessage(dashboardPageViewMessages.workspaceFallbackProject);
-        const content = (
+      <Image
+        src={PROJECT_OVERVIEW_CALM_MESH_SRC}
+        alt=""
+        aria-hidden
+        fill
+        sizes="(min-width: 1280px) 72rem, 100vw"
+        className="object-cover object-center"
+        priority
+      />
+      <div
+        className={cn(
+          "relative grid grid-cols-1 gap-3 sm:grid-cols-2",
+          automationsVisible ? "xl:grid-cols-4" : "xl:grid-cols-3",
+        )}
+      >
+        {isLoading ? (
+          Array.from({ length: metricCount }, (_, index) => (
+            <Skeleton key={index} className="min-h-[148px] rounded-xl" />
+          ))
+        ) : (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <TypographyP
-                className="min-w-0"
-                lineClamp={1}
-                size="small"
-                weight="medium"
-                tone="content"
-              >
-                {job.name}
-              </TypographyP>
-              <Badge
-                variant="outline"
-                className={cn("rounded-full capitalize", toneClass(jobTone(job.status)))}
-              >
-                {formatJobStatusLabel(job.status)}
-              </Badge>
-            </div>
-            <TypographyP className="mt-1" size="xsmall" tone="subtle">
-              {intl.formatMessage(dashboardPageViewMessages.jobMeta, {
-                projectName,
-                kindLabel: job.kindLabel,
-                updatedAt: formatRelativeTimestamp(job.updatedAt),
+            <OverviewMetricCard
+              label={intl.formatMessage(dashboardPageViewMessages.jobsMetric)}
+              value={overview.metrics.jobs.count}
+              detail={intl.formatMessage(dashboardPageViewMessages.lastSevenDays)}
+              series={overview.metrics.jobs.series}
+            />
+            <OverviewMetricCard
+              label={intl.formatMessage(dashboardPageViewMessages.translationsMetric)}
+              value={overview.metrics.translations.count}
+              detail={intl.formatMessage(dashboardPageViewMessages.lastSevenDays)}
+              series={overview.metrics.translations.series}
+            />
+            {automationsVisible && overview.metrics.automations ? (
+              <OverviewMetricCard
+                label={intl.formatMessage(dashboardPageViewMessages.automationsMetric)}
+                value={overview.metrics.automations.total}
+                detail={intl.formatMessage(dashboardPageViewMessages.pausedCount, {
+                  count: overview.metrics.automations.paused,
+                })}
+              />
+            ) : null}
+            <OverviewMetricCard
+              label={intl.formatMessage(dashboardPageViewMessages.issuesMetric)}
+              value={overview.metrics.issues.open}
+              detail={intl.formatMessage(dashboardPageViewMessages.p1Count, {
+                count: overview.metrics.issues.p1,
               })}
-            </TypographyP>
+            />
           </>
-        );
-
-        if (!job.href) {
-          return (
-            <div key={job.id} className="px-5 py-4">
-              {content}
-            </div>
-          );
-        }
-
-        return (
-          <div key={job.id}>
-            {renderLink({
-              href: job.href,
-              className:
-                "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-              children: content,
-            })}
-          </div>
-        );
-      })}
-    </DashboardPanel>
-  );
-}
-
-function DashboardProjectsPanel({
-  organizationSlug,
-  title,
-  description,
-  projects,
-  footerHref,
-  isLoading,
-  isError,
-  emptyMessage,
-  renderLink,
-}: {
-  organizationSlug: string;
-  title: string;
-  description: string;
-  projects: DashboardProjectItem[];
-  footerHref: string;
-  isLoading: boolean;
-  isError: boolean;
-  emptyMessage: string;
-  renderLink: DashboardLinkRenderer;
-}) {
-  const intl = useIntl();
-
-  return (
-    <DashboardPanel
-      title={title}
-      description={description}
-      icon={CubeIcon}
-      footerHref={footerHref}
-      footerLabel={intl.formatMessage(dashboardPageViewMessages.viewAllProjects)}
-      isLoading={isLoading}
-      isError={isError}
-      isEmpty={projects.length === 0}
-      emptyMessage={emptyMessage}
-      renderLink={renderLink}
-    >
-      {projects.map((project) => (
-        <div key={project.id}>
-          {renderLink({
-            href: project.href,
-            className:
-              "block px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-            onClick: () => {
-              recordRecentProjectVisit(organizationSlug, project.id);
-            },
-            children: (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <TypographyP
-                    className="min-w-0"
-                    lineClamp={1}
-                    size="small"
-                    weight="medium"
-                    tone="content"
-                  >
-                    {project.name}
-                  </TypographyP>
-                  {project.pendingActionCount > 0 ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-beam-500/30 bg-beam-500/15 text-beam-100"
-                    >
-                      {intl.formatMessage(dashboardPageViewMessages.projectOpenBadge, {
-                        count: formatPendingActionCount(project.pendingActionCount),
-                      })}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="rounded-full text-muted-foreground">
-                      <HugeiconsIcon
-                        icon={CheckmarkCircle02Icon}
-                        strokeWidth={1.7}
-                        className="mr-1 size-3.5"
-                      />
-                      <FormattedMessage {...dashboardPageViewMessages.projectUpToDate} />
-                    </Badge>
-                  )}
-                </div>
-                <TypographyP className="mt-1" size="xsmall" tone="subtle">
-                  {project.updatedAt
-                    ? intl.formatMessage(dashboardPageViewMessages.projectMetaWithUpdate, {
-                        sourceLabel: project.sourceLabel,
-                        localeRoute: project.localeRoute,
-                        updatedAt: formatRelativeTimestamp(project.updatedAt),
-                      })
-                    : intl.formatMessage(dashboardPageViewMessages.projectMeta, {
-                        sourceLabel: project.sourceLabel,
-                        localeRoute: project.localeRoute,
-                      })}
-                </TypographyP>
-              </>
-            ),
-          })}
-        </div>
-      ))}
-    </DashboardPanel>
+        )}
+      </div>
+    </section>
   );
 }
 
 export function DashboardPageView({
   organizationSlug,
-  hero,
-  isHeroLoading = false,
-  integrations,
-  jobs,
-  latestJobs,
-  projects,
-  showTmsSections = false,
-  tmsProviderName = "TMS",
-  tmsJobs,
-  tmsProjects,
-  automationStats,
-  automationRuns,
+  overview,
   automationsEnabled = false,
-  isIntegrationsLoading = false,
-  isJobsLoading = false,
-  isJobsError = false,
-  jobsWarning,
-  isLatestJobsLoading = false,
-  isLatestJobsError = false,
-  isProjectsLoading = false,
-  isProjectsError = false,
-  isTmsJobsLoading = false,
-  isTmsJobsError = false,
-  isTmsProjectsLoading = false,
-  isTmsProjectsError = false,
-  isAutomationsLoading = false,
-  isAutomationsError = false,
+  isLoading = false,
+  isError = false,
   onNewRequest,
-  slackConnectBanner,
+  slackConnectCard,
   renderLink = defaultRenderLink,
 }: {
   organizationSlug: string;
-  hero: DashboardHeroState;
-  isHeroLoading?: boolean;
-  integrations: DashboardIntegrationItem[];
-  jobs: DashboardJobItem[];
-  latestJobs: DashboardJobItem[];
-  projects: DashboardProjectItem[];
-  showTmsSections?: boolean;
-  tmsProviderName?: string;
-  tmsJobs: DashboardJobItem[];
-  tmsProjects: DashboardProjectItem[];
-  automationStats: { total: number; active: number; paused: number };
-  automationRuns: DashboardAutomationRunItem[];
+  overview: WorkspaceOverviewSnapshot;
   automationsEnabled?: boolean;
-  isIntegrationsLoading?: boolean;
-  isJobsLoading?: boolean;
-  isJobsError?: boolean;
-  jobsWarning?: string;
-  isLatestJobsLoading?: boolean;
-  isLatestJobsError?: boolean;
-  isProjectsLoading?: boolean;
-  isProjectsError?: boolean;
-  isTmsJobsLoading?: boolean;
-  isTmsJobsError?: boolean;
-  isTmsProjectsLoading?: boolean;
-  isTmsProjectsError?: boolean;
-  isAutomationsLoading?: boolean;
-  isAutomationsError?: boolean;
+  isLoading?: boolean;
+  isError?: boolean;
   onNewRequest: () => void;
-  slackConnectBanner?: ReactNode;
+  slackConnectCard?: ReactNode;
   renderLink?: DashboardLinkRenderer;
 }) {
   const intl = useIntl();
-  const integrationsHref = `/org/${organizationSlug}/integrations`;
-  const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const jobsHref = `/org/${organizationSlug}/jobs`;
   const projectsHref = `/org/${organizationSlug}/projects`;
+  const issuesHref = `/org/${organizationSlug}/issues`;
+  const automationsHref = `/org/${organizationSlug}/automations`;
+  const automationsVisible =
+    automationsEnabled && (isLoading || overview.metrics.automations !== null);
+  const loadingLabel = intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview);
+  const errorMessage = intl.formatMessage(dashboardPageViewMessages.overviewLoadError);
 
   return (
     <WorkspacePageShell>
@@ -885,156 +430,303 @@ export function DashboardPageView({
         label={intl.formatMessage(dashboardPageViewMessages.pageLabel)}
         title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
         description={intl.formatMessage(dashboardPageViewMessages.pageDescription)}
+        actions={
+          <Button type="button" className="w-full sm:w-fit" onClick={onNewRequest}>
+            <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
+            <FormattedMessage {...dashboardPageViewMessages.newRequest} />
+          </Button>
+        }
       />
 
-      {slackConnectBanner}
+      <OverviewMetricsTray
+        overview={overview}
+        automationsVisible={automationsVisible}
+        isLoading={isLoading}
+        loadingLabel={loadingLabel}
+      />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        {isHeroLoading ? (
-          <DashboardHeroSkeleton />
-        ) : hero.mode === "setup" ? (
-          <DashboardSetupHero hero={hero} onNewRequest={onNewRequest} renderLink={renderLink} />
-        ) : (
-          <>
-            {hero.mode === "caught-up" ? (
-              <OverviewHeroCard
-                pendingCount={hero.pendingCount}
-                title={hero.title}
-                description={hero.description}
-                ctaLabel={hero.ctaLabel}
-                onCtaClick={onNewRequest}
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="flex w-full min-w-0 flex-col gap-3 lg:w-[420px] lg:shrink-0">
+          <OverviewSectionHeader
+            label={intl.formatMessage(dashboardPageViewMessages.activityLabel)}
+            href={jobsHref}
+            hrefLabel={intl.formatMessage(dashboardPageViewMessages.viewJobs)}
+            renderLink={renderLink}
+          />
+          <OverviewFeed
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={overview.activity.length === 0}
+            emptyMessage={intl.formatMessage(dashboardPageViewMessages.activityEmpty)}
+            errorMessage={errorMessage}
+            loadingLabel={loadingLabel}
+          >
+            {overview.activity.map((item) => (
+              <OverviewActivityRow key={item.id} item={item} renderLink={renderLink} />
+            ))}
+          </OverviewFeed>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <OverviewSectionHeader
+            label={intl.formatMessage(dashboardPageViewMessages.projectsLabel)}
+            href={projectsHref}
+            hrefLabel={intl.formatMessage(dashboardPageViewMessages.viewAll)}
+            renderLink={renderLink}
+          />
+          <OverviewFeed
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={overview.projects.length === 0}
+            emptyMessage={intl.formatMessage(dashboardPageViewMessages.projectsEmpty)}
+            errorMessage={errorMessage}
+            loadingLabel={loadingLabel}
+          >
+            {overview.projects.map((project) => (
+              <OverviewProjectRow
+                key={project.id}
+                organizationSlug={organizationSlug}
+                project={project}
+                renderLink={renderLink}
               />
-            ) : (
-              <OverviewHeroCard
-                pendingCount={hero.pendingCount}
-                title={hero.title}
-                description={hero.description}
-                ctaLabel={hero.ctaLabel}
-                ctaHref={hero.ctaHref}
-              />
-            )}
-            <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
-              <CardContent className="flex h-full flex-col justify-between gap-4 px-6 py-6">
-                <div>
-                  <TypographyP size="small" weight="medium" tone="subtlest">
-                    <FormattedMessage {...dashboardPageViewMessages.quickStartLabel} />
-                  </TypographyP>
-                  <TypographyP
-                    className="mt-2 font-heading"
-                    size="xlarge"
-                    weight="medium"
-                    tone="content"
-                  >
-                    <FormattedMessage {...dashboardPageViewMessages.quickStartTitle} />
-                  </TypographyP>
-                  <TypographyP className="mt-2 leading-6" size="small" tone="subtle">
-                    <FormattedMessage {...dashboardPageViewMessages.quickStartDescription} />
-                  </TypographyP>
-                </div>
-                <Button type="button" className="w-fit rounded-full" onClick={onNewRequest}>
-                  <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
-                  <FormattedMessage {...dashboardPageViewMessages.newRequest} />
-                </Button>
-              </CardContent>
-            </Card>
-          </>
-        )}
+            ))}
+          </OverviewFeed>
+        </div>
       </section>
 
-      <OverviewConnectAgentCard />
+      <section
+        className={cn(
+          "flex flex-col gap-4",
+          automationsVisible ? "lg:flex-row lg:items-start" : "",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <OverviewSectionHeader
+            label={intl.formatMessage(dashboardPageViewMessages.boardLabel)}
+            href={issuesHref}
+            hrefLabel={intl.formatMessage(dashboardPageViewMessages.viewBoard)}
+            renderLink={renderLink}
+          />
+          <OverviewFeed
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={overview.board.length === 0}
+            emptyMessage={intl.formatMessage(dashboardPageViewMessages.boardEmpty)}
+            errorMessage={errorMessage}
+            loadingLabel={loadingLabel}
+          >
+            {overview.board.map((issue) => (
+              <OverviewBoardRow key={issue.id} issue={issue} renderLink={renderLink} />
+            ))}
+          </OverviewFeed>
+        </div>
 
-      <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <DashboardJobsPanel
-          title={intl.formatMessage(dashboardPageViewMessages.myJobsTitle)}
-          description={intl.formatMessage(dashboardPageViewMessages.myJobsDescription)}
-          jobs={jobs}
-          footerHref={myJobsHref}
-          isLoading={isJobsLoading}
-          isError={isJobsError}
-          warningMessage={jobsWarning}
-          emptyMessage={intl.formatMessage(dashboardPageViewMessages.myJobsEmpty)}
-          renderLink={renderLink}
-        />
-
-        <DashboardJobsPanel
-          title={intl.formatMessage(dashboardPageViewMessages.latestJobsTitle)}
-          description={intl.formatMessage(dashboardPageViewMessages.latestJobsDescription)}
-          jobs={latestJobs}
-          footerHref={jobsHref}
-          isLoading={isLatestJobsLoading}
-          isError={isLatestJobsError}
-          emptyMessage={intl.formatMessage(dashboardPageViewMessages.latestJobsEmpty)}
-          renderLink={renderLink}
-        />
-
-        <DashboardProjectsPanel
-          organizationSlug={organizationSlug}
-          title={intl.formatMessage(dashboardPageViewMessages.recentProjectsTitle)}
-          description={intl.formatMessage(dashboardPageViewMessages.recentProjectsDescription)}
-          projects={projects}
-          footerHref={projectsHref}
-          isLoading={isProjectsLoading}
-          isError={isProjectsError}
-          emptyMessage={intl.formatMessage(dashboardPageViewMessages.recentProjectsEmpty)}
-          renderLink={renderLink}
-        />
-
-        {showTmsSections ? (
-          <>
-            <DashboardJobsPanel
-              title={intl.formatMessage(dashboardPageViewMessages.tmsJobsTitle, {
-                providerName: tmsProviderName,
-              })}
-              description={intl.formatMessage(dashboardPageViewMessages.tmsJobsDescription, {
-                providerName: tmsProviderName,
-              })}
-              jobs={tmsJobs}
-              footerHref={jobsHref}
-              isLoading={isTmsJobsLoading}
-              isError={isTmsJobsError}
-              emptyMessage={intl.formatMessage(dashboardPageViewMessages.tmsJobsEmpty, {
-                providerName: tmsProviderName,
-              })}
+        {automationsVisible ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <OverviewSectionHeader
+              label={intl.formatMessage(dashboardPageViewMessages.automationsLabel)}
+              href={automationsHref}
+              hrefLabel={intl.formatMessage(dashboardPageViewMessages.viewAutomations)}
               renderLink={renderLink}
             />
-            <DashboardProjectsPanel
-              organizationSlug={organizationSlug}
-              title={intl.formatMessage(dashboardPageViewMessages.tmsProjectsTitle, {
-                providerName: tmsProviderName,
-              })}
-              description={intl.formatMessage(dashboardPageViewMessages.tmsProjectsDescription, {
-                providerName: tmsProviderName,
-              })}
-              projects={tmsProjects}
-              footerHref={projectsHref}
-              isLoading={isTmsProjectsLoading}
-              isError={isTmsProjectsError}
-              emptyMessage={intl.formatMessage(dashboardPageViewMessages.tmsProjectsEmpty, {
-                providerName: tmsProviderName,
-              })}
-              renderLink={renderLink}
-            />
-          </>
+            <OverviewFeed
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={overview.automations.length === 0}
+              emptyMessage={intl.formatMessage(dashboardPageViewMessages.automationsEmpty)}
+              errorMessage={errorMessage}
+              loadingLabel={loadingLabel}
+            >
+              {overview.automations.map((run) => (
+                <OverviewAutomationRow key={run.id} run={run} renderLink={renderLink} />
+              ))}
+            </OverviewFeed>
+          </div>
         ) : null}
       </section>
 
-      <DashboardIntegrationsSection
-        integrations={integrations}
-        integrationsHref={integrationsHref}
-        isLoading={isIntegrationsLoading}
-        renderLink={renderLink}
-      />
-
-      {automationsEnabled ? (
-        <DashboardAutomationsSection
-          organizationSlug={organizationSlug}
-          stats={automationStats}
-          runs={automationRuns}
-          isLoading={isAutomationsLoading}
-          isError={isAutomationsError}
-          renderLink={renderLink}
-        />
-      ) : null}
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        <OverviewConnectAgentCard compact className="min-w-0 flex-1" />
+        {slackConnectCard}
+      </section>
     </WorkspacePageShell>
   );
+}
+
+function OverviewActivityRow({
+  item,
+  renderLink,
+}: {
+  item: OverviewActivityItem;
+  renderLink: DashboardLinkRenderer;
+}) {
+  const intl = useIntl();
+  const title = (
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <p className="truncate text-[13px] leading-5 font-medium text-foreground">
+        {formatOverviewTitle(item.title, intl)}
+      </p>
+      <p className="truncate text-xs leading-4 text-muted-foreground">
+        {formatOverviewActivitySubtitle(item, intl)}
+      </p>
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        "flex w-full gap-2.5 rounded-xl border border-border px-3",
+        item.attention ? "items-start bg-background p-3" : "items-center py-2.5",
+      )}
+    >
+      {item.attention ? (
+        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-red-800" aria-hidden />
+      ) : null}
+      {item.href
+        ? renderLink({
+            href: item.href,
+            className: "flex min-w-0 flex-1 items-center gap-2.5",
+            children: title,
+          })
+        : title}
+      {item.attention && item.href ? (
+        renderLink({
+          href: item.href,
+          className: "shrink-0 text-[13px] leading-5 font-semibold text-primary",
+          children: intl.formatMessage(dashboardPageViewMessages.openAction),
+        })
+      ) : (
+        <StatusPill status={item.status} />
+      )}
+    </div>
+  );
+}
+
+function OverviewProjectRow({
+  organizationSlug,
+  project,
+  renderLink,
+}: {
+  organizationSlug: string;
+  project: OverviewProjectItem;
+  renderLink: DashboardLinkRenderer;
+}) {
+  const intl = useIntl();
+  const latestMeta = [
+    project.localeRoute,
+    project.latestJobAt ? formatRelativeTimestamp(project.latestJobAt) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return renderLink({
+    href: project.href,
+    className:
+      "flex flex-col gap-4 rounded-xl border border-border bg-background p-4 hover:bg-muted/40",
+    onClick: () => {
+      recordRecentProjectVisit(organizationSlug, project.id);
+    },
+    children: (
+      <>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="truncate text-sm leading-5 font-semibold text-foreground">
+              {project.name}
+            </p>
+            <p className="truncate text-[13px] leading-5 text-muted-foreground">
+              {formatOverviewProjectSubtitle(project, intl)}
+            </p>
+          </div>
+          {project.failedCount > 0 ? (
+            <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-red-100 px-2 text-xs font-medium text-red-900">
+              {intl.formatMessage(dashboardPageViewMessages.projectFailedCount, {
+                count: project.failedCount,
+              })}
+            </span>
+          ) : (
+            <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-blue-100 px-2 text-xs font-medium text-dew-900">
+              {intl.formatMessage(dashboardPageViewMessages.projectOpenCount, {
+                count: project.openCount,
+              })}
+            </span>
+          )}
+        </div>
+        {project.latestJobTitle ? (
+          <div className="flex flex-col gap-1">
+            <p className="truncate text-[13px] leading-5 font-medium text-foreground">
+              {formatOverviewTitle(project.latestJobTitle, intl)}
+            </p>
+            {latestMeta ? (
+              <p className="truncate text-xs leading-4 text-muted-foreground">{latestMeta}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </>
+    ),
+  });
+}
+
+function OverviewBoardRow({
+  issue,
+  renderLink,
+}: {
+  issue: OverviewBoardItem;
+  renderLink: DashboardLinkRenderer;
+}) {
+  return renderLink({
+    href: issue.href,
+    className:
+      "flex items-center gap-2.5 rounded-xl border border-border px-3 py-2.5 hover:bg-muted/40",
+    children: (
+      <>
+        <IssuePriorityIcon
+          priority={issue.priority}
+          size="sm"
+          className={issue.priority === "P1" ? "bg-amber-600 text-[11px]" : "text-[11px]"}
+        />
+        <span className="w-12 shrink-0 font-mono text-xs leading-4 text-muted-foreground">
+          {issue.identifier}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="truncate text-[13px] leading-5 font-medium text-foreground">
+            {issue.title}
+          </p>
+          <p className="truncate text-xs leading-4 text-muted-foreground">
+            {[issue.projectName, issue.locale].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <span className="flex w-8 shrink-0 justify-end text-right text-xs leading-4 text-muted-foreground">
+          {formatCompactRelativeTimestamp(issue.updatedAt)}
+        </span>
+      </>
+    ),
+  });
+}
+
+function OverviewAutomationRow({
+  run,
+  renderLink,
+}: {
+  run: OverviewAutomationItem;
+  renderLink: DashboardLinkRenderer;
+}) {
+  const intl = useIntl();
+
+  return renderLink({
+    href: run.href,
+    className:
+      "flex items-center gap-2.5 rounded-xl border border-border px-3 py-2.5 hover:bg-muted/40",
+    children: (
+      <>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="truncate text-[13px] leading-5 font-medium text-foreground">{run.name}</p>
+          <p className="truncate text-xs leading-4 text-muted-foreground">
+            {formatTriggerSource(run.triggerSource, intl)}
+            {` · ${formatCompactRelativeTimestamp(run.updatedAt)}`}
+          </p>
+        </div>
+        <StatusPill status={run.status} />
+      </>
+    ),
+  });
 }

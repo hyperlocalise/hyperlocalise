@@ -55,3 +55,15 @@ export const Cursor: Story = {
     await expect(canvas.getByLabelText("Install command for Cursor")).toHaveTextContent(mcpUrl);
   },
 };
+
+export const Compact: Story = {
+  args: {
+    compact: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Access your Hyperlocalise workspace from MCP clients."),
+    ).not.toBeInTheDocument();
+  },
+};

@@ -12,69 +12,12 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
-import type { IntlShape } from "react-intl";
 
-import { getIntlShape } from "@/lib/app-i18n/intl";
-
-import { automationsFixture } from "../../automations/_components/automations.fixture";
-import {
-  dashboardAutomationRunsFixture,
-  dashboardIntegrationsCompleteFixture,
-  dashboardIntegrationsIncompleteFixture,
-  dashboardJobsFixture,
-  dashboardProjectsItemsFixture,
-} from "./dashboard.fixture";
+import { dashboardOverviewEmptyFixture, dashboardOverviewFixture } from "./dashboard.fixture";
 import { DashboardPageView } from "./dashboard-page-view";
 import { SlackConnectInviteBannerView } from "./slack-connect-invite-banner";
-import {
-  resolveAutomationSnapshotStats,
-  resolveDashboardHero,
-  resolveWorkspacePendingActionCount,
-} from "./dashboard-page-view-model";
 
 const organizationSlug = "acme";
-const intl = getIntlShape("en") as IntlShape;
-
-const activeHero = resolveDashboardHero(intl, {
-  integrations: dashboardIntegrationsCompleteFixture,
-  projectCount: dashboardProjectsItemsFixture.length,
-  pendingCount: resolveWorkspacePendingActionCount({
-    projects: dashboardProjectsItemsFixture.map((project) => ({
-      openJobCount: project.pendingActionCount,
-    })),
-    jobs: dashboardJobsFixture,
-  }),
-  integrationsHref: `/org/${organizationSlug}/integrations`,
-  myJobsHref: `/org/${organizationSlug}/my-jobs`,
-});
-
-const setupHero = resolveDashboardHero(intl, {
-  integrations: dashboardIntegrationsIncompleteFixture,
-  projectCount: 0,
-  pendingCount: 0,
-  integrationsHref: `/org/${organizationSlug}/integrations`,
-  myJobsHref: `/org/${organizationSlug}/my-jobs`,
-});
-
-const caughtUpHero = resolveDashboardHero(intl, {
-  integrations: dashboardIntegrationsCompleteFixture,
-  projectCount: dashboardProjectsItemsFixture.length,
-  pendingCount: 0,
-  integrationsHref: `/org/${organizationSlug}/integrations`,
-  myJobsHref: `/org/${organizationSlug}/my-jobs`,
-});
-
-const tmsJobsFixture = dashboardJobsFixture.slice(0, 2).map((job) => ({
-  ...job,
-  id: `tms_${job.id}`,
-  name: `Crowdin · ${job.name}`,
-}));
-
-const tmsProjectsFixture = dashboardProjectsItemsFixture.slice(0, 2).map((project) => ({
-  ...project,
-  id: `tms_${project.id}`,
-  name: `Crowdin · ${project.name}`,
-}));
 
 const meta = {
   title: "App/Dashboard/Page",
@@ -84,25 +27,10 @@ const meta = {
   },
   args: {
     organizationSlug,
-    hero: activeHero,
-    integrations: dashboardIntegrationsCompleteFixture,
-    jobs: dashboardJobsFixture,
-    latestJobs: [...dashboardJobsFixture].reverse(),
-    projects: dashboardProjectsItemsFixture,
-    showTmsSections: true,
-    tmsProviderName: "Crowdin",
-    tmsJobs: tmsJobsFixture,
-    tmsProjects: tmsProjectsFixture,
-    automationStats: resolveAutomationSnapshotStats(automationsFixture),
-    automationRuns: dashboardAutomationRunsFixture,
+    overview: dashboardOverviewFixture,
     automationsEnabled: true,
-    isIntegrationsLoading: false,
-    isJobsLoading: false,
-    isJobsError: false,
-    isProjectsLoading: false,
-    isProjectsError: false,
-    isAutomationsLoading: false,
-    isAutomationsError: false,
+    isLoading: false,
+    isError: false,
     onNewRequest: () => undefined,
   },
 } satisfies Meta<typeof DashboardPageView>;
@@ -112,7 +40,7 @@ type Story = StoryObj<typeof meta>;
 
 export const SlackConnectCreate: Story = {
   args: {
-    slackConnectBanner: (
+    slackConnectCard: (
       <SlackConnectInviteBannerView
         invited={false}
         onDismiss={() => undefined}
@@ -121,15 +49,15 @@ export const SlackConnectCreate: Story = {
     ),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Create a shared Slack channel")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Request Slack invite" })).toBeInTheDocument();
+    await expect(canvas.getByText("Request Slack channel")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request invite" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   },
 };
 
 export const SlackConnectInviteReadOnly: Story = {
   args: {
-    slackConnectBanner: (
+    slackConnectCard: (
       <SlackConnectInviteBannerView
         invited
         canManage={false}
@@ -142,16 +70,14 @@ export const SlackConnectInviteReadOnly: Story = {
     await expect(
       canvas.getByText("We've invited your team to a shared Slack channel"),
     ).toBeInTheDocument();
-    await expect(
-      canvas.queryByRole("button", { name: "Request Slack invite" }),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Request invite" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
   },
 };
 
 export const SlackConnectInvite: Story = {
   args: {
-    slackConnectBanner: (
+    slackConnectCard: (
       <SlackConnectInviteBannerView
         invited
         onDismiss={() => undefined}
@@ -163,7 +89,7 @@ export const SlackConnectInvite: Story = {
     await expect(
       canvas.getByText("We've invited your team to a shared Slack channel"),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Request Slack invite" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Request invite" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   },
 };
@@ -172,51 +98,15 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
-    await expect(canvas.getByText("My jobs")).toBeInTheDocument();
-    await expect(canvas.getByText("Latest jobs")).toBeInTheDocument();
-    await expect(canvas.getByText("Recent projects")).toBeInTheDocument();
-    await expect(canvas.getByText("Crowdin jobs")).toBeInTheDocument();
-    await expect(canvas.getByText("Crowdin projects")).toBeInTheDocument();
-    await expect(canvas.getByText("Integrations")).toBeInTheDocument();
-    await expect(canvas.getByText("Automation runs")).toBeInTheDocument();
-    await expect(canvas.getByText("Review: terminology consistency")).toBeInTheDocument();
-    await expect(canvas.getByText("Website localization")).toBeInTheDocument();
-  },
-};
-
-export const SetupIncomplete: Story = {
-  args: {
-    hero: setupHero,
-    integrations: dashboardIntegrationsIncompleteFixture,
-    jobs: [],
-    latestJobs: [],
-    projects: [],
-    showTmsSections: false,
-    tmsJobs: [],
-    tmsProjects: [],
-    automationRuns: [],
-    automationStats: { total: 0, active: 0, paused: 0 },
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("Get your workspace ready")).toBeInTheDocument();
-    await expect(canvas.getByText("Finish setup")).toBeInTheDocument();
-    await expect(canvas.getByText("No jobs assigned to you yet.")).toBeInTheDocument();
-  },
-};
-
-export const CaughtUp: Story = {
-  args: {
-    hero: caughtUpHero,
-    jobs: dashboardJobsFixture.filter((job) => job.status === "succeeded").slice(0, 3),
-    latestJobs: dashboardJobsFixture.filter((job) => job.status === "succeeded").slice(0, 3),
-    projects: dashboardProjectsItemsFixture.map((project) => ({
-      ...project,
-      pendingActionCount: 0,
-    })),
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("You're all caught up")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Up to date").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("2 P1 on Board")).toBeInTheDocument();
+    await expect(canvas.getByText("Activity")).toBeInTheDocument();
+    await expect(canvas.getByText("Projects")).toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
+    await expect(canvas.getByText("View automations")).toBeInTheDocument();
+    await expect(canvas.getByText("WEB-1")).toBeInTheDocument();
+    await expect(canvas.getByText("Missing CTA on checkout")).toBeInTheDocument();
+    await expect(canvas.queryByText("My jobs")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Integrations")).not.toBeInTheDocument();
   },
 };
 
@@ -225,61 +115,41 @@ export const AutomationsDisabled: Story = {
     automationsEnabled: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.queryByText("Automation runs")).not.toBeInTheDocument();
+    await expect(canvas.getByText("Board")).toBeInTheDocument();
+    await expect(canvas.queryByText("View automations")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("1 paused")).not.toBeInTheDocument();
   },
 };
 
 export const Loading: Story = {
   args: {
-    jobs: [],
-    latestJobs: [],
-    projects: [],
-    tmsJobs: [],
-    tmsProjects: [],
-    integrations: [],
-    automationRuns: [],
-    isHeroLoading: true,
-    isIntegrationsLoading: true,
-    isJobsLoading: true,
-    isLatestJobsLoading: true,
-    isProjectsLoading: true,
-    isTmsJobsLoading: true,
-    isTmsProjectsLoading: true,
-    isAutomationsLoading: true,
+    overview: dashboardOverviewEmptyFixture,
+    isLoading: true,
   },
 };
 
 export const Empty: Story = {
   args: {
-    hero: caughtUpHero,
-    jobs: [],
-    latestJobs: [],
-    projects: [],
-    tmsJobs: [],
-    tmsProjects: [],
-    automationRuns: [],
-    automationStats: { total: 0, active: 0, paused: 0 },
+    overview: dashboardOverviewEmptyFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("No recent activity yet.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("No projects yet. Create a project to get started."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("No open issues.")).toBeInTheDocument();
+    await expect(canvas.getByText("No automation runs yet.")).toBeInTheDocument();
   },
 };
 
 export const LoadError: Story = {
   args: {
-    jobs: [],
-    latestJobs: [],
-    projects: [],
-    tmsJobs: [],
-    tmsProjects: [],
-    isJobsError: true,
-    isLatestJobsError: true,
-    isProjectsError: true,
-    isTmsJobsError: true,
-    isTmsProjectsError: true,
-    isAutomationsError: true,
+    overview: dashboardOverviewEmptyFixture,
+    isError: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("My jobs could not be loaded.")).toBeInTheDocument();
-    await expect(canvas.getByText("Latest jobs could not be loaded.")).toBeInTheDocument();
-    await expect(canvas.getByText("Recent projects could not be loaded.")).toBeInTheDocument();
-    await expect(canvas.getByText("Automation runs could not be loaded.")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByText("Workspace overview could not be loaded.").length,
+    ).toBeGreaterThan(0);
   },
 };
