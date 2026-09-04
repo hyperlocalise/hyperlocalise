@@ -27,15 +27,20 @@ import { otaDistributionFormatEnum } from "./enums";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
+export type OtaDistributionFormat = (typeof otaDistributionFormatEnum.enumValues)[number];
+
 /**
  * Crowdin-shaped manifest snapshot written at release time. Serving and CDN
  * upload fill `content` later; persistence stores whatever the writer records.
+ * `format` is copied from the distribution so a later format change cannot
+ * rewrite an already-released artifact contract.
  */
 export type OtaManifestSnapshot = {
   files: string[];
   languages: string[];
   content: Record<string, string[]>;
   timestamp: number;
+  format: OtaDistributionFormat;
 };
 
 /**

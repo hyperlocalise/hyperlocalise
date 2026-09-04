@@ -201,6 +201,7 @@ function unixTimestampSeconds(date = new Date()): number {
 function buildManifestSnapshot(input: {
   filePaths: readonly string[];
   locales: readonly string[];
+  format: OtaDistributionFormat;
   override?: Partial<OtaManifestSnapshot>;
 }): OtaManifestSnapshot {
   const files = input.override?.files ?? input.filePaths.map(manifestFilePath);
@@ -211,8 +212,9 @@ function buildManifestSnapshot(input: {
       languages.map((locale) => [locale, files.map((file) => `/content/${locale}${file}`)]),
     );
   const timestamp = input.override?.timestamp ?? unixTimestampSeconds();
+  const format = input.override?.format ?? input.format;
 
-  return { files, languages, content, timestamp };
+  return { files, languages, content, timestamp, format };
 }
 
 async function loadNativeProject(
@@ -488,37 +490,47 @@ export async function revokeOtaDistribution(
 ): Promise<Result<OtaDistribution, OtaDistributionWriterError>> {
   const client = input.db ?? db;
 
-  const [distribution] = await client
-    .select()
-    .from(schema.otaDistributions)
-    .where(eq(schema.otaDistributions.id, input.distributionId))
-    .limit(1);
+  return client.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(schema.otaDistributions)
+      .where(eq(schema.otaDistributions.id, input.distributionId))
+      .for("update")
+      .limit(1);
 
-  if (!distribution) {
-    return err({ code: "distribution_not_found" });
-  }
+    if (!locked) {
+      return err({ code: "distribution_not_found" });
+    }
 
-  if (distribution.revokedAt) {
-    return ok(distribution);
-  }
+    if (locked.revokedAt) {
+      return ok(locked);
+    }
 
-  const revokedAt = new Date();
-  const [updated] = await client
-    .update(schema.otaDistributions)
-    .set({
-      revokedAt,
-      updatedByUserId: input.actorUserId,
-      updatedAt: revokedAt,
-    })
-    .where(
-      and(
-        eq(schema.otaDistributions.id, distribution.id),
-        isNull(schema.otaDistributions.revokedAt),
-      ),
-    )
-    .returning();
+    const revokedAt = new Date();
+    const [updated] = await tx
+      .update(schema.otaDistributions)
+      .set({
+        revokedAt,
+        updatedByUserId: input.actorUserId,
+        updatedAt: revokedAt,
+      })
+      .where(
+        and(eq(schema.otaDistributions.id, locked.id), isNull(schema.otaDistributions.revokedAt)),
+      )
+      .returning();
 
-  return ok(updated ?? distribution);
+    if (updated) {
+      return ok(updated);
+    }
+
+    const [persisted] = await tx
+      .select()
+      .from(schema.otaDistributions)
+      .where(eq(schema.otaDistributions.id, input.distributionId))
+      .limit(1);
+
+    return persisted ? ok(persisted) : err({ code: "distribution_not_found" });
+  });
 }
 
 export async function releaseOtaDistribution(
@@ -550,6 +562,7 @@ export async function releaseOtaDistribution(
     const manifest = buildManifestSnapshot({
       filePaths,
       locales: distribution.locales,
+      format: distribution.format,
       override: input.manifest,
     });
 

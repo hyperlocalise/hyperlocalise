@@ -245,7 +245,21 @@ describe("otaDistributionWriter", () => {
       "/content/fr-FR/src/Localizable.strings",
       "/content/fr-FR/src/InfoPlist.strings",
     ]);
+    expect(firstRelease.value.manifest.format).toBe("ios_strings");
     expect(firstRelease.value.manifest.timestamp).toBeGreaterThan(0);
+
+    const formatChange = await otaDistributionWriter.update({
+      distributionId: created.value.id,
+      actorUserId: user.id,
+      format: "json",
+    });
+    expect(isOk(formatChange)).toBe(true);
+
+    const [persistedFirstRelease] = await db
+      .select()
+      .from(schema.otaReleases)
+      .where(eq(schema.otaReleases.id, firstRelease.value.id));
+    expect(persistedFirstRelease?.manifest.format).toBe("ios_strings");
   });
 
   it("keeps rows on revoke and refuses further writes", async () => {
@@ -324,6 +338,49 @@ describe("otaDistributionWriter", () => {
     if (isErr(releaseAfterRevoke)) {
       expect(releaseAfterRevoke.error).toEqual({ code: "revoked" });
     }
+  });
+
+  it("returns the persisted revoked row when two revokes race", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "race.json",
+    });
+
+    const created = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Race",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isOk(created)).toBe(true);
+    if (!isOk(created)) {
+      return;
+    }
+
+    const [first, second] = await Promise.all([
+      otaDistributionWriter.revoke({
+        distributionId: created.value.id,
+        actorUserId: user.id,
+      }),
+      otaDistributionWriter.revoke({
+        distributionId: created.value.id,
+        actorUserId: user.id,
+      }),
+    ]);
+
+    expect(isOk(first)).toBe(true);
+    expect(isOk(second)).toBe(true);
+    if (!isOk(first) || !isOk(second)) {
+      return;
+    }
+
+    expect(first.value.revokedAt).toBeInstanceOf(Date);
+    expect(second.value.revokedAt).toBeInstanceOf(Date);
+    expect(first.value.revokedAt?.getTime()).toBe(second.value.revokedAt?.getTime());
   });
 
   it("cascades distribution and release rows when the project is deleted", async () => {

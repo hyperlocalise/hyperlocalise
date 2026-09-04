@@ -57,11 +57,14 @@ Later API tickets call `otaDistributionWriter` in
 - `update` — change name, files, locales, or format on an unrevoked row
 - `release` — lock the distribution, increment `sequence`, snapshot the
   manifest, store an optional artifact pointer
-- `revoke` — stamp `revoked_at`; a second revoke is a no-op
+- `revoke` — lock the row, stamp `revoked_at`; a second revoke is a no-op
+  and always returns the persisted revoked row
 
 `release` builds a Crowdin-shaped snapshot (`files`, `languages`, `content`,
-`timestamp`) from the current selection. CDN upload may overwrite `content` or
-`artifact_pointer` later. The writer does not upload bytes or serve files.
+`timestamp`, `format`) from the current selection. `format` is copied onto
+the release so a later distribution update cannot change what that release
+was. CDN upload may overwrite `content` or `artifact_pointer` later. The
+writer does not upload bytes or serve files.
 
 ### Out of scope
 
