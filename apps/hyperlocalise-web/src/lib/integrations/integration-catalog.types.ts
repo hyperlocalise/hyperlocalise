@@ -41,6 +41,38 @@ export type IntegrationIconKey =
   | "loops"
   | "googledrive";
 
+export type IntegrationCapabilityDescriptor = {
+  title: MessageDescriptor;
+  description: MessageDescriptor;
+};
+
+export type IntegrationWorkflowStepDescriptor = {
+  label: MessageDescriptor;
+  description?: MessageDescriptor;
+};
+
+export type IntegrationWorkflowDescriptor = {
+  title: MessageDescriptor;
+  steps: readonly IntegrationWorkflowStepDescriptor[];
+};
+
+export type IntegrationSetupStepDescriptor = {
+  title: MessageDescriptor;
+  description: MessageDescriptor;
+};
+
+export type IntegrationProductDescriptor = {
+  name: MessageDescriptor;
+  description: MessageDescriptor;
+};
+
+export type IntegrationDetailCopyDescriptors = {
+  capabilities?: readonly IntegrationCapabilityDescriptor[];
+  workflows?: readonly IntegrationWorkflowDescriptor[];
+  setupSteps?: readonly IntegrationSetupStepDescriptor[];
+  products?: readonly IntegrationProductDescriptor[];
+};
+
 export type IntegrationCopyDescriptors = {
   name: MessageDescriptor;
   tagline: MessageDescriptor;
@@ -63,14 +95,43 @@ export type IntegrationCatalogEntry = {
   websiteUrl?: string;
   docsUrl?: string;
   keywords?: readonly string[];
+  relatedSlugs?: readonly string[];
   tmsProviderKind?: ExternalTmsProviderKind | "native";
+};
+
+export type ResolvedIntegrationCapability = {
+  title: string;
+  description: string;
+};
+
+export type ResolvedIntegrationWorkflowStep = {
+  label: string;
+  description?: string;
+};
+
+export type ResolvedIntegrationWorkflow = {
+  title: string;
+  steps: ResolvedIntegrationWorkflowStep[];
+};
+
+export type ResolvedIntegrationSetupStep = {
+  title: string;
+  description: string;
+};
+
+export type ResolvedIntegrationProduct = {
+  name: string;
+  description: string;
 };
 
 export type ResolvedIntegrationCopy = {
   name: string;
   tagline: string;
   overview: string[];
-  products: { name: string; description: string }[];
+  capabilities: ResolvedIntegrationCapability[];
+  workflows: ResolvedIntegrationWorkflow[];
+  setupSteps: ResolvedIntegrationSetupStep[];
+  products: ResolvedIntegrationProduct[];
   metadata: {
     title: string;
     description: string;

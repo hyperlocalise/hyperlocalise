@@ -28,6 +28,8 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "action.http",
   "action.notify_slack",
   "logic.if",
+  "logic.switch",
+  "logic.set",
   "ai.agent",
   "logic.for_each",
 ]);
@@ -89,11 +91,9 @@ export function fromVisualWorkflowDefinition(
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    sourceHandle:
-      edge.sourceHandle === "true" || edge.sourceHandle === "false" ? edge.sourceHandle : null,
-    targetHandle: null,
-    label:
-      edge.sourceHandle === "true" || edge.sourceHandle === "false" ? edge.sourceHandle : undefined,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
+    label: edge.sourceHandle ?? undefined,
   }));
 
   return {

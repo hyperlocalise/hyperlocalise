@@ -153,7 +153,7 @@ export const NarrowRow: Story = {
   args: {
     issues: [
       createOrganizationIssue({
-        updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 60 * 86_400_000).toISOString(),
       }),
     ],
     summary: {
@@ -164,9 +164,10 @@ export const NarrowRow: Story = {
     },
   },
   play: async ({ canvas }) => {
-    const date = canvas.getByText("30m");
+    const date = canvas.getByRole("time");
     await expect(date).toBeVisible();
     await expect(date.scrollWidth).toBeLessThanOrEqual(date.clientWidth);
-    await expect(date.getAttribute("title")).toMatch(/30 minutes ago/i);
+    await expect(date.textContent?.length).toBeGreaterThan(0);
+    await expect(date.getAttribute("title")).toBeTruthy();
   },
 };

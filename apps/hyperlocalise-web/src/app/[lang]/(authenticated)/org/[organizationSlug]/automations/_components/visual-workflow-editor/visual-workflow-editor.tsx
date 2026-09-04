@@ -25,6 +25,7 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { runFakeWorkflow } from "@/lib/visual-workflows/preview/fake-run";
+import { runPlaygroundWorkflow } from "@/lib/visual-workflows/preview/playground-run";
 import {
   createDefaultConfig,
   getVisualNodeDimensions,
@@ -65,6 +66,7 @@ export function VisualWorkflowEditor({
   initialEdges = [],
   initialName,
   previewMode = false,
+  playgroundMode = false,
   onSave,
   isSaving = false,
   organizationSlug,
@@ -79,6 +81,7 @@ export function VisualWorkflowEditor({
   initialEdges?: VisualWorkflowRfEdge[];
   initialName?: string;
   previewMode?: boolean;
+  playgroundMode?: boolean;
   onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
   isSaving?: boolean;
   organizationSlug?: string;
@@ -201,6 +204,30 @@ export function VisualWorkflowEditor({
     [selectedNodeId],
   );
 
+  const setNodeOutputSnapshot = useCallback(
+    (
+      nodeId: string,
+      output: Record<string, unknown> | null,
+      error: Record<string, unknown> | null,
+    ) => {
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  lastOutput: output,
+                  lastError: error,
+                },
+              }
+            : node,
+        ),
+      );
+    },
+    [],
+  );
+
   const setRunStatus = useCallback((nodeId: string, status: MockNodeRunStatus) => {
     setNodes((current) =>
       current.map((node) =>
@@ -210,25 +237,41 @@ export function VisualWorkflowEditor({
   }, []);
 
   const applyNodeRunStatuses = useCallback(
-    (nodeRuns: Array<{ nodeId: string; status: string }>) => {
-      const statusByNodeId = new Map(
-        nodeRuns.map((nodeRun) => [nodeRun.nodeId, nodeRun.status] as const),
-      );
+    (
+      nodeRuns: Array<{
+        nodeId: string;
+        status: string;
+        outputSnapshot?: Record<string, unknown>;
+        error?: Record<string, unknown> | null;
+      }>,
+    ) => {
+      const runByNodeId = new Map(nodeRuns.map((nodeRun) => [nodeRun.nodeId, nodeRun]));
       setNodes((current) =>
         current.map((node) => {
-          const status = statusByNodeId.get(node.id);
-          if (!status) {
+          const nodeRun = runByNodeId.get(node.id);
+          if (!nodeRun) {
             return node;
           }
           const mappedStatus: MockNodeRunStatus =
-            status === "running"
+            nodeRun.status === "running"
               ? "running"
-              : status === "succeeded"
+              : nodeRun.status === "succeeded"
                 ? "succeeded"
-                : status === "failed"
+                : nodeRun.status === "failed"
                   ? "failed"
                   : "idle";
-          return { ...node, data: { ...node.data, runStatus: mappedStatus } };
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              runStatus: mappedStatus,
+              lastOutput:
+                nodeRun.outputSnapshot && Object.keys(nodeRun.outputSnapshot).length > 0
+                  ? nodeRun.outputSnapshot
+                  : null,
+              lastError: nodeRun.error ?? null,
+            },
+          };
         }),
       );
     },
@@ -241,7 +284,10 @@ export function VisualWorkflowEditor({
     runAbortRef.current = controller;
     setIsRunning(true);
     setNodes((current) =>
-      current.map((node) => ({ ...node, data: { ...node.data, runStatus: "idle" } })),
+      current.map((node) => ({
+        ...node,
+        data: { ...node.data, runStatus: "idle", lastOutput: null, lastError: null },
+      })),
     );
 
     const definition = toVisualWorkflowDefinition({ name, nodes, edges });
@@ -275,6 +321,18 @@ export function VisualWorkflowEditor({
         if (latestRun.status === "failed") {
           toast.error(intl.formatMessage(messages.testRunFailed));
         }
+      } else if (playgroundMode) {
+        const result = await runPlaygroundWorkflow({
+          name,
+          nodes,
+          edges,
+          signal: controller.signal,
+          onStatus: setRunStatus,
+          onOutput: setNodeOutputSnapshot,
+        });
+        if (result === "failed") {
+          toast.error(intl.formatMessage(messages.testRunFailed));
+        }
       } else {
         await runFakeWorkflow({
           nodes,
@@ -296,6 +354,8 @@ export function VisualWorkflowEditor({
     nodes,
     onPersistBeforeTest,
     organizationSlug,
+    playgroundMode,
+    setNodeOutputSnapshot,
     setRunStatus,
     visualWorkflowId,
     visualWorkflowsApi,
@@ -350,6 +410,7 @@ export function VisualWorkflowEditor({
         isSaving={isSaving}
         saveDisabled={saveDisabled}
         previewMode={previewMode}
+        playgroundMode={playgroundMode}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         workflowStatus={workflowStatus}

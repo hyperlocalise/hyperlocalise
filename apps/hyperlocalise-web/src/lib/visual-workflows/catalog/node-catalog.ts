@@ -17,8 +17,10 @@ import {
   GitBranchIcon,
   Globe02Icon,
   Mail01Icon,
+  Route01Icon,
   Task01Icon,
   Upload04Icon,
+  VariableIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -80,6 +82,18 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: GitBranchIcon,
   },
   {
+    type: "logic.switch",
+    category: "logic",
+    enabled: true,
+    icon: Route01Icon,
+  },
+  {
+    type: "logic.set",
+    category: "logic",
+    enabled: true,
+    icon: VariableIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -122,13 +136,32 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
     case "trigger.source_upload":
       return { kind: "trigger.source_upload" };
     case "action.http":
-      return { kind: "action.http", method: "GET", url: "" };
+      return {
+        kind: "action.http",
+        method: "GET",
+        url: "",
+        headers: [],
+        queryParams: [],
+        bodyType: "none",
+        auth: { type: "none" },
+        parseJsonBody: true,
+        failOnHttpError: true,
+        onError: "stop",
+      };
     case "action.notify_slack":
-      return { kind: "action.notify_slack", channelId: "", message: "" };
+      return { kind: "action.notify_slack", channelId: "", message: "", onError: "stop" };
     case "logic.if":
       return { kind: "logic.if", condition: "" };
+    case "logic.switch":
+      return {
+        kind: "logic.switch",
+        expression: "",
+        cases: [{ value: "" }, { value: "" }],
+      };
+    case "logic.set":
+      return { kind: "logic.set", assignments: [{ key: "", value: "" }] };
     case "ai.agent":
-      return { kind: "ai.agent", prompt: "" };
+      return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "" };
     default:
@@ -145,6 +178,9 @@ export function getVisualNodeDimensions(type: VisualCatalogType): {
   }
   if (type === "logic.if") {
     return { width: 200, height: 120 };
+  }
+  if (type === "logic.switch") {
+    return { width: 200, height: 140 };
   }
   if (type.startsWith("trigger.")) {
     return { width: 200, height: 120 };
@@ -180,6 +216,12 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.channelId ? "Slack" : "Slack channel";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
+    case "logic.switch":
+      return config.cases.length > 0 ? `${config.cases.length} cases` : "No cases";
+    case "logic.set":
+      return config.assignments.length > 0
+        ? `${config.assignments.length} fields`
+        : "No assignments";
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":

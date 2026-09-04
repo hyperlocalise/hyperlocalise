@@ -68,7 +68,6 @@ const ACTIVE_NAV_BY_TAB: Record<ContentOpsMockTabId, MockNavId> = {
   campaign: "automations",
   "seo-blog": "automations",
   brand: "knowledge",
-  "brief-to-publish": "automations",
   editor: "projects",
 };
 
@@ -78,7 +77,6 @@ const BREADCRUMB_KEY_BY_TAB: Record<ContentOpsMockTabId, keyof typeof contentOps
     campaign: "mockBreadcrumbCampaign",
     "seo-blog": "mockBreadcrumbSeo",
     brand: "mockBreadcrumbBrand",
-    "brief-to-publish": "mockBreadcrumbWorkflow",
     editor: "mockBreadcrumbEditor",
   };
 

@@ -76,6 +76,12 @@ async function createGlossaryWithTerm(input: {
   name: string;
   sourceTerm: string;
   targetTerm: string;
+  sourceStatus?: string;
+  targetStatus?: string;
+  description?: string;
+  caseSensitive?: boolean;
+  sourceForbidden?: boolean;
+  targetForbidden?: boolean;
 }) {
   const [glossary] = await db
     .insert(schema.glossaries)
@@ -106,7 +112,10 @@ async function createGlossaryWithTerm(input: {
       term: input.sourceTerm,
       sourceTerm: input.sourceTerm,
       targetTerm: input.sourceTerm,
-      description: "",
+      description: input.description ?? "",
+      status: input.sourceStatus ?? "preferred",
+      caseSensitive: input.caseSensitive ?? false,
+      forbidden: input.sourceForbidden ?? false,
       reviewStatus: "approved",
     })
     .returning();
@@ -119,6 +128,8 @@ async function createGlossaryWithTerm(input: {
     sourceTerm: input.targetTerm,
     targetTerm: input.targetTerm,
     description: "",
+    status: input.targetStatus ?? "preferred",
+    forbidden: input.targetForbidden ?? false,
     reviewStatus: "approved",
   });
 
@@ -174,6 +185,7 @@ async function executeGlossarySearch(input: {
   organizationId: string;
   sourceText: string;
   projectId?: string;
+  glossaryId?: string;
 }): Promise<Extract<GlossarySearchResult, { terms: unknown }>> {
   const queryGlossary = createQueryGlossaryTool(toolContext(input.organizationId));
 
@@ -187,6 +199,7 @@ async function executeGlossarySearch(input: {
       sourceLocale: "en",
       targetLocale: "fr",
       projectId: input.projectId,
+      glossaryId: input.glossaryId,
       limit: 10,
     },
     { toolCallId: "test-tool-call", messages: [], context: {} },
@@ -247,6 +260,9 @@ afterEach(async () => {
     await db
       .delete(schema.glossaryTerms)
       .where(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
+    await db
+      .delete(schema.glossaryConcepts)
+      .where(inArray(schema.glossaryConcepts.glossaryId, glossaryIds));
   }
 
   const memoryIds = memories.map((memory) => memory.id);
@@ -368,6 +384,253 @@ describe("createQueryGlossaryTool", () => {
         glossaryName: "Brand Glossary",
       }),
     ]);
+  });
+
+  it("returns no terms for an empty query", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "   &&&   ",
+    });
+
+    expect(result.terms).toEqual([]);
+  });
+
+  it("marks forbidden target terms so callers can avoid them", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+      targetStatus: "not_recommended",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "caisse",
+        forbidden: true,
+        status: "not_recommended",
+      }),
+    ]);
+  });
+
+  it("does not search an unlinked glossary when a project ID is set", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+    const linked = await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Linked Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Unlinked Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+    });
+
+    await db.insert(schema.projectGlossaries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryId: linked.glossary.id,
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+      projectId: project.id,
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        glossaryId: linked.glossary.id,
+        targetTerm: "paiement",
+      }),
+    ]);
+  });
+
+  it("does not return leftover term-based rows without a concept", async () => {
+    const organization = await createOrganization();
+    const { glossary } = await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "invoice",
+      targetTerm: "facture",
+    });
+
+    await db.insert(schema.glossaryTerms).values({
+      glossaryId: glossary.id,
+      conceptId: null,
+      locale: null,
+      term: null,
+      sourceTerm: "checkout",
+      targetTerm: "caisse-legacy",
+      description: "",
+      reviewStatus: "approved",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+    });
+
+    expect(result.terms).toEqual([]);
+  });
+
+  it("returns no terms for an inaccessible glossary ID", async () => {
+    const currentOrganization = await createOrganization();
+    const otherOrganization = await createOrganization();
+    const { glossary } = await createGlossaryWithTerm({
+      organizationId: otherOrganization.id,
+      name: "Other Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: currentOrganization.id,
+      sourceText: "checkout",
+      glossaryId: glossary.id,
+    });
+
+    expect(result.terms).toEqual([]);
+  });
+
+  it("matches a glossary term contained in a longer source string", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "Proceed to checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+      }),
+    ]);
+  });
+
+  it("does not return a case-sensitive term for a differently cased query", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Brand",
+      sourceTerm: "NASA",
+      targetTerm: "NASA",
+      caseSensitive: true,
+    });
+
+    const missed = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "nasa",
+    });
+    const matched = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "NASA launches today",
+    });
+
+    expect(missed.terms).toEqual([]);
+    expect(matched.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "NASA",
+        caseSensitive: true,
+      }),
+    ]);
+  });
+
+  it("marks a preferred target forbidden when the matched source term is prohibited", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+      sourceStatus: "not_recommended",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "Proceed to checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        forbidden: true,
+      }),
+    ]);
+  });
+
+  it("marks an explicit forbidden flag even when status is preferred", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+      targetForbidden: true,
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        targetTerm: "caisse",
+        forbidden: true,
+        status: "preferred",
+      }),
+    ]);
+  });
+
+  it("returns no terms for a non-UUID or provider glossary ID", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const missing = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+      glossaryId: "missing",
+    });
+    const provider = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+      glossaryId: "crowdin:glossary:42",
+    });
+
+    expect(missing.terms).toEqual([]);
+    expect(provider.terms).toEqual([]);
   });
 });
 

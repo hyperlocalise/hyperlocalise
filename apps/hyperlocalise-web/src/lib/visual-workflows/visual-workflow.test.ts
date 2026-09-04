@@ -57,7 +57,7 @@ describe("toVisualWorkflowDefinition", () => {
       {
         id: "b",
         type: "action.http",
-        config: { kind: "action.http", method: "GET", url: "" },
+        config: createDefaultConfig("action.http"),
       },
     ]);
     expect(draft.edges).toEqual([

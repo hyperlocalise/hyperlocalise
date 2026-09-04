@@ -42,6 +42,7 @@ import {
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
 import {
   findAccessiblePublicJob,
+  listAccessiblePublicJobs,
   toMcpJobEnvelope,
 } from "@/api/routes/public-jobs/public-jobs.read";
 import {
@@ -77,14 +78,33 @@ import {
   IssueSheetService,
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
-import type { IssueSheetComment } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  projectFileCatQueueSortSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import {
   filterProjectFiles,
   listProjectFilesForProject,
 } from "@/lib/projects/files/project-file-service";
 import { loadMcpProjectStatus } from "@/api/routes/mcp/mcp-project-status";
+import {
+  IssueSheetCommentService,
+  type IssueSheetComment,
+} from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
+import { issueSheetCommentCreateBodySchema } from "@/api/routes/project/issue-sheet-comments.schema";
+import {
+  loadMcpListTranslations,
+  mcpListTranslationsQueueFilters,
+} from "@/api/routes/mcp/mcp-list-translations";
+import { glossaryIdParamsSchema } from "@/api/routes/glossary/glossary.schema";
+import type { ApiAuthContext } from "@/api/auth/workos";
+import {
+  isQueryableNativeGlossaryId,
+  queryGlossaryTerms,
+  type QueryGlossaryHit,
+} from "@/lib/tools/asset-tools";
+import type { ToolContext } from "@/lib/tools/types";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -408,6 +428,56 @@ const mcpListFilesInputSchema = z.object({
     .describe("Optional case-insensitive filter on source path or filename."),
 });
 
+const mcpListTranslationsInputSchema = z.object({
+  projectId: projectIdSchema.describe(
+    "ID of the accessible Hyperlocalise project whose translation keys to list.",
+  ),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. Use * for every file. When omitted, lists keys across the project.",
+    ),
+  targetLocale: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .optional()
+    .describe("Optional target locale. When omitted, returns one row per project target locale."),
+  search: z
+    .string()
+    .trim()
+    .max(256)
+    .optional()
+    .describe("Optional case-insensitive match on key, source text, context, or target text."),
+  queueFilter: z
+    .enum(mcpListTranslationsQueueFilters)
+    .optional()
+    .describe(
+      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, or other Content Editor filters.",
+    ),
+  queueSort: projectFileCatQueueSortSchema
+    .optional()
+    .describe("CAT queue sort: file_order (default) or untranslated_first."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe("Maximum number of translation rows to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of translation rows to skip before returning results."),
+});
+
 const mcpGetIssueInputSchema = z.object({
   projectId: z
     .string()
@@ -444,6 +514,7 @@ const mcpListIssueCommentsInputSchema = z.object({
 });
 
 const issueSheetService = new IssueSheetService();
+const issueSheetCommentService = new IssueSheetCommentService();
 const createIssueShape = issueSheetCreateIssueBodySchema.shape;
 const updateIssueShape = issueSheetUpdateIssueBodySchema.shape;
 const invalidIssueUpdate = Symbol("invalid_issue_update");
@@ -549,6 +620,117 @@ const mcpCreateIssueInputSchema = z.object({
       "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
     ),
 });
+
+const createCommentShape = issueSheetCommentCreateBodySchema.shape;
+
+const mcpCreateIssueCommentInputSchema = z.object({
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible project containing the issue."),
+
+  issueId: issueIdSchema.describe(
+    "Canonical issue identifier such as HL-123, or a legacy issue UUID.",
+  ),
+
+  body: createCommentShape.body.describe(
+    "Markdown content for the comment, from 1 to 32,000 characters.",
+  ),
+
+  parentId: createCommentShape.parentId.describe(
+    "UUID of the parent comment when creating a reply.",
+  ),
+
+  mentionedUserIds: createCommentShape.mentionedUserIds.describe(
+    "UUIDs of organization users mentioned in the comment.",
+  ),
+
+  mentionedIssueIds: createCommentShape.mentionedIssueIds.describe(
+    "UUIDs of accessible issues mentioned in the comment.",
+  ),
+});
+
+const mcpListJobsInputSchema = z.object({
+  projectId: projectIdSchema
+    .optional()
+    .describe("Optional ID of an accessible Hyperlocalise project to list jobs for."),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. When set, returns the latest file translation jobs for that path, matching GET /v1/jobs/latest.",
+    ),
+  status: z
+    .enum(schema.jobStatusEnum.enumValues)
+    .optional()
+    .describe("Optional job status filter such as queued, running, succeeded, or failed."),
+  limit: z.number().int().min(1).max(50).default(20).describe("Maximum number of jobs to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of jobs to skip before returning results."),
+});
+
+const MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH = 500;
+
+const mcpQueryGlossaryInputSchema = z.object({
+  sourceText: z.string().describe("Source string to look up in accessible glossaries."),
+  sourceLocale: z.string().min(1).max(50).describe("BCP-47 source locale tag."),
+  targetLocale: z.string().min(1).max(50).describe("BCP-47 target locale tag."),
+  projectId: projectIdSchema
+    .optional()
+    .describe("Optional project ID. When set, search only glossaries linked to that project."),
+  glossaryId: glossaryIdParamsSchema.shape.glossaryId
+    .optional()
+    .describe("Optional glossary ID. Inaccessible glossaries return glossary_not_found."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(20)
+    .default(10)
+    .describe("Maximum number of ranked hits to return."),
+});
+
+function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
+  return {
+    conversationId: "mcp",
+    organizationId: apiAuth.organization.localOrganizationId,
+    localUserId: apiAuth.user.localUserId,
+    membershipRole: apiAuth.membership.role,
+    projectId: null,
+    db,
+  };
+}
+
+function truncateMcpGlossaryDescription(description: string) {
+  if (description.length <= MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH) {
+    return description;
+  }
+
+  return description.slice(0, MCP_GLOSSARY_DESCRIPTION_MAX_LENGTH);
+}
+
+function compactMcpGlossaryHit(hit: QueryGlossaryHit) {
+  return {
+    glossaryId: hit.glossaryId,
+    conceptId: hit.conceptId,
+    sourceTerm: hit.sourceTerm,
+    targetTerm: hit.targetTerm,
+    forbidden: hit.forbidden,
+    status: hit.status,
+    partOfSpeech: hit.partOfSpeech,
+    caseSensitive: hit.caseSensitive,
+    description: truncateMcpGlossaryDescription(hit.description),
+  };
+}
 
 const mcpGetJobInputSchema = z.object({
   jobId: jobIdParamsSchema.shape.jobId.describe(
@@ -804,6 +986,55 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   );
 
   server.registerTool(
+    "list_translations",
+    {
+      description:
+        "List translation keys in an accessible Hyperlocalise project. Returns compact CAT queue rows (id, key, sourcePath, sourceText, targetLocale, targetText, status, maxLength, isHidden) with total and pagination. Filters match the Content Editor queue. Read-only roles may list. Results use the native key overlay; live TMS provider listing is out of scope.",
+      inputSchema: mcpListTranslationsInputSchema,
+    },
+    async ({
+      projectId,
+      sourcePath,
+      targetLocale,
+      search,
+      queueFilter,
+      queueSort,
+      limit,
+      offset,
+    }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const result = await loadMcpListTranslations({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        projectTargetLocales: project.targetLocales,
+        sourcePath,
+        targetLocale,
+        search,
+        queueFilter,
+        queueSort,
+        limit,
+        offset,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  server.registerTool(
     "get_project_status",
     {
       description:
@@ -947,6 +1178,72 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
         throw error;
       }
+    },
+  );
+
+  server.registerTool(
+    "create_issue_comment",
+    {
+      description: "Create a Markdown comment or reply on an accessible Hyperlocalise issue.",
+      inputSchema: mcpCreateIssueCommentInputSchema,
+    },
+    async ({ projectId, issueId, ...commentBody }) => {
+      const [project] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("issue_not_found", "Issue not found");
+      }
+
+      const result = await issueSheetCommentService.create({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId,
+        actorUserId: apiAuth.user.localUserId,
+        role: apiAuth.membership.role,
+        auth: apiAuth,
+        body: commentBody,
+      });
+
+      if (!result.ok) {
+        switch (result.error.code) {
+          case "issue_not_found":
+            return mcpToolError("issue_not_found", "Issue not found");
+
+          case "parent_not_found":
+            return mcpToolError("parent_not_found", "Parent comment not found");
+
+          case "invalid_mentioned_users":
+            return mcpToolError(
+              "invalid_mentioned_users",
+              "One or more mentioned users are invalid",
+            );
+
+          case "invalid_mentioned_issues":
+            return mcpToolError(
+              "invalid_mentioned_issues",
+              "One or more mentioned issues are invalid",
+            );
+
+          case "forbidden":
+          case "comment_not_found":
+            return mcpToolError("comment_not_allowed", "Comment creation is not allowed");
+        }
+
+        return mcpToolError("comment_not_allowed", "Comment creation is not allowed");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(mcpIssueComment(result.value)),
+          },
+        ],
+      };
     },
   );
 
@@ -1258,6 +1555,49 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   );
 
   server.registerTool(
+    "list_jobs",
+    {
+      description:
+        "List recent translation jobs visible to the caller. Use this to find a job id, then call get_job. Defaults to translation jobs. Optional sourcePath uses the latest-job-for-path lookup.",
+      inputSchema: mcpListJobsInputSchema,
+    },
+    async ({ projectId, sourcePath, status, limit, offset }) => {
+      const result = await listAccessiblePublicJobs(apiAuth, {
+        projectId,
+        sourcePath,
+        status,
+        limit,
+        offset,
+      });
+
+      if (isErr(result)) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const nextOffset = offset + result.value.jobs.length;
+      const hasMore = nextOffset < result.value.total;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              total: result.value.total,
+              pagination: {
+                limit,
+                offset,
+                hasMore,
+                nextOffset: hasMore ? nextOffset : null,
+              },
+              jobs: result.value.jobs,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
     "get_job",
     {
       description:
@@ -1341,12 +1681,47 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of [
-    "list_translations",
-    "upload_sources",
-    "download_translations",
-    "run_workflow",
-  ] as const) {
+  server.registerTool(
+    "query_glossary",
+    {
+      description:
+        "Search concept-linked glossary terms for a source string and locale pair. Prefer this over get_glossary_entries when you need a hit while translating. Forbidden terms are marked so agents can avoid them.",
+      inputSchema: mcpQueryGlossaryInputSchema,
+    },
+    async ({ sourceText, sourceLocale, targetLocale, projectId, glossaryId, limit }) => {
+      if (glossaryId) {
+        if (!isQueryableNativeGlossaryId(glossaryId)) {
+          return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+        }
+
+        const glossary = await canAccessGlossary(apiAuth, glossaryId);
+
+        if (!glossary) {
+          return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+        }
+      }
+
+      const result = await queryGlossaryTerms(mcpToolContext(apiAuth), {
+        sourceText,
+        sourceLocale,
+        targetLocale,
+        projectId,
+        glossaryId,
+        limit,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ terms: result.terms.map(compactMcpGlossaryHit) }),
+          },
+        ],
+      };
+    },
+  );
+
+  for (const name of ["upload_sources", "download_translations", "run_workflow"] as const) {
     server.registerTool(
       name,
       {

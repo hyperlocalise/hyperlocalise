@@ -174,6 +174,26 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "ShnGyATeRG",
     description: "Accessible label for next-file navigation in CAT File view",
   },
+  showSource: {
+    defaultMessage: "Show source",
+    id: "PugY2uNCND",
+    description: "Button to show the source file pane in CAT File view",
+  },
+  hideSource: {
+    defaultMessage: "Hide source",
+    id: "hGlGhqryiM",
+    description: "Button to hide the source file pane in CAT File view",
+  },
+  showSourceAria: {
+    defaultMessage: "Show source file",
+    id: "VFeDyBNEpt",
+    description: "Accessible label for showing the source pane in CAT File view",
+  },
+  hideSourceAria: {
+    defaultMessage: "Hide source file",
+    id: "U2RIqLyDQ1",
+    description: "Accessible label for hiding the source pane in CAT File view",
+  },
 });
 
 export function contentEditorFileGeneratePromptPlaceholderMessage(

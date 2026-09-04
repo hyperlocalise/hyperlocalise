@@ -74,6 +74,7 @@ export function groupConceptTerms(
     caseSensitive: boolean;
     provenance: string;
     reviewStatus: string;
+    forbidden?: boolean;
   }>,
 ): NativeConceptGroup[] {
   const concepts = new Map<string, NativeConceptGroup>();
@@ -94,6 +95,7 @@ export function groupConceptTerms(
       caseSensitive: row.caseSensitive,
       provenance: row.provenance,
       reviewStatus: row.reviewStatus,
+      forbidden: row.forbidden ?? false,
     };
 
     if (existing) {
@@ -282,6 +284,7 @@ async function fetchNativeConceptTermRows(
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,
       reviewStatus: schema.glossaryTerms.reviewStatus,
+      forbidden: schema.glossaryTerms.forbidden,
     })
     .from(schema.glossaryTerms)
     .innerJoin(
@@ -411,6 +414,7 @@ export async function listNativeGlossaryTermPairs(
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,
       reviewStatus: schema.glossaryTerms.reviewStatus,
+      forbidden: schema.glossaryTerms.forbidden,
     })
     .from(schema.glossaryTerms)
     .innerJoin(

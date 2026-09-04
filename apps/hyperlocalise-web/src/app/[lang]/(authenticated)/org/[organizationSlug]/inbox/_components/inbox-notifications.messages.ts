@@ -65,6 +65,31 @@ export const inboxNotificationsMessages = defineMessages({
     id: "Vm1k8EkL8L",
     description: "Source label for issue notification rows in the inbox list",
   },
+  assignedType: {
+    defaultMessage: "Assignment",
+    id: "Y+HVGLFFig",
+    description: "Short label for assignment notification type icon in the inbox list",
+  },
+  mentionedType: {
+    defaultMessage: "Mention",
+    id: "TE4yzOvouE",
+    description: "Short label for mention notification type icon in the inbox list",
+  },
+  commentType: {
+    defaultMessage: "Comment",
+    id: "xz22Pvfb9j",
+    description: "Short label for comment notification type icon in the inbox list",
+  },
+  statusChangedType: {
+    defaultMessage: "Status change",
+    id: "/xLTphGoSI",
+    description: "Short label for status-change notification type icon in the inbox list",
+  },
+  assigneeChangedType: {
+    defaultMessage: "Assignee change",
+    id: "IHSPoPMGG7",
+    description: "Short label for assignee-change notification type icon in the inbox list",
+  },
   issuePanelLoading: {
     defaultMessage: "Loading issue",
     id: "EOpyg02xLN",

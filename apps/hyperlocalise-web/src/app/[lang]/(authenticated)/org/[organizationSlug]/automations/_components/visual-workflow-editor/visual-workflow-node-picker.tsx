@@ -154,6 +154,10 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeNotifySlack;
     case "logic.if":
       return messages.nodeIf;
+    case "logic.switch":
+      return messages.nodeSwitch;
+    case "logic.set":
+      return messages.nodeSet;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
@@ -177,6 +181,10 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeNotifySlackHint;
     case "logic.if":
       return messages.nodeIfHint;
+    case "logic.switch":
+      return messages.nodeSwitchHint;
+    case "logic.set":
+      return messages.nodeSetHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":

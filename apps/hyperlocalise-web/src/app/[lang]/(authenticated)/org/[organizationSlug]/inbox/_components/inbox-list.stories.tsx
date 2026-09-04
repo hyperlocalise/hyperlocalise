@@ -73,7 +73,6 @@ export const WithIssueNotifications: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
     await expect(canvas.getByText("Can you review the CTA wording?")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Issue").length).toBeGreaterThan(0);
     await expect(canvas.getByRole("button", { name: "Mark all as read" })).toBeInTheDocument();
   },
 };

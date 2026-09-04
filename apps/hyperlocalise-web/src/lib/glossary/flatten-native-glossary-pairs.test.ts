@@ -70,15 +70,19 @@ describe("flattenNativeConceptTermsToPairs", () => {
 
     expect(pairs).toEqual([
       expect.objectContaining({
+        conceptId: "concept-1",
         sourceTerm: "checkout",
         targetTerm: "paiement",
         targetLocale: "fr",
+        status: "preferred",
         forbidden: false,
       }),
       expect.objectContaining({
+        conceptId: "concept-1",
         sourceTerm: "checkout",
         targetTerm: "caisse",
         targetLocale: "fr",
+        status: "not_recommended",
         forbidden: true,
       }),
     ]);
@@ -117,7 +121,7 @@ describe("flattenNativeConceptTermsToPairs", () => {
     ]);
   });
 
-  it("does not forbid preferred targets because a source synonym is not_recommended", () => {
+  it("does not mark a preferred source pair forbidden because a synonym is not_recommended", () => {
     const concepts: NativeConceptGroup[] = [
       {
         conceptId: "concept-1",
@@ -152,12 +156,53 @@ describe("flattenNativeConceptTermsToPairs", () => {
       expect.objectContaining({
         sourceTerm: "cart",
         targetTerm: "paiement",
-        forbidden: false,
+        forbidden: true,
       }),
       expect.objectContaining({
         sourceTerm: "checkout",
         targetTerm: "paiement",
         forbidden: false,
+      }),
+    ]);
+  });
+
+  it("marks a preferred target forbidden when the matched source term is prohibited", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({
+            id: "source-1",
+            locale: "en",
+            term: "checkout",
+            status: "preferred",
+            forbidden: true,
+          }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "paiement",
+            status: "preferred",
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(pairs).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        status: "preferred",
+        forbidden: true,
       }),
     ]);
   });
@@ -232,5 +277,41 @@ describe("flattenNativeConceptTermsToPairs", () => {
     });
 
     expect(pairs.map((pair) => pair.targetTerm)).toEqual(["paiement", "caisse"]);
+  });
+
+  it("marks a stored forbidden flag even when status is preferred", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({ id: "source-1", locale: "en", term: "checkout", status: "preferred" }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "caisse",
+            status: "preferred",
+            forbidden: true,
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(pairs).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "caisse",
+        status: "preferred",
+        forbidden: true,
+      }),
+    ]);
   });
 });

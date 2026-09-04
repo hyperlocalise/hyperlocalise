@@ -20,9 +20,11 @@ import type {
 } from "@/components/marketing/integrations/integrations-page-content";
 import {
   getCategoryLabelForIntegration,
+  getIntegrationCtaCopy,
   getIntegrationsIndexCopy,
 } from "@/components/marketing/integrations/integrations-page-content";
 import { IntegrationCard } from "@/components/marketing/integrations/integration-card";
+import { IntegrationCtaSection } from "@/components/marketing/integrations/integration-cta-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { Box } from "@/components/ui/layout/box";
@@ -58,6 +60,7 @@ export function IntegrationsIndexPage({
   categoryLabels,
 }: IntegrationsIndexPageProps) {
   const copy = getIntegrationsIndexCopy(lang);
+  const ctaCopy = getIntegrationCtaCopy(lang);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory | "all">("all");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
@@ -148,11 +151,19 @@ export function IntegrationsIndexPage({
                 ))}
               </Rows>
             ) : (
-              <TypographyMuted className="text-center" size="medium">
+              <TypographyMuted alignment="center" size="medium">
                 {copy.emptyState}
               </TypographyMuted>
             )}
           </Box>
+
+          <Separator />
+          <IntegrationCtaSection
+            description={ctaCopy.description}
+            headline={ctaCopy.headline}
+            primaryCtaLabel={ctaCopy.primaryCtaLabel}
+            secondaryCtaLabel={ctaCopy.secondaryCtaLabel}
+          />
 
           <Separator />
           <Box paddingX="3u" paddingTop="6u">

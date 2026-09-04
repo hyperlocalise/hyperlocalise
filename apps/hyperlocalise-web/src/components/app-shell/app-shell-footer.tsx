@@ -44,6 +44,10 @@ import {
   subscribeCatIssueGuidance,
 } from "@/components/content-editor/issues/content-editor-issue-guidance-event";
 import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/layout/box";
+import { Column } from "@/components/ui/layout/column";
+import { Columns } from "@/components/ui/layout/columns";
+import { Row } from "@/components/ui/layout/row";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 import { appShellFooterMessages } from "./app-shell-footer.messages";
@@ -83,91 +87,105 @@ export function AppShellFooter({
         </ChatDockErrorBoundary>
       ) : null}
 
-      <div className="flex h-(--app-shell-plan-footer-height) shrink-0 items-stretch px-2">
-        <div className="flex h-10 w-full items-center gap-2">
-          {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
-          <div className="ms-auto flex min-w-0 items-center gap-2">
-            {showGlossaryGuidance ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="gap-1.5 px-2"
-                onClick={requestCatGlossaryGuidance}
-                aria-label={intl.formatMessage(
-                  glossaryGuidanceStatus.matchCount > 0 ||
-                    glossaryGuidanceStatus.preferredCount > 0 ||
-                    glossaryGuidanceStatus.notRecommendedCount > 0
-                    ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
-                    : appShellFooterMessages.glossaryGuidanceAriaLabel,
-                )}
-              >
-                <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} className="size-3.5" />
-                <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
-                {glossaryGuidanceStatus.preferredCount > 0 ? (
-                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                    <HugeiconsIcon
-                      icon={CheckmarkCircle02Icon}
-                      strokeWidth={2}
-                      className="size-4"
-                      aria-hidden="true"
-                    />
-                    <span className="tabular-nums">{glossaryGuidanceStatus.preferredCount}</span>
-                  </span>
-                ) : null}
-                {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
-                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                    <HugeiconsIcon
-                      icon={MinusSignCircleIcon}
-                      strokeWidth={2}
-                      className="size-4"
-                      aria-hidden="true"
-                    />
-                    <span className="tabular-nums">
-                      {glossaryGuidanceStatus.notRecommendedCount}
-                    </span>
-                  </span>
-                ) : null}
-              </Button>
+      <div className="h-(--app-shell-plan-footer-height) shrink-0">
+        <Box paddingX="1u" display="flex" alignItems="center" height="full" width="full">
+          <Columns spacing="1u" alignY="center" align={showPlan ? "spaceBetween" : "end"}>
+            {showPlan ? (
+              <Column width="content">
+                <PlanUsageFooterControl organizationSlug={organizationSlug} />
+              </Column>
             ) : null}
-            {showIssueGuidance && issueGuidanceStatus.available ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="gap-1.5 px-2"
-                onClick={requestCatIssueGuidance}
-                aria-label={intl.formatMessage(
-                  issueGuidanceStatus.openIssueCount > 0
-                    ? appShellFooterMessages.issueGuidanceAvailableAriaLabel
-                    : appShellFooterMessages.issueGuidanceAriaLabel,
-                  issueGuidanceStatus.openIssueCount > 0
-                    ? { count: issueGuidanceStatus.openIssueCount }
-                    : undefined,
-                )}
-              >
-                <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
-                <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
-                {issueGuidanceStatus.openIssueCount > 0 ? (
-                  <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
-                    {issueGuidanceStatus.openIssueCount}
-                  </span>
+            <Column width="content">
+              <Row spacing="1u" alignY="center">
+                {showGlossaryGuidance ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={requestCatGlossaryGuidance}
+                    aria-label={intl.formatMessage(
+                      glossaryGuidanceStatus.matchCount > 0 ||
+                        glossaryGuidanceStatus.preferredCount > 0 ||
+                        glossaryGuidanceStatus.notRecommendedCount > 0
+                        ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
+                        : appShellFooterMessages.glossaryGuidanceAriaLabel,
+                    )}
+                  >
+                    <HugeiconsIcon
+                      icon={BookOpenTextIcon}
+                      strokeWidth={2}
+                      data-icon="inline-start"
+                    />
+                    <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
+                    {glossaryGuidanceStatus.preferredCount > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
+                        <HugeiconsIcon
+                          icon={CheckmarkCircle02Icon}
+                          strokeWidth={2}
+                          className="size-4"
+                          aria-hidden="true"
+                        />
+                        <span className="tabular-nums">
+                          {glossaryGuidanceStatus.preferredCount}
+                        </span>
+                      </span>
+                    ) : null}
+                    {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
+                        <HugeiconsIcon
+                          icon={MinusSignCircleIcon}
+                          strokeWidth={2}
+                          className="size-4"
+                          aria-hidden="true"
+                        />
+                        <span className="tabular-nums">
+                          {glossaryGuidanceStatus.notRecommendedCount}
+                        </span>
+                      </span>
+                    ) : null}
+                  </Button>
                 ) : null}
-              </Button>
-            ) : null}
-            {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
-            <Button
-              variant="ghost"
-              size="xs"
-              className="gap-1.5 px-2"
-              render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
-              aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
-            >
-              <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} className="size-3.5" />
-              <FormattedMessage {...appShellFooterMessages.supportLabel} />
-            </Button>
-          </div>
-        </div>
+                {showIssueGuidance && issueGuidanceStatus.available ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={requestCatIssueGuidance}
+                    aria-label={intl.formatMessage(
+                      issueGuidanceStatus.openIssueCount > 0
+                        ? appShellFooterMessages.issueGuidanceAvailableAriaLabel
+                        : appShellFooterMessages.issueGuidanceAriaLabel,
+                      issueGuidanceStatus.openIssueCount > 0
+                        ? { count: issueGuidanceStatus.openIssueCount }
+                        : undefined,
+                    )}
+                  >
+                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
+                    {issueGuidanceStatus.openIssueCount > 0 ? (
+                      <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
+                        {issueGuidanceStatus.openIssueCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                ) : null}
+                {showChatDock ? (
+                  <ChatDockFooterControls organizationSlug={organizationSlug} />
+                ) : null}
+                <Button
+                  variant="ghost"
+                  render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
+                  aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
+                >
+                  <HugeiconsIcon
+                    icon={CustomerSupportIcon}
+                    strokeWidth={2}
+                    data-icon="inline-start"
+                  />
+                  <FormattedMessage {...appShellFooterMessages.supportLabel} />
+                </Button>
+              </Row>
+            </Column>
+          </Columns>
+        </Box>
       </div>
     </footer>
   );

@@ -22,12 +22,25 @@ export type VisualCatalogType =
   | "action.http"
   | "action.notify_slack"
   | "logic.if"
+  | "logic.switch"
+  | "logic.set"
   | "ai.agent"
   | "logic.for_each";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export type HttpBodyType = "none" | "json" | "text";
+
+export type HttpAuthType = "none" | "bearer" | "api_key";
+
+export type VisualNodeErrorBehavior = "stop" | "continue" | "branch";
+
+export type VisualKeyValuePair = {
+  key: string;
+  value: string;
+};
 
 export type VisualWorkflowScheduleCadence = "hourly" | "daily" | "weekly";
 
@@ -52,16 +65,48 @@ export type VisualNodeConfig =
       events?: VisualWorkflowGithubTriggerEvent[];
     }
   | { kind: "trigger.source_upload"; projectId?: string }
-  | { kind: "action.http"; method: HttpMethod; url: string }
-  | { kind: "action.notify_slack"; channelId: string; message: string }
+  | {
+      kind: "action.http";
+      method: HttpMethod;
+      url: string;
+      headers?: VisualKeyValuePair[];
+      queryParams?: VisualKeyValuePair[];
+      body?: string;
+      bodyType?: HttpBodyType;
+      auth?: {
+        type: HttpAuthType;
+        token?: string;
+        headerName?: string;
+      };
+      parseJsonBody?: boolean;
+      failOnHttpError?: boolean;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.notify_slack";
+      channelId: string;
+      message: string;
+      onError?: VisualNodeErrorBehavior;
+    }
   | { kind: "logic.if"; condition: string }
-  | { kind: "ai.agent"; prompt: string }
+  | {
+      kind: "logic.switch";
+      expression: string;
+      cases: { value: string }[];
+    }
+  | {
+      kind: "logic.set";
+      assignments: VisualKeyValuePair[];
+    }
+  | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string };
 
 export type VisualWorkflowNodeData = {
   catalogType: VisualCatalogType;
   config: VisualNodeConfig;
   runStatus: MockNodeRunStatus;
+  lastOutput?: Record<string, unknown> | null;
+  lastError?: Record<string, unknown> | null;
 };
 
 export type VisualWorkflowRfNode = Node<VisualWorkflowNodeData, VisualCatalogType>;

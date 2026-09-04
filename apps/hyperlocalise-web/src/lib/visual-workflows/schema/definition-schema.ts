@@ -16,6 +16,19 @@ import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
+const visualKeyValuePairSchema = z.object({
+  key: z.string().max(256),
+  value: z.string().max(4000),
+});
+
+const visualNodeErrorBehaviorSchema = z.enum(["stop", "continue", "branch"]);
+
+const httpAuthSchema = z.object({
+  type: z.enum(["none", "bearer", "api_key"]),
+  token: z.string().max(4000).optional(),
+  headerName: z.string().trim().min(1).max(128).optional(),
+});
+
 const visualWorkflowScheduleSchema = z.object({
   cadence: z.enum(["hourly", "daily", "weekly"]),
   hourUtc: z.number().int().min(0).max(23).optional(),
@@ -38,6 +51,8 @@ const visualCatalogTypeSchema = z.enum([
   "action.http",
   "action.notify_slack",
   "logic.if",
+  "logic.switch",
+  "logic.set",
   "ai.agent",
   "logic.for_each",
 ]);
@@ -66,19 +81,41 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("action.http"),
     method: httpMethodSchema,
     url: z.string().max(2048),
+    headers: z.array(visualKeyValuePairSchema).max(32).optional(),
+    queryParams: z.array(visualKeyValuePairSchema).max(32).optional(),
+    body: z.string().max(100_000).optional(),
+    bodyType: z.enum(["none", "json", "text"]).optional(),
+    auth: httpAuthSchema.optional(),
+    parseJsonBody: z.boolean().optional(),
+    failOnHttpError: z.boolean().optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
     kind: z.literal("action.notify_slack"),
     channelId: z.string().trim().min(1).max(64),
     message: z.string().max(4000),
+    onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
     kind: z.literal("logic.if"),
     condition: z.string().max(2000),
   }),
   z.object({
+    kind: z.literal("logic.switch"),
+    expression: z.string().max(2000),
+    cases: z
+      .array(z.object({ value: z.string().max(2000) }))
+      .min(1)
+      .max(12),
+  }),
+  z.object({
+    kind: z.literal("logic.set"),
+    assignments: z.array(visualKeyValuePairSchema).max(32),
+  }),
+  z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),
+    onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
     kind: z.literal("logic.for_each"),

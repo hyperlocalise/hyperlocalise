@@ -25,11 +25,15 @@ export const ContentEditorWorkspaceViewSwitcherConnected = observer(
     onChange,
     availableViews,
     className,
+    size,
+    variant,
   }: {
     value?: ContentEditorWorkspaceViewMode;
     onChange?: (mode: ContentEditorWorkspaceViewMode) => void;
     availableViews?: readonly ContentEditorWorkspaceViewMode[];
     className?: string;
+    size?: "sm" | "xs";
+    variant?: "outline" | "ghost";
   }) {
     const store = useOptionalCatWorkspace();
     const selectedSegment = store?.selectedSegmentView ?? null;
@@ -53,6 +57,8 @@ export const ContentEditorWorkspaceViewSwitcherConnected = observer(
         onChange={resolvedOnChange}
         availableViews={resolvedAvailableViews}
         className={className}
+        size={size}
+        variant={variant}
       />
     );
   },

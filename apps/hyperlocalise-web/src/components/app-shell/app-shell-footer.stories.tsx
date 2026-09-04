@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
@@ -39,7 +39,10 @@ const currentUser: InboxCurrentUser = {
 function FooterStoryFrame({ children }: { children: ReactNode }) {
   return (
     <AppShellStoreProvider defaultNavigationGroups={[]}>
-      <div className="min-h-screen bg-muted/20 text-foreground">
+      <div
+        className="min-h-screen bg-muted/20 text-foreground"
+        style={{ "--app-shell-plan-footer-height": "3rem" } as CSSProperties}
+      >
         <div className="mx-auto max-w-5xl px-6 py-10">
           <p className="text-sm text-muted-foreground">
             App shell content placeholder so the fixed footer is shown in context.

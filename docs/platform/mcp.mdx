@@ -3,7 +3,7 @@ title: "MCP server"
 description: "Connect coding agents to Hyperlocalise Cloud over the Model Context Protocol."
 ---
 
-Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, glossaries, and Board items from your workspace.
+Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, translation keys, glossaries, jobs, and Board items from your workspace.
 
 The server uses OAuth with PKCE. After you approve access, the agent receives a bearer token scoped to one organization and your current membership role.
 
@@ -47,11 +47,27 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `list_projects` | List accessible projects (`limit`, default 20, max 50) |
 | `get_project` | Project details by `projectId` |
 | `list_files` | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`) |
+| `list_translations` | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
 | `get_project_status` | Locale coverage counts by `projectId`, with optional `sourcePath` |
 | `list_glossaries` | List glossaries linked to accessible projects |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100) |
+| `query_glossary` | Ranked concept-linked hits for a source string and locale pair |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
+
+`list_translations` is the CAT queue for agents. It lists native overlay keys so you can find untranslated, needs-review, or matching strings without opening the Content Editor. Each row is compact: `id`, `key`, `sourcePath`, `sourceText`, `targetLocale`, `targetText`, `status`, `maxLength`, and `isHidden`. The response includes `total`, pagination (`hasMore`, `nextOffset`), and `coverageSource: "native_overlay"`. It does not include TM or glossary hits.
+
+Optional filters match the Content Editor queue:
+
+- `sourcePath` — one file. Use `*` or omit it to list every file in the project.
+- `targetLocale` — one locale. When omitted, the tool returns one row per project target locale.
+- `search` — case-insensitive match on key, source text, context, or target text.
+- `queueFilter` — `all`, `untranslated`, `needs_review`, `approved` (same as CAT `reviewed`), `has_issues`, plus the other Content Editor filters.
+- `queueSort` — `file_order` (default) or `untranslated_first`.
+
+Read-only roles may list. Writes stay on `update_translation` when that tool is wired. Missing or inaccessible projects, including cross-team and cross-organization reads, return `project_not_found`.
+
+For TMS-backed projects the tool still returns native overlay keys (`coverageSource: "native_overlay"`). Live Crowdin, Phrase, Lokalise, or Smartling listing is out of scope. Use the provider CAT or CLI for live provider strings.
 
 `get_project_status` answers “how done is French?” without paging translations. It returns `sourceLocale`, `targetLocales`, and per-locale counts: `total`, `translated`, `untranslated`, `needsReview`, `approved`, and `hidden`. Counts match Content Editor queue filters on the native key overlay. Hidden keys stay in `total` and, when they have no target text, in `untranslated`, because that is how the native CAT server filter counts them.
 
@@ -60,6 +76,14 @@ When you pass `sourcePath`, the tool still returns project-wide locale totals an
 For TMS-backed projects the tool still returns native overlay counts (`coverageSource: "native_overlay"`). It does not fetch live provider statistics. Use the provider CAT or CLI for Crowdin, Phrase, Lokalise, or Smartling progress.
 
 Inaccessible projects return `project_not_found`.
+
+`query_glossary` looks up a source string instead of paging a whole glossary. Pass `sourceText`, `sourceLocale`, and `targetLocale`. Optional `projectId` limits the search to glossaries linked to that project. Optional `glossaryId` searches one glossary. `limit` defaults to 10 and maxes at 20.
+
+Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, `caseSensitive`, and a description truncated to 500 characters. `forbidden` is true when the matched source term or the preferred target is prohibited. Case-sensitive entries only match the stored casing.
+
+The search is the same native concordance path used in-app: an OR candidate query, then a source-text containment filter. A sentence such as `Proceed to checkout` still matches a `checkout` term.
+
+Native pairs come from concept-linked terms. Leftover `source_term` / `target_term` rows are ignored. Provider glossaries stay read-only; an inaccessible, non-UUID, or provider `glossaryId` returns `glossary_not_found`. An inaccessible `projectId` returns `{ "terms": [] }`.
 
 ### Board (issues)
 
@@ -83,7 +107,18 @@ Inaccessible projects return `project_not_found`.
 
 | Tool | Description |
 | --- | --- |
+| `list_jobs` | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
 | `get_job` | Job status by `jobId`. Poll after `run_workflow` until the job is terminal. |
+
+`list_jobs` finds recent translation jobs so you can call `get_job` without already knowing a job id. It defaults to `kind = translation`. Optional filters:
+
+- `projectId` — jobs on one accessible project. An inaccessible or missing project returns `project_not_found`.
+- `sourcePath` — latest file translation jobs for that path, using the same lookup as `GET /v1/jobs/latest`. Without `status`, this returns succeeded file jobs for the path, newest first.
+- `status` — `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, or `cancelled`.
+
+Omit `projectId` to list jobs across every project you can access. Organization-wide roles see every project in the workspace. Team members only see jobs on their teams' projects.
+
+Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `completedAt`, and a truncated `lastError`. The list does not include input, outcome, or output file bodies. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`.
 
 `get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
 
@@ -93,7 +128,6 @@ Missing or inaccessible jobs, including jobs from another organization, return `
 
 These tools are advertised but return `not_implemented` today:
 
-- `list_translations`
 - `upload_sources`
 - `download_translations`
 - `run_workflow`
@@ -126,7 +160,8 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
 | `invalid_comment_cursor` | Stale or malformed `cursor` on `list_issue_comments` |
 | `job_not_found` | Wrong `jobId`, missing project access, or a job from another organization |
-| `project_not_found` | Wrong `projectId` or missing project access on `list_files` or `get_project_status` |
+| `project_not_found` | Wrong `projectId` or missing project access on `list_files`, `list_translations`, `get_project_status`, or `list_jobs` |
+| `glossary_not_found` | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next

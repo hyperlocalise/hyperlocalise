@@ -24,6 +24,7 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
@@ -38,9 +39,22 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
+  const isSwitch = data.catalogType === "logic.switch";
   const isAi = data.catalogType === "ai.agent";
+  const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = resolveNodeSubtitle(data.config);
+
+  const switchHandles =
+    isSwitch && data.config.kind === "logic.switch"
+      ? [
+          ...data.config.cases.map((_, index) => ({
+            id: String(index),
+            label: intl.formatMessage(messages.switchCaseHandle, { index: index + 1 }),
+          })),
+          { id: "default", label: intl.formatMessage(messages.switchDefaultHandle) },
+        ]
+      : [];
 
   return (
     <Card
@@ -79,8 +93,31 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             type="source"
           />
         </>
+      ) : isSwitch ? (
+        switchHandles.map((handle, index) => (
+          <Handle
+            key={handle.id}
+            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground" : null)}
+            id={handle.id}
+            position={Position.Right}
+            type="source"
+            style={{
+              top: `${((index + 1) / (switchHandles.length + 1)) * 100}%`,
+            }}
+          />
+        ))
       ) : (
-        <Handle className={HANDLE_CLASS} position={Position.Right} type="source" />
+        <>
+          <Handle className={HANDLE_CLASS} position={Position.Right} type="source" />
+          {showErrorHandle ? (
+            <Handle
+              className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}
+              id="error"
+              position={Position.Right}
+              type="source"
+            />
+          ) : null}
+        </>
       )}
 
       <div className="flex flex-col items-center gap-1.5 pt-1 text-center">
@@ -100,6 +137,20 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
+      {isSwitch ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-2.8rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          {switchHandles.map((handle) => (
+            <span key={handle.id}>{handle.label}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {showErrorHandle && !isIf && !isSwitch ? (
+        <div className="pointer-events-none absolute top-[72%] right-[-2.6rem] text-[10px] font-medium text-destructive">
+          <FormattedMessage {...messages.errorHandle} />
+        </div>
+      ) : null}
+
       {isAi ? (
         <div className="mt-2 grid gap-1 border-t border-border pt-2 text-left text-[11px] text-muted-foreground">
           <span>
@@ -111,6 +162,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
+      {data.lastOutput && Object.keys(data.lastOutput).length > 0 ? (
+        <div className="mt-2 max-h-16 overflow-hidden border-t border-border pt-2 text-left text-[10px] text-muted-foreground">
+          <p className="line-clamp-3 font-mono break-all">{JSON.stringify(data.lastOutput)}</p>
+        </div>
+      ) : null}
+
       <button
         type="button"
         data-visual-workflow-add=""
@@ -118,7 +175,10 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         aria-label={intl.formatMessage(messages.addNode)}
         onClick={(event) => {
           event.stopPropagation();
-          onAddFromNode({ nodeId: id, handleId: isIf ? "true" : undefined });
+          onAddFromNode({
+            nodeId: id,
+            handleId: isIf ? "true" : isSwitch ? "0" : undefined,
+          });
         }}
       >
         <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
@@ -143,6 +203,10 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeNotifySlack;
     case "logic.if":
       return messages.nodeIf;
+    case "logic.switch":
+      return messages.nodeSwitch;
+    case "logic.set":
+      return messages.nodeSet;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":

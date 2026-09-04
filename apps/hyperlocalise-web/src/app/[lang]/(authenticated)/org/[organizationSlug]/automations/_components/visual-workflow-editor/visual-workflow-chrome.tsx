@@ -34,6 +34,7 @@ export function VisualWorkflowChrome({
   isSaving = false,
   saveDisabled = false,
   previewMode = false,
+  playgroundMode = false,
   activeTab = "editor",
   onTabChange,
   workflowStatus = "draft",
@@ -49,6 +50,7 @@ export function VisualWorkflowChrome({
   isSaving?: boolean;
   saveDisabled?: boolean;
   previewMode?: boolean;
+  playgroundMode?: boolean;
   activeTab?: "editor" | "executions";
   onTabChange?: (tab: "editor" | "executions") => void;
   workflowStatus?: VisualWorkflowStatus;
@@ -69,7 +71,11 @@ export function VisualWorkflowChrome({
           variant="inline"
           className="max-w-xs px-2 font-medium"
         />
-        {previewMode ? (
+        {playgroundMode ? (
+          <Badge variant="outline" className="rounded-full">
+            <FormattedMessage {...messages.playgroundBadge} />
+          </Badge>
+        ) : previewMode ? (
           <Badge variant="outline" className="rounded-full">
             <FormattedMessage {...messages.previewBadge} />
           </Badge>
