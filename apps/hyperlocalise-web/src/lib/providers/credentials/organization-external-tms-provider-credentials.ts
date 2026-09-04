@@ -1417,7 +1417,7 @@ export async function deleteOrganizationExternalTmsProviderCredential(input: {
   organizationId: string;
   role: OrganizationMembershipRole;
   providerKind: ExternalTmsProviderKind;
-}) {
+}): Promise<string | null> {
   assertExternalTmsCredentialAdmin(input.role);
 
   const deleted = await db
@@ -1430,5 +1430,5 @@ export async function deleteOrganizationExternalTmsProviderCredential(input: {
     )
     .returning({ id: schema.organizationExternalTmsProviderCredentials.id });
 
-  return deleted.length > 0;
+  return deleted[0]?.id ?? null;
 }

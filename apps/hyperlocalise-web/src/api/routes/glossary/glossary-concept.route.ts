@@ -36,6 +36,7 @@ import { serializeXlsx } from "@/lib/glossary/interchange/xlsx";
 import { createStoredFile, sha256Hex } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import {
@@ -687,6 +688,20 @@ export function createGlossaryConceptRoutes(
             );
           }
           const importedConcepts = await product.listConcepts();
+          await enqueueActivityLogEvent({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            eventType: "glossary_imported",
+            organizationId: c.var.auth.organization.localOrganizationId,
+            payload: {
+              batchId: reportId,
+              itemCount: sourceTotals.terms,
+              resourceId: glossaryId,
+            },
+            targetId: glossaryId,
+            targetKind: "glossary",
+          });
           return c.json(
             {
               reportId,
@@ -751,6 +766,20 @@ export function createGlossaryConceptRoutes(
             500,
           );
         }
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "glossary_imported",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: {
+            batchId: externalReport.id,
+            itemCount: sourceTotals.terms,
+            resourceId: glossaryId,
+          },
+          targetId: glossaryId,
+          targetKind: "glossary",
+        });
         return c.json(
           {
             reportId: externalReport.id,

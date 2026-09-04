@@ -16,7 +16,11 @@ import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -32,6 +36,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+}));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -84,6 +92,57 @@ describe("glossaryRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "forbidden",
     });
+  });
+
+  it("does not label ordinary glossary updates as ownership changes", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    enqueueActivityLogEventMock.mockClear();
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
+      {
+        param: { organizationSlug, glossaryId },
+        json: { name: "Updated glossary name" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(enqueueActivityLogEventMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "glossary_ownership_changed" }),
+    );
+  });
+
+  it("preserves a deleted glossary name in the activity event", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryName = "Glossary to delete";
+    const glossaryResponse = await fixture.createGlossaryViaApi(
+      identity,
+      { name: glossaryName },
+      headers,
+    );
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    enqueueActivityLogEventMock.mockClear();
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
+      { param: { organizationSlug, glossaryId } },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "glossary_deleted",
+        payload: { name: glossaryName, resourceId: glossaryId },
+      }),
+    );
   });
 
   it("creates a concept with additional terms atomically", async () => {
@@ -488,6 +547,18 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(201);
+    const responseBody = (await response.json()) as { reportId: string };
+    expect(enqueueActivityLogEventMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventType: "glossary_imported",
+        payload: {
+          batchId: responseBody.reportId,
+          itemCount: 1,
+          resourceId: glossaryId,
+        },
+        targetId: glossaryId,
+      }),
+    );
     const [term] = await db
       .select({ reviewStatus: schema.glossaryTerms.reviewStatus })
       .from(schema.glossaryTerms)

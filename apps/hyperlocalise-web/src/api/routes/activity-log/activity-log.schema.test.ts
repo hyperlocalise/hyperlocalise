@@ -26,21 +26,22 @@ describe("activityLogQuerySchema", () => {
   it("accepts actor, range, event type, and bounded limit filters", () => {
     expect(
       activityLogQuerySchema.parse({
-        actor: "user:user-123",
+        actor: "user:123e4567-e89b-12d3-a456-426614174000",
         eventTypes: ["project_created"],
         limit: "25",
         range: "7d",
       }),
     ).toEqual({
-      actor: "user:user-123",
+      actor: "user:123e4567-e89b-12d3-a456-426614174000",
       eventTypes: ["project_created"],
       limit: 25,
       range: "7d",
     });
   });
 
-  it("rejects empty user actors and unsupported ranges", () => {
+  it("rejects malformed user actors and unsupported ranges", () => {
     expect(activityLogQuerySchema.safeParse({ actor: "user:" }).success).toBe(false);
+    expect(activityLogQuerySchema.safeParse({ actor: "user:user-123" }).success).toBe(false);
     expect(activityLogQuerySchema.safeParse({ range: "90d" }).success).toBe(false);
   });
 });

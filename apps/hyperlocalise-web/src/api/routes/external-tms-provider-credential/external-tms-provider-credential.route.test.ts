@@ -27,7 +27,11 @@ import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/l
 import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -43,6 +47,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+}));
 
 const client = testClient<AppType>(app);
 const fixture = createProviderCredentialTestFixture(client);
@@ -81,6 +89,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
+      externalTmsProviderCredential: { id: string };
       shouldConnectCrowdinUser: boolean;
       authorizationUrl?: string;
       redirectUri?: string;
@@ -88,6 +97,16 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(body.shouldConnectCrowdinUser).toBe(true);
     expect(body.authorizationUrl).toBeUndefined();
     expect(body.redirectUri).toBeUndefined();
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: body.externalTmsProviderCredential.id,
+          integrationKind: "crowdin",
+        },
+        targetId: body.externalTmsProviderCredential.id,
+      }),
+    );
 
     const oauthStates = await db
       .select()
@@ -147,6 +166,45 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(body.externalTmsProviderCredential.displayName).toBe("Crowdin Enterprise");
     expect(body.externalTmsProviderCredential.baseUrl).toBe(
       "https://enterprise.crowdin.test/api/v2",
+    );
+  });
+
+  it("records the deleted credential ID when disconnecting an integration", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const setupResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+        },
+      },
+      { headers },
+    );
+    const setupBody = (await setupResponse.json()) as {
+      externalTmsProviderCredential: { id: string };
+    };
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ].$delete({ param: { organizationSlug, providerKind: "crowdin" } }, { headers });
+
+    expect(response.status).toBe(204);
+    expect(enqueueActivityLogEventMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventType: "integration_disconnected",
+        payload: {
+          connectionId: setupBody.externalTmsProviderCredential.id,
+          integrationKind: "crowdin",
+        },
+        targetId: setupBody.externalTmsProviderCredential.id,
+      }),
     );
   });
 
@@ -306,9 +364,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const auth = globalThis.__testApiAuthContext!;
 
-    await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin[
-      "pat-setup"
-    ].$post(
+    const setupResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["pat-setup"].$post(
       {
         param: { organizationSlug },
         json: {
@@ -317,6 +375,20 @@ describe("externalTmsProviderCredentialRoutes", () => {
         },
       },
       { headers },
+    );
+    expect(setupResponse.status).toBe(200);
+    const setupBody = (await setupResponse.json()) as {
+      externalTmsProviderCredential: { id: string };
+    };
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: setupBody.externalTmsProviderCredential.id,
+          integrationKind: "crowdin",
+        },
+        targetId: setupBody.externalTmsProviderCredential.id,
+      }),
     );
 
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
@@ -461,6 +533,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
+      externalTmsProviderCredential: { id: string };
       shouldConnectPhraseUser: boolean;
       authorizationUrl?: string;
       redirectUri?: string;
@@ -468,6 +541,13 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(body.shouldConnectPhraseUser).toBe(true);
     expect(body.authorizationUrl).toBeUndefined();
     expect(body.redirectUri).toBeUndefined();
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: { connectionId: body.externalTmsProviderCredential.id, integrationKind: "phrase" },
+        targetId: body.externalTmsProviderCredential.id,
+      }),
+    );
 
     const oauthStates = await db
       .select()
@@ -690,6 +770,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
+      externalTmsProviderCredential: { id: string };
       shouldConnectLokaliseUser: boolean;
       authorizationUrl?: string;
       redirectUri?: string;
@@ -697,6 +778,16 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(body.shouldConnectLokaliseUser).toBe(true);
     expect(body.authorizationUrl).toBeUndefined();
     expect(body.redirectUri).toBeUndefined();
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_connected",
+        payload: {
+          connectionId: body.externalTmsProviderCredential.id,
+          integrationKind: "lokalise",
+        },
+        targetId: body.externalTmsProviderCredential.id,
+      }),
+    );
 
     const oauthStates = await db
       .select()

@@ -814,20 +814,6 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           case "not_found":
             return glossaryNotFoundResponse(c);
           case "updated": {
-            await enqueueActivityLogEvent({
-              actorCredentialId: null,
-              actorKind: "user",
-              actorUserId: c.var.auth.user.localUserId,
-              eventType: "glossary_ownership_changed",
-              organizationId: c.var.auth.organization.localOrganizationId,
-              payload: {
-                glossaryId: result.glossary.id,
-                nextControlLevel: result.glossary.controlLevel,
-                previousControlLevel: glossary.controlLevel,
-              },
-              targetId: result.glossary.id,
-              targetKind: "glossary",
-            });
             const termCount = await queryNativeGlossaryTermCountForGlossary(result.glossary);
             const projectCount = await product.queryProjectCount();
             const teamNamesById = await queryGlossaryTeamNamesById([result.glossary]);
@@ -852,21 +838,6 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       if (!updated) {
         return glossaryNotFoundResponse(c);
       }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "glossary_ownership_changed",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: {
-          glossaryId: updated.id,
-          nextControlLevel: updated.controlLevel,
-          previousControlLevel: glossary.controlLevel,
-        },
-        targetId: updated.id,
-        targetKind: "glossary",
-      });
 
       const termCount =
         updated.source === "native"
@@ -913,7 +884,7 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         actorUserId: c.var.auth.user.localUserId,
         eventType: "glossary_deleted",
         organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { resourceId: glossary.id },
+        payload: { name: glossary.name, resourceId: glossary.id },
         targetId: glossary.id,
         targetKind: "glossary",
       });

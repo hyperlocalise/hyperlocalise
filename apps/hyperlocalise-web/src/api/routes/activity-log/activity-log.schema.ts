@@ -24,7 +24,8 @@ const actorFilterSchema = z
       value === "system" ||
       value === "agent" ||
       value === "api_key" ||
-      (value.startsWith("user:") && value.length > "user:".length),
+      (value.startsWith("user:") &&
+        z.string().uuid().safeParse(value.slice("user:".length)).success),
     "Actor filter is invalid",
   );
 

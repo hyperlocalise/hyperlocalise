@@ -1390,6 +1390,20 @@ export function createExternalTmsProviderCredentialRoutes() {
 
         const providerCredential = credentialResult.value;
 
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_connected",
+          organizationId,
+          payload: {
+            connectionId: providerCredential.id,
+            integrationKind: "crowdin",
+          },
+          targetId: providerCredential.id,
+          targetKind: "integration",
+        });
+
         return c.json(
           {
             externalTmsProviderCredential: providerCredential,
@@ -1440,9 +1454,25 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
+        const providerCredential = credentialResult.value;
+
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_connected",
+          organizationId,
+          payload: {
+            connectionId: providerCredential.id,
+            integrationKind: "crowdin",
+          },
+          targetId: providerCredential.id,
+          targetKind: "integration",
+        });
+
         return c.json(
           {
-            externalTmsProviderCredential: credentialResult.value,
+            externalTmsProviderCredential: providerCredential,
             shouldConnectCrowdinUser: true,
           },
           200,
@@ -1490,6 +1520,20 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
 
         const providerCredential = credentialResult.value;
+
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_connected",
+          organizationId,
+          payload: {
+            connectionId: providerCredential.id,
+            integrationKind: "phrase",
+          },
+          targetId: providerCredential.id,
+          targetKind: "integration",
+        });
 
         return c.json(
           {
@@ -1544,6 +1588,20 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
 
         const providerCredential = credentialResult.value;
+
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_connected",
+          organizationId,
+          payload: {
+            connectionId: providerCredential.id,
+            integrationKind: "lokalise",
+          },
+          targetId: providerCredential.id,
+          targetKind: "integration",
+        });
 
         return c.json(
           {
@@ -2402,13 +2460,13 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
         }
 
-        const deleted = await deleteOrganizationExternalTmsProviderCredential({
+        const deletedCredentialId = await deleteOrganizationExternalTmsProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           role: c.var.auth.membership.role,
           providerKind: providerKind.data,
         });
 
-        if (!deleted) return c.json({ error: "provider_credential_not_found" }, 404);
+        if (!deletedCredentialId) return c.json({ error: "provider_credential_not_found" }, 404);
         await enqueueActivityLogEvent({
           actorCredentialId: null,
           actorKind: "user",
@@ -2416,10 +2474,10 @@ export function createExternalTmsProviderCredentialRoutes() {
           eventType: "integration_disconnected",
           organizationId: c.var.auth.organization.localOrganizationId,
           payload: {
-            connectionId: providerKind.data,
+            connectionId: deletedCredentialId,
             integrationKind: providerKind.data,
           },
-          targetId: providerKind.data,
+          targetId: deletedCredentialId,
           targetKind: "integration",
         });
         return c.body(null, 204);
