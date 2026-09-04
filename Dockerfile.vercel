@@ -4,7 +4,7 @@
 # Use a Debian/glibc builder so the cgo_hunspell wrapper can build
 # against Hunspell's development headers and pkg-config metadata.
 
-FROM golang:1.27.0-bookworm AS builder
+FROM golang:1.27.1-bookworm AS builder
 WORKDIR /repo
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
