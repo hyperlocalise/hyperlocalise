@@ -177,6 +177,7 @@ describe("workosWebhookRoutes", () => {
       workosOrganizationId: "org_123",
       workosUserId: "user_123",
       actor: { type: "system", id: "workos_webhook" },
+      activityLogEvents: expect.any(Array),
     });
   });
 });
