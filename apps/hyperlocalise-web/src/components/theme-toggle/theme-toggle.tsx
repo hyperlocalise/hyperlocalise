@@ -28,13 +28,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { cn } from "@/lib/primitives/cn";
-
 import { themeToggleMessages } from "./theme-toggle.messages";
 
 type ThemeOption = "light" | "dark" | "system";
-
-const THEME_OPTIONS: ThemeOption[] = ["light", "dark", "system"];
 
 function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
   if (theme === "dark") {
@@ -68,47 +64,29 @@ function useThemeToggleState() {
   return { activeTheme, mounted, setTheme, triggerTheme };
 }
 
-function ThemeMenuControl() {
+function ThemeMenuRadioGroup() {
   const intl = useIntl();
-  const { activeTheme, mounted, setTheme } = useThemeToggleState();
+  const { activeTheme, setTheme } = useThemeToggleState();
 
   return (
-    <div
-      role="radiogroup"
+    <DropdownMenuRadioGroup
       aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
-      className="flex gap-1"
+      value={activeTheme}
+      onValueChange={(value) => setTheme(value as ThemeOption)}
     >
-      {THEME_OPTIONS.map((option) => {
-        const isActive = mounted && activeTheme === option;
-        const label = intl.formatMessage(
-          option === "light"
-            ? themeToggleMessages.light
-            : option === "dark"
-              ? themeToggleMessages.dark
-              : themeToggleMessages.system,
-        );
-
-        return (
-          <button
-            key={option}
-            type="button"
-            role="radio"
-            aria-checked={isActive}
-            aria-label={label}
-            disabled={!mounted}
-            onClick={() => setTheme(option)}
-            className={cn(
-              "flex flex-1 items-center justify-center rounded-md p-2 transition-colors",
-              isActive
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <ThemeToggleIcon theme={option} />
-          </button>
-        );
-      })}
-    </div>
+      <DropdownMenuRadioItem value="light">
+        <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
+        <FormattedMessage {...themeToggleMessages.light} />
+      </DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value="dark">
+        <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
+        <FormattedMessage {...themeToggleMessages.dark} />
+      </DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value="system">
+        <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
+        <FormattedMessage {...themeToggleMessages.system} />
+      </DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
   );
 }
 
@@ -121,7 +99,7 @@ export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
   const { activeTheme, setTheme, triggerTheme } = useThemeToggleState();
 
   if (variant === "menu") {
-    return <ThemeMenuControl />;
+    return <ThemeMenuRadioGroup />;
   }
 
   return (

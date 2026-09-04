@@ -43,6 +43,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
+import { localeToggleMessages } from "@/components/locale-toggle/locale-toggle.messages";
+import { themeToggleMessages } from "@/components/theme-toggle/theme-toggle.messages";
 import { buildOrganizationSwitchHref } from "@/components/team-switcher";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 
@@ -131,12 +133,18 @@ export function NavUser({
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
-        <div className="px-1 py-1">
-          <div className="flex flex-col gap-1 rounded-lg bg-muted p-1">
-            <ThemeToggle variant="menu" />
-            <LocaleToggle variant="menu" />
-          </div>
-        </div>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            <FormattedMessage {...themeToggleMessages.changeTheme} />
+          </DropdownMenuLabel>
+          <ThemeToggle variant="menu" />
+        </DropdownMenuGroup>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            <FormattedMessage {...localeToggleMessages.changeLanguage} />
+          </DropdownMenuLabel>
+          <LocaleToggle variant="menu" />
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/account`} />}>
