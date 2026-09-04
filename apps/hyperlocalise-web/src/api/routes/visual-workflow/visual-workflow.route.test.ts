@@ -63,6 +63,7 @@ import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
+import { buildVisualWorkflowManualIdempotencyKey } from "@/lib/visual-workflows/dispatch/idempotency";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -194,12 +195,19 @@ describe("visual workflow routes", () => {
       { headers },
     );
     expect(createdResponse.status).toBe(201);
-    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+    const created = (await createdResponse.json()) as {
+      visualWorkflow: { id: string; definitionVersion: number };
+    };
 
     const runPayload = {
       idempotencyKey: `manual:${created.visualWorkflow.id}:coverage`,
       inputSnapshot: { reason: "operator_test" },
     };
+    const expectedIdempotencyKey = buildVisualWorkflowManualIdempotencyKey({
+      visualWorkflowId: created.visualWorkflow.id,
+      definitionVersion: created.visualWorkflow.definitionVersion,
+      idempotencyKey: runPayload.idempotencyKey,
+    });
 
     const firstRunResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
       ":visualWorkflowId"
@@ -224,7 +232,7 @@ describe("visual workflow routes", () => {
     });
     expect(firstRun.run).toMatchObject({
       status: "queued",
-      idempotencyKey: runPayload.idempotencyKey,
+      idempotencyKey: expectedIdempotencyKey,
     });
     expect(visualWorkflowExecutionEnqueueMock).toHaveBeenCalledWith({
       visualWorkflowRunId: firstRun.run.id,

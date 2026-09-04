@@ -107,7 +107,7 @@ describe("visual workflow runs", () => {
         organizationId,
         enqueue,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ enqueuedNow: true, scheduleSlotCommitted: true });
     expect(enqueue).toHaveBeenCalledTimes(1);
 
     await expect(
@@ -116,7 +116,7 @@ describe("visual workflow runs", () => {
         organizationId,
         enqueue,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ enqueuedNow: false, scheduleSlotCommitted: true });
     expect(enqueue).toHaveBeenCalledTimes(1);
 
     const [marked] = await db
