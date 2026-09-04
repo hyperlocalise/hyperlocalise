@@ -12,6 +12,7 @@
  */
 export * from "./schema/core";
 export * from "./schema/enums";
+export * from "./schema/activity-log";
 export * from "./schema/organizations";
 export * from "./schema/providers";
 export * from "./schema/projects";
