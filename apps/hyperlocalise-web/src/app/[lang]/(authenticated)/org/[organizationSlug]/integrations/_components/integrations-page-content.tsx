@@ -18,8 +18,6 @@ import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { Alert02Icon, ArrowDown01Icon, Delete02Icon, PuzzleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { SimpleIcon } from "simple-icons";
-import { siCrowdin } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -88,6 +86,11 @@ import {
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
 import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
+import {
+  resolveContentfulIntegrationConfig,
+  resolveTmsIntegrationConfigs,
+  type TmsIntegrationConfig,
+} from "@/lib/integrations/workspace-integrations";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();
@@ -159,52 +162,6 @@ function canManageIntegrations(role: OrganizationMembershipRole) {
 function canManageAgents(role: OrganizationMembershipRole) {
   return hasCapability(role, "provider_credentials:write");
 }
-
-type TmsIntegrationConfig =
-  | {
-      name: string;
-      providerKind: "native";
-      logo: string;
-      detail: string;
-      included: true;
-    }
-  | {
-      name: string;
-      providerKind: ExternalTmsProviderKind;
-      logo: string;
-      icon?: SimpleIcon;
-      detail: string;
-      comingSoon?: boolean;
-    };
-
-const tmsIntegrationMeta = [
-  {
-    providerKind: "native" as const,
-    logo: "/images/logo.png",
-    included: true as const,
-  },
-  {
-    providerKind: "crowdin" as const,
-    logo: "/images/tms/crowdin.png",
-    icon: siCrowdin,
-  },
-  {
-    providerKind: "lokalise" as const,
-    logo: "/images/tms/lokalise.webp",
-  },
-  {
-    providerKind: "phrase" as const,
-    logo: "/images/tms/phrase.png",
-  },
-  {
-    providerKind: "smartling" as const,
-    logo: "/images/tms/smartling.png",
-  },
-] as const;
-
-const contentfulIntegrationMeta = {
-  logo: "/images/contentful-logo.svg",
-} as const;
 
 function useExternalTmsCredentials(organizationSlug: string) {
   return useQuery({
@@ -776,58 +733,11 @@ export function IntegrationsPageContent({
     categoryFilter === "all" || categoryFilter === categoryId;
 
   const tmsIntegrations = useMemo<readonly TmsIntegrationConfig[]>(
-    () =>
-      tmsIntegrationMeta.map((integration) => {
-        const copyByKind = {
-          native: {
-            name: integrationsPageContentMessages.tmsNativeName,
-            detail: integrationsPageContentMessages.tmsNativeDetail,
-          },
-          crowdin: {
-            name: integrationsPageContentMessages.tmsCrowdinName,
-            detail: integrationsPageContentMessages.tmsCrowdinDetail,
-          },
-          lokalise: {
-            name: integrationsPageContentMessages.tmsLokaliseName,
-            detail: integrationsPageContentMessages.tmsLokaliseDetail,
-          },
-          phrase: {
-            name: integrationsPageContentMessages.tmsPhraseName,
-            detail: integrationsPageContentMessages.tmsPhraseDetail,
-          },
-          smartling: {
-            name: integrationsPageContentMessages.tmsSmartlingName,
-            detail: integrationsPageContentMessages.tmsSmartlingDetail,
-          },
-        } as const;
-
-        const copy = copyByKind[integration.providerKind];
-
-        if (integration.providerKind === "native") {
-          return {
-            ...integration,
-            name: intl.formatMessage(copy.name),
-            detail: intl.formatMessage(copy.detail),
-          };
-        }
-
-        return {
-          ...integration,
-          name: intl.formatMessage(copy.name),
-          detail: intl.formatMessage(copy.detail),
-        };
-      }),
+    () => resolveTmsIntegrationConfigs(intl),
     [intl],
   );
 
-  const contentfulIntegration = useMemo(
-    () => ({
-      ...contentfulIntegrationMeta,
-      name: intl.formatMessage(integrationsPageContentMessages.contentfulName),
-      detail: intl.formatMessage(integrationsPageContentMessages.contentfulDetail),
-    }),
-    [intl],
-  );
+  const contentfulIntegration = useMemo(() => resolveContentfulIntegrationConfig(intl), [intl]);
 
   const contentfulHelpCenterDefaultName = intl.formatMessage(
     integrationsPageContentMessages.contentfulHelpCenterDefaultName,

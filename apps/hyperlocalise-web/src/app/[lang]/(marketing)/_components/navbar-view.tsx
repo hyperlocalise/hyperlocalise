@@ -117,6 +117,7 @@ const resourceLinks: NavLink[] = [
   { href: docsUrl, kind: "navbar", labelKey: "navDocumentation", external: true },
   { href: cliDocsUrl, kind: "navbar", labelKey: "navCliDocs", external: true },
   { href: "/localisation-audit", kind: "navbar", labelKey: "navLocalisationAudit" },
+  { href: "/integrations", kind: "navbar", labelKey: "navIntegrations" },
   { href: "/blog", kind: "navbar", labelKey: "navBlog" },
   { href: "/startups", kind: "navbar", labelKey: "navStartups" },
   { href: githubActionUrl, kind: "navbar", labelKey: "navGitHubAction", external: true },
