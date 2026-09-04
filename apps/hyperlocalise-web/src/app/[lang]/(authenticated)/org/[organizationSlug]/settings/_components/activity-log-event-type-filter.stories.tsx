@@ -91,6 +91,8 @@ export const EveryEventTypeSelected: Story = {
       canvas.getByText(`${V1_ACTIVITY_EVENT_TYPES.length} event types`),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Remove Member Invited" })).toBeInTheDocument();
-    await expect(canvas.getByText(`+${V1_ACTIVITY_EVENT_TYPES.length - 3} more`)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(`+${V1_ACTIVITY_EVENT_TYPES.length - 3} more`),
+    ).toBeInTheDocument();
   },
 };
