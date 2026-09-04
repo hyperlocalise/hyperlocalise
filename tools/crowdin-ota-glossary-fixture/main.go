@@ -85,6 +85,10 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 				if requestErr != nil {
 					return fmt.Errorf("concordance case %s/%s/%s: %w", targetLanguageID, query.ID, expression, requestErr)
 				}
+				output, filterErr := filterConcordanceOutputForGlossary(output, glossaryID)
+				if filterErr != nil {
+					return fmt.Errorf("filter concordance case %s/%s/%s: %w", targetLanguageID, query.ID, expression, filterErr)
+				}
 				runs = append(runs, recordedRun{
 					CaseID:           query.ID,
 					TargetLanguageID: targetLanguageID,

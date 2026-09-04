@@ -205,7 +205,7 @@ func TestRunWritesAllPairsWithoutTokenInRecording(t *testing.T) {
 		}
 		if request.Method == http.MethodPost && request.URL.Path == "/api/v2/glossaries/concordance" {
 			concordanceCount.Add(1)
-			_, _ = writer.Write([]byte(`{"data":[]}`))
+			_, _ = writer.Write([]byte(`{"data":[{"data":{"glossary":{"id":44}}},{"data":{"glossary":{"id":99}}}]}`))
 			return
 		}
 		t.Fatalf("unexpected request: %s %s", request.Method, request.URL.Path)
@@ -252,6 +252,28 @@ func TestRunWritesAllPairsWithoutTokenInRecording(t *testing.T) {
 		if len(run.Input.Expressions) != 1 {
 			t.Fatalf("recorded run expressions = %d, want 1", len(run.Input.Expressions))
 		}
+		var response struct {
+			Data []struct {
+				Data struct {
+					Glossary struct {
+						ID int `json:"id"`
+					} `json:"glossary"`
+				} `json:"data"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(run.Output, &response); err != nil {
+			t.Fatal(err)
+		}
+		if len(response.Data) != 1 || response.Data[0].Data.Glossary.ID != 44 {
+			t.Fatalf("recorded glossary results = %#v, want only glossary 44", response.Data)
+		}
+	}
+}
+
+func TestFilterConcordanceOutputForGlossaryRejectsMissingGlossaryID(t *testing.T) {
+	_, err := filterConcordanceOutputForGlossary(json.RawMessage(`{"data":[{"data":{}}]}`), 44)
+	if err == nil || !strings.Contains(err.Error(), "no glossary id") {
+		t.Fatalf("filter error = %v, want missing glossary id", err)
 	}
 }
 

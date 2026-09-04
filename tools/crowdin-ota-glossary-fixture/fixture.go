@@ -571,6 +571,54 @@ func (c *apiClient) concordance(ctx context.Context, input concordanceRequest) (
 	return json.RawMessage(body), status, nil
 }
 
+func filterConcordanceOutputForGlossary(output json.RawMessage, glossaryID int) (json.RawMessage, error) {
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(output, &envelope); err != nil {
+		return nil, fmt.Errorf("decode concordance response: %w", err)
+	}
+
+	rawData, ok := envelope["data"]
+	if !ok {
+		return nil, errors.New("concordance response returned no data")
+	}
+
+	var entries []json.RawMessage
+	if err := json.Unmarshal(rawData, &entries); err != nil {
+		return nil, fmt.Errorf("decode concordance results: %w", err)
+	}
+
+	filtered := make([]json.RawMessage, 0, len(entries))
+	for index, entry := range entries {
+		var result struct {
+			Data struct {
+				Glossary struct {
+					ID int `json:"id"`
+				} `json:"glossary"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(entry, &result); err != nil {
+			return nil, fmt.Errorf("decode concordance result %d: %w", index, err)
+		}
+		if result.Data.Glossary.ID == 0 {
+			return nil, fmt.Errorf("concordance result %d returned no glossary id", index)
+		}
+		if result.Data.Glossary.ID == glossaryID {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	filteredData, err := json.Marshal(filtered)
+	if err != nil {
+		return nil, fmt.Errorf("encode filtered concordance results: %w", err)
+	}
+	envelope["data"] = filteredData
+	filteredOutput, err := json.Marshal(envelope)
+	if err != nil {
+		return nil, fmt.Errorf("encode filtered concordance response: %w", err)
+	}
+	return filteredOutput, nil
+}
+
 func buildRecording(value fixture, glossaryID int, seedPath string, userID *int, outputs []recordedRun) recording {
 	return recording{
 		SchemaVersion:     1,

@@ -49,6 +49,8 @@ import type {
 } from "./glossary";
 
 const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_native_source_terms");
+const NATIVE_CONCORDANCE_CANDIDATE_MULTIPLIER = 20;
+const MAX_NATIVE_CONCORDANCE_CANDIDATES = 1000;
 
 type GlossaryTermRow = typeof schema.glossaryTerms.$inferSelect;
 type GlossaryConceptRow = typeof schema.glossaryConcepts.$inferSelect;
@@ -1183,7 +1185,13 @@ export class NativeGlossary extends Glossary {
       // Apply the result limit only after the source-text matcher below. The SQL predicate is
       // intentionally a broad indexed candidate filter because concordance accepts source-text
       // prefixes and simple singular/plural variations.
-      .orderBy(desc(sql`rank`));
+      .orderBy(desc(sql`rank`))
+      .limit(
+        Math.min(
+          Math.max(limit, 1) * NATIVE_CONCORDANCE_CANDIDATE_MULTIPLIER,
+          MAX_NATIVE_CONCORDANCE_CANDIDATES,
+        ),
+      );
 
     const filteredHits: NativeConceptSourceHit[] = sourceHits.flatMap((row) =>
       row.conceptId &&
