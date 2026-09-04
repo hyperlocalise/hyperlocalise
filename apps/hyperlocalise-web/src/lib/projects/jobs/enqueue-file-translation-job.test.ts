@@ -12,7 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 
 const {
   getStoredFileForJobScopeMock,
@@ -23,6 +24,7 @@ const {
   selectLimitMock,
   transactionMock,
   jobQueueEnqueueMock,
+  ensureAiFeaturesAllowedMock,
 } = vi.hoisted(() => ({
   getStoredFileForJobScopeMock: vi.fn(),
   ensureRepositorySourceFileVersionForStoredFileMock: vi.fn(),
@@ -32,7 +34,16 @@ const {
   selectLimitMock: vi.fn(),
   transactionMock: vi.fn(),
   jobQueueEnqueueMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
 }));
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
 
 vi.mock("@/lib/file-storage/records", () => ({
   getStoredFileForJobScope: (...args: unknown[]) => getStoredFileForJobScopeMock(...args),
@@ -166,6 +177,7 @@ describe("enqueueFileTranslationJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedJobValues = null;
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     validateJobLocalesAgainstProjectMock.mockReturnValue(ok(undefined));
     assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValue(ok(undefined));
     reserveUsageEventMock.mockResolvedValue(ok(undefined));
@@ -311,12 +323,64 @@ describe("enqueueFileTranslationJob", () => {
     });
     expect(jobQueueEnqueueMock).not.toHaveBeenCalled();
   });
+
+  it("rejects create when AI features are not allowed before writing jobs", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({ organizationId: "org_1" });
+    expect(getStoredFileForJobScopeMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("enqueueExistingFileTranslationJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     jobQueueEnqueueMock.mockResolvedValue(undefined);
+  });
+
+  it("rejects enqueue when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const result = await enqueueExistingFileTranslationJob({
+      organizationId: "org_1",
+      jobId: "job_queued",
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({ organizationId: "org_1" });
+    expect(selectLimitMock).not.toHaveBeenCalled();
+    expect(jobQueueEnqueueMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-queued terminal job statuses", async () => {

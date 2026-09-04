@@ -10,7 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { withPublicHttpFetchMock } = vi.hoisted(() => ({
+  withPublicHttpFetchMock: vi.fn(),
+}));
+
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
+  return {
+    ...actual,
+    withPublicHttpFetch: (...args: unknown[]) => withPublicHttpFetchMock(...args),
+  };
+});
 
 import { createDefaultConfig } from "../catalog/node-catalog";
 import { createVisualWorkflowExecutionContext } from "./context";
@@ -58,6 +70,10 @@ describe("visual workflow expressions", () => {
 });
 
 describe("visual workflow node execution edges", () => {
+  beforeEach(() => {
+    withPublicHttpFetchMock.mockReset();
+  });
+
   it("resolves empty for_each collections to an empty item list", async () => {
     const { executeVisualWorkflowNode } = await import("./execute-node");
     const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
@@ -101,6 +117,149 @@ describe("visual workflow node execution edges", () => {
     expect(result).toEqual({
       ok: false,
       error: { code: "missing_url", message: "HTTP URL is required." },
+    });
+    expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("maps SSRF-blocked HTTP URLs to http_request_failed", async () => {
+    withPublicHttpFetchMock.mockRejectedValue(new Error("Blocked host is not allowed."));
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "http://127.0.0.1/internal",
+          onError: "stop",
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "http_request_failed",
+        message: "Blocked host is not allowed.",
+      },
+    });
+    expect(withPublicHttpFetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1/internal",
+      expect.objectContaining({ method: "GET", redirect: "manual" }),
+      expect.any(Function),
+    );
+  });
+
+  it("returns HTTP response output on success", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      body: '{"ok":true}',
+      json: { ok: true },
+    });
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "https://example.com/status",
+          onError: "stop",
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        status: 200,
+        statusText: "OK",
+        ok: true,
+        body: '{"ok":true}',
+        json: { ok: true },
+      },
+    });
+  });
+
+  it("fails non-ok HTTP responses when failOnHttpError is defaulted", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 503,
+      statusText: "Service Unavailable",
+      ok: false,
+      body: "down",
+      json: null,
+    });
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "https://example.com/down",
+          onError: "stop",
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "http_error",
+        message: "HTTP 503 Service Unavailable",
+      },
+    });
+  });
+
+  it("returns non-ok HTTP output when failOnHttpError is false", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 404,
+      statusText: "Not Found",
+      ok: false,
+      body: "missing",
+      json: null,
+    });
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "https://example.com/missing",
+          failOnHttpError: false,
+          onError: "stop",
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        status: 404,
+        statusText: "Not Found",
+        ok: false,
+        body: "missing",
+        json: null,
+      },
     });
   });
 

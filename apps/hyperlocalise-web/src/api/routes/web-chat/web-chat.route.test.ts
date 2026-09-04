@@ -18,6 +18,7 @@ const {
   checkBotIdMock,
   resolveApiAuthContextFromSessionMock,
   createWebChatAgentUIStreamResponseMock,
+  ensureAiFeaturesAllowedMock,
 } = vi.hoisted(() => ({
   checkBotIdMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -27,6 +28,7 @@ const {
       null,
   ),
   createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("ok", { status: 200 })),
+  ensureAiFeaturesAllowedMock: vi.fn(),
 }));
 
 vi.mock("botid/server", () => ({
@@ -45,6 +47,14 @@ vi.mock("@/agents/automations/workspace/agent/channels/web-chat", () => ({
   createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
 }));
 
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
@@ -56,6 +66,8 @@ import {
   WEB_CHAT_MAX_IMAGE_REQUEST_BYTES,
   listRecentWebChatMessages,
 } from "@/lib/agents/workspace-automation-web-chat";
+import { err, ok } from "@/lib/primitives/result/results";
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
@@ -69,6 +81,7 @@ beforeAll(async () => {
 beforeEach(() => {
   checkBotIdMock.mockResolvedValue({ isBot: false });
   createWebChatAgentUIStreamResponseMock.mockReturnValue(new Response("ok", { status: 200 }));
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
 });
 
 afterEach(async () => {
@@ -134,6 +147,73 @@ function chatRequestBody(messageId: string) {
 }
 
 describe("public web chat routes", () => {
+  it("rejects visitor messages when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+
+    const created = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "Hello from a free plan visitor",
+    });
+
+    expect(created.response.status).toBe(403);
+    expect(created.body).toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalled();
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects conversation chat streams when AI features are not allowed", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+
+    const created = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "Seed message before denial",
+    });
+    expect(created.response.status).toBe(201);
+
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const response = await app.request(
+      `/api/public/web-chat/${organizationSlug}/${automation.id}/conversations/${created.body.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: {
+          cookie: created.cookie,
+          "Content-Type": "application/json",
+        },
+        body: chatRequestBody(created.body.message.id),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
   it("returns public agent metadata without auth", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

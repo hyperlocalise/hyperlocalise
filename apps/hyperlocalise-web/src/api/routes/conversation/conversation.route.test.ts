@@ -23,19 +23,25 @@ import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
+import { err, ok } from "@/lib/primitives/result/results";
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  ensureAiFeaturesAllowedMock: vi.fn(),
 }));
 const { createInteractionMock } = vi.hoisted(() => ({
   createInteractionMock: vi.fn(),
+}));
+const { createWebChatAgentUIStreamResponseMock } = vi.hoisted(() => ({
+  createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("stream-ok", { status: 200 })),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -54,6 +60,18 @@ vi.mock("@/lib/conversations/interactions", async (importOriginal) => {
     createInteraction: createInteractionMock,
   };
 });
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
+vi.mock("@/agents/hyperlocalise/agent/channels/web", () => ({
+  createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
+}));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
 const client = testClient<AppType>(app);
@@ -97,10 +115,15 @@ async function createGithubRepositoryFixture(input: {
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
 });
 
 afterEach(async () => {
   vi.clearAllMocks();
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+  createWebChatAgentUIStreamResponseMock.mockReturnValue(
+    new Response("stream-ok", { status: 200 }),
+  );
   await cleanup();
 });
 
@@ -164,6 +187,62 @@ describe("conversation creation", () => {
       text: "Translate this to fr-FR",
       senderType: "user",
     });
+  });
+
+  it("rejects chat streams when AI features are not allowed", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+
+    const createdResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+    expect(createdResponse.status).toBe(201);
+    const createdBody = (await createdResponse.json()) as {
+      conversation: { id: string };
+      message: { id: string };
+    };
+
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations/${createdBody.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: createdBody.message.id,
+              role: "user",
+              parts: [{ type: "text", text: "Translate this to fr-FR" }],
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalled();
   });
 
   it("stores initial translation source files on the conversation message", async () => {

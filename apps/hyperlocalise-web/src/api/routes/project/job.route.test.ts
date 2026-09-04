@@ -27,6 +27,8 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
+import { err, ok } from "@/lib/primitives/result/results";
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { createTeamTestFixture } from "../team/team.fixture";
@@ -35,13 +37,14 @@ import type { ProjectResponse } from "./project.schema";
 import type { TeamResponse } from "../team/team.schema";
 import type { WorkspaceJobsResponse } from "./job.schema";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  ensureAiFeaturesAllowedMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -52,16 +55,26 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
 });
 
 afterEach(async () => {
   vi.clearAllMocks();
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   await projectFixture.cleanup();
 });
 
@@ -423,7 +436,104 @@ describe("project job create", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     await createFixture.cleanup();
+  });
+
+  it("rejects translation job create when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+    });
+  });
+
+  it("still creates proofread jobs when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      job: { id: string; kind: string; status: string };
+    };
+    expect(body.job.kind).toBe("proofread");
+    expect(body.job.status).toBe("waiting_for_review");
+    expect(enqueueJob).not.toHaveBeenCalled();
+    expect(ensureAiFeaturesAllowedMock).not.toHaveBeenCalled();
   });
 
   it("defaults file job metadata.title from filename and UTC time", async () => {
