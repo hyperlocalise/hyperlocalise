@@ -108,7 +108,7 @@ export function AppShellClient({
           {
             "--app-shell-content-height":
               "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
-            "--app-shell-plan-footer-height": "calc(2.5rem + env(safe-area-inset-bottom))",
+            "--app-shell-plan-footer-height": "calc(3rem + env(safe-area-inset-bottom))",
             "--app-shell-footer-height":
               "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
             "--sidebar-width": "15rem",

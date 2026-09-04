@@ -60,7 +60,7 @@ const meta = {
     (Story) => (
       <div
         className="min-h-screen bg-muted/20 text-foreground"
-        style={{ "--app-shell-plan-footer-height": "2.5rem" } as CSSProperties}
+        style={{ "--app-shell-plan-footer-height": "3rem" } as CSSProperties}
       >
         <Story />
       </div>

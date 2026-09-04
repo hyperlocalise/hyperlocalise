@@ -147,7 +147,6 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
         render={
           <Button
             variant="outline"
-            size="xs"
             aria-label={intl.formatMessage(planUsageSummaryMessages.openPlanUsageAriaLabel, {
               planName,
             })}
