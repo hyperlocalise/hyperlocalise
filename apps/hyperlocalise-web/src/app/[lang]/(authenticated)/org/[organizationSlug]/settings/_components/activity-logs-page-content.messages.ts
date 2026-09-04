@@ -80,6 +80,126 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "+WsHQLSMmY",
     description: "Accessible label for removing an event type filter",
   },
+  memberInvitedEventType: {
+    defaultMessage: "Member Invited",
+    id: "k2QmN8vL1a",
+    description: "Activity log event type label for member invitations",
+  },
+  memberInviteResentEventType: {
+    defaultMessage: "Member Invite Resent",
+    id: "p9XrT4wB2c",
+    description: "Activity log event type label for resent member invitations",
+  },
+  memberRoleChangedEventType: {
+    defaultMessage: "Member Role Changed",
+    id: "s7HjE5nD3e",
+    description: "Activity log event type label for member role changes",
+  },
+  memberRemovedEventType: {
+    defaultMessage: "Member Removed",
+    id: "u1LkF6oG4f",
+    description: "Activity log event type label for member removals",
+  },
+  workspaceUpdatedEventType: {
+    defaultMessage: "Workspace Updated",
+    id: "v3NmH8pI5g",
+    description: "Activity log event type label for workspace updates",
+  },
+  personalAccessTokenCreatedEventType: {
+    defaultMessage: "Personal Access Token Created",
+    id: "w5PoJ0qK6h",
+    description: "Activity log event type label for personal access token creation",
+  },
+  personalAccessTokenRevokedEventType: {
+    defaultMessage: "Personal Access Token Revoked",
+    id: "x7RqL2sM7i",
+    description: "Activity log event type label for personal access token revocation",
+  },
+  integrationConnectedEventType: {
+    defaultMessage: "Integration Connected",
+    id: "y9TsN4uO8j",
+    description: "Activity log event type label for connected integrations",
+  },
+  integrationDisconnectedEventType: {
+    defaultMessage: "Integration Disconnected",
+    id: "z1VuP6wQ9k",
+    description: "Activity log event type label for disconnected integrations",
+  },
+  projectCreatedEventType: {
+    defaultMessage: "Project Created",
+    id: "a3XwR8yS0l",
+    description: "Activity log event type label for project creation",
+  },
+  projectDeletedEventType: {
+    defaultMessage: "Project Deleted",
+    id: "b5ZyT0aU1m",
+    description: "Activity log event type label for project deletion",
+  },
+  projectSettingsChangedEventType: {
+    defaultMessage: "Project Settings Changed",
+    id: "c7AbV2cW2n",
+    description: "Activity log event type label for project settings changes",
+  },
+  glossaryCreatedEventType: {
+    defaultMessage: "Glossary Created",
+    id: "d9CdX4eY3o",
+    description: "Activity log event type label for glossary creation",
+  },
+  glossaryDeletedEventType: {
+    defaultMessage: "Glossary Deleted",
+    id: "e1EfZ6gA4p",
+    description: "Activity log event type label for glossary deletion",
+  },
+  glossaryImportedEventType: {
+    defaultMessage: "Glossary Imported",
+    id: "f3GhB8iC5q",
+    description: "Activity log event type label for glossary imports",
+  },
+  glossaryExportedEventType: {
+    defaultMessage: "Glossary Exported",
+    id: "g5IjD0kE6r",
+    description: "Activity log event type label for glossary exports",
+  },
+  glossaryProjectAttachedEventType: {
+    defaultMessage: "Glossary Project Attached",
+    id: "h7KlF2mG7s",
+    description: "Activity log event type label for attaching a glossary to a project",
+  },
+  glossaryProjectDetachedEventType: {
+    defaultMessage: "Glossary Project Detached",
+    id: "i9MnH4oI8t",
+    description: "Activity log event type label for detaching a glossary from a project",
+  },
+  translationMemoryCreatedEventType: {
+    defaultMessage: "Translation Memory Created",
+    id: "j1OpJ6qK9u",
+    description: "Activity log event type label for translation memory creation",
+  },
+  translationMemoryDeletedEventType: {
+    defaultMessage: "Translation Memory Deleted",
+    id: "k3QrL8sM0v",
+    description: "Activity log event type label for translation memory deletion",
+  },
+  translationMemoryImportedEventType: {
+    defaultMessage: "Translation Memory Imported",
+    id: "l5StN0uO1w",
+    description: "Activity log event type label for translation memory imports",
+  },
+  translationMemoryExportedEventType: {
+    defaultMessage: "Translation Memory Exported",
+    id: "m7UvP2wQ2x",
+    description: "Activity log event type label for translation memory exports",
+  },
+  translationMemoryProjectAttachedEventType: {
+    defaultMessage: "Translation Memory Project Attached",
+    id: "n9WxR4yS3y",
+    description: "Activity log event type label for attaching translation memory to a project",
+  },
+  translationMemoryProjectDetachedEventType: {
+    defaultMessage: "Translation Memory Project Detached",
+    id: "o1YzT6aU4z",
+    description: "Activity log event type label for detaching translation memory from a project",
+  },
   membershipEventGroup: {
     defaultMessage: "Membership",
     id: "3Di0YY2oCY",
@@ -269,11 +389,6 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "created a project",
     id: "ENauN48xg5",
     description: "Action for a project creation activity",
-  },
-  projectArchivedAction: {
-    defaultMessage: "archived a project",
-    id: "qikQQxqXrr",
-    description: "Action for a project archive activity",
   },
   projectDeletedAction: {
     defaultMessage: "deleted a project",

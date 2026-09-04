@@ -65,9 +65,9 @@ export const SelectedEventTypes: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Event types" }));
     const body = within(canvasElement.ownerDocument.body);
     await expect(
-      body.getByRole("checkbox", { name: "Project settings changed" }),
+      body.getByRole("checkbox", { name: "Project Settings Changed" }),
     ).toBeInTheDocument();
-    await expect(body.getByText("Project settings changed")).toBeInTheDocument();
+    await expect(body.getByText("Project Settings Changed")).toBeInTheDocument();
   },
 };
 
@@ -76,8 +76,8 @@ export const SearchAndSelect: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Event types" }));
     await userEvent.type(body.getByPlaceholderText("Search event types…"), "workspace");
-    await expect(body.getByText("Workspace updated")).toBeInTheDocument();
-    await userEvent.click(body.getByText("Workspace updated"));
+    await expect(body.getByText("Workspace Updated")).toBeInTheDocument();
+    await userEvent.click(body.getByText("Workspace Updated"));
     await expect(canvas.getByText("1 event type")).toBeInTheDocument();
   },
 };
@@ -87,8 +87,10 @@ export const EveryEventTypeSelected: Story = {
     initialValue: [...V1_ACTIVITY_EVENT_TYPES],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("26 event types")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(`${V1_ACTIVITY_EVENT_TYPES.length} event types`),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Remove Member Invited" })).toBeInTheDocument();
-    await expect(canvas.getByText("+23 more")).toBeInTheDocument();
+    await expect(canvas.getByText(`+${V1_ACTIVITY_EVENT_TYPES.length - 3} more`)).toBeInTheDocument();
   },
 };

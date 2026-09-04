@@ -39,9 +39,11 @@ Add `GET /api/orgs/:organizationSlug/activity-logs` with Zod-validated query par
 - bounded `limit`, default 50
 - opaque cursor containing `(createdAt, id)` and a normalized filter fingerprint
 
-Return `{ activityLogs, nextCursor }`, newest-first. Each item contains the safe event payload plus
-server-enriched actor and target view models. Deleted users use `Deleted user`; unavailable targets
-have no link. Invalid or filter-mismatched cursors use the standard error envelope.
+Return `{ activityLogs, actors, nextCursor }`, newest-first. Each item contains the safe event
+payload plus server-enriched actor and target view models. `actors` lists distinct user actors for
+the organization and does not follow the current page filters. Deleted users use `Deleted user`;
+unavailable targets have no link. Invalid or filter-mismatched cursors use the standard error
+envelope.
 
 ## Event coverage and UI
 

@@ -62,8 +62,29 @@ export type ActivityLogListItem = {
 
 export type ActivityLogListResult = {
   activityLogs: ActivityLogListItem[];
+  actors: ActivityLogActorView[];
   nextCursor: string | null;
 };
+
+const uuidSchema = z.string().uuid();
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && uuidSchema.safeParse(value).success;
+}
+
+/** Safe label from an event payload when the live target row is gone or has no name. */
+export function payloadTargetDisplayName(payload: Record<string, unknown>): string | null {
+  if (typeof payload.name === "string" && payload.name.trim()) {
+    return payload.name;
+  }
+  if (typeof payload.integrationKind === "string" && payload.integrationKind.trim()) {
+    return payload.integrationKind;
+  }
+  if (typeof payload.keyPrefix === "string" && payload.keyPrefix.trim()) {
+    return payload.keyPrefix;
+  }
+  return null;
+}
 
 export class InvalidActivityLogCursorError extends Error {
   constructor() {
@@ -105,8 +126,7 @@ function decodeCursor(cursor: string, fingerprint: string): { createdAt: Date; i
     if (
       !createdAt ||
       Number.isNaN(createdAt.getTime()) ||
-      typeof decoded.id !== "string" ||
-      !z.string().uuid().safeParse(decoded.id).success ||
+      !isUuid(decoded.id) ||
       decoded.filterFingerprint !== fingerprint
     ) {
       throw new InvalidActivityLogCursorError();
@@ -167,8 +187,13 @@ async function loadTargetViews(
   const glossaryIds = idsByKind.get("glossary") ?? [];
   const memoryIds = idsByKind.get("translation_memory") ?? [];
   const membershipIds = idsByKind.get("membership") ?? [];
+  const payloadMemberUserIds = [
+    ...new Set(
+      rows.flatMap((row) => (isUuid(row.payload.memberUserId) ? [row.payload.memberUserId] : [])),
+    ),
+  ];
 
-  const [projects, glossaries, memories, memberships] = await Promise.all([
+  const [projects, glossaries, memories, memberships, payloadMembers] = await Promise.all([
     projectIds.length
       ? database
           .select({ id: schema.projects.id, name: schema.projects.name })
@@ -218,6 +243,16 @@ async function loadTargetViews(
             ),
           )
       : Promise.resolve([]),
+    payloadMemberUserIds.length
+      ? database
+          .select({
+            id: schema.users.id,
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName,
+          })
+          .from(schema.users)
+          .where(inArray(schema.users.id, payloadMemberUserIds))
+      : Promise.resolve([]),
   ]);
 
   const views = new Map<string, ActivityLogTargetView>();
@@ -254,12 +289,24 @@ async function loadTargetViews(
     });
   }
 
+  const payloadMemberById = new Map(payloadMembers.map((member) => [member.id, member]));
   for (const row of rows) {
     const key = targetKey(row.targetKind, row.targetId);
     if (views.has(key)) continue;
-    const payloadName = typeof row.payload.name === "string" ? row.payload.name : null;
+
+    if (row.targetKind === "membership" && isUuid(row.payload.memberUserId)) {
+      const member = payloadMemberById.get(row.payload.memberUserId);
+      views.set(key, {
+        displayName: member ? actorName(member.firstName, member.lastName) : null,
+        href: `/org/${organizationSlug}/settings/members`,
+        id: row.targetId,
+        kind: "membership",
+      });
+      continue;
+    }
+
     views.set(key, {
-      displayName: payloadName,
+      displayName: payloadTargetDisplayName(row.payload),
       href: null,
       id: row.targetId,
       kind: row.targetKind,
@@ -267,6 +314,37 @@ async function loadTargetViews(
   }
 
   return views;
+}
+
+export async function listActivityLogActors(input: {
+  database?: DatabaseClient;
+  organizationId: string;
+}): Promise<ActivityLogActorView[]> {
+  const database = input.database ?? db;
+  const rows = await database
+    .selectDistinct({
+      userId: schema.organizationActivityEvents.actorUserId,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+    })
+    .from(schema.organizationActivityEvents)
+    .innerJoin(schema.users, eq(schema.users.id, schema.organizationActivityEvents.actorUserId))
+    .where(
+      and(
+        eq(schema.organizationActivityEvents.organizationId, input.organizationId),
+        eq(schema.organizationActivityEvents.actorKind, "user"),
+      ),
+    );
+
+  return rows
+    .flatMap((row) => (row.userId ? [{ ...row, userId: row.userId }] : []))
+    .map((row) => ({
+      credentialId: null,
+      displayName: actorName(row.firstName, row.lastName),
+      kind: "user",
+      userId: row.userId,
+    }))
+    .toSorted((left, right) => left.displayName.localeCompare(right.displayName));
 }
 
 export async function listActivityLogEvents(input: {
@@ -311,28 +389,34 @@ export async function listActivityLogEvents(input: {
     );
   }
 
-  const rows = await database
-    .select({
-      actorCredentialId: schema.organizationActivityEvents.actorCredentialId,
-      actorKind: schema.organizationActivityEvents.actorKind,
-      actorUserId: schema.organizationActivityEvents.actorUserId,
-      createdAt: schema.organizationActivityEvents.createdAt,
-      eventType: schema.organizationActivityEvents.eventType,
-      id: schema.organizationActivityEvents.id,
-      payload: schema.organizationActivityEvents.payload,
-      targetId: schema.organizationActivityEvents.targetId,
-      targetKind: schema.organizationActivityEvents.targetKind,
-      userFirstName: schema.users.firstName,
-      userLastName: schema.users.lastName,
-    })
-    .from(schema.organizationActivityEvents)
-    .leftJoin(schema.users, eq(schema.users.id, schema.organizationActivityEvents.actorUserId))
-    .where(and(...conditions))
-    .orderBy(
-      desc(schema.organizationActivityEvents.createdAt),
-      desc(schema.organizationActivityEvents.id),
-    )
-    .limit(input.query.limit + 1);
+  const [rows, actors] = await Promise.all([
+    database
+      .select({
+        actorCredentialId: schema.organizationActivityEvents.actorCredentialId,
+        actorKind: schema.organizationActivityEvents.actorKind,
+        actorUserId: schema.organizationActivityEvents.actorUserId,
+        createdAt: schema.organizationActivityEvents.createdAt,
+        eventType: schema.organizationActivityEvents.eventType,
+        id: schema.organizationActivityEvents.id,
+        payload: schema.organizationActivityEvents.payload,
+        targetId: schema.organizationActivityEvents.targetId,
+        targetKind: schema.organizationActivityEvents.targetKind,
+        userFirstName: schema.users.firstName,
+        userLastName: schema.users.lastName,
+      })
+      .from(schema.organizationActivityEvents)
+      .leftJoin(schema.users, eq(schema.users.id, schema.organizationActivityEvents.actorUserId))
+      .where(and(...conditions))
+      .orderBy(
+        desc(schema.organizationActivityEvents.createdAt),
+        desc(schema.organizationActivityEvents.id),
+      )
+      .limit(input.query.limit + 1),
+    listActivityLogActors({
+      database,
+      organizationId: input.organizationId,
+    }),
+  ]);
 
   const hasNextPage = rows.length > input.query.limit;
   const page = hasNextPage ? rows.slice(0, input.query.limit) : rows;
@@ -367,6 +451,7 @@ export async function listActivityLogEvents(input: {
   const last = page.at(-1);
   return {
     activityLogs,
+    actors,
     nextCursor: hasNextPage && last ? encodeCursor(last, fingerprint) : null,
   };
 }

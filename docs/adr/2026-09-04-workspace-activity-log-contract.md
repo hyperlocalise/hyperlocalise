@@ -38,8 +38,8 @@ V1 includes the following event types:
 | Workspace | `workspace_updated` |
 | Credentials | `personal_access_token_created`, `personal_access_token_revoked` |
 | Integrations | `integration_connected`, `integration_disconnected` |
-| Projects | `project_created`, `project_archived`, `project_deleted`, `project_settings_changed` |
-| Glossaries | `glossary_created`, `glossary_deleted`, `glossary_imported`, `glossary_exported`, `glossary_ownership_changed`, `glossary_project_attached`, `glossary_project_detached` |
+| Projects | `project_created`, `project_deleted`, `project_settings_changed` |
+| Glossaries | `glossary_created`, `glossary_deleted`, `glossary_imported`, `glossary_exported`, `glossary_project_attached`, `glossary_project_detached` |
 | Translation memory | `translation_memory_created`, `translation_memory_deleted`, `translation_memory_imported`, `translation_memory_exported`, `translation_memory_project_attached`, `translation_memory_project_detached` |
 
 The current `organization_api_keys` table is the implementation behind personal access tokens. The

@@ -115,13 +115,18 @@ const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const LOKALISE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const logger = createLogger("tms-user-oauth");
 
+type IntegrationUpsertResult<T> = {
+  created: boolean;
+  value: T;
+};
+
 async function withNewIntegrationLimit<T>(
   input: {
     organizationId: string;
     providerKind: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect.providerKind;
   },
   run: (database: DatabaseClient) => Promise<T>,
-): Promise<Result<T, WorkspaceResourceLimitError>> {
+): Promise<Result<IntegrationUpsertResult<T>, WorkspaceResourceLimitError>> {
   const [existing] = await db
     .select({ id: schema.organizationExternalTmsProviderCredentials.id })
     .from(schema.organizationExternalTmsProviderCredentials)
@@ -133,15 +138,42 @@ async function withNewIntegrationLimit<T>(
     )
     .limit(1);
 
-  if (existing) return ok(await db.transaction(run));
+  if (existing) {
+    return ok({ created: false, value: await db.transaction(run) });
+  }
 
-  return withWorkspaceResourceLimit(
+  const result = await withWorkspaceResourceLimit(
     {
       organizationId: input.organizationId,
       featureId: workspaceResourceFeatureIds.integrations,
     },
     run,
   );
+  if (!result.ok) return result;
+  return ok({ created: true, value: result.value });
+}
+
+async function enqueueIntegrationConnectedIfCreated(input: {
+  created: boolean;
+  actorUserId: string;
+  organizationId: string;
+  connectionId: string;
+  integrationKind: string;
+}) {
+  if (!input.created) return;
+  await enqueueActivityLogEvent({
+    actorCredentialId: null,
+    actorKind: "user",
+    actorUserId: input.actorUserId,
+    eventType: "integration_connected",
+    organizationId: input.organizationId,
+    payload: {
+      connectionId: input.connectionId,
+      integrationKind: input.integrationKind,
+    },
+    targetId: input.connectionId,
+    targetKind: "integration",
+  });
 }
 
 function integrationLimitErrorResponse(limitError: WorkspaceResourceLimitError): {
@@ -1388,20 +1420,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = credentialResult.value;
+        const { created, value: providerCredential } = credentialResult.value;
 
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
+        await enqueueIntegrationConnectedIfCreated({
           actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_connected",
+          connectionId: providerCredential.id,
+          created,
+          integrationKind: "crowdin",
           organizationId,
-          payload: {
-            connectionId: providerCredential.id,
-            integrationKind: "crowdin",
-          },
-          targetId: providerCredential.id,
-          targetKind: "integration",
         });
 
         return c.json(
@@ -1454,20 +1480,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = credentialResult.value;
+        const { created, value: providerCredential } = credentialResult.value;
 
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
+        await enqueueIntegrationConnectedIfCreated({
           actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_connected",
+          connectionId: providerCredential.id,
+          created,
+          integrationKind: "crowdin",
           organizationId,
-          payload: {
-            connectionId: providerCredential.id,
-            integrationKind: "crowdin",
-          },
-          targetId: providerCredential.id,
-          targetKind: "integration",
         });
 
         return c.json(
@@ -1519,20 +1539,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = credentialResult.value;
+        const { created, value: providerCredential } = credentialResult.value;
 
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
+        await enqueueIntegrationConnectedIfCreated({
           actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_connected",
+          connectionId: providerCredential.id,
+          created,
+          integrationKind: "phrase",
           organizationId,
-          payload: {
-            connectionId: providerCredential.id,
-            integrationKind: "phrase",
-          },
-          targetId: providerCredential.id,
-          targetKind: "integration",
         });
 
         return c.json(
@@ -1587,20 +1601,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = credentialResult.value;
+        const { created, value: providerCredential } = credentialResult.value;
 
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
+        await enqueueIntegrationConnectedIfCreated({
           actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_connected",
+          connectionId: providerCredential.id,
+          created,
+          integrationKind: "lokalise",
           organizationId,
-          payload: {
-            connectionId: providerCredential.id,
-            integrationKind: "lokalise",
-          },
-          targetId: providerCredential.id,
-          targetKind: "integration",
         });
 
         return c.json(
@@ -2332,20 +2340,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = credentialResult.value;
+        const { created, value: providerCredential } = credentialResult.value;
 
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
+        await enqueueIntegrationConnectedIfCreated({
           actorUserId: c.var.auth.user.localUserId,
-          eventType: "integration_connected",
+          connectionId: providerCredential.id,
+          created,
+          integrationKind: payload.providerKind,
           organizationId,
-          payload: {
-            connectionId: providerCredential.id,
-            integrationKind: payload.providerKind,
-          },
-          targetId: providerCredential.id,
-          targetKind: "integration",
         });
 
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);

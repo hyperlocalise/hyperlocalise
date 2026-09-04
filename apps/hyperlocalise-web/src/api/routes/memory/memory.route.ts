@@ -875,7 +875,7 @@ export function createMemoryRoutes() {
         return projectNotFoundResponse(c);
       }
 
-      await db
+      const detached = await db
         .delete(schema.projectMemories)
         .where(
           and(
@@ -883,18 +883,21 @@ export function createMemoryRoutes() {
             eq(schema.projectMemories.projectId, project.id),
             eq(schema.projectMemories.memoryId, memory.id),
           ),
-        );
+        )
+        .returning({ projectId: schema.projectMemories.projectId });
 
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "translation_memory_project_detached",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { projectId: project.id, resourceId: memory.id },
-        targetId: project.id,
-        targetKind: "project",
-      });
+      if (detached.length > 0) {
+        await enqueueActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "translation_memory_project_detached",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: { projectId: project.id, resourceId: memory.id },
+          targetId: project.id,
+          targetKind: "project",
+        });
+      }
 
       return c.body(null, 204);
     })
@@ -951,7 +954,7 @@ export function createMemoryRoutes() {
         actorUserId: c.var.auth.user.localUserId,
         eventType: "translation_memory_deleted",
         organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { resourceId: params.memoryId },
+        payload: { name: memory.name, resourceId: params.memoryId },
         targetId: params.memoryId,
         targetKind: "translation_memory",
       });

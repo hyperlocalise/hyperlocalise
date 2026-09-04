@@ -38,7 +38,6 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "integration_connected",
   "integration_disconnected",
   "project_created",
-  "project_archived",
   "project_deleted",
   "project_settings_changed",
   "glossary_created",
@@ -147,7 +146,6 @@ export type ActivityPayloadByEventType = {
     integrationKind: string;
   };
   project_created: SafeResourcePayload;
-  project_archived: SafeResourcePayload;
   project_deleted: SafeResourcePayload;
   project_settings_changed: {
     changedFields: readonly string[];
@@ -182,7 +180,6 @@ export type ActivityTargetKindByEventType = {
   integration_connected: "integration";
   integration_disconnected: "integration";
   project_created: "project";
-  project_archived: "project";
   project_deleted: "project";
   project_settings_changed: "project";
   glossary_created: "glossary";

@@ -79,12 +79,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: FolderLibraryIcon,
     label: messages.projectEventGroup,
-    eventTypes: [
-      "project_created",
-      "project_archived",
-      "project_deleted",
-      "project_settings_changed",
-    ],
+    eventTypes: ["project_created", "project_deleted", "project_settings_changed"],
   },
   {
     icon: BookOpenTextIcon,
@@ -112,11 +107,32 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   },
 ];
 
-const eventTypeLabel = (eventType: string) =>
-  eventType
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+const eventTypeLabels = {
+  member_invited: messages.memberInvitedEventType,
+  member_invite_resent: messages.memberInviteResentEventType,
+  member_role_changed: messages.memberRoleChangedEventType,
+  member_removed: messages.memberRemovedEventType,
+  workspace_updated: messages.workspaceUpdatedEventType,
+  personal_access_token_created: messages.personalAccessTokenCreatedEventType,
+  personal_access_token_revoked: messages.personalAccessTokenRevokedEventType,
+  integration_connected: messages.integrationConnectedEventType,
+  integration_disconnected: messages.integrationDisconnectedEventType,
+  project_created: messages.projectCreatedEventType,
+  project_deleted: messages.projectDeletedEventType,
+  project_settings_changed: messages.projectSettingsChangedEventType,
+  glossary_created: messages.glossaryCreatedEventType,
+  glossary_deleted: messages.glossaryDeletedEventType,
+  glossary_imported: messages.glossaryImportedEventType,
+  glossary_exported: messages.glossaryExportedEventType,
+  glossary_project_attached: messages.glossaryProjectAttachedEventType,
+  glossary_project_detached: messages.glossaryProjectDetachedEventType,
+  translation_memory_created: messages.translationMemoryCreatedEventType,
+  translation_memory_deleted: messages.translationMemoryDeletedEventType,
+  translation_memory_imported: messages.translationMemoryImportedEventType,
+  translation_memory_exported: messages.translationMemoryExportedEventType,
+  translation_memory_project_attached: messages.translationMemoryProjectAttachedEventType,
+  translation_memory_project_detached: messages.translationMemoryProjectDetachedEventType,
+} satisfies Record<V1ActivityEventType, MessageDescriptor>;
 
 export function ActivityLogEventTypeFilter({
   value,
@@ -136,7 +152,9 @@ export function ActivityLogEventTypeFilter({
     onChange(V1_ACTIVITY_EVENT_TYPES.filter((item) => next.has(item)));
   };
 
-  const selectedPreview = value.slice(0, 2).map(eventTypeLabel).join(", ");
+  const formatEventType = (eventType: V1ActivityEventType) =>
+    intl.formatMessage(eventTypeLabels[eventType]);
+  const selectedPreview = value.slice(0, 2).map(formatEventType).join(", ");
   const remainingCount = value.length - 2;
 
   return (
@@ -219,7 +237,7 @@ export function ActivityLogEventTypeFilter({
                   }
                 >
                   {group.eventTypes.map((eventType) => {
-                    const label = eventTypeLabel(eventType);
+                    const label = formatEventType(eventType);
                     const isSelected = selected.has(eventType);
                     return (
                       <CommandItem
@@ -244,7 +262,7 @@ export function ActivityLogEventTypeFilter({
       {value.length > 0 ? (
         <div className="flex flex-wrap gap-1.5" aria-live="polite">
           {value.slice(0, 3).map((eventType) => {
-            const label = eventTypeLabel(eventType);
+            const label = formatEventType(eventType);
             return (
               <Badge key={eventType} variant="secondary" className="max-w-full gap-1 pl-2">
                 <span className="truncate">{label}</span>

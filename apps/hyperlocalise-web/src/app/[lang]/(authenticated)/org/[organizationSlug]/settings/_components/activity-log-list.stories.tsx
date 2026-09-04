@@ -31,7 +31,6 @@ const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target
   integration_connected: "integration",
   integration_disconnected: "integration",
   project_created: "project",
-  project_archived: "project",
   project_deleted: "project",
   project_settings_changed: "project",
   glossary_created: "glossary",
@@ -108,6 +107,6 @@ export const AllEventCategories: Story = {
     await expect(canvas.getByText(/created a project/)).toBeInTheDocument();
     await expect(canvas.getByText(/created a glossary/)).toBeInTheDocument();
     await expect(canvas.getByText(/created translation memory/)).toBeInTheDocument();
-    await expect(canvas.getAllByRole("listitem")).toHaveLength(25);
+    await expect(canvas.getAllByRole("listitem")).toHaveLength(V1_ACTIVITY_EVENT_TYPES.length);
   },
 };

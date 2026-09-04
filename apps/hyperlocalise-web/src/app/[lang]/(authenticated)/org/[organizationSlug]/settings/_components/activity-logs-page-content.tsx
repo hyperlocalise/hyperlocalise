@@ -29,8 +29,14 @@ import { ActivityLogList, type ActivityLogItem } from "./activity-log-list";
 import { activityLogsPageContentMessages as messages } from "./activity-logs-page-content.messages";
 import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 
+type ActivityLogActorOption = {
+  displayName: string;
+  userId: string | null;
+};
+
 type ActivityLogResponse = {
   activityLogs: ActivityLogItem[];
+  actors: ActivityLogActorOption[];
   nextCursor: string | null;
 };
 
@@ -97,14 +103,16 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
 
   const actorOptions = useMemo(() => {
     const options = new Map(Object.entries(actorLabels));
-    for (const item of activityLogs) {
-      if (item.actor.userId) options.set(`user:${item.actor.userId}`, item.actor.displayName);
+    for (const page of activityQuery.data?.pages ?? []) {
+      for (const item of page.actors) {
+        if (item.userId) options.set(`user:${item.userId}`, item.displayName);
+      }
     }
     if (actor.startsWith("user:") && !options.has(actor)) {
       options.set(actor, intl.formatMessage(messages.selectedActor));
     }
     return [...options.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [activityLogs, actor, actorLabels, intl]);
+  }, [activityQuery.data?.pages, actor, actorLabels, intl]);
 
   const clearFilters = () => {
     setEventTypes([]);

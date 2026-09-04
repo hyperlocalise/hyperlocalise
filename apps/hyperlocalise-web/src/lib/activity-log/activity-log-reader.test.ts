@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { InvalidActivityLogCursorError, listActivityLogEvents } from "./activity-log-reader";
+import {
+  InvalidActivityLogCursorError,
+  listActivityLogEvents,
+  payloadTargetDisplayName,
+} from "./activity-log-reader";
 
 describe("listActivityLogEvents", () => {
   it("rejects cursors with non-UUID event IDs before querying the database", async () => {
@@ -32,5 +36,19 @@ describe("listActivityLogEvents", () => {
         query: { cursor, eventTypes: [], limit: 50, range: "all" },
       }),
     ).rejects.toBeInstanceOf(InvalidActivityLogCursorError);
+  });
+});
+
+describe("payloadTargetDisplayName", () => {
+  it("prefers a stored resource name", () => {
+    expect(payloadTargetDisplayName({ name: "Website", integrationKind: "crowdin" })).toBe(
+      "Website",
+    );
+  });
+
+  it("uses provider and token identifiers when no name is stored", () => {
+    expect(payloadTargetDisplayName({ integrationKind: "phrase" })).toBe("phrase");
+    expect(payloadTargetDisplayName({ keyPrefix: "hl_AbCd" })).toBe("hl_AbCd");
+    expect(payloadTargetDisplayName({ resourceId: "resource_123" })).toBeNull();
   });
 });

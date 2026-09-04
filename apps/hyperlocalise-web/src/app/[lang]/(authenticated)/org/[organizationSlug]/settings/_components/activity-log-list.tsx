@@ -53,7 +53,6 @@ const eventActions = {
   integration_connected: messages.integrationConnectedAction,
   integration_disconnected: messages.integrationDisconnectedAction,
   project_created: messages.projectCreatedAction,
-  project_archived: messages.projectArchivedAction,
   project_deleted: messages.projectDeletedAction,
   project_settings_changed: messages.projectSettingsChangedAction,
   glossary_created: messages.glossaryCreatedAction,

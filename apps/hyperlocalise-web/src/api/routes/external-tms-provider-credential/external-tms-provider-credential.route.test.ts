@@ -140,6 +140,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
       { headers },
     );
     expect(initialResponse.status).toBe(200);
+    enqueueActivityLogEventMock.mockClear();
 
     const updateResponse = await client.api.orgs[":organizationSlug"][
       "external-tms-provider-credential"
@@ -167,6 +168,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(body.externalTmsProviderCredential.baseUrl).toBe(
       "https://enterprise.crowdin.test/api/v2",
     );
+    expect(enqueueActivityLogEventMock).not.toHaveBeenCalled();
   });
 
   it("records the deleted credential ID when disconnecting an integration", async () => {
