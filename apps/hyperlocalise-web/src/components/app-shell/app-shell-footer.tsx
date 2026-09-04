@@ -134,42 +134,60 @@ export function AppShellFooter({
                       <span className="tabular-nums">
                         {glossaryGuidanceStatus.notRecommendedCount}
                       </span>
-                    </span>
-                  ) : null}
-                </Button>
-              ) : null}
-              {showIssueGuidance && issueGuidanceStatus.available ? (
+                    ) : null}
+                    {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
+                        <HugeiconsIcon
+                          icon={MinusSignCircleIcon}
+                          strokeWidth={2}
+                          className="size-4"
+                          aria-hidden="true"
+                        />
+                        <span className="tabular-nums">
+                          {glossaryGuidanceStatus.notRecommendedCount}
+                        </span>
+                      </span>
+                    ) : null}
+                  </Button>
+                ) : null}
+                {showIssueGuidance && issueGuidanceStatus.available ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={requestCatIssueGuidance}
+                    aria-label={intl.formatMessage(
+                      issueGuidanceStatus.openIssueCount > 0
+                        ? appShellFooterMessages.issueGuidanceAvailableAriaLabel
+                        : appShellFooterMessages.issueGuidanceAriaLabel,
+                      issueGuidanceStatus.openIssueCount > 0
+                        ? { count: issueGuidanceStatus.openIssueCount }
+                        : undefined,
+                    )}
+                  >
+                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
+                    {issueGuidanceStatus.openIssueCount > 0 ? (
+                      <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
+                        {issueGuidanceStatus.openIssueCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                ) : null}
+                {showChatDock ? (
+                  <ChatDockFooterControls organizationSlug={organizationSlug} />
+                ) : null}
                 <Button
-                  type="button"
                   variant="ghost"
-                  onClick={requestCatIssueGuidance}
-                  aria-label={intl.formatMessage(
-                    issueGuidanceStatus.openIssueCount > 0
-                      ? appShellFooterMessages.issueGuidanceAvailableAriaLabel
-                      : appShellFooterMessages.issueGuidanceAriaLabel,
-                    issueGuidanceStatus.openIssueCount > 0
-                      ? { count: issueGuidanceStatus.openIssueCount }
-                      : undefined,
-                  )}
+                  render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
+                  aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
                 >
-                  <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
-                  <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
-                  {issueGuidanceStatus.openIssueCount > 0 ? (
-                    <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
-                      {issueGuidanceStatus.openIssueCount}
-                    </span>
-                  ) : null}
+                  <HugeiconsIcon
+                    icon={CustomerSupportIcon}
+                    strokeWidth={2}
+                    data-icon="inline-start"
+                  />
+                  <FormattedMessage {...appShellFooterMessages.supportLabel} />
                 </Button>
-              ) : null}
-              {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
-              <Button
-                variant="ghost"
-                render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
-                aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
-              >
-                <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} data-icon="inline-start" />
-                <FormattedMessage {...appShellFooterMessages.supportLabel} />
-              </Button>
               </Row>
             </Column>
           </Columns>
