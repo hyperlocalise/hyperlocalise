@@ -17,7 +17,10 @@ import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
 import { flattenNativeConceptTermsToPairs } from "@/lib/glossary/flatten-native-glossary-pairs";
+import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
+import { concordanceSourceContainsTerm } from "@/lib/glossary/native-glossary";
 import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
@@ -43,6 +46,16 @@ function buildTsQuery(input: string): string {
     .map((w) => `${w}:*`)
     .join(" & ");
   return sanitized;
+}
+
+const QUERY_GLOSSARY_CANDIDATE_PAGE_SIZE = 200;
+
+function isNativeGlossaryId(value: string) {
+  return z.uuid().safeParse(value).success;
+}
+
+export function isQueryableNativeGlossaryId(value: string) {
+  return isNativeGlossaryId(value) && parseLiveProviderGlossaryId(value) === null;
 }
 
 export const queryGlossaryInputSchema = z.object({
@@ -94,7 +107,7 @@ export async function queryGlossaryTerms(
   const { sourceText, sourceLocale, targetLocale, projectId, glossaryId } = input;
   const limit = input.limit ?? 10;
   const db = ctx.db;
-  const tsQuery = buildTsQuery(sourceText);
+  const tsQuery = buildGlossaryTsQuery(sourceText);
 
   if (!tsQuery) {
     return { terms: [] };
@@ -123,6 +136,10 @@ export async function queryGlossaryTerms(
   }
 
   if (glossaryId) {
+    if (!isQueryableNativeGlossaryId(glossaryId)) {
+      return { terms: [] };
+    }
+
     const accessibleGlossary = await toolCanAccessGlossary(ctx, glossaryId);
     if (!accessibleGlossary) {
       return { terms: [] };
@@ -158,18 +175,57 @@ export async function queryGlossaryTerms(
       "rank",
     );
 
-  const matchingSources = await db
-    .select({
-      conceptId: glossarySourceTerms.conceptId,
-      glossaryId: glossarySourceTerms.glossaryId,
-      sourceTerm: glossarySourceTerms.term,
-      rank,
-    })
-    .from(glossarySourceTerms)
-    .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
-    .where(and(...sharedConditions))
-    .orderBy(desc(rank))
-    .limit(limit * 5);
+  const matchingSources: Array<{
+    conceptId: string | null;
+    glossaryId: string;
+    sourceTerm: string | null;
+    caseSensitive: boolean;
+    rank: number;
+  }> = [];
+  let candidateOffset = 0;
+  const neededCandidates = Math.max(limit * 5, limit);
+
+  while (matchingSources.length < neededCandidates) {
+    const page = await db
+      .select({
+        conceptId: glossarySourceTerms.conceptId,
+        glossaryId: glossarySourceTerms.glossaryId,
+        sourceTerm: glossarySourceTerms.term,
+        caseSensitive: glossarySourceTerms.caseSensitive,
+        rank,
+      })
+      .from(glossarySourceTerms)
+      .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
+      .where(and(...sharedConditions))
+      .orderBy(desc(rank))
+      .limit(QUERY_GLOSSARY_CANDIDATE_PAGE_SIZE)
+      .offset(candidateOffset);
+
+    if (page.length === 0) {
+      break;
+    }
+
+    candidateOffset += page.length;
+    for (const row of page) {
+      if (
+        !row.sourceTerm ||
+        !concordanceSourceContainsTerm(sourceText, {
+          sourceTerm: row.sourceTerm,
+          caseSensitive: row.caseSensitive,
+        })
+      ) {
+        continue;
+      }
+      matchingSources.push(row);
+      if (matchingSources.length >= neededCandidates) {
+        break;
+      }
+    }
+
+    if (page.length < QUERY_GLOSSARY_CANDIDATE_PAGE_SIZE) {
+      break;
+    }
+  }
 
   const conceptIds = [
     ...new Set(
@@ -207,6 +263,7 @@ export async function queryGlossaryTerms(
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,
       reviewStatus: schema.glossaryTerms.reviewStatus,
+      forbidden: schema.glossaryTerms.forbidden,
     })
     .from(schema.glossaryTerms)
     .innerJoin(

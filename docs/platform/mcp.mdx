@@ -79,9 +79,11 @@ Inaccessible projects return `project_not_found`.
 
 `query_glossary` looks up a source string instead of paging a whole glossary. Pass `sourceText`, `sourceLocale`, and `targetLocale`. Optional `projectId` limits the search to glossaries linked to that project. Optional `glossaryId` searches one glossary. `limit` defaults to 10 and maxes at 20.
 
-Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, and a description truncated to 500 characters. Use `forbidden` to avoid rejected terms.
+Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, `caseSensitive`, and a description truncated to 500 characters. Use `forbidden` to avoid rejected terms. Case-sensitive entries only match the stored casing.
 
-Native pairs come from concept-linked terms. Leftover `source_term` / `target_term` rows are ignored. Provider glossaries stay read-only; an inaccessible or provider `glossaryId` returns `glossary_not_found`. An inaccessible `projectId` returns `{ "terms": [] }`.
+The search is the same native concordance path used in-app: an OR candidate query, then a source-text containment filter. A sentence such as `Proceed to checkout` still matches a `checkout` term.
+
+Native pairs come from concept-linked terms. Leftover `source_term` / `target_term` rows are ignored. Provider glossaries stay read-only; an inaccessible, non-UUID, or provider `glossaryId` returns `glossary_not_found`. An inaccessible `projectId` returns `{ "terms": [] }`.
 
 ### Board (issues)
 

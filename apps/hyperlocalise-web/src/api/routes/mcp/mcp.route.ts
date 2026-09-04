@@ -95,7 +95,11 @@ import {
 } from "@/api/routes/mcp/mcp-list-translations";
 import { glossaryIdParamsSchema } from "@/api/routes/glossary/glossary.schema";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { queryGlossaryTerms, type QueryGlossaryHit } from "@/lib/tools/asset-tools";
+import {
+  isQueryableNativeGlossaryId,
+  queryGlossaryTerms,
+  type QueryGlossaryHit,
+} from "@/lib/tools/asset-tools";
 import type { ToolContext } from "@/lib/tools/types";
 
 const authorizationQuerySchema = z.object({
@@ -687,6 +691,7 @@ function compactMcpGlossaryHit(hit: QueryGlossaryHit) {
     forbidden: hit.forbidden,
     status: hit.status,
     partOfSpeech: hit.partOfSpeech,
+    caseSensitive: hit.caseSensitive,
     description: truncateMcpGlossaryDescription(hit.description),
   };
 }
@@ -1583,6 +1588,10 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
     async ({ sourceText, sourceLocale, targetLocale, projectId, glossaryId, limit }) => {
       if (glossaryId) {
+        if (!isQueryableNativeGlossaryId(glossaryId)) {
+          return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+        }
+
         const glossary = await canAccessGlossary(apiAuth, glossaryId);
 
         if (!glossary) {

@@ -237,4 +237,40 @@ describe("flattenNativeConceptTermsToPairs", () => {
 
     expect(pairs.map((pair) => pair.targetTerm)).toEqual(["paiement", "caisse"]);
   });
+
+  it("marks a stored forbidden flag even when status is preferred", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({ id: "source-1", locale: "en", term: "checkout", status: "preferred" }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "caisse",
+            status: "preferred",
+            forbidden: true,
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(pairs).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "caisse",
+        status: "preferred",
+        forbidden: true,
+      }),
+    ]);
+  });
 });

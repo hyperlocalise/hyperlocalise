@@ -78,6 +78,8 @@ async function createGlossaryWithTerm(input: {
   targetTerm: string;
   targetStatus?: string;
   description?: string;
+  caseSensitive?: boolean;
+  targetForbidden?: boolean;
 }) {
   const [glossary] = await db
     .insert(schema.glossaries)
@@ -109,6 +111,7 @@ async function createGlossaryWithTerm(input: {
       sourceTerm: input.sourceTerm,
       targetTerm: input.sourceTerm,
       description: input.description ?? "",
+      caseSensitive: input.caseSensitive ?? false,
       reviewStatus: "approved",
     })
     .returning();
@@ -122,6 +125,7 @@ async function createGlossaryWithTerm(input: {
     targetTerm: input.targetTerm,
     description: "",
     status: input.targetStatus ?? "preferred",
+    forbidden: input.targetForbidden ?? false,
     reviewStatus: "approved",
   });
 
@@ -501,6 +505,104 @@ describe("createQueryGlossaryTool", () => {
     });
 
     expect(result.terms).toEqual([]);
+  });
+
+  it("matches a glossary term contained in a longer source string", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "Proceed to checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+      }),
+    ]);
+  });
+
+  it("does not return a case-sensitive term for a differently cased query", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Brand",
+      sourceTerm: "NASA",
+      targetTerm: "NASA",
+      caseSensitive: true,
+    });
+
+    const missed = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "nasa",
+    });
+    const matched = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "NASA launches today",
+    });
+
+    expect(missed.terms).toEqual([]);
+    expect(matched.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "NASA",
+        caseSensitive: true,
+      }),
+    ]);
+  });
+
+  it("marks an explicit forbidden flag even when status is preferred", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+      targetForbidden: true,
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        targetTerm: "caisse",
+        forbidden: true,
+        status: "preferred",
+      }),
+    ]);
+  });
+
+  it("returns no terms for a non-UUID or provider glossary ID", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const missing = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+      glossaryId: "missing",
+    });
+    const provider = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "checkout",
+      glossaryId: "crowdin:glossary:42",
+    });
+
+    expect(missing.terms).toEqual([]);
+    expect(provider.terms).toEqual([]);
   });
 });
 

@@ -47,6 +47,7 @@ type McpGlossaryHit = {
   forbidden: boolean;
   status: string;
   partOfSpeech: string;
+  caseSensitive: boolean;
   description: string;
 };
 
@@ -131,6 +132,8 @@ async function insertNativeGlossaryPair(input: {
   targetStatus?: string;
   description?: string;
   partOfSpeech?: string;
+  caseSensitive?: boolean;
+  targetForbidden?: boolean;
 }) {
   const [glossary] = await db
     .insert(schema.glossaries)
@@ -163,6 +166,7 @@ async function insertNativeGlossaryPair(input: {
     description: input.description ?? "",
     partOfSpeech: input.partOfSpeech ?? "",
     status: "preferred",
+    caseSensitive: input.caseSensitive ?? false,
     reviewStatus: "approved",
   });
 
@@ -176,6 +180,7 @@ async function insertNativeGlossaryPair(input: {
     description: "",
     partOfSpeech: input.partOfSpeech ?? "",
     status: input.targetStatus ?? "preferred",
+    forbidden: input.targetForbidden ?? false,
     reviewStatus: "approved",
   });
 
@@ -317,9 +322,144 @@ describe("MCP query_glossary", () => {
         forbidden: true,
         status: "not_recommended",
         partOfSpeech: "noun",
+        caseSensitive: false,
         description: "Payment step in the cart",
       },
     ]);
+  });
+
+  it("matches a glossary term contained in a longer source string", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const { glossary } = await insertNativeGlossaryPair({
+      organizationId: stored.organization.id,
+      createdByUserId: stored.user.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const result = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "Proceed to checkout",
+        sourceLocale: "en",
+        targetLocale: "fr",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output.terms).toEqual([
+      expect.objectContaining({
+        glossaryId: glossary.id,
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+      }),
+    ]);
+  });
+
+  it("does not return a case-sensitive term for a differently cased query", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    await insertNativeGlossaryPair({
+      organizationId: stored.organization.id,
+      createdByUserId: stored.user.id,
+      name: "Brand",
+      sourceTerm: "NASA",
+      targetTerm: "NASA",
+      caseSensitive: true,
+    });
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const missed = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "nasa",
+        sourceLocale: "en",
+        targetLocale: "fr",
+      }),
+    );
+    const matched = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "NASA launches today",
+        sourceLocale: "en",
+        targetLocale: "fr",
+      }),
+    );
+
+    expect(missed.output.terms).toEqual([]);
+    expect(matched.output.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "NASA",
+        targetTerm: "NASA",
+        caseSensitive: true,
+      }),
+    ]);
+  });
+
+  it("marks an explicit forbidden flag even when status is preferred", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    await insertNativeGlossaryPair({
+      organizationId: stored.organization.id,
+      createdByUserId: stored.user.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "caisse",
+      targetStatus: "preferred",
+      targetForbidden: true,
+    });
+
+    const result = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "checkout",
+        sourceLocale: "en",
+        targetLocale: "fr",
+      }),
+    );
+
+    expect(result.output.terms).toEqual([
+      expect.objectContaining({
+        targetTerm: "caisse",
+        forbidden: true,
+        status: "preferred",
+      }),
+    ]);
+  });
+
+  it("returns glossary_not_found for a non-UUID glossary ID without querying", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const result = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "checkout",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        glossaryId: "missing",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "glossary_not_found",
+    });
+  });
+
+  it("returns glossary_not_found for a Crowdin live glossary ID", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const result = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "checkout",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        glossaryId: "crowdin:glossary:42",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "glossary_not_found",
+    });
   });
 
   it("does not leak unlinked glossaries when a project ID is set", async () => {

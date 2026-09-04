@@ -46,7 +46,12 @@ export type NativeConceptTermRow = {
   caseSensitive: boolean;
   provenance: string;
   reviewStatus: string;
+  forbidden?: boolean;
 };
+
+function pairIsForbidden(statusForbidden: boolean, ...storedFlags: Array<boolean | undefined>) {
+  return statusForbidden || storedFlags.some((flag) => flag === true);
+}
 
 export type NativeConceptGroup = {
   conceptId: string;
@@ -132,7 +137,7 @@ export function flattenNativeConceptTermsToPairs(input: {
               targetTerm: sourceTerm.term,
               targetLocale,
               status: sourceTerm.status,
-              forbidden: sourceStatus.forbidden,
+              forbidden: pairIsForbidden(sourceStatus.forbidden, sourceTerm.forbidden),
             }),
           );
           continue;
@@ -155,7 +160,7 @@ export function flattenNativeConceptTermsToPairs(input: {
                 targetTerm: preferred.text,
                 targetLocale,
                 status: preferredRow.status,
-                forbidden: targetStatus.forbidden,
+                forbidden: pairIsForbidden(targetStatus.forbidden, preferredRow.forbidden),
               }),
             );
           }
