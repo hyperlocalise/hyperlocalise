@@ -93,6 +93,7 @@ import {
   type IssueSheetComment,
 } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { issueSheetCommentCreateBodySchema } from "@/api/routes/project/issue-sheet-comments.schema";
+import {
   loadMcpListTranslations,
   mcpListTranslationsQueueFilters,
 } from "@/api/routes/mcp/mcp-list-translations";
@@ -641,6 +642,8 @@ const mcpCreateIssueCommentInputSchema = z.object({
   mentionedIssueIds: createCommentShape.mentionedIssueIds.describe(
     "UUIDs of accessible issues mentioned in the comment.",
   ),
+});
+
 const mcpListJobsInputSchema = z.object({
   projectId: projectIdSchema
     .optional()
