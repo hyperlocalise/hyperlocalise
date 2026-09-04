@@ -25,6 +25,7 @@ import {
   getMarketingIntegrationCategoryLabels,
   resolveIntegrationBySlug,
   resolveMarketingIntegrations,
+  resolveRelatedIntegrations,
 } from "@/lib/integrations/resolve-integration-catalog";
 
 export type { IntegrationCategory, IntegrationIconKey, IntegrationStatus, IntegrationType };
@@ -41,6 +42,14 @@ export function getMarketingIntegrations(locale: string) {
 
 export function getMarketingIntegrationBySlug(locale: string, slug: string) {
   return resolveIntegrationBySlug(locale, slug);
+}
+
+export function getRelatedIntegrations(locale: string, integration: MarketingIntegration) {
+  return resolveRelatedIntegrations(locale, integration);
+}
+
+export function getIntegrationNamesBySlug(locale: string) {
+  return Object.fromEntries(getMarketingIntegrations(locale).map((item) => [item.slug, item.name]));
 }
 
 export function getIntegrationCategoryLabels(locale: string) {
@@ -136,6 +145,57 @@ export function getIntegrationDetailCopy(locale: string) {
       id: "+yckLBiVoH",
       description: "Heading for the integration products section",
     }),
+    capabilitiesHeading: intl.formatMessage({
+      defaultMessage: "Capabilities",
+      id: "oUdwcZdkjG",
+      description: "Heading for the integration capabilities section",
+    }),
+    workflowsHeading: intl.formatMessage({
+      defaultMessage: "Example workflows",
+      id: "BNs8waALWE",
+      description: "Heading for the integration workflow examples section",
+    }),
+    workflowsDescription: intl.formatMessage({
+      defaultMessage:
+        "See how teams connect this integration to Hyperlocalise for localization workflows.",
+      id: "2i4QuyVvsX",
+      description: "Supporting copy for the integration workflow examples section",
+    }),
+    workflowTriggerLabel: intl.formatMessage({
+      defaultMessage: "Trigger",
+      id: "MsnNcIq3o0",
+      description: "Label for workflow trigger nodes in the preview canvas",
+    }),
+    workflowActionLabel: intl.formatMessage({
+      defaultMessage: "Action",
+      id: "q9W62WYB+b",
+      description: "Label for workflow action nodes in the preview canvas",
+    }),
+    workflowPreviewHint: intl.formatMessage({
+      defaultMessage: "Click a step or use play to preview how the automation runs.",
+      id: "WCvOhYUxHY",
+      description: "Hint text above the interactive workflow preview canvas",
+    }),
+    workflowPlayLabel: intl.formatMessage({
+      defaultMessage: "Play workflow preview",
+      id: "HnLFJWChXa",
+      description: "Accessible label for playing the workflow preview animation",
+    }),
+    workflowPauseLabel: intl.formatMessage({
+      defaultMessage: "Pause workflow preview",
+      id: "Go2Z9TjTft",
+      description: "Accessible label for pausing the workflow preview animation",
+    }),
+    setupHeading: intl.formatMessage({
+      defaultMessage: "Getting started",
+      id: "0rhtNVSwNB",
+      description: "Heading for the integration setup instructions section",
+    }),
+    relatedHeading: intl.formatMessage({
+      defaultMessage: "Related integrations",
+      id: "MvleTlgom0",
+      description: "Heading for related integrations on the detail page",
+    }),
     websiteLink: intl.formatMessage({
       defaultMessage: "Website",
       id: "DbC71eoMLw",
@@ -182,15 +242,47 @@ export function getIntegrationDetailCopy(locale: string) {
       description: "Integration status label for built-in Hyperlocalise capabilities",
     }),
     finalCtaHeadline: intl.formatMessage({
-      defaultMessage: "Get started with Hyperlocalise",
-      id: "EA4eYo/c8H",
-      description: "Headline for the bottom CTA on integration detail pages",
+      defaultMessage: "Get started with Hyperlocalise today",
+      id: "vAwILOzBUa",
+      description: "Headline for the bottom CTA on integration pages",
     }),
     finalCtaDescription: intl.formatMessage({
       defaultMessage:
-        "Connect integrations from your workspace settings once you are onboarded to Hyperlocalise.",
-      id: "+LauXjmWs2",
-      description: "Supporting copy for the bottom CTA on integration detail pages",
+        "Connect your stack and run agent-native localization workflows with reviewers, automations, and launch tools in one workspace.",
+      id: "JRwdGo2HxU",
+      description: "Supporting copy for the bottom CTA on integration pages",
     }),
+    finalCtaPrimaryLabel: intl.formatMessage({
+      defaultMessage: "Request a demo",
+      id: "S2P95qzM5L",
+      description: "Primary CTA button on integration pages",
+    }),
+    finalCtaSecondaryLabel: intl.formatMessage({
+      defaultMessage: "Sign in to workspace",
+      id: "b6B/tBg1a5",
+      description: "Secondary CTA button on integration pages",
+    }),
+  };
+}
+
+export function getIntegrationCtaCopy(locale: string, integrationName?: string) {
+  const intl = getIntlShape(locale);
+  const copy = getIntegrationDetailCopy(locale);
+
+  return {
+    headline: copy.finalCtaHeadline,
+    description: integrationName
+      ? intl.formatMessage(
+          {
+            defaultMessage:
+              "Connect {integrationName} to Hyperlocalise and start running localization workflows with agents, reviewers, and automations in one workspace.",
+            id: "eZMddlPk0j",
+            description: "Supporting copy for the bottom CTA on integration detail pages",
+          },
+          { integrationName },
+        )
+      : copy.finalCtaDescription,
+    primaryCtaLabel: copy.finalCtaPrimaryLabel,
+    secondaryCtaLabel: copy.finalCtaSecondaryLabel,
   };
 }

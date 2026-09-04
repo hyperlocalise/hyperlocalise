@@ -35,7 +35,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 
-type FlowTemplateId = "brief" | "campaign" | "seo";
+type FlowTemplateId = "brief" | "campaign";
 
 type FlowNodeKind = "trigger" | "action";
 
@@ -102,6 +102,32 @@ function buildLayout(templateId: FlowTemplateId, labels: string[]): FlowLayoutNo
   const baseY = 0;
   const centerX = 0;
 
+  if (templateId === "brief") {
+    return labels.map((label, index) => {
+      if (index <= 4) {
+        return {
+          label,
+          kind: index === 0 ? "trigger" : "action",
+          position: { x: centerX, y: baseY + index * NODE_GAP_Y },
+        };
+      }
+
+      if (index === 5) {
+        return {
+          label,
+          kind: "action",
+          position: { x: centerX - 112, y: baseY + 5 * NODE_GAP_Y },
+        };
+      }
+
+      return {
+        label,
+        kind: "action",
+        position: { x: centerX + 112, y: baseY + 5 * NODE_GAP_Y },
+      };
+    });
+  }
+
   if (templateId === "campaign") {
     return labels.map((label, index) => {
       if (index <= 2) {
@@ -133,7 +159,18 @@ function buildLayout(templateId: FlowTemplateId, labels: string[]): FlowLayoutNo
   }));
 }
 
-function buildEdges(templateId: FlowTemplateId, templateKey: string): Edge[] {
+function buildEdges(templateId: FlowTemplateId, templateKey: string, nodeCount: number): Edge[] {
+  if (templateId === "brief") {
+    return [
+      { id: `${templateKey}-e-0`, source: `${templateKey}-0`, target: `${templateKey}-1` },
+      { id: `${templateKey}-e-1`, source: `${templateKey}-1`, target: `${templateKey}-2` },
+      { id: `${templateKey}-e-2`, source: `${templateKey}-2`, target: `${templateKey}-3` },
+      { id: `${templateKey}-e-3`, source: `${templateKey}-3`, target: `${templateKey}-4` },
+      { id: `${templateKey}-e-4`, source: `${templateKey}-4`, target: `${templateKey}-5` },
+      { id: `${templateKey}-e-5`, source: `${templateKey}-4`, target: `${templateKey}-6` },
+    ];
+  }
+
   if (templateId === "campaign") {
     return [
       { id: `${templateKey}-e-0`, source: `${templateKey}-0`, target: `${templateKey}-1` },
@@ -143,7 +180,7 @@ function buildEdges(templateId: FlowTemplateId, templateKey: string): Edge[] {
     ];
   }
 
-  return [0, 1, 2, 3].map((index) => ({
+  return Array.from({ length: nodeCount - 1 }, (_, index) => ({
     id: `${templateKey}-e-${index}`,
     source: `${templateKey}-${index}`,
     target: `${templateKey}-${index + 1}`,
@@ -211,10 +248,12 @@ export function ContentOpsFlowPanel({
   const templateLabels = useMemo(
     () => ({
       brief: [
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeBrief),
+        intl.formatMessage(contentOpsMockStageMessages.flowNodeSchedule),
+        intl.formatMessage(contentOpsMockStageMessages.flowNodeKeywords),
+        intl.formatMessage(contentOpsMockStageMessages.flowNodeCreateContent),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeLocalise),
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeBrandQa),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeReview),
+        intl.formatMessage(contentOpsMockStageMessages.flowNodeSlack),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeCms),
       ],
       campaign: [
@@ -222,13 +261,6 @@ export function ContentOpsFlowPanel({
         intl.formatMessage(contentOpsMockStageMessages.flowNodeLocalise),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeReview),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeStaging),
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeSlack),
-      ],
-      seo: [
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeSchedule),
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeKeywords),
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeLocalise),
-        intl.formatMessage(contentOpsMockStageMessages.flowNodeDraft),
         intl.formatMessage(contentOpsMockStageMessages.flowNodeSlack),
       ],
     }),
@@ -245,10 +277,6 @@ export function ContentOpsFlowPanel({
         title: contentOpsMockStageMessages.flowTemplateCampaign,
         description: contentOpsMockStageMessages.flowCampaignDescription,
       },
-      seo: {
-        title: contentOpsMockStageMessages.flowTemplateSeo,
-        description: contentOpsMockStageMessages.flowSeoDescription,
-      },
     }),
     [],
   );
@@ -259,8 +287,8 @@ export function ContentOpsFlowPanel({
     [activeIndex, kindLabels, labels, templateId],
   );
   const initialEdges = useMemo(
-    () => styleEdges(buildEdges(templateId, templateId), activeIndex),
-    [activeIndex, templateId],
+    () => styleEdges(buildEdges(templateId, templateId, labels.length), activeIndex),
+    [activeIndex, labels.length, templateId],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -270,7 +298,9 @@ export function ContentOpsFlowPanel({
     (nextTemplateId: FlowTemplateId, nextActiveIndex: number) => {
       const nextLabels = templateLabels[nextTemplateId];
       setNodes(buildFlowNodes(nextTemplateId, nextLabels, kindLabels, nextActiveIndex));
-      setEdges(styleEdges(buildEdges(nextTemplateId, nextTemplateId), nextActiveIndex));
+      setEdges(
+        styleEdges(buildEdges(nextTemplateId, nextTemplateId, nextLabels.length), nextActiveIndex),
+      );
     },
     [kindLabels, setEdges, setNodes, templateLabels],
   );
@@ -315,7 +345,6 @@ export function ContentOpsFlowPanel({
   }[] = [
     { id: "brief", label: contentOpsMockStageMessages.flowTemplateBrief },
     { id: "campaign", label: contentOpsMockStageMessages.flowTemplateCampaign },
-    { id: "seo", label: contentOpsMockStageMessages.flowTemplateSeo },
   ];
 
   const meta = templateMeta[templateId];
@@ -355,7 +384,7 @@ export function ContentOpsFlowPanel({
         </div>
       </div>
 
-      <div className="relative min-h-0 min-h-[22rem] flex-1 w-full">
+      <div className="relative min-h-0 min-h-[28rem] flex-1 w-full">
         <Canvas
           nodes={nodes}
           edges={edges}
@@ -372,7 +401,7 @@ export function ContentOpsFlowPanel({
           preventScrolling={false}
           proOptions={{ hideAttribution: true }}
           fitView
-          fitViewOptions={{ padding: 0.45, minZoom: 0.85, maxZoom: 1.1 }}
+          fitViewOptions={{ padding: 0.35, minZoom: 0.75, maxZoom: 1.05 }}
           minZoom={0.75}
           maxZoom={1.25}
           defaultEdgeOptions={{

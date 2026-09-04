@@ -16,6 +16,7 @@ import {
   getIntegrationCopyDescriptors,
   type IntegrationCatalogSlug,
 } from "@/lib/integrations/integration-catalog.copy";
+import { getIntegrationDetailCopyDescriptors } from "@/lib/integrations/integration-catalog.detail.copy";
 import {
   integrationCatalogEntries,
   marketingIntegrationSlugs,
@@ -25,6 +26,10 @@ import type {
   IntegrationCategory,
   ResolvedIntegration,
   ResolvedIntegrationCopy,
+  ResolvedIntegrationCapability,
+  ResolvedIntegrationProduct,
+  ResolvedIntegrationSetupStep,
+  ResolvedIntegrationWorkflow,
 } from "@/lib/integrations/integration-catalog.types";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
@@ -33,12 +38,16 @@ function resolveIntegrationCopy(
   entry: IntegrationCatalogEntry,
 ): ResolvedIntegrationCopy {
   const descriptors = getIntegrationCopyDescriptors(entry.slug);
+  const detailDescriptors = getIntegrationDetailCopyDescriptors(entry.slug);
 
   if (!descriptors) {
     return {
       name: entry.slug,
       tagline: "",
       overview: [],
+      capabilities: [],
+      workflows: [],
+      setupSteps: [],
       products: [],
       metadata: {
         title: entry.slug,
@@ -56,11 +65,42 @@ function resolveIntegrationCopy(
     ? intl.formatMessage(descriptors.productDescription)
     : tagline;
 
+  const capabilities: ResolvedIntegrationCapability[] =
+    detailDescriptors?.capabilities?.map((capability) => ({
+      title: intl.formatMessage(capability.title),
+      description: intl.formatMessage(capability.description),
+    })) ?? [];
+
+  const workflows: ResolvedIntegrationWorkflow[] =
+    detailDescriptors?.workflows?.map((workflow) => ({
+      title: intl.formatMessage(workflow.title),
+      steps: workflow.steps.map((step) => ({
+        label: intl.formatMessage(step.label),
+        description: step.description ? intl.formatMessage(step.description) : undefined,
+      })),
+    })) ?? [];
+
+  const setupSteps: ResolvedIntegrationSetupStep[] =
+    detailDescriptors?.setupSteps?.map((step) => ({
+      title: intl.formatMessage(step.title),
+      description: intl.formatMessage(step.description),
+    })) ?? [];
+
+  const products: ResolvedIntegrationProduct[] = detailDescriptors?.products?.length
+    ? detailDescriptors.products.map((product) => ({
+        name: intl.formatMessage(product.name),
+        description: intl.formatMessage(product.description),
+      }))
+    : [{ name: productName, description: productDescription }];
+
   return {
     name,
     tagline,
     overview,
-    products: [{ name: productName, description: productDescription }],
+    capabilities,
+    workflows,
+    setupSteps,
+    products,
     metadata: {
       title: descriptors.metadataTitle
         ? intl.formatMessage(descriptors.metadataTitle)
@@ -97,6 +137,23 @@ export function resolveMarketingIntegrations(locale: string): ResolvedIntegratio
 
   return integrationCatalogEntries
     .filter((entry) => entry.marketing)
+    .map((entry) => resolveIntegration(intl, entry));
+}
+
+export function resolveRelatedIntegrations(
+  locale: string,
+  integration: ResolvedIntegration,
+): ResolvedIntegration[] {
+  const relatedSlugs = integration.relatedSlugs ?? [];
+  if (relatedSlugs.length === 0) {
+    return [];
+  }
+
+  const intl = getIntlShape(locale);
+
+  return relatedSlugs
+    .map((slug) => integrationCatalogEntries.find((entry) => entry.slug === slug))
+    .filter((entry): entry is IntegrationCatalogEntry => entry !== undefined && entry.marketing)
     .map((entry) => resolveIntegration(intl, entry));
 }
 

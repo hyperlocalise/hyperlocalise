@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   getMarketingIntegrationBySlug,
   getMarketingIntegrations,
+  getRelatedIntegrations,
   integrationSlugs,
 } from "@/components/marketing/integrations/integrations-page-content";
 import { getIntegrationPath } from "@/lib/integrations/integration-path";
@@ -43,7 +44,19 @@ describe("integrations-page-content", () => {
     const integration = getMarketingIntegrationBySlug("en", "github");
 
     expect(integration?.name).toBe("GitHub");
-    expect(integration?.products).toHaveLength(1);
+    expect(integration?.products.length).toBeGreaterThan(0);
     expect(integration?.overview.length).toBeGreaterThan(0);
+    expect(integration?.capabilities.length).toBeGreaterThan(0);
+    expect(integration?.workflows.length).toBeGreaterThan(0);
+    expect(integration?.setupSteps.length).toBeGreaterThan(0);
+  });
+
+  it("returns related integrations for catalog entries with relatedSlugs", () => {
+    const integration = getMarketingIntegrationBySlug("en", "github");
+    expect(integration).not.toBeNull();
+
+    const related = getRelatedIntegrations("en", integration!);
+    expect(related.length).toBeGreaterThan(0);
+    expect(related.every((item) => item.slug !== "github")).toBe(true);
   });
 });

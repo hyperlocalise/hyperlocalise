@@ -24,6 +24,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "github",
     websiteUrl: "https://github.com",
+    relatedSlugs: ["gitlab", "slack", "crowdin"],
     keywords: ["GitHub localization", "GitHub translation workflow", "Hyperlocalise GitHub"],
   },
   {
@@ -35,6 +36,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "gitlab",
     websiteUrl: "https://gitlab.com",
+    relatedSlugs: ["github", "slack", "jira"],
     keywords: ["GitLab localization", "GitLab translation workflow"],
   },
   {
@@ -46,6 +48,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/slack-logo.svg",
     websiteUrl: "https://slack.com",
+    relatedSlugs: ["github", "jira", "linear"],
     keywords: ["Slack localization", "translation review Slack", "Hyperlocalise Slack"],
   },
   {
@@ -67,6 +70,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "jira",
     websiteUrl: "https://www.atlassian.com/software/jira",
+    relatedSlugs: ["linear", "slack", "github"],
     keywords: ["Jira localization", "translation issue tracking"],
   },
   {
@@ -78,6 +82,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "linear",
     websiteUrl: "https://linear.app",
+    relatedSlugs: ["jira", "slack", "github"],
     keywords: ["Linear localization", "translation workflow Linear"],
   },
   {
@@ -100,6 +105,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/tms/crowdin.png",
     websiteUrl: "https://crowdin.com",
     tmsProviderKind: "crowdin",
+    relatedSlugs: ["lokalise", "phrase", "github"],
     keywords: ["Crowdin integration", "Crowdin Hyperlocalise", "TMS connector"],
   },
   {
@@ -112,6 +118,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/tms/lokalise.webp",
     websiteUrl: "https://lokalise.com",
     tmsProviderKind: "lokalise",
+    relatedSlugs: ["crowdin", "phrase", "notion"],
     keywords: ["Lokalise integration", "Lokalise Hyperlocalise"],
   },
   {
@@ -124,6 +131,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/tms/phrase.png",
     websiteUrl: "https://phrase.com",
     tmsProviderKind: "phrase",
+    relatedSlugs: ["crowdin", "lokalise", "smartling"],
     keywords: ["Phrase integration", "Phrase TMS Hyperlocalise"],
   },
   {
@@ -136,6 +144,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/tms/smartling.png",
     websiteUrl: "https://www.smartling.com",
     tmsProviderKind: "smartling",
+    relatedSlugs: ["phrase", "crowdin"],
     keywords: ["Smartling integration", "enterprise localization TMS"],
   },
   {
@@ -147,6 +156,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/contentful-logo.svg",
     websiteUrl: "https://www.contentful.com",
+    relatedSlugs: ["canva", "ahrefs", "semrush"],
     keywords: ["Contentful localization", "CMS translation connector"],
   },
   {
@@ -158,6 +168,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/canva-logo.svg",
     websiteUrl: "https://www.canva.com",
+    relatedSlugs: ["contentful", "intercom"],
     keywords: ["Canva localization", "design localization connector"],
   },
   {
@@ -198,6 +209,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "notion",
     websiteUrl: "https://www.notion.so",
+    relatedSlugs: ["lokalise", "contentful"],
     keywords: ["Notion localization guidelines", "style guide import"],
   },
   {
@@ -209,6 +221,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/intercom-logo.svg",
     websiteUrl: "https://www.intercom.com",
+    relatedSlugs: ["contentful", "resend", "slack"],
     keywords: ["Intercom localization", "customer support translation"],
   },
   {
@@ -289,6 +302,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     iconKey: "resend",
     websiteUrl: "https://resend.com",
+    relatedSlugs: ["intercom", "slack"],
     keywords: ["Resend localization", "transactional email translation"],
   },
   {
@@ -299,6 +313,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     marketing: true,
     workspace: true,
     logoSrc: "/images/logo.png",
+    relatedSlugs: ["github", "contentful"],
     keywords: ["localization experiments", "Hyperlab", "feature testing localization"],
   },
   {
@@ -319,6 +334,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/ahrefs-logo.svg",
     websiteUrl: "https://ahrefs.com",
+    relatedSlugs: ["semrush", "contentful"],
     keywords: ["Ahrefs localization", "SEO localization workflow"],
   },
   {
@@ -330,6 +346,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: "/images/semrush-logo.svg",
     websiteUrl: "https://www.semrush.com",
+    relatedSlugs: ["ahrefs", "contentful"],
     keywords: ["Semrush localization", "SEO translation workflow"],
   },
 ];

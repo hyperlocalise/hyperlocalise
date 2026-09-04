@@ -14,13 +14,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Clock01Icon,
   File01Icon,
   LanguageSquareIcon,
   PauseIcon,
   PlayIcon,
   Rocket01Icon,
-  Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -49,21 +47,13 @@ import {
 } from "./content-ops-mock-stage.messages";
 
 const TAB_HOLD_MS = 9000;
-const TAB_ORDER: ContentOpsMockTabId[] = [
-  "triage",
-  "campaign",
-  "seo-blog",
-  "brand",
-  "brief-to-publish",
-  "editor",
-];
+const TAB_ORDER: ContentOpsMockTabId[] = ["triage", "campaign", "seo-blog", "brand", "editor"];
 
 const MESH_BY_TAB: Record<ContentOpsMockTabId, string> = {
   triage: SAGE_MESH_GRADIENT_SRC,
   campaign: LAVENDER_MESH_GRADIENT_SRC,
   "seo-blog": SAGE_MESH_GRADIENT_SRC,
   brand: LAVENDER_MESH_GRADIENT_SRC,
-  "brief-to-publish": SAGE_MESH_GRADIENT_SRC,
   editor: LAVENDER_MESH_GRADIENT_SRC,
 };
 
@@ -77,7 +67,6 @@ const TABS: TabConfig[] = [
   { id: "campaign", labelKey: "tabCampaign" },
   { id: "seo-blog", labelKey: "tabSeoBlog" },
   { id: "brand", labelKey: "tabBrand" },
-  { id: "brief-to-publish", labelKey: "tabBriefToPublish" },
   { id: "editor", labelKey: "tabEditor" },
 ];
 
@@ -135,55 +124,6 @@ export function ContentOpsMockStage({
     }),
     [intl],
   );
-
-  const seoScene: ContentOpsTerminalScene = useMemo(() => {
-    const highlightStep = intl.formatMessage(contentOpsMockStageMessages.stepSeo3);
-    return {
-      id: "seo-blog",
-      automationName: intl.formatMessage(contentOpsMockStageMessages.seoAutomationName),
-      triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3.5" />,
-      triggerLabel: intl.formatMessage(contentOpsMockStageMessages.triggerSeoSchedule),
-      instructions: intl.formatMessage(contentOpsMockStageMessages.seoInstructions),
-      tools: [
-        {
-          icon: <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} className="size-3.5" />,
-          label: intl.formatMessage(contentOpsMockStageMessages.toolSearch),
-          description: intl.formatMessage(contentOpsMockStageMessages.toolSearchDescription),
-        },
-        {
-          icon: <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} className="size-3.5" />,
-          label: intl.formatMessage(contentOpsMockStageMessages.toolAhrefs),
-          description: intl.formatMessage(contentOpsMockStageMessages.toolAhrefsDescription),
-        },
-        {
-          icon: <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3.5" />,
-          label: intl.formatMessage(contentOpsMockStageMessages.toolCms),
-          description: intl.formatMessage(contentOpsMockStageMessages.toolCmsDescription),
-        },
-        {
-          icon: (
-            <Image
-              src="/images/slack-logo.svg"
-              alt=""
-              width={14}
-              height={14}
-              className="size-3.5"
-            />
-          ),
-          label: intl.formatMessage(contentOpsMockStageMessages.toolSlack),
-          description: intl.formatMessage(contentOpsMockStageMessages.toolSlackSeoDescription),
-        },
-      ],
-      steps: [
-        intl.formatMessage(contentOpsMockStageMessages.stepSeo1),
-        intl.formatMessage(contentOpsMockStageMessages.stepSeo2),
-        highlightStep,
-        intl.formatMessage(contentOpsMockStageMessages.stepSeo4),
-        intl.formatMessage(contentOpsMockStageMessages.stepSeo5),
-      ],
-      highlightSteps: new Set([highlightStep]),
-    };
-  }, [intl]);
 
   const handleTabSelect = useCallback((tabId: ContentOpsMockTabId) => {
     setAutoplayEnabled(false);
@@ -278,11 +218,10 @@ export function ContentOpsMockStage({
                 <ContentOpsInboxPanel highlightedIndex={triageHighlightIndex % 3} />
               ) : null}
               {activeTab === "campaign" ? <ContentOpsAgentTerminal scene={campaignScene} /> : null}
-              {activeTab === "seo-blog" ? <ContentOpsAgentTerminal scene={seoScene} /> : null}
-              {activeTab === "brand" ? <ContentOpsBrandPanel /> : null}
-              {activeTab === "brief-to-publish" ? (
+              {activeTab === "seo-blog" ? (
                 <ContentOpsFlowPanel pauseAutoplay={pauseAutoplay} />
               ) : null}
+              {activeTab === "brand" ? <ContentOpsBrandPanel /> : null}
               {activeTab === "editor" ? (
                 <ContentOpsEditorPanel pauseAutoplay={pauseAutoplay} />
               ) : null}
