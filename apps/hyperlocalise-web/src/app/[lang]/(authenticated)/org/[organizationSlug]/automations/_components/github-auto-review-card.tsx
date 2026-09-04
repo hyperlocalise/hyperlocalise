@@ -113,7 +113,7 @@ function GithubAutoReviewSettingsForm({
 
   if (error) {
     return (
-      <TypographyP className="text-sm font-medium text-flame-100">
+      <TypographyP className="text-flame-100" size="small" weight="medium">
         <FormattedMessage {...messages.loadError} />
       </TypographyP>
     );
@@ -134,7 +134,7 @@ function GithubAutoReviewSettingsForm({
         />
       </div>
 
-      <TypographyP className="text-sm text-muted-foreground">
+      <TypographyP size="small" tone="subtle">
         <FormattedMessage {...messages.mentionNote} />
       </TypographyP>
 
@@ -143,7 +143,7 @@ function GithubAutoReviewSettingsForm({
           <FormattedMessage {...messages.repositoriesLabel} />
         </Label>
         {!hasAnyRepositories ? (
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.noGithub} />{" "}
             <Link
               href={`/org/${organizationSlug}/integrations`}
@@ -153,7 +153,7 @@ function GithubAutoReviewSettingsForm({
             </Link>
           </TypographyP>
         ) : selectableRepositories.length === 0 ? (
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.noEnabledRepos} />{" "}
             <Link
               href={`/org/${organizationSlug}/integrations`}

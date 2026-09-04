@@ -58,7 +58,7 @@ export function LocalisationAuditLeaderboard({
     return (
       <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
         <TypographyH2 className="pb-0">{copy.leaderboardHeading}</TypographyH2>
-        <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+        <TypographyP className="mt-4 max-w-2xl" tone="subtle">
           {copy.leaderboardEmpty}
         </TypographyP>
       </section>
@@ -68,7 +68,7 @@ export function LocalisationAuditLeaderboard({
   return (
     <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
       <TypographyH2 className="pb-0">{copy.leaderboardHeading}</TypographyH2>
-      <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+      <TypographyP className="mt-4 max-w-2xl" tone="subtle">
         {copy.leaderboardSubcopy}
       </TypographyP>
 

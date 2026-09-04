@@ -381,10 +381,10 @@ export function TranslationMemoriesPageView({
 
       {liveProjectSelectionRequired ? (
         <div className="space-y-3 py-10">
-          <TypographyP className="text-sm font-medium text-foreground">
+          <TypographyP size="small" weight="medium" tone="content">
             <FormattedMessage {...translationMemoriesPageViewMessages.chooseTmsProjectTitle} />
           </TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
+          <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
             <FormattedMessage
               {...translationMemoriesPageViewMessages.chooseTmsProjectDescription}
             />

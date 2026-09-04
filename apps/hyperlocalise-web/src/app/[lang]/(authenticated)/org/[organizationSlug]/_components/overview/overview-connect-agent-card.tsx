@@ -168,7 +168,7 @@ export function OverviewConnectAgentCard({
         </Tabs>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.description} />
           </TypographyP>
           <a
@@ -206,7 +206,7 @@ export function OverviewConnectAgentCard({
           </SnippetAddon>
         </Snippet>
 
-        <TypographyP className="text-pretty text-sm text-muted-foreground">
+        <TypographyP wrapStyle="pretty" size="small" tone="subtle">
           <ClientNextStep client={client} />
         </TypographyP>
       </CardContent>

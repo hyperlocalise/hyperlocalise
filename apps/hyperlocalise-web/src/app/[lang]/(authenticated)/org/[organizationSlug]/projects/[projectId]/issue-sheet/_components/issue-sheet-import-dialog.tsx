@@ -337,10 +337,10 @@ export function IssueSheetImportDialog({
             >
               <HugeiconsIcon icon={Upload01Icon} className="size-8 text-muted-foreground" />
               <div>
-                <TypographyP className="font-medium">
+                <TypographyP weight="medium">
                   <FormattedMessage {...messages.chooseCsvFile} />
                 </TypographyP>
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small" tone="subtle">
                   <FormattedMessage {...messages.csvLimits} />
                 </TypographyP>
               </div>
@@ -508,7 +508,7 @@ export function IssueSheetImportDialog({
               </Badge>
             </div>
             {previewResult.columnsCreated.length > 0 ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage
                   {...messages.newColumns}
                   values={{
@@ -558,7 +558,7 @@ export function IssueSheetImportDialog({
 
         {step === "done" && previewResult ? (
           <div className="space-y-3">
-            <TypographyP className="text-sm">
+            <TypographyP size="small">
               {[
                 intl.formatMessage(messages.importSummaryCreated, {
                   count: previewResult.created,

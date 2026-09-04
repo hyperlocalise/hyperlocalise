@@ -75,9 +75,11 @@ export const ConversationEmptyState = ({
         <>
           {icon && <div className="text-muted-foreground">{icon}</div>}
           <div className="space-y-1">
-            <TypographyH3 className="font-medium text-sm md:text-sm">{resolvedTitle}</TypographyH3>
+            <TypographyH3 className="md:text-sm" weight="medium" size="small">
+              {resolvedTitle}
+            </TypographyH3>
             {resolvedDescription && (
-              <TypographyP className="text-muted-foreground text-sm">
+              <TypographyP tone="subtle" size="small">
                 {resolvedDescription}
               </TypographyP>
             )}

@@ -113,7 +113,7 @@ export function HeroSection() {
               }}
               transition={headlineTransition}
             >
-              <TypographyH1 className="text-balance text-white">
+              <TypographyH1 className="text-white" wrapStyle="balance">
                 <FormattedMessage {...heroSectionMessages.headline} />
               </TypographyH1>
             </motion.div>
@@ -127,7 +127,7 @@ export function HeroSection() {
                 delay: shouldReduceMotion ? 0 : 0.56,
               }}
             >
-              <TypographyP className="mx-auto max-w-2xl pb-0 text-base text-white/80 sm:text-lg">
+              <TypographyP className="mx-auto max-w-2xl pb-0 text-white/80 sm:text-lg">
                 <FormattedMessage
                   {...heroSectionMessages.body}
                   values={{

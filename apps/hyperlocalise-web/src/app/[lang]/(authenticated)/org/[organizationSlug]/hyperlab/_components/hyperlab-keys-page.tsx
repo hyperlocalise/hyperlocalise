@@ -129,7 +129,7 @@ export function HyperlabKeysPage({
         {createdSecret ? (
           <Box border="standard" borderRadius="standard" background="muted" padding="2u">
             <Rows spacing="1u">
-              <TypographyP className="text-pretty text-sm font-medium">
+              <TypographyP wrapStyle="pretty" size="small" weight="medium">
                 <FormattedMessage {...messages.copySecret} />
               </TypographyP>
               <code className="overflow-x-auto text-sm">{createdSecret}</code>
@@ -138,19 +138,19 @@ export function HyperlabKeysPage({
         ) : null}
 
         {keysQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {keysQuery.error instanceof Error
               ? keysQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {keysQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}
         {!keysQuery.isLoading && keys.length === 0 ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.keysEmpty} />
           </TypographyP>
         ) : null}
@@ -161,8 +161,8 @@ export function HyperlabKeysPage({
                 <Box key={key.id} paddingX="2u" paddingY="1.5u">
                   <Row spacing="1.5u" align="spaceBetween" alignY="center">
                     <Rows spacing="0.5u">
-                      <TypographyP className="font-medium">{key.name}</TypographyP>
-                      <TypographyP className="text-sm text-muted-foreground">
+                      <TypographyP weight="medium">{key.name}</TypographyP>
+                      <TypographyP size="small" tone="subtle">
                         {key.keyPrefix}…
                       </TypographyP>
                     </Rows>

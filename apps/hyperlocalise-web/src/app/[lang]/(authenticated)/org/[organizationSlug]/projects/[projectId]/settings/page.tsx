@@ -32,7 +32,7 @@ export default async function ProjectSettingsPage({
   return (
     <Suspense
       fallback={
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           {intl.formatMessage({
             defaultMessage: "Loading settings...",
             id: "M1rJJm5ext",

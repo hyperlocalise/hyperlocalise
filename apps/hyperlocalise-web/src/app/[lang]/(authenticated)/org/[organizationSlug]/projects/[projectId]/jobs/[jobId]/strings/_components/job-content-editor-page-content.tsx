@@ -371,11 +371,11 @@ export function JobContentEditorPageContent({
     (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
       <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
         {repositoriesQuery.isError ? (
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.repositoriesLoadFailed} />
           </TypographyP>
         ) : (
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.selectRepositoryForContext} />
           </TypographyP>
         )}
@@ -470,7 +470,7 @@ export function JobContentEditorPageContent({
         <ProjectPageShell>
           <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
             <Spinner />
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
             </TypographyP>
           </div>
@@ -482,7 +482,7 @@ export function JobContentEditorPageContent({
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-flame-100">
+            <TypographyP className="text-flame-100" size="small">
               {defaultFileQuery.error instanceof Error
                 ? defaultFileQuery.error.message
                 : intl.formatMessage(jobCatPageContentMessages.unableToLoadTaskFiles)}
@@ -502,7 +502,9 @@ export function JobContentEditorPageContent({
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-muted-foreground">{emptyStateMessage}</TypographyP>
+            <TypographyP size="small" tone="subtle">
+              {emptyStateMessage}
+            </TypographyP>
           </div>
         </ProjectPageShell>
       );
@@ -512,7 +514,7 @@ export function JobContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.openingWorkspace} />
           </TypographyP>
         </div>
@@ -546,7 +548,7 @@ export function JobContentEditorPageContent({
         <ProjectPageShell>
           <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
             <Spinner />
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
             </TypographyP>
           </div>
@@ -559,7 +561,7 @@ export function JobContentEditorPageContent({
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-flame-100">
+            <TypographyP className="text-flame-100" size="small">
               <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
             </TypographyP>
           </div>
@@ -571,7 +573,7 @@ export function JobContentEditorPageContent({
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               {!sourceLocale ? (
                 <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
               ) : (
@@ -700,7 +702,7 @@ export function JobContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
           </TypographyP>
         </div>
@@ -712,7 +714,7 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-flame-100">
+          <TypographyP className="text-flame-100" size="small">
             {projectQuery.error instanceof Error
               ? projectQuery.error.message
               : targetFileQuery.error instanceof Error
@@ -728,10 +730,10 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="font-mono text-sm text-foreground">
+          <TypographyP className="font-mono" size="small" tone="content">
             {targetFileQuery.data.reference}
           </TypographyP>
-          <TypographyP className="mt-2 text-sm text-muted-foreground">
+          <TypographyP className="mt-2" size="small" tone="subtle">
             <FormattedMessage
               {...jobCatPageContentMessages.listTruncated}
               values={{ fetchedCount: targetFileQuery.data.fetchedCount }}
@@ -746,10 +748,10 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="font-mono text-sm text-foreground">
+          <TypographyP className="font-mono" size="small" tone="content">
             {sourcePath ?? storedFileId}
           </TypographyP>
-          <TypographyP className="mt-2 text-sm text-muted-foreground">
+          <TypographyP className="mt-2" size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.sourceFileNoLongerLinked} />
           </TypographyP>
         </div>
@@ -762,7 +764,7 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-flame-100">
+          <TypographyP className="text-flame-100" size="small">
             <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
           </TypographyP>
         </div>
@@ -775,7 +777,7 @@ export function JobContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
           </TypographyP>
         </div>
@@ -788,7 +790,7 @@ export function JobContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
           </TypographyP>
         </div>
@@ -801,7 +803,7 @@ export function JobContentEditorPageContent({
       return (
         <ProjectPageShell>
           <div className="rounded-lg border border-border bg-card p-5">
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForTaskFile} />
             </TypographyP>
           </div>
@@ -876,7 +878,7 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.stringEditingUnsupported} />
           </TypographyP>
         </div>
@@ -890,7 +892,7 @@ export function JobContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForProviderFile} />
           </TypographyP>
         </div>

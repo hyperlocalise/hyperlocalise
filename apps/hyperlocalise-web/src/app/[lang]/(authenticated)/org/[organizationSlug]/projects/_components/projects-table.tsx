@@ -78,7 +78,7 @@ function NativeEmptyState({
 }) {
   if (compact) {
     return (
-      <TypographyP className="text-sm leading-6 text-muted-foreground">
+      <TypographyP className="leading-6" size="small" tone="subtle">
         <FormattedMessage
           {...projectsTableMessages.nativeEmptyCompact}
           values={{
@@ -102,10 +102,10 @@ function NativeEmptyState({
 
   return (
     <div className="max-w-xl space-y-3 py-6">
-      <TypographyP className="text-sm font-medium text-foreground">
+      <TypographyP size="small" weight="medium" tone="content">
         <FormattedMessage {...projectsTableMessages.nativeEmptyTitle} />
       </TypographyP>
-      <TypographyP className="text-sm leading-6 text-muted-foreground">
+      <TypographyP className="leading-6" size="small" tone="subtle">
         <FormattedMessage {...projectsTableMessages.nativeEmptyDescription} />
       </TypographyP>
     </div>
@@ -152,7 +152,7 @@ function ProjectCard({
           <ProjectAvatar project={project} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground">
+              <TypographyH3 className="min-w-0" lineClamp={1} weight="medium" tone="content">
                 {project.name}
               </TypographyH3>
               {!project.isActive ? (
@@ -161,10 +161,10 @@ function ProjectCard({
                 </Badge>
               ) : null}
             </div>
-            <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
+            <TypographyP className="mt-1" lineClamp={1} size="xsmall" tone="subtle">
               {providerName}
             </TypographyP>
-            <TypographyP className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+            <TypographyP className="mt-1" lineClamp={2} size="xsmall" tone="subtle">
               {project.descriptionValue ||
                 intl.formatMessage(projectsTableMessages.noDescriptionYet)}
             </TypographyP>
@@ -351,10 +351,10 @@ export function ProjectsTable({
             />
           ) : (
             <>
-              <TypographyP className="text-sm font-medium text-flame-100">
+              <TypographyP className="text-flame-100" size="small" weight="medium">
                 <FormattedMessage {...projectsTableMessages.loadFailedTitle} />
               </TypographyP>
-              <TypographyP className="mt-1 text-xs text-muted-foreground">
+              <TypographyP className="mt-1" size="xsmall" tone="subtle">
                 {projectsQuery.error instanceof Error
                   ? projectsQuery.error.message
                   : intl.formatMessage(projectsTableMessages.loadFailedFallback)}
@@ -368,10 +368,10 @@ export function ProjectsTable({
           <NativeEmptyState compact={compactEmptyNative} onCreateProject={onCreateProject} />
         ) : (
           <div className="max-w-xl space-y-3 py-4">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...projectsTableMessages.emptyTmsTitle} />
             </TypographyP>
-            <TypographyP className="text-sm leading-6 text-muted-foreground">
+            <TypographyP className="leading-6" size="small" tone="subtle">
               <FormattedMessage {...projectsTableMessages.emptyTmsDescription} />
             </TypographyP>
           </div>

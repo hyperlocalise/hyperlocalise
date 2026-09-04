@@ -45,7 +45,7 @@ export function ProjectFilesBranchFilterView({
 
   if (isLoading) {
     return (
-      <TypographyP className="text-xs text-muted-foreground">
+      <TypographyP size="xsmall" tone="subtle">
         <FormattedMessage {...messages.loadingBranches} />
       </TypographyP>
     );
@@ -57,7 +57,7 @@ export function ProjectFilesBranchFilterView({
 
   return (
     <div className="flex items-center gap-2">
-      <TypographyP className="shrink-0 text-xs text-muted-foreground">
+      <TypographyP className="shrink-0" size="xsmall" tone="subtle">
         <FormattedMessage {...messages.branchLabel} />
       </TypographyP>
       <Select

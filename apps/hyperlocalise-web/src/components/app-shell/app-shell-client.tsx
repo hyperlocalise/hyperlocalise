@@ -129,7 +129,12 @@ export function AppShellClient({
                 className="size-7 shrink-0 rounded-lg"
               />
               <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                <TypographyP className="truncate text-sm font-medium text-sidebar-foreground">
+                <TypographyP
+                  className="text-sidebar-foreground"
+                  lineClamp={1}
+                  size="small"
+                  weight="medium"
+                >
                   <FormattedMessage {...appShellClientMessages.brandName} />
                 </TypographyP>
               </div>

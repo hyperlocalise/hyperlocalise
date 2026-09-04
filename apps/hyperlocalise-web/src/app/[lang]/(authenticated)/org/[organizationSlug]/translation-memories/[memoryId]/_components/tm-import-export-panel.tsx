@@ -323,14 +323,18 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-2">
         {reportCounts(report.report).map((item) => (
-          <TypographyP key={item.key} className="rounded-md border border-border px-2 py-1 text-xs">
+          <TypographyP
+            key={item.key}
+            className="rounded-md border border-border px-2 py-1"
+            size="xsmall"
+          >
             <FormattedMessage {...item.message} values={{ count: item.count }} />
           </TypographyP>
         ))}
       </div>
       {report.preview.length > 0 ? (
         <div className="grid gap-2">
-          <TypographyP className="text-sm font-medium">
+          <TypographyP size="small" weight="medium">
             <FormattedMessage {...messages.previewEntriesTitle} />
           </TypographyP>
           <div className="max-h-48 overflow-auto rounded-md border border-border">
@@ -339,11 +343,11 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
                 key={`${entry.externalKey ?? entry.sourceText}-${index}`}
                 className="border-b border-border px-3 py-2 last:border-b-0"
               >
-                <TypographyP className="text-xs text-muted-foreground">
+                <TypographyP size="xsmall" tone="subtle">
                   {entry.sourceLocale} → {entry.targetLocale} · {entry.action}
                 </TypographyP>
-                <TypographyP className="text-sm">{entry.sourceText}</TypographyP>
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small">{entry.sourceText}</TypographyP>
+                <TypographyP size="small" tone="subtle">
                   {entry.targetText}
                 </TypographyP>
               </div>
@@ -353,7 +357,7 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
       ) : null}
       {report.report.issues.length > 0 ? (
         <div className="grid gap-2">
-          <TypographyP className="text-sm font-medium">
+          <TypographyP size="small" weight="medium">
             <FormattedMessage {...messages.issuesTitle} />
           </TypographyP>
           <ul className="max-h-40 overflow-auto rounded-md border border-border px-3 py-2 text-xs">

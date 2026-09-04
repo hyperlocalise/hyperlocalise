@@ -330,7 +330,7 @@ function MessageFrame({
         <MessageContent className="w-full max-w-full leading-6">
           {children}
           <MessageFooter className="px-0">
-            <TypographyMuted className="text-xs">{timestamp}</TypographyMuted>
+            <TypographyMuted size="xsmall">{timestamp}</TypographyMuted>
           </MessageFooter>
         </MessageContent>
       </Message>
@@ -354,7 +354,7 @@ function MessageFrame({
           {children}
         </div>
         <MessageFooter className="px-0">
-          <TypographyMuted className="text-xs">{timestamp}</TypographyMuted>
+          <TypographyMuted size="xsmall">{timestamp}</TypographyMuted>
         </MessageFooter>
       </MessageContent>
     </Message>
@@ -580,7 +580,7 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
               key={part.sourceId}
               className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-xs"
             >
-              <TypographySmall className="text-xs">
+              <TypographySmall size="xsmall">
                 {part.title || part.filename || documentFallback}
               </TypographySmall>
               <span className="text-muted-foreground">{part.mediaType}</span>

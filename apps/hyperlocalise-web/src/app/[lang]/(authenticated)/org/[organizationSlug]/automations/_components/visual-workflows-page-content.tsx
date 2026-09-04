@@ -107,7 +107,7 @@ export function VisualWorkflowsPageContent({
           </ul>
         ) : (
           <div className="p-8 text-center">
-            <TypographyP className="text-muted-foreground">
+            <TypographyP tone="subtle">
               <FormattedMessage {...visualWorkflowsPageMessages.emptyState} />
             </TypographyP>
           </div>

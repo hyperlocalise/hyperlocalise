@@ -167,7 +167,7 @@ function ReadOnlyValue({
   className?: string;
 }) {
   return (
-    <TypographyP className={cn("text-sm leading-5 text-foreground", className)}>
+    <TypographyP className="leading-5" size="small" tone="content">
       {value?.trim() ? value : empty}
     </TypographyP>
   );
@@ -568,7 +568,7 @@ export const IssueDetailPanel = forwardRef<
   if (issueQuery.isError) {
     return (
       <div className="px-6 py-5">
-        <TypographyP className="text-sm text-destructive">
+        <TypographyP size="small" tone="critical">
           <FormattedMessage {...messages.loadError} />
         </TypographyP>
       </div>
@@ -578,7 +578,7 @@ export const IssueDetailPanel = forwardRef<
   if (!issue) {
     return (
       <div className="px-6 py-5">
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.notFound} />
         </TypographyP>
       </div>
@@ -678,7 +678,7 @@ export const IssueDetailPanel = forwardRef<
 
         {showOwnerNoteField ? (
           <section className="mt-2 grid gap-2 border-t border-border pt-4">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...messages.fieldOwnerNote} />
             </TypographyP>
             <IssueMarkdownField
@@ -698,7 +698,12 @@ export const IssueDetailPanel = forwardRef<
         {showCustomColumns
           ? mainCustomColumns.map((column) => (
               <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
-                <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <TypographyP
+                  className="inline-flex items-center gap-1.5"
+                  size="small"
+                  weight="medium"
+                  tone="content"
+                >
                   <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
                   {column.label}
                 </TypographyP>
@@ -723,7 +728,12 @@ export const IssueDetailPanel = forwardRef<
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
             <div className="flex items-center justify-between gap-2">
-              <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <TypographyP
+                className="inline-flex items-center gap-1.5"
+                size="small"
+                weight="medium"
+                tone="content"
+              >
                 <HugeiconsIcon
                   icon={LinkSquare02Icon}
                   strokeWidth={1.8}
@@ -834,7 +844,7 @@ export const IssueDetailPanel = forwardRef<
                   </Button>
                 ) : (
                   <div className="flex min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 py-2">
-                    <TypographyP className="text-xs text-muted-foreground">
+                    <TypographyP size="xsmall" tone="subtle">
                       <FormattedMessage {...messages.openInContentEditorUnavailable} />
                     </TypographyP>
                   </div>
@@ -886,7 +896,7 @@ export const IssueDetailPanel = forwardRef<
           <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
             {columnsQuery.isError ? (
               <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                <TypographyP className="text-xs text-destructive">
+                <TypographyP size="xsmall" tone="critical">
                   <FormattedMessage {...messages.loadColumnsError} />
                 </TypographyP>
                 <Button

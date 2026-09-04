@@ -103,13 +103,13 @@ export function DomainDetailPageContent({
       </div>
 
       {domainQuery.isLoading ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
       ) : null}
 
       {domainQuery.isError ? (
-        <TypographyP className="text-sm text-destructive">
+        <TypographyP size="small" tone="critical">
           {domainQuery.error instanceof Error
             ? domainQuery.error.message
             : intl.formatMessage(messages.loadError)}
@@ -165,30 +165,30 @@ export function DomainDetailPageContent({
           </div>
 
           <section className="space-y-4">
-            <TypographyH2 className="pb-0 text-xl">
+            <TypographyH2 className="pb-0" size="xlarge">
               <FormattedMessage {...messages.reportHeading} />
             </TypographyH2>
 
             {!linkedDomain.localisationAuditId ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.noAudit} />
               </TypographyP>
             ) : null}
 
             {linkedDomain.localisationAuditId && linkedDomain.status !== "verified" ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.verifyPending} />
               </TypographyP>
             ) : null}
 
             {auditQuery.isLoading ? (
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.loading} />
               </TypographyP>
             ) : null}
 
             {auditQuery.isError ? (
-              <TypographyP className="text-sm text-destructive">
+              <TypographyP size="small" tone="critical">
                 {auditQuery.error instanceof Error
                   ? auditQuery.error.message
                   : intl.formatMessage(messages.auditLoadError)}

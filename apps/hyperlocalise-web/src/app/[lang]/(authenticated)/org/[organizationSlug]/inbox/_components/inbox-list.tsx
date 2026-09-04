@@ -240,10 +240,10 @@ const NewRequestListItem = memo(function NewRequestListItem() {
         <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
       </div>
       <div className="min-w-0">
-        <TypographySmall className="truncate">
+        <TypographySmall lineClamp={1}>
           <FormattedMessage {...inboxListMessages.newRequestTitle} />
         </TypographySmall>
-        <TypographyMuted className="mt-1 truncate">
+        <TypographyMuted className="mt-1" lineClamp={1}>
           <FormattedMessage {...inboxListMessages.newRequestPreview} />
         </TypographyMuted>
       </div>
@@ -305,9 +305,11 @@ const ConversationListItem = memo(function ConversationListItem({
       </Avatar>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <TypographySmall className="truncate">{conversation.title}</TypographySmall>
+          <TypographySmall lineClamp={1}>{conversation.title}</TypographySmall>
         </div>
-        <TypographyMuted className="mt-1 truncate">{preview}</TypographyMuted>
+        <TypographyMuted className="mt-1" lineClamp={1}>
+          {preview}
+        </TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">{getSourceLabel(conversation.source, intl)}</span>
           <span className="size-1 rounded-full bg-muted" />
@@ -362,12 +364,14 @@ const NotificationListItem = memo(function NotificationListItem({
       </Avatar>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <TypographySmall className={cn("truncate", isUnread && "font-semibold")}>
+          <TypographySmall lineClamp={1} weight="bold">
             {notification.payload.issueTitle}
           </TypographySmall>
           {isUnread ? <span className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
         </div>
-        <TypographyMuted className="mt-1 truncate">{secondary}</TypographyMuted>
+        <TypographyMuted className="mt-1" lineClamp={1}>
+          {secondary}
+        </TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">
             <FormattedMessage {...inboxNotificationsMessages.issueNotification} />

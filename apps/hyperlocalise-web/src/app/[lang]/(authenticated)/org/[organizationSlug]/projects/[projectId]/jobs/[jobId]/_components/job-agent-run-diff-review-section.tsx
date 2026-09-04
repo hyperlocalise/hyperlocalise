@@ -377,7 +377,7 @@ export function JobAgentRunDiffReviewSection({
   return (
     <section className="rounded-lg border border-border bg-muted p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        <TypographyH2 className="font-heading md:text-lg" weight="medium" tone="content">
           <FormattedMessage {...messages.agentProposalReviewHeading} />
         </TypographyH2>
         <div className="flex flex-wrap gap-2">

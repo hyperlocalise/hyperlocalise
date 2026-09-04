@@ -110,16 +110,22 @@ function ProvenanceRow({
   if (!actor.at && !actor.displayName && !actor.userId) {
     return (
       <div className="grid gap-0.5">
-        <TypographyP className="text-xs font-medium text-muted-foreground">{label}</TypographyP>
-        <TypographyP className="text-sm text-muted-foreground">{empty}</TypographyP>
+        <TypographyP size="xsmall" weight="medium" tone="subtle">
+          {label}
+        </TypographyP>
+        <TypographyP size="small" tone="subtle">
+          {empty}
+        </TypographyP>
       </div>
     );
   }
 
   return (
     <div className="grid gap-0.5">
-      <TypographyP className="text-xs font-medium text-muted-foreground">{label}</TypographyP>
-      <TypographyP className="text-sm">
+      <TypographyP size="xsmall" weight="medium" tone="subtle">
+        {label}
+      </TypographyP>
+      <TypographyP size="small">
         {actor.displayName ?? empty}
         {actor.at ? (
           <>
@@ -283,14 +289,14 @@ export function TmEntryDetailSheet({
 
         <div className="grid gap-6 px-6 pb-6">
           {detailQuery.isLoading ? (
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...messages.loading} />
             </TypographyP>
           ) : null}
 
           {detailQuery.isError ? (
             <div className="grid gap-3">
-              <TypographyP className="text-sm text-muted-foreground">
+              <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.error} />
               </TypographyP>
               <Button type="button" variant="outline" onClick={() => detailQuery.refetch()}>
@@ -321,7 +327,7 @@ export function TmEntryDetailSheet({
               ) : null}
 
               {!canEdit ? (
-                <TypographyP className="text-sm text-muted-foreground">
+                <TypographyP size="small" tone="subtle">
                   <FormattedMessage {...messages.readOnlyNotice} />
                 </TypographyP>
               ) : null}
@@ -425,28 +431,28 @@ export function TmEntryDetailSheet({
               ) : (
                 <div className="grid gap-3">
                   <div>
-                    <TypographyP className="text-xs font-medium text-muted-foreground">
+                    <TypographyP size="xsmall" weight="medium" tone="subtle">
                       <FormattedMessage {...messages.sourceTextLabel} />
                     </TypographyP>
-                    <TypographyP className="text-sm">{detail.memoryEntry.sourceText}</TypographyP>
-                    <TypographyP className="text-xs text-muted-foreground">
+                    <TypographyP size="small">{detail.memoryEntry.sourceText}</TypographyP>
+                    <TypographyP size="xsmall" tone="subtle">
                       {formatLocaleOptionLabel(intl, detail.memoryEntry.sourceLocale)}
                     </TypographyP>
                   </div>
                   <div>
-                    <TypographyP className="text-xs font-medium text-muted-foreground">
+                    <TypographyP size="xsmall" weight="medium" tone="subtle">
                       <FormattedMessage {...messages.targetTextLabel} />
                     </TypographyP>
-                    <TypographyP className="text-sm">{detail.memoryEntry.targetText}</TypographyP>
-                    <TypographyP className="text-xs text-muted-foreground">
+                    <TypographyP size="small">{detail.memoryEntry.targetText}</TypographyP>
+                    <TypographyP size="xsmall" tone="subtle">
                       {formatLocaleOptionLabel(intl, detail.memoryEntry.targetLocale)}
                     </TypographyP>
                   </div>
                   <div>
-                    <TypographyP className="text-xs font-medium text-muted-foreground">
+                    <TypographyP size="xsmall" weight="medium" tone="subtle">
                       <FormattedMessage {...messages.contextLabel} />
                     </TypographyP>
-                    <TypographyP className="text-sm">
+                    <TypographyP size="small">
                       {detail.provenance.context ?? intl.formatMessage(messages.contextEmpty)}
                     </TypographyP>
                   </div>
@@ -454,32 +460,30 @@ export function TmEntryDetailSheet({
               )}
 
               <section className="grid gap-3">
-                <TypographyP className="text-sm font-medium">
+                <TypographyP size="small" weight="medium">
                   <FormattedMessage {...messages.provenanceTitle} />
                 </TypographyP>
                 <div className="grid gap-3">
                   <div className="grid gap-0.5">
-                    <TypographyP className="text-xs font-medium text-muted-foreground">
+                    <TypographyP size="xsmall" weight="medium" tone="subtle">
                       <FormattedMessage {...messages.originLabel} />
                     </TypographyP>
-                    <TypographyP className="text-sm">{detail.provenance.origin}</TypographyP>
+                    <TypographyP size="small">{detail.provenance.origin}</TypographyP>
                   </div>
                   {detail.provenance.provider ? (
                     <div className="grid gap-0.5">
-                      <TypographyP className="text-xs font-medium text-muted-foreground">
+                      <TypographyP size="xsmall" weight="medium" tone="subtle">
                         <FormattedMessage {...messages.providerLabel} />
                       </TypographyP>
-                      <TypographyP className="text-sm">{detail.provenance.provider}</TypographyP>
+                      <TypographyP size="small">{detail.provenance.provider}</TypographyP>
                     </div>
                   ) : null}
                   {detail.provenance.importBatchId ? (
                     <div className="grid gap-0.5">
-                      <TypographyP className="text-xs font-medium text-muted-foreground">
+                      <TypographyP size="xsmall" weight="medium" tone="subtle">
                         <FormattedMessage {...messages.importBatchLabel} />
                       </TypographyP>
-                      <TypographyP className="text-sm">
-                        {detail.provenance.importBatchId}
-                      </TypographyP>
+                      <TypographyP size="small">{detail.provenance.importBatchId}</TypographyP>
                     </div>
                   ) : null}
                   <ProvenanceRow
@@ -512,15 +516,15 @@ export function TmEntryDetailSheet({
 
               {metadataEntries.length > 0 ? (
                 <section className="grid gap-2">
-                  <TypographyP className="text-sm font-medium">
+                  <TypographyP size="small" weight="medium">
                     <FormattedMessage {...messages.metadataTitle} />
                   </TypographyP>
                   {metadataEntries.map(([key, value]) => (
                     <div key={key} className="grid gap-0.5">
-                      <TypographyP className="text-xs font-medium text-muted-foreground">
+                      <TypographyP size="xsmall" weight="medium" tone="subtle">
                         {key}
                       </TypographyP>
-                      <TypographyP className="text-sm">
+                      <TypographyP size="small">
                         {typeof value === "string" ? value : JSON.stringify(value)}
                       </TypographyP>
                     </div>
@@ -529,11 +533,11 @@ export function TmEntryDetailSheet({
               ) : null}
 
               <section className="grid gap-2">
-                <TypographyP className="text-sm font-medium">
+                <TypographyP size="small" weight="medium">
                   <FormattedMessage {...messages.variantsTitle} />
                 </TypographyP>
                 {detail.variants.length === 0 ? (
-                  <TypographyP className="text-sm text-muted-foreground">
+                  <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.variantsEmpty} />
                   </TypographyP>
                 ) : (
@@ -544,7 +548,7 @@ export function TmEntryDetailSheet({
                       className="rounded-lg border border-border px-3 py-2 text-left"
                       onClick={() => onOpenVariant(variant.id)}
                     >
-                      <TypographyP className="text-sm font-medium">
+                      <TypographyP size="small" weight="medium">
                         <FormattedMessage
                           {...messages.openVariant}
                           values={{
@@ -552,7 +556,7 @@ export function TmEntryDetailSheet({
                           }}
                         />
                       </TypographyP>
-                      <TypographyP className="text-xs text-muted-foreground">
+                      <TypographyP size="xsmall" tone="subtle">
                         {variant.targetText}
                         {variant.context ? ` · ${variant.context}` : ""}
                       </TypographyP>
@@ -562,21 +566,21 @@ export function TmEntryDetailSheet({
               </section>
 
               <section className="grid gap-2">
-                <TypographyP className="text-sm font-medium">
+                <TypographyP size="small" weight="medium">
                   <FormattedMessage {...messages.auditTitle} />
                 </TypographyP>
                 {detail.auditEvents.length === 0 ? (
-                  <TypographyP className="text-sm text-muted-foreground">
+                  <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.auditEmpty} />
                   </TypographyP>
                 ) : (
                   <ol className="grid gap-3">
                     {detail.auditEvents.map((event) => (
                       <li key={event.id} className="grid gap-0.5">
-                        <TypographyP className="text-sm font-medium">
+                        <TypographyP size="small" weight="medium">
                           <FormattedMessage {...eventLabel(event)} />
                         </TypographyP>
-                        <TypographyP className="text-xs text-muted-foreground">
+                        <TypographyP size="xsmall" tone="subtle">
                           {event.actorDisplayName ?? intl.formatMessage(messages.unknownActor)}
                           {" · "}
                           <FormattedDate

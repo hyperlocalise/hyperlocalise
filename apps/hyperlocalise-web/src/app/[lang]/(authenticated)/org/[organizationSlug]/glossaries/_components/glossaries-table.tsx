@@ -309,7 +309,9 @@ function GlossaryRow({
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>
-        <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
+        <TypographyP className="mt-1" size="xsmall" tone="subtle">
+          {sourceDetail}
+        </TypographyP>
         <div className="mt-4 max-w-full">
           <GlossaryInfoCell label={intl.formatMessage(glossariesTableMessages.languagesLabel)}>
             <div
@@ -444,7 +446,7 @@ export function GlossariesTable({
           aria-busy="true"
           aria-label={intl.formatMessage(glossariesTableMessages.loading)}
         >
-          <TypographyP className="border-b border-border px-5 py-3 text-sm text-muted-foreground">
+          <TypographyP className="border-b border-border px-5 py-3" size="small" tone="subtle">
             <FormattedMessage {...glossariesTableMessages.loading} />
           </TypographyP>
           {Array.from({ length: 3 }).map((_, index) => (
@@ -458,10 +460,10 @@ export function GlossariesTable({
 
       {glossariesQuery.isError ? (
         <div className="py-8">
-          <TypographyP className="text-sm font-medium text-flame-100">
+          <TypographyP className="text-flame-100" size="small" weight="medium">
             <FormattedMessage {...glossariesTableMessages.loadFailed} />
           </TypographyP>
-          <TypographyP className="mt-1 text-xs text-muted-foreground">
+          <TypographyP className="mt-1" size="xsmall" tone="subtle">
             {glossariesQuery.error instanceof Error
               ? glossariesQuery.error.message
               : intl.formatMessage(glossariesTableMessages.loadFailedFallback)}
@@ -482,8 +484,10 @@ export function GlossariesTable({
 
       {glossariesQuery.isSuccess && glossaries.length === 0 ? (
         <div className="space-y-3 py-10">
-          <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
+          <TypographyP size="small" weight="medium" tone="content">
+            {emptyTitle}
+          </TypographyP>
+          <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
             {emptyDescription}
           </TypographyP>
           {emptyAction}

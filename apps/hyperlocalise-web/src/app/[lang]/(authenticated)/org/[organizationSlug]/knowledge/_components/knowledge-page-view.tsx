@@ -67,7 +67,7 @@ export function KnowledgePageHeader({
           <TypographyH1 className="text-2xl tracking-[-0.02em] md:text-2xl">
             <FormattedMessage {...knowledgePageViewMessages.title} />
           </TypographyH1>
-          <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
             <FormattedMessage
               {...(scope === "project"
                 ? knowledgePageViewMessages.projectDescription

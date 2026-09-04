@@ -349,10 +349,10 @@ export function AutomationsPageView({
             <AutomationListSkeleton />
           ) : error ? (
             <div className="px-4 py-10">
-              <TypographyP className="text-sm font-medium text-flame-100">
+              <TypographyP className="text-flame-100" size="small" weight="medium">
                 <FormattedMessage {...automationsPageViewMessages.loadError} />
               </TypographyP>
-              <TypographyP className="mt-1 text-xs text-muted-foreground">
+              <TypographyP className="mt-1" size="xsmall" tone="subtle">
                 {error instanceof Error
                   ? error.message
                   : intl.formatMessage(automationsPageViewMessages.loadErrorFallback)}
@@ -404,7 +404,7 @@ export function AutomationsPageView({
           <h2 className="font-sans text-base font-medium text-balance text-foreground">
             <FormattedMessage {...automationsPageViewMessages.templatesTitle} />
           </h2>
-          <TypographyP className="text-muted-foreground">
+          <TypographyP tone="subtle">
             <FormattedMessage {...automationsPageViewMessages.templatesDescription} />
           </TypographyP>
         </div>

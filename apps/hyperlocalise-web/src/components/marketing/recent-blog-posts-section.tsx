@@ -35,13 +35,27 @@ export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionPr
     <section id="blog" className="relative">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
-          <TypographyP className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <TypographyP
+            className="text-[0.68rem] tracking-[0.22em]"
+            weight="bold"
+            capitalization="uppercase"
+            tone="subtle"
+          >
             <FormattedMessage {...recentBlogPostsSectionMessages.eyebrow} />
           </TypographyP>
-          <TypographyH2 className="pt-3 pb-0 text-4xl font-semibold tracking-[-0.04em] normal-case text-foreground sm:text-5xl md:text-5xl">
+          <TypographyH2
+            className="pt-3 pb-0 text-4xl tracking-[-0.04em] normal-case sm:text-5xl md:text-5xl"
+            weight="bold"
+            tone="content"
+          >
             <FormattedMessage {...recentBlogPostsSectionMessages.heading} />
           </TypographyH2>
-          <TypographyP className="mt-4 max-w-xl text-pretty text-sm leading-6 text-muted-foreground sm:text-[0.95rem]">
+          <TypographyP
+            className="mt-4 max-w-xl leading-6 sm:text-[0.95rem]"
+            wrapStyle="pretty"
+            size="small"
+            tone="subtle"
+          >
             <FormattedMessage {...recentBlogPostsSectionMessages.description} />
           </TypographyP>
         </div>
@@ -64,7 +78,7 @@ export function RecentBlogPostsSection({ posts, lang }: RecentBlogPostsSectionPr
             ))}
           </div>
         ) : (
-          <TypographyP className="text-center text-sm text-muted-foreground">
+          <TypographyP className="text-center" size="small" tone="subtle">
             {intl.formatMessage(blogMessages.indexEmptyState)}
           </TypographyP>
         )}

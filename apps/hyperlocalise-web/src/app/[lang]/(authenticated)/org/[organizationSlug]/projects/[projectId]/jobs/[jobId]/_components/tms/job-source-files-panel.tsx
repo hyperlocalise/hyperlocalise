@@ -232,10 +232,10 @@ export function JobSourceFilesPanel({
           {encodedJobId ? (
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <TypographyP className="truncate font-mono text-xs text-foreground">
+                <TypographyP className="font-mono" lineClamp={1} size="xsmall" tone="content">
                   {selectedFile?.sourcePath}
                 </TypographyP>
-                <TypographyP className="text-xs text-muted-foreground">
+                <TypographyP size="xsmall" tone="subtle">
                   {selectedTargetLocale ? (
                     <FormattedMessage
                       {...messages.contentEditorWorkspaceHintWithLocale}

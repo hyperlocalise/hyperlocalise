@@ -37,7 +37,7 @@ function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview 
 
   return (
     <div className="space-y-3">
-      <TypographyP className="text-xs text-muted-foreground">
+      <TypographyP size="xsmall" tone="subtle">
         <FormattedMessage
           {...(preview.truncated ? messages.stringCountTruncated : messages.stringCount)}
           values={{ count: preview.entries.length }}
@@ -45,7 +45,9 @@ function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview 
       </TypographyP>
 
       {preview.note ? (
-        <TypographyP className="text-xs text-muted-foreground">{preview.note}</TypographyP>
+        <TypographyP size="xsmall" tone="subtle">
+          {preview.note}
+        </TypographyP>
       ) : null}
 
       <div className="overflow-hidden rounded-md border border-border bg-background">

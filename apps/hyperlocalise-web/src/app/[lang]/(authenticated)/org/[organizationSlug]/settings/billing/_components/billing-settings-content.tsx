@@ -53,8 +53,12 @@ const workspaceResourceUsageFeatureIds = new Set<string>(workspaceResourceFeatur
 function BillingNotice({ title, description }: { title: ReactNode; description: ReactNode }) {
   return (
     <Rows spacing="1u">
-      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
-      <TypographyP className="text-pretty text-sm text-muted-foreground">{description}</TypographyP>
+      <TypographyP size="small" weight="medium" tone="content">
+        {title}
+      </TypographyP>
+      <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+        {description}
+      </TypographyP>
     </Rows>
   );
 }
@@ -385,7 +389,7 @@ function ConfiguredBillingSettingsPanel({
         <Rows spacing="3u">
           <Rows spacing="1u">
             <Row spacing="1.5u" alignY="center">
-              <TypographyP className="text-sm leading-tight font-medium text-foreground">
+              <TypographyP className="leading-tight" size="small" weight="medium" tone="content">
                 {planName}
               </TypographyP>
               {activeSubscription ? (
@@ -405,7 +409,7 @@ function ConfiguredBillingSettingsPanel({
                 </Badge>
               ) : null}
             </Row>
-            <TypographyP className="text-sm leading-snug text-muted-foreground">
+            <TypographyP className="leading-snug" size="small" tone="subtle">
               {planCopy}
             </TypographyP>
           </Rows>
@@ -454,7 +458,7 @@ function ConfiguredBillingSettingsPanel({
             ) : null}
           </Row>
           {!canManageBilling ? (
-            <TypographyP className="text-xs text-muted-foreground">
+            <TypographyP size="xsmall" tone="subtle">
               <FormattedMessage {...billingSettingsContentMessages.adminOnlyPortal} />
             </TypographyP>
           ) : null}
@@ -466,17 +470,22 @@ function ConfiguredBillingSettingsPanel({
         className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
       >
         <Rows spacing="1u">
-          <TypographyP className="pb-2 text-sm leading-tight font-medium text-foreground">
+          <TypographyP className="pb-2 leading-tight" size="small" weight="medium" tone="content">
             <FormattedMessage {...billingSettingsContentMessages.planUsageTitle} />
           </TypographyP>
           {usageRows.map((row) => (
             <div key={row.featureId} className="min-h-12 border-t border-border py-3">
               <Row spacing="2u" align="spaceBetween" alignY="center">
                 <Rows spacing="0.5u">
-                  <TypographyP className="text-sm leading-tight font-medium text-foreground">
+                  <TypographyP
+                    className="leading-tight"
+                    size="small"
+                    weight="medium"
+                    tone="content"
+                  >
                     {row.label}
                   </TypographyP>
-                  <TypographyP className="text-xs leading-none text-subtle-foreground">
+                  <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                     <FormattedMessage
                       {...billingSettingsContentMessages.resetsOn}
                       values={{ date: formatResetDate(intl, row.nextResetAt) }}
@@ -484,7 +493,12 @@ function ConfiguredBillingSettingsPanel({
                   </TypographyP>
                 </Rows>
                 <Rows spacing="0.5u" align="end">
-                  <TypographyP className="text-sm leading-tight font-medium text-foreground tabular-nums">
+                  <TypographyP
+                    className="leading-tight tabular-nums"
+                    size="small"
+                    weight="medium"
+                    tone="content"
+                  >
                     {row.usageUnavailable ? (
                       <FormattedMessage {...billingSettingsContentMessages.usageUnavailable} />
                     ) : row.unlimited ? (
@@ -500,14 +514,14 @@ function ConfiguredBillingSettingsPanel({
                     )}
                   </TypographyP>
                   {!row.unlimited && !row.usageUnavailable ? (
-                    <TypographyP className="text-xs leading-none text-subtle-foreground">
+                    <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.usageRemaining}
                         values={{ remaining: formatUsageValue(intl, row.remaining) }}
                       />
                     </TypographyP>
                   ) : row.usageUnavailable ? (
-                    <TypographyP className="text-xs leading-none text-subtle-foreground">
+                    <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.planLimit}
                         values={{ granted: formatUsageValue(intl, row.granted) }}
@@ -526,7 +540,7 @@ function ConfiguredBillingSettingsPanel({
         className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
       >
         <Rows spacing="1u">
-          <TypographyP className="pb-2 text-sm leading-tight font-medium text-foreground">
+          <TypographyP className="pb-2 leading-tight" size="small" weight="medium" tone="content">
             <FormattedMessage {...billingSettingsContentMessages.availablePlansTitle} />
           </TypographyP>
           {(plans ?? []).map((plan) => {
@@ -535,10 +549,15 @@ function ConfiguredBillingSettingsPanel({
               <div key={plan.id} className="border-t border-border py-3.5">
                 <Row spacing="2u" align="spaceBetween" alignY="center">
                   <Rows spacing="0.5u">
-                    <TypographyP className="text-sm leading-tight font-medium text-foreground">
+                    <TypographyP
+                      className="leading-tight"
+                      size="small"
+                      weight="medium"
+                      tone="content"
+                    >
                       {plan.name}
                     </TypographyP>
-                    <TypographyP className="text-sm leading-tight text-muted-foreground">
+                    <TypographyP className="leading-tight" size="small" tone="subtle">
                       {plan.description ?? (
                         <FormattedMessage
                           {...billingSettingsContentMessages.planDescriptionFallback}
@@ -569,7 +588,7 @@ function ConfiguredBillingSettingsPanel({
             );
           })}
           {!plans?.length ? (
-            <TypographyP className="border-t border-border py-3.5 text-sm text-muted-foreground">
+            <TypographyP className="border-t border-border py-3.5" size="small" tone="subtle">
               <FormattedMessage {...billingSettingsContentMessages.noPlansConfigured} />
             </TypographyP>
           ) : null}

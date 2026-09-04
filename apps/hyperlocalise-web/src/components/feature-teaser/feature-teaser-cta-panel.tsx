@@ -47,10 +47,10 @@ export function FeatureTeaserCtaPanel({
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       <div className="space-y-3">
-        <TypographyH2 className="text-xl font-medium text-foreground md:text-2xl">
+        <TypographyH2 className="md:text-2xl" size="xlarge" weight="medium" tone="content">
           <FormattedMessage {...title} />
         </TypographyH2>
-        <TypographyP className="text-sm leading-6 text-muted-foreground sm:text-base">
+        <TypographyP className="leading-6 sm:text-base" size="small" tone="subtle">
           <FormattedMessage {...description} />
         </TypographyP>
       </div>

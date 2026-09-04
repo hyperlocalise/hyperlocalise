@@ -132,10 +132,10 @@ function JobKanbanCard({
         })
       ) : (
         <div className="min-w-0">
-          <TypographyP className="truncate text-sm font-medium text-foreground">
+          <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
             {getJobName(job, intl)}
           </TypographyP>
-          <TypographyP className="mt-1 truncate text-xs text-muted-foreground">
+          <TypographyP className="mt-1" lineClamp={1} size="xsmall" tone="subtle">
             <FormattedMessage
               {...jobsKanbanBoardMessages.kindWithTaskId}
               values={{
@@ -158,10 +158,10 @@ function JobKanbanCard({
         ) : null}
       </div>
 
-      <TypographyP className="mt-3 line-clamp-2 text-xs text-subtle-foreground">
+      <TypographyP className="mt-3" lineClamp={2} size="xsmall" tone="subtlest">
         {taskDetailSummary(job, intl)}
       </TypographyP>
-      <TypographyP className="mt-1 text-[11px] text-muted-foreground">
+      <TypographyP className="mt-1 text-[11px]" tone="subtle">
         <FormattedMessage
           {...jobsKanbanBoardMessages.dueMeta}
           values={{
@@ -196,14 +196,16 @@ function KanbanColumn({
   return (
     <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-border bg-muted">
       <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
-        <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
+        <TypographyP size="small" weight="medium" tone="content">
+          {label}
+        </TypographyP>
         <Badge variant="outline" className={cn("rounded-full", toneClass(statusTone))}>
           {jobs.length}
         </Badge>
       </header>
       <div className="flex flex-1 flex-col gap-3 p-3">
         {jobs.length === 0 ? (
-          <TypographyP className="px-1 py-6 text-center text-xs text-muted-foreground">
+          <TypographyP className="px-1 py-6 text-center" size="xsmall" tone="subtle">
             <FormattedMessage {...jobsKanbanBoardMessages.noJobs} />
           </TypographyP>
         ) : (
@@ -218,7 +220,9 @@ function KanbanColumnSkeleton({ label }: { label: string }) {
   return (
     <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-border bg-muted">
       <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
-        <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
+        <TypographyP size="small" weight="medium" tone="content">
+          {label}
+        </TypographyP>
         <Skeleton className="h-5 w-8 rounded-full" />
       </header>
       <div className="flex flex-1 flex-col gap-3 p-3">
@@ -293,7 +297,9 @@ export function JobsKanbanBoard({
 
   if (jobs.length === 0) {
     return (
-      <TypographyP className="px-3 py-8 text-sm text-muted-foreground">{emptyLabel}</TypographyP>
+      <TypographyP className="px-3 py-8" size="small" tone="subtle">
+        {emptyLabel}
+      </TypographyP>
     );
   }
 

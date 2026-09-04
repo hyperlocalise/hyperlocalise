@@ -162,10 +162,10 @@ export const ProjectFileSelectionActions = forwardRef<
       <ProjectFileActionDialogs file={file} actions={actions} />
       <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <TypographyP className="truncate font-mono text-sm text-foreground">
+          <TypographyP className="font-mono" lineClamp={1} size="small" tone="content">
             {file.sourcePath}
           </TypographyP>
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             {actions.canOpenCat ? (
               <FormattedMessage {...messages.contentEditorAvailableHint} />
             ) : (

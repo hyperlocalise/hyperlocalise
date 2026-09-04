@@ -57,13 +57,22 @@ export function LegalPage({ locale, eyebrow, title, description, children }: Leg
               Back to home
             </Link>
             <div className="space-y-4">
-              <TypographyP className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              <TypographyP
+                className="tracking-[0.22em] text-primary"
+                size="xsmall"
+                weight="bold"
+                capitalization="uppercase"
+              >
                 {eyebrow}
               </TypographyP>
-              <TypographyH1 className="font-heading text-4xl leading-tight font-semibold tracking-[-0.04em] text-balance sm:text-5xl md:text-5xl">
+              <TypographyH1
+                className="font-heading text-4xl leading-tight tracking-[-0.04em] sm:text-5xl md:text-5xl"
+                weight="bold"
+                wrapStyle="balance"
+              >
                 {title}
               </TypographyH1>
-              <TypographyP className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+              <TypographyP className="max-w-2xl sm:text-lg" tone="subtle">
                 {description}
               </TypographyP>
             </div>
@@ -80,7 +89,11 @@ export function LegalPage({ locale, eyebrow, title, description, children }: Leg
 export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <TypographyH2 className="font-heading text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-2xl">
+      <TypographyH2
+        className="font-heading text-2xl tracking-[-0.03em] md:text-2xl"
+        weight="bold"
+        tone="content"
+      >
         {title}
       </TypographyH2>
       <div className="space-y-4">{children}</div>

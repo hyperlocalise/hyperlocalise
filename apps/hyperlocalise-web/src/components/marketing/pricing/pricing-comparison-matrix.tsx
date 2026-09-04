@@ -100,7 +100,7 @@ export function PricingComparisonMatrix({
         >
           {heading}
         </TypographyH2>
-        <TypographyP className="mt-3 text-base text-muted-foreground sm:text-lg">
+        <TypographyP className="mt-3 sm:text-lg" tone="subtle">
           {subcopy}
         </TypographyP>
       </div>
@@ -143,9 +143,11 @@ export function PricingComparisonMatrix({
                           <HugeiconsIcon icon={Icon} className="size-4" strokeWidth={1.75} />
                         </span>
                       ) : null}
-                      <TypographyH3 className="text-lg md:text-lg">{section.title}</TypographyH3>
+                      <TypographyH3 className="md:text-lg" size="large">
+                        {section.title}
+                      </TypographyH3>
                     </div>
-                    <TypographyP className="mt-2 text-sm text-muted-foreground">
+                    <TypographyP className="mt-2" size="small" tone="subtle">
                       {section.description}
                     </TypographyP>
                   </div>

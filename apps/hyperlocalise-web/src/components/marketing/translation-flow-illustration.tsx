@@ -180,10 +180,10 @@ export function TranslationFlowIllustration({
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-5" />
             </div>
             <div>
-              <TypographyH4 className="text-foreground">
+              <TypographyH4 tone="content">
                 <FormattedMessage {...translationFlowIllustrationMessages.taskTitle} />
               </TypographyH4>
-              <TypographyMuted className="text-muted-foreground">
+              <TypographyMuted>
                 <FormattedMessage {...translationFlowIllustrationMessages.taskSubtitle} />
               </TypographyMuted>
             </div>
@@ -292,7 +292,10 @@ export function TranslationFlowIllustration({
                         <SelectorAvatar target={target} />
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <TypographySmall className="text-[0.98rem] font-medium tracking-[-0.02em] text-foreground">
+                            <TypographySmall
+                              className="text-[0.98rem] tracking-[-0.02em]"
+                              tone="content"
+                            >
                               {target.name}
                             </TypographySmall>
                             {target.role ? (

@@ -45,13 +45,11 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
       <main className="mx-auto max-w-7xl">
         <article className="px-5 pb-20 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <header className="mx-auto max-w-3xl text-center">
-            <TypographyH1 className="text-3xl tracking-tight sm:text-4xl lg:text-5xl">
-              {post.title}
-            </TypographyH1>
-            <TypographyP className="mt-4 text-base text-muted-foreground sm:text-lg">
+            <TypographyH1 className="text-3xl sm:text-4xl lg:text-5xl">{post.title}</TypographyH1>
+            <TypographyP className="mt-4 sm:text-lg" tone="subtle">
               {post.excerpt}
             </TypographyP>
-            <TypographyMuted className="mt-4 text-sm">
+            <TypographyMuted className="mt-4">
               {formatBlogPostDate(intl, post.date)}
             </TypographyMuted>
           </header>

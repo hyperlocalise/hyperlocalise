@@ -257,15 +257,15 @@ export function TeamsPageView({
         className="min-w-0"
       >
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-muted-foreground">
+          <TypographyP className="py-8" size="small" tone="subtle">
             <FormattedMessage {...teamsPageViewMessages.loading} />
           </TypographyP>
         ) : error ? (
           <div className="py-8">
-            <TypographyP className="text-sm font-medium text-flame-100">
+            <TypographyP className="text-flame-100" size="small" weight="medium">
               <FormattedMessage {...teamsPageViewMessages.loadFailed} />
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-muted-foreground">
+            <TypographyP className="mt-1" size="xsmall" tone="subtle">
               {error instanceof Error
                 ? error.message
                 : intl.formatMessage(teamsPageViewMessages.loadFailedFallback)}
@@ -273,10 +273,10 @@ export function TeamsPageView({
           </div>
         ) : pageState.teams.length === 0 ? (
           <div className="py-10">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...teamsPageViewMessages.emptyTitle} />
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="mt-2 max-w-xl leading-6" size="small" tone="subtle">
               <FormattedMessage
                 {...teamsPageViewMessages.emptyDescription}
                 values={{
@@ -314,10 +314,15 @@ export function TeamsPageView({
                           "block min-w-0 rounded-md transition-colors hover:text-foreground",
                         children: (
                           <>
-                            <TypographyP className="truncate text-sm font-medium text-foreground">
+                            <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
                               {team.name}
                             </TypographyP>
-                            <TypographyP className="mt-0.5 truncate text-sm text-muted-foreground md:hidden">
+                            <TypographyP
+                              className="mt-0.5 md:hidden"
+                              lineClamp={1}
+                              size="small"
+                              tone="subtle"
+                            >
                               {team.slug}
                             </TypographyP>
                           </>
@@ -328,7 +333,7 @@ export function TeamsPageView({
                 </div>
 
                 <div role="cell" className="hidden min-w-0 md:block">
-                  <TypographyP className="truncate font-mono text-xs text-muted-foreground">
+                  <TypographyP className="font-mono" lineClamp={1} size="xsmall" tone="subtle">
                     {team.slug}
                   </TypographyP>
                 </div>

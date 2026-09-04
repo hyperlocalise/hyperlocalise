@@ -97,10 +97,9 @@ export function PageHeader({
           </div>
         ) : null}
         <TypographyH1
-          className={cn(
-            "font-sans text-2xl font-medium text-foreground md:text-2xl",
-            label ? "mt-2" : "flex items-center gap-2",
-          )}
+          className={cn("text-2xl md:text-2xl", label ? "mt-2" : "flex items-center gap-2")}
+          weight="medium"
+          tone="content"
         >
           {label ? (
             title
@@ -111,11 +110,11 @@ export function PageHeader({
             </>
           )}
         </TypographyH1>
-        <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
+        <TypographyP className="mt-2 leading-6" wrapStyle="pretty" size="small" tone="subtle">
           {description}
         </TypographyP>
         {descriptionDetail ? (
-          <TypographyP className="mt-1.5 text-pretty text-sm leading-6 text-muted-foreground">
+          <TypographyP className="mt-1.5 leading-6" wrapStyle="pretty" size="small" tone="subtle">
             {descriptionDetail}
           </TypographyP>
         ) : null}
@@ -150,9 +149,11 @@ export function MetricsGrid({
           className="rounded-lg border border-border bg-muted py-0 text-foreground ring-0"
         >
           <CardContent className="px-4 py-4">
-            <TypographyP className="text-sm text-muted-foreground">{metric.label}</TypographyP>
+            <TypographyP size="small" tone="subtle">
+              {metric.label}
+            </TypographyP>
             <div className="mt-3 flex items-end justify-between gap-4">
-              <TypographyP className="font-heading text-3xl font-medium text-foreground">
+              <TypographyP className="font-heading text-3xl" weight="medium" tone="content">
                 {metric.value}
               </TypographyP>
               <Badge variant="outline" className={cn("rounded-full", toneClass(metric.tone))}>

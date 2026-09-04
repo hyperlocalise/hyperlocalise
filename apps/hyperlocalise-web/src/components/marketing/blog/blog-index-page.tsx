@@ -32,10 +32,10 @@ export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
         <section className="px-5 pb-10 pt-12 text-center sm:px-8 lg:px-10 lg:pt-16">
-          <TypographyH1 className="text-4xl tracking-tight sm:text-5xl">
+          <TypographyH1 className="text-4xl sm:text-5xl">
             {intl.formatMessage(blogMessages.indexTitle)}
           </TypographyH1>
-          <TypographyMuted className="mx-auto mt-4 max-w-2xl text-base sm:text-lg">
+          <TypographyMuted className="mx-auto mt-4 max-w-2xl sm:text-lg" size="medium">
             {intl.formatMessage(blogMessages.indexTagline)}
           </TypographyMuted>
         </section>
@@ -48,7 +48,7 @@ export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
               ))}
             </div>
           ) : (
-            <TypographyMuted className="text-center text-base">
+            <TypographyMuted className="text-center" size="medium">
               {intl.formatMessage(blogMessages.indexEmptyState)}
             </TypographyMuted>
           )}

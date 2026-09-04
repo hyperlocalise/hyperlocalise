@@ -35,7 +35,7 @@ export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAudit
         <section className="px-5 pt-16 pb-20 sm:px-8 sm:pt-20 sm:pb-24 lg:px-10">
           <div className="max-w-3xl space-y-5">
             <TypographyH1>{copy.headline}</TypographyH1>
-            <TypographyP className="max-w-2xl text-lg text-muted-foreground sm:text-xl">
+            <TypographyP className="max-w-2xl sm:text-xl" size="large" tone="subtle">
               {copy.subcopy}
             </TypographyP>
           </div>
@@ -64,7 +64,7 @@ export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAudit
           <div className="mt-10 grid gap-10 md:grid-cols-3">
             {copy.notices.map((notice) => (
               <div key={notice.title} className="space-y-3">
-                <TypographyH3 className="pb-0 text-xl tracking-tight md:text-2xl">
+                <TypographyH3 className="pb-0 md:text-2xl" size="xlarge">
                   {notice.title}
                 </TypographyH3>
                 <p className="max-w-sm text-muted-foreground">{notice.body}</p>
@@ -89,10 +89,10 @@ export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAudit
               </code>
             </p>
           </aside>
-          <TypographyP className="mt-12 max-w-2xl text-muted-foreground">
+          <TypographyP className="mt-12 max-w-2xl" tone="subtle">
             {copy.scopeNote}
           </TypographyP>
-          <TypographyP className="mt-3 max-w-2xl text-muted-foreground">
+          <TypographyP className="mt-3 max-w-2xl" tone="subtle">
             {copy.disclosure}
           </TypographyP>
           <div className="mt-10 max-w-2xl rounded-xl border border-border bg-muted/30 p-6">

@@ -185,10 +185,10 @@ function DefaultRenderFilesError({
 
   return (
     <>
-      <TypographyP className="text-sm font-medium text-flame-100">
+      <TypographyP className="text-flame-100" size="small" weight="medium">
         <FormattedMessage {...messages.filesFailedToLoad} />
       </TypographyP>
-      <TypographyP className="mt-1 text-sm text-muted-foreground">
+      <TypographyP className="mt-1" size="small" tone="subtle">
         {error instanceof Error ? error.message : intl.formatMessage(messages.loadFailedFallback)}
       </TypographyP>
     </>
@@ -612,7 +612,7 @@ export function ProjectFilesPageContentView({
               <ProjectSectionTitle>
                 <FormattedMessage {...messages.readyToUpload} />
               </ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <TypographyP className="mt-1" size="small" tone="subtle">
                 <FormattedMessage
                   {...messages.filesSelected}
                   values={{ count: selectedFiles.length, max: MAX_UPLOAD_FILES }}
@@ -637,10 +637,10 @@ export function ProjectFilesPageContentView({
             {selectedFiles.map((file) => (
               <li key={fileKey(file)} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
-                  <TypographyP className="truncate font-mono text-sm text-foreground">
+                  <TypographyP className="font-mono" lineClamp={1} size="small" tone="content">
                     {sourcePathForFile(file)}
                   </TypographyP>
-                  <TypographyP className="text-xs text-muted-foreground">
+                  <TypographyP size="xsmall" tone="subtle">
                     {formatBytes(file.size, intl)}
                   </TypographyP>
                 </div>
@@ -669,7 +669,7 @@ export function ProjectFilesPageContentView({
                 <ProjectSectionTitle>
                   <FormattedMessage {...messages.projectFilesTitle} />
                 </ProjectSectionTitle>
-                <TypographyP className="mt-0.5 text-sm text-muted-foreground">
+                <TypographyP className="mt-0.5" size="small" tone="subtle">
                   {isFilesLoading ? (
                     <FormattedMessage {...messages.loading} />
                   ) : filesError ? (
@@ -684,17 +684,17 @@ export function ProjectFilesPageContentView({
 
             <div className="flex min-h-0 flex-1 flex-col">
               {isFilesLoading ? (
-                <TypographyP className="p-4 text-sm text-muted-foreground">
+                <TypographyP className="p-4" size="small" tone="subtle">
                   <FormattedMessage {...messages.loadingFiles} />
                 </TypographyP>
               ) : filesError ? (
                 <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
               ) : files.length === 0 ? (
                 <div className="flex flex-col gap-2 p-4">
-                  <TypographyP className="text-sm font-medium text-foreground">
+                  <TypographyP size="small" weight="medium" tone="content">
                     <FormattedMessage {...messages.noFilesYet} />
                   </TypographyP>
-                  <TypographyP className="text-sm text-muted-foreground">
+                  <TypographyP size="small" tone="subtle">
                     {isProviderProject ? (
                       <FormattedMessage {...messages.noProviderFiles} />
                     ) : (

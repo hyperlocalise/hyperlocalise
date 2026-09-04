@@ -73,7 +73,7 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
             ) : null}
           </div>
 
-          <TypographyP className="mt-4 text-sm text-muted-foreground">
+          <TypographyP className="mt-4" size="small" tone="subtle">
             {plan.description}
           </TypographyP>
 

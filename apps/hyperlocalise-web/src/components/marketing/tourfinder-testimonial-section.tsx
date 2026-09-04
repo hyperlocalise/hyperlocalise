@@ -57,13 +57,19 @@ export function TourfinderTestimonialSection() {
 
             <TypographyH2
               id="tourfinder-testimonial-heading"
-              className="mt-8 pb-0 text-left text-[2.25rem] leading-[1.04] font-semibold tracking-[-0.045em] text-foreground normal-case sm:mt-10 sm:text-5xl md:text-[3.5rem] md:leading-[1.02]"
+              className="mt-8 pb-0 text-left text-[2.25rem] leading-[1.04] tracking-[-0.045em] normal-case sm:mt-10 sm:text-5xl md:text-[3.5rem] md:leading-[1.02]"
+              weight="bold"
+              tone="content"
             >
               <FormattedMessage {...tourfinderTestimonialSectionMessages.headline} />
             </TypographyH2>
 
             <blockquote className="mt-6 max-w-2xl border-l-2 border-border pl-6 sm:mt-8">
-              <TypographyP className="pb-0 text-pretty text-[1.15rem] leading-relaxed text-muted-foreground sm:text-[1.35rem] sm:leading-[1.4]">
+              <TypographyP
+                className="pb-0 text-[1.15rem] leading-relaxed sm:text-[1.35rem] sm:leading-[1.4]"
+                wrapStyle="pretty"
+                tone="subtle"
+              >
                 <FormattedMessage
                   {...tourfinderTestimonialSectionMessages.quote}
                   values={quoteRichTextValues}

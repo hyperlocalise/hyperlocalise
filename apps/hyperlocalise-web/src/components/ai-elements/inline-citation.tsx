@@ -257,13 +257,17 @@ export const InlineCitationSource = ({
 }: InlineCitationSourceProps) => (
   <div className={cn("space-y-1", className)} {...props}>
     {title && (
-      <TypographyH4 className="truncate font-medium text-sm leading-tight">{title}</TypographyH4>
+      <TypographyH4 className="leading-tight" lineClamp={1} weight="medium">
+        {title}
+      </TypographyH4>
     )}
     {url && (
-      <TypographyP className="truncate break-all text-muted-foreground text-xs">{url}</TypographyP>
+      <TypographyP className="break-all" lineClamp={1} tone="subtle" size="xsmall">
+        {url}
+      </TypographyP>
     )}
     {description && (
-      <TypographyP className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
+      <TypographyP className="leading-relaxed" lineClamp={3} tone="subtle" size="small">
         {description}
       </TypographyP>
     )}

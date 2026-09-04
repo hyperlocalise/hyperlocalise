@@ -76,7 +76,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
       />
 
       {domainsQuery.isError ? (
-        <TypographyP className="text-sm text-destructive">
+        <TypographyP size="small" tone="critical">
           {domainsQuery.error instanceof Error
             ? domainsQuery.error.message
             : intl.formatMessage(messages.loadError)}
@@ -84,13 +84,13 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
       ) : null}
 
       {domainsQuery.isLoading ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.loading} />
         </TypographyP>
       ) : null}
 
       {!domainsQuery.isLoading && !domainsQuery.isError && linkedDomains.length === 0 ? (
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...messages.empty} />
         </TypographyP>
       ) : null}

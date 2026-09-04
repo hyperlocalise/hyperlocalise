@@ -145,10 +145,10 @@ function ProjectFilesTreeBody({
   if (files.length === 0) {
     return (
       <div className="flex flex-col gap-2 p-4">
-        <TypographyP className="text-sm font-medium text-foreground">
+        <TypographyP size="small" weight="medium" tone="content">
           <FormattedMessage {...messages.noFilesYet} />
         </TypographyP>
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           {isProviderProject ? (
             <FormattedMessage {...messages.noProviderFiles} />
           ) : (
@@ -163,10 +163,10 @@ function ProjectFilesTreeBody({
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
       {onActivateFile && selectedSourcePath && contentEditorOpenHint ? (
         <div className="rounded-lg border border-border bg-background px-4 py-3">
-          <TypographyP className="truncate font-mono text-xs text-foreground">
+          <TypographyP className="font-mono" lineClamp={1} size="xsmall" tone="content">
             {selectedSourcePath}
           </TypographyP>
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             {contentEditorOpenHint}
           </TypographyP>
         </div>
@@ -319,7 +319,7 @@ export function ProjectFilesTreePanel({
           <ProjectSectionTitle>
             <FormattedMessage {...messages.projectFilesTitle} />
           </ProjectSectionTitle>
-          <TypographyP className="mt-0.5 text-sm text-muted-foreground">
+          <TypographyP className="mt-0.5" size="small" tone="subtle">
             {filesQuery.isLoading ? (
               <FormattedMessage {...messages.loading} />
             ) : filesQuery.isError ? (
@@ -341,7 +341,7 @@ export function ProjectFilesTreePanel({
       </header>
 
       {filesQuery.isLoading ? (
-        <TypographyP className="p-4 text-sm text-muted-foreground">
+        <TypographyP className="p-4" size="small" tone="subtle">
           <FormattedMessage {...messages.loadingFiles} />
         </TypographyP>
       ) : (

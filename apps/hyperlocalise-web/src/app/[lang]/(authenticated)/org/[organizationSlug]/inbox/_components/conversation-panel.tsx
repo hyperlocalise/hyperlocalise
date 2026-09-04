@@ -118,10 +118,10 @@ export function ConversationPanel({
               className="mt-0.5 size-5 shrink-0 text-muted-foreground"
             />
             <div className="min-w-0">
-              <TypographyH4 className="truncate text-base">
+              <TypographyH4 lineClamp={1} size="medium">
                 <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
               </TypographyH4>
-              <TypographyMuted className="mt-1.5 text-xs">
+              <TypographyMuted className="mt-1.5" size="xsmall">
                 <FormattedMessage {...conversationPanelMessages.newRequestSubtitle} />
               </TypographyMuted>
             </div>
@@ -237,7 +237,9 @@ function ConversationHeader({
           className="mt-0.5 size-5 shrink-0 text-muted-foreground"
         />
         <div className="min-w-0">
-          <TypographyH4 className="truncate text-base">{conversation.title}</TypographyH4>
+          <TypographyH4 lineClamp={1} size="medium">
+            {conversation.title}
+          </TypographyH4>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="border-border bg-muted text-foreground">
               {getSourceLabel(conversation.source, intl)}

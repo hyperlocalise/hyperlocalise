@@ -312,12 +312,12 @@ export function SlackLaunchIntakeIllustration({
         >
           <SlackMark className="size-3.5 gap-px" />
         </div>
-        <TypographyP className="pb-0 text-[0.8rem] font-bold tracking-[-0.02em] text-foreground">
+        <TypographyP className="pb-0 text-[0.8rem] font-bold tracking-[-0.02em]" tone="content">
           <span className="text-[#4a154b] dark:text-[#e8b4f2]">#</span>
           <FormattedMessage {...slackLaunchIntakeIllustrationMessages.channelName} />
         </TypographyP>
         <div className="ms-auto flex items-center gap-2 text-muted-foreground">
-          <TypographySmall className="text-[0.72rem] text-muted-foreground">
+          <TypographySmall className="text-[0.72rem]" tone="subtle">
             <FormattedMessage {...slackLaunchIntakeIllustrationMessages.memberCount} />
           </TypographySmall>
           <HugeiconsIcon icon={SearchIcon} strokeWidth={1.8} className="size-4" />

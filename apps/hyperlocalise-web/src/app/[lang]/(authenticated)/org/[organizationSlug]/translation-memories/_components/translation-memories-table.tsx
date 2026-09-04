@@ -113,7 +113,9 @@ function MemoryRow({
           )}
           <SourceLabel memory={memory} />
         </div>
-        <TypographyP className="mt-1 text-xs text-muted-foreground">{sourceDetail}</TypographyP>
+        <TypographyP className="mt-1" size="xsmall" tone="subtle">
+          {sourceDetail}
+        </TypographyP>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {memory.projectLinkId ? (
             <Link
@@ -143,8 +145,10 @@ function MemoryRow({
           ) : null}
         </div>
       </div>
-      <TypographyP className="text-sm text-muted-foreground">{memory.localeSummary}</TypographyP>
-      <TypographyP className="text-sm text-muted-foreground">
+      <TypographyP size="small" tone="subtle">
+        {memory.localeSummary}
+      </TypographyP>
+      <TypographyP size="small" tone="subtle">
         <FormattedMessage
           {...translationMemoriesTableMessages.segmentCount}
           values={{ countLabel: memory.segmentCountLabel }}
@@ -183,17 +187,17 @@ export function TranslationMemoriesTable({
       className="min-w-0"
     >
       {memoriesQuery.isLoading ? (
-        <TypographyP className="py-8 text-sm text-muted-foreground">
+        <TypographyP className="py-8" size="small" tone="subtle">
           <FormattedMessage {...translationMemoriesTableMessages.loading} />
         </TypographyP>
       ) : null}
 
       {memoriesQuery.isError ? (
         <div className="py-8">
-          <TypographyP className="text-sm font-medium text-flame-100">
+          <TypographyP className="text-flame-100" size="small" weight="medium">
             <FormattedMessage {...translationMemoriesTableMessages.loadFailed} />
           </TypographyP>
-          <TypographyP className="mt-1 text-xs text-muted-foreground">
+          <TypographyP className="mt-1" size="xsmall" tone="subtle">
             {memoriesQuery.error instanceof Error
               ? memoriesQuery.error.message
               : intl.formatMessage(translationMemoriesTableMessages.loadFailedFallback)}
@@ -203,8 +207,10 @@ export function TranslationMemoriesTable({
 
       {memoriesQuery.isSuccess && memories.length === 0 ? (
         <div className="space-y-3 py-10">
-          <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
+          <TypographyP size="small" weight="medium" tone="content">
+            {emptyTitle}
+          </TypographyP>
+          <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
             {emptyDescription}
           </TypographyP>
           {emptyAction}

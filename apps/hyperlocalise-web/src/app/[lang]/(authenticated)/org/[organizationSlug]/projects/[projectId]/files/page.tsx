@@ -31,7 +31,7 @@ export default async function ProjectFilesPage({
   return (
     <Suspense
       fallback={
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           {intl.formatMessage({
             defaultMessage: "Loading files...",
             id: "KWzlpvb4xC",

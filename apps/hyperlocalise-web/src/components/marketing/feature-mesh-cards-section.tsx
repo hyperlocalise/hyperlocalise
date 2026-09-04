@@ -112,7 +112,10 @@ function FeatureMeshCard({
         )}
       >
         <div className="space-y-3">
-          <TypographyH3 className="pb-0 text-[1.35rem] leading-[1.15] font-semibold tracking-[-0.035em] text-white sm:text-[1.55rem]">
+          <TypographyH3
+            className="pb-0 text-[1.35rem] leading-[1.15] tracking-[-0.035em] text-white sm:text-[1.55rem]"
+            weight="bold"
+          >
             <FormattedMessage {...title} />
           </TypographyH3>
           <TypographyP className="max-w-md pb-0 text-[0.95rem] leading-relaxed text-white/85">
@@ -132,7 +135,8 @@ export function FeatureMeshCardsSection() {
     <section id="features" aria-labelledby="feature-mesh-cards-heading">
       <TypographyH2
         id="feature-mesh-cards-heading"
-        className="max-w-3xl pb-0 text-[1.85rem] leading-[1.12] font-semibold tracking-[-0.04em] sm:text-4xl md:text-5xl"
+        className="max-w-3xl pb-0 text-[1.85rem] leading-[1.12] tracking-[-0.04em] sm:text-4xl md:text-5xl"
+        weight="bold"
       >
         <FormattedMessage {...featureMeshCardsSectionMessages.headline} />
       </TypographyH2>

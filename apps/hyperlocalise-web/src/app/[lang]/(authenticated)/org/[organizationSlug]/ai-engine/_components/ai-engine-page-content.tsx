@@ -345,10 +345,10 @@ export function AiEnginePageContent({
   return (
     <main className="space-y-8">
       <div className="flex flex-col gap-1.5">
-        <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+        <TypographyH1 className="font-heading text-2xl md:text-2xl" weight="medium" tone="content">
           <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
         </TypographyH1>
-        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
           <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
         </TypographyP>
       </div>
@@ -426,7 +426,7 @@ export function AiEnginePageContent({
             <IntegrationCategoryLabel>
               <FormattedMessage {...aiEnginePageContentMessages.agentSectionTitle} />
             </IntegrationCategoryLabel>
-            <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
               <FormattedMessage {...aiEnginePageContentMessages.agentSectionDescription} />
             </TypographyP>
 
@@ -446,7 +446,7 @@ export function AiEnginePageContent({
               </IntegrationCategoryCard>
             )}
 
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...aiEnginePageContentMessages.agentAutomationsNote} />
             </TypographyP>
           </section>

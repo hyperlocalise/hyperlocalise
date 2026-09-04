@@ -139,10 +139,7 @@ export const SchemaDisplayDescription = ({
   const { description } = useContext(SchemaDisplayContext);
 
   return (
-    <TypographyP
-      className={cn("border-b px-4 py-3 text-muted-foreground text-sm", className)}
-      {...props}
-    >
+    <TypographyP className="border-b px-4 py-3" {...props} tone="subtle" size="small">
       {children ?? description}
     </TypographyP>
   );
@@ -192,7 +189,9 @@ export const SchemaDisplayParameter = ({
       )}
     </div>
     {description && (
-      <TypographyP className="mt-1 text-muted-foreground text-sm">{description}</TypographyP>
+      <TypographyP className="mt-1" tone="subtle" size="small">
+        {description}
+      </TypographyP>
     )}
   </div>
 );
@@ -278,8 +277,10 @@ export const SchemaDisplayProperty = ({
         </CollapsibleTrigger>
         {description && (
           <TypographyP
-            className="pb-2 text-muted-foreground text-sm"
+            className="pb-2"
             style={{ paddingLeft: paddingLeft + 24 }}
+            tone="subtle"
+            size="small"
           >
             {description}
           </TypographyP>
@@ -315,7 +316,9 @@ export const SchemaDisplayProperty = ({
         )}
       </div>
       {description && (
-        <TypographyP className="mt-1 ps-6 text-muted-foreground text-sm">{description}</TypographyP>
+        <TypographyP className="mt-1 ps-6" tone="subtle" size="small">
+          {description}
+        </TypographyP>
       )}
     </div>
   );

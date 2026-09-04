@@ -103,14 +103,14 @@ export function HyperlabAudienceDetail({
     >
       <Rows spacing="2u">
         {detailQuery.isError ? (
-          <TypographyP className="text-pretty text-sm text-destructive">
+          <TypographyP wrapStyle="pretty" size="small" tone="critical">
             {detailQuery.error instanceof Error
               ? detailQuery.error.message
               : intl.formatMessage(messages.loadError)}
           </TypographyP>
         ) : null}
         {detailQuery.isLoading ? (
-          <TypographyP className="text-pretty text-sm text-muted-foreground">
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
         ) : null}

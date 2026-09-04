@@ -383,10 +383,10 @@ export function TeamDetailPageView({
       >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...teamDetailPageViewMessages.membersHeading} />
             </TypographyP>
-            <TypographyP className="mt-1 text-sm text-muted-foreground">
+            <TypographyP className="mt-1" size="small" tone="subtle">
               <FormattedMessage
                 {...teamDetailPageViewMessages.membersDescription}
                 values={{
@@ -416,15 +416,15 @@ export function TeamDetailPageView({
         </div>
 
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-muted-foreground">
+          <TypographyP className="py-8" size="small" tone="subtle">
             <FormattedMessage {...teamDetailPageViewMessages.loading} />
           </TypographyP>
         ) : error ? (
           <div className="py-8">
-            <TypographyP className="text-sm font-medium text-flame-100">
+            <TypographyP className="text-flame-100" size="small" weight="medium">
               <FormattedMessage {...teamDetailPageViewMessages.loadFailed} />
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-muted-foreground">
+            <TypographyP className="mt-1" size="xsmall" tone="subtle">
               {error instanceof Error
                 ? error.message
                 : intl.formatMessage(teamDetailPageViewMessages.loadFailedFallback)}
@@ -432,10 +432,10 @@ export function TeamDetailPageView({
           </div>
         ) : pageState.members.length === 0 ? (
           <div className="py-10">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...teamDetailPageViewMessages.emptyTitle} />
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="mt-2 max-w-xl leading-6" size="small" tone="subtle">
               <FormattedMessage {...teamDetailPageViewMessages.emptyDescription} />
             </TypographyP>
           </div>
@@ -468,7 +468,7 @@ export function TeamDetailPageView({
                 >
                   <div role="cell" className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <TypographyP className="truncate text-sm font-medium text-foreground">
+                      <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
                         {member.email}
                       </TypographyP>
                       {isCurrentUser ? (

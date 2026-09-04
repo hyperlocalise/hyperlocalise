@@ -457,22 +457,24 @@ export function MembersPageView({
         className="min-w-0"
       >
         {isLoading ? (
-          <TypographyP className="py-8 text-sm text-muted-foreground">
+          <TypographyP className="py-8" size="small" tone="subtle">
             <FormattedMessage {...membersPageContentMessages.loading} />
           </TypographyP>
         ) : loadError ? (
           <div className="py-8">
-            <TypographyP className="text-sm font-medium text-flame-100">
+            <TypographyP className="text-flame-100" size="small" weight="medium">
               <FormattedMessage {...membersPageContentMessages.loadErrorTitle} />
             </TypographyP>
-            <TypographyP className="mt-1 text-xs text-muted-foreground">{loadError}</TypographyP>
+            <TypographyP className="mt-1" size="xsmall" tone="subtle">
+              {loadError}
+            </TypographyP>
           </div>
         ) : members.length === 0 ? (
           <div className="py-10">
-            <TypographyP className="text-sm font-medium text-foreground">
+            <TypographyP size="small" weight="medium" tone="content">
               <FormattedMessage {...membersPageContentMessages.emptyTitle} />
             </TypographyP>
-            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            <TypographyP className="mt-2 max-w-xl leading-6" size="small" tone="subtle">
               <FormattedMessage {...membersPageContentMessages.emptyDescription} />
             </TypographyP>
           </div>
@@ -492,7 +494,7 @@ export function MembersPageView({
                     <MemberAvatar displayName={member.displayName} avatarUrl={member.avatarUrl} />
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <TypographyP className="truncate text-sm font-medium text-foreground">
+                        <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
                           {member.displayName}
                         </TypographyP>
                         {member.isCurrentUser ? (
@@ -501,7 +503,7 @@ export function MembersPageView({
                           </span>
                         ) : null}
                       </div>
-                      <TypographyP className="mt-0.5 truncate text-sm text-muted-foreground">
+                      <TypographyP className="mt-0.5" lineClamp={1} size="small" tone="subtle">
                         {member.email}
                       </TypographyP>
                     </div>

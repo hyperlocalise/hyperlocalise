@@ -57,7 +57,7 @@ export function IssueDetailPageContent({
   if (issueQuery.isError || (!issueQuery.isLoading && !issueQuery.data)) {
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-3 py-16">
-        <TypographyP className="text-center text-muted-foreground">
+        <TypographyP className="text-center" tone="subtle">
           <FormattedMessage {...messages.notFound} />
         </TypographyP>
       </main>

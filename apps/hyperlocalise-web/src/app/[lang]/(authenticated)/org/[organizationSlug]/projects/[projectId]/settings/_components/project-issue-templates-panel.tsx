@@ -140,7 +140,7 @@ export function ProjectIssueTemplatesPanel({
         <ProjectSectionTitle>
           <FormattedMessage {...messages.title} />
         </ProjectSectionTitle>
-        <TypographyP className="mt-1 text-sm text-muted-foreground">
+        <TypographyP className="mt-1" size="small" tone="subtle">
           <FormattedMessage {...messages.description} />
         </TypographyP>
       </div>

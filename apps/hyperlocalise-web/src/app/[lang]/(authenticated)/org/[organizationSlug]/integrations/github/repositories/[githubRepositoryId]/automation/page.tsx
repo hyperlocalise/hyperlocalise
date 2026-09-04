@@ -83,7 +83,7 @@ export default async function GithubRepositoryAutomationPage({
             description: "Page heading for GitHub repository automation settings",
           })}
         </TypographyH1>
-        <TypographyP className="text-muted-foreground">
+        <TypographyP tone="subtle">
           {intl.formatMessage(
             {
               defaultMessage:

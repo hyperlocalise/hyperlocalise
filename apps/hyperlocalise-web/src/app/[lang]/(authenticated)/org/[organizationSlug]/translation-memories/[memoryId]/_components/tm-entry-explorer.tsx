@@ -235,12 +235,14 @@ export function TmEntryExplorer({
         {statusMessage}
       </div>
       {cursorNotice ? (
-        <TypographyP className="text-sm text-muted-foreground">{cursorNotice}</TypographyP>
+        <TypographyP size="small" tone="subtle">
+          {cursorNotice}
+        </TypographyP>
       ) : null}
 
       {selectedEntry ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-          <TypographyP className="text-sm font-medium">
+          <TypographyP size="small" weight="medium">
             <FormattedMessage {...messages.selectedEntry} />
           </TypographyP>
           <Button type="button" size="sm" variant="outline" onClick={closeEntry}>
@@ -270,7 +272,7 @@ export function TmEntryExplorer({
 
       {entriesQuery.isError && !isInvalidCursorError(entriesQuery.error) ? (
         <div className="grid gap-3 rounded-lg border border-border px-4 py-10 text-center">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             {entriesQuery.error instanceof Error
               ? entriesQuery.error.message
               : intl.formatMessage(messages.error)}
@@ -284,7 +286,11 @@ export function TmEntryExplorer({
       ) : null}
 
       {entriesQuery.isSuccess && entries.length === 0 ? (
-        <TypographyP className="rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
+        <TypographyP
+          className="rounded-lg border border-border px-4 py-6"
+          size="small"
+          tone="subtle"
+        >
           <FormattedMessage {...(hasFilters ? messages.empty : messages.emptyNoFilters)} />
         </TypographyP>
       ) : null}
@@ -320,8 +326,10 @@ export function TmEntryExplorer({
                 }}
               >
                 <div>
-                  <TypographyP className="text-sm font-medium">{entry.sourceText}</TypographyP>
-                  <TypographyP className="text-xs text-muted-foreground">
+                  <TypographyP size="small" weight="medium">
+                    {entry.sourceText}
+                  </TypographyP>
+                  <TypographyP size="xsmall" tone="subtle">
                     <FormattedMessage
                       {...messages.localePair}
                       values={{
@@ -332,7 +340,7 @@ export function TmEntryExplorer({
                   </TypographyP>
                 </div>
                 <div className="grid gap-1">
-                  <TypographyP className="text-sm text-subtle-foreground">
+                  <TypographyP size="small" tone="subtlest">
                     {entry.targetText}
                   </TypographyP>
                   <div className="flex flex-wrap gap-1">
@@ -424,7 +432,9 @@ export function TmEntryExplorer({
 
       {entriesQuery.isSuccess && (hasMore || Boolean(state.cursor)) ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TypographyP className="text-xs text-muted-foreground">{statusMessage}</TypographyP>
+          <TypographyP size="xsmall" tone="subtle">
+            {statusMessage}
+          </TypographyP>
           <div className="flex gap-2">
             <Button
               type="button"

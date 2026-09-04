@@ -202,7 +202,11 @@ export const ChainOfThoughtImage = memo(
       <div className="relative flex max-h-[22rem] items-center justify-center overflow-hidden rounded-lg bg-muted p-3">
         {children}
       </div>
-      {caption && <TypographyP className="text-muted-foreground text-xs">{caption}</TypographyP>}
+      {caption && (
+        <TypographyP tone="subtle" size="xsmall">
+          {caption}
+        </TypographyP>
+      )}
     </div>
   ),
 );

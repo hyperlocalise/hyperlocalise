@@ -55,7 +55,7 @@ export function OverviewHeroCard({
     >
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div>
-          <TypographyP className="text-sm font-medium text-subtle-foreground">
+          <TypographyP size="small" weight="medium" tone="subtlest">
             {isCaughtUp ? (
               <FormattedMessage {...overviewHeroCardMessages.allCaughtUp} />
             ) : (
@@ -65,10 +65,10 @@ export function OverviewHeroCard({
               />
             )}
           </TypographyP>
-          <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
+          <TypographyP className="mt-2 font-heading" size="xxlarge" weight="medium" tone="content">
             {title}
           </TypographyP>
-          <TypographyP className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+          <TypographyP className="mt-2 max-w-lg leading-6" size="small" tone="subtle">
             {description}
           </TypographyP>
         </div>

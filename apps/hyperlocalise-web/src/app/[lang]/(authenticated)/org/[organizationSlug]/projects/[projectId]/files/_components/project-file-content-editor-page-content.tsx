@@ -296,7 +296,7 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.chooseSourceFile} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
@@ -313,7 +313,7 @@ export function ProjectFileContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.loadingFile} />
           </TypographyP>
         </div>
@@ -325,7 +325,7 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-flame-100">
+          <TypographyP className="text-flame-100" size="small">
             {projectQuery.error instanceof Error
               ? projectQuery.error.message
               : filesQuery.error instanceof Error
@@ -357,8 +357,10 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
-          <TypographyP className="mt-2 text-sm text-muted-foreground">
+          <TypographyP className="font-mono" size="small" tone="content">
+            {sourcePath}
+          </TypographyP>
+          <TypographyP className="mt-2" size="small" tone="subtle">
             <FormattedMessage {...messages.sourceFileMissing} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
@@ -374,7 +376,7 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.providerTypeUnsupported} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
@@ -433,7 +435,7 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.chooseTargetLocale} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
@@ -450,7 +452,7 @@ export function ProjectFileContentEditorPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-flame-100">
+          <TypographyP className="text-flame-100" size="small">
             <FormattedMessage {...messages.missingSourceLocale} />
           </TypographyP>
         </div>
@@ -463,7 +465,7 @@ export function ProjectFileContentEditorPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.loadingFile} />
           </TypographyP>
         </div>
@@ -597,7 +599,7 @@ export function ProjectFileContentEditorPageContent({
               onRepositoryChange={handleRepositoryChange}
             />
           ) : (
-            <TypographyP className="max-w-44 truncate font-mono text-xs text-muted-foreground">
+            <TypographyP className="max-w-44 font-mono" lineClamp={1} size="xsmall" tone="subtle">
               {sourcePath}
             </TypographyP>
           )}
@@ -618,11 +620,11 @@ export function ProjectFileContentEditorPageContent({
         (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
         <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
           {repositoriesQuery.isError ? (
-            <TypographyP className="text-xs text-muted-foreground">
+            <TypographyP size="xsmall" tone="subtle">
               <FormattedMessage {...messages.repositoriesLoadFailed} />
             </TypographyP>
           ) : (
-            <TypographyP className="text-xs text-muted-foreground">
+            <TypographyP size="xsmall" tone="subtle">
               <FormattedMessage {...messages.selectRepositoryForContext} />
             </TypographyP>
           )}
@@ -631,7 +633,7 @@ export function ProjectFileContentEditorPageContent({
 
       {localeFallbackMessage ? (
         <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
-          <TypographyP className="text-xs text-muted-foreground">
+          <TypographyP size="xsmall" tone="subtle">
             {localeFallbackMessage}
           </TypographyP>
         </div>

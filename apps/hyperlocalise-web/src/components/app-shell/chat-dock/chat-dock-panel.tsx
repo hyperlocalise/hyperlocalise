@@ -337,7 +337,9 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
       {tab.lastError ? (
         <div className="border-b border-border bg-destructive/5 px-3 py-2">
-          <TypographyMuted className="text-xs text-destructive">{tab.lastError}</TypographyMuted>
+          <TypographyMuted size="xsmall" tone="critical">
+            {tab.lastError}
+          </TypographyMuted>
         </div>
       ) : null}
 

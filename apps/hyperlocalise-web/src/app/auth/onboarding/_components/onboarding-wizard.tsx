@@ -69,7 +69,7 @@ export function OnboardingWizard() {
             <h1 className="font-heading text-xl font-semibold text-foreground">
               <FormattedMessage {...onboardingWizardMessages.title} />
             </h1>
-            <TypographyP className="text-sm leading-6 text-muted-foreground">
+            <TypographyP className="leading-6" size="small" tone="subtle">
               <FormattedMessage {...onboardingWizardMessages.description} />
             </TypographyP>
           </div>

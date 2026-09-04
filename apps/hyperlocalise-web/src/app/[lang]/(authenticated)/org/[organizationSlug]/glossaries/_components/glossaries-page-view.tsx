@@ -409,10 +409,10 @@ export function GlossariesPageView({
                 <div className="w-full">{liveProviderControls}</div>
               </div>
               <div className="space-y-3 rounded-lg border border-border px-5 py-8">
-                <TypographyP className="text-sm font-medium text-foreground">
+                <TypographyP size="small" weight="medium" tone="content">
                   <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectTitle} />
                 </TypographyP>
-                <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
+                <TypographyP className="max-w-xl leading-6" size="small" tone="subtle">
                   <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectDescription} />
                 </TypographyP>
               </div>
@@ -658,7 +658,7 @@ export function GlossariesPageView({
                   createErrors.projectIds ? [{ message: createErrors.projectIds }] : undefined
                 }
               />
-              <TypographyP className="text-xs text-muted-foreground">
+              <TypographyP size="xsmall" tone="subtle">
                 <FormattedMessage {...glossariesPageViewMessages.projectOptional} />
               </TypographyP>
             </Field>

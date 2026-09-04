@@ -154,10 +154,16 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 
   return (
     <div className="min-w-0">
-      <TypographyP className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+      <TypographyP
+        className="tracking-[0.08em]"
+        size="xsmall"
+        weight="medium"
+        tone="subtle"
+        capitalization="uppercase"
+      >
         {label}
       </TypographyP>
-      <TypographyP className="mt-1 truncate text-sm text-subtle-foreground">
+      <TypographyP className="mt-1" lineClamp={1} size="small" tone="subtlest">
         {value ?? intl.formatMessage(projectSettingsPageContentMessages.emptyValue)}
       </TypographyP>
     </div>
@@ -178,7 +184,7 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
           <ProjectSectionTitle>
             <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />
           </ProjectSectionTitle>
-          <TypographyP className="mt-1 text-sm text-muted-foreground">
+          <TypographyP className="mt-1" size="small" tone="subtle">
             <FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionDescription} />
           </TypographyP>
         </div>
@@ -328,7 +334,7 @@ export function ProjectSettingsPageContent({
   if (projectQuery.isLoading || !values) {
     return (
       <ProjectPageShell>
-        <TypographyP className="text-sm text-muted-foreground">
+        <TypographyP size="small" tone="subtle">
           <FormattedMessage {...projectSettingsPageContentMessages.loading} />
         </TypographyP>
       </ProjectPageShell>
@@ -338,7 +344,7 @@ export function ProjectSettingsPageContent({
   if (projectQuery.isError || !project) {
     return (
       <ProjectPageShell>
-        <TypographyP className="text-sm text-flame-100">
+        <TypographyP className="text-flame-100" size="small">
           <FormattedMessage {...projectSettingsPageContentMessages.loadError} />
         </TypographyP>
       </ProjectPageShell>
@@ -366,7 +372,7 @@ export function ProjectSettingsPageContent({
               <ProjectSectionTitle>
                 <FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />
               </ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <TypographyP className="mt-1" size="small" tone="subtle">
                 <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
               </TypographyP>
             </div>
@@ -447,7 +453,7 @@ export function ProjectSettingsPageContent({
                   {...projectSettingsPageContentMessages.translationGuidanceTitle}
                 />
               </ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <TypographyP className="mt-1" size="small" tone="subtle">
                 <FormattedMessage
                   {...projectSettingsPageContentMessages.translationGuidanceDescription}
                 />
@@ -485,7 +491,7 @@ export function ProjectSettingsPageContent({
               <ProjectSectionTitle>
                 <FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />
               </ProjectSectionTitle>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
+              <TypographyP className="mt-1" size="small" tone="subtle">
                 {localesEditable ? (
                   <FormattedMessage
                     {...projectSettingsPageContentMessages.localesEditableDescription}

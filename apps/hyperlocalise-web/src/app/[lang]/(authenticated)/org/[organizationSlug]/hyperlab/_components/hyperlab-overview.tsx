@@ -55,7 +55,7 @@ OpenFeature.setProvider(
             </CardHeader>
             <CardContent>
               <Rows spacing="1.5u">
-                <TypographyP className="text-pretty text-sm text-muted-foreground">
+                <TypographyP wrapStyle="pretty" size="small" tone="subtle">
                   <FormattedMessage {...messages.ofrepHint} />
                 </TypographyP>
                 <Box

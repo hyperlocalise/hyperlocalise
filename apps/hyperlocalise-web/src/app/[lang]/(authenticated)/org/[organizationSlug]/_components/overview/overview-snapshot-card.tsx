@@ -52,8 +52,12 @@ export function OverviewSnapshotCard({
         <dl className="grid gap-3">
           {rows.map((row) => (
             <div key={row.label} className="grid gap-0.5">
-              <TypographyP className="text-xs text-muted-foreground">{row.label}</TypographyP>
-              <TypographyP className="text-sm font-medium text-foreground">{row.value}</TypographyP>
+              <TypographyP size="xsmall" tone="subtle">
+                {row.label}
+              </TypographyP>
+              <TypographyP size="small" weight="medium" tone="content">
+                {row.value}
+              </TypographyP>
             </div>
           ))}
         </dl>

@@ -280,7 +280,7 @@ export function VisualWorkflowConfigPanel({
         config.kind === "trigger.github" ||
         config.kind === "trigger.source_upload" ? (
           config.kind === "trigger.manual" ? (
-            <TypographyP className="text-sm text-muted-foreground">
+            <TypographyP size="small" tone="subtle">
               <FormattedMessage {...messages.noConfig} />
             </TypographyP>
           ) : null

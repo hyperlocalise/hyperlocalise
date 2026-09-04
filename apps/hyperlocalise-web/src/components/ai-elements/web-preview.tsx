@@ -269,7 +269,7 @@ export const WebPreviewConsole = ({
       >
         <div className="max-h-48 space-y-1 overflow-y-auto">
           {logs.length === 0 ? (
-            <TypographyP className="text-muted-foreground">
+            <TypographyP tone="subtle">
               <FormattedMessage {...webPreviewMessages.noConsoleOutput} />
             </TypographyP>
           ) : (

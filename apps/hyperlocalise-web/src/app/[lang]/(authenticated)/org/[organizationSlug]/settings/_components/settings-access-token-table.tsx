@@ -87,7 +87,13 @@ export function SettingsAccessTokenTable({
           <Columns spacing="2u" alignY="center" collapseBelow="medium" role="row">
             <Column width="3/12" role="cell">
               <Rows spacing="0.5u">
-                <TypographyP className="truncate text-sm leading-tight font-medium text-foreground">
+                <TypographyP
+                  className="leading-tight"
+                  lineClamp={1}
+                  size="small"
+                  weight="medium"
+                  tone="content"
+                >
                   {token.name}
                 </TypographyP>
                 {token.revokedAt ? <Badge variant="outline">{revokedLabel}</Badge> : null}
@@ -107,7 +113,7 @@ export function SettingsAccessTokenTable({
               </span>
             </Column>
             <Column width="2/12" role="cell">
-              <TypographyP className="text-sm leading-tight text-muted-foreground">
+              <TypographyP className="leading-tight" size="small" tone="subtle">
                 {formatAccessTokenDate(intl, token.lastUsedAt, neverUsedLabel)}
               </TypographyP>
             </Column>
