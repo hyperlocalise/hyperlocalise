@@ -97,42 +97,36 @@ export function AppShellFooter({
             ) : null}
             <Column width="content">
               <Row spacing="1u" alignY="center">
-              {showGlossaryGuidance ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={requestCatGlossaryGuidance}
-                  aria-label={intl.formatMessage(
-                    glossaryGuidanceStatus.matchCount > 0 ||
-                      glossaryGuidanceStatus.preferredCount > 0 ||
-                      glossaryGuidanceStatus.notRecommendedCount > 0
-                      ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
-                      : appShellFooterMessages.glossaryGuidanceAriaLabel,
-                  )}
-                >
-                  <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} data-icon="inline-start" />
-                  <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
-                  {glossaryGuidanceStatus.preferredCount > 0 ? (
-                    <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                      <HugeiconsIcon
-                        icon={CheckmarkCircle02Icon}
-                        strokeWidth={2}
-                        className="size-4"
-                        aria-hidden="true"
-                      />
-                      <span className="tabular-nums">{glossaryGuidanceStatus.preferredCount}</span>
-                    </span>
-                  ) : null}
-                  {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
-                    <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                      <HugeiconsIcon
-                        icon={MinusSignCircleIcon}
-                        strokeWidth={2}
-                        className="size-4"
-                        aria-hidden="true"
-                      />
-                      <span className="tabular-nums">
-                        {glossaryGuidanceStatus.notRecommendedCount}
+                {showGlossaryGuidance ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={requestCatGlossaryGuidance}
+                    aria-label={intl.formatMessage(
+                      glossaryGuidanceStatus.matchCount > 0 ||
+                        glossaryGuidanceStatus.preferredCount > 0 ||
+                        glossaryGuidanceStatus.notRecommendedCount > 0
+                        ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
+                        : appShellFooterMessages.glossaryGuidanceAriaLabel,
+                    )}
+                  >
+                    <HugeiconsIcon
+                      icon={BookOpenTextIcon}
+                      strokeWidth={2}
+                      data-icon="inline-start"
+                    />
+                    <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
+                    {glossaryGuidanceStatus.preferredCount > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
+                        <HugeiconsIcon
+                          icon={CheckmarkCircle02Icon}
+                          strokeWidth={2}
+                          className="size-4"
+                          aria-hidden="true"
+                        />
+                        <span className="tabular-nums">
+                          {glossaryGuidanceStatus.preferredCount}
+                        </span>
                       </span>
                     ) : null}
                     {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
