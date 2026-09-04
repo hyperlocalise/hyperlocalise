@@ -160,7 +160,11 @@ export function flattenNativeConceptTermsToPairs(input: {
                 targetTerm: preferred.text,
                 targetLocale,
                 status: preferredRow.status,
-                forbidden: pairIsForbidden(targetStatus.forbidden, preferredRow.forbidden),
+                forbidden: pairIsForbidden(
+                  sourceStatus.forbidden || targetStatus.forbidden,
+                  sourceTerm.forbidden,
+                  preferredRow.forbidden,
+                ),
               }),
             );
           }

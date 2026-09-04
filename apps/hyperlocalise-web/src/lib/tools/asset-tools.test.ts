@@ -76,9 +76,11 @@ async function createGlossaryWithTerm(input: {
   name: string;
   sourceTerm: string;
   targetTerm: string;
+  sourceStatus?: string;
   targetStatus?: string;
   description?: string;
   caseSensitive?: boolean;
+  sourceForbidden?: boolean;
   targetForbidden?: boolean;
 }) {
   const [glossary] = await db
@@ -111,7 +113,9 @@ async function createGlossaryWithTerm(input: {
       sourceTerm: input.sourceTerm,
       targetTerm: input.sourceTerm,
       description: input.description ?? "",
+      status: input.sourceStatus ?? "preferred",
       caseSensitive: input.caseSensitive ?? false,
+      forbidden: input.sourceForbidden ?? false,
       reviewStatus: "approved",
     })
     .returning();
@@ -553,6 +557,30 @@ describe("createQueryGlossaryTool", () => {
       expect.objectContaining({
         sourceTerm: "NASA",
         caseSensitive: true,
+      }),
+    ]);
+  });
+
+  it("marks a preferred target forbidden when the matched source term is prohibited", async () => {
+    const organization = await createOrganization();
+    await createGlossaryWithTerm({
+      organizationId: organization.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+      sourceStatus: "not_recommended",
+    });
+
+    const result = await executeGlossarySearch({
+      organizationId: organization.id,
+      sourceText: "Proceed to checkout",
+    });
+
+    expect(result.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        forbidden: true,
       }),
     ]);
   });

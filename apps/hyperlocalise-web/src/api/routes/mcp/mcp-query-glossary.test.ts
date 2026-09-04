@@ -129,10 +129,12 @@ async function insertNativeGlossaryPair(input: {
   name: string;
   sourceTerm: string;
   targetTerm: string;
+  sourceStatus?: string;
   targetStatus?: string;
   description?: string;
   partOfSpeech?: string;
   caseSensitive?: boolean;
+  sourceForbidden?: boolean;
   targetForbidden?: boolean;
 }) {
   const [glossary] = await db
@@ -165,8 +167,9 @@ async function insertNativeGlossaryPair(input: {
     targetTerm: input.sourceTerm,
     description: input.description ?? "",
     partOfSpeech: input.partOfSpeech ?? "",
-    status: "preferred",
+    status: input.sourceStatus ?? "preferred",
     caseSensitive: input.caseSensitive ?? false,
+    forbidden: input.sourceForbidden ?? false,
     reviewStatus: "approved",
   });
 
@@ -390,6 +393,35 @@ describe("MCP query_glossary", () => {
         sourceTerm: "NASA",
         targetTerm: "NASA",
         caseSensitive: true,
+      }),
+    ]);
+  });
+
+  it("marks a preferred target forbidden when the matched source term is prohibited", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    await insertNativeGlossaryPair({
+      organizationId: stored.organization.id,
+      createdByUserId: stored.user.id,
+      name: "Commerce",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+      sourceStatus: "not_recommended",
+    });
+
+    const result = await readToolResult(
+      await callMcpTool(headers, {
+        sourceText: "Proceed to checkout",
+        sourceLocale: "en",
+        targetLocale: "fr",
+      }),
+    );
+
+    expect(result.output.terms).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        forbidden: true,
       }),
     ]);
   });

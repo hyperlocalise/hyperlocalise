@@ -121,7 +121,7 @@ describe("flattenNativeConceptTermsToPairs", () => {
     ]);
   });
 
-  it("does not forbid preferred targets because a source synonym is not_recommended", () => {
+  it("does not mark a preferred source pair forbidden because a synonym is not_recommended", () => {
     const concepts: NativeConceptGroup[] = [
       {
         conceptId: "concept-1",
@@ -156,12 +156,53 @@ describe("flattenNativeConceptTermsToPairs", () => {
       expect.objectContaining({
         sourceTerm: "cart",
         targetTerm: "paiement",
-        forbidden: false,
+        forbidden: true,
       }),
       expect.objectContaining({
         sourceTerm: "checkout",
         targetTerm: "paiement",
         forbidden: false,
+      }),
+    ]);
+  });
+
+  it("marks a preferred target forbidden when the matched source term is prohibited", () => {
+    const concepts: NativeConceptGroup[] = [
+      {
+        conceptId: "concept-1",
+        glossaryId: "glossary-1",
+        glossaryName: "Commerce",
+        translatable: true,
+        terms: [
+          baseTerm({
+            id: "source-1",
+            locale: "en",
+            term: "checkout",
+            status: "preferred",
+            forbidden: true,
+          }),
+          baseTerm({
+            id: "target-preferred",
+            locale: "fr",
+            term: "paiement",
+            status: "preferred",
+          }),
+        ],
+      },
+    ];
+
+    const pairs = flattenNativeConceptTermsToPairs({
+      concepts,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(pairs).toEqual([
+      expect.objectContaining({
+        sourceTerm: "checkout",
+        targetTerm: "paiement",
+        status: "preferred",
+        forbidden: true,
       }),
     ]);
   });

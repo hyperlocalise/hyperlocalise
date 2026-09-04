@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { tool } from "ai";
 import { z } from "zod";
@@ -197,7 +197,7 @@ export async function queryGlossaryTerms(
       .from(glossarySourceTerms)
       .innerJoin(schema.glossaries, eq(glossarySourceTerms.glossaryId, schema.glossaries.id))
       .where(and(...sharedConditions))
-      .orderBy(desc(rank))
+      .orderBy(desc(rank), asc(glossarySourceTerms.id))
       .limit(QUERY_GLOSSARY_CANDIDATE_PAGE_SIZE)
       .offset(candidateOffset);
 

@@ -79,7 +79,7 @@ Inaccessible projects return `project_not_found`.
 
 `query_glossary` looks up a source string instead of paging a whole glossary. Pass `sourceText`, `sourceLocale`, and `targetLocale`. Optional `projectId` limits the search to glossaries linked to that project. Optional `glossaryId` searches one glossary. `limit` defaults to 10 and maxes at 20.
 
-Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, `caseSensitive`, and a description truncated to 500 characters. Use `forbidden` to avoid rejected terms. Case-sensitive entries only match the stored casing.
+Each hit includes `glossaryId`, `conceptId`, `sourceTerm`, `targetTerm`, `forbidden`, `status`, `partOfSpeech`, `caseSensitive`, and a description truncated to 500 characters. `forbidden` is true when the matched source term or the preferred target is prohibited. Case-sensitive entries only match the stored casing.
 
 The search is the same native concordance path used in-app: an OR candidate query, then a source-text containment filter. A sentence such as `Proceed to checkout` still matches a `checkout` term.
 
