@@ -42,6 +42,7 @@ import {
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
 import {
   findAccessiblePublicJob,
+  listAccessiblePublicJobs,
   toMcpJobEnvelope,
 } from "@/api/routes/public-jobs/public-jobs.read";
 import {
@@ -548,6 +549,38 @@ const mcpCreateIssueInputSchema = z.object({
     .describe(
       "Caller-generated retry key. Reusing it with an equivalent payload returns the existing issue.",
     ),
+});
+
+const mcpListJobsInputSchema = z.object({
+  projectId: projectIdSchema
+    .optional()
+    .describe("Optional ID of an accessible Hyperlocalise project to list jobs for."),
+  sourcePath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .optional()
+    .describe(
+      "Optional source file path. When set, returns the latest file translation jobs for that path, matching GET /v1/jobs/latest.",
+    ),
+  status: z
+    .enum(schema.jobStatusEnum.enumValues)
+    .optional()
+    .describe("Optional job status filter such as queued, running, succeeded, or failed."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe("Maximum number of jobs to return."),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Number of jobs to skip before returning results."),
 });
 
 const mcpGetJobInputSchema = z.object({
@@ -1253,6 +1286,49 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ glossaries }, null, 2) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    "list_jobs",
+    {
+      description:
+        "List recent translation jobs visible to the caller. Use this to find a job id, then call get_job. Defaults to translation jobs. Optional sourcePath uses the latest-job-for-path lookup.",
+      inputSchema: mcpListJobsInputSchema,
+    },
+    async ({ projectId, sourcePath, status, limit, offset }) => {
+      const result = await listAccessiblePublicJobs(apiAuth, {
+        projectId,
+        sourcePath,
+        status,
+        limit,
+        offset,
+      });
+
+      if (isErr(result)) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const nextOffset = offset + result.value.jobs.length;
+      const hasMore = nextOffset < result.value.total;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              total: result.value.total,
+              pagination: {
+                limit,
+                offset,
+                hasMore,
+                nextOffset: hasMore ? nextOffset : null,
+              },
+              jobs: result.value.jobs,
+            }),
+          },
+        ],
       };
     },
   );

@@ -3,7 +3,7 @@ title: "MCP server"
 description: "Connect coding agents to Hyperlocalise Cloud over the Model Context Protocol."
 ---
 
-Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, glossaries, and Board items from your workspace.
+Hyperlocalise hosts an MCP (Model Context Protocol) server so agents such as Claude Code, Codex, and Cursor can read projects, source files, glossaries, jobs, and Board items from your workspace.
 
 The server uses OAuth with PKCE. After you approve access, the agent receives a bearer token scoped to one organization and your current membership role.
 
@@ -83,7 +83,18 @@ Inaccessible projects return `project_not_found`.
 
 | Tool | Description |
 | --- | --- |
+| `list_jobs` | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
 | `get_job` | Job status by `jobId`. Poll after `run_workflow` until the job is terminal. |
+
+`list_jobs` finds recent translation jobs so you can call `get_job` without already knowing a job id. It defaults to `kind = translation`. Optional filters:
+
+- `projectId` — jobs on one accessible project. An inaccessible or missing project returns `project_not_found`.
+- `sourcePath` — latest file translation jobs for that path, using the same lookup as `GET /v1/jobs/latest`. Without `status`, this returns succeeded file jobs for the path, newest first.
+- `status` — `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, or `cancelled`.
+
+Omit `projectId` to list jobs across every project you can access. Organization-wide roles see every project in the workspace. Team members only see jobs on their teams' projects.
+
+Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `completedAt`, and a truncated `lastError`. The list does not include input, outcome, or output file bodies. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`.
 
 `get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
 
@@ -126,7 +137,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `issue_not_found` | Wrong `projectId`, issue id, or missing project access |
 | `invalid_comment_cursor` | Stale or malformed `cursor` on `list_issue_comments` |
 | `job_not_found` | Wrong `jobId`, missing project access, or a job from another organization |
-| `project_not_found` | Wrong `projectId` or missing project access on `list_files` or `get_project_status` |
+| `project_not_found` | Wrong `projectId` or missing project access on `list_files`, `get_project_status`, or `list_jobs` |
 | Agent cannot reach local Cloud | Use `http://localhost:3000/mcp` and ensure the dev server is running |
 
 ## Next

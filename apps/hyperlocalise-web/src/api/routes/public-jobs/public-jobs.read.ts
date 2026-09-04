@@ -10,11 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, count, desc, eq, type SQL } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
+import { buildAccessibleJobsWhere, canAccessProject } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database/client";
+import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export type PublicJobOutputFile = {
   fileId: string;
@@ -121,4 +123,173 @@ export async function findAccessiblePublicJob(
     .limit(1);
 
   return job ?? null;
+}
+
+export const COMPACT_JOB_LAST_ERROR_MAX_LENGTH = 500;
+
+export type ListAccessiblePublicJobsQuery = {
+  projectId?: string;
+  sourcePath?: string;
+  status?: AccessiblePublicJob["status"];
+  limit: number;
+  offset: number;
+};
+
+export type CompactPublicJob = {
+  id: string;
+  projectId: string | null;
+  type: AccessiblePublicJob["type"];
+  status: AccessiblePublicJob["status"];
+  createdAt: Date;
+  completedAt: Date | null;
+  lastError: string | null;
+};
+
+export function truncatePublicJobLastError(lastError: string | null) {
+  if (!lastError || lastError.length <= COMPACT_JOB_LAST_ERROR_MAX_LENGTH) {
+    return lastError;
+  }
+
+  return lastError.slice(0, COMPACT_JOB_LAST_ERROR_MAX_LENGTH);
+}
+
+function compactPublicJob(job: {
+  id: string;
+  projectId: string | null;
+  type: AccessiblePublicJob["type"];
+  status: AccessiblePublicJob["status"];
+  createdAt: Date;
+  completedAt: Date | null;
+  lastError: string | null;
+}): CompactPublicJob {
+  return {
+    id: job.id,
+    projectId: job.projectId,
+    type: job.type,
+    status: job.status,
+    createdAt: job.createdAt,
+    completedAt: job.completedAt,
+    lastError: truncatePublicJobLastError(job.lastError),
+  };
+}
+
+/**
+ * List compact translation jobs visible to the caller.
+ *
+ * Access matches `createListJobsTool` / `buildAccessibleJobsWhere`. When
+ * `sourcePath` is set, the query uses the same repository-file join as
+ * `GET /v1/jobs/latest` so agents can find the latest job for a path.
+ */
+export async function listAccessiblePublicJobs(
+  auth: ApiAuthContext,
+  query: ListAccessiblePublicJobsQuery,
+): Promise<Result<{ jobs: CompactPublicJob[]; total: number }, { code: "project_not_found" }>> {
+  if (query.projectId) {
+    const project = await canAccessProject(auth, query.projectId);
+    if (!project) {
+      return err({ code: "project_not_found" });
+    }
+  }
+
+  const accessibleJobsWhere = await buildAccessibleJobsWhere(auth);
+  const sourcePath = query.sourcePath ? normalizeSourcePath(query.sourcePath) : undefined;
+
+  const compactSelect = {
+    id: schema.jobs.id,
+    projectId: schema.jobs.projectId,
+    type: schema.translationJobDetails.type,
+    status: schema.jobs.status,
+    createdAt: schema.jobs.createdAt,
+    completedAt: schema.jobs.completedAt,
+    lastError: schema.jobs.lastError,
+  };
+
+  if (sourcePath) {
+    const filters: SQL[] = [
+      eq(schema.repositorySourceFileVersions.organizationId, auth.organization.localOrganizationId),
+      eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
+      accessibleJobsWhere,
+      eq(schema.jobs.kind, "translation"),
+      eq(schema.translationJobDetails.type, "file"),
+    ];
+
+    if (query.projectId) {
+      filters.push(eq(schema.repositorySourceFileVersions.projectId, query.projectId));
+    }
+
+    if (query.status) {
+      filters.push(eq(schema.jobs.status, query.status));
+    } else {
+      filters.push(eq(schema.jobs.status, "succeeded"));
+      filters.push(eq(schema.translationJobDetails.outcomeKind, "file_result"));
+    }
+
+    const where = and(...filters);
+    const [jobs, [totalRow]] = await Promise.all([
+      db
+        .select(compactSelect)
+        .from(schema.repositorySourceFileVersions)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(
+            schema.translationJobDetails.sourceFileVersionId,
+            schema.repositorySourceFileVersions.id,
+          ),
+        )
+        .innerJoin(schema.jobs, eq(schema.jobs.id, schema.translationJobDetails.jobId))
+        .where(where)
+        .orderBy(desc(schema.repositorySourceFileVersions.createdAt), desc(schema.jobs.createdAt))
+        .limit(query.limit)
+        .offset(query.offset),
+      db
+        .select({ value: count() })
+        .from(schema.repositorySourceFileVersions)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(
+            schema.translationJobDetails.sourceFileVersionId,
+            schema.repositorySourceFileVersions.id,
+          ),
+        )
+        .innerJoin(schema.jobs, eq(schema.jobs.id, schema.translationJobDetails.jobId))
+        .where(where),
+    ]);
+
+    return ok({
+      jobs: jobs.map(compactPublicJob),
+      total: totalRow?.value ?? 0,
+    });
+  }
+
+  const filters: SQL[] = [accessibleJobsWhere, eq(schema.jobs.kind, "translation")];
+
+  if (query.projectId) {
+    filters.push(eq(schema.jobs.projectId, query.projectId));
+  }
+
+  if (query.status) {
+    filters.push(eq(schema.jobs.status, query.status));
+  }
+
+  const where = and(...filters);
+  const [jobs, [totalRow]] = await Promise.all([
+    db
+      .select(compactSelect)
+      .from(schema.jobs)
+      .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+      .where(where)
+      .orderBy(desc(schema.jobs.createdAt))
+      .limit(query.limit)
+      .offset(query.offset),
+    db
+      .select({ value: count() })
+      .from(schema.jobs)
+      .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+      .where(where),
+  ]);
+
+  return ok({
+    jobs: jobs.map(compactPublicJob),
+    total: totalRow?.value ?? 0,
+  });
 }
