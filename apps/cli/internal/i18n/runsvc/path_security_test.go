@@ -169,3 +169,37 @@ func TestTaskIdentityCandidatesIncludeRelativeTargetPath(t *testing.T) {
 	}
 	t.Fatalf("taskIdentityCandidates() = %v, want to include %q", identities, want)
 }
+
+func TestResolveProjectSourcePathsRejectsGlobSymlinkEscape(t *testing.T) {
+	projectDir := t.TempDir()
+	outsideDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outsideDir, "messages.json"), []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write outside source: %v", err)
+	}
+	pkgsDir := filepath.Join(projectDir, "pkgs")
+	if err := os.MkdirAll(filepath.Join(pkgsDir, "app"), 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgsDir, "app", "messages.json"), []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write inside source: %v", err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(pkgsDir, "escape")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	svc := newTestService()
+	svc.enforceProjectPaths = true
+	root, err := pathguard.CanonicalForContainment(projectDir)
+	if err != nil {
+		t.Fatalf("canonical project dir: %v", err)
+	}
+	svc.projectRoot = root
+
+	_, err = svc.resolveProjectSourcePaths(filepath.ToSlash("pkgs/*/messages.json"))
+	if err == nil {
+		t.Fatalf("expected glob symlink escape to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
+	}
+}

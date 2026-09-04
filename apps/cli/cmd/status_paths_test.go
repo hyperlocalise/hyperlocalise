@@ -258,3 +258,82 @@ func mustLoadCheckConfig(t *testing.T, configPath string) *config.I18NConfig {
 	}
 	return cfg
 }
+
+func TestResolveSourcePathsForStatusRejectsGlobSymlinkEscape(t *testing.T) {
+	projectDir := t.TempDir()
+	outsideDir := t.TempDir()
+	outsideFile := filepath.Join(outsideDir, "en-US.json")
+	if err := os.WriteFile(outsideFile, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	pkgsDir := filepath.Join(projectDir, "pkgs")
+	if err := os.MkdirAll(pkgsDir, 0o755); err != nil {
+		t.Fatalf("mkdir pkgs: %v", err)
+	}
+	insideFile := filepath.Join(pkgsDir, "app", "en-US.json")
+	if err := os.MkdirAll(filepath.Dir(insideFile), 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	if err := os.WriteFile(insideFile, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write inside file: %v", err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(pkgsDir, "escape")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	_, err := resolveSourcePathsForStatus(projectDir, "pkgs/*/en-US.json")
+	if err == nil {
+		t.Fatalf("expected glob symlink escape to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
+	}
+}
+
+func TestResolveSourcePathsForStatusAllowsSafeGlobMatches(t *testing.T) {
+	projectDir := t.TempDir()
+	first := filepath.Join(projectDir, "pkgs", "app", "en-US.json")
+	second := filepath.Join(projectDir, "pkgs", "web", "en-US.json")
+	for _, path := range []string{first, second} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %q: %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+			t.Fatalf("write %q: %v", path, err)
+		}
+	}
+
+	got, err := resolveSourcePathsForStatus(projectDir, "pkgs/*/en-US.json")
+	if err != nil {
+		t.Fatalf("resolveSourcePathsForStatus() error = %v", err)
+	}
+	want := []string{first, second}
+	if len(got) != len(want) {
+		t.Fatalf("resolveSourcePathsForStatus() = %v, want %v", got, want)
+	}
+	for i, path := range want {
+		if filepath.Clean(got[i]) != filepath.Clean(path) {
+			t.Fatalf("resolveSourcePathsForStatus()[%d] = %q, want %q", i, got[i], path)
+		}
+	}
+}
+
+func TestResolveTargetPathForStatusRejectsSymlinkEscape(t *testing.T) {
+	projectDir := t.TempDir()
+	outsideDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, "pkgs"), 0o755); err != nil {
+		t.Fatalf("mkdir pkgs: %v", err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(projectDir, "pkgs", "escape")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	sourcePath := filepath.Join(projectDir, "pkgs", "escape", "en-US.json")
+
+	_, err := resolveTargetPathForStatus(projectDir, "pkgs/*/en-US.json", "pkgs/*/fr-FR.json", sourcePath)
+	if err == nil {
+		t.Fatalf("expected target symlink escape to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
+	}
+}

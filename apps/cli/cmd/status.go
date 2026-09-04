@@ -17,6 +17,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
 )
@@ -521,44 +522,60 @@ func resolveSourcePathsForStatus(configRoot, sourcePattern string) ([]string, er
 	if err != nil {
 		return nil, err
 	}
+
+	var matches []string
 	if !strings.ContainsAny(resolvedPattern, "*?[") {
-		return []string{resolvedPattern}, nil
-	}
-	if !strings.Contains(resolvedPattern, "**") {
-		matches, err := filepath.Glob(resolvedPattern)
+		matches = []string{resolvedPattern}
+	} else if !strings.Contains(resolvedPattern, "**") {
+		matches, err = filepath.Glob(resolvedPattern)
 		if err != nil {
 			return nil, err
 		}
 		slices.Sort(matches)
-		return matches, nil
-	}
-
-	normalizedPattern := filepath.ToSlash(resolvedPattern)
-	re, err := globToRegexForStatus(normalizedPattern)
-	if err != nil {
-		return nil, err
-	}
-
-	baseDir := baseDirForDoublestarForStatus(resolvedPattern)
-	matches := make([]string, 0)
-	err = filepath.WalkDir(baseDir, func(candidate string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	} else {
+		normalizedPattern := filepath.ToSlash(resolvedPattern)
+		re, err := globToRegexForStatus(normalizedPattern)
+		if err != nil {
+			return nil, err
 		}
-		if d.IsDir() {
+
+		baseDir := baseDirForDoublestarForStatus(resolvedPattern)
+		matches = make([]string, 0)
+		err = filepath.WalkDir(baseDir, func(candidate string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if re.MatchString(filepath.ToSlash(candidate)) {
+				matches = append(matches, candidate)
+			}
 			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		if re.MatchString(filepath.ToSlash(candidate)) {
-			matches = append(matches, candidate)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		slices.Sort(matches)
 	}
 
-	slices.Sort(matches)
+	if err := ensureStatusPathsUnderConfigRoot(configRoot, matches); err != nil {
+		return nil, err
+	}
 	return matches, nil
+}
+
+func ensureStatusPathsUnderConfigRoot(configRoot string, paths []string) error {
+	root := strings.TrimSpace(configRoot)
+	if root == "" {
+		return nil
+	}
+	for _, path := range paths {
+		if err := pathguard.EnsureUnderRoot(root, path); err != nil {
+			return fmt.Errorf("resolved path %q: %w", path, err)
+		}
+	}
+	return nil
 }
 
 func resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, sourcePath string) (string, error) {
@@ -574,19 +591,31 @@ func resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, source
 	if err != nil {
 		return "", err
 	}
+
+	var targetPath string
 	if !strings.ContainsAny(resolvedSourcePattern, "*?[") {
-		return resolvedTargetPattern, nil
+		targetPath = resolvedTargetPattern
+	} else {
+		if !strings.ContainsAny(resolvedTargetPattern, "*?[") {
+			return "", fmt.Errorf("target pattern %q must include glob tokens when source pattern %q includes globs", resolvedTargetPattern, resolvedSourcePattern)
+		}
+		sourceBase := globBaseDirForStatus(resolvedSourcePattern)
+		targetBase := globBaseDirForStatus(resolvedTargetPattern)
+		relative, err := filepath.Rel(sourceBase, resolvedSourcePath)
+		if err != nil {
+			return "", err
+		}
+		parentPrefix := ".." + string(filepath.Separator)
+		if relative == ".." || strings.HasPrefix(relative, parentPrefix) {
+			return "", fmt.Errorf("source path %q escapes source base %q", resolvedSourcePath, sourceBase)
+		}
+		targetPath = filepath.Join(targetBase, relative)
 	}
-	if !strings.ContainsAny(resolvedTargetPattern, "*?[") {
-		return "", fmt.Errorf("target pattern %q must include glob tokens when source pattern %q includes globs", resolvedTargetPattern, resolvedSourcePattern)
-	}
-	sourceBase := globBaseDirForStatus(resolvedSourcePattern)
-	targetBase := globBaseDirForStatus(resolvedTargetPattern)
-	relative, err := filepath.Rel(sourceBase, resolvedSourcePath)
-	if err != nil {
+
+	if err := ensureStatusPathsUnderConfigRoot(configRoot, []string{targetPath}); err != nil {
 		return "", err
 	}
-	return filepath.Join(targetBase, relative), nil
+	return targetPath, nil
 }
 
 func baseDirForDoublestarForStatus(pattern string) string {

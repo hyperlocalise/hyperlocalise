@@ -70,15 +70,31 @@ func (s *Service) resolveProjectPattern(pattern string) string {
 }
 
 func (s *Service) resolveProjectSourcePaths(sourcePattern string) ([]string, error) {
-	return resolveSourcePaths(s.resolveProjectPattern(sourcePattern))
+	paths, err := resolveSourcePaths(s.resolveProjectPattern(sourcePattern))
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		if err := s.validateProjectPath(path); err != nil {
+			return nil, fmt.Errorf("resolved source path %q: %w", path, err)
+		}
+	}
+	return paths, nil
 }
 
 func (s *Service) resolveProjectTargetPath(sourcePattern, targetPattern, sourcePath string) (string, error) {
-	return resolveTargetPath(
+	targetPath, err := resolveTargetPath(
 		s.resolveProjectPattern(sourcePattern),
 		s.resolveProjectPattern(targetPattern),
 		s.resolveProjectPattern(sourcePath),
 	)
+	if err != nil {
+		return "", err
+	}
+	if err := s.validateProjectPath(targetPath); err != nil {
+		return "", fmt.Errorf("resolved target path %q: %w", targetPath, err)
+	}
+	return targetPath, nil
 }
 
 func relativizeProjectPath(projectRoot, path string) (string, bool) {
