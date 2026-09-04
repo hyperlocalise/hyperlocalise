@@ -29,13 +29,32 @@ export type GlossaryConcordanceContext = {
 
 const maxConcordanceSearchTerms = 50;
 
+export function isValidatedTrailingSVariant(singular: string, plural: string) {
+  const normalizedSingular = singular.toLocaleLowerCase();
+  const normalizedPlural = plural.toLocaleLowerCase();
+  return (
+    normalizedSingular.length >= 4 &&
+    /^[\p{L}]+$/u.test(normalizedSingular) &&
+    normalizedPlural === `${normalizedSingular}s`
+  );
+}
+
 export function buildGlossaryTsQuery(input: string): string | null {
-  const tsQuery = input
+  const words = input
     .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .slice(0, maxConcordanceSearchTerms)
+    .slice(0, maxConcordanceSearchTerms);
+
+  const tsQuery = words
+    .flatMap((word) => [
+      word,
+      ...(word.toLocaleLowerCase().endsWith("s") &&
+      isValidatedTrailingSVariant(word.slice(0, -1), word)
+        ? [word.slice(0, -1)]
+        : []),
+    ])
     .map((word) => `${word}:*`)
     .join(" | ");
 

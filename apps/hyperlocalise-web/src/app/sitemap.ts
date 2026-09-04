@@ -13,6 +13,7 @@
 import { MetadataRoute } from "next";
 
 import { productSlugs } from "@/components/marketing/product/product-page-content";
+import { integrationSlugs } from "@/components/marketing/integrations/integrations-page-content";
 import { useCaseSlugs } from "@/components/marketing/use-case/use-case-page-content";
 import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts, getPostBySlug, parseBlogPostDate } from "@/lib/blog/blog-post";
@@ -59,6 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/contact", changeFrequency: "monthly" as const, priority: 0.6 },
     { path: "/startups", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/localisation-audit", changeFrequency: "weekly" as const, priority: 0.85 },
+    { path: "/integrations", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
     { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
   ];
@@ -91,6 +93,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       }),
     ),
+  );
+
+  const integrationEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
+    integrationSlugs.map((slug) =>
+      localizedSitemapEntry({
+        locale,
+        path: `/integrations/${slug}`,
+        lastModified: now,
+        changeFrequency: "monthly",
+        priority: 0.75,
+      }),
+    ),
+  );
+
+  const integrationsIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) =>
+    localizedSitemapEntry({
+      locale,
+      path: "/integrations",
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    }),
   );
 
   const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) =>
@@ -160,6 +184,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     ...productEntries,
     ...useCaseEntries,
+    ...integrationsIndexEntries,
+    ...integrationEntries,
     ...blogIndexEntries,
     ...blogPostEntries,
     ...auditEntries,
