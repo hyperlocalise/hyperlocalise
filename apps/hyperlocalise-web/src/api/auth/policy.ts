@@ -72,6 +72,7 @@ const LOCALIZATION_MANAGER_CAPABILITIES = [
   "integrations:write",
   "experiments:write",
   "billing:read",
+  "activity_logs:read",
 ] as const;
 
 const ADMIN_CAPABILITIES_LIST = ["billing:write", ...LOCALIZATION_MANAGER_CAPABILITIES] as const;

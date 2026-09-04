@@ -16,6 +16,7 @@ import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import { db, type DatabaseClient } from "@/lib/database/client";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   ACCESS_TOKEN_REVOKE_REASONS,
   emitPatRevoked,
@@ -526,6 +527,23 @@ async function revokeOrganizationApiKeysForUser(
       keyPrefix: token.keyPrefix,
       reason: ACCESS_TOKEN_REVOKE_REASONS.membershipRemoved,
     });
+    await writeActivityLogEvent(
+      {
+        actorCredentialId: null,
+        actorKind: actor.type === "user" ? "user" : "system",
+        actorUserId: actor.type === "user" ? actor.id : null,
+        eventType: "personal_access_token_revoked",
+        organizationId: token.organizationId,
+        payload: {
+          keyPrefix: token.keyPrefix,
+          reason: "membership_removed",
+          tokenId: token.id,
+        },
+        targetId: token.id,
+        targetKind: "personal_access_token",
+      },
+      { database },
+    );
   }
 
   return {
@@ -574,20 +592,40 @@ async function revokeMembershipAccessForTarget(
   actor: MembershipRevocationActor,
   log?: AccessTokenAuditLogger,
 ): Promise<RevokeOrganizationMembershipAccessResult> {
-  const organizationMembershipsDeleted = await database
+  const deletedMemberships = await database
     .delete(schema.organizationMemberships)
     .where(
       and(
         eq(schema.organizationMemberships.organizationId, target.organizationId),
         eq(schema.organizationMemberships.userId, target.userId),
       ),
+    )
+    .returning({ id: schema.organizationMemberships.id });
+
+  if (actor.type === "system" && deletedMemberships[0]) {
+    await writeActivityLogEvent(
+      {
+        actorCredentialId: null,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "member_removed",
+        organizationId: target.organizationId,
+        payload: {
+          memberUserId: target.userId,
+          membershipId: deletedMemberships[0].id,
+        },
+        targetId: deletedMemberships[0].id,
+        targetKind: "membership",
+      },
+      { database },
     );
+  }
 
   const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
   const apiKeyRevocation = await revokeOrganizationApiKeysForUser(database, target, actor, log);
 
   return {
-    organizationMembershipsDeleted: Number(organizationMembershipsDeleted.rowCount ?? 0),
+    organizationMembershipsDeleted: deletedMemberships.length,
     ...dependentDeletes,
     ...apiKeyRevocation,
   };

@@ -21,6 +21,7 @@ import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
 import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
@@ -2275,6 +2276,20 @@ export function createExternalTmsProviderCredentialRoutes() {
 
         const providerCredential = credentialResult.value;
 
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_connected",
+          organizationId,
+          payload: {
+            connectionId: providerCredential.id,
+            integrationKind: payload.providerKind,
+          },
+          targetId: providerCredential.id,
+          targetKind: "integration",
+        });
+
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
@@ -2394,6 +2409,19 @@ export function createExternalTmsProviderCredentialRoutes() {
         });
 
         if (!deleted) return c.json({ error: "provider_credential_not_found" }, 404);
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "integration_disconnected",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: {
+            connectionId: providerKind.data,
+            integrationKind: providerKind.data,
+          },
+          targetId: providerKind.data,
+          targetKind: "integration",
+        });
         return c.body(null, 204);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {

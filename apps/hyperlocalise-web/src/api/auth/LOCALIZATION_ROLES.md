@@ -64,6 +64,7 @@ membership further limits which projects appear in listings.
 | `experiments:write`          | ✓     | ✓                    | ✓         |          |            |        |
 | `billing:read`               | ✓     | ✓                    |           |          |            |        |
 | `billing:write`              | ✓     |                      |           |          |            |        |
+| `activity_logs:read`         | ✓     | ✓                    |           |          |            |        |
 
 Translators and members cannot manage credentials, members, billing, or
 organization-wide settings. Developers can manage projects and technical jobs

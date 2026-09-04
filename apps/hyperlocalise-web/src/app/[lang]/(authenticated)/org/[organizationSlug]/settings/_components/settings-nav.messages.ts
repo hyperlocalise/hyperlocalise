@@ -45,6 +45,11 @@ export const settingsNavMessages = defineMessages({
     id: "UvghiG6+UF",
     description: "Settings nav item for billing",
   },
+  activityLogs: {
+    defaultMessage: "Activity logs",
+    id: "75yt3gKUlh",
+    description: "Settings nav item for workspace activity logs",
+  },
   account: {
     defaultMessage: "Account",
     id: "nFBjAAjkF0",

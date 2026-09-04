@@ -34,6 +34,7 @@ import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-forma
 import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
 import { getStoredFileContent } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
   queryNativeGlossaryLanguages,
   queryNativeGlossaryLanguagesForGlossary,
@@ -467,6 +468,16 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       c.header("X-Content-Type-Options", "nosniff");
       c.header("X-Download-Options", "noopen");
       c.header("X-Hyperlocalise-Export-Warning-Count", String(serialized.warnings.length));
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "glossary_exported",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { resourceId: glossary.id },
+        targetId: glossary.id,
+        targetKind: "glossary",
+      });
       return c.body(Buffer.from(serialized.content));
     })
     .get("/:glossaryId/import-reports/:reportId", validateGlossaryParams, async (c) => {
@@ -545,6 +556,21 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           return glossaryTeamMembershipRequiredResponse(c);
         case "created": {
           const teamNamesById = await queryGlossaryTeamNamesById([createResult.glossary]);
+          void writeActivityLogEvent({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            eventType: "glossary_created",
+            organizationId: c.var.auth.organization.localOrganizationId,
+            payload: {
+              name: createResult.glossary.name,
+              providerKind: createResult.glossary.externalProviderKind ?? undefined,
+              resourceId: createResult.glossary.id,
+              source: createResult.glossary.source,
+            },
+            targetId: createResult.glossary.id,
+            targetKind: "glossary",
+          });
           return c.json(
             {
               glossary: toGlossaryRecordWithTeamName(
@@ -698,6 +724,16 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           await product.attachProject(project.id, payload.priority);
         }
 
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "glossary_project_attached",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: { projectId: project.id, resourceId: glossary.id },
+          targetId: project.id,
+          targetKind: "project",
+        });
         return c.json({ projects: await product.listProjects() }, 200);
       },
     )
@@ -730,6 +766,17 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       } else {
         await product.detachProject(project.id);
       }
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "glossary_project_detached",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { projectId: project.id, resourceId: glossary.id },
+        targetId: project.id,
+        targetKind: "project",
+      });
 
       return c.body(null, 204);
     })
@@ -767,6 +814,20 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
           case "not_found":
             return glossaryNotFoundResponse(c);
           case "updated": {
+            void writeActivityLogEvent({
+              actorCredentialId: null,
+              actorKind: "user",
+              actorUserId: c.var.auth.user.localUserId,
+              eventType: "glossary_ownership_changed",
+              organizationId: c.var.auth.organization.localOrganizationId,
+              payload: {
+                glossaryId: result.glossary.id,
+                nextControlLevel: result.glossary.controlLevel,
+                previousControlLevel: glossary.controlLevel,
+              },
+              targetId: result.glossary.id,
+              targetKind: "glossary",
+            });
             const termCount = await queryNativeGlossaryTermCountForGlossary(result.glossary);
             const projectCount = await product.queryProjectCount();
             const teamNamesById = await queryGlossaryTeamNamesById([result.glossary]);
@@ -791,6 +852,21 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       if (!updated) {
         return glossaryNotFoundResponse(c);
       }
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "glossary_ownership_changed",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: {
+          glossaryId: updated.id,
+          nextControlLevel: updated.controlLevel,
+          previousControlLevel: glossary.controlLevel,
+        },
+        targetId: updated.id,
+        targetKind: "glossary",
+      });
 
       const termCount =
         updated.source === "native"
@@ -830,6 +906,17 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
       if (!deleted) {
         return glossaryNotFoundResponse(c);
       }
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "glossary_deleted",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { resourceId: glossary.id },
+        targetId: glossary.id,
+        targetKind: "glossary",
+      });
 
       return c.body(null, 204);
     });

@@ -66,6 +66,7 @@ const OPERATOR_CAPABILITIES: OrganizationCapability[] = [
   "integrations:write",
   "experiments:write",
   "billing:read",
+  "activity_logs:read",
 ];
 
 const ADMIN_ONLY_CAPABILITIES: OrganizationCapability[] = ["billing:write"];

@@ -35,11 +35,13 @@ describe("settings nav config", () => {
     const visible = filterVisibleSettingsNavGroups(settingsNavGroups, [
       "api_keys:read",
       "billing:read",
+      "activity_logs:read",
     ]);
 
     expect(visible.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "general",
       "billing",
+      "activity-logs",
       "account",
       "access-tokens",
       "api-keys",
@@ -49,6 +51,9 @@ describe("settings nav config", () => {
   it("resolves the active settings nav item from the pathname", () => {
     expect(resolveActiveSettingsNavItem("/org/acme/settings", "acme")).toBe("general");
     expect(resolveActiveSettingsNavItem("/en/org/acme/settings/billing", "acme")).toBe("billing");
+    expect(resolveActiveSettingsNavItem("/org/acme/settings/activity-logs", "acme")).toBe(
+      "activity-logs",
+    );
     expect(resolveActiveSettingsNavItem("/org/acme/settings/account", "acme")).toBe("account");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/personal-access-tokens", "acme")).toBe(
       "access-tokens",

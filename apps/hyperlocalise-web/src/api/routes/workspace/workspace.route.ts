@@ -25,6 +25,7 @@ import {
   internalErrorResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
 import { activeOrganizationCookieName } from "@/lib/workos/active-organization";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
@@ -220,6 +221,22 @@ export function createWorkspaceRoutes() {
       }
 
       storeActiveOrganizationSlug(c, updatedOrganization.slug);
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "workspace_updated",
+        organizationId,
+        payload: {
+          changedFields: [...(payload.name ? ["name"] : []), ...(payload.slug ? ["slug"] : [])],
+          ...(payload.name
+            ? { nextName: updatedOrganization.name, previousName: existingOrganization.name }
+            : {}),
+        },
+        targetId: organizationId,
+        targetKind: "organization",
+      });
 
       return c.json(
         {

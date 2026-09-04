@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. This document defines the contract for HL-695. Follow-up issues implement storage, the
-writer, permissions, API access, and event instrumentation.
+Accepted. This document defines the workspace activity-log contract. Follow-up implementation work
+covers storage, the writer, permissions, API access, and event instrumentation.
 
 ## Context
 
@@ -20,7 +20,7 @@ or glossary-term history.
 The shared contract lives in
 `apps/hyperlocalise-web/src/lib/activity-log/activity-log-contract.ts`. It contains the v1 event
 catalog, typed payload mappings, actor and target kinds, the writer input shape, the persisted record
-shape, and the safe-payload guard. It remains independent of Drizzle so the storage ticket can map
+shape, and the safe-payload guard. It remains independent of Drizzle so the storage layer can map
 these types to columns without creating a schema-layer dependency on application code.
 
 ### Event catalog
@@ -97,7 +97,8 @@ server-side by the API follow-up.
 ### Permission, retention, and failure
 
 `activity_logs:read` is granted only to `admin` and `localization_manager`. Permission enforcement
-belongs in the list API and Settings page tickets; this contract does not change the role matrix.
+belongs in the list API and Settings page implementation; this contract does not change the role
+matrix.
 
 V1 keeps events indefinitely. Export and external retention controls are later work.
 
@@ -107,12 +108,12 @@ status. It never logs the payload, request body, secret, hash, token, email, or 
 
 ## Follow-up boundaries
 
-- HL-696 maps this contract to append-only storage and the single writer.
-- HL-697 adds `activity_logs:read` and the organization-scoped list API.
-- HL-698 instruments membership and workspace-admin mutations.
-- HL-699 instruments credential and integration lifecycle mutations.
-- HL-700 instruments project, glossary, and translation-memory lifecycle mutations.
-- HL-701 defines and instruments the later job and automation catalog.
+- Map this contract to append-only storage and the single writer.
+- Add `activity_logs:read` and the organization-scoped list API.
+- Instrument membership and workspace-admin mutations.
+- Instrument credential and integration lifecycle mutations.
+- Instrument project, glossary, and translation-memory lifecycle mutations.
+- Define and instrument the later job and automation catalog.
 
 ## Testing
 

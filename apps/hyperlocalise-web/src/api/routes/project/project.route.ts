@@ -39,6 +39,7 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
@@ -1130,6 +1131,21 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         const project = limitResult.value;
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "project_created",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: {
+            name: project.name,
+            providerKind: project.externalProviderKind ?? undefined,
+            resourceId: project.id,
+            source: project.source,
+          },
+          targetId: project.id,
+          targetKind: "project",
+        });
         return c.json({ project: { ...project, openJobCount: 0 } }, 201);
       } catch (error) {
         if (error instanceof Error && error.message === "invalid_project_team") {
@@ -3857,6 +3873,20 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "project_settings_changed",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: {
+          changedFields: Object.keys(payload),
+          projectId: project.id,
+        },
+        targetId: project.id,
+        targetKind: "project",
+      });
+
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ project: { ...project, openJobCount } }, 200);
     })
@@ -3875,6 +3905,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       if (deleteResult === "not_found") {
         return projectNotFoundResponse(c);
       }
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "project_deleted",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { resourceId: params.projectId },
+        targetId: params.projectId,
+        targetKind: "project",
+      });
 
       return c.body(null, 204);
     });

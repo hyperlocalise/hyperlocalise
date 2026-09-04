@@ -17,6 +17,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { apiErrorResponse, internalErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   ACCESS_TOKEN_REVOKE_REASONS,
@@ -171,6 +172,21 @@ export function createApiKeyRoutes() {
         );
       }
 
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "personal_access_token_created",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: {
+          keyPrefix: apiKey.keyPrefix,
+          permissions: apiKey.permissions,
+          tokenId: apiKey.id,
+        },
+        targetId: apiKey.id,
+        targetKind: "personal_access_token",
+      });
+
       return c.json(
         {
           apiKey: {
@@ -228,6 +244,21 @@ export function createApiKeyRoutes() {
           tokenId: existing.id,
           keyPrefix: existing.keyPrefix,
           reason: ACCESS_TOKEN_REVOKE_REASONS.manual,
+        });
+
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "personal_access_token_revoked",
+          organizationId: existing.organizationId,
+          payload: {
+            keyPrefix: existing.keyPrefix,
+            reason: "manual",
+            tokenId: existing.id,
+          },
+          targetId: existing.id,
+          targetKind: "personal_access_token",
         });
       }
 

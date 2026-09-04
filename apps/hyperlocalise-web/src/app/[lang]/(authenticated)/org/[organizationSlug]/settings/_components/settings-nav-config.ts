@@ -17,6 +17,7 @@ import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 export const settingsNavItemIds = [
   "general",
   "billing",
+  "activity-logs",
   "account",
   "access-tokens",
   "api-keys",
@@ -45,6 +46,11 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
     items: [
       { id: "general", href: "" },
       { id: "billing", href: "billing", requiredCapability: "billing:read" },
+      {
+        id: "activity-logs",
+        href: "activity-logs",
+        requiredCapability: "activity_logs:read",
+      },
     ],
   },
   {
@@ -97,6 +103,10 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath.startsWith(`${settingsRoot}/billing`)) {
     return "billing";
+  }
+
+  if (normalizedPath.startsWith(`${settingsRoot}/activity-logs`)) {
+    return "activity-logs";
   }
 
   if (normalizedPath.startsWith(`${settingsRoot}/account`)) {

@@ -40,6 +40,7 @@ const groupMessages = {
 const itemMessages = {
   general: messages.general,
   billing: messages.billing,
+  "activity-logs": messages.activityLogs,
   account: messages.account,
   "access-tokens": messages.accessTokens,
   "api-keys": messages.apiKeys,

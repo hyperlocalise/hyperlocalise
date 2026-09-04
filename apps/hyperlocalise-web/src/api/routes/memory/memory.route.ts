@@ -30,6 +30,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
+import { writeActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { applyMemoryImport, parseMemoryImportContent } from "@/lib/memory/import-memory-entries";
 import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
@@ -426,6 +427,21 @@ export function createMemoryRoutes() {
 
       const payload = c.req.valid("json");
       const memory = await memoryStore.create(c.var.auth, payload);
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "translation_memory_created",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: {
+          name: memory.name,
+          providerKind: memory.externalProviderKind ?? undefined,
+          resourceId: memory.id,
+          source: memory.source,
+        },
+        targetId: memory.id,
+        targetKind: "translation_memory",
+      });
       return c.json({ memory: toMemoryRecord(memory) }, 201);
     })
     .get("/:memoryId", validateMemoryParams, async (c) => {
@@ -482,6 +498,17 @@ export function createMemoryRoutes() {
             sourceLocale: query.sourceLocale,
             targetLocale: query.targetLocale,
           },
+        });
+
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "translation_memory_exported",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: { resourceId: memory.id },
+          targetId: memory.id,
+          targetKind: "translation_memory",
         });
 
         return c.body(exported.body, 200, {
@@ -561,6 +588,23 @@ export function createMemoryRoutes() {
           createdByUserId: c.var.auth.user.localUserId,
           importBatchId,
         });
+
+        if (!dryRun) {
+          void writeActivityLogEvent({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            eventType: "translation_memory_imported",
+            organizationId: c.var.auth.organization.localOrganizationId,
+            payload: {
+              batchId: applied.importBatchId ?? undefined,
+              itemCount: applied.report.created + applied.report.variantCreated,
+              resourceId: memory.id,
+            },
+            targetId: memory.id,
+            targetKind: "translation_memory",
+          });
+        }
 
         return c.json(
           {
@@ -799,6 +843,17 @@ export function createMemoryRoutes() {
             set: { priority: payload.priority },
           });
 
+        void writeActivityLogEvent({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          eventType: "translation_memory_project_attached",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          payload: { projectId: project.id, resourceId: memory.id },
+          targetId: project.id,
+          targetKind: "project",
+        });
+
         return c.json({ projects: await listMemoryProjects(c.var.auth, params.memoryId) }, 200);
       },
     )
@@ -829,6 +884,17 @@ export function createMemoryRoutes() {
             eq(schema.projectMemories.memoryId, memory.id),
           ),
         );
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "translation_memory_project_detached",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { projectId: project.id, resourceId: memory.id },
+        targetId: project.id,
+        targetKind: "project",
+      });
 
       return c.body(null, 204);
     })
@@ -878,6 +944,17 @@ export function createMemoryRoutes() {
       if (!deleted) {
         return memoryNotFoundResponse(c);
       }
+
+      void writeActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "translation_memory_deleted",
+        organizationId: c.var.auth.organization.localOrganizationId,
+        payload: { resourceId: params.memoryId },
+        targetId: params.memoryId,
+        targetKind: "translation_memory",
+      });
 
       return c.body(null, 204);
     });
