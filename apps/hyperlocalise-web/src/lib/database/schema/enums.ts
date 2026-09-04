@@ -394,3 +394,11 @@ export const experimentStatusEnum = pgEnum("experiment_status", ["draft", "activ
  * Distinguishes a single-variant toggle from a multi-variant A/B experiment.
  */
 export const experimentKindEnum = pgEnum("experiment_kind", ["toggle", "ab"]);
+/**
+ * Output format for an OTA distribution. V1 ships JSON (web), Android XML, and iOS Strings.
+ */
+export const otaDistributionFormatEnum = pgEnum("ota_distribution_format", [
+  "json",
+  "android_xml",
+  "ios_strings",
+]);
