@@ -14,7 +14,17 @@
  */
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
-import { Cancel01Icon, FilterIcon } from "@hugeicons/core-free-icons";
+import {
+  BookOpenTextIcon,
+  Building06Icon,
+  Cancel01Icon,
+  DatabaseIcon,
+  FilterIcon,
+  FolderLibraryIcon,
+  Key01Icon,
+  PuzzleIcon,
+  UserGroup02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -45,24 +55,29 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 
 type EventTypeGroup = {
   eventTypes: readonly V1ActivityEventType[];
+  icon: typeof UserGroup02Icon;
   label: MessageDescriptor;
 };
 
 const eventTypeGroups: readonly EventTypeGroup[] = [
   {
+    icon: UserGroup02Icon,
     label: messages.membershipEventGroup,
     eventTypes: ["member_invited", "member_invite_resent", "member_role_changed", "member_removed"],
   },
-  { label: messages.workspaceEventGroup, eventTypes: ["workspace_updated"] },
+  { icon: Building06Icon, label: messages.workspaceEventGroup, eventTypes: ["workspace_updated"] },
   {
+    icon: Key01Icon,
     label: messages.accessEventGroup,
     eventTypes: ["personal_access_token_created", "personal_access_token_revoked"],
   },
   {
+    icon: PuzzleIcon,
     label: messages.integrationEventGroup,
     eventTypes: ["integration_connected", "integration_disconnected"],
   },
   {
+    icon: FolderLibraryIcon,
     label: messages.projectEventGroup,
     eventTypes: [
       "project_created",
@@ -72,6 +87,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     ],
   },
   {
+    icon: BookOpenTextIcon,
     label: messages.glossaryEventGroup,
     eventTypes: [
       "glossary_created",
@@ -84,6 +100,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     ],
   },
   {
+    icon: DatabaseIcon,
     label: messages.translationMemoryEventGroup,
     eventTypes: [
       "translation_memory_created",
@@ -189,7 +206,19 @@ export function ActivityLogEventTypeFilter({
                 <FormattedMessage {...messages.noMatchingEventTypes} />
               </CommandEmpty>
               {eventTypeGroups.map((group) => (
-                <CommandGroup key={group.label.id} heading={intl.formatMessage(group.label)}>
+                <CommandGroup
+                  key={group.label.id}
+                  heading={
+                    <span className="flex items-center gap-2">
+                      <HugeiconsIcon
+                        icon={group.icon}
+                        strokeWidth={1.8}
+                        className="size-3.5 text-muted-foreground"
+                      />
+                      <span>{intl.formatMessage(group.label)}</span>
+                    </span>
+                  }
+                >
                   {group.eventTypes.map((eventType) => {
                     const label = eventTypeLabel(eventType);
                     const isSelected = selected.has(eventType);
