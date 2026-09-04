@@ -17,12 +17,14 @@ import {
   siGitlab,
   siGoogledrive,
   siHubspot,
+  siIntercom,
   siJira,
   siLinear,
   siLoops,
   siMailchimp,
   siNotion,
   siResend,
+  siSemrush,
 } from "simple-icons";
 
 import type { IntegrationIconKey } from "@/lib/integrations/integration-catalog.types";
@@ -43,6 +45,7 @@ export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
 const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   crowdin: siCrowdin,
   gitlab: siGitlab,
+  intercom: siIntercom,
   jira: siJira,
   linear: siLinear,
   notion: siNotion,
@@ -50,6 +53,7 @@ const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   hubspot: siHubspot,
   mailchimp: siMailchimp,
   loops: siLoops,
+  semrush: siSemrush,
   "google-drive": siGoogledrive,
 };
 
