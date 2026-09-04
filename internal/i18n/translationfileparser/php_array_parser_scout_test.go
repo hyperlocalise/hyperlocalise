@@ -89,11 +89,6 @@ func TestPHPArrayParser_SyntaxErrors(t *testing.T) {
 			wantErr: "invalid unicode escape",
 		},
 		{
-			name:    "octal escape out of byte range",
-			input:   `<?php return [ 'key' => "\400" ];`,
-			wantErr: "invalid octal escape",
-		},
-		{
 			name:    "unterminated string literal",
 			input:   `<?php return [ 'key' => 'value ];`,
 			wantErr: "unterminated string literal",

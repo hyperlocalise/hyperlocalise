@@ -485,17 +485,17 @@ func isPHPHex(ch byte) bool {
 
 func readPHPOctalEscape(text string, start int) (byte, int, error) {
 	end := start
+	// Accumulate in a byte so three-digit octal values wrap as PHP does
+	// (\400 → NUL, \777 → 0xff) without converting a wider integer type.
+	var v byte
 	for end < len(text) && end-start < 3 && isPHPOctalDigit(text[end]) {
+		v = v*8 + (text[end] - '0')
 		end++
 	}
 	if end == start {
 		return 0, 0, fmt.Errorf("missing octal digits")
 	}
-	v, err := strconv.ParseUint(text[start:end], 8, 8)
-	if err != nil || v > 0xff {
-		return 0, 0, fmt.Errorf("octal escape out of byte range")
-	}
-	return byte(v), end - start, nil
+	return v, end - start, nil
 }
 
 func isPHPOctalDigit(ch byte) bool {
