@@ -79,6 +79,14 @@ export function buildProjectPath(organizationSlug: string, projectId: string, se
   return section ? `${base}/${section}` : base;
 }
 
+export function buildTeamPath(organizationSlug: string, teamId: string) {
+  return `/org/${organizationSlug}/teams/${encodeURIComponent(teamId)}`;
+}
+
+export function buildDomainPath(organizationSlug: string, linkedDomainId: string) {
+  return `/org/${organizationSlug}/domains/${encodeURIComponent(linkedDomainId)}`;
+}
+
 export function buildAutomationsPath(
   organizationSlug: string,
   options?: {
@@ -455,6 +463,34 @@ export function parseProjectRoute(pathname: string | null) {
     organizationSlug,
     projectId: decodePathSegment(projectIdSegment),
     section,
+  };
+}
+
+export function parseTeamRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const match = stripAppLocalePrefix(pathname).match(/^\/org\/([^/]+)\/teams\/([^/]+)$/);
+  if (!match) return null;
+
+  const [, organizationSlug, teamIdSegment] = match;
+
+  return {
+    organizationSlug,
+    teamId: decodePathSegment(teamIdSegment),
+  };
+}
+
+export function parseDomainRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const match = stripAppLocalePrefix(pathname).match(/^\/org\/([^/]+)\/domains\/([^/]+)$/);
+  if (!match) return null;
+
+  const [, organizationSlug, linkedDomainIdSegment] = match;
+
+  return {
+    organizationSlug,
+    linkedDomainId: decodePathSegment(linkedDomainIdSegment),
   };
 }
 

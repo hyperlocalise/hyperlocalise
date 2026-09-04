@@ -30,10 +30,14 @@ import {
   buildOrganizationPath,
   buildProjectNavigationItems,
   buildProjectPath,
+  buildTeamPath,
+  buildDomainPath,
   isInboxNewRequestPath,
   isNavigationItemActive,
   isOrganizationSettingsPath,
+  parseDomainRoute,
   parseProjectRoute,
+  parseTeamRoute,
   stripAppLocalePrefix,
 } from "./navigation-config";
 
@@ -289,6 +293,56 @@ describe("parseProjectRoute", () => {
       projectId: "proj_1",
       section: "jobs",
     });
+  });
+});
+
+describe("parseTeamRoute", () => {
+  it("returns null for empty and non-team routes", () => {
+    expect(parseTeamRoute(null)).toBeNull();
+    expect(parseTeamRoute("/org/acme/teams")).toBeNull();
+    expect(parseTeamRoute("/org/acme/projects/proj_1")).toBeNull();
+  });
+
+  it("parses team detail routes", () => {
+    expect(parseTeamRoute("/org/acme/teams/team_1")).toEqual({
+      organizationSlug: "acme",
+      teamId: "team_1",
+    });
+    expect(parseTeamRoute("/en/org/acme/teams/team_1")).toEqual({
+      organizationSlug: "acme",
+      teamId: "team_1",
+    });
+  });
+});
+
+describe("parseDomainRoute", () => {
+  it("returns null for empty and non-domain routes", () => {
+    expect(parseDomainRoute(null)).toBeNull();
+    expect(parseDomainRoute("/org/acme/domains")).toBeNull();
+    expect(parseDomainRoute("/org/acme/projects/proj_1")).toBeNull();
+  });
+
+  it("parses domain detail routes", () => {
+    expect(parseDomainRoute("/org/acme/domains/ld_1")).toEqual({
+      organizationSlug: "acme",
+      linkedDomainId: "ld_1",
+    });
+    expect(parseDomainRoute("/en/org/acme/domains/ld_1")).toEqual({
+      organizationSlug: "acme",
+      linkedDomainId: "ld_1",
+    });
+  });
+});
+
+describe("buildTeamPath", () => {
+  it("encodes team ids in the path", () => {
+    expect(buildTeamPath("acme", "team_1")).toBe("/org/acme/teams/team_1");
+  });
+});
+
+describe("buildDomainPath", () => {
+  it("encodes linked domain ids in the path", () => {
+    expect(buildDomainPath("acme", "ld_1")).toBe("/org/acme/domains/ld_1");
   });
 });
 

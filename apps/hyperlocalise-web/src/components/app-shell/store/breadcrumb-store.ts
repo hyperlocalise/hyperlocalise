@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { makeAutoObservable } from "mobx";
+import type { ReactNode } from "react";
 
 import type { AppShellBreadcrumb } from "@/components/app-shell/app-shell-title";
 
@@ -20,6 +21,8 @@ export type BreadcrumbOverride = {
   matchSegment?: string;
   label: string;
   href?: string;
+  isLoading?: boolean;
+  render?: () => ReactNode;
 };
 
 export type BreadcrumbAppend = {
@@ -27,6 +30,8 @@ export type BreadcrumbAppend = {
   label: string;
   href?: string;
   title?: string;
+  isLoading?: boolean;
+  render?: () => ReactNode;
 };
 
 export class BreadcrumbStore {
@@ -65,6 +70,8 @@ export class BreadcrumbStore {
           return {
             label: override.label,
             href: override.href ?? crumb.href,
+            isLoading: override.isLoading,
+            render: override.render ?? crumb.render,
           };
         }
 
@@ -75,6 +82,8 @@ export class BreadcrumbStore {
             return {
               label: override.label,
               href: override.href ?? crumb.href,
+              isLoading: override.isLoading,
+              render: override.render ?? crumb.render,
             };
           }
         }
@@ -87,6 +96,8 @@ export class BreadcrumbStore {
       label: append.label,
       href: append.href,
       title: append.title,
+      isLoading: append.isLoading,
+      render: append.render,
     }));
 
     return [...overridden, ...appended];
