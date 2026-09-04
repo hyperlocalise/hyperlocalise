@@ -15,7 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createDefaultConfig } from "../catalog/node-catalog";
 import { createVisualWorkflowExecutionContext } from "./context";
 import { evaluateVisualWorkflowCondition, resolveVisualWorkflowTemplate } from "./expressions";
-import { runVisualWorkflowInterpreter } from "./interpreter";
+import { runVisualWorkflowInterpreter } from "./interpreter-server";
 import type { VisualWorkflowDefinition } from "../schema/types";
 
 describe("visual workflow expressions", () => {

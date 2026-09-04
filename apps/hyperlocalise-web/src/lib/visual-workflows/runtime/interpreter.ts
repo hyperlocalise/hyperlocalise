@@ -17,7 +17,6 @@ import {
   setNodeOutput,
   type VisualWorkflowExecutionContext,
 } from "./context";
-import { executeVisualWorkflowNode } from "./execute-node";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import {
   buildVisualWorkflowGraphIndex,
@@ -364,15 +363,17 @@ async function executeForEachLoop(
   };
 }
 
+export type VisualWorkflowInterpreterExecuteNode = (args: {
+  node: CanonicalVisualWorkflowNode;
+  context: VisualWorkflowExecutionContext;
+  organizationId: string;
+}) => Promise<VisualWorkflowNodeExecutionResult>;
+
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
   triggerInput?: Record<string, unknown>;
-  executeNode?: (args: {
-    node: CanonicalVisualWorkflowNode;
-    context: VisualWorkflowExecutionContext;
-    organizationId: string;
-  }) => Promise<VisualWorkflowNodeExecutionResult>;
+  executeNode: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
 }): Promise<VisualWorkflowInterpreterResult> {
   const graph = buildVisualWorkflowGraphIndex(input.definition);
@@ -392,7 +393,7 @@ export async function runVisualWorkflowInterpreter(input: {
   const skipped = new Set<string>();
   const pendingIncoming = new Map(graph.incomingCountByNodeId);
   const queue = [graph.triggerNodeId];
-  const executeNodeFn = input.executeNode ?? executeVisualWorkflowNode;
+  const executeNodeFn = input.executeNode;
 
   const runNode = async (nodeId: string): Promise<RunNodeResult> => {
     const node = graph.nodesById.get(nodeId);
