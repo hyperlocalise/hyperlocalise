@@ -6,12 +6,20 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"golang.org/x/text/language"
 )
+
+type parsedLocaleCacheEntry struct {
+	script string
+	valid  bool
+}
+
+var parsedLocaleCache sync.Map
 
 const (
 	HardFailEmptyOutput      = "empty_output"
@@ -286,13 +294,30 @@ func localeValidityScore(targetLocale, translated string) float64 {
 	if trimmedLocale == "" {
 		return 1
 	}
-	tag, err := language.Parse(trimmedLocale)
-	if err != nil {
+
+	var entry parsedLocaleCacheEntry
+	if cached, ok := parsedLocaleCache.Load(trimmedLocale); ok {
+		entry = cached.(parsedLocaleCacheEntry)
+	} else {
+		tag, err := language.Parse(trimmedLocale)
+		if err != nil {
+			entry = parsedLocaleCacheEntry{valid: false}
+		} else {
+			script, _ := tag.Script()
+			if !script.IsPrivateUse() && script.String() != "Zzzz" {
+				entry = parsedLocaleCacheEntry{script: script.String(), valid: true}
+			} else {
+				entry = parsedLocaleCacheEntry{valid: true}
+			}
+		}
+		parsedLocaleCache.Store(trimmedLocale, entry)
+	}
+
+	if !entry.valid {
 		return 0
 	}
-	script, _ := tag.Script()
-	if !script.IsPrivateUse() && script.String() != "Zzzz" {
-		if !containsScriptRune(translated, script.String()) {
+	if entry.script != "" {
+		if !containsScriptRune(translated, entry.script) {
 			if hasLetter(translated) {
 				return 0
 			}
