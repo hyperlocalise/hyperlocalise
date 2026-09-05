@@ -53,6 +53,12 @@ describe("integration-workflow-graph", () => {
     expect(inferWorkflowStepCatalogType("New strings submitted", 0, "slack")).toBe(
       "trigger.manual",
     );
+    expect(inferWorkflowStepCatalogType("Review posted to #localization", 1, "hyperlocalise")).toBe(
+      "action.notify_slack",
+    );
+    expect(inferWorkflowStepCatalogType("Alert sent to #launch", 1, "hyperlocalise")).toBe(
+      "action.notify_slack",
+    );
   });
 
   it("builds linear workflow edges", () => {

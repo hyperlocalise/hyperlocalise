@@ -82,7 +82,7 @@ export function inferWorkflowStepCatalogType(
     return "trigger.manual";
   }
 
-  if (actorSlug === "slack" || /\b(slack|notified|alert posted|#\w+)\b/.test(text)) {
+  if (actorSlug === "slack" || /slack|notified|alert posted|#\w+/i.test(text)) {
     return "action.notify_slack";
   }
 
