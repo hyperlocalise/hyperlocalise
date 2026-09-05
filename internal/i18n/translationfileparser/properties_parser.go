@@ -402,9 +402,10 @@ func countPropertiesLines(s string) int {
 	}
 	lines := 0
 	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
+		switch s[i] {
+		case '\n':
 			lines++
-		} else if s[i] == '\r' {
+		case '\r':
 			if i+1 < len(s) && s[i+1] == '\n' {
 				i++
 			}
