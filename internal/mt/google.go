@@ -18,7 +18,7 @@ const (
 	googleTranslateV2Path         = "/language/translate/v2"
 )
 
-// GoogleClient translates text using Cloud Translation v2 with API-key auth.
+// GoogleClient translates text using Cloud Translation v2.
 type GoogleClient struct {
 	apiKey     string
 	baseURL    string
@@ -27,8 +27,7 @@ type GoogleClient struct {
 
 var _ Engine = (*GoogleClient)(nil)
 
-// NewGoogleClient builds a GoogleClient from cfg. cfg.APIKey is required;
-// cfg.BaseURL and cfg.HTTPClient are optional overrides used by tests.
+// NewGoogleClient creates a Cloud Translation v2 client.
 func NewGoogleClient(cfg Config) (*GoogleClient, error) {
 	if strings.TrimSpace(cfg.APIKey) == "" {
 		return nil, &Error{Code: ErrorCodeValidation, Message: "API key is required"}
@@ -87,7 +86,6 @@ func (c *GoogleClient) Translate(ctx context.Context, req Request) (Response, er
 		return Response{}, err
 	}
 
-	// Cloud Translation v2 preserves q-array order 1:1 in the response.
 	translations := make([]string, len(out.Data.Translations))
 	for i, t := range out.Data.Translations {
 		translations[i] = t.TranslatedText
@@ -153,10 +151,8 @@ func (c *GoogleClient) request(ctx context.Context, method, requestURL string, b
 	return nil
 }
 
-// googleHTTPError maps a non-2xx response to a typed Error. Cloud Translation v2
-// does not distinguish an unsupported language from other invalid-request causes:
-// both return a generic 400 with reason "invalid", so non-keyInvalid 400s map to
-// ErrorCodeUpstream rather than ErrorCodeUnsupportedLanguagePair.
+// Google v2 does not distinguish unsupported languages from other invalid
+// requests, so generic 400 responses map to ErrorCodeUpstream.
 func googleHTTPError(statusCode int, path string, body []byte) *Error {
 	var parsed googleErrorResponse
 	_ = json.Unmarshal(body, &parsed)
@@ -209,11 +205,8 @@ func truncateGoogleErrorBody(body []byte, max int) string {
 	return trimmed[:max] + "..."
 }
 
-// googleLanguageCode maps a validated BCP 47 locale to a Cloud Translation v2
-// language code. Chinese is keyed off the resolved script rather than the raw
-// tag string: language.Parse infers script "Hans"/"Hant" even for tags that
-// don't spell it out (zh, zh-CN, zh-HK, zh-TW, zh-Hans-CN, ...), so matching on
-// tag.String() would miss regional variants like "zh-Hant-HK".
+// googleLanguageCode maps BCP 47 locales to Google v2 language codes.
+// Chinese uses the resolved script so regional variants map correctly.
 func googleLanguageCode(locale string) string {
 	tag, err := language.Parse(locale)
 	if err != nil {
