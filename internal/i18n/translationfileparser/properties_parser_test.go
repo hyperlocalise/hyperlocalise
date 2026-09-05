@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestJavaPropertiesParserParsesEscapesCommentsAndContinuations(t *testing.T) {
@@ -179,4 +180,130 @@ func TestJavaPropertiesParserLineNumbersWithCarriageReturn(t *testing.T) {
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("unexpected error message: %v\nwant: %s", err, want)
 	}
+}
+
+func TestPropertiesEntryCapHintUsesPlausibleEntriesNotPhysicalLines(t *testing.T) {
+	tests := []struct {
+		name    string
+		text    string
+		wantMin int
+		wantMax int
+	}{
+		{
+			name:    "empty",
+			text:    "",
+			wantMin: 0,
+			wantMax: 0,
+		},
+		{
+			name:    "blank heavy",
+			text:    strings.Repeat("\n", 100000),
+			wantMin: 0,
+			wantMax: 16,
+		},
+		{
+			name:    "comment heavy with trailing property",
+			text:    strings.Repeat("# comment line\n", 50000) + "only.key=value\n",
+			wantMin: 0,
+			wantMax: 16,
+		},
+		{
+			name:    "dense properties",
+			text:    strings.Repeat("key=value\n", 100),
+			wantMin: 100,
+			wantMax: 100,
+		},
+		{
+			name:    "mixed header comments",
+			text:    "# header\n\n! note\nfoo=bar\n# c\nbaz=qux\n",
+			wantMin: 2,
+			wantMax: 2,
+		},
+		{
+			name:    "large dense file is capped",
+			text:    strings.Repeat("k=v\n", 100000),
+			wantMin: propertiesEntryCapHintMax,
+			wantMax: propertiesEntryCapHintMax,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := propertiesEntryCapHint(tt.text)
+			if got < tt.wantMin || got > tt.wantMax {
+				t.Fatalf("propertiesEntryCapHint() = %d, want in [%d, %d]", got, tt.wantMin, tt.wantMax)
+			}
+		})
+	}
+}
+
+func TestDecodeJavaPropertiesEscapesDetachesUnescapedString(t *testing.T) {
+	source := strings.Repeat("x", 4096) + "plain" + strings.Repeat("y", 4096)
+	raw := source[4096 : 4096+len("plain")]
+
+	got, err := decodeJavaPropertiesEscapes(raw)
+	if err != nil {
+		t.Fatalf("decodeJavaPropertiesEscapes: %v", err)
+	}
+	if got != "plain" {
+		t.Fatalf("decodeJavaPropertiesEscapes() = %q, want %q", got, "plain")
+	}
+	if stringSharesBacking(got, source) {
+		t.Fatal("unescaped decode result still shares the source backing array")
+	}
+}
+
+func TestParseJavaPropertiesDetachesKeysAndValuesFromDocument(t *testing.T) {
+	content := []byte(strings.Repeat("# bulky comment that should not stay alive\n", 200) + "greeting=hello\npath=C:\\\\temp\nempty=\n")
+
+	doc, err := parseJavaPropertiesDocument(content)
+	if err != nil {
+		t.Fatalf("parseJavaPropertiesDocument: %v", err)
+	}
+	if len(doc.entries) != 3 {
+		t.Fatalf("got %d entries, want 3", len(doc.entries))
+	}
+
+	for _, entry := range doc.entries {
+		if stringSharesBacking(entry.key, doc.template) {
+			t.Errorf("key %q shares document backing", entry.key)
+		}
+		if stringSharesBacking(entry.sourceValue, doc.template) {
+			t.Errorf("value %q for key %q shares document backing", entry.sourceValue, entry.key)
+		}
+	}
+
+	values, err := (JavaPropertiesParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	assertPropertyValue(t, values, "greeting", "hello")
+	assertPropertyValue(t, values, "path", `C:\temp`)
+	assertPropertyValue(t, values, "empty", "")
+}
+
+func TestJavaPropertiesParserReadsCommentHeavyFile(t *testing.T) {
+	content := []byte(strings.Repeat("# ignored comment\n\n", 1000) + "only.key = only value\n")
+
+	values, err := (JavaPropertiesParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(values) != 1 {
+		t.Fatalf("got %d entries, want 1", len(values))
+	}
+	assertPropertyValue(t, values, "only.key", "only value")
+}
+
+func stringSharesBacking(value, src string) bool {
+	if len(value) == 0 || len(src) == 0 {
+		return false
+	}
+
+	valueStart := uintptr(unsafe.Pointer(unsafe.StringData(value)))
+	srcStart := uintptr(unsafe.Pointer(unsafe.StringData(src)))
+	srcEnd := srcStart + uintptr(len(src))
+	valueEnd := valueStart + uintptr(len(value))
+
+	return valueStart < srcEnd && srcStart < valueEnd
 }
