@@ -29,8 +29,12 @@ describe("root layout cacheComponents boundary", () => {
       path.join(import.meta.dirname, "root-layout-providers.tsx"),
       "utf8",
     );
+    const fallbackFn = source.match(
+      /function RootLayoutProvidersFallback\(\) \{[\s\S]*?\n\}/,
+    )?.[0];
 
-    expect(source).toMatch(/fallback=\{<RootLayoutProvidersFallback/);
-    expect(source).not.toMatch(/fallback=\{[\s\S]*\{children\}/);
+    expect(source).toContain("<Suspense fallback={<RootLayoutProvidersFallback />}>");
+    expect(fallbackFn).toBeDefined();
+    expect(fallbackFn).not.toContain("{children}");
   });
 });
