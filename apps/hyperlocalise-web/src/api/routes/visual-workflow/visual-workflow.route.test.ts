@@ -217,6 +217,91 @@ describe("visual workflow routes", () => {
     });
   });
 
+  it("rejects updates that would resurrect an archived visual workflow", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const scheduledDefinition = {
+      schemaVersion: 1 as const,
+      name: "Delete then revive",
+      nodes: [
+        {
+          id: "t1",
+          type: "trigger.scheduled" as const,
+          config: {
+            kind: "trigger.scheduled" as const,
+            schedule: { cadence: "daily" as const, hourUtc: 9, timezone: "UTC" },
+          },
+        },
+      ],
+      edges: [] as [],
+      editor: { positions: { t1: { x: 0, y: 0 } } },
+    };
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Delete then revive",
+          status: "active",
+          definition: scheduledDefinition,
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as {
+      visualWorkflow: { id: string; status: string; triggerFingerprint: string | null };
+    };
+    expect(created.visualWorkflow.status).toBe("active");
+    expect(created.visualWorkflow.triggerFingerprint).toBeTruthy();
+
+    const deletedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+      },
+      { headers },
+    );
+    expect(deletedResponse.status).toBe(204);
+
+    const resurrectResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: {
+          status: "active",
+          name: "Still gone",
+          definition: { ...scheduledDefinition, name: "Still gone" },
+        },
+      },
+      { headers },
+    );
+    expect(resurrectResponse.status).toBe(404);
+    await expect(resurrectResponse.json()).resolves.toMatchObject({
+      error: "visual_workflow_not_found",
+    });
+
+    const [row] = await db
+      .select()
+      .from(schema.visualWorkflows)
+      .where(eq(schema.visualWorkflows.id, created.visualWorkflow.id))
+      .limit(1);
+    expect(row?.organizationId).toBe(organizationId);
+    expect(row?.status).toBe("archived");
+    expect(row?.triggerFingerprint).toBeNull();
+    expect(row?.nextRunAt).toBeNull();
+  });
+
   it("returns forbidden when the visual workflows feature flag is disabled", async () => {
     workspaceVisualWorkflowsFlagRunMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");
