@@ -14,6 +14,6 @@ import type { ReactNode } from "react";
 
 import { BrandThemeProvider } from "@/components/ui/brand-theme";
 
-export default async function AuthenticatedLayout({ children }: { children: ReactNode }) {
+export default function AuthenticatedLayout({ children }: { children: ReactNode }) {
   return <BrandThemeProvider theme="product">{children}</BrandThemeProvider>;
 }

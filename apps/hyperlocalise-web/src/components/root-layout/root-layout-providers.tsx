@@ -29,23 +29,24 @@ type RootLayoutProvidersProps = {
   children: ReactNode;
 };
 
-type RootLayoutProvidersInnerProps = RootLayoutProvidersProps & {
+type RootLayoutProvidersInnerProps = {
+  children?: ReactNode;
   initialAuth: React.ComponentProps<typeof AuthKitProvider>["initialAuth"];
   locale: AppLocale;
 };
 
 export function RootLayoutProviders({ children }: RootLayoutProvidersProps) {
   return (
-    <Suspense
-      fallback={
-        <RootLayoutProvidersInner initialAuth={undefined} locale={DEFAULT_APP_LOCALE}>
-          {children}
-        </RootLayoutProvidersInner>
-      }
-    >
+    <Suspense fallback={<RootLayoutProvidersFallback />}>
       <RootLayoutProvidersContent>{children}</RootLayoutProvidersContent>
     </Suspense>
   );
+}
+
+function RootLayoutProvidersFallback() {
+  // Keep route children out of the fallback. Including them would prerender
+  // uncached page data (cookies, headers, auth) into the static shell.
+  return <RootLayoutProvidersInner initialAuth={undefined} locale={DEFAULT_APP_LOCALE} />;
 }
 
 async function RootLayoutProvidersContent({ children }: RootLayoutProvidersProps) {
