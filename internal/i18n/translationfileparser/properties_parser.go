@@ -84,8 +84,10 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 	}
 
 	text := string(content)
-	doc := propertiesDocument{template: text, entries: []propertiesEntry{}}
-	seen := map[string]int{}
+	// BOLT OPTIMIZATION: Pre-allocate entries slice and seen map based on line count hint.
+	capHint := strings.Count(text, "\n") + 1
+	doc := propertiesDocument{template: text, entries: make([]propertiesEntry, 0, capHint)}
+	seen := make(map[string]int, capHint)
 	var pendingComments []string
 	currentLine := 1
 
@@ -199,12 +201,18 @@ func parseJavaPropertiesEntry(line propertiesLogicalLine, comments []string) (pr
 		valueStartRaw = line.boundaryRaw[valueStart]
 	}
 
+	// BOLT OPTIMIZATION: Guard slices.Clone to avoid heap allocation when comments is empty.
+	var commentsClone []string
+	if len(comments) > 0 {
+		commentsClone = slices.Clone(comments)
+	}
+
 	return propertiesEntry{
 		key:         key,
 		sourceValue: value,
 		valueStart:  valueStartRaw,
 		valueEnd:    line.rawEnd,
-		comments:    slices.Clone(comments),
+		comments:    commentsClone,
 		line:        line.line,
 	}, nil
 }
@@ -388,16 +396,29 @@ func isPropertiesWhitespace(ch byte) bool {
 }
 
 func countPropertiesLines(s string) int {
-	// Java properties lines can be terminated by \n, \r, or \r\n.
-	// We count all \n and all \r, then subtract \r\n to avoid double-counting.
-	return strings.Count(s, "\n") + strings.Count(s, "\r") - strings.Count(s, "\r\n")
+	// BOLT OPTIMIZATION: Single-pass line counter avoiding redundant full-string scans.
+	if !strings.ContainsAny(s, "\r\n") {
+		return 0
+	}
+	lines := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines++
+		} else if s[i] == '\r' {
+			if i+1 < len(s) && s[i+1] == '\n' {
+				i++
+			}
+			lines++
+		}
+	}
+	return lines
 }
 
 func decodeJavaPropertiesEscapes(raw string) (string, error) {
 	// BOLT OPTIMIZATION: Fast-path for strings without escapes to avoid
-	// strings.Builder allocations and byte-by-byte iteration.
+	// strings.Builder allocations and unnecessary string copies.
 	if !strings.Contains(raw, "\\") {
-		return strings.Clone(raw), nil
+		return raw, nil
 	}
 
 	var b strings.Builder
