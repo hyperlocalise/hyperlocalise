@@ -16,7 +16,7 @@ import { OrganizationRouteLoading } from "./_components/organization-route-loadi
 
 export default function OrganizationLoading() {
   return (
-    <ViewTransition exit="slide-down">
+    <ViewTransition exit="fade-out" default="none">
       <OrganizationRouteLoading />
     </ViewTransition>
   );

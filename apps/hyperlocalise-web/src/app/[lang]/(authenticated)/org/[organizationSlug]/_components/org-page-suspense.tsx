@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { Suspense, type ReactNode } from "react";
+import { ViewTransition } from "react";
 
 import { OrganizationRouteLoading } from "./organization-route-loading";
 
@@ -19,5 +20,17 @@ type OrgPageSuspenseProps = {
 };
 
 export function OrgPageSuspense({ children }: OrgPageSuspenseProps) {
-  return <Suspense fallback={<OrganizationRouteLoading />}>{children}</Suspense>;
+  return (
+    <Suspense
+      fallback={
+        <ViewTransition exit="fade-out" default="none">
+          <OrganizationRouteLoading />
+        </ViewTransition>
+      }
+    >
+      <ViewTransition enter="fade-in" default="none">
+        {children}
+      </ViewTransition>
+    </Suspense>
+  );
 }

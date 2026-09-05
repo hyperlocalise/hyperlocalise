@@ -79,7 +79,10 @@ export function AppShellFooter({
   );
 
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-40 flex flex-col border-t border-border bg-background">
+    <footer
+      className="fixed inset-x-0 bottom-0 z-40 flex flex-col border-t border-border bg-background"
+      style={{ viewTransitionName: "app-shell-footer" }}
+    >
       {showChatDock ? <ChatDockBridge organizationSlug={organizationSlug} /> : null}
       {showChatDock && currentUser ? (
         <ChatDockErrorBoundary organizationSlug={organizationSlug}>

@@ -18,11 +18,11 @@ type OrganizationTemplateProps = {
 };
 
 export default function OrganizationTemplate({ children }: OrganizationTemplateProps) {
-  // Outermost VT owns the snapshot for this segment. Nested page-level
-  // <ViewTransition enter/exit> under here will not fire while this one animates —
-  // remove or relocate this wrapper before adding page VTs.
+  // Cross-fade on lateral sidebar navigation. With partial prefetch, content is
+  // usually ready immediately — this is polish, not a loading mask. Per-page
+  // Suspense reveals live in OrgPageSuspense for uncached segments.
   return (
-    <ViewTransition enter="slide-up" default="none">
+    <ViewTransition enter="fade-in" exit="fade-out" default="none">
       {children}
     </ViewTransition>
   );

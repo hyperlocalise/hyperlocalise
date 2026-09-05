@@ -115,7 +115,11 @@ export function AppShellClient({
         className="min-h-svh bg-background text-foreground"
       >
         <SidebarStoreBridge />
-        <Sidebar variant="sidebar" collapsible="icon">
+        <Sidebar
+          variant="sidebar"
+          collapsible="icon"
+          style={{ viewTransitionName: "app-shell-sidebar" }}
+        >
           <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
             <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
               <Image
@@ -147,7 +151,10 @@ export function AppShellClient({
         </Sidebar>
 
         <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
-          <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur">
+          <div
+            className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur"
+            style={{ viewTransitionName: "app-shell-header" }}
+          >
             <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <SidebarTrigger className="-ms-1" />
