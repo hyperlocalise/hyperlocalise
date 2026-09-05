@@ -1,9 +1,22 @@
 ---
 title: "Smartling adapter"
-description: "Configure Smartling for remote translation pull/push synchronization."
+description: "Configure Smartling for native sync mode or flag-driven file commands."
 ---
 
-## Required config
+## Two Smartling workflows
+
+Hyperlocalise supports two Smartling integrations:
+
+1. Native sync mode with `i18n.yml` plus `sync push` / `sync pull`
+2. Flag-driven file commands with `hyperlocalise smartling ...`
+
+Use native sync mode when you want Hyperlocalise-managed entry sync.
+
+Use the file commands when you want to upload and download Smartling files by `--project-id` and `--file-uri`. See [smartling](/cli/commands/smartling) for commands, flags, credential env vars, and the gap list versus official `smartling-cli`. Hyperlocalise does not read `smartling.yml` yet.
+
+## Native sync mode
+
+### Required config
 
 ```jsonc
 {
@@ -59,7 +72,7 @@ export SMARTLING_USER_SECRET="your-smartling-user-secret"
 
 ## Common issues
 
-- missing secret: export `SMARTLING_USER_SECRET` in the same shell session
-- missing user identifier: set `storage.config.userIdentifier`
+- missing secret: export `SMARTLING_USER_SECRET` in the same shell session (native sync and file commands). Official `smartling-cli` uses `SMARTLING_SECRET`; Hyperlocalise does not read that name.
+- missing user identifier: set `storage.config.userIdentifier`, or for file commands `SMARTLING_USER_IDENTIFIER` / `--user-id` (not official `SMARTLING_USER_ID`)
 - locale mismatch: align `targetLanguages` with your project locales
 - file mode import failure: verify `fileFormat` matches your project settings

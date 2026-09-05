@@ -647,6 +647,135 @@ type TranslationDownloadResult struct {
 	Content  []byte
 }
 
+const (
+	TranslationStatePublished       = "PUBLISHED"
+	TranslationStatePostTranslation = "POST_TRANSLATION"
+)
+
+// TranslationImportInput contains the parameters for importing a translated file into Smartling.
+type TranslationImportInput struct {
+	ProjectID        string
+	FileURI          string
+	FilePath         string
+	FileType         string
+	LocaleID         string
+	TranslationState string
+	Overwrite        bool
+}
+
+// TranslationImportResult contains the results of a translation file import.
+type TranslationImportResult struct {
+	WordCount   int `json:"wordCount"`
+	StringCount int `json:"stringCount"`
+}
+
+type translationImportErrorItem struct {
+	FileURI        string   `json:"fileUri"`
+	ImportKey      string   `json:"importKey"`
+	StringHashcode string   `json:"stringHashcode"`
+	Messages       []string `json:"messages"`
+}
+
+type translationImportPayload struct {
+	WordCount               int                          `json:"wordCount"`
+	StringCount             int                          `json:"stringCount"`
+	TranslationImportErrors []translationImportErrorItem `json:"translationImportErrors"`
+}
+
+// translationImportEnvelope accepts the Files API shape (data nested under response)
+// and the sibling-data shape used elsewhere in this client.
+type translationImportEnvelope struct {
+	Response struct {
+		Code string                    `json:"code"`
+		Data *translationImportPayload `json:"data"`
+	} `json:"response"`
+	Data *translationImportPayload `json:"data"`
+}
+
+func normalizeTranslationImportState(state string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(state))
+	switch normalized {
+	case TranslationStatePublished, TranslationStatePostTranslation:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("smartling import: translationState must be PUBLISHED or POST_TRANSLATION")
+	}
+}
+
+func translationImportResultFromEnvelope(envelope translationImportEnvelope) (TranslationImportResult, error) {
+	code := strings.TrimSpace(envelope.Response.Code)
+	if code != "" && !strings.EqualFold(code, "SUCCESS") {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: unexpected response code %s", code)
+	}
+	payload := envelope.Response.Data
+	if payload == nil {
+		payload = envelope.Data
+	}
+	if payload == nil {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: empty response data")
+	}
+	if len(payload.TranslationImportErrors) > 0 {
+		first := payload.TranslationImportErrors[0]
+		msg := strings.Join(first.Messages, "; ")
+		if strings.TrimSpace(msg) == "" {
+			msg = "import failed"
+		}
+		if key := strings.TrimSpace(first.ImportKey); key != "" {
+			return TranslationImportResult{}, fmt.Errorf("smartling import: %d string error(s); first key=%s: %s", len(payload.TranslationImportErrors), key, msg)
+		}
+		return TranslationImportResult{}, fmt.Errorf("smartling import: %d string error(s); %s", len(payload.TranslationImportErrors), msg)
+	}
+	return TranslationImportResult{WordCount: payload.WordCount, StringCount: payload.StringCount}, nil
+}
+
+// ImportTranslationFile imports a pre-translated locale file for an existing source file URI.
+func (c *HTTPClient) ImportTranslationFile(ctx context.Context, in TranslationImportInput) (TranslationImportResult, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: file uri is required")
+	}
+	if strings.TrimSpace(in.FilePath) == "" {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: file path is required")
+	}
+	if strings.TrimSpace(in.FileType) == "" {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: file type is required")
+	}
+	if strings.TrimSpace(in.LocaleID) == "" {
+		return TranslationImportResult{}, fmt.Errorf("smartling import: locale id is required")
+	}
+	state, err := normalizeTranslationImportState(in.TranslationState)
+	if err != nil {
+		return TranslationImportResult{}, err
+	}
+
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return TranslationImportResult{}, err
+	}
+
+	endpoint := fmt.Sprintf("%s/projects/%s/locales/%s/file/import", c.filesBaseURL, url.PathEscape(strings.TrimSpace(in.ProjectID)), url.PathEscape(strings.TrimSpace(in.LocaleID)))
+	params := map[string]string{
+		"fileUri":          strings.TrimSpace(in.FileURI),
+		"fileType":         strings.TrimSpace(in.FileType),
+		"translationState": state,
+	}
+	if in.Overwrite {
+		params["overwrite"] = "true"
+	}
+
+	var envelope translationImportEnvelope
+	if err := c.uploadMultipart(ctx, endpoint, token, params, "file", in.FilePath, &envelope); err != nil {
+		return TranslationImportResult{}, fmt.Errorf("smartling import file: %w", err)
+	}
+	result, err := translationImportResultFromEnvelope(envelope)
+	if err != nil {
+		return TranslationImportResult{}, err
+	}
+	return result, nil
+}
+
 // DownloadTranslationFile downloads a translated file from Smartling for a specific locale.
 func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in TranslationDownloadInput) (TranslationDownloadResult, error) {
 	if strings.TrimSpace(in.ProjectID) == "" {

@@ -194,6 +194,7 @@
                   "cli/commands/init",
                   "cli/commands/crowdin",
                   "cli/commands/phrase",
+                  "cli/commands/smartling",
                   "cli/commands/run",
                   "cli/commands/extract",
                   "cli/commands/pack",

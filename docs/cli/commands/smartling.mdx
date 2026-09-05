@@ -1,0 +1,143 @@
+---
+title: "smartling"
+description: "Smartling file workflow commands using project flags and API credentials."
+---
+
+## Usage
+
+```bash
+hyperlocalise smartling upload sources --project-id <id> --file <path> [--file-uri <uri>] [--file-type <type>] [--authorize] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>] [--dry-run]
+hyperlocalise smartling upload translations --project-id <id> --file-uri <uri> --target-locale <locale> --file <path> (--published | --post-translation) [--file-type <type>] [--overwrite] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>] [--dry-run]
+hyperlocalise smartling download sources --project-id <id> --file-uri <uri> [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling download translations --project-id <id> --file-uri <uri> --target-locale <locale> [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary download --account-uid <id> --glossary-uid <id> [--language <locale>] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling tm download --account-uid <id> --tm-uid <id> --source-language <code> [--target-language <code>] [--format csv|tmx] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+```
+
+`tm` also accepts the alias `translation-memory`.
+
+These commands are flag-only. Hyperlocalise does not read `smartling.yml` in this version.
+
+## What this command family does
+
+These commands talk to the Smartling Files, Glossary, and Translation Memory APIs.
+
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Smartling adapter](/cli/storage/smartling). Use this surface when you want flag-driven file upload and download against a Smartling project.
+
+Use them for:
+
+- source-file upload (`upload sources`)
+- import of a pre-translated locale file (`upload translations`, equivalent to official `smartling-cli files import`)
+- source download (`download sources`)
+- translation download (`download translations`)
+- glossary and translation-memory **download** (Hyperlocalise-shaped CSV/TMX)
+
+Official [smartling-cli](https://github.com/Smartling/smartling-cli) uses `files push` / `files pull` (aliases `upload` / `download`) and `files import`. Hyperlocalise keeps the same command family shape as Crowdin and Phrase (`upload sources`, `download translations`) instead of renaming to `files push`.
+
+## Credentials
+
+Hyperlocalise reads:
+
+- `--user-id`, or `SMARTLING_USER_IDENTIFIER`
+- `--user-secret`, or `--user-secret-env` (default `SMARTLING_USER_SECRET`)
+
+Official `smartling-cli` commonly uses `SMARTLING_USER_ID` and `SMARTLING_SECRET`. Those names are **not** read here. Export Hyperlocalise names, or pass `--user-id` and `--user-secret` / `--user-secret-env`.
+
+Do not put the user secret in `i18n.yml`. Do not commit `smartling.yml` that contains a secret.
+
+## File types
+
+When `--file-type` is omitted, Hyperlocalise infers Smartling `fileType` from the path extension:
+
+| Extension | Smartling `fileType` |
+| --- | --- |
+| `.json` | `json` |
+| `.yaml`, `.yml` | `yaml` |
+| `.xml` | `xml` |
+| `.html`, `.htm` | `html` |
+| `.csv` | `csv` |
+| `.strings` | `ios` |
+| `.stringsdict` | `ios_stringsdict` |
+| `.properties` | `javaProperties` |
+| `.xliff`, `.xlf` | `xliff` |
+| `.md`, `.markdown` | `markdown` |
+
+Unknown extensions require `--file-type`. Values such as `android` or `gettext` are valid when you pass them explicitly; they are not inferred from `.xml` or `.po`.
+
+## Command notes
+
+`upload sources` requires `--project-id` and at least one `--file`. `--file-uri` is optional for a single file (defaults to the path with `/` separators) and cannot be used with multiple `--file` values. `--authorize` defaults to **true** (official `files push` leaves jobs unauthorized unless `--authorize` is set, and often wraps uploads in a translation job). `--dry-run` prints the planned upload and does not call the network.
+
+`upload translations` imports translations for an **existing** source file URI. Pass exactly one of `--published` or `--post-translation`. The source file must already exist in the project. JSON/XML imports may require Smartling `source_key_paths` on the original source upload; Hyperlocalise does not add those directives. One `--target-locale` per invocation.
+
+`download sources` writes to stdout when `--output` is omitted or `-`. `--source-locale` is deprecated and ignored. `--force` overwrites an existing output file. `--dry-run` does not download.
+
+`download translations` requires `--target-locale`. Use `%locale%` in `--output` when you pass more than one locale. It does not send Smartling `retrievalType` (`pending`, `published`, `pseudo`).
+
+`glossary download` and `tm download` have no `--force` or `--dry-run`. They write CSV (or TMX for `tm --format tmx`) to stdout unless you pass `--output`.
+
+## smartling-cli gap inventory
+
+| Official smartling-cli | Hyperlocalise today |
+| --- | --- |
+| `smartling-cli init` / `smartling.yml` | Unsupported (flag-only) |
+| `files push` / `files upload` | `upload sources` (no jobs, no YAML globs, no `--branch`; `--authorize` defaults true) |
+| `files pull` / `files download` | `download translations` (one `--file-uri` per call; no `--retrieve`, `--all`, `--format` templates, or job pull) |
+| `files pull --source` | `download sources` |
+| `files import` | `upload translations` (`--published` or `--post-translation`; optional `--overwrite`) |
+| `files list` / `files status` | Unsupported |
+| `files delete` / `files rename` | Out of scope |
+| `projects list` / `info` / `locales` | Unsupported |
+| Jobs, `mt detect` / `mt translate` | Out of scope |
+| `glossaries export` | `glossary download` (Hyperlocalise CSV; not official CSV/XLSX/TBX parity) |
+| `glossaries import` / create / list | Out of scope |
+| TM export | `tm download` (CSV/TMX) |
+| TM / glossary upload | Out of scope |
+
+## Examples
+
+Upload a source file:
+
+```bash
+export SMARTLING_USER_IDENTIFIER="your-user-identifier"
+export SMARTLING_USER_SECRET="your-user-secret"
+
+hyperlocalise smartling upload sources \
+  --project-id your-project-id \
+  --file ./locales/en.json \
+  --file-uri locales/en.json \
+  --dry-run
+```
+
+Import a pre-translated locale file (source URI must already exist):
+
+```bash
+hyperlocalise smartling upload translations \
+  --project-id your-project-id \
+  --file-uri locales/en.json \
+  --target-locale fr-FR \
+  --file ./locales/fr.json \
+  --published \
+  --dry-run
+```
+
+Download one locale. Use `%locale%` when you pass more than one `--target-locale`:
+
+```bash
+hyperlocalise smartling download translations \
+  --project-id your-project-id \
+  --file-uri locales/en.json \
+  --target-locale fr-FR \
+  --output ./locales/%locale%.json \
+  --force
+```
+
+Download the source file:
+
+```bash
+hyperlocalise smartling download sources \
+  --project-id your-project-id \
+  --file-uri locales/en.json \
+  --output ./locales/en.json \
+  --force
+```

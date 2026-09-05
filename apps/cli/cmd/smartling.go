@@ -76,12 +76,20 @@ var newSmartlingTranslationDownloader = func(cfg smartling.Config) (smartlingTra
 	return smartling.NewHTTPClient(cfg)
 }
 
+var newSmartlingTranslationImporter = func(cfg smartling.Config) (smartlingTranslationImporter, error) {
+	return smartling.NewHTTPClient(cfg)
+}
+
 type smartlingSourceDownloader interface {
 	DownloadSourceFile(context.Context, smartling.SourceDownloadInput) (smartling.SourceDownloadResult, error)
 }
 
 type smartlingTranslationDownloader interface {
 	DownloadTranslationFile(context.Context, smartling.TranslationDownloadInput) (smartling.TranslationDownloadResult, error)
+}
+
+type smartlingTranslationImporter interface {
+	ImportTranslationFile(context.Context, smartling.TranslationImportInput) (smartling.TranslationImportResult, error)
 }
 
 func newSmartlingDownloadSourcesCmd() *cobra.Command {
@@ -711,7 +719,132 @@ func newSmartlingUploadCmd() *cobra.Command {
 		Short: "upload sources or translations to Smartling",
 	}
 	cmd.AddCommand(newSmartlingUploadSourcesCmd())
+	cmd.AddCommand(newSmartlingUploadTranslationsCmd())
 	return cmd
+}
+
+type smartlingUploadTranslationsOptions struct {
+	projectID       string
+	fileURI         string
+	targetLocale    string
+	filePath        string
+	fileType        string
+	published       bool
+	postTranslation bool
+	overwrite       bool
+	userIdentifier  string
+	userSecret      string
+	userSecretEnv   string
+	dryRun          bool
+}
+
+func newSmartlingUploadTranslationsCmd() *cobra.Command {
+	o := smartlingUploadTranslationsOptions{}
+	cmd := &cobra.Command{
+		Use:          "translations",
+		Short:        "import a pre-translated file into Smartling (files import)",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executeSmartlingUploadTranslations(cmd, o)
+		},
+	}
+
+	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Smartling project ID")
+	cmd.Flags().StringVar(&o.fileURI, "file-uri", "", "existing Smartling source file URI")
+	cmd.Flags().StringVarP(&o.targetLocale, "target-locale", "l", "", "target locale ID to import")
+	cmd.Flags().StringVarP(&o.filePath, "file", "f", "", "translated file path to import")
+	cmd.Flags().StringVar(&o.fileType, "file-type", "", "Smartling file type (e.g. json, yaml, ios, android, gettext, html, markdown)")
+	cmd.Flags().BoolVar(&o.published, "published", false, "import translations as PUBLISHED")
+	cmd.Flags().BoolVar(&o.postTranslation, "post-translation", false, "import translations as POST_TRANSLATION")
+	cmd.Flags().BoolVar(&o.overwrite, "overwrite", false, "overwrite existing translations for the file URI")
+	cmd.Flags().StringVar(&o.userIdentifier, "user-id", "", "Smartling user identifier")
+	cmd.Flags().StringVar(&o.userSecret, "user-secret", "", "Smartling user secret")
+	cmd.Flags().StringVar(&o.userSecretEnv, "user-secret-env", "", "Environment variable for Smartling user secret")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview import without sending the file")
+
+	_ = cmd.MarkFlagRequired("project-id")
+	_ = cmd.MarkFlagRequired("file-uri")
+	_ = cmd.MarkFlagRequired("target-locale")
+	_ = cmd.MarkFlagRequired("file")
+	cmd.MarkFlagsMutuallyExclusive("published", "post-translation")
+	cmd.MarkFlagsOneRequired("published", "post-translation")
+
+	return cmd
+}
+
+func executeSmartlingUploadTranslations(cmd *cobra.Command, o smartlingUploadTranslationsOptions) error {
+	if strings.TrimSpace(o.projectID) == "" {
+		return fmt.Errorf("smartling upload translations: --project-id is required")
+	}
+	if strings.TrimSpace(o.fileURI) == "" {
+		return fmt.Errorf("smartling upload translations: --file-uri is required")
+	}
+	if strings.TrimSpace(o.targetLocale) == "" {
+		return fmt.Errorf("smartling upload translations: --target-locale is required")
+	}
+	if strings.TrimSpace(o.filePath) == "" {
+		return fmt.Errorf("smartling upload translations: --file is required")
+	}
+	if o.published == o.postTranslation {
+		return fmt.Errorf("smartling upload translations: exactly one of --published or --post-translation is required")
+	}
+
+	fileType := strings.TrimSpace(o.fileType)
+	if fileType == "" {
+		fileType = smartling.FileTypeForExtension(filepath.Ext(o.filePath))
+	}
+	if fileType == "" {
+		return fmt.Errorf("smartling upload translations: could not determine file type for %q; use --file-type", o.filePath)
+	}
+
+	state := smartling.TranslationStatePublished
+	if o.postTranslation {
+		state = smartling.TranslationStatePostTranslation
+	}
+
+	if o.dryRun {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-upload-translations file=%s uri=%s locale=%s type=%s translation_state=%s overwrite=%t\n", o.filePath, strings.TrimSpace(o.fileURI), strings.TrimSpace(o.targetLocale), fileType, state, o.overwrite)
+		return err
+	}
+
+	cfg := smartling.Config{
+		ProjectID:      strings.TrimSpace(o.projectID),
+		UserIdentifier: strings.TrimSpace(o.userIdentifier),
+		UserSecret:     strings.TrimSpace(o.userSecret),
+		UserSecretEnv:  strings.TrimSpace(o.userSecretEnv),
+	}
+	if cfg.UserSecret == "" {
+		envVar := cfg.UserSecretEnv
+		if envVar == "" {
+			envVar = "SMARTLING_USER_SECRET"
+		}
+		cfg.UserSecret = os.Getenv(envVar)
+	}
+	if cfg.UserIdentifier == "" {
+		cfg.UserIdentifier = os.Getenv("SMARTLING_USER_IDENTIFIER")
+	}
+	if cfg.UserIdentifier == "" || cfg.UserSecret == "" {
+		return fmt.Errorf("smartling upload translations: credentials are required (via flags or SMARTLING_USER_IDENTIFIER/SMARTLING_USER_SECRET)")
+	}
+
+	client, err := newSmartlingTranslationImporter(cfg)
+	if err != nil {
+		return err
+	}
+	result, err := client.ImportTranslationFile(backgroundContext(), smartling.TranslationImportInput{
+		ProjectID:        strings.TrimSpace(o.projectID),
+		FileURI:          strings.TrimSpace(o.fileURI),
+		FilePath:         o.filePath,
+		FileType:         fileType,
+		LocaleID:         strings.TrimSpace(o.targetLocale),
+		TranslationState: state,
+		Overwrite:        o.overwrite,
+	})
+	if err != nil {
+		return fmt.Errorf("smartling upload translations: %w", err)
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "imported file=%s uri=%s locale=%s strings=%d words=%d\n", o.filePath, strings.TrimSpace(o.fileURI), strings.TrimSpace(o.targetLocale), result.StringCount, result.WordCount)
+	return err
 }
 
 func newSmartlingUploadSourcesCmd() *cobra.Command {

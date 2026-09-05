@@ -742,3 +742,198 @@ func TestSmartlingUploadSourcesRejectsSharedFileURIForMultipleFiles(t *testing.T
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestSmartlingUploadTranslationsFlags(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{"smartling", "upload", "translations"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing required flags")
+	}
+	if !strings.Contains(err.Error(), "required flag(s)") {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "upload", "translations", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("help failed: %v", err)
+	}
+	help := out.String()
+	if !strings.Contains(help, "--project-id") ||
+		!strings.Contains(help, "--file-uri") ||
+		!strings.Contains(help, "--target-locale") ||
+		!strings.Contains(help, "--file") ||
+		!strings.Contains(help, "--published") ||
+		!strings.Contains(help, "--post-translation") ||
+		!strings.Contains(help, "--overwrite") {
+		t.Errorf("help output missing required flags: %s", help)
+	}
+}
+
+func TestSmartlingUploadTranslationsRequiresTranslationState(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "upload", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-FR",
+		"--file", "fr.json",
+		"--dry-run",
+	})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected translation state flag error")
+	}
+	if !strings.Contains(err.Error(), "published") && !strings.Contains(err.Error(), "post-translation") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSmartlingUploadTranslationsRejectsBothTranslationStates(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "upload", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-FR",
+		"--file", "fr.json",
+		"--published",
+		"--post-translation",
+		"--dry-run",
+	})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected mutually exclusive flag error")
+	}
+	if !strings.Contains(err.Error(), "published") || !strings.Contains(err.Error(), "post-translation") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSmartlingUploadTranslationsDryRun(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "upload", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-FR",
+		"--file", "fr.json",
+		"--published",
+		"--dry-run",
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "dry-run action=smartling-upload-translations file=fr.json") {
+		t.Errorf("unexpected output: %s", got)
+	}
+	if !strings.Contains(got, "translation_state=PUBLISHED") {
+		t.Errorf("expected PUBLISHED state in output: %s", got)
+	}
+}
+
+func TestSmartlingUploadTranslationsImportsFile(t *testing.T) {
+	orig := newSmartlingTranslationImporter
+	newSmartlingTranslationImporter = func(cfg smartling.Config) (smartlingTranslationImporter, error) {
+		if cfg.ProjectID != "proj" || cfg.UserIdentifier != "uid" || cfg.UserSecret != "secret" {
+			t.Fatalf("unexpected config: %+v", cfg)
+		}
+		return stubSmartlingTranslationImporter{
+			result: smartling.TranslationImportResult{StringCount: 3, WordCount: 7},
+			assert: func(in smartling.TranslationImportInput) {
+				if in.ProjectID != "proj" || in.FileURI != "locales/en.json" || in.LocaleID != "fr-FR" {
+					t.Fatalf("unexpected input ids: %+v", in)
+				}
+				if in.FilePath != "fr.json" || in.FileType != "json" {
+					t.Fatalf("unexpected file fields: %+v", in)
+				}
+				if in.TranslationState != smartling.TranslationStatePostTranslation {
+					t.Fatalf("unexpected translation state: %q", in.TranslationState)
+				}
+				if !in.Overwrite {
+					t.Fatal("expected overwrite")
+				}
+			},
+		}, nil
+	}
+	defer func() { newSmartlingTranslationImporter = orig }()
+
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{
+		"smartling", "upload", "translations",
+		"--project-id", "proj",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-FR",
+		"--file", "fr.json",
+		"--post-translation",
+		"--overwrite",
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "imported file=fr.json uri=locales/en.json locale=fr-FR strings=3 words=7") {
+		t.Errorf("unexpected output: %s", out.String())
+	}
+}
+
+func TestSmartlingUploadTranslationsRequiresCredentials(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "")
+	t.Setenv("SMARTLING_USER_SECRET", "")
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{
+		"smartling", "upload", "translations",
+		"--project-id", "proj",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-FR",
+		"--file", "fr.json",
+		"--published",
+	})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected credentials error")
+	}
+	if !strings.Contains(err.Error(), "credentials are required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+type stubSmartlingTranslationImporter struct {
+	result smartling.TranslationImportResult
+	err    error
+	assert func(smartling.TranslationImportInput)
+}
+
+func (s stubSmartlingTranslationImporter) ImportTranslationFile(_ context.Context, in smartling.TranslationImportInput) (smartling.TranslationImportResult, error) {
+	if s.assert != nil {
+		s.assert(in)
+	}
+	return s.result, s.err
+}

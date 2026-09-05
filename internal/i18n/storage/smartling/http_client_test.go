@@ -447,6 +447,243 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 	}
 }
 
+func TestHTTPClientImportTranslationFile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/locales/fr-FR/file/import":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method: %s", r.Method)
+			}
+			if !strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+				t.Fatalf("unexpected content type: %s", r.Header.Get("Content-Type"))
+			}
+			if got := r.Header.Get("Authorization"); got != "Bearer token" {
+				t.Fatalf("unexpected auth header: %q", got)
+			}
+
+			err := r.ParseMultipartForm(10 << 20)
+			if err != nil {
+				t.Fatalf("parse multipart form: %v", err)
+			}
+
+			if got := r.FormValue("fileUri"); got != "locales/en.json" {
+				t.Fatalf("unexpected fileUri: %q", got)
+			}
+			if got := r.FormValue("fileType"); got != "json" {
+				t.Fatalf("unexpected fileType: %q", got)
+			}
+			if got := r.FormValue("translationState"); got != TranslationStatePublished {
+				t.Fatalf("unexpected translationState: %q", got)
+			}
+			if got := r.FormValue("overwrite"); got != "" {
+				t.Fatalf("overwrite should be omitted when false, got %q", got)
+			}
+
+			file, _, err := r.FormFile("file")
+			if err != nil {
+				t.Fatalf("get file part: %v", err)
+			}
+			defer func() { _ = file.Close() }()
+			content, _ := io.ReadAll(file)
+			if string(content) != `{"k":"bonjour"}` {
+				t.Fatalf("unexpected content: %q", string(content))
+			}
+
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS","data":{"stringCount":4,"wordCount":12,"translationImportErrors":[]}}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+
+	tempFile, err := os.CreateTemp("", "import-*.json")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_, _ = tempFile.WriteString(`{"k":"bonjour"}`)
+	_ = tempFile.Close()
+
+	result, err := client.ImportTranslationFile(context.Background(), TranslationImportInput{
+		ProjectID:        "123",
+		FileURI:          "locales/en.json",
+		FilePath:         tempFile.Name(),
+		FileType:         "json",
+		LocaleID:         "fr-FR",
+		TranslationState: "published",
+	})
+	if err != nil {
+		t.Fatalf("import translation file: %v", err)
+	}
+	if result.StringCount != 4 || result.WordCount != 12 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestHTTPClientImportTranslationFileOverwrite(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/locales/de-DE/file/import":
+			err := r.ParseMultipartForm(10 << 20)
+			if err != nil {
+				t.Fatalf("parse multipart form: %v", err)
+			}
+			if got := r.FormValue("translationState"); got != TranslationStatePostTranslation {
+				t.Fatalf("unexpected translationState: %q", got)
+			}
+			if got := r.FormValue("overwrite"); got != "true" {
+				t.Fatalf("unexpected overwrite: %q", got)
+			}
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS","data":{"stringCount":1,"wordCount":2,"translationImportErrors":[]}}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+
+	tempFile, err := os.CreateTemp("", "import-overwrite-*.json")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_, _ = tempFile.WriteString(`{"k":"hallo"}`)
+	_ = tempFile.Close()
+
+	_, err = client.ImportTranslationFile(context.Background(), TranslationImportInput{
+		ProjectID:        "123",
+		FileURI:          "locales/en.json",
+		FilePath:         tempFile.Name(),
+		FileType:         "json",
+		LocaleID:         "de-DE",
+		TranslationState: TranslationStatePostTranslation,
+		Overwrite:        true,
+	})
+	if err != nil {
+		t.Fatalf("import translation file: %v", err)
+	}
+}
+
+func TestHTTPClientImportTranslationFileReportsStringErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/locales/fr-FR/file/import":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS","data":{"stringCount":0,"wordCount":0,"translationImportErrors":[{"fileUri":"locales/en.json","importKey":"welcome.title","stringHashcode":"abc","messages":["source string not found"]}]}}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+
+	tempFile, err := os.CreateTemp("", "import-errors-*.json")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_, _ = tempFile.WriteString(`{"welcome.title":"Bonjour"}`)
+	_ = tempFile.Close()
+
+	_, err = client.ImportTranslationFile(context.Background(), TranslationImportInput{
+		ProjectID:        "123",
+		FileURI:          "locales/en.json",
+		FilePath:         tempFile.Name(),
+		FileType:         "json",
+		LocaleID:         "fr-FR",
+		TranslationState: TranslationStatePublished,
+	})
+	if err == nil {
+		t.Fatal("expected import string errors")
+	}
+	if !strings.Contains(err.Error(), "1 string error(s)") || !strings.Contains(err.Error(), "welcome.title") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTranslationImportResultFromEnvelope(t *testing.T) {
+	nested := translationImportEnvelope{}
+	nested.Response.Code = "SUCCESS"
+	nested.Response.Data = &translationImportPayload{StringCount: 2, WordCount: 5}
+	got, err := translationImportResultFromEnvelope(nested)
+	if err != nil {
+		t.Fatalf("nested envelope: %v", err)
+	}
+	if got.StringCount != 2 || got.WordCount != 5 {
+		t.Fatalf("unexpected nested result: %+v", got)
+	}
+
+	sibling := translationImportEnvelope{}
+	sibling.Response.Code = "SUCCESS"
+	sibling.Data = &translationImportPayload{StringCount: 8, WordCount: 9}
+	got, err = translationImportResultFromEnvelope(sibling)
+	if err != nil {
+		t.Fatalf("sibling envelope: %v", err)
+	}
+	if got.StringCount != 8 || got.WordCount != 9 {
+		t.Fatalf("unexpected sibling result: %+v", got)
+	}
+
+	bad := translationImportEnvelope{}
+	bad.Response.Code = "VALIDATION_ERROR"
+	if _, err := translationImportResultFromEnvelope(bad); err == nil || !strings.Contains(err.Error(), "VALIDATION_ERROR") {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+}
+
+func TestHTTPClientImportTranslationFileValidation(t *testing.T) {
+	client := &HTTPClient{}
+	_, err := client.ImportTranslationFile(context.Background(), TranslationImportInput{
+		ProjectID:        "123",
+		FileURI:          "file.json",
+		FilePath:         "file.json",
+		FileType:         "json",
+		LocaleID:         "fr-FR",
+		TranslationState: "pending",
+	})
+	if err == nil {
+		t.Fatal("expected translationState error")
+	}
+	if !strings.Contains(err.Error(), "PUBLISHED or POST_TRANSLATION") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = client.ImportTranslationFile(context.Background(), TranslationImportInput{})
+	if err == nil {
+		t.Fatal("expected project id error")
+	}
+	if !strings.Contains(err.Error(), "project id is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestHTTPClientDownloadSourceFile(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
