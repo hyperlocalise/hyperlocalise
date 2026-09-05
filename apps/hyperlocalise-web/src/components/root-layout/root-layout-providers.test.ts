@@ -24,14 +24,25 @@ describe("root layout cacheComponents boundary", () => {
     expect(source).not.toMatch(/\bheaders\s*\(|\bcookies\s*\(/);
   });
 
+  it("resolves document lang outside the root layout module", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "root-html.tsx"), "utf8");
+
+    expect(source).toMatch(/\bgetAppLocale\b/);
+    expect(source).toMatch(/<html lang=\{locale\}/);
+  });
+
   it("keeps the root Suspense fallback free of route children", () => {
     const source = readFileSync(
       path.join(import.meta.dirname, "root-layout-providers.tsx"),
       "utf8",
     );
-    const fallbackFn = source.match(/function RootLayoutProvidersFallback\(\) \{[\s\S]*?\n\}/)?.[0];
+    const fallbackFn = source.match(
+      /function RootLayoutProvidersFallback\([\s\S]*?\n\}/,
+    )?.[0];
 
-    expect(source).toContain("<Suspense fallback={<RootLayoutProvidersFallback />}>");
+    expect(source).toContain(
+      "<Suspense fallback={<RootLayoutProvidersFallback locale={locale} />}>",
+    );
     expect(fallbackFn).toBeDefined();
     expect(fallbackFn).not.toContain("{children}");
   });

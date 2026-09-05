@@ -12,12 +12,8 @@
  */
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { GoogleAnalytics } from "@next/third-parties/google";
 
-import { RootLayoutProviders } from "@/components/root-layout/root-layout-providers";
-import { rootHtmlClassName } from "@/components/root-layout/root-layout-fonts";
-import { GA_MEASUREMENT_ID } from "@/lib/analytics/google-analytics";
-import { DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
+import { RootHtml } from "@/components/root-layout/root-html";
 import { PRIVATE_ROBOTS } from "@/lib/seo/robots-metadata";
 import { SITE_URL } from "@/lib/seo/site-url";
 
@@ -36,14 +32,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang={DEFAULT_APP_LOCALE} className={rootHtmlClassName()} suppressHydrationWarning>
-      <body>
-        <Analytics />
-        <RootLayoutProviders>{children}</RootLayoutProviders>
-      </body>
-
-      <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
-    </html>
-  );
+  return <RootHtml>{children}</RootHtml>;
 }
