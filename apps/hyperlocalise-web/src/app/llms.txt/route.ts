@@ -12,8 +12,6 @@
  */
 import { SITE_URL } from "@/lib/seo/site-url";
 
-export const dynamic = "force-static";
-
 type LlmsLink = {
   title: string;
   href: string;

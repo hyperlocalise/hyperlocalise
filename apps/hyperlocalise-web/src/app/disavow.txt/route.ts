@@ -12,8 +12,6 @@
  */
 import { buildDisavowFile } from "@/lib/seo/disavow-file";
 
-export const dynamic = "force-static";
-
 export function GET() {
   return new Response(buildDisavowFile(), {
     headers: {
