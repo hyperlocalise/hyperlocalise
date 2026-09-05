@@ -37,6 +37,7 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/org/acme/automations/automation-1",
 }));
 
 vi.mock("next/link", () => ({

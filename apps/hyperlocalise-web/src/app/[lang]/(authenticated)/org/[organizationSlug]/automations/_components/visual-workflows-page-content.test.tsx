@@ -27,6 +27,7 @@ import type { VisualWorkflowsApi } from "./visual-workflows-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/org/acme/automations/visual-workflows",
 }));
 
 vi.mock("next/link", () => ({
