@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import {
   ArrowRight01Icon,
   ArrowUpRight01Icon,
@@ -25,6 +24,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -144,7 +144,7 @@ function ProjectCard({
   return (
     <article className="group min-w-0 rounded-lg border border-border bg-muted p-4 transition-colors hover:border-beam-500/30 hover:bg-beam-500/5">
       <div className="flex items-start justify-between gap-4">
-        <Link
+        <OrgNavLink
           href={projectHref}
           prefetch
           onClick={() => onOpenProject?.(project.id)}
@@ -170,7 +170,7 @@ function ProjectCard({
                 intl.formatMessage(projectsTableMessages.noDescriptionYet)}
             </TypographyP>
           </div>
-        </Link>
+        </OrgNavLink>
 
         <div className="flex shrink-0 items-center gap-1">
           {project.externalProjectUrl ? (
@@ -226,7 +226,7 @@ function ProjectCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuGroup>
-                  <DropdownMenuItem render={<Link href={projectHref} prefetch />}>
+                  <DropdownMenuItem render={<OrgNavLink href={projectHref} prefetch />}>
                     <FormattedMessage {...projectsTableMessages.openProject} />
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -272,7 +272,7 @@ function ProjectCard({
           </dt>
           <dd className="mt-1 truncate text-sm text-muted-foreground">
             {project.openJobCount > 0 ? (
-              <Link
+              <OrgNavLink
                 href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
                 prefetch
                 className="text-subtle-foreground hover:text-foreground hover:underline"
@@ -280,7 +280,7 @@ function ProjectCard({
                 {intl.formatMessage(projectsTableMessages.openJobsCount, {
                   count: project.openJobCount,
                 })}
-              </Link>
+              </OrgNavLink>
             ) : (
               <span>
                 <FormattedMessage {...projectsTableMessages.noOpenJobs} />

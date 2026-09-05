@@ -12,12 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
 import { breadcrumbCrumbSelectorMessages as messages } from "./breadcrumb-crumb-selector.messages";
@@ -42,7 +42,7 @@ export function ProjectBreadcrumbSelector({
   isLast = false,
 }: ProjectBreadcrumbSelectorProps) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const projectsQuery = useQuery({
     queryKey: organizationProjectsQueryKey(organizationSlug),
     queryFn: async () => {

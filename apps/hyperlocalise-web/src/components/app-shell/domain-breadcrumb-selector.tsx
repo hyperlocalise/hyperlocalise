@@ -12,11 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
 import { breadcrumbCrumbSelectorMessages as messages } from "./breadcrumb-crumb-selector.messages";
@@ -39,7 +39,7 @@ export function DomainBreadcrumbSelector({
   isLast = false,
 }: DomainBreadcrumbSelectorProps) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const domainsQuery = useQuery({
     queryKey: organizationDomainsQueryKey(organizationSlug),
     queryFn: async () => {

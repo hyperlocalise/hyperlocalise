@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   Add01Icon,
   ArrowLeft01Icon,
@@ -341,7 +341,7 @@ export function TeamDetailPageView({
       <div className="flex flex-col gap-4">
         <Button
           nativeButton={false}
-          render={<Link href={`/org/${organizationSlug}/teams`} />}
+          render={<OrgNavLink href={`/org/${organizationSlug}/teams`} />}
           variant="ghost"
           size="sm"
           className="w-fit px-2 text-muted-foreground hover:text-foreground"
@@ -391,12 +391,12 @@ export function TeamDetailPageView({
                 {...teamDetailPageViewMessages.membersDescription}
                 values={{
                   invite: (chunks) => (
-                    <Link
+                    <OrgNavLink
                       href={`/org/${organizationSlug}/members`}
                       className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
                     >
                       {chunks}
-                    </Link>
+                    </OrgNavLink>
                   ),
                 }}
               />

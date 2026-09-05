@@ -12,12 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useState } from "react";
 import { Delete02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -48,7 +48,7 @@ export function VisualWorkflowsPageContent({
   visualWorkflowsApi?: typeof visualWorkflowsApi;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const [workflowToDelete, setWorkflowToDelete] = useState<VisualWorkflowRecord | null>(null);
   const workflowsQuery = useQuery({
@@ -108,7 +108,7 @@ export function VisualWorkflowsPageContent({
           <ul className="divide-y divide-border">
             {workflowsQuery.data.map((workflow) => (
               <li key={workflow.id} className="flex items-center gap-2 px-2">
-                <Link
+                <OrgNavLink
                   href={`/org/${organizationSlug}/automations/visual-workflows/${workflow.id}`}
                   className="flex min-w-0 flex-1 items-center justify-between gap-4 px-2 py-3 hover:bg-muted/40"
                 >
@@ -119,7 +119,7 @@ export function VisualWorkflowsPageContent({
                   <span className="text-sm text-muted-foreground">
                     v{workflow.definitionVersion}
                   </span>
-                </Link>
+                </OrgNavLink>
                 <Button
                   type="button"
                   variant="ghost"

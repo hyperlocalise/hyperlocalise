@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -244,13 +244,13 @@ export function TranslationMemoryDetailPageContent({
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <Link
+      <OrgNavLink
         href={`/org/${organizationSlug}/translation-memories`}
         className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
         <FormattedMessage {...messages.backToList} />
-      </Link>
+      </OrgNavLink>
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -443,12 +443,12 @@ export function TranslationMemoryDetailPageContent({
                 key={project.projectId}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
               >
-                <Link
+                <OrgNavLink
                   href={`/org/${organizationSlug}/projects/${project.projectId}`}
                   className="text-sm font-medium text-foreground hover:underline"
                 >
                   {project.projectName}
-                </Link>
+                </OrgNavLink>
                 {canEdit ? (
                   <Button
                     type="button"

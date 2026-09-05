@@ -13,10 +13,10 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
@@ -91,7 +92,7 @@ export function AutomationDetailPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
@@ -641,7 +642,7 @@ export function AutomationDetailPageContent({
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href={`/org/${organizationSlug}/automations`} />}
+          render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
         >
           <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
         </Button>

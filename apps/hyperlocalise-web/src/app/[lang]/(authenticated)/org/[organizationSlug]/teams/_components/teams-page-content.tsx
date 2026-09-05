@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -41,7 +41,7 @@ export function TeamsPageContent({
   teamsApi?: typeof teamsApi;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamSummaryRow | null>(null);

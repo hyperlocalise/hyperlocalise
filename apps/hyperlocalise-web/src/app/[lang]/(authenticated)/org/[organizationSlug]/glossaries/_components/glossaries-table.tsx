@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   ArrowUpRight01Icon,
   BookOpenTextIcon,
@@ -178,7 +178,7 @@ function GlossaryRowActions({
           ) : (
             <Button
               nativeButton={false}
-              render={<Link href={projectHref!} />}
+              render={<OrgNavLink href={projectHref!} />}
               variant="outline"
               size="sm"
               className="gap-1.5 text-xs"
@@ -204,12 +204,12 @@ function GlossaryRowActions({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 {primaryAction === "provider" ? (
-                  <DropdownMenuItem render={<Link href={projectHref!} />}>
+                  <DropdownMenuItem render={<OrgNavLink href={projectHref!} />}>
                     <HugeiconsIcon icon={FolderKanbanIcon} strokeWidth={1.8} />
                     <FormattedMessage {...glossariesTableMessages.viewLinkedProject} />
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem render={<Link href={jobsHref} />}>
+                <DropdownMenuItem render={<OrgNavLink href={jobsHref} />}>
                   <HugeiconsIcon icon={WorkHistoryIcon} strokeWidth={1.8} />
                   <FormattedMessage {...glossariesTableMessages.viewJobs} />
                 </DropdownMenuItem>
@@ -295,13 +295,13 @@ function GlossaryRow({
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <GlossarySourceMark glossary={glossary} />
           {detailId ? (
-            <Link
+            <OrgNavLink
               href={`/org/${organizationSlug}/glossaries/${detailId}`}
               prefetch
               className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em] text-foreground underline-offset-2 hover:underline"
             >
               {glossary.name}
-            </Link>
+            </OrgNavLink>
           ) : (
             <span className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em] text-foreground">
               {glossary.name}
@@ -519,7 +519,7 @@ export function GlossariesEmptyAction({
   return (
     <Button
       nativeButton={false}
-      render={<Link href={`/org/${organizationSlug}/integrations`} />}
+      render={<OrgNavLink href={`/org/${organizationSlug}/integrations`} />}
       variant="outline"
       size="sm"
     >

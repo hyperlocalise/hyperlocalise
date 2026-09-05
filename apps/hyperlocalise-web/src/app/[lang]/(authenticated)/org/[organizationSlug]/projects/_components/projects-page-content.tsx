@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Add01Icon, CubeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -117,7 +117,7 @@ function RecentProjectsStrip({
             key={project.id}
             nativeButton={false}
             render={
-              <Link
+              <OrgNavLink
                 href={`/org/${organizationSlug}/projects/${project.id}`}
                 onClick={() => onOpenProject(project.id)}
               />
@@ -451,7 +451,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         <div className="max-w-xl py-4">
           <Button
             nativeButton={false}
-            render={<Link href={`/org/${organizationSlug}/integrations`} />}
+            render={<OrgNavLink href={`/org/${organizationSlug}/integrations`} />}
             variant="outline"
             size="sm"
           >

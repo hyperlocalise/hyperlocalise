@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { fromVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
 import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
@@ -43,6 +44,7 @@ export function VisualWorkflowEditorPageContent({
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   useAppShellSidebar({ forceCollapsed: true });
   const editorState = fromVisualWorkflowDefinition({
@@ -85,7 +87,7 @@ export function VisualWorkflowEditorPageContent({
     mutationFn: () => injectedApi.deleteVisualWorkflow(organizationSlug, workflow.id),
     onSuccess: () => {
       toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
-      router.push(`/org/${organizationSlug}/automations/visual-workflows`);
+      orgRouter.push(`/org/${organizationSlug}/automations/visual-workflows`);
     },
     onError: () => {
       toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);
@@ -116,7 +118,7 @@ export function VisualWorkflowEditorPageContent({
       <div className="flex items-center gap-2 border-b border-border px-4 py-2">
         <Button
           nativeButton={false}
-          render={<Link href={`/org/${organizationSlug}/automations/visual-workflows`} />}
+          render={<OrgNavLink href={`/org/${organizationSlug}/automations/visual-workflows`} />}
           variant="ghost"
           size="sm"
         >

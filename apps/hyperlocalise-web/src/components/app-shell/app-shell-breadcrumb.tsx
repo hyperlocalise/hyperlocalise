@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { Fragment } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
@@ -37,6 +36,7 @@ import {
   type AppShellBreadcrumb as AppShellBreadcrumbItem,
 } from "./app-shell-title";
 import { DomainBreadcrumbSelector } from "./domain-breadcrumb-selector";
+import { OrgNavLink } from "./org-nav-link";
 import {
   buildOrganizationPath,
   buildProjectPath,
@@ -158,7 +158,7 @@ function BreadcrumbCrumbContent({
 
   return (
     <BreadcrumbLink
-      render={<Link href={crumb.href} />}
+      render={<OrgNavLink href={crumb.href} />}
       className="block truncate font-medium text-muted-foreground hover:text-foreground"
       title={crumb.label}
     >

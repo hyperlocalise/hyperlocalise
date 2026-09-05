@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -104,13 +104,13 @@ function MemoryRow({
           {isLiveProviderMemoryId(memory.id) ? (
             <span className="truncate text-sm font-medium text-foreground">{memory.name}</span>
           ) : (
-            <Link
+            <OrgNavLink
               href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
               prefetch
               className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
             >
               {memory.name}
-            </Link>
+            </OrgNavLink>
           )}
           <SourceLabel memory={memory} />
         </div>
@@ -119,13 +119,13 @@ function MemoryRow({
         </TypographyP>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {memory.projectLinkId ? (
-            <Link
+            <OrgNavLink
               href={`/org/${organizationSlug}/projects/${memory.projectLinkId}`}
               prefetch
               className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               <FormattedMessage {...translationMemoriesTableMessages.viewLinkedProject} />
-            </Link>
+            </OrgNavLink>
           ) : memory.externalProjectId ? (
             <span className="text-xs text-muted-foreground">
               <FormattedMessage
@@ -243,7 +243,7 @@ export function TranslationMemoriesEmptyAction({
   return (
     <Button
       nativeButton={false}
-      render={<Link href={`/org/${organizationSlug}/integrations`} />}
+      render={<OrgNavLink href={`/org/${organizationSlug}/integrations`} />}
       variant="outline"
       size="sm"
     >

@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -47,7 +47,7 @@ export function AutomationsNewPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
@@ -108,7 +108,7 @@ export function AutomationsNewPageContent({
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href={automationsBasePath} />}
+              render={<OrgNavLink href={automationsBasePath} />}
             >
               <FormattedMessage {...automationsNewPageContentMessages.cancel} />
             </Button>

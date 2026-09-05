@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -95,7 +95,7 @@ export function DomainDetailPageContent({
           size="sm"
           className="-ml-2 mb-2"
           nativeButton={false}
-          render={<Link href={`/org/${organizationSlug}/domains`} />}
+          render={<OrgNavLink href={`/org/${organizationSlug}/domains`} />}
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.7} className="size-4" />
           <FormattedMessage {...messages.backToDomains} />
@@ -130,7 +130,7 @@ export function DomainDetailPageContent({
                     size="sm"
                     nativeButton={false}
                     render={
-                      <Link
+                      <OrgNavLink
                         href={`/org/${organizationSlug}/link-domain/${linkedDomain.domainSlug}`}
                       />
                     }
@@ -144,7 +144,9 @@ export function DomainDetailPageContent({
                     variant="outline"
                     nativeButton={false}
                     render={
-                      <Link href={`/org/${organizationSlug}/projects/${linkedDomain.projectId}`} />
+                      <OrgNavLink
+                        href={`/org/${organizationSlug}/projects/${linkedDomain.projectId}`}
+                      />
                     }
                   >
                     <FormattedMessage {...messages.openProject} />

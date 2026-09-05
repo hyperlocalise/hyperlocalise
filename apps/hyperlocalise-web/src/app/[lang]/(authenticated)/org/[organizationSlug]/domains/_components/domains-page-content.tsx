@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Globe02Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -103,12 +103,12 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
               className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
             >
               <div className="min-w-0 space-y-1">
-                <Link
+                <OrgNavLink
                   href={`/org/${organizationSlug}/domains/${domain.id}`}
                   className="font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   {domain.domainKey}
-                </Link>
+                </OrgNavLink>
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <Badge variant="outline">{statusLabel(domain.status, intl)}</Badge>
                   <span>
@@ -124,7 +124,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                   size="sm"
                   variant="outline"
                   nativeButton={false}
-                  render={<Link href={`/org/${organizationSlug}/domains/${domain.id}`} />}
+                  render={<OrgNavLink href={`/org/${organizationSlug}/domains/${domain.id}`} />}
                 >
                   <FormattedMessage {...messages.viewReport} />
                 </Button>
@@ -133,7 +133,9 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                     size="sm"
                     nativeButton={false}
                     render={
-                      <Link href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`} />
+                      <OrgNavLink
+                        href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`}
+                      />
                     }
                   >
                     <FormattedMessage {...messages.continueVerification} />
@@ -144,7 +146,9 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                     size="sm"
                     variant="outline"
                     nativeButton={false}
-                    render={<Link href={`/org/${organizationSlug}/projects/${domain.projectId}`} />}
+                    render={
+                      <OrgNavLink href={`/org/${organizationSlug}/projects/${domain.projectId}`} />
+                    }
                   >
                     <FormattedMessage {...messages.openProject} />
                   </Button>

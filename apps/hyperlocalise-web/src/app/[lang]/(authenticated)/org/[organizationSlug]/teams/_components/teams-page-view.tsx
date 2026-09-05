@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   Add01Icon,
   Delete01Icon,
@@ -63,9 +63,9 @@ const teamsTableColumns = "md:grid-cols-[minmax(0,1.5fr)_10rem_8rem_7rem_2.5rem]
 
 function defaultRenderTeamLink({ href, children, className }: Parameters<TeamsLinkRenderer>[0]) {
   return (
-    <Link href={href} className={className}>
+    <OrgNavLink href={href} className={className}>
       {children}
-    </Link>
+    </OrgNavLink>
   );
 }
 
@@ -155,7 +155,7 @@ function TeamRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link href={teamHref} />}>
+          <DropdownMenuItem render={<OrgNavLink href={teamHref} />}>
             <FormattedMessage {...teamsPageViewMessages.openTeam} />
           </DropdownMenuItem>
           {canManageTeams ? (
@@ -163,7 +163,7 @@ function TeamRowActions({
               <FormattedMessage {...teamsPageViewMessages.editTeam} />
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem render={<Link href={teamHref} />}>
+          <DropdownMenuItem render={<OrgNavLink href={teamHref} />}>
             <FormattedMessage {...teamsPageViewMessages.manageMembers} />
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -281,12 +281,12 @@ export function TeamsPageView({
                 {...teamsPageViewMessages.emptyDescription}
                 values={{
                   members: (chunks) => (
-                    <Link
+                    <OrgNavLink
                       href={`/org/${organizationSlug}/members`}
                       className="font-medium text-subtle-foreground underline-offset-4 hover:text-foreground hover:underline"
                     >
                       {chunks}
-                    </Link>
+                    </OrgNavLink>
                   ),
                 }}
               />

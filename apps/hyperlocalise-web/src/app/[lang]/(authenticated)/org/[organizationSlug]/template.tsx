@@ -18,11 +18,20 @@ type OrganizationTemplateProps = {
 };
 
 export default function OrganizationTemplate({ children }: OrganizationTemplateProps) {
-  // Cross-fade on lateral sidebar navigation. With partial prefetch, content is
-  // usually ready immediately — this is polish, not a loading mask. Per-page
-  // Suspense reveals live in OrgPageSuspense for uncached segments.
   return (
-    <ViewTransition enter="fade-in" exit="fade-out" default="none">
+    <ViewTransition
+      enter={{
+        "nav-forward": "nav-forward",
+        "nav-back": "nav-back",
+        default: "fade-in",
+      }}
+      exit={{
+        "nav-forward": "nav-forward",
+        "nav-back": "nav-back",
+        default: "fade-out",
+      }}
+      default="none"
+    >
       {children}
     </ViewTransition>
   );

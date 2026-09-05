@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -170,7 +170,7 @@ export function GlossariesPageContent({
   canManageGlossaries: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [crowdinPage, setCrowdinPage] = useState(1);

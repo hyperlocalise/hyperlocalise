@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Add01Icon, FlashIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -108,9 +108,9 @@ function defaultRenderAutomationLink({
   className,
 }: Parameters<AutomationsLinkRenderer>[0]) {
   return (
-    <Link href={href} className={className}>
+    <OrgNavLink href={href} className={className}>
       {children}
-    </Link>
+    </OrgNavLink>
   );
 }
 
@@ -122,7 +122,7 @@ function defaultRenderActionLink({
   return (
     <Button
       nativeButton={false}
-      render={<Link href={href} />}
+      render={<OrgNavLink href={href} />}
       {...(kind === "template" ? { size: "sm" as const, className: "rounded-full" } : {})}
     >
       {children}
@@ -262,7 +262,9 @@ export function AutomationsPageView({
             {visualWorkflowsEnabled && !projectId ? (
               <Button
                 nativeButton={false}
-                render={<Link href={`/org/${organizationSlug}/automations/visual-workflows`} />}
+                render={
+                  <OrgNavLink href={`/org/${organizationSlug}/automations/visual-workflows`} />
+                }
                 variant="outline"
               >
                 <FormattedMessage

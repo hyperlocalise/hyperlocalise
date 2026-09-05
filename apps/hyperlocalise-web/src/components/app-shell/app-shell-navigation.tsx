@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -39,6 +38,7 @@ import {
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
+import { OrgNavLink } from "./org-nav-link";
 import { annotateNavigationItemsWithWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
@@ -204,7 +204,7 @@ function ProjectNavigation({
           <SidebarMenu className="gap-1">
             <SidebarMenuItem>
               <SidebarMenuButton
-                render={<Link href={projectsHref} />}
+                render={<OrgNavLink href={projectsHref} />}
                 tooltip={allProjectsLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
@@ -289,7 +289,7 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<Link href={item.href} />}
+                render={<OrgNavLink href={item.href} />}
                 isActive={isActive}
                 tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
