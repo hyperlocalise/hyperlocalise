@@ -324,6 +324,12 @@ export async function updateVisualWorkflow(input: {
     return err({ code: "visual_workflow_not_found" });
   }
 
+  // Soft-deleted workflows must stay archived. A stale PATCH (or Activate)
+  // after DELETE must not resurrect dispatch by rewriting status/fingerprint.
+  if (existing.status === "archived") {
+    return err({ code: "visual_workflow_not_found" });
+  }
+
   const projectId =
     input.projectId === undefined
       ? existing.projectId
@@ -399,9 +405,15 @@ export async function updateVisualWorkflow(input: {
       and(
         eq(schema.visualWorkflows.organizationId, input.organizationId),
         eq(schema.visualWorkflows.id, input.visualWorkflowId),
+        // CAS: lose the race to delete rather than overwrite archived.
+        ne(schema.visualWorkflows.status, "archived"),
       ),
     )
     .returning();
+
+  if (!row) {
+    return err({ code: "visual_workflow_not_found" });
+  }
 
   const mapped = mapVisualWorkflowRow(row);
   if (!mapped) {
