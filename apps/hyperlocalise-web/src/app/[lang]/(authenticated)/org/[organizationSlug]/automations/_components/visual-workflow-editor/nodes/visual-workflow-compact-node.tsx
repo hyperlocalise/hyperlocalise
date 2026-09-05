@@ -43,7 +43,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isAi = data.catalogType === "ai.agent";
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const title = intl.formatMessage(titleMessage(data.catalogType));
-  const subtitle = resolveNodeSubtitle(data.config);
+  const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
 
   const switchHandles =
     isSwitch && data.config.kind === "logic.switch"
@@ -168,21 +168,23 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
 
-      <button
-        type="button"
-        data-visual-workflow-add=""
-        className="nodrag nopan absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted"
-        aria-label={intl.formatMessage(messages.addNode)}
-        onClick={(event) => {
-          event.stopPropagation();
-          onAddFromNode({
-            nodeId: id,
-            handleId: isIf ? "true" : isSwitch ? "0" : undefined,
-          });
-        }}
-      >
-        <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
-      </button>
+      {data.hideAddAction ? null : (
+        <button
+          type="button"
+          data-visual-workflow-add=""
+          className="nodrag nopan absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted"
+          aria-label={intl.formatMessage(messages.addNode)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddFromNode({
+              nodeId: id,
+              handleId: isIf ? "true" : isSwitch ? "0" : undefined,
+            });
+          }}
+        >
+          <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
+        </button>
+      )}
     </Card>
   );
 }

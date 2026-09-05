@@ -107,6 +107,8 @@ export type VisualWorkflowNodeData = {
   runStatus: MockNodeRunStatus;
   lastOutput?: Record<string, unknown> | null;
   lastError?: Record<string, unknown> | null;
+  previewSubtitle?: string;
+  hideAddAction?: boolean;
 };
 
 export type VisualWorkflowRfNode = Node<VisualWorkflowNodeData, VisualCatalogType>;

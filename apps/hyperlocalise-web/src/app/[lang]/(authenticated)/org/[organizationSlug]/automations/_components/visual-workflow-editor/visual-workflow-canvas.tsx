@@ -37,7 +37,7 @@ import type {
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
-const nodeTypes = Object.fromEntries(
+export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
   VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => [
     item.type,
     VisualWorkflowCompactNode,
@@ -87,7 +87,7 @@ export function VisualWorkflowCanvas({
         className="h-full"
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
+        nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
