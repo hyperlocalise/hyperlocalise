@@ -89,7 +89,7 @@ describe("VisualWorkflowsPageContent", () => {
     renderPage(api);
 
     expect(await screen.findByRole("heading", { name: "Visual workflows" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Lead ping/ })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Lead ping/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Delete workflow?" });

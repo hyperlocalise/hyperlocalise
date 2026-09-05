@@ -17,7 +17,10 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { createDefaultConfig, getVisualNodeDimensions } from "@/lib/visual-workflows/catalog/node-catalog";
+import {
+  createDefaultConfig,
+  getVisualNodeDimensions,
+} from "@/lib/visual-workflows/catalog/node-catalog";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";

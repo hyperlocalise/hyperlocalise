@@ -69,11 +69,7 @@ export function VisualWorkflowDeleteDialog({
             <FormattedMessage {...visualWorkflowsPageMessages.deleteCancel} />
           </AlertDialogCancel>
           <Button variant="destructive" disabled={isDeleting} onClick={onConfirm}>
-            {isDeleting ? (
-              <Spinner />
-            ) : (
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-            )}
+            {isDeleting ? <Spinner /> : <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />}
             {isDeleting ? (
               <FormattedMessage {...visualWorkflowsPageMessages.deleting} />
             ) : (

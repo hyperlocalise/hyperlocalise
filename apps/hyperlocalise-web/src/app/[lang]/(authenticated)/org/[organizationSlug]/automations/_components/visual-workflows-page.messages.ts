@@ -17,12 +17,12 @@ import { defineMessages } from "react-intl";
 export const visualWorkflowsPageMessages = defineMessages({
   pageLabel: {
     defaultMessage: "Visual workflows",
-    id: "BU34xLZuIV",
+    id: "cFLoSPa62D",
     description: "Breadcrumb label for the visual workflows list page",
   },
   pageTitle: {
     defaultMessage: "Visual workflows",
-    id: "68KxHHw2pe",
+    id: "XEIB3MxFUn",
     description: "Title for the visual workflows list page",
   },
   pageDescription: {
@@ -37,7 +37,7 @@ export const visualWorkflowsPageMessages = defineMessages({
   },
   emptyState: {
     defaultMessage: "No visual workflows yet. Create one to start building on the canvas.",
-    id: "jq/3JKwWN0",
+    id: "LyO/knpzIv",
     description: "Empty state on the visual workflows list page",
   },
   createFailed: {
@@ -47,42 +47,42 @@ export const visualWorkflowsPageMessages = defineMessages({
   },
   deleteWorkflow: {
     defaultMessage: "Delete",
-    id: "vwDelBtn01",
+    id: "pp9OzwrBNo",
     description: "Button that deletes a visual workflow",
   },
   deleteTitle: {
     defaultMessage: "Delete workflow?",
-    id: "vwDelTtl02",
+    id: "Cuem8lXjuP",
     description: "Title of the delete visual workflow confirmation dialog",
   },
   deleteDescription: {
     defaultMessage: "{workflowName} will be removed from this workspace and will no longer run.",
-    id: "vwDelDsc03",
+    id: "eQ9Hm8R7yH",
     description: "Delete visual workflow confirmation describing the selected workflow",
   },
   deleteCancel: {
     defaultMessage: "Cancel",
-    id: "vwDelCan04",
+    id: "tDv3EqS/ae",
     description: "Cancel button in the delete visual workflow dialog",
   },
   deleting: {
     defaultMessage: "Deleting...",
-    id: "vwDelIng05",
+    id: "A7P5XaZKlw",
     description: "Delete button label while a visual workflow is being deleted",
   },
   deleteConfirm: {
     defaultMessage: "Delete",
-    id: "vwDelCfm06",
+    id: "AXQ2DriknB",
     description: "Confirm button to delete a visual workflow",
   },
   deleteSuccess: {
     defaultMessage: "Workflow deleted",
-    id: "vwDelOk07",
+    id: "YJKHKW9gUY",
     description: "Toast when a visual workflow is deleted successfully",
   },
   deleteFailed: {
     defaultMessage: "Could not delete this workflow.",
-    id: "vwDelErr08",
+    id: "it5kPOtvZj",
     description: "Toast when visual workflow deletion fails",
   },
 });

@@ -13,7 +13,6 @@
 import {
   createDefaultConfig,
   getVisualNodeDimensions,
-  isTriggerType,
   VISUAL_NODE_CATALOG,
 } from "../catalog/node-catalog";
 import type {
@@ -60,5 +59,5 @@ export function removeVisualWorkflowNode(
 }
 
 export function isVisualTriggerCatalogType(type: string): type is VisualCatalogType {
-  return VISUAL_TRIGGER_TYPES.includes(type as VisualCatalogType) && isTriggerType(type);
+  return (VISUAL_TRIGGER_TYPES as readonly string[]).includes(type);
 }
