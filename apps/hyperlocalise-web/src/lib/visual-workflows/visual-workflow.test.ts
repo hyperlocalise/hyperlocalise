@@ -14,6 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { visualWorkflowDemoDraft } from "./fixtures/demo-draft";
 import { createDefaultConfig } from "./catalog/node-catalog";
+import {
+  removeVisualWorkflowNode,
+  replaceVisualWorkflowNodeType,
+} from "./editor/visual-workflow-editor-graph";
 import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "./schema/serializers";
 import {
@@ -205,6 +209,33 @@ describe("validateVisualWorkflowDefinition config", () => {
     expect(
       issues.some((issue) => issue.code === "invalid_node_config" && issue.nodeId === "slack"),
     ).toBe(true);
+  });
+});
+
+describe("visual workflow editor graph helpers", () => {
+  it("replaces a trigger type in place and keeps outgoing edges", () => {
+    const trigger = node("t", "trigger.manual", 12, 24);
+    const replaced = replaceVisualWorkflowNodeType(trigger, "trigger.scheduled");
+
+    expect(replaced.id).toBe("t");
+    expect(replaced.position).toEqual({ x: 12, y: 24 });
+    expect(replaced.type).toBe("trigger.scheduled");
+    expect(replaced.data.catalogType).toBe("trigger.scheduled");
+    expect(replaced.data.config).toEqual(createDefaultConfig("trigger.scheduled"));
+  });
+
+  it("removes a node and its connected edges", () => {
+    const result = removeVisualWorkflowNode(
+      [node("t", "trigger.manual"), node("h", "action.http"), node("a", "ai.agent")],
+      [
+        { id: "e1", source: "t", target: "h" },
+        { id: "e2", source: "h", target: "a" },
+      ],
+      "h",
+    );
+
+    expect(result.nodes.map((entry) => entry.id)).toEqual(["t", "a"]);
+    expect(result.edges).toEqual([]);
   });
 });
 

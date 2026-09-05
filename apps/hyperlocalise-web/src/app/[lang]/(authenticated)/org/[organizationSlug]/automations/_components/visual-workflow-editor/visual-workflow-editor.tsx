@@ -31,6 +31,10 @@ import {
   getVisualNodeDimensions,
   isTriggerType,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import {
+  removeVisualWorkflowNode,
+  replaceVisualWorkflowNodeType,
+} from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
 import { toVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
 import type {
@@ -76,6 +80,8 @@ export function VisualWorkflowEditor({
   workflowStatus = "draft",
   onStatusChange,
   statusUpdating = false,
+  onDelete,
+  isDeleting = false,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
   initialEdges?: VisualWorkflowRfEdge[];
@@ -91,6 +97,8 @@ export function VisualWorkflowEditor({
   workflowStatus?: VisualWorkflowStatus;
   onStatusChange?: (active: boolean, definition: VisualWorkflowDefinition) => void | Promise<void>;
   statusUpdating?: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
@@ -203,6 +211,32 @@ export function VisualWorkflowEditor({
     },
     [selectedNodeId],
   );
+
+  const onChangeNodeType = useCallback(
+    (type: VisualCatalogType) => {
+      if (!selectedNodeId) {
+        return;
+      }
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === selectedNodeId ? replaceVisualWorkflowNodeType(node, type) : node,
+        ),
+      );
+    },
+    [selectedNodeId],
+  );
+
+  const onDeleteNode = useCallback(() => {
+    if (!selectedNodeId) {
+      return;
+    }
+    const next = removeVisualWorkflowNode(nodes, edges, selectedNodeId);
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setSelectedNodeId(null);
+    setPanelMode("picker");
+    setAddFrom(null);
+  }, [edges, nodes, selectedNodeId]);
 
   const setNodeOutputSnapshot = useCallback(
     (
@@ -416,6 +450,8 @@ export function VisualWorkflowEditor({
         workflowStatus={workflowStatus}
         onStatusChange={onStatusChange ? handleStatusChange : undefined}
         statusDisabled={statusUpdating || (!isActive && saveDisabled)}
+        onDelete={onDelete}
+        isDeleting={isDeleting}
       />
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel
@@ -458,6 +494,8 @@ export function VisualWorkflowEditor({
                   setSelectedNodeId(null);
                 }}
                 onChangeConfig={onChangeConfig}
+                onChangeNodeType={onChangeNodeType}
+                onDeleteNode={onDeleteNode}
               />
             ) : (
               <>

@@ -2283,7 +2283,7 @@
     "defaultMessage": "Open"
   },
   "5Q7wl9b9ir": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "5QymJ2ZjS2": {
     "defaultMessage": "Bộ nhớ đệm"
@@ -2451,7 +2451,7 @@
     "defaultMessage": "Chỉ quản trị viên không gian làm việc mới có thể mở cổng thanh toán."
   },
   "68KxHHw2pe": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "68oR+M/HhK": {
     "defaultMessage": "Tải xuống toàn bộ bộ nhớ hoặc giới hạn tệp ở một cặp ngôn ngữ nguồn và đích."
@@ -4071,7 +4071,7 @@
     "defaultMessage": "Hiển thị các đợt kiểm tra đã đạt"
   },
   "BU34xLZuIV": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "Đang xem xét"
@@ -13986,7 +13986,7 @@
     "defaultMessage": "Workspace"
   },
   "jq/3JKwWN0": {
-    "defaultMessage": "No advanced workflows yet. Create one to start building on the canvas."
+    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas."
   },
   "jqb6LSQ7FV": {
     "defaultMessage": "Hiện không thể xóa tự động hóa."

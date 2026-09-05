@@ -2708,7 +2708,7 @@
     "description": "Issue status filter option when an issue is open"
   },
   "5Q7wl9b9ir": {
-    "defaultMessage": "Advanced workflows",
+    "defaultMessage": "Visual workflows",
     "description": "Link from automations list to visual workflows"
   },
   "5QymJ2ZjS2": {
@@ -2904,7 +2904,7 @@
     "description": "Note shown when the user cannot open the billing portal"
   },
   "68KxHHw2pe": {
-    "defaultMessage": "Advanced workflows",
+    "defaultMessage": "Visual workflows",
     "description": "Title for the visual workflows list page"
   },
   "68oR+M/HhK": {
@@ -4916,7 +4916,7 @@
     "description": "Control to expand passed localisation audit criteria"
   },
   "BU34xLZuIV": {
-    "defaultMessage": "Advanced workflows",
+    "defaultMessage": "Visual workflows",
     "description": "Breadcrumb label for the visual workflows list page"
   },
   "BUGP6fk/PM": {
@@ -16888,7 +16888,7 @@
     "description": "Eyebrow label above the translation memories page title"
   },
   "jq/3JKwWN0": {
-    "defaultMessage": "No advanced workflows yet. Create one to start building on the canvas.",
+    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas.",
     "description": "Empty state on the visual workflows list page"
   },
   "jqb6LSQ7FV": {
@@ -22666,5 +22666,49 @@
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
     "description": "Screen reader label for the repository enabled checkbox column"
+  },
+  "vwDelBtn01": {
+    "defaultMessage": "Delete",
+    "description": "Button that deletes a visual workflow"
+  },
+  "vwDelTtl02": {
+    "defaultMessage": "Delete workflow?",
+    "description": "Title of the delete visual workflow confirmation dialog"
+  },
+  "vwDelDsc03": {
+    "defaultMessage": "{workflowName} will be removed from this workspace and will no longer run.",
+    "description": "Delete visual workflow confirmation describing the selected workflow"
+  },
+  "vwDelCan04": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the delete visual workflow dialog"
+  },
+  "vwDelIng05": {
+    "defaultMessage": "Deleting...",
+    "description": "Delete button label while a visual workflow is being deleted"
+  },
+  "vwDelCfm06": {
+    "defaultMessage": "Delete",
+    "description": "Confirm button to delete a visual workflow"
+  },
+  "vwDelOk07": {
+    "defaultMessage": "Workflow deleted",
+    "description": "Toast when a visual workflow is deleted successfully"
+  },
+  "vwDelErr08": {
+    "defaultMessage": "Could not delete this workflow.",
+    "description": "Toast when visual workflow deletion fails"
+  },
+  "vwTrigTyp09": {
+    "defaultMessage": "Trigger",
+    "description": "Label for changing the selected visual workflow trigger type"
+  },
+  "vwDelStp10": {
+    "defaultMessage": "Delete step",
+    "description": "Button that removes the selected node from the visual workflow canvas"
+  },
+  "vwDelWf11": {
+    "defaultMessage": "Delete",
+    "description": "Button that deletes the current visual workflow"
   }
 }

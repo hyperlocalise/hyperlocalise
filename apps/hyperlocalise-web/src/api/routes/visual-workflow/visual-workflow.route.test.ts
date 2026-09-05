@@ -158,11 +158,63 @@ describe("visual workflow routes", () => {
     };
     expect(updated.visualWorkflow.name).toBe("Lead ping v2");
 
+    const deletedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+      },
+      { headers },
+    );
+    expect(deletedResponse.status).toBe(204);
+
+    const listedAfterDelete = await client.api.orgs[":organizationSlug"]["visual-workflows"].$get(
+      {
+        param: { organizationSlug },
+        query: { limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+    expect(listedAfterDelete.status).toBe(200);
+    const listedAfter = (await listedAfterDelete.json()) as {
+      visualWorkflows: Array<{ id: string }>;
+    };
+    expect(listedAfter.visualWorkflows.some((row) => row.id === created.visualWorkflow.id)).toBe(
+      false,
+    );
+
     const rows = await db
       .select()
       .from(schema.visualWorkflows)
       .where(eq(schema.visualWorkflows.organizationId, organizationId));
-    expect(rows.some((row) => row.id === created.visualWorkflow.id)).toBe(true);
+    const deletedRow = rows.find((row) => row.id === created.visualWorkflow.id);
+    expect(deletedRow?.status).toBe("archived");
+  });
+
+  it("returns not found when deleting a missing visual workflow", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: crypto.randomUUID(),
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "visual_workflow_not_found",
+    });
   });
 
   it("returns forbidden when the visual workflows feature flag is disabled", async () => {

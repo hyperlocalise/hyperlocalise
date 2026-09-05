@@ -14,6 +14,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
@@ -24,9 +25,11 @@ import { fromVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/seri
 import type { VisualWorkflowDefinition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
+import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
 import { createVisualWorkflowsApi, type VisualWorkflowsApi } from "./visual-workflows-api";
 import { VisualWorkflowEditor } from "./visual-workflow-editor/visual-workflow-editor";
 import { visualWorkflowEditorMessages } from "./visual-workflow-editor/visual-workflow-editor.messages";
+import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 
 const visualWorkflowsApi = createVisualWorkflowsApi();
 
@@ -40,6 +43,7 @@ export function VisualWorkflowEditorPageContent({
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   useAppShellSidebar({ forceCollapsed: true });
   const editorState = fromVisualWorkflowDefinition({
     ...workflow.definition,
@@ -76,6 +80,17 @@ export function VisualWorkflowEditorPageContent({
     mutateAsync: persistMutation.mutateAsync,
     isPending: persistMutation.isPending,
   };
+
+  const deleteMutation = useMutation({
+    mutationFn: () => injectedApi.deleteVisualWorkflow(organizationSlug, workflow.id),
+    onSuccess: () => {
+      toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
+      router.push(`/org/${organizationSlug}/automations/visual-workflows`);
+    },
+    onError: () => {
+      toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);
+    },
+  });
 
   const handleStatusChange = async (active: boolean, definition: VisualWorkflowDefinition) => {
     try {
@@ -125,6 +140,25 @@ export function VisualWorkflowEditorPageContent({
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
         statusUpdating={saveMutation.isPending}
+        onDelete={() => {
+          if (saveMutation.isPending || deleteMutation.isPending) {
+            return;
+          }
+          setDeleteDialogOpen(true);
+        }}
+        isDeleting={deleteMutation.isPending}
+      />
+      <VisualWorkflowDeleteDialog
+        open={deleteDialogOpen}
+        workflowName={workflow.name}
+        isDeleting={deleteMutation.isPending}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          if (saveMutation.isPending) {
+            return;
+          }
+          deleteMutation.mutate();
+        }}
       />
     </div>
   );

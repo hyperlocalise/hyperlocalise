@@ -20,6 +20,7 @@ import { workspaceVisualWorkflowsFlag } from "@/lib/flags/workspace-flags";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   createVisualWorkflow,
+  deleteVisualWorkflow,
   getVisualWorkflowById,
   listVisualWorkflows,
   updateVisualWorkflow,
@@ -234,6 +235,19 @@ export function createVisualWorkflowRoutes() {
       }
 
       return c.json({ visualWorkflow: result.value }, 200);
+    })
+    .delete("/:visualWorkflowId", validateVisualWorkflowParams, async (c) => {
+      const { visualWorkflowId } = c.req.valid("param");
+      const result = await deleteVisualWorkflow({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        visualWorkflowId,
+      });
+
+      if (isErr(result)) {
+        return notFoundResponse(c, result.error.code);
+      }
+
+      return c.body(null, 204);
     })
     .get(
       "/:visualWorkflowId/runs",

@@ -2283,7 +2283,7 @@
     "defaultMessage": "Open"
   },
   "5Q7wl9b9ir": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "5QymJ2ZjS2": {
     "defaultMessage": "缓存"
@@ -2451,7 +2451,7 @@
     "defaultMessage": "只有工作区管理员才能打开账单门户。"
   },
   "68KxHHw2pe": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "68oR+M/HhK": {
     "defaultMessage": "下载完整记忆，或将文件限制为一个源语言和目标语言区域设置对。"
@@ -4071,7 +4071,7 @@
     "defaultMessage": "显示已通过的审核"
   },
   "BU34xLZuIV": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "审核中"
@@ -13986,7 +13986,7 @@
     "defaultMessage": "Workspace"
   },
   "jq/3JKwWN0": {
-    "defaultMessage": "No advanced workflows yet. Create one to start building on the canvas."
+    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas."
   },
   "jqb6LSQ7FV": {
     "defaultMessage": "目前无法删除自动化设置"

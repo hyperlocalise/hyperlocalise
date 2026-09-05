@@ -34,6 +34,7 @@ export type VisualWorkflowsApi = {
       status?: VisualWorkflowRecord["status"];
     },
   ): Promise<VisualWorkflowRecord>;
+  deleteVisualWorkflow(organizationSlug: string, visualWorkflowId: string): Promise<void>;
   createVisualWorkflowRun(
     organizationSlug: string,
     visualWorkflowId: string,
@@ -107,6 +108,18 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
       }
       const body = (await response.json()) as { visualWorkflow: VisualWorkflowRecord };
       return body.visualWorkflow;
+    },
+    async deleteVisualWorkflow(organizationSlug, visualWorkflowId) {
+      const response = await fetch(
+        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to delete visual workflow");
+      }
     },
     async createVisualWorkflowRun(organizationSlug, visualWorkflowId, input) {
       const response = await fetch(

@@ -2283,7 +2283,7 @@
     "defaultMessage": "Offen"
   },
   "5Q7wl9b9ir": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "5QymJ2ZjS2": {
     "defaultMessage": "Cache"
@@ -2451,7 +2451,7 @@
     "defaultMessage": "Nur Workspace-Administratoren können das Abrechnungsportal öffnen."
   },
   "68KxHHw2pe": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "68oR+M/HhK": {
     "defaultMessage": "Laden Sie den vollständigen Speicher herunter oder beschränken Sie die Datei auf ein Quell- und Zielsprachenpaar."
@@ -4071,7 +4071,7 @@
     "defaultMessage": "Bestandene Prüfungen anzeigen"
   },
   "BU34xLZuIV": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "In Prüfung"
@@ -13986,7 +13986,7 @@
     "defaultMessage": "Arbeitsbereich"
   },
   "jq/3JKwWN0": {
-    "defaultMessage": "No advanced workflows yet. Create one to start building on the canvas."
+    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas."
   },
   "jqb6LSQ7FV": {
     "defaultMessage": "Die Automatisierung kann derzeit nicht gelöscht werden."

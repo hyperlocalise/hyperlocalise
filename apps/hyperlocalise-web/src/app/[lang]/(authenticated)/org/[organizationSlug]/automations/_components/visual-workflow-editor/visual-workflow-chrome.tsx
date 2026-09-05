@@ -40,6 +40,8 @@ export function VisualWorkflowChrome({
   workflowStatus = "draft",
   onStatusChange,
   statusDisabled = false,
+  onDelete,
+  isDeleting = false,
 }: {
   name: string;
   onNameChange: (name: string) => void;
@@ -56,6 +58,8 @@ export function VisualWorkflowChrome({
   workflowStatus?: VisualWorkflowStatus;
   onStatusChange?: (active: boolean) => void;
   statusDisabled?: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }) {
   const intl = useIntl();
   const previewOnly = intl.formatMessage(messages.previewOnly);
@@ -162,6 +166,17 @@ export function VisualWorkflowChrome({
         <Button type="button" variant="outline" size="sm" onClick={onExport}>
           <FormattedMessage {...messages.exportJson} />
         </Button>
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isDeleting || isSaving}
+            onClick={onDelete}
+          >
+            <FormattedMessage {...messages.deleteWorkflow} />
+          </Button>
+        ) : null}
         {onSave ? (
           <Button type="button" size="sm" disabled={saveDisabled || isSaving} onClick={onSave}>
             {isSaving ? (

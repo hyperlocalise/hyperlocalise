@@ -2283,7 +2283,7 @@
     "defaultMessage": "Open"
   },
   "5Q7wl9b9ir": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "5QymJ2ZjS2": {
     "defaultMessage": "Cache"
@@ -2451,7 +2451,7 @@
     "defaultMessage": "Seuls les administrateurs de l’espace de travail peuvent ouvrir le portail de facturation."
   },
   "68KxHHw2pe": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "68oR+M/HhK": {
     "defaultMessage": "Téléchargez la mémoire complète ou limitez le fichier à une seule paire de paramètres régionaux source et cible."
@@ -4071,7 +4071,7 @@
     "defaultMessage": "Afficher les audits réussis"
   },
   "BU34xLZuIV": {
-    "defaultMessage": "Advanced workflows"
+    "defaultMessage": "Visual workflows"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "En cours de révision"
@@ -13986,7 +13986,7 @@
     "defaultMessage": "Workspace"
   },
   "jq/3JKwWN0": {
-    "defaultMessage": "No advanced workflows yet. Create one to start building on the canvas."
+    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas."
   },
   "jqb6LSQ7FV": {
     "defaultMessage": "Impossible de supprimer l’automatisation pour le moment"

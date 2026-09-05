@@ -13,7 +13,9 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { GitBranchIcon } from "@hugeicons/core-free-icons";
+import { useState } from "react";
+import { Delete02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -26,7 +28,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
+import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
+import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
 import { createVisualWorkflowsApi } from "./visual-workflows-api";
 import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 
@@ -46,6 +50,7 @@ export function VisualWorkflowsPageContent({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [workflowToDelete, setWorkflowToDelete] = useState<VisualWorkflowRecord | null>(null);
   const workflowsQuery = useQuery({
     queryKey: visualWorkflowsQueryKey(organizationSlug),
     queryFn: () => injectedApi.listVisualWorkflows(organizationSlug),
@@ -59,6 +64,19 @@ export function VisualWorkflowsPageContent({
     },
     onError: () => {
       toast.error(<FormattedMessage {...visualWorkflowsPageMessages.createFailed} />);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (workflowId: string) =>
+      injectedApi.deleteVisualWorkflow(organizationSlug, workflowId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: visualWorkflowsQueryKey(organizationSlug) });
+      setWorkflowToDelete(null);
+      toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
+    },
+    onError: () => {
+      toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);
     },
   });
 
@@ -89,10 +107,10 @@ export function VisualWorkflowsPageContent({
         ) : workflowsQuery.data && workflowsQuery.data.length > 0 ? (
           <ul className="divide-y divide-border">
             {workflowsQuery.data.map((workflow) => (
-              <li key={workflow.id}>
+              <li key={workflow.id} className="flex items-center gap-2 px-2">
                 <Link
                   href={`/org/${organizationSlug}/automations/visual-workflows/${workflow.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/40"
+                  className="flex min-w-0 flex-1 items-center justify-between gap-4 px-2 py-3 hover:bg-muted/40"
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{workflow.name}</p>
@@ -102,6 +120,16 @@ export function VisualWorkflowsPageContent({
                     v{workflow.definitionVersion}
                   </span>
                 </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={intl.formatMessage(visualWorkflowsPageMessages.deleteWorkflow)}
+                  disabled={deleteMutation.isPending}
+                  onClick={() => setWorkflowToDelete(workflow)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                </Button>
               </li>
             ))}
           </ul>
@@ -113,6 +141,22 @@ export function VisualWorkflowsPageContent({
           </div>
         )}
       </div>
+      <VisualWorkflowDeleteDialog
+        open={workflowToDelete !== null}
+        workflowName={workflowToDelete?.name ?? ""}
+        isDeleting={deleteMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setWorkflowToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (!workflowToDelete) {
+            return;
+          }
+          deleteMutation.mutate(workflowToDelete.id);
+        }}
+      />
     </WorkspacePageShell>
   );
 }

@@ -30,9 +30,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import {
+  isVisualTriggerCatalogType,
+  VISUAL_TRIGGER_TYPES,
+} from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import type {
   HttpAuthType,
   HttpMethod,
+  VisualCatalogType,
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
@@ -53,14 +59,19 @@ export function VisualWorkflowConfigPanel({
   issues,
   onBack,
   onChangeConfig,
+  onChangeNodeType,
+  onDeleteNode,
 }: {
   node: VisualWorkflowRfNode;
   issues: readonly VisualWorkflowValidationIssue[];
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
+  onChangeNodeType: (type: VisualCatalogType) => void;
+  onDeleteNode: () => void;
 }) {
   const intl = useIntl();
   const { config } = node.data;
+  const isTrigger = isTriggerType(node.data.catalogType);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -74,6 +85,23 @@ export function VisualWorkflowConfigPanel({
         <h2 className="text-sm font-medium">
           <FormattedMessage {...messages.configTitle} />
         </h2>
+        {isTrigger ? (
+          <SelectField
+            id="vw-trigger-type"
+            label={intl.formatMessage(messages.triggerType)}
+            value={node.data.catalogType}
+            items={VISUAL_TRIGGER_TYPES.map((type) => ({
+              value: type,
+              label: intl.formatMessage(titleForTrigger(type)),
+            }))}
+            onValueChange={(value) => {
+              if (!value || !isVisualTriggerCatalogType(value)) {
+                return;
+              }
+              onChangeNodeType(value);
+            }}
+          />
+        ) : null}
         {config.kind === "action.http" ? (
           <>
             <SelectField
@@ -509,6 +537,12 @@ export function VisualWorkflowConfigPanel({
           </div>
         ) : null}
       </div>
+      <div className="border-t border-border px-4 py-3">
+        <Button type="button" variant="outline" className="w-full" onClick={onDeleteNode}>
+          <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+          <FormattedMessage {...messages.deleteStep} />
+        </Button>
+      </div>
       {issues.length > 0 ? (
         <div className="border-t border-border px-4 py-3 text-sm text-destructive">
           {issues.map((issue) => (
@@ -746,6 +780,21 @@ function errorBehaviorMessage(behavior: VisualNodeErrorBehavior) {
       return messages.onErrorContinue;
     case "branch":
       return messages.onErrorBranch;
+  }
+}
+
+function titleForTrigger(type: VisualCatalogType) {
+  switch (type) {
+    case "trigger.manual":
+      return messages.nodeManualTrigger;
+    case "trigger.scheduled":
+      return messages.nodeScheduledTrigger;
+    case "trigger.github":
+      return messages.nodeGithubTrigger;
+    case "trigger.source_upload":
+      return messages.nodeSourceUploadTrigger;
+    default:
+      return messages.triggerType;
   }
 }
 

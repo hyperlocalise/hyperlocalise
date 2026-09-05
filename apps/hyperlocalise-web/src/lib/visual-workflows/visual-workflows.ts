@@ -12,7 +12,7 @@
  */
 import "server-only";
 
-import { and, desc, eq, isNull, isNotNull, lte, asc } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull, lte, asc, ne } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -164,6 +164,8 @@ export async function listVisualWorkflows(input: {
   const conditions = [eq(schema.visualWorkflows.organizationId, input.organizationId)];
   if (input.status) {
     conditions.push(eq(schema.visualWorkflows.status, input.status));
+  } else {
+    conditions.push(ne(schema.visualWorkflows.status, "archived"));
   }
   if (projectId) {
     conditions.push(eq(schema.visualWorkflows.projectId, projectId));
@@ -407,6 +409,49 @@ export async function updateVisualWorkflow(input: {
       code: "invalid_definition",
       message: "Updated workflow definition could not be read back.",
     });
+  }
+
+  return ok(mapped);
+}
+
+export async function deleteVisualWorkflow(input: {
+  organizationId: string;
+  visualWorkflowId: string;
+  dbClient?: DatabaseClient;
+}): Promise<Result<VisualWorkflowRecord, { code: "visual_workflow_not_found" }>> {
+  const dbClient = input.dbClient ?? db;
+  const existing = await getVisualWorkflowById({
+    organizationId: input.organizationId,
+    visualWorkflowId: input.visualWorkflowId,
+    dbClient,
+  });
+
+  if (!existing) {
+    return err({ code: "visual_workflow_not_found" });
+  }
+
+  if (existing.status === "archived") {
+    return ok(existing);
+  }
+
+  const [row] = await dbClient
+    .update(schema.visualWorkflows)
+    .set({
+      status: "archived",
+      triggerFingerprint: null,
+      nextRunAt: null,
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflows.organizationId, input.organizationId),
+        eq(schema.visualWorkflows.id, input.visualWorkflowId),
+      ),
+    )
+    .returning();
+
+  const mapped = mapVisualWorkflowRow(row);
+  if (!mapped) {
+    return err({ code: "visual_workflow_not_found" });
   }
 
   return ok(mapped);

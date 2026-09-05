@@ -77,7 +77,7 @@ Runs capture the definition at enqueue time under `inputSnapshot.definitionSnaps
 
 ## Testing
 
-- Unit tests: `visual-workflow.test.ts`, `runtime/runtime.test.ts`
+- Unit tests: `visual-workflow.test.ts`, `runtime/runtime.test.ts`, `editor/visual-workflow-editor-graph.ts`
 - Route tests: `visual-workflow.route.test.ts` (uses real Hono app + WorkOS test auth)
 
 Run from `apps/hyperlocalise-web`:
