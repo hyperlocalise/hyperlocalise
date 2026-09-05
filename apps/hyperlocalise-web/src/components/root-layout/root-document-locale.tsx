@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { usePathname } from "next/navigation";
-import { useLayoutEffect } from "react";
+import { Suspense, useLayoutEffect } from "react";
 
 import { normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
 
@@ -22,6 +22,14 @@ type RootDocumentLocaleProps = {
 };
 
 export function RootDocumentLocale({ locale }: RootDocumentLocaleProps) {
+  return (
+    <Suspense fallback={null}>
+      <RootDocumentLocaleInner locale={locale} />
+    </Suspense>
+  );
+}
+
+function RootDocumentLocaleInner({ locale }: RootDocumentLocaleProps) {
   const pathname = usePathname();
   const pathLocale = normalizeAppLocale(pathname.split("/").filter(Boolean)[0] ?? "");
   const documentLocale = pathLocale ?? locale;
