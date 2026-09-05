@@ -47,8 +47,12 @@ describe("integration-workflow-graph", () => {
     expect(inferWorkflowStepCatalogType("Reviewer notified in Slack", 2, "slack")).toBe(
       "action.notify_slack",
     );
-    expect(inferWorkflowStepCatalogType("Fix PR opened on GitHub", 2, "github")).toBe("action.http");
-    expect(inferWorkflowStepCatalogType("New strings submitted", 0, "slack")).toBe("trigger.manual");
+    expect(inferWorkflowStepCatalogType("Fix PR opened on GitHub", 2, "github")).toBe(
+      "action.http",
+    );
+    expect(inferWorkflowStepCatalogType("New strings submitted", 0, "slack")).toBe(
+      "trigger.manual",
+    );
   });
 
   it("builds linear workflow edges", () => {
