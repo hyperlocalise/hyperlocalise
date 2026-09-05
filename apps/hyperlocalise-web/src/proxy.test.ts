@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
+import { APP_LOCALE_HEADER_NAME } from "@/lib/app-i18n/locales";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import proxy, { ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
 
@@ -135,6 +136,10 @@ describe("proxy", () => {
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
     expect(response?.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(request.url);
+    expect(response?.headers.get(`x-middleware-request-${APP_LOCALE_HEADER_NAME}`)).toBe("en");
+    expect(response?.headers.get("x-middleware-override-headers")?.split(",")).toContain(
+      APP_LOCALE_HEADER_NAME,
+    );
   });
 
   it("redirects localized marketing paths without a locale prefix", async () => {

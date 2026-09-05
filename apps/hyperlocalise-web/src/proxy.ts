@@ -212,8 +212,6 @@ function applyLocaleToResponse(response: WorkosProxyResult, locale: string): Wor
     return response;
   }
 
-  response.headers.set(APP_LOCALE_HEADER_NAME, locale);
-
   if (response instanceof NextResponse) {
     response.cookies.set({
       name: APP_LOCALE_COOKIE_NAME,
@@ -222,6 +220,29 @@ function applyLocaleToResponse(response: WorkosProxyResult, locale: string): Wor
       maxAge: 60 * 60 * 24 * 365,
       sameSite: "lax",
     });
+
+    return ensureRequestLocaleHeader(response, locale);
+  }
+
+  return response;
+}
+
+function ensureRequestLocaleHeader(response: NextResponse, locale: string): NextResponse {
+  const requestHeaderName = `x-middleware-request-${APP_LOCALE_HEADER_NAME}`;
+  response.headers.set(requestHeaderName, locale);
+
+  const override = response.headers.get("x-middleware-override-headers");
+  const names =
+    override
+      ?.split(",")
+      .map((name) => name.trim())
+      .filter(Boolean) ?? [];
+
+  if (!names.includes(APP_LOCALE_HEADER_NAME)) {
+    response.headers.set(
+      "x-middleware-override-headers",
+      [...names, APP_LOCALE_HEADER_NAME].join(","),
+    );
   }
 
   return response;

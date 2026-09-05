@@ -15,7 +15,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import type { ReactNode } from "react";
 
 import { GA_MEASUREMENT_ID } from "@/lib/analytics/google-analytics";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
 
 import { rootHtmlClassName } from "./root-layout-fonts";
 import { RootLayoutProviders } from "./root-layout-providers";
@@ -24,14 +24,12 @@ type RootHtmlProps = {
   children: ReactNode;
 };
 
-export async function RootHtml({ children }: RootHtmlProps) {
-  const locale = await getAppLocale();
-
+export function RootHtml({ children }: RootHtmlProps) {
   return (
-    <html lang={locale} className={rootHtmlClassName()} suppressHydrationWarning>
+    <html lang={DEFAULT_APP_LOCALE} className={rootHtmlClassName()} suppressHydrationWarning>
       <body>
         <Analytics />
-        <RootLayoutProviders locale={locale}>{children}</RootLayoutProviders>
+        <RootLayoutProviders>{children}</RootLayoutProviders>
       </body>
 
       <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />

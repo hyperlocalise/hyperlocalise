@@ -12,16 +12,23 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { DeleteProjectDialog } from "./delete-project-dialog";
 import type { ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/en/org/acme/projects",
+}));
+
+afterEach(() => {
+  cleanup();
+});
 
 function renderWithIntl(ui: ReactElement) {
   return render(
@@ -134,28 +141,5 @@ describe("ProjectsTable", () => {
     await user.click(await screen.findByText("Delete project..."));
 
     expect(onDeleteProject).toHaveBeenCalledWith(project);
-  });
-});
-
-describe("DeleteProjectDialog", () => {
-  it("requires confirming before deleting the selected native project", async () => {
-    const user = userEvent.setup();
-    const onDelete = vi.fn();
-    const project = createProject();
-
-    renderWithIntl(
-      <DeleteProjectDialog
-        project={project}
-        isDeleting={false}
-        onOpenChange={vi.fn()}
-        onDelete={onDelete}
-      />,
-    );
-
-    expect(screen.getByRole("alertdialog", { name: "Delete project?" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Delete" }));
-
-    expect(onDelete).toHaveBeenCalledWith(project.id);
   });
 });

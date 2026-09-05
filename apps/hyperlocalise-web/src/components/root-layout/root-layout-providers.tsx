@@ -18,7 +18,8 @@ import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type AppLocale } from "@/lib/app-i18n/locales";
+import { type AppLocale, DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { withAuth } from "@/lib/workos/server-auth";
 
 import { headingFontForLocale } from "./root-layout-fonts";
@@ -26,7 +27,6 @@ import { RootDocumentLocale } from "./root-document-locale";
 
 type RootLayoutProvidersProps = {
   children: ReactNode;
-  locale: AppLocale;
 };
 
 type RootLayoutProvidersInnerProps = {
@@ -35,22 +35,22 @@ type RootLayoutProvidersInnerProps = {
   locale: AppLocale;
 };
 
-export function RootLayoutProviders({ children, locale }: RootLayoutProvidersProps) {
+export function RootLayoutProviders({ children }: RootLayoutProvidersProps) {
   return (
-    <Suspense fallback={<RootLayoutProvidersFallback locale={locale} />}>
-      <RootLayoutProvidersContent locale={locale}>{children}</RootLayoutProvidersContent>
+    <Suspense fallback={<RootLayoutProvidersFallback />}>
+      <RootLayoutProvidersContent>{children}</RootLayoutProvidersContent>
     </Suspense>
   );
 }
 
-function RootLayoutProvidersFallback({ locale }: { locale: AppLocale }) {
+function RootLayoutProvidersFallback() {
   // Keep route children out of the fallback. Including them would prerender
   // uncached page data (cookies, headers, auth) into the static shell.
-  return <RootLayoutProvidersInner initialAuth={undefined} locale={locale} />;
+  return <RootLayoutProvidersInner initialAuth={undefined} locale={DEFAULT_APP_LOCALE} />;
 }
 
-async function RootLayoutProvidersContent({ children, locale }: RootLayoutProvidersProps) {
-  const initialAuth = await getInitialAuth();
+async function RootLayoutProvidersContent({ children }: RootLayoutProvidersProps) {
+  const [locale, initialAuth] = await Promise.all([getAppLocale(), getInitialAuth()]);
 
   return (
     <RootLayoutProvidersInner initialAuth={initialAuth} locale={locale}>
