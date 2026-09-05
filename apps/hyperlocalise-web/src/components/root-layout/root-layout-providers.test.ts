@@ -36,9 +36,7 @@ describe("root layout cacheComponents boundary", () => {
       path.join(import.meta.dirname, "root-layout-providers.tsx"),
       "utf8",
     );
-    const fallbackFn = source.match(
-      /function RootLayoutProvidersFallback\([\s\S]*?\n\}/,
-    )?.[0];
+    const fallbackFn = source.match(/function RootLayoutProvidersFallback\([\s\S]*?\n\}/)?.[0];
 
     expect(source).toContain(
       "<Suspense fallback={<RootLayoutProvidersFallback locale={locale} />}>",
