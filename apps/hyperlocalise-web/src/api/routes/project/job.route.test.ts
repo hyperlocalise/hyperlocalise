@@ -1406,3 +1406,231 @@ describe("workspace job update", () => {
     });
   });
 });
+
+describe("workspace job agent AI gates", () => {
+  const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
+    ids: [event.jobId],
+  }));
+  const enqueueProviderAgentTranslation = vi.fn(async () => ({
+    ids: ["agent-translation-run"],
+  }));
+  const enqueueProviderAgentQa = vi.fn(async () => ({
+    ids: ["agent-qa-run"],
+  }));
+  const agentClient = testClient<AppType>(
+    createApp({
+      jobQueue: {
+        enqueue: enqueueJob,
+      },
+      providerAgentTranslationQueue: {
+        enqueue: enqueueProviderAgentTranslation,
+      },
+      providerAgentQaQueue: {
+        enqueue: enqueueProviderAgentQa,
+      },
+    }),
+  );
+  const agentFixture = createProjectTestFixture(agentClient);
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+    await agentFixture.cleanup();
+  });
+
+  it("rejects translate_with_agent when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { identity, organization } = await agentFixture.createStoredProjectFixture();
+    const headers = await agentFixture.authHeadersFor(identity);
+
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: `job_${randomUUID()}`,
+        },
+        json: {
+          action: "translate_with_agent",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+    });
+    expect(enqueueProviderAgentTranslation).not.toHaveBeenCalled();
+
+    const agentRuns = await db
+      .select({ id: schema.agentRuns.id })
+      .from(schema.agentRuns)
+      .where(eq(schema.agentRuns.organizationId, organization.id));
+    expect(agentRuns).toEqual([]);
+  });
+
+  it("does not require AI features for non-translate provider agent actions", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { identity } = await agentFixture.createStoredProjectFixture();
+    const headers = await agentFixture.authHeadersFor(identity);
+
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: `job_${randomUUID()}`,
+        },
+        json: {
+          action: "review_with_agent",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "job_not_found",
+    });
+    expect(ensureAiFeaturesAllowedMock).not.toHaveBeenCalled();
+    expect(enqueueProviderAgentQa).not.toHaveBeenCalled();
+  });
+
+  it("enqueues translate_with_agent when AI features are allowed", async () => {
+    const { identity, organization, project } = await agentFixture.createStoredProjectFixture();
+    const headers = await agentFixture.authHeadersFor(identity);
+
+    await upsertExternalTmsJobRecords({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-agent-ai-gate",
+      tasks: [
+        {
+          externalJobId: "provider-agent-translate-job",
+          externalStatus: "in_progress",
+          title: "Provider translate task",
+          assignedUsers: [],
+        },
+      ],
+    });
+
+    const [providerJob] = await db
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+      .where(
+        and(
+          eq(schema.jobs.organizationId, organization.id),
+          eq(schema.externalJobDetails.externalJobId, "provider-agent-translate-job"),
+        ),
+      )
+      .limit(1);
+
+    expect(providerJob).toBeDefined();
+
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: providerJob!.id,
+        },
+        json: {
+          action: "translate_with_agent",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      agentRun: {
+        kind: "translate",
+        status: "queued",
+      },
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+    });
+    expect(enqueueProviderAgentTranslation).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects run-agent when AI features are not allowed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+    const { identity, organization, project, user } =
+      await agentFixture.createStoredProjectFixture();
+    const headers = await agentFixture.authHeadersFor(identity);
+
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      status: "failed",
+      inputPayload: {
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        fileInput: {
+          sourceFileId: `file_${randomUUID()}`,
+          fileFormat: "json",
+        },
+      },
+    });
+    await db.insert(schema.translationJobDetails).values({
+      jobId: job.id,
+      type: "file",
+    });
+
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "run-agent"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
+
+    const [persisted] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(persisted?.status).toBe("failed");
+  });
+});
