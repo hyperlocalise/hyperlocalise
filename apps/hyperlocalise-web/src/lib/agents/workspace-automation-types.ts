@@ -229,6 +229,8 @@ const semrushToolConfigSchema = z
 const ahrefsToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    /** @deprecated Ignored. Ahrefs credentials come from WorkOS Pipes. */
     connectionId: z.string().uuid().optional(),
   })
   .default({ enabled: false });
@@ -460,16 +462,16 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Enable the selected Semrush connection in Integrations before using it.";
     }
   | {
-      code: "ahrefs_connection_required";
-      message: "Enabled Ahrefs tools require an Ahrefs connection.";
-    }
-  | {
-      code: "ahrefs_connection_not_found";
-      message: "The selected Ahrefs connection was not found. Choose another connection.";
-    }
-  | {
       code: "ahrefs_not_connected";
-      message: "Enable the selected Ahrefs connection in Integrations before using it.";
+      message: "Connect Ahrefs in Integrations before using it.";
+    }
+  | {
+      code: "ahrefs_pipes_needs_reauthorization";
+      message: "Reconnect Ahrefs in Integrations, then try again.";
+    }
+  | {
+      code: "ahrefs_pipes_unavailable";
+      message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.";
     }
   | {
       code: "crowdin_project_required";

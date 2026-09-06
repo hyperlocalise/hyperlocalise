@@ -504,14 +504,14 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Menu item and tool title for Ahrefs SEO data",
   },
   ahrefsDescription: {
-    defaultMessage: "Query Ahrefs SEO data through your connected MCP API key.",
-    id: "xqQi/ZEY79",
+    defaultMessage: "Query Ahrefs SEO data through the connection in Integrations.",
+    id: "q/krUbYzC9",
     description: "Description for the Ahrefs automation tool when a connection exists",
   },
   ahrefsDisconnectedDescription: {
-    defaultMessage: "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
-    id: "T67SNUNeWw",
-    description: "Description when no Ahrefs connection is available",
+    defaultMessage: "Connect Ahrefs in Integrations before using this tool.",
+    id: "a1tmRYQQWa",
+    description: "Description when Ahrefs is not connected",
   },
   removeAhrefsTool: {
     defaultMessage: "Remove Ahrefs tool",

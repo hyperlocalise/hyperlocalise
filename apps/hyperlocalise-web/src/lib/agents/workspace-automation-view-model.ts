@@ -87,7 +87,6 @@ export type WorkspaceAutomationFormState = {
   semrushEnabled: boolean;
   semrushConnectionId: string;
   ahrefsEnabled: boolean;
-  ahrefsConnectionId: string;
   crowdinEnabled: boolean;
   crowdinProjectId: string;
   webSearchEnabled: boolean;
@@ -128,7 +127,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "createNativeTmsJobTargetLocales"
     | "mcpConnectionId"
     | "semrushConnectionId"
-    | "ahrefsConnectionId"
+    | "ahrefs"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "form",
@@ -169,10 +168,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   semrush_connection_not_found:
     "The selected Semrush connection was not found. Choose another connection.",
   semrush_not_connected: "Enable the selected Semrush connection in Integrations before using it.",
-  ahrefs_connection_required: "Choose an Ahrefs connection.",
-  ahrefs_connection_not_found:
-    "The selected Ahrefs connection was not found. Choose another connection.",
-  ahrefs_not_connected: "Enable the selected Ahrefs connection in Integrations before using it.",
+  ahrefs_not_connected: "Connect Ahrefs in Integrations before using it.",
+  ahrefs_pipes_needs_reauthorization: "Reconnect Ahrefs in Integrations, then try again.",
+  ahrefs_pipes_unavailable: "Ahrefs is unavailable until WorkOS Pipes is configured.",
   crowdin_project_required: "Choose a Crowdin-linked project for Crowdin review.",
   crowdin_project_not_found: "The selected Crowdin project was not found. Choose another project.",
   crowdin_project_not_linked:
@@ -243,7 +241,6 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     semrushEnabled: false,
     semrushConnectionId: "",
     ahrefsEnabled: false,
-    ahrefsConnectionId: "",
     crowdinEnabled: false,
     crowdinProjectId: "",
     webSearchEnabled: false,
@@ -339,7 +336,6 @@ export function createWorkspaceAutomationFormStateFromRecord(
     semrushEnabled: Boolean(semrush?.enabled),
     semrushConnectionId: semrush?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
-    ahrefsConnectionId: ahrefs?.connectionId ?? "",
     crowdinEnabled: Boolean(crowdin?.enabled),
     crowdinProjectId: crowdin?.projectId ?? "",
     webSearchEnabled: Boolean(webSearch?.enabled),
@@ -565,7 +561,6 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           ahrefs: {
             enabled: true,
-            connectionId: form.ahrefsConnectionId || undefined,
           },
         }
       : {}),
@@ -695,10 +690,6 @@ export function validateWorkspaceAutomationFormState(
     errors.semrushConnectionId = "Choose a Semrush connection.";
   }
 
-  if (form.ahrefsEnabled && !form.ahrefsConnectionId) {
-    errors.ahrefsConnectionId = "Choose an Ahrefs connection.";
-  }
-
   if (form.crowdinEnabled && !form.crowdinProjectId.trim()) {
     errors.crowdinProjectId = "Choose a Crowdin-linked project.";
   }
@@ -760,10 +751,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "semrush_connection_not_found":
     case "semrush_not_connected":
       return { semrushConnectionId: message };
-    case "ahrefs_connection_required":
-    case "ahrefs_connection_not_found":
     case "ahrefs_not_connected":
-      return { ahrefsConnectionId: message };
+    case "ahrefs_pipes_needs_reauthorization":
+    case "ahrefs_pipes_unavailable":
+      return { ahrefs: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":

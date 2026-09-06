@@ -87,6 +87,16 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
       HttpResponse.json({ ahrefsConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/pipes/:provider", () =>
+      HttpResponse.json({
+        pipe: {
+          provider: "ahrefs",
+          connected: false,
+          needsReauthorization: false,
+          apiKeyLast4: null,
+        },
+      }),
+    ),
     http.get("/api/orgs/:organizationSlug/mcp-server-connections", () =>
       HttpResponse.json({ mcpServerConnections: [] }),
     ),
@@ -190,6 +200,17 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ ahrefsConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/pipes/:provider", async () => {
+    await delay("infinite");
+    return HttpResponse.json({
+      pipe: {
+        provider: "ahrefs",
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      },
+    });
   }),
   http.get("/api/orgs/:organizationSlug/mcp-server-connections", async () => {
     await delay("infinite");

@@ -17,7 +17,7 @@ import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
-import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
+import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -259,14 +259,6 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
-  const ahrefsTools = input.toolConfig.ahrefs;
-  if (ahrefsTools?.enabled && !ahrefsTools.connectionId) {
-    return err({
-      code: "ahrefs_connection_required",
-      message: "Enabled Ahrefs tools require an Ahrefs connection.",
-    });
-  }
-
   const crowdinTools = input.toolConfig.crowdin;
   if (crowdinTools?.enabled && !readOptionalProjectId(crowdinTools.projectId)) {
     return err({
@@ -288,12 +280,6 @@ export async function validateWorkspaceAutomationIntegrations(input: {
    * Requires `db` to be a transaction client.
    */
   lockSemrushConnection?: boolean;
-  /**
-   * When true, locks the selected Ahrefs connection row for update so a
-   * concurrent delete cannot remove it before the automation write commits.
-   * Requires `db` to be a transaction client.
-   */
-  lockAhrefsConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
   const database = input.db ?? db;
 
@@ -423,48 +409,36 @@ export async function validateWorkspaceAutomationIntegrations(input: {
   }
 
   if (input.toolConfig.ahrefs?.enabled) {
-    const connectionId = input.toolConfig.ahrefs.connectionId;
-    if (!connectionId) {
-      return err({
-        code: "ahrefs_connection_required",
-        message: "Enabled Ahrefs tools require an Ahrefs connection.",
-      });
-    }
-
-    const connection = input.lockAhrefsConnection
-      ? await lockAhrefsConnectionForUpdate({
-          organizationId: input.organizationId,
-          connectionId,
-          db: database,
-        })
-      : ((
-          await database
-            .select({
-              id: schema.ahrefsConnections.id,
-              enabled: schema.ahrefsConnections.enabled,
-              validationStatus: schema.ahrefsConnections.validationStatus,
-            })
-            .from(schema.ahrefsConnections)
-            .where(
-              and(
-                eq(schema.ahrefsConnections.organizationId, input.organizationId),
-                eq(schema.ahrefsConnections.id, connectionId),
-              ),
-            )
-            .limit(1)
-        )[0] ?? null);
-
-    if (!connection) {
-      return err({
-        code: "ahrefs_connection_not_found",
-        message: "The selected Ahrefs connection was not found. Choose another connection.",
-      });
-    }
-
-    if (!connection.enabled || connection.validationStatus !== "valid") {
+    const workosUserId = input.toolConfig.ahrefs.workosUserId;
+    if (!workosUserId) {
       return err({
         code: "ahrefs_not_connected",
-        message: "Enable the selected Ahrefs connection in Integrations before using it.",
+        message: "Connect Ahrefs in Integrations before using it.",
+      });
+    }
+
+    const status = await getAhrefsPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "ahrefs_pipes_unavailable",
+        message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "ahrefs_pipes_needs_reauthorization",
+        message: "Reconnect Ahrefs in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "ahrefs_not_connected",
+        message: "Connect Ahrefs in Integrations before using it.",
       });
     }
   }
@@ -622,15 +596,33 @@ function shouldLockSemrushConnectionForToolConfig(
   return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
 }
 
-function shouldLockAhrefsConnectionForToolConfig(
-  toolConfig: WorkspaceAutomationToolConfig,
-): boolean {
-  return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
+async function stampAhrefsPipesUserOnToolConfig(input: {
+  toolConfig: WorkspaceAutomationToolConfig;
+  actorWorkosUserId?: string | null;
+  authorUserId?: string | null;
+}): Promise<WorkspaceAutomationToolConfig> {
+  if (!input.toolConfig.ahrefs?.enabled) {
+    return input.toolConfig;
+  }
+
+  const workosUserId = await resolveAhrefsPipesWorkosUserId({
+    workosUserId: input.actorWorkosUserId ?? input.toolConfig.ahrefs.workosUserId,
+    localUserId: input.authorUserId,
+  });
+
+  return {
+    ...input.toolConfig,
+    ahrefs: {
+      enabled: true,
+      ...(workosUserId ? { workosUserId } : {}),
+    },
+  };
 }
 
 export async function createWorkspaceAutomation(input: {
   organizationId: string;
   authorUserId?: string | null;
+  actorWorkosUserId?: string | null;
   status?: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
@@ -648,12 +640,17 @@ export async function createWorkspaceAutomation(input: {
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
+  const toolConfig = await stampAhrefsPipesUserOnToolConfig({
+    toolConfig: config.toolConfig,
+    actorWorkosUserId: input.actorWorkosUserId,
+    authorUserId: input.authorUserId,
+  });
   const projectId = readOptionalProjectId(config.projectId);
   const validation = validateWorkspaceAutomationConfig({
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
-    toolConfig: config.toolConfig,
+    toolConfig,
   });
   if (isErr(validation)) {
     return err(validation.error);
@@ -671,7 +668,7 @@ export async function createWorkspaceAutomation(input: {
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
-    toolConfig: config.toolConfig,
+    toolConfig,
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),
@@ -682,19 +679,17 @@ export async function createWorkspaceAutomation(input: {
       ? input.nextRunAt
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
-  const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(config.toolConfig);
-  const lockAhrefsConnection = shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
-  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
+  const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(toolConfig);
+  const needsConnectionLock = lockSemrushConnection;
 
   const write = async (
     database: DatabaseClient,
   ): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> => {
     const integrationValidation = await validateWorkspaceAutomationIntegrations({
       organizationId: input.organizationId,
-      toolConfig: config.toolConfig,
+      toolConfig,
       db: database,
       lockSemrushConnection,
-      lockAhrefsConnection,
     });
     if (isErr(integrationValidation)) {
       return err(integrationValidation.error);
@@ -716,7 +711,7 @@ export async function createWorkspaceAutomation(input: {
             ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
             : null,
         repositoryTarget: config.repositoryTarget,
-        toolConfig: config.toolConfig,
+        toolConfig,
         nextRunAt: resolvedNextRunAt,
       })
       .returning();
@@ -740,6 +735,7 @@ export async function createWorkspaceAutomation(input: {
 export async function updateWorkspaceAutomation(input: {
   automationId: string;
   organizationId: string;
+  actorWorkosUserId?: string | null;
   status?: WorkspaceAutomationStatus;
   name?: string;
   instructions?: string;
@@ -766,7 +762,7 @@ export async function updateWorkspaceAutomation(input: {
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined;
 
-  const config = configChanged
+  const parsedConfig = configChanged
     ? workspaceAutomationConfigSchema.parse({
         projectId:
           input.projectId !== undefined
@@ -782,6 +778,17 @@ export async function updateWorkspaceAutomation(input: {
         repositoryTarget: existing.repositoryTarget,
         toolConfig: existing.toolConfig,
       };
+  const stampedToolConfig = configChanged
+    ? await stampAhrefsPipesUserOnToolConfig({
+        toolConfig: parsedConfig.toolConfig,
+        actorWorkosUserId: input.actorWorkosUserId,
+        authorUserId: existing.authorUserId,
+      })
+    : existing.toolConfig;
+  const config = {
+    ...parsedConfig,
+    toolConfig: stampedToolConfig,
+  };
   const projectId = readOptionalProjectId(config.projectId);
 
   if (configChanged) {
@@ -831,9 +838,7 @@ export async function updateWorkspaceAutomation(input: {
 
   const lockSemrushConnection =
     configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
-  const lockAhrefsConnection =
-    configChanged && shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
-  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
+  const needsConnectionLock = lockSemrushConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -846,7 +851,6 @@ export async function updateWorkspaceAutomation(input: {
         toolConfig: config.toolConfig,
         db: database,
         lockSemrushConnection,
-        lockAhrefsConnection,
       });
       if (isErr(integrationValidation)) {
         return err(integrationValidation.error);

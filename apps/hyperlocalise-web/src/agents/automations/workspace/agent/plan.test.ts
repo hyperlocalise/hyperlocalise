@@ -164,13 +164,13 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_semrush", "notify_slack"]);
   });
 
-  it("includes use_ahrefs when an Ahrefs connection is enabled", () => {
+  it("includes use_ahrefs when Ahrefs is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         toolConfig: {
           ahrefs: {
             enabled: true,
-            connectionId: "22222222-2222-4222-8222-222222222222",
+            workosUserId: "user_workos",
           },
           slack: { enabled: true, channelId: "C123" },
         },

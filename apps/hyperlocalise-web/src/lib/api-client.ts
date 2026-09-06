@@ -76,6 +76,7 @@ function createOrgSlugClient(origin: string) {
       "linked-domains",
       "semrush-connections",
       "ahrefs-connections",
+      "pipes",
       "intercom-connections",
       "canva-connections",
     ]),

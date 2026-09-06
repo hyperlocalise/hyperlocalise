@@ -11,8 +11,13 @@
  * Version 2.0 or later.
  */
 
+import type { PipesProviderSlug } from "@/lib/pipes/providers";
+
 /** Ahrefs MCP streamable HTTP endpoint. */
 export const AHREFS_MCP_URL = "https://api.ahrefs.com/mcp/mcp";
+
+/** WorkOS Pipes data-integration slug for Ahrefs. Configure this provider in the WorkOS Dashboard. */
+export const AHREFS_PIPES_SLUG = "ahrefs" satisfies PipesProviderSlug;
 
 /** Authorization scheme required by Ahrefs MCP API key auth. */
 export const AHREFS_API_KEY_AUTH_PREFIX = "Bearer";
