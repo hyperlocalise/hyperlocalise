@@ -1059,10 +1059,7 @@ export function IntegrationsPageContent({
                   }}
                 />
               </CollapsibleIntegrationRow>
-              <CanvaConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-              />
+              <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               {workspacePipesCmsSlugs.map((slug, index) => (
                 <PipesConnectionPanel
                   key={slug}
@@ -1114,10 +1111,7 @@ export function IntegrationsPageContent({
                 action="coming-soon"
               />
               <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
-              <AhrefsConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-              />
+              <AhrefsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               {workspacePipesSeoToolSlugs.map((slug, index) => (
                 <PipesConnectionPanel
                   key={slug}

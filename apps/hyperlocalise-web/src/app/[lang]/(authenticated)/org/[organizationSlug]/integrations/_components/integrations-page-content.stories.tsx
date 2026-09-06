@@ -172,7 +172,9 @@ export const ReadOnly: Story = {
 
     await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
     await userEvent.click(canvas.getByRole("button", { name: "View only" }));
-    await expect(canvas.getByTestId("workos-pipes-widget")).toHaveTextContent("intercom Pipes widget");
+    await expect(canvas.getByTestId("workos-pipes-widget")).toHaveTextContent(
+      "intercom Pipes widget",
+    );
   },
 };
 

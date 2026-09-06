@@ -38,9 +38,13 @@ export const workspaceComingSoonCustomerEngagementSlugs = [
   "loops",
 ] as const;
 
-export const workspacePipesCollaborationSlugs = ["atlassian"] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesCollaborationSlugs = [
+  "atlassian",
+] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesGuidelineSlugs = ["notion"] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesGuidelineSlugs = [
+  "notion",
+] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesCustomerEngagementSlugs = [
   "intercom",
@@ -50,9 +54,14 @@ export const workspacePipesCustomerEngagementSlugs = [
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = ["webflow", "sanity"] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesCmsSlugs = [
+  "webflow",
+  "sanity",
+] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesSeoToolSlugs = ["similarweb"] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesSeoToolSlugs = [
+  "similarweb",
+] as const satisfies readonly PipesProviderSlug[];
 
 export type WorkspaceIntegrationSummary = {
   slug: string;

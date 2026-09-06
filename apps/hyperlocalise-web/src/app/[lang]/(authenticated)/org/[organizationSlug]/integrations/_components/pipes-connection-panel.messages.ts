@@ -17,17 +17,17 @@ import { defineMessages } from "react-intl";
 export const pipesConnectionPanelMessages = defineMessages({
   fetchFailed: {
     defaultMessage: "Failed to load the {providerName} connection.",
-    id: "pipesPanelFetchFailed",
+    id: "hvve+jJHsJ",
     description: "Error when a WorkOS Pipes connection status cannot be loaded",
   },
   tokenRequired: {
     defaultMessage: "Sign in again to manage the {providerName} connection.",
-    id: "pipesPanelTokenRequired",
+    id: "VN7DQg00fw",
     description: "Error when a WorkOS access token is missing for the Pipes widget",
   },
   reconnectHint: {
     defaultMessage: "Reconnect {providerName} to keep this integration working.",
-    id: "pipesPanelReconnectHint",
+    id: "lXXmdSGuM3",
     description: "Hint when a WorkOS Pipes installation needs reauthorization",
   },
 });

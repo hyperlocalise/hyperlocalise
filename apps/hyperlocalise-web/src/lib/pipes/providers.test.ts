@@ -12,11 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  isPipesProviderSlug,
-  PIPES_PROVIDER_SLUGS,
-  pipesProvidersForCategory,
-} from "./providers";
+import { isPipesProviderSlug, PIPES_PROVIDER_SLUGS, pipesProvidersForCategory } from "./providers";
 
 describe("pipes providers", () => {
   it("accepts catalog API-key slugs and rejects unknown ones", () => {
