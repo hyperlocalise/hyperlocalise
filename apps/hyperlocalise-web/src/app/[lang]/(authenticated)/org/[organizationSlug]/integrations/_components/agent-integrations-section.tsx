@@ -20,15 +20,19 @@ import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
-import { IntercomConnectionPanel } from "./intercom-connection-panel";
+import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
   resolveWorkspaceIntegrationsBySlugs,
   workspaceComingSoonCollaborationSlugs,
   workspaceComingSoonCustomerEngagementSlugs,
   workspaceComingSoonGuidelineSlugs,
+  workspacePipesCollaborationSlugs,
+  workspacePipesCustomerEngagementSlugs,
+  workspacePipesGuidelineSlugs,
   type WorkspaceIntegrationSummary,
 } from "@/lib/integrations/workspace-integrations";
+import type { PipesProviderSlug } from "@/lib/pipes/providers";
 
 type AgentIntegrationsSectionProps = {
   organizationSlug: string;
@@ -60,6 +64,32 @@ function ComingSoonIntegrationRow({
   );
 }
 
+function PipesIntegrationList({
+  organizationSlug,
+  slugs,
+  disabled,
+  isLast,
+}: {
+  organizationSlug: string;
+  slugs: readonly PipesProviderSlug[];
+  disabled?: boolean;
+  isLast?: boolean;
+}) {
+  return (
+    <>
+      {slugs.map((slug, index) => (
+        <PipesConnectionPanel
+          key={slug}
+          organizationSlug={organizationSlug}
+          provider={slug}
+          disabled={disabled}
+          isLast={Boolean(isLast) && index === slugs.length - 1}
+        />
+      ))}
+    </>
+  );
+}
+
 function useWorkspaceIntegrations(slugs: readonly string[]) {
   const intl = useIntl();
 
@@ -83,7 +113,8 @@ export function SourceControlIntegrationsSection({
 export function CollaborationIntegrationsSection({
   organizationSlug,
   userCanManage,
-}: AgentIntegrationsSectionProps) {
+  userIsAdmin,
+}: AgentIntegrationsSectionProps & { userIsAdmin: boolean }) {
   const comingSoonCollaborationAgents = useWorkspaceIntegrations(
     workspaceComingSoonCollaborationSlugs,
   );
@@ -92,6 +123,11 @@ export function CollaborationIntegrationsSection({
     <>
       <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
       <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+      <PipesIntegrationList
+        organizationSlug={organizationSlug}
+        slugs={workspacePipesCollaborationSlugs}
+        disabled={!userIsAdmin}
+      />
       {comingSoonCollaborationAgents.map((agent, index) => (
         <ComingSoonIntegrationRow
           key={agent.slug}
@@ -103,11 +139,22 @@ export function CollaborationIntegrationsSection({
   );
 }
 
-export function GuidelineIntegrationsSection() {
+export function GuidelineIntegrationsSection({
+  organizationSlug,
+  userIsAdmin,
+}: {
+  organizationSlug: string;
+  userIsAdmin: boolean;
+}) {
   const comingSoonGuidelineSources = useWorkspaceIntegrations(workspaceComingSoonGuidelineSlugs);
 
   return (
     <>
+      <PipesIntegrationList
+        organizationSlug={organizationSlug}
+        slugs={workspacePipesGuidelineSlugs}
+        disabled={!userIsAdmin}
+      />
       {comingSoonGuidelineSources.map((source, index) => (
         <ComingSoonIntegrationRow
           key={source.slug}
@@ -122,11 +169,11 @@ export function GuidelineIntegrationsSection() {
 export function CustomerEngagementIntegrationsSection({
   organizationSlug,
   userIsAdmin,
-  showIntercom = false,
+  showPipes = false,
 }: {
   organizationSlug: string;
   userIsAdmin: boolean;
-  showIntercom?: boolean;
+  showPipes?: boolean;
 }) {
   const comingSoonCustomerEngagementAgents = useWorkspaceIntegrations(
     workspaceComingSoonCustomerEngagementSlugs,
@@ -134,9 +181,10 @@ export function CustomerEngagementIntegrationsSection({
 
   return (
     <>
-      {showIntercom ? (
-        <IntercomConnectionPanel
+      {showPipes ? (
+        <PipesIntegrationList
           organizationSlug={organizationSlug}
+          slugs={workspacePipesCustomerEngagementSlugs}
           disabled={!userIsAdmin}
           isLast={comingSoonCustomerEngagementAgents.length === 0}
         />

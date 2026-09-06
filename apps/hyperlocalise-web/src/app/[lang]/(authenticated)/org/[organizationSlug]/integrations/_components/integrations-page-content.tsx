@@ -73,6 +73,7 @@ import {
 } from "./contentful-connection-panel";
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
 import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
+import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
@@ -89,6 +90,8 @@ import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-o
 import {
   resolveContentfulIntegrationConfig,
   resolveTmsIntegrationConfigs,
+  workspacePipesCmsSlugs,
+  workspacePipesSeoToolSlugs,
   type TmsIntegrationConfig,
 } from "@/lib/integrations/workspace-integrations";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
@@ -846,6 +849,7 @@ export function IntegrationsPageContent({
               <CollaborationIntegrationsSection
                 organizationSlug={organizationSlug}
                 userCanManage={userCanManageAgents}
+                userIsAdmin={userIsAdmin}
               />
             </IntegrationCategorySection>
           ) : null}
@@ -1055,16 +1059,24 @@ export function IntegrationsPageContent({
                   }}
                 />
               </CollapsibleIntegrationRow>
-              <CanvaConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-                isLast
-              />
+              <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              {workspacePipesCmsSlugs.map((slug, index) => (
+                <PipesConnectionPanel
+                  key={slug}
+                  organizationSlug={organizationSlug}
+                  provider={slug}
+                  disabled={!userIsAdmin}
+                  isLast={index === workspacePipesCmsSlugs.length - 1}
+                />
+              ))}
             </IntegrationCategorySection>
           ) : null}
           {showCategory("guidelines") ? (
             <IntegrationCategorySection categoryId="guidelines">
-              <GuidelineIntegrationsSection />
+              <GuidelineIntegrationsSection
+                organizationSlug={organizationSlug}
+                userIsAdmin={userIsAdmin}
+              />
             </IntegrationCategorySection>
           ) : null}
           {showCategory("customer-engagement") ? (
@@ -1072,7 +1084,7 @@ export function IntegrationsPageContent({
               <CustomerEngagementIntegrationsSection
                 organizationSlug={organizationSlug}
                 userIsAdmin={userIsAdmin}
-                showIntercom={canManageProviderIntegrations}
+                showPipes={canManageProviderIntegrations}
               />
             </IntegrationCategorySection>
           ) : null}
@@ -1099,11 +1111,16 @@ export function IntegrationsPageContent({
                 action="coming-soon"
               />
               <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
-              <AhrefsConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-                isLast
-              />
+              <AhrefsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              {workspacePipesSeoToolSlugs.map((slug, index) => (
+                <PipesConnectionPanel
+                  key={slug}
+                  organizationSlug={organizationSlug}
+                  provider={slug}
+                  disabled={!userIsAdmin}
+                  isLast={index === workspacePipesSeoToolSlugs.length - 1}
+                />
+              ))}
             </IntegrationCategorySection>
           ) : null}
           {showCategory("mcp-servers") && canManageProviderIntegrations ? (

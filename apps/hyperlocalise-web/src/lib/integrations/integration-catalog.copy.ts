@@ -951,6 +951,54 @@ export const integrationCatalogCopy = {
       description: "SendGrid integration description on the integrations page",
     },
   },
+  atlassian: {
+    name: {
+      defaultMessage: "Atlassian",
+      id: "intAtlassianName",
+      description: "Atlassian integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage: "Connect Jira, Confluence, and other Atlassian Cloud APIs.",
+      id: "intAtlassianTagline",
+      description: "Atlassian integration description on the integrations page",
+    },
+  },
+  webflow: {
+    name: {
+      defaultMessage: "Webflow",
+      id: "intWebflowName",
+      description: "Webflow integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage: "Localize Webflow sites, CMS collections, and published pages.",
+      id: "intWebflowTagline",
+      description: "Webflow integration description on the integrations page",
+    },
+  },
+  sanity: {
+    name: {
+      defaultMessage: "Sanity",
+      id: "intSanityName",
+      description: "Sanity integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage: "Localize Sanity documents, datasets, and content models.",
+      id: "intSanityTagline",
+      description: "Sanity integration description on the integrations page",
+    },
+  },
+  similarweb: {
+    name: {
+      defaultMessage: "Similarweb",
+      id: "intSimilarwebName",
+      description: "Similarweb integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage: "Bring market and traffic research into locale-aware SEO workflows.",
+      id: "intSimilarwebTagline",
+      description: "Similarweb integration description on the integrations page",
+    },
+  },
   pages: {
     name: {
       defaultMessage: "Pages",

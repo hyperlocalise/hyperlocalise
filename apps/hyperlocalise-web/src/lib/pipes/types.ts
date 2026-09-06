@@ -23,6 +23,11 @@ export type PipesStatus = PipesConnectionStatus & {
 };
 
 export type PipesStatusError = {
-  code: string;
+  code: "pipes_unavailable";
   message: string;
 };
+
+export type PipesCredentialError =
+  | PipesStatusError
+  | { code: "pipes_not_connected"; message: string }
+  | { code: "pipes_needs_reauthorization"; message: string };

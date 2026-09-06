@@ -50,21 +50,39 @@ Click **Disconnect** to unlink the installation from this organization.
 
 Cloud can work with an existing TMS. For repository-first native projects, the CLI [pushes](/cli/commands/sync-push) and [pulls](/cli/commands/sync-pull) against Hyperlocalise. See [Connect the CLI](/platform/cli).
 
-## Ahrefs
+## WorkOS Pipes API keys
 
-Open **Integrations** → **Ahrefs** and connect through the WorkOS Pipes widget.
+Open **Integrations** and connect these providers through the WorkOS Pipes widget. Enable each provider in the WorkOS Dashboard and allow the widget origin for this app. Users paste an API key; WorkOS stores the secret.
 
-Ahrefs is not in the default WorkOS catalog. Enable a custom API-key provider with slug `ahrefs` in the WorkOS Dashboard, and allow the widget origin for this app. Users paste an Ahrefs MCP API key (Account Settings → API Keys). WorkOS stores the secret; Hyperlocalise never writes it to `ahrefs_connections`.
+| Provider | WorkOS slug | Integrations category |
+| --- | --- | --- |
+| Ahrefs | `ahrefs` (custom) | SEO tools |
+| Similarweb | `similarweb` | SEO tools |
+| Intercom | `intercom` | Customer engagement |
+| HubSpot | `hubspot` | Customer engagement |
+| Mailchimp | `mailchimp` | Customer engagement |
+| SendGrid | `sendgrid` | Customer engagement |
+| Resend | `resend` | Customer engagement |
+| Webflow | `webflow` | Content & publishing |
+| Sanity | `sanity` | Content & publishing |
+| Notion | `notion` | Guidelines |
+| Atlassian | `atlassian` | Collaboration |
+
+Ahrefs is not in the default WorkOS catalog. Enable a custom API-key provider with slug `ahrefs`. The other providers are catalog API-key integrations.
+
+Status for each row comes from `GET /api/orgs/:slug/pipes/:provider`. Automations that already use Ahrefs still vend that user's credential and call `https://api.ahrefs.com/mcp/mcp` with `Authorization: Bearer`.
+
+The org-level `ahrefs_connections` and `intercom_connections` tables are deprecated and unused. Do not add new callers.
+
+### Ahrefs
 
 1. Connect Ahrefs on **Integrations**.
 2. On an automation, add the **Ahrefs** tool. Saving stamps the current WorkOS user on the automation.
-3. At run time the automation vends that user's Pipes credential and calls `https://api.ahrefs.com/mcp/mcp` with `Authorization: Bearer`.
-
-The org-level `ahrefs_connections` table is deprecated and unused. Do not add new callers.
+3. At run time the automation vends that user's Pipes credential and calls Ahrefs MCP.
 
 ## MCP server connections
 
-Add a remote MCP server when an [automation](/platform/automations) should call external tools at run time (for example Semrush). Ahrefs uses [WorkOS Pipes](/platform/integrations#ahrefs) instead of a generic MCP server connection.
+Add a remote MCP server when an [automation](/platform/automations) should call external tools at run time (for example Semrush). Ahrefs uses [WorkOS Pipes](/platform/integrations#workos-pipes-api-keys) instead of a generic MCP server connection.
 
 1. Open **Integrations** → **MCP Server**.
 2. Enter a display name, HTTPS endpoint, transport (`http` or `sse`), and auth (`none`, bearer token, or custom headers).

@@ -74,11 +74,15 @@ export const Default: Story = {
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
     await expect(canvas.getByText("Canva")).toBeInTheDocument();
+    await expect(canvas.getByText("Webflow")).toBeInTheDocument();
+    await expect(canvas.getByText("Sanity")).toBeInTheDocument();
     await expect(canvas.getByText("Intercom")).toBeInTheDocument();
     await expect(canvas.getByText("Semrush")).toBeInTheDocument();
     await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();
+    await expect(canvas.getByText("Similarweb")).toBeInTheDocument();
     await expect(canvas.getByText("Slack")).toBeInTheDocument();
     await expect(canvas.getByText("Email")).toBeInTheDocument();
+    await expect(canvas.getByText("Atlassian")).toBeInTheDocument();
     await expect(canvas.getByText("Jira")).toBeInTheDocument();
     await expect(canvas.getByText("Braze")).toBeInTheDocument();
     await expect(canvas.getByText("Iterable")).toBeInTheDocument();
@@ -87,6 +91,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Mailchimp")).toBeInTheDocument();
     await expect(canvas.getByText("Loops")).toBeInTheDocument();
     await expect(canvas.getByText("SendGrid")).toBeInTheDocument();
+    await expect(canvas.getByText("Resend")).toBeInTheDocument();
     await expect(canvas.queryByText("Open AI")).not.toBeInTheDocument();
   },
 };
@@ -117,7 +122,8 @@ export const GuidelinesComingSoon: Story = {
     await expect(canvas.getByText("Google Drive")).toBeInTheDocument();
     await expect(canvas.getByText("SharePoint")).toBeInTheDocument();
     await expect(canvas.getByText("Notion")).toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Coming soon" })).toHaveLength(3);
+    await expect(canvas.getAllByRole("button", { name: "Coming soon" })).toHaveLength(2);
+    await expect(canvas.getByRole("button", { name: "Connect" })).toBeInTheDocument();
     await expect(canvas.queryByRole("heading", { name: "Source control" })).not.toBeInTheDocument();
     await expect(canvas.queryByText("Contentful")).not.toBeInTheDocument();
   },
@@ -166,10 +172,9 @@ export const ReadOnly: Story = {
 
     await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
     await userEvent.click(canvas.getByRole("button", { name: "View only" }));
-    await expect(canvas.getByText("Support workspace")).toBeInTheDocument();
-    await expect(canvas.getByText("US · token ending in abcd")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Add connection" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
+    await expect(canvas.getByTestId("workos-pipes-widget")).toHaveTextContent(
+      "intercom Pipes widget",
+    );
   },
 };
 

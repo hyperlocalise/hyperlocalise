@@ -15,36 +15,35 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ok } from "@/lib/primitives/result/results";
 
 const mocks = vi.hoisted(() => ({
-  getAhrefsPipesConnectionStatus: vi.fn(),
+  getPipesAccountStatus: vi.fn(),
 }));
 
-vi.mock("@/lib/ahrefs/pipes", () => ({
-  getAhrefsPipesConnectionStatus: (...args: unknown[]) =>
-    mocks.getAhrefsPipesConnectionStatus(...args),
+vi.mock("./accounts", () => ({
+  getPipesAccountStatus: (...args: unknown[]) => mocks.getPipesAccountStatus(...args),
 }));
 
 import { getPipesConnectionStatus } from "./status";
 
 describe("getPipesConnectionStatus", () => {
   beforeEach(() => {
-    mocks.getAhrefsPipesConnectionStatus.mockReset();
+    mocks.getPipesAccountStatus.mockReset();
   });
 
-  it("dispatches Ahrefs to the Ahrefs Pipes status loader", async () => {
+  it("loads status for any configured Pipes provider", async () => {
     const status = {
       connected: true,
       needsReauthorization: false,
       apiKeyLast4: "abcd",
     };
-    mocks.getAhrefsPipesConnectionStatus.mockResolvedValue(ok(status));
+    mocks.getPipesAccountStatus.mockResolvedValue(ok(status));
 
     const input = {
-      provider: "ahrefs" as const,
+      provider: "intercom" as const,
       localOrganizationId: "org-local",
       workosUserId: "user_workos",
     };
 
     await expect(getPipesConnectionStatus(input)).resolves.toEqual(ok(status));
-    expect(mocks.getAhrefsPipesConnectionStatus).toHaveBeenCalledWith(input);
+    expect(mocks.getPipesAccountStatus).toHaveBeenCalledWith(input);
   });
 });

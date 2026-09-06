@@ -21,6 +21,12 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
+/**
+ * @deprecated Store Intercom credentials in WorkOS Pipes instead.
+ * These helpers read and write `intercom_connections`. New callers must not
+ * use them.
+ */
+
 import { validateIntercomAccessToken } from "./client";
 import { isIntercomRestEndpoint, type IntercomRestEndpoint } from "./constants";
 import type {

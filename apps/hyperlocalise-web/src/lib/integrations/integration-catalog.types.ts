@@ -39,7 +39,11 @@ export type IntegrationIconKey =
   | "hubspot"
   | "mailchimp"
   | "loops"
-  | "googledrive";
+  | "googledrive"
+  | "atlassian"
+  | "similarweb"
+  | "webflow"
+  | "sanity";
 
 export type IntegrationCapabilityDescriptor = {
   title: MessageDescriptor;
