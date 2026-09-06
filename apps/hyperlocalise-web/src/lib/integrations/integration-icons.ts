@@ -12,6 +12,7 @@
  */
 import type { SimpleIcon } from "simple-icons";
 import {
+  siAtlassian,
   siCrowdin,
   siGithub,
   siGitlab,
@@ -24,7 +25,10 @@ import {
   siMailchimp,
   siNotion,
   siResend,
+  siSanity,
   siSemrush,
+  siSimilarweb,
+  siWebflow,
 } from "simple-icons";
 
 import type { IntegrationIconKey } from "@/lib/integrations/integration-catalog.types";
@@ -40,9 +44,14 @@ export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
   mailchimp: siMailchimp,
   loops: siLoops,
   googledrive: siGoogledrive,
+  atlassian: siAtlassian,
+  similarweb: siSimilarweb,
+  webflow: siWebflow,
+  sanity: siSanity,
 };
 
 const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
+  atlassian: siAtlassian,
   crowdin: siCrowdin,
   gitlab: siGitlab,
   intercom: siIntercom,
@@ -53,7 +62,10 @@ const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   hubspot: siHubspot,
   mailchimp: siMailchimp,
   loops: siLoops,
+  sanity: siSanity,
   semrush: siSemrush,
+  similarweb: siSimilarweb,
+  webflow: siWebflow,
   "google-drive": siGoogledrive,
 };
 

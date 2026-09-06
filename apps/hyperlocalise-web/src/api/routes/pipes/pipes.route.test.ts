@@ -93,6 +93,33 @@ describe("pipesRoutes", () => {
     });
   });
 
+  it("returns the current user's Pipes connection status for catalog API-key providers", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "notion" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      pipe: {
+        provider: "notion",
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "wxyz",
+      },
+    });
+    expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
+      provider: "notion",
+      localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+  });
+
   it("returns not found for an unknown Pipes provider", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

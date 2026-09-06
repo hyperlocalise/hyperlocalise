@@ -24,22 +24,35 @@ import {
   getIntegrationIconForKey,
   getIntegrationIconForSlug,
 } from "@/lib/integrations/integration-icons";
+import type { PipesProviderSlug } from "@/lib/pipes/providers";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 
 export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira", "linear"] as const;
 
-export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint", "notion"] as const;
+export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint"] as const;
 
 export const workspaceComingSoonCustomerEngagementSlugs = [
   "braze",
   "iterable",
   "customer-io",
+  "loops",
+] as const;
+
+export const workspacePipesCollaborationSlugs = ["atlassian"] as const satisfies readonly PipesProviderSlug[];
+
+export const workspacePipesGuidelineSlugs = ["notion"] as const satisfies readonly PipesProviderSlug[];
+
+export const workspacePipesCustomerEngagementSlugs = [
+  "intercom",
   "hubspot",
   "mailchimp",
-  "loops",
   "sendgrid",
   "resend",
-] as const;
+] as const satisfies readonly PipesProviderSlug[];
+
+export const workspacePipesCmsSlugs = ["webflow", "sanity"] as const satisfies readonly PipesProviderSlug[];
+
+export const workspacePipesSeoToolSlugs = ["similarweb"] as const satisfies readonly PipesProviderSlug[];
 
 export type WorkspaceIntegrationSummary = {
   slug: string;

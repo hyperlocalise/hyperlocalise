@@ -10,6 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+/**
+ * @deprecated Intercom credentials now live in WorkOS Pipes. Keep these CRUD
+ * routes until `intercom_connections` is dropped. New UI must not call them.
+ */
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 

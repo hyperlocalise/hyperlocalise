@@ -10,9 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getAhrefsPipesConnectionStatus } from "@/lib/ahrefs/pipes";
 import type { Result } from "@/lib/primitives/result/results";
 
+import { getPipesAccountStatus } from "./accounts";
 import type { PipesProviderSlug } from "./providers";
 import type { PipesConnectionStatus, PipesStatusError } from "./types";
 
@@ -21,8 +21,5 @@ export async function getPipesConnectionStatus(input: {
   localOrganizationId: string;
   workosUserId: string;
 }): Promise<Result<PipesConnectionStatus, PipesStatusError>> {
-  switch (input.provider) {
-    case "ahrefs":
-      return getAhrefsPipesConnectionStatus(input);
-  }
+  return getPipesAccountStatus(input);
 }

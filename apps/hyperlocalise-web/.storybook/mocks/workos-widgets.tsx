@@ -18,8 +18,9 @@ export function WorkOsWidgets({ children }: { children: ReactNode }) {
   return children;
 }
 
-export function Pipes() {
-  return <div data-testid="workos-pipes-widget">Ahrefs Pipes widget</div>;
+export function Pipes({ filter }: { filter?: { slugs?: string[] } }) {
+  const slugs = filter?.slugs?.join(", ") || "Pipes";
+  return <div data-testid="workos-pipes-widget">{slugs} Pipes widget</div>;
 }
 
 export function PipesLoading() {

@@ -87,13 +87,13 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
       HttpResponse.json({ ahrefsConnections: [] }),
     ),
-    http.get("/api/orgs/:organizationSlug/pipes/:provider", () =>
+    http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {
-          provider: "ahrefs",
-          connected: false,
+          provider: params.provider,
+          connected: params.provider === "intercom",
           needsReauthorization: false,
-          apiKeyLast4: null,
+          apiKeyLast4: params.provider === "intercom" ? "abcd" : null,
         },
       }),
     ),
