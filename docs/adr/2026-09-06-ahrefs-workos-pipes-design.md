@@ -16,7 +16,7 @@ Connect Ahrefs through WorkOS Pipes. Keep `ahrefs_connections` in the schema and
 
 ### Integrations UI
 
-Render the WorkOS `<Pipes>` widget filtered to `slugs: ['ahrefs']`. Authenticate with the AuthKit access token (`useAccessToken().getAccessToken`). Status for the row badge and automations comes from `GET /api/orgs/:slug/pipes/ahrefs`.
+Render the WorkOS `<Pipes>` widget filtered to `slugs: ['ahrefs']`. Authenticate with the AuthKit access token (`useAccessToken().getAccessToken`). Status for the row badge and automations comes from `GET /api/orgs/:slug/pipes/:provider` (`provider=ahrefs`). Additional Pipes providers share that route.
 
 ### Automations
 

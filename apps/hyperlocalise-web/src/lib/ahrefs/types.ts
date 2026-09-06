@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { PipesConnectionStatus } from "@/lib/pipes/types";
 
 export type AhrefsConnectionSummary = {
   id: string;
@@ -29,11 +30,7 @@ export type AhrefsConnectionWithApiKey = {
   apiKey: string;
 };
 
-export type AhrefsPipesConnectionStatus = {
-  connected: boolean;
-  needsReauthorization: boolean;
-  apiKeyLast4: string | null;
-};
+export type AhrefsPipesConnectionStatus = PipesConnectionStatus;
 
 export type AhrefsPipesError =
   | { code: "ahrefs_pipes_unavailable"; message: string }

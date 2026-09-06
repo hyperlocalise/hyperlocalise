@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
       globalThis.__testApiAuthContext ??
       null,
   ),
-  getAhrefsPipesConnectionStatus: vi.fn(),
+  getPipesConnectionStatus: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -33,9 +33,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/ahrefs/pipes", () => ({
-  getAhrefsPipesConnectionStatus: (...args: unknown[]) =>
-    mocks.getAhrefsPipesConnectionStatus(...args),
+vi.mock("@/lib/pipes/status", () => ({
+  getPipesConnectionStatus: (...args: unknown[]) => mocks.getPipesConnectionStatus(...args),
 }));
 
 import { createApp } from "@/api/app";
@@ -47,13 +46,14 @@ import { ok } from "@/lib/primitives/result/results";
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
 
-describe("ahrefsPipesRoutes", () => {
+describe("pipesRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
 
   beforeEach(() => {
-    mocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
+    mocks.getPipesConnectionStatus.mockClear();
+    mocks.getPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: true,
         needsReauthorization: false,
@@ -66,28 +66,49 @@ describe("ahrefsPipesRoutes", () => {
     await fixture.cleanup();
   });
 
-  it("returns the current user's Ahrefs Pipes connection status", async () => {
+  it("returns the current user's Pipes connection status for a known provider", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
 
-    const response = await client.api.orgs[":organizationSlug"].pipes.ahrefs.$get(
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
       {
-        param: { organizationSlug: identity.organization.slug ?? "" },
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "ahrefs" },
       },
       { headers },
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      ahrefsPipe: {
+      pipe: {
+        provider: "ahrefs",
         connected: true,
         needsReauthorization: false,
         apiKeyLast4: "wxyz",
       },
     });
-    expect(mocks.getAhrefsPipesConnectionStatus).toHaveBeenCalledWith({
+    expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
+      provider: "ahrefs",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
+  });
+
+  it("returns not found for an unknown Pipes provider", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "",
+          provider: "unknown-provider" as "ahrefs",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "unknown_pipes_provider" });
+    expect(mocks.getPipesConnectionStatus).not.toHaveBeenCalled();
   });
 });

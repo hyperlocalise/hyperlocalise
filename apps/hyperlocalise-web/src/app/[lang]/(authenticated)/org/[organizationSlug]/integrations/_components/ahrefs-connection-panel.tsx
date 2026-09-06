@@ -35,16 +35,16 @@ export function useAhrefsPipesStatus(organizationSlug: string, refetchWhileOpen 
   const intl = useIntl();
 
   return useQuery({
-    queryKey: ["ahrefs-pipes", organizationSlug],
+    queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].pipes.ahrefs.$get({
-        param: { organizationSlug },
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: AHREFS_PIPES_SLUG },
       });
       if (!response.ok) {
         throw new Error(intl.formatMessage(ahrefsConnectionPanelMessages.fetchFailed));
       }
       const body = await response.json();
-      return body.ahrefsPipe as AhrefsPipesConnectionStatus;
+      return body.pipe as AhrefsPipesConnectionStatus;
     },
     refetchInterval: refetchWhileOpen ? 5_000 : false,
   });

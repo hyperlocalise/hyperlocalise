@@ -83,6 +83,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { createApiClient } from "@/lib/api-client";
 import {
   AUTOMATION_WEEKDAY_OPTIONS,
@@ -3134,16 +3135,16 @@ export function WorkspaceAutomationEditor({
   });
 
   const ahrefsPipesQuery = useQuery({
-    queryKey: ["ahrefs-pipes", organizationSlug],
+    queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].pipes.ahrefs.$get({
-        param: { organizationSlug },
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: AHREFS_PIPES_SLUG },
       });
       if (!response.ok) {
         throw new Error("Failed to load Ahrefs connection");
       }
       const body = await response.json();
-      return body.ahrefsPipe as {
+      return body.pipe as {
         connected: boolean;
         needsReauthorization: boolean;
         apiKeyLast4: string | null;

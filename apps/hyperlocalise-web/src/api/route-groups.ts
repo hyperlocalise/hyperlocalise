@@ -35,7 +35,7 @@ import { createContentfulConnectionRoutes } from "./routes/contentful-connection
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
-import { createAhrefsPipesRoutes } from "./routes/ahrefs-pipes/ahrefs-pipes.route";
+import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
@@ -170,7 +170,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
-    .route("/pipes", createAhrefsPipesRoutes())
+    .route("/pipes", createPipesRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes());
 }
