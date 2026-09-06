@@ -3,7 +3,7 @@ package scoring
 import (
 	"math"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,7 +174,7 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	}
 
 	if len(hardFails) > 0 {
-		sort.Strings(hardFails)
+		slices.Sort(hardFails)
 		result.HardFails = hardFails
 		result.WeightedAggregate = 0
 	}
@@ -376,24 +376,21 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	tokens := make(map[string]int, capEstimate)
 	total := 0
 
-	// BOLT OPTIMIZATION: Use FindAllStringIndex instead of FindAllString to slice s directly,
-	// avoiding match slice string heap allocations.
+	// Scan tokens iteratively to avoid allocating FindAllStringIndex headers.
+	// Advance to the returned match (or stop) so unmatched signal characters
+	// do not rescan every remaining suffix.
 	if hasHTML {
-		matches := htmlTagPattern.FindAllStringIndex(s, -1)
-		for _, loc := range matches {
-			sub := strings.TrimSpace(s[loc[0]:loc[1]])
-			tokens[formatHTMLToken(sub)]++
+		scanRegexpMatches(s, "<", htmlTagPattern, func(raw string) {
+			tokens[formatHTMLToken(strings.TrimSpace(raw))]++
 			total++
-		}
+		})
 	}
 
 	if hasMD {
-		matches := markdownTokenPattern.FindAllStringIndex(s, -1)
-		for _, loc := range matches {
-			sub := strings.TrimSpace(s[loc[0]:loc[1]])
-			tokens["md:"+sub]++
+		scanRegexpMatches(s, "*_~`[#", markdownTokenPattern, func(raw string) {
+			tokens["md:"+strings.TrimSpace(raw)]++
 			total++
-		}
+		})
 	}
 
 	return tokens, total
@@ -509,7 +506,7 @@ func placeholderTokens(s string) []string {
 			tokens = append(tokens, token)
 		}
 	}
-	sort.Strings(tokens)
+	slices.Sort(tokens)
 	return dedupAdjacent(tokens)
 }
 
@@ -569,12 +566,45 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 		})
 	}
 	if strings.Contains(s, "%") {
-		for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
+		scanRegexpMatches(s, "%", printfPlaceholderPattern, func(match string) {
 			tokens["printf:"+match]++
 			total++
-		}
+		})
 	}
 	return tokens, total
+}
+
+// scanRegexpMatches invokes fn for each non-overlapping leftmost match of
+// pattern in s. signals is a set of bytes that every match starts with;
+// IndexByte/IndexAny skips to the next candidate, then FindStringIndex either
+// matches there, jumps to a later hit, or stops when the suffix has no match.
+func scanRegexpMatches(s, signals string, pattern *regexp.Regexp, fn func(match string)) {
+	if signals == "" {
+		return
+	}
+	for pos := 0; pos < len(s); {
+		var idx int
+		if len(signals) == 1 {
+			idx = strings.IndexByte(s[pos:], signals[0])
+		} else {
+			idx = strings.IndexAny(s[pos:], signals)
+		}
+		if idx == -1 {
+			return
+		}
+		pos += idx
+		loc := pattern.FindStringIndex(s[pos:])
+		if loc == nil {
+			return
+		}
+		start := pos + loc[0]
+		end := pos + loc[1]
+		if end <= start {
+			return
+		}
+		fn(s[start:end])
+		pos = end
+	}
 }
 
 func scanBracePlaceholders(s string, fn func(name string)) {
@@ -644,7 +674,8 @@ func tokenF1Normalized(reference, candidate string) float64 {
 		return 1
 	}
 
-	rCount := make(map[string]int)
+	// BOLT OPTIMIZATION: Pre-allocate rCount map capacity using space count hint.
+	rCount := make(map[string]int, strings.Count(reference, " ")+1)
 	rLen := 0
 	start := -1
 	for i := 0; i < len(reference); {
