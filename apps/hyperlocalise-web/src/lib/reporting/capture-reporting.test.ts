@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
@@ -25,7 +25,12 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { captureAiUsage } from "./ai-cost";
-import { bestReportingMatchScore, captureAnalysis, sourceSimilarity } from "./capture";
+import {
+  bestReportingMatchScore,
+  captureAnalysis,
+  captureJobStatus,
+  sourceSimilarity,
+} from "./capture";
 
 const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";
@@ -325,5 +330,46 @@ describe("reporting capture", () => {
         outputTokens: 4,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("keeps job status capture from failing the caller", async () => {
+    await expect(
+      captureJobStatus({
+        jobId: `job_${randomUUID()}`,
+        status: "running",
+        operationKey: `status:test:${randomUUID()}`,
+      }),
+    ).resolves.toBeUndefined();
+
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const workflowRunId = `run_${randomUUID()}`;
+    const [job] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "translation",
+        status: "running",
+        workflowRunId,
+        inputPayload: {},
+      })
+      .returning();
+
+    const insertSpy = vi.spyOn(db, "insert").mockImplementation(() => {
+      throw new Error("reporting unavailable");
+    });
+    try {
+      await expect(
+        captureJobStatus({
+          jobId: job.id,
+          status: "running",
+          operationKey: `status:${workflowRunId}:running`,
+        }),
+      ).resolves.toBeUndefined();
+    } finally {
+      insertSpy.mockRestore();
+    }
   });
 });

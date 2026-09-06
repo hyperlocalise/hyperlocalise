@@ -395,6 +395,19 @@ export async function captureJobStatus(input: {
   operationKey: string;
   durationMs?: number;
 }) {
+  try {
+    await writeJobStatus(input);
+  } catch (error) {
+    console.warn("reporting_job_status_failed", { jobId: input.jobId, error });
+  }
+}
+
+async function writeJobStatus(input: {
+  jobId: string;
+  status: string;
+  operationKey: string;
+  durationMs?: number;
+}) {
   await reportingStart();
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
   const [job] = await db
