@@ -22,22 +22,22 @@ export const ahrefsConnectionPanelMessages = defineMessages({
   },
   rowDescription: {
     defaultMessage: "Connect Ahrefs through WorkOS Pipes for SEO data in automations.",
-    id: "0//CTkn8hx",
+    id: "9mbxPN/dMr",
     description: "Description for the Ahrefs integrations row",
   },
   fetchFailed: {
     defaultMessage: "Failed to load Ahrefs connection.",
-    id: "brJ+Z+0eR1",
+    id: "z3hAWnzQKx",
     description: "Error when Ahrefs Pipes status cannot be loaded",
   },
   tokenRequired: {
     defaultMessage: "Sign in again to manage the Ahrefs connection.",
-    id: "ahrefsPipesTokenRequired",
+    id: "4rrhdZuDqB",
     description: "Error when a WorkOS access token is missing for the Pipes widget",
   },
   reconnectHint: {
     defaultMessage: "Reconnect Ahrefs to keep automations working.",
-    id: "ahrefsPipesReconnectHint",
+    id: "glTclgNrLG",
     description: "Hint when the Ahrefs Pipes installation needs reauthorization",
   },
 });

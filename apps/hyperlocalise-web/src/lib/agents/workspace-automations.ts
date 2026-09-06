@@ -423,8 +423,8 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     });
     if (isErr(status)) {
       return err({
-        code: status.error.code,
-        message: status.error.message,
+        code: "ahrefs_pipes_unavailable",
+        message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.",
       });
     }
 

@@ -154,7 +154,7 @@ export async function loadAhrefsPipesApiKey(input: {
     });
 
     const apiKey = result.credential?.value?.trim();
-    if (result.active === false || !apiKey) {
+    if (!apiKey || result.error) {
       if (result.error === "needs_reauthorization") {
         return err(AHREFS_NEEDS_REAUTHORIZATION);
       }

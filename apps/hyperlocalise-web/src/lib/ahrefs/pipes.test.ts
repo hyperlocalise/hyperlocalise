@@ -58,7 +58,13 @@ describe("ahrefs pipes", () => {
   });
 
   it("reports disconnected when WorkOS has no Ahrefs account", async () => {
-    mocks.getUserConnectedAccount.mockRejectedValue(new NotFoundException("missing"));
+    mocks.getUserConnectedAccount.mockRejectedValue(
+      new NotFoundException({
+        path: "/data-integrations/ahrefs",
+        requestID: "req_test_not_found",
+        message: "missing",
+      }),
+    );
 
     const result = await getAhrefsPipesConnectionStatus({
       localOrganizationId: "org-local",

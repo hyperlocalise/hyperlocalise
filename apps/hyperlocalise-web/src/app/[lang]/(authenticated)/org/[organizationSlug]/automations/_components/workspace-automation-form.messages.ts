@@ -505,12 +505,12 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   ahrefsDescription: {
     defaultMessage: "Query Ahrefs SEO data through the connection in Integrations.",
-    id: "xqQi/ZEY79",
+    id: "q/krUbYzC9",
     description: "Description for the Ahrefs automation tool when a connection exists",
   },
   ahrefsDisconnectedDescription: {
     defaultMessage: "Connect Ahrefs in Integrations before using this tool.",
-    id: "T67SNUNeWw",
+    id: "a1tmRYQQWa",
     description: "Description when Ahrefs is not connected",
   },
   removeAhrefsTool: {
