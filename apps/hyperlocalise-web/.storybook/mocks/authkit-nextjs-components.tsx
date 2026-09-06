@@ -57,6 +57,7 @@ export function useAccessToken() {
     loading: false,
     error: null,
     refresh: async () => "storybook-access-token",
+    getAccessToken: async () => "storybook-access-token",
   };
 }
 

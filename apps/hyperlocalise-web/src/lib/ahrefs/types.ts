@@ -29,10 +29,22 @@ export type AhrefsConnectionWithApiKey = {
   apiKey: string;
 };
 
+export type AhrefsPipesConnectionStatus = {
+  connected: boolean;
+  needsReauthorization: boolean;
+  apiKeyLast4: string | null;
+};
+
+export type AhrefsPipesError =
+  | { code: "ahrefs_pipes_unavailable"; message: string }
+  | { code: "ahrefs_not_connected"; message: string }
+  | { code: "ahrefs_pipes_needs_reauthorization"; message: string };
+
 export type AhrefsConnectionError =
   | { code: "ahrefs_api_key_required"; message: string }
   | { code: "ahrefs_connection_not_found"; message: string }
   | { code: "ahrefs_connection_decrypt_failed"; message: string }
   | { code: "ahrefs_connection_validation_failed"; message: string }
   | { code: "ahrefs_connection_in_use"; message: string }
-  | { code: "ahrefs_mcp_timeout"; message: string };
+  | { code: "ahrefs_mcp_timeout"; message: string }
+  | AhrefsPipesError;

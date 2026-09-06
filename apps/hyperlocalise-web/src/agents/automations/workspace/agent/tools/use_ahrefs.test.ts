@@ -16,19 +16,18 @@ import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
-import { err, ok } from "@/lib/primitives/result/results";
+import { err } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createUseAhrefsTool } from "./use_ahrefs";
 
 const mocks = vi.hoisted(() => ({
-  loadAhrefsConnectionWithApiKey: vi.fn(),
+  loadAhrefsPipesApiKey: vi.fn(),
   createAhrefsMcpClient: vi.fn(),
 }));
 
-vi.mock("@/lib/ahrefs/connections", () => ({
-  loadAhrefsConnectionWithApiKey: (...args: unknown[]) =>
-    mocks.loadAhrefsConnectionWithApiKey(...args),
+vi.mock("@/lib/ahrefs/pipes", () => ({
+  loadAhrefsPipesApiKey: (...args: unknown[]) => mocks.loadAhrefsPipesApiKey(...args),
 }));
 
 vi.mock("@/lib/ahrefs/mcp-client", () => ({
@@ -111,50 +110,19 @@ describe("createUseAhrefsTool", () => {
       ),
     ).rejects.toThrow("ahrefs_not_configured");
 
-    expect(mocks.loadAhrefsConnectionWithApiKey).not.toHaveBeenCalled();
+    expect(mocks.loadAhrefsPipesApiKey).not.toHaveBeenCalled();
     expect(mocks.createAhrefsMcpClient).not.toHaveBeenCalled();
   });
 
-  it("rejects missing Ahrefs connections before connecting to MCP", async () => {
-    mocks.loadAhrefsConnectionWithApiKey.mockResolvedValue(
-      err({ code: "ahrefs_connection_not_found" }),
-    );
+  it("rejects missing Ahrefs Pipes credentials before connecting to MCP", async () => {
+    mocks.loadAhrefsPipesApiKey.mockResolvedValue(err({ code: "ahrefs_not_connected" }));
 
     await expect(
       createUseAhrefsTool(
         session({
           ahrefs: {
             enabled: true,
-            connectionId: "22222222-2222-4222-8222-222222222222",
-          },
-        }),
-      ).execute!(
-        { objective: "Find backlink metrics" },
-        { toolCallId: "call-1", messages: [], context: {} },
-      ),
-    ).rejects.toThrow("ahrefs_connection_not_found");
-
-    expect(mocks.createAhrefsMcpClient).not.toHaveBeenCalled();
-  });
-
-  it("rejects disabled or unvalidated Ahrefs connections before connecting to MCP", async () => {
-    mocks.loadAhrefsConnectionWithApiKey.mockResolvedValue(
-      ok({
-        connection: {
-          id: "22222222-2222-4222-8222-222222222222",
-          enabled: false,
-          validationStatus: "valid",
-        },
-        apiKey: "ahrefs_test_key",
-      }),
-    );
-
-    await expect(
-      createUseAhrefsTool(
-        session({
-          ahrefs: {
-            enabled: true,
-            connectionId: "22222222-2222-4222-8222-222222222222",
+            workosUserId: "user_workos",
           },
         }),
       ).execute!(
@@ -163,15 +131,16 @@ describe("createUseAhrefsTool", () => {
       ),
     ).rejects.toThrow("ahrefs_not_connected");
 
-    mocks.loadAhrefsConnectionWithApiKey.mockResolvedValue(
-      ok({
-        connection: {
-          id: "22222222-2222-4222-8222-222222222222",
-          enabled: true,
-          validationStatus: "unvalidated",
-        },
-        apiKey: "ahrefs_test_key",
-      }),
+    expect(mocks.loadAhrefsPipesApiKey).toHaveBeenCalledWith({
+      localOrganizationId: "org-1",
+      workosUserId: "user_workos",
+    });
+    expect(mocks.createAhrefsMcpClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects Ahrefs Pipes credentials that need reauthorization", async () => {
+    mocks.loadAhrefsPipesApiKey.mockResolvedValue(
+      err({ code: "ahrefs_pipes_needs_reauthorization" }),
     );
 
     await expect(
@@ -179,14 +148,14 @@ describe("createUseAhrefsTool", () => {
         session({
           ahrefs: {
             enabled: true,
-            connectionId: "22222222-2222-4222-8222-222222222222",
+            workosUserId: "user_workos",
           },
         }),
       ).execute!(
         { objective: "Find backlink metrics" },
         { toolCallId: "call-1", messages: [], context: {} },
       ),
-    ).rejects.toThrow("ahrefs_not_connected");
+    ).rejects.toThrow("ahrefs_pipes_needs_reauthorization");
 
     expect(mocks.createAhrefsMcpClient).not.toHaveBeenCalled();
   });

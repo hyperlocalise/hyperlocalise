@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { AHREFS_MCP_URL, buildAhrefsApiKeyAuthorizationHeader } from "./constants";
+import {
+  AHREFS_MCP_URL,
+  AHREFS_PIPES_SLUG,
+  buildAhrefsApiKeyAuthorizationHeader,
+} from "./constants";
 
 describe("ahrefs constants", () => {
   it("builds the Ahrefs Bearer authorization header", () => {
@@ -21,5 +25,9 @@ describe("ahrefs constants", () => {
 
   it("points at the Ahrefs MCP HTTP endpoint", () => {
     expect(AHREFS_MCP_URL).toBe("https://api.ahrefs.com/mcp/mcp");
+  });
+
+  it("uses the WorkOS Pipes slug configured in the dashboard", () => {
+    expect(AHREFS_PIPES_SLUG).toBe("ahrefs");
   });
 });

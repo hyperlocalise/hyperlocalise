@@ -28,6 +28,12 @@ import type {
   AhrefsConnectionWithApiKey,
 } from "./types";
 
+/**
+ * @deprecated Store Ahrefs credentials in WorkOS Pipes (`./pipes.ts`) instead.
+ * These helpers read and write `ahrefs_connections`. New automations must not
+ * call them.
+ */
+
 type AhrefsConnectionRow = typeof schema.ahrefsConnections.$inferSelect;
 
 function serializeConnection(row: AhrefsConnectionRow): AhrefsConnectionSummary {

@@ -146,12 +146,6 @@ type SemrushConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
-type AhrefsConnectionOption = {
-  id: string;
-  displayName: string;
-  enabled: boolean;
-  validationStatus: string;
-};
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
@@ -1816,7 +1810,7 @@ function ToolsSettings({
   organizationSlug,
   projects,
   repositories,
-  ahrefsConnections,
+  ahrefsConnected,
   semrushConnections,
   slackConnected,
 }: {
@@ -1836,7 +1830,7 @@ function ToolsSettings({
   organizationSlug: string;
   projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
-  ahrefsConnections: AhrefsConnectionOption[];
+  ahrefsConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   slackConnected: boolean;
 }) {
@@ -1849,10 +1843,6 @@ function ToolsSettings({
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
   const semrushConnected = enabledSemrushConnections.length > 0;
-  const enabledAhrefsConnections = ahrefsConnections.filter(
-    (connection) => connection.enabled && connection.validationStatus === "valid",
-  );
-  const ahrefsConnected = enabledAhrefsConnections.length > 0;
   const crowdinProjects = collectCrowdinProjects(projects, crowdinLiveProjects);
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedProject = projects.find((project) => project.id === form.projectId);
@@ -2754,52 +2744,12 @@ function ToolsSettings({
                   onChange({
                     ...form,
                     ahrefsEnabled: false,
-                    ahrefsConnectionId: "",
                   })
                 }
               />
             }
           >
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
-              </Label>
-              <Select
-                value={form.ahrefsConnectionId || null}
-                disabled={disabled || !ahrefsConnected}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  onChange({ ...form, ahrefsConnectionId: value });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue
-                    placeholder={intl.formatMessage(
-                      workspaceAutomationFormMessages.selectConnection,
-                    )}
-                  >
-                    {enabledAhrefsConnections.find(
-                      (connection) => connection.id === form.ahrefsConnectionId,
-                    )?.displayName ??
-                      intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledAhrefsConnections.map((connection) => (
-                    <SelectItem
-                      key={connection.id}
-                      value={connection.id}
-                      label={connection.displayName}
-                    >
-                      {connection.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError message={errors.ahrefsConnectionId} />
-            </div>
+            <FieldError message={errors.ahrefs} />
           </EditorRow>
         ) : null}
 
@@ -3183,17 +3133,21 @@ export function WorkspaceAutomationEditor({
     },
   });
 
-  const ahrefsConnectionsQuery = useQuery({
-    queryKey: ["ahrefs-connections", organizationSlug],
+  const ahrefsPipesQuery = useQuery({
+    queryKey: ["ahrefs-pipes", organizationSlug],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["ahrefs-connections"].$get({
+      const response = await api.api.orgs[":organizationSlug"].pipes.ahrefs.$get({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        throw new Error("Failed to load Ahrefs connections");
+        throw new Error("Failed to load Ahrefs connection");
       }
       const body = await response.json();
-      return body.ahrefsConnections as AhrefsConnectionOption[];
+      return body.ahrefsPipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
     },
   });
 
@@ -3212,7 +3166,7 @@ export function WorkspaceAutomationEditor({
   const contentfulConnected = contentfulConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
-  const ahrefsConnections = ahrefsConnectionsQuery.data ?? [];
+  const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
 
@@ -3358,7 +3312,7 @@ export function WorkspaceAutomationEditor({
             organizationSlug={organizationSlug}
             projects={projectsQuery.data ?? []}
             repositories={repositories}
-            ahrefsConnections={ahrefsConnections}
+            ahrefsConnected={ahrefsConnected}
             semrushConnections={semrushConnections}
             slackConnected={slackConnected}
           />

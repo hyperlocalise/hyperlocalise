@@ -15,10 +15,9 @@ import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle
 import { organizations, users } from "./organizations";
 
 /**
- * Org-level Ahrefs MCP API key connections.
- * Automations reference a connection via toolConfig.ahrefs.connectionId.
- * Runtime authenticates to https://api.ahrefs.com/mcp/mcp with
- * `Authorization: Bearer <mcp_token>`.
+ * @deprecated Store Ahrefs credentials in WorkOS Pipes instead.
+ * Org-level Ahrefs MCP API key connections. Unused by new automations; kept
+ * because no production tenants used this table. Do not backfill.
  */
 export const ahrefsConnections = pgTable(
   "ahrefs_connections",

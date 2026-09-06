@@ -20,6 +20,8 @@ const config: StorybookConfig = {
       storybookDir,
       "./mocks/authkit-nextjs-components.tsx",
     );
+    const workosWidgetsMock = path.resolve(storybookDir, "./mocks/workos-widgets.tsx");
+    const emptyCssMock = path.resolve(storybookDir, "./mocks/empty.css");
     const aiFeaturesAccessMock = path.resolve(storybookDir, "./mocks/use-ai-features-access.ts");
 
     viteConfig.resolve ??= {};
@@ -33,6 +35,18 @@ const config: StorybookConfig = {
           replacement: authkitComponentsMock,
         },
         {
+          find: "@workos-inc/widgets/styles.css",
+          replacement: emptyCssMock,
+        },
+        {
+          find: "@radix-ui/themes/styles.css",
+          replacement: emptyCssMock,
+        },
+        {
+          find: "@workos-inc/widgets",
+          replacement: workosWidgetsMock,
+        },
+        {
           find: "@/lib/billing/use-ai-features-access",
           replacement: aiFeaturesAccessMock,
         },
@@ -43,6 +57,9 @@ const config: StorybookConfig = {
         existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
         {
           "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
+          "@workos-inc/widgets/styles.css": emptyCssMock,
+          "@radix-ui/themes/styles.css": emptyCssMock,
+          "@workos-inc/widgets": workosWidgetsMock,
           "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
         },
       );

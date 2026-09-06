@@ -12,7 +12,6 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -36,9 +35,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { createWorkspaceAutomation } from "@/lib/agents/workspace-automations";
 import { db, schema } from "@/lib/database/client";
-import { isOk } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -157,17 +154,13 @@ describe("ahrefsConnectionRoutes", () => {
       throw new Error("expected ahrefsConnection in create response");
     }
 
-    // Mark valid so automation integration validation accepts it.
-    await db
-      .update(schema.ahrefsConnections)
-      .set({ validationStatus: "valid", validationMessage: "test" })
-      .where(eq(schema.ahrefsConnections.id, created.ahrefsConnection.id));
-
-    const automation = await createWorkspaceAutomation({
+    await db.insert(schema.workspaceAutomations).values({
       organizationId,
       authorUserId: userId,
-      name: "Ahrefs automation",
+      name: "Legacy Ahrefs automation",
       instructions: "Use Ahrefs.",
+      triggerConfig: { mode: "manual" },
+      repositoryTarget: { kind: "none" },
       toolConfig: {
         ahrefs: {
           enabled: true,
@@ -175,7 +168,6 @@ describe("ahrefsConnectionRoutes", () => {
         },
       },
     });
-    expect(isOk(automation)).toBe(true);
 
     const deleteResponse = await client.api.orgs[":organizationSlug"]["ahrefs-connections"][
       ":connectionId"

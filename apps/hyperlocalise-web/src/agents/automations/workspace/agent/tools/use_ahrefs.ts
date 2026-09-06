@@ -25,7 +25,7 @@ import {
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
 import { AHREFS_MCP_CONNECT_TIMEOUT_MS } from "@/lib/ahrefs/constants";
-import { loadAhrefsConnectionWithApiKey } from "@/lib/ahrefs/connections";
+import { loadAhrefsPipesApiKey } from "@/lib/ahrefs/pipes";
 import { createAhrefsMcpClient, listAhrefsMcpTools } from "@/lib/ahrefs/mcp-client";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -51,23 +51,16 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
     inputSchema: useAhrefsInputSchema,
     execute: async ({ objective }) => {
       const ahrefs = session.automation.toolConfig.ahrefs;
-      if (!ahrefs?.enabled || !ahrefs.connectionId) {
+      if (!ahrefs?.enabled || !ahrefs.workosUserId) {
         throw new Error("ahrefs_not_configured");
       }
 
-      const connectionResult = await loadAhrefsConnectionWithApiKey({
-        organizationId: session.organizationId,
-        connectionId: ahrefs.connectionId,
+      const apiKeyResult = await loadAhrefsPipesApiKey({
+        localOrganizationId: session.organizationId,
+        workosUserId: ahrefs.workosUserId,
       });
-      if (isErr(connectionResult)) {
-        throw new Error(connectionResult.error.code);
-      }
-
-      if (
-        !connectionResult.value.connection.enabled ||
-        connectionResult.value.connection.validationStatus !== "valid"
-      ) {
-        throw new Error("ahrefs_not_connected");
+      if (isErr(apiKeyResult)) {
+        throw new Error(apiKeyResult.error.code);
       }
 
       // Short-lived signal for connect + tool discovery only. Tool-call fetch
@@ -76,7 +69,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
       const connectSignal = AbortSignal.timeout(AHREFS_MCP_CONNECT_TIMEOUT_MS);
       let requestSignal = connectSignal;
       const clientResult = await createAhrefsMcpClient({
-        apiKey: connectionResult.value.apiKey,
+        apiKey: apiKeyResult.value,
         signal: connectSignal,
         getRequestSignal: () => requestSignal,
       });
@@ -120,7 +113,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
           dimensions: {
             surface: "automation",
             agent_surface: "ahrefs",
-            connection_id: connectionResult.value.connection.id,
+            workos_user_id: ahrefs.workosUserId,
           },
           extractTokenUsage: extractGenerateResultTokenUsage,
           run: () =>
@@ -145,7 +138,6 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
 
         const payload = {
           summary,
-          connectionId: connectionResult.value.connection.id,
           toolCount: toolNames.length,
         };
         session.stepResults.use_ahrefs = payload;

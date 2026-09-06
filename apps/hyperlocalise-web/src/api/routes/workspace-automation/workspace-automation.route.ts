@@ -477,6 +477,7 @@ export function createWorkspaceAutomationRoutes(
         const createInput = {
           organizationId,
           authorUserId: c.var.auth.user.localUserId,
+          actorWorkosUserId: c.var.auth.user.workosUserId,
           status: payload.status,
           name: payload.name,
           instructions: payload.instructions,
@@ -650,6 +651,7 @@ export function createWorkspaceAutomationRoutes(
         const updateInput = {
           automationId: params.automationId,
           organizationId,
+          actorWorkosUserId: c.var.auth.user.workosUserId,
           status: payload.status,
           name: payload.name,
           instructions: payload.instructions,

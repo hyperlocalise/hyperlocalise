@@ -106,7 +106,7 @@ function workflowToolEnabled(
     case "use_semrush":
       return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
     case "use_ahrefs":
-      return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
+      return Boolean(toolConfig.ahrefs?.enabled);
     case "use_web_search":
       return hasWorkspaceAutomationWebSearchTool(toolConfig);
     default:

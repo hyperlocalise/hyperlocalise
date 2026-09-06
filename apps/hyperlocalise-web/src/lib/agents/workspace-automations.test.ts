@@ -13,11 +13,23 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createAhrefsConnection } from "@/lib/ahrefs/connections";
+const pipesMocks = vi.hoisted(() => ({
+  getAhrefsPipesConnectionStatus: vi.fn(),
+}));
+
+vi.mock("@/lib/ahrefs/pipes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ahrefs/pipes")>();
+  return {
+    ...actual,
+    getAhrefsPipesConnectionStatus: (...args: unknown[]) =>
+      pipesMocks.getAhrefsPipesConnectionStatus(...args),
+  };
+});
+
 import { db, schema } from "@/lib/database/client";
-import { type Result } from "@/lib/primitives/result/results";
+import { ok, type Result } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
@@ -238,6 +250,16 @@ describe("formatWorkspaceAutomationAuthorName", () => {
 describe("workspace automations", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
   });
 
   afterEach(async () => {
@@ -1241,17 +1263,17 @@ describe("workspace automations", () => {
     }
     expect(semrushMissingId.error.code).toBe("semrush_connection_required");
 
-    const ahrefsMissingId = await createWorkspaceAutomation({
+    const ahrefsDisconnected = await createWorkspaceAutomation({
       ...base,
       toolConfig: {
         ahrefs: { enabled: true },
       },
     });
-    expect(ahrefsMissingId.ok).toBe(false);
-    if (ahrefsMissingId.ok) {
-      throw new Error("expected ahrefs connection required error");
+    expect(ahrefsDisconnected.ok).toBe(false);
+    if (ahrefsDisconnected.ok) {
+      throw new Error("expected ahrefs not-connected validation error");
     }
-    expect(ahrefsMissingId.error.code).toBe("ahrefs_connection_required");
+    expect(ahrefsDisconnected.error.code).toBe("ahrefs_not_connected");
 
     const semrushMissing = await createWorkspaceAutomation({
       ...base,
@@ -1268,20 +1290,25 @@ describe("workspace automations", () => {
     }
     expect(semrushMissing.error.code).toBe("semrush_connection_not_found");
 
-    const ahrefsMissing = await createWorkspaceAutomation({
+    pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: true,
+        apiKeyLast4: "wxyz",
+      }),
+    );
+    const ahrefsNeedsReauthorization = await createWorkspaceAutomation({
       ...base,
+      actorWorkosUserId: "user_workos",
       toolConfig: {
-        ahrefs: {
-          enabled: true,
-          connectionId: "22222222-2222-4222-8222-222222222222",
-        },
+        ahrefs: { enabled: true },
       },
     });
-    expect(ahrefsMissing.ok).toBe(false);
-    if (ahrefsMissing.ok) {
-      throw new Error("expected ahrefs not-found validation error");
+    expect(ahrefsNeedsReauthorization.ok).toBe(false);
+    if (ahrefsNeedsReauthorization.ok) {
+      throw new Error("expected ahrefs reauthorization validation error");
     }
-    expect(ahrefsMissing.error.code).toBe("ahrefs_connection_not_found");
+    expect(ahrefsNeedsReauthorization.error.code).toBe("ahrefs_pipes_needs_reauthorization");
 
     const semrushUnvalidated = expectOk(
       await createSemrushConnection({
@@ -1307,35 +1334,27 @@ describe("workspace automations", () => {
     }
     expect(semrushNotValid.error.code).toBe("semrush_not_connected");
 
-    const ahrefsDisabled = expectOk(
-      await createAhrefsConnection({
-        organizationId: scope.organizationId,
-        userId: scope.userId,
-        displayName: "Disabled Ahrefs",
-        apiKey: "ahrefs_test_api_key_disabled",
-        enabled: false,
-        validate: false,
+    pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "abcd",
       }),
     );
-    await db
-      .update(schema.ahrefsConnections)
-      .set({ validationStatus: "valid", validationMessage: "test" })
-      .where(eq(schema.ahrefsConnections.id, ahrefsDisabled.id));
-
-    const ahrefsNotEnabled = await createWorkspaceAutomation({
-      ...base,
-      toolConfig: {
-        ahrefs: {
-          enabled: true,
-          connectionId: ahrefsDisabled.id,
+    const ahrefsConnected = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        actorWorkosUserId: "user_workos",
+        name: "Ahrefs pipes automation",
+        toolConfig: {
+          ahrefs: { enabled: true },
         },
-      },
+      }),
+    );
+    expect(ahrefsConnected.toolConfig.ahrefs).toEqual({
+      enabled: true,
+      workosUserId: "user_workos",
     });
-    expect(ahrefsNotEnabled.ok).toBe(false);
-    if (ahrefsNotEnabled.ok) {
-      throw new Error("expected ahrefs disabled validation error");
-    }
-    expect(ahrefsNotEnabled.error.code).toBe("ahrefs_not_connected");
 
     const updateRejected = await updateWorkspaceAutomation({
       automationId: expectOk(

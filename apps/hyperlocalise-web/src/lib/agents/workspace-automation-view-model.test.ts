@@ -547,7 +547,7 @@ describe("workspace automation view model", () => {
     });
   });
 
-  it("requires Semrush and Ahrefs connection IDs when those tools are enabled", () => {
+  it("requires Semrush connection IDs when that tool is enabled", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
       semrushEnabled: true,
@@ -556,11 +556,11 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       semrushConnectionId: "Choose a Semrush connection.",
-      ahrefsConnectionId: "Choose an Ahrefs connection.",
     });
+    expect(validateWorkspaceAutomationFormState(form).ahrefs).toBeUndefined();
   });
 
-  it("maps Semrush and Ahrefs API errors onto connection fields", () => {
+  it("maps Semrush and Ahrefs API errors onto tool fields", () => {
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_connection_required")).toEqual({
       semrushConnectionId: "Choose a Semrush connection.",
     });
@@ -572,15 +572,16 @@ describe("workspace automation view model", () => {
       semrushConnectionId:
         "Enable the selected Semrush connection in Integrations before using it.",
     });
-    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_connection_required")).toEqual({
-      ahrefsConnectionId: "Choose an Ahrefs connection.",
-    });
-    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_connection_not_found")).toEqual({
-      ahrefsConnectionId:
-        "The selected Ahrefs connection was not found. Choose another connection.",
-    });
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_not_connected")).toEqual({
-      ahrefsConnectionId: "Enable the selected Ahrefs connection in Integrations before using it.",
+      ahrefs: "Connect Ahrefs in Integrations before using it.",
+    });
+    expect(
+      mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_pipes_needs_reauthorization"),
+    ).toEqual({
+      ahrefs: "Reconnect Ahrefs in Integrations, then try again.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_pipes_unavailable")).toEqual({
+      ahrefs: "Ahrefs is unavailable until WorkOS Pipes is configured.",
     });
   });
 
