@@ -12,16 +12,31 @@
  */
 import "dotenv/config";
 
+import { randomBytes } from "node:crypto";
+
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { isOtaPublicHash } from "./public-hash";
+import { isOtaPublicHash, OTA_PUBLIC_HASH_BYTE_LENGTH } from "./public-hash";
 import { otaDistributionWriter } from "./writer";
+
+const { generateOtaPublicHashMock } = vi.hoisted(() => ({
+  generateOtaPublicHashMock: vi.fn(() => randomBytes(16).toString("hex")),
+}));
+
+vi.mock("./public-hash", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./public-hash")>();
+  return {
+    ...actual,
+    generateOtaPublicHash: (...args: Parameters<typeof actual.generateOtaPublicHash>) =>
+      generateOtaPublicHashMock(...args),
+  };
+});
 
 const fixture = createProjectTestFixture();
 
@@ -30,6 +45,10 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  generateOtaPublicHashMock.mockReset();
+  generateOtaPublicHashMock.mockImplementation(() =>
+    randomBytes(OTA_PUBLIC_HASH_BYTE_LENGTH).toString("hex"),
+  );
   await fixture.cleanup();
 });
 
@@ -435,5 +454,119 @@ describe("otaDistributionWriter", () => {
 
     expect(distributions).toEqual([]);
     expect(releases).toEqual([]);
+  });
+
+  it("rejects invalid names, empty selections, and missing projects", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "messages.json",
+    });
+
+    const emptyName = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "   ",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(emptyName)).toBe(true);
+    if (isErr(emptyName)) {
+      expect(emptyName.error).toEqual({ code: "invalid_name" });
+    }
+
+    const longName = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "x".repeat(121),
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(longName)).toBe(true);
+    if (isErr(longName)) {
+      expect(longName.error).toEqual({ code: "invalid_name" });
+    }
+
+    const emptyFiles = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Empty files",
+      fileIds: ["", "  "],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(emptyFiles)).toBe(true);
+    if (isErr(emptyFiles)) {
+      expect(emptyFiles.error).toEqual({ code: "empty_file_ids" });
+    }
+
+    const emptyLocales = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Empty locales",
+      fileIds: [file.id],
+      locales: [],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(emptyLocales)).toBe(true);
+    if (isErr(emptyLocales)) {
+      expect(emptyLocales.error).toEqual({ code: "empty_locales" });
+    }
+
+    const missingProject = await otaDistributionWriter.create({
+      projectId: `project_${crypto.randomUUID()}`,
+      name: "Missing",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(missingProject)).toBe(true);
+    if (isErr(missingProject)) {
+      expect(missingProject.error).toEqual({ code: "project_not_found" });
+    }
+  });
+
+  it("returns hash_collision after repeated unique public-hash conflicts", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "collision.json",
+    });
+
+    const collidingHash = "a".repeat(32);
+    generateOtaPublicHashMock.mockReturnValue(collidingHash);
+
+    const first = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "First",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isOk(first)).toBe(true);
+    if (!isOk(first)) {
+      return;
+    }
+    expect(first.value.publicHash).toBe(collidingHash);
+
+    const second = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Second",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(second)).toBe(true);
+    if (isErr(second)) {
+      expect(second.error).toEqual({ code: "hash_collision" });
+    }
+    expect(generateOtaPublicHashMock.mock.calls.length).toBeGreaterThanOrEqual(6);
   });
 });
