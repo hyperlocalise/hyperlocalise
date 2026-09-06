@@ -3,7 +3,7 @@ package scoring
 import (
 	"math"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,7 +174,7 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	}
 
 	if len(hardFails) > 0 {
-		sort.Strings(hardFails)
+		slices.Sort(hardFails)
 		result.HardFails = hardFails
 		result.WeightedAggregate = 0
 	}
@@ -376,23 +376,45 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	tokens := make(map[string]int, capEstimate)
 	total := 0
 
-	// BOLT OPTIMIZATION: Use FindAllStringIndex instead of FindAllString to slice s directly,
-	// avoiding match slice string heap allocations.
+	// BOLT OPTIMIZATION: Use IndexByte/IndexAny + FindStringIndex instead of FindAllStringIndex
+	// to scan tokens iteratively and avoid allocating [][]int slice headers.
 	if hasHTML {
-		matches := htmlTagPattern.FindAllStringIndex(s, -1)
-		for _, loc := range matches {
-			sub := strings.TrimSpace(s[loc[0]:loc[1]])
-			tokens[formatHTMLToken(sub)]++
-			total++
+		pos := 0
+		for pos < len(s) {
+			idx := strings.IndexByte(s[pos:], '<')
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := htmlTagPattern.FindStringIndex(s[pos:])
+			if loc != nil && loc[0] == 0 {
+				sub := strings.TrimSpace(s[pos : pos+loc[1]])
+				tokens[formatHTMLToken(sub)]++
+				total++
+				pos += loc[1]
+			} else {
+				pos++
+			}
 		}
 	}
 
 	if hasMD {
-		matches := markdownTokenPattern.FindAllStringIndex(s, -1)
-		for _, loc := range matches {
-			sub := strings.TrimSpace(s[loc[0]:loc[1]])
-			tokens["md:"+sub]++
-			total++
+		pos := 0
+		for pos < len(s) {
+			idx := strings.IndexAny(s[pos:], "*_~`[#")
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := markdownTokenPattern.FindStringIndex(s[pos:])
+			if loc != nil && loc[0] == 0 {
+				sub := strings.TrimSpace(s[pos : pos+loc[1]])
+				tokens["md:"+sub]++
+				total++
+				pos += loc[1]
+			} else {
+				pos++
+			}
 		}
 	}
 
@@ -509,7 +531,7 @@ func placeholderTokens(s string) []string {
 			tokens = append(tokens, token)
 		}
 	}
-	sort.Strings(tokens)
+	slices.Sort(tokens)
 	return dedupAdjacent(tokens)
 }
 
@@ -569,9 +591,24 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 		})
 	}
 	if strings.Contains(s, "%") {
-		for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
-			tokens["printf:"+match]++
-			total++
+		// BOLT OPTIMIZATION: Use IndexByte + FindStringIndex instead of FindAllString
+		// to iterate over printf placeholders without allocating []string slices.
+		pos := 0
+		for pos < len(s) {
+			idx := strings.IndexByte(s[pos:], '%')
+			if idx == -1 {
+				break
+			}
+			pos += idx
+			loc := printfPlaceholderPattern.FindStringIndex(s[pos:])
+			if loc != nil && loc[0] == 0 {
+				match := s[pos : pos+loc[1]]
+				tokens["printf:"+match]++
+				total++
+				pos += loc[1]
+			} else {
+				pos++
+			}
 		}
 	}
 	return tokens, total
@@ -644,7 +681,8 @@ func tokenF1Normalized(reference, candidate string) float64 {
 		return 1
 	}
 
-	rCount := make(map[string]int)
+	// BOLT OPTIMIZATION: Pre-allocate rCount map capacity using space count hint.
+	rCount := make(map[string]int, strings.Count(reference, " ")+1)
 	rLen := 0
 	start := -1
 	for i := 0; i < len(reference); {
