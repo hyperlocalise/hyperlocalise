@@ -1,6 +1,7 @@
 package scoring
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
@@ -83,6 +84,69 @@ func TestTagTokenCountsSignalFastPath(t *testing.T) {
 	}
 	if mdCounts["md:**"] != 2 {
 		t.Fatalf("expected two markdown ** tokens, got %v", mdCounts)
+	}
+}
+
+func TestTagTokenCountsAdvancesPastUnmatchedSignals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		in        string
+		wantTotal int
+		wantKey   string
+		wantCount int
+	}{
+		{
+			name:      "unmatched angle brackets then html tags",
+			in:        strings.Repeat("<", 8192) + "<strong>here</strong>",
+			wantTotal: 2,
+			wantKey:   "html:<strong>",
+			wantCount: 1,
+		},
+		{
+			name:      "unmatched markdown signals then bold markers",
+			in:        strings.Repeat("[", 8192) + "**bold**",
+			wantTotal: 2,
+			wantKey:   "md:**",
+			wantCount: 2,
+		},
+		{
+			name:      "unmatched hashes with no later markdown token",
+			in:        strings.Repeat("#", 1024),
+			wantTotal: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			counts, total := tagTokenCounts(tt.in)
+			if total != tt.wantTotal {
+				t.Fatalf("tagTokenCounts total=%d, want %d counts=%v", total, tt.wantTotal, counts)
+			}
+			if tt.wantKey != "" && counts[tt.wantKey] != tt.wantCount {
+				t.Fatalf("tagTokenCounts[%q]=%d, want %d counts=%v", tt.wantKey, counts[tt.wantKey], tt.wantCount, counts)
+			}
+		})
+	}
+}
+
+func TestPlaceholderTokenCountsAdvancesPastUnmatchedPercents(t *testing.T) {
+	t.Parallel()
+
+	withLater := strings.Repeat("%", 8192) + "done %s leftover %d"
+	inv, err := icuparser.ParseInvariant(withLater)
+	counts, total := placeholderTokenCounts(withLater, inv, err)
+	if counts["printf:%s"] != 1 || counts["printf:%d"] != 1 {
+		t.Fatalf("expected later printf tokens, got total=%d counts=%v", total, counts)
+	}
+
+	onlySignals := strings.Repeat("%", 1024)
+	plainInv, plainErr := icuparser.ParseInvariant(onlySignals)
+	plainCounts, plainTotal := placeholderTokenCounts(onlySignals, plainInv, plainErr)
+	if plainTotal != 0 || plainCounts["printf:%s"] != 0 {
+		t.Fatalf("expected no printf tokens for unmatched percents, got total=%d counts=%v", plainTotal, plainCounts)
 	}
 }
 
