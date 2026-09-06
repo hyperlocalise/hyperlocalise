@@ -135,7 +135,7 @@ func TestTagTokenCountsAdvancesPastUnmatchedSignals(t *testing.T) {
 func TestPlaceholderTokenCountsAdvancesPastUnmatchedPercents(t *testing.T) {
 	t.Parallel()
 
-	withLater := strings.Repeat("%", 8192) + "done %s leftover %d"
+	withLater := strings.Repeat("%", 8192) + " done %s leftover %d"
 	inv, err := icuparser.ParseInvariant(withLater)
 	counts, total := placeholderTokenCounts(withLater, inv, err)
 	if counts["printf:%s"] != 1 || counts["printf:%d"] != 1 {
