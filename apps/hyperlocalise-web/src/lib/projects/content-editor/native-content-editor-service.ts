@@ -1085,6 +1085,38 @@ export class NativeContentEditorService extends ProjectServiceBase {
     });
   }
 
+  async getSegmentDetail(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+    targetLocale: string;
+  }) {
+    const key = await this.translations.getVisibleKeyById({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: input.translationKeyId,
+    });
+
+    if (!key) {
+      return null;
+    }
+
+    const [translation] = await this.translations.getTranslationsByKeyIds({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: [key.id],
+      targetLocale: input.targetLocale,
+    });
+
+    return {
+      segment: {
+        ...mapTextSegment(key),
+        sourcePath: key.sourcePath,
+      },
+      target: translation ? toCatTranslation(translation) : null,
+    };
+  }
+
   async getSegmentComments(input: {
     organizationId: string;
     projectId: string;
@@ -1158,3 +1190,7 @@ export const setNativeProjectContentEditorStringsHidden = (
 export const setNativeProjectContentEditorKeyMaxLength = (
   input: Parameters<NativeContentEditorService["setKeyMaxLength"]>[0],
 ) => nativeCatService.setKeyMaxLength(input);
+
+export const getNativeProjectContentEditorSegmentDetail = (
+  input: Parameters<NativeContentEditorService["getSegmentDetail"]>[0],
+) => nativeCatService.getSegmentDetail(input);
