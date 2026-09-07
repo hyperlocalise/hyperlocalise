@@ -57,6 +57,8 @@ describe("getAppShellTitle", () => {
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
     ["/org/acme/settings/api-keys", "API keys"],
+    ["/org/acme/settings/activity-logs", "Activity logs"],
+    ["/org/acme/settings/linked-domains", "Domains"],
   ])("returns the route title for %s", (pathname, title) => {
     expect(getAppShellTitle(pathname, intl)).toBe(title);
   });
@@ -107,6 +109,10 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/settings/api-keys", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
       { label: "API keys" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/settings/activity-logs", intl)).toEqual([
+      { label: "Settings", href: "/org/acme/settings" },
+      { label: "Activity logs" },
     ]);
   });
 
