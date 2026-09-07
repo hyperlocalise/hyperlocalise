@@ -41,7 +41,7 @@ overrides:
   fast-uri: "3.1.7"
   "@xmldom/xmldom": "0.9.12"
   browserslist: "4.28.8"
-  linkify-it: "5.0.2"
+  linkify-it: "6.1.0"
   # exceljs uses CommonJS require('uuid'); keep v11 only on that path.
   "@zwight/exceljs>uuid": "11.1.1"
   "mermaid>uuid": "14.0.2"
