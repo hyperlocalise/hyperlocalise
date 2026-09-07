@@ -24,6 +24,7 @@ export type AppShellBreadcrumb = {
 type RouteTitleKey =
   | "account"
   | "activity"
+  | "activity-logs"
   | "agent-runs"
   | "ai-engine"
   | "api-keys"
@@ -39,6 +40,7 @@ type RouteTitleKey =
   | "issue-sheet"
   | "jobs"
   | "knowledge"
+  | "linked-domains"
   | "locales"
   | "members"
   | "my-jobs"
@@ -74,6 +76,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
   return (
     value === "account" ||
     value === "activity" ||
+    value === "activity-logs" ||
     value === "agent-runs" ||
     value === "ai-engine" ||
     value === "api-keys" ||
@@ -90,6 +93,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "jobs" ||
     value === "automations" ||
     value === "knowledge" ||
+    value === "linked-domains" ||
     value === "locales" ||
     value === "members" ||
     value === "my-jobs" ||
@@ -160,6 +164,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Activity",
         id: "rW0O4vxb9w",
         description: "App shell breadcrumb title for the activity page",
+      });
+    case "activity-logs":
+      return intl.formatMessage({
+        defaultMessage: "Activity logs",
+        id: "B6VzK5q3GO",
+        description: "App shell breadcrumb title for the activity logs settings page",
       });
     case "agent-runs":
       return intl.formatMessage({
@@ -250,6 +260,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Guideline",
         id: "1INOkRkMDD",
         description: "App shell breadcrumb title for the guideline page",
+      });
+    case "linked-domains":
+      return intl.formatMessage({
+        defaultMessage: "Domains",
+        id: "il32pCskAo",
+        description: "App shell breadcrumb title for the legacy linked domains settings page",
       });
     case "locales":
       return intl.formatMessage({
