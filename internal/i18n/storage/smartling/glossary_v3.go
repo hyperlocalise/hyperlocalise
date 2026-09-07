@@ -29,7 +29,7 @@ var (
 // GlossarySummary is one glossary from the v3 search API.
 type GlossarySummary struct {
 	GlossaryUID string   `json:"glossaryUid"`
-	Name        string   `json:"glossaryName"`
+	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
 	LocaleIDs   []string `json:"localeIds"`
 }
@@ -51,7 +51,7 @@ type GlossaryCreateInput struct {
 // GlossaryCreateResult is the created glossary identity.
 type GlossaryCreateResult struct {
 	GlossaryUID string `json:"glossaryUid"`
-	Name        string `json:"glossaryName"`
+	Name        string `json:"name"`
 	AccountUID  string `json:"accountUid,omitempty"`
 }
 
@@ -74,9 +74,9 @@ type glossarySearchPayload struct {
 }
 
 type glossaryCreatePayload struct {
-	GlossaryUID  string `json:"glossaryUid"`
-	AccountUID   string `json:"accountUid"`
-	GlossaryName string `json:"glossaryName"`
+	GlossaryUID string `json:"glossaryUid"`
+	AccountUID  string `json:"accountUid"`
+	Name        string `json:"name"`
 }
 
 type glossaryImportUploadPayload struct {
@@ -177,8 +177,8 @@ func (c *HTTPClient) CreateGlossary(ctx context.Context, in GlossaryCreateInput)
 	}
 
 	body := map[string]any{
-		"glossaryName": name,
-		"localeIds":    localeIDs,
+		"name":      name,
+		"localeIds": localeIDs,
 	}
 	if description := strings.TrimSpace(in.Description); description != "" {
 		body["description"] = description
@@ -199,7 +199,7 @@ func (c *HTTPClient) CreateGlossary(ctx context.Context, in GlossaryCreateInput)
 	}
 	return GlossaryCreateResult{
 		GlossaryUID: glossaryUID,
-		Name:        strings.TrimSpace(payload.GlossaryName),
+		Name:        strings.TrimSpace(payload.Name),
 		AccountUID:  strings.TrimSpace(payload.AccountUID),
 	}, nil
 }

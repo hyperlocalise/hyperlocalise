@@ -28,9 +28,9 @@ func TestHTTPClientSearchGlossaries(t *testing.T) {
 					"totalCount": 1,
 					"items": []map[string]any{
 						{
-							"glossaryUid":  "gloss-1",
-							"glossaryName": "Brand terms",
-							"localeIds":    []string{"en-US", "fr-FR"},
+							"glossaryUid": "gloss-1",
+							"name":        "Brand terms",
+							"localeIds":   []string{"en-US", "fr-FR"},
 						},
 					},
 				},
@@ -72,9 +72,9 @@ func TestHTTPClientSearchGlossariesPaginates(t *testing.T) {
 			var items []map[string]any
 			switch page {
 			case 1:
-				items = []map[string]any{{"glossaryUid": "gloss-1", "glossaryName": "One", "localeIds": []string{"en-US"}}}
+				items = []map[string]any{{"glossaryUid": "gloss-1", "name": "One", "localeIds": []string{"en-US"}}}
 			case 2:
-				items = []map[string]any{{"glossaryUid": "gloss-2", "glossaryName": "Two", "localeIds": []string{"fr-FR"}}}
+				items = []map[string]any{{"glossaryUid": "gloss-2", "name": "Two", "localeIds": []string{"fr-FR"}}}
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"response": map[string]any{"code": "SUCCESS"},
@@ -127,12 +127,21 @@ func TestHTTPClientCreateGlossary(t *testing.T) {
 				"data":     map[string]any{"accessToken": "test-token", "expiresIn": 3600},
 			})
 		case strings.Contains(r.URL.Path, "/glossaries") && r.Method == http.MethodPost && !strings.Contains(r.URL.Path, "/search"):
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if body["name"] != "New glossary" {
+				http.Error(w, "expected name in request body", http.StatusBadRequest)
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"response": map[string]any{"code": "SUCCESS"},
 				"data": map[string]any{
-					"glossaryUid":  "gloss-new",
-					"glossaryName": "New glossary",
-					"accountUid":   "acc-1",
+					"glossaryUid": "gloss-new",
+					"name":        "New glossary",
+					"accountUid":  "acc-1",
 				},
 			})
 		default:

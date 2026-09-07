@@ -1507,3 +1507,22 @@ func TestSmartlingGlossaryListCreateImportFlags(t *testing.T) {
 		t.Fatalf("expected import required flags error, got %v", err)
 	}
 }
+
+func TestSmartlingGlossaryCreateRejectsInvalidOutputBeforeAPI(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "glossary", "create",
+		"--account-uid", "acc-1",
+		"--name", "Brand terms",
+		"--locale", "en-US",
+		"--output", "yaml",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), `unsupported output format "yaml"`) {
+		t.Fatalf("expected invalid output error before API, got %v", err)
+	}
+}

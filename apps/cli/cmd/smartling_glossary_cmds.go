@@ -99,6 +99,9 @@ func newSmartlingGlossaryImportCmd() *cobra.Command {
 
 func executeSmartlingGlossaryList(cmd *cobra.Command, o smartlingGlossaryListOptions) error {
 	const action = "smartling glossary list"
+	if err := validateEncodedOutputFormat(o.output); err != nil {
+		return err
+	}
 	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
 	if err != nil {
 		return err
@@ -129,6 +132,9 @@ func executeSmartlingGlossaryList(cmd *cobra.Command, o smartlingGlossaryListOpt
 
 func executeSmartlingGlossaryCreate(cmd *cobra.Command, o smartlingGlossaryCreateOptions) error {
 	const action = "smartling glossary create"
+	if err := validateEncodedOutputFormat(o.output); err != nil {
+		return err
+	}
 	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
 	if err != nil {
 		return err
