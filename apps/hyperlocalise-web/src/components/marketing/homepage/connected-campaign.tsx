@@ -16,7 +16,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import {
-  DUSK_MESH_GRADIENT_SRC,
+  ROSE_MESH_GRADIENT_SRC,
   SectionMeshBackground,
 } from "@/components/marketing/hero-frame-mesh-stage";
 import {
@@ -189,8 +189,8 @@ function JourneyCarousel() {
 export function ConnectedCampaign() {
   return (
     <section className="relative isolate overflow-hidden text-white">
-      <SectionMeshBackground src={DUSK_MESH_GRADIENT_SRC} />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/30" />
+      <SectionMeshBackground src={ROSE_MESH_GRADIENT_SRC} />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/40" />
       <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
         <div className="mx-auto mb-14 max-w-3xl text-center">
           <p className="mb-5 text-xs text-white/70">

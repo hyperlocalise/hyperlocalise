@@ -43,6 +43,9 @@ export const SEAFOAM_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-17848641455
 export const LAVENDER_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864042890.jpg";
 export const SAGE_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864073608.jpg";
 export const DUSK_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784863799475.jpg";
+export const BLUSH_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1788785752729.jpg";
+export const ROSE_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1788785848827.jpg";
+export const MIST_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1788785908604.jpg";
 
 /** Full-bleed section mesh. Uses the source JPG (no optimizer) so soft gradients stay smooth. */
 export function SectionMeshBackground({
@@ -77,6 +80,8 @@ type MeshStageProps = {
   layout?: "breakout" | "contained";
   /** Mesh image source. Defaults to the seafoam gradient used by the CAT stage. */
   meshSrc?: string;
+  /** Second mesh blended over `meshSrc` (grain + color mix). */
+  mixSrc?: string;
   /** Scroll-into-view entrance. Use `none` when children animate themselves (e.g. tab crossfades). */
   entranceAnimation?: "default" | "fade" | "none";
 };
@@ -88,6 +93,7 @@ export function MeshStage({
   priority = false,
   layout = "contained",
   meshSrc = SEAFOAM_MESH_GRADIENT_SRC,
+  mixSrc,
   entranceAnimation = "default",
 }: MeshStageProps) {
   const shouldReduceMotion = useReducedMotion();
@@ -119,15 +125,27 @@ export function MeshStage({
       )}
     >
       <div className="relative overflow-hidden rounded-[1.5rem] shadow-[0_20px_48px_rgba(0,0,0,0.18)] sm:rounded-[2rem] sm:shadow-[0_32px_80px_rgba(0,0,0,0.22)]">
-        <Image
-          src={meshSrc}
-          alt=""
-          aria-hidden
-          fill
-          priority={priority}
-          sizes="(min-width: 1280px) 92rem, 100vw"
-          className="pointer-events-none object-cover object-center"
-        />
+        <div aria-hidden className="absolute inset-0 isolate">
+          <Image
+            src={meshSrc}
+            alt=""
+            fill
+            priority={priority}
+            unoptimized
+            sizes="(min-width: 1280px) 92rem, 100vw"
+            className="pointer-events-none object-cover object-center"
+          />
+          {mixSrc ? (
+            <Image
+              src={mixSrc}
+              alt=""
+              fill
+              unoptimized
+              sizes="(min-width: 1280px) 92rem, 100vw"
+              className="pointer-events-none object-cover object-[center_30%] mix-blend-multiply opacity-80"
+            />
+          ) : null}
+        </div>
         <div className={cn("relative p-3 sm:p-5 lg:p-8 xl:p-10", contentClassName)}>{content}</div>
       </div>
     </div>
