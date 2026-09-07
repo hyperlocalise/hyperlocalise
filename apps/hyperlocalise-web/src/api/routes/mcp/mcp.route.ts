@@ -104,6 +104,8 @@ import {
   queryGlossaryTerms,
   type QueryGlossaryHit,
 } from "@/lib/tools/asset-tools";
+import { loadMcpTranslation } from "@/api/routes/mcp/mcp-get-translation";
+import { resolveProjectResourceTarget } from "@/api/routes/project/project.shared";
 import type { ToolContext } from "@/lib/tools/types";
 
 const authorizationQuerySchema = z.object({
@@ -697,6 +699,14 @@ const mcpQueryGlossaryInputSchema = z.object({
     .max(20)
     .default(10)
     .describe("Maximum number of ranked hits to return."),
+});
+
+const mcpGetTranslationInputSchema = z.object({
+  projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
+
+  translationKeyId: z.uuid().describe("UUID returned as id by list_translations."),
+
+  targetLocale: z.string().min(1).max(50).describe("BCP-47 target locale tag."),
 });
 
 function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
@@ -1739,6 +1749,59 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       }),
     );
   }
+
+  server.registerTool(
+    "get_translation",
+    {
+      description: "Get complete CAT detail for one translation returned by list_translations.",
+      inputSchema: mcpGetTranslationInputSchema,
+    },
+    async ({ projectId, translationKeyId, targetLocale }) => {
+      const target = await resolveProjectResourceTarget(apiAuth, projectId);
+
+      if (target.kind !== "native") {
+        return mcpToolError(
+          "provider_cat_unsupported",
+          "Provider-only CAT translations are not supported",
+        );
+      }
+
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, target.projectId))
+        .limit(1);
+
+      if (!project || !project.targetLocales.includes(targetLocale)) {
+        return mcpToolError("translation_not_found", "Translation not found");
+      }
+
+      const translation = await loadMcpTranslation({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        translationKeyId,
+        sourceLocale: project.sourceLocale,
+        targetLocale,
+      });
+
+      if (!translation) {
+        return mcpToolError("translation_not_found", "Translation not found");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(translation),
+          },
+        ],
+      };
+    },
+  );
 
   return server;
 }

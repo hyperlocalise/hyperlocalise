@@ -45,6 +45,12 @@ import {
   insertCompletedPublicFileJob,
   insertPublicTranslationJob,
 } from "../public-jobs/public-jobs.fixture";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import {
+  setProjectTranslationKeysHidden,
+  upsertProjectTranslationKeysFromEntries,
+} from "@/lib/projects/translations/project-translation-service";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -4772,6 +4778,790 @@ describe("mcpRoutes", () => {
     expect(body.result?.isError).toBe(true);
     expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
       error: "project_not_found",
+    });
+  });
+
+  it("advertises get_translation with bounded inputs", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_translation");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("translation");
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["projectId", "translationKeyId", "targetLocale"]),
+    );
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      translationKeyId: {
+        type: "string",
+        format: "uuid",
+      },
+      targetLocale: {
+        type: "string",
+      },
+    });
+  });
+
+  it("returns complete native translation detail", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.title",
+          text: "Welcome",
+          context: "Homepage heading",
+          maxLength: 30,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      translationKeyId: translationKey.id,
+      targetLocale: "fr-FR",
+      text: "Bienvenue",
+      status: "needs_review",
+    });
+
+    const issueService = new IssueSheetService();
+
+    const linkedIssue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Review homepage translation",
+        issueType: "translation_mistake",
+        translationKeyId: translationKey.id,
+        targetLocale: "fr-FR",
+        sourcePath: "locales/home.json",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}");
+
+    expect(output).toMatchObject({
+      id: translationKey.id,
+      key: "home.title",
+      sourcePath: "locales/home.json",
+      sourceText: "Welcome",
+      sourceLocale: "en-AU",
+      targetLocale: "fr-FR",
+      targetText: "Bienvenue",
+      status: "needs_review",
+      context: "Homepage heading",
+      maxLength: 30,
+      linkedIssues: [
+        {
+          id: linkedIssue.id,
+          identifier: linkedIssue.identifier,
+        },
+      ],
+    });
+  });
+
+  it("returns translation_not_found for a missing translation key", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({ targetLocales: ["fr-FR"] })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: crypto.randomUUID(),
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "translation_not_found",
+    });
+  });
+
+  it("returns translation_not_found for a translation key from another project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [secondProject] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${crypto.randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
+        organizationId: stored.organization.id,
+        teamId: stored.project.teamId,
+        createdByUserId: stored.user.id,
+        name: "Second project",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    if (!secondProject) {
+      throw new Error("expected second project fixture");
+    }
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.title",
+          text: "Welcome",
+          context: "Homepage heading",
+          maxLength: 30,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      translationKeyId: translationKey.id,
+      targetLocale: "fr-FR",
+      text: "Bienvenue",
+      status: "needs_review",
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: secondProject.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "translation_not_found",
+    });
+  });
+
+  it("returns translation_not_found for a hidden translation key", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.title",
+          text: "Welcome",
+          context: "Homepage heading",
+          maxLength: 30,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    await setProjectTranslationKeysHidden({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      translationKeyIds: [translationKey.id],
+      isHidden: true,
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "translation_not_found",
+    });
+  });
+
+  it("returns translation_not_found for an unsupported target locale", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.title",
+          text: "Welcome",
+          context: "Homepage heading",
+          maxLength: 30,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "de-DE",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "translation_not_found",
+    });
+  });
+
+  it("returns provider_cat_unsupported for a provider-only CAT project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: "ext:crowdin:42",
+            translationKeyId: crypto.randomUUID(),
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "provider_cat_unsupported",
+    });
+  });
+
+  it("returns translation detail when the target is untranslated", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.subtitle",
+          text: "Translate this text",
+          context: "Homepage subtitle",
+          maxLength: 50,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      id: translationKey.id,
+      key: "home.subtitle",
+      sourcePath: "locales/home.json",
+      sourceText: "Translate this text",
+      sourceLocale: "en-AU",
+      targetLocale: "fr-FR",
+      targetText: null,
+      status: null,
+      context: "Homepage subtitle",
+      maxLength: 50,
+      linkedIssues: [],
+    });
+  });
+
+  it("returns translation detail for an external TMS project with a native overlay", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "42",
+        sourceLocale: "en-AU",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "home.title",
+          text: "Welcome",
+          context: "Homepage heading",
+          maxLength: 30,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    if (!translationKey) {
+      throw new Error("expected translation key fixture");
+    }
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      translationKeyId: translationKey.id,
+      targetLocale: "fr-FR",
+      text: "Bienvenue",
+      status: "needs_review",
+    });
+
+    const issueService = new IssueSheetService();
+
+    const linkedIssue = await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Review homepage translation",
+        issueType: "translation_mistake",
+        translationKeyId: translationKey.id,
+        targetLocale: "fr-FR",
+        sourcePath: "locales/home.json",
+      },
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_translation",
+          arguments: {
+            projectId: stored.project.id,
+            translationKeyId: translationKey.id,
+            targetLocale: "fr-FR",
+          },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}");
+
+    expect(output).toMatchObject({
+      id: translationKey.id,
+      key: "home.title",
+      sourcePath: "locales/home.json",
+      sourceText: "Welcome",
+      sourceLocale: "en-AU",
+      targetLocale: "fr-FR",
+      targetText: "Bienvenue",
+      status: "needs_review",
+      context: "Homepage heading",
+      maxLength: 30,
+      linkedIssues: [
+        {
+          id: linkedIssue.id,
+          identifier: linkedIssue.identifier,
+        },
+      ],
     });
   });
 });

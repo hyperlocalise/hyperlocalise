@@ -619,6 +619,41 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .offset(offset);
   }
 
+  async getVisibleKeyById(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+  }) {
+    const [key] = await this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        context: schema.projectTranslationKeys.context,
+        type: schema.projectTranslationKeys.type,
+        maxLength: schema.projectTranslationKeys.maxLength,
+        metadata: schema.projectTranslationKeys.metadata,
+        isHidden: schema.projectTranslationKeys.isHidden,
+        sourcePath: schema.repositorySourceFiles.sourcePath,
+      })
+      .from(schema.projectTranslationKeys)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+      )
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.id, input.translationKeyId),
+          eq(schema.projectTranslationKeys.isHidden, false),
+        ),
+      )
+      .limit(1);
+
+    return key ?? null;
+  }
+
   async getTranslationsByKeyIds(input: {
     organizationId: string;
     projectId: string;

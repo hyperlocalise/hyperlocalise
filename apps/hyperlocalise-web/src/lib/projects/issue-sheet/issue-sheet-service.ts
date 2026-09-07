@@ -2555,6 +2555,27 @@ export class IssueSheetService {
 
     return value;
   }
+
+  async listLinkedIssueIdentifiers(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+  }) {
+    return this.database
+      .select({
+        id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
+      })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, input.organizationId),
+          eq(schema.issueSheetIssues.projectId, input.projectId),
+          eq(schema.issueSheetIssues.translationKeyId, input.translationKeyId),
+        ),
+      )
+      .orderBy(schema.issueSheetIssues.createdAt, schema.issueSheetIssues.id);
+  }
 }
 
 function primitiveToString(value: unknown) {
