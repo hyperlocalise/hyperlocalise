@@ -644,8 +644,10 @@ async function stampPipesUsersOnToolConfig(input: {
   let toolConfig = input.toolConfig;
 
   if (toolConfig.ahrefs?.enabled) {
+    // Never fall back to client-supplied workosUserId — that would let an
+    // operator mint another member's Pipes credential owner on create/update.
     const workosUserId = await resolveAhrefsPipesWorkosUserId({
-      workosUserId: input.actorWorkosUserId ?? toolConfig.ahrefs.workosUserId,
+      workosUserId: input.actorWorkosUserId,
       localUserId: input.authorUserId,
     });
 
@@ -659,8 +661,10 @@ async function stampPipesUsersOnToolConfig(input: {
   }
 
   if (toolConfig.email?.enabled) {
+    // Same rule as visual-workflow email stamping: only actor/author may own
+    // the Pipes credential binding, never a client-chosen workosUserId.
     const workosUserId = await resolveEmailPipesWorkosUserId({
-      workosUserId: input.actorWorkosUserId ?? toolConfig.email.workosUserId,
+      workosUserId: input.actorWorkosUserId,
       localUserId: input.authorUserId,
     });
 

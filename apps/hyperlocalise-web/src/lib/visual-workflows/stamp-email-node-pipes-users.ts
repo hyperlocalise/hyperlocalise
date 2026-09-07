@@ -36,16 +36,44 @@ function previousEmailNodeConfigById(
   return configs;
 }
 
+function withEmailWorkosUserId(
+  node: VisualWorkflowDefinition["nodes"][number],
+  workosUserId: string | undefined,
+): VisualWorkflowDefinition["nodes"][number] {
+  if (node.config.kind !== "action.notify_email") {
+    return node;
+  }
+
+  if (!workosUserId) {
+    if (!node.config.workosUserId) {
+      return node;
+    }
+    const { workosUserId: _removed, ...rest } = node.config;
+    return {
+      ...node,
+      config: rest,
+    };
+  }
+
+  if (node.config.workosUserId === workosUserId) {
+    return node;
+  }
+
+  return {
+    ...node,
+    config: {
+      ...node.config,
+      workosUserId,
+    },
+  };
+}
+
 export function stampEmailNodePipesUsersOnDefinition(input: {
   definition: VisualWorkflowDefinition;
   previousDefinition?: VisualWorkflowDefinition | null;
   actorWorkosUserId?: string | null;
 }): VisualWorkflowDefinition {
-  const actorWorkosUserId = input.actorWorkosUserId?.trim();
-  if (!actorWorkosUserId) {
-    return input.definition;
-  }
-
+  const actorWorkosUserId = input.actorWorkosUserId?.trim() || null;
   const previousConfigs = previousEmailNodeConfigById(input.previousDefinition);
 
   const nodes = input.definition.nodes.map((node) => {
@@ -59,27 +87,19 @@ export function stampEmailNodePipesUsersOnDefinition(input: {
       emailNodeConfigFingerprint(previousConfig) !== emailNodeConfigFingerprint(node.config);
 
     if (!configChanged) {
-      const preservedWorkosUserId = node.config.workosUserId ?? previousConfig?.workosUserId;
-      if (!preservedWorkosUserId || preservedWorkosUserId === node.config.workosUserId) {
-        return node;
-      }
-
-      return {
-        ...node,
-        config: {
-          ...node.config,
-          workosUserId: preservedWorkosUserId,
-        },
-      };
+      // Unrelated save: keep the stored credential owner. Never prefer a
+      // client-supplied workosUserId — that would be a same-org credential IDOR.
+      const preservedWorkosUserId = previousConfig.workosUserId ?? actorWorkosUserId ?? undefined;
+      return withEmailWorkosUserId(node, preservedWorkosUserId);
     }
 
-    return {
-      ...node,
-      config: {
-        ...node.config,
-        workosUserId: actorWorkosUserId,
-      },
-    };
+    if (!actorWorkosUserId) {
+      // New/changed email node without an authenticated actor must not accept
+      // a client-chosen credential owner.
+      return withEmailWorkosUserId(node, undefined);
+    }
+
+    return withEmailWorkosUserId(node, actorWorkosUserId);
   });
 
   return {

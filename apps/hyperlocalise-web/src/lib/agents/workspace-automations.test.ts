@@ -1447,6 +1447,37 @@ describe("workspace automations", () => {
       workosUserId: "user_workos",
     });
 
+    pipesMocks.getEmailPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "efgh",
+      }),
+    );
+    const emailIgnoresClientWorkosUserId = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        authorUserId: scope.userId,
+        name: "Email pipes owner from author",
+        toolConfig: {
+          email: {
+            enabled: true,
+            provider: "resend",
+            workosUserId: "user_victim_pipes_owner",
+            from: "notifications@example.test",
+            recipients: ["ops@example.test"],
+          },
+        },
+      }),
+    );
+    expect(emailIgnoresClientWorkosUserId.toolConfig.email).toEqual({
+      enabled: true,
+      provider: "resend",
+      workosUserId: `user_${scope.userId}`,
+      from: "notifications@example.test",
+      recipients: ["ops@example.test"],
+    });
+
     const updateRejected = await updateWorkspaceAutomation({
       automationId: expectOk(
         await createWorkspaceAutomation({
