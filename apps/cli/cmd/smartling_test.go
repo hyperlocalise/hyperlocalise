@@ -977,6 +977,34 @@ func TestSmartlingOfficialPullRelativePath(t *testing.T) {
 	}
 }
 
+func TestSmartlingPathUnderDirectoryAllowsDotsInFilename(t *testing.T) {
+	dir := t.TempDir()
+	got, err := smartlingPathUnderDirectory(dir, "messages.v1..2.json")
+	if err != nil {
+		t.Fatalf("filename with ..: %v", err)
+	}
+	if filepath.Base(got) != "messages.v1..2.json" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSmartlingPathUnderDirectoryRejectsSymlinkParents(t *testing.T) {
+	root := t.TempDir()
+	victim := t.TempDir()
+	out := filepath.Join(root, "out")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(out, "locales")
+	if err := os.Symlink(victim, link); err != nil {
+		t.Skipf("symlinks not available: %v", err)
+	}
+	_, err := smartlingPathUnderDirectory(out, "locales/en.json")
+	if err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink error, got %v", err)
+	}
+}
+
 func TestSmartlingDownloadAllWritesOfficialPaths(t *testing.T) {
 	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
 	t.Setenv("SMARTLING_USER_SECRET", "secret")

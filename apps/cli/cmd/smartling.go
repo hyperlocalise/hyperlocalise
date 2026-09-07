@@ -491,12 +491,14 @@ func smartlingOfficialPullRelativePath(fileURI, locale string) string {
 
 func smartlingPathUnderDirectory(dir, relative string) (string, error) {
 	rel := strings.ReplaceAll(strings.TrimSpace(relative), "\\", "/")
-	rel = strings.TrimLeft(rel, "/")
+	rel = strings.Trim(rel, "/")
 	if rel == "" {
 		return "", fmt.Errorf("smartling download: empty file path")
 	}
-	if strings.Contains(rel, "..") {
-		return "", fmt.Errorf("smartling download: file uri %q is not a safe relative path", relative)
+	for _, part := range strings.Split(rel, "/") {
+		if part == "" || part == "." || part == ".." {
+			return "", fmt.Errorf("smartling download: file uri %q is not a safe relative path", relative)
+		}
 	}
 	if strings.TrimSpace(dir) == "" {
 		dir = "."
@@ -513,7 +515,35 @@ func smartlingPathUnderDirectory(dir, relative string) (string, error) {
 	if relOut == ".." || strings.HasPrefix(relOut, ".."+string(os.PathSeparator)) || filepath.IsAbs(relOut) {
 		return "", fmt.Errorf("smartling download: file uri %q is not a safe relative path", relative)
 	}
+	if err := rejectSmartlingSymlinkInPath(absDir, joined); err != nil {
+		return "", err
+	}
 	return joined, nil
+}
+
+func rejectSmartlingSymlinkInPath(root, dest string) error {
+	rel, err := filepath.Rel(root, dest)
+	if err != nil {
+		return fmt.Errorf("smartling download: file uri is not a safe relative path")
+	}
+	current := root
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("smartling download: stat %q: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("smartling download: refusing to write through symlink %q", current)
+		}
+	}
+	return nil
 }
 
 func smartlingDownloadAllOutputPath(dir, fileURI, locale string) (string, error) {
