@@ -137,7 +137,31 @@ export async function collectCatFilteredExportRows(input: {
 
     const { contentEditorQueue } = pageResult;
     if (contentEditorQueue.segments.length === 0) {
-      break;
+      const pagination = contentEditorQueue.pagination;
+      if (!pagination?.hasMore) {
+        break;
+      }
+
+      const nextOffset = pagination.offset + pagination.returnedCount;
+      const progressed =
+        nextOffset > offset ||
+        pagination.nextPhraseScanPage !== phraseScanPage ||
+        pagination.nextPhraseScanSkip !== phraseScanSkip ||
+        pagination.nextSortBucket !== sortBucket ||
+        pagination.nextSortBucketOffset !== sortBucketOffset;
+      if (!progressed) {
+        break;
+      }
+
+      // Provider scans can return an empty intermediate page when the current
+      // window has no matches. Follow its continuation cursor before deciding
+      // that the filtered export is empty.
+      offset = nextOffset;
+      phraseScanPage = pagination.nextPhraseScanPage;
+      phraseScanSkip = pagination.nextPhraseScanSkip;
+      sortBucket = pagination.nextSortBucket;
+      sortBucketOffset = pagination.nextSortBucketOffset;
+      continue;
     }
 
     const targetById = isProvider

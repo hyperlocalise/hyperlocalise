@@ -444,6 +444,122 @@ describe("phraseTmsProvider.buildLiveCatFile", () => {
     expect(listKeyPageRequests).toEqual([1]);
   });
 
+  it("continues after the filtered scan budget instead of reporting a false end", async () => {
+    const listKeyPageRequests: number[] = [];
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        const page = Number(new URL(path).searchParams.get("page") ?? "1");
+        listKeyPageRequests.push(page);
+        const keys =
+          page <= 51
+            ? Array.from({ length: 100 }, (_, index) => ({
+                id: `key-${page}-${index}`,
+                name: `other.${page}.${index}`,
+                description: null,
+                plural: false,
+                tags: ["app"],
+              }))
+            : [
+                {
+                  id: "key-after-budget",
+                  name: "home.after-budget",
+                  description: null,
+                  plural: false,
+                  tags: ["app"],
+                },
+              ];
+        return new Response(JSON.stringify(keys), { status: 200 });
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const file = createPhraseKeyFile({
+      sourcePath: "locales/en/home.json",
+      filename: "home.json",
+      metadata: {
+        id: "upload-1",
+        name: "home.json",
+        branch: null,
+        tags: ["app"],
+      },
+      provider: {
+        kind: "phrase",
+        resourceType: "file",
+        externalProjectId: "project-1",
+        externalResourceId: "upload-1",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: null,
+        format: "json",
+        lastSyncedAt: null,
+      },
+    });
+
+    const firstPage = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file,
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 1,
+        search: "home",
+        queueFilter: "all",
+        paginated: true,
+      },
+    });
+
+    expect(firstPage.segments).toHaveLength(0);
+    expect(firstPage.pagination).toMatchObject({
+      hasMore: true,
+      nextPhraseScanPage: 52,
+      nextPhraseScanSkip: 0,
+    });
+
+    const secondPage = await phraseTmsProvider.buildLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file,
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 1,
+        search: "home",
+        queueFilter: "all",
+        paginated: true,
+        phraseScanPage: firstPage.pagination?.nextPhraseScanPage,
+        phraseScanSkip: firstPage.pagination?.nextPhraseScanSkip,
+      },
+    });
+
+    expect(secondPage.segments).toHaveLength(1);
+    expect(secondPage.segments[0]?.key).toBe("home.after-budget");
+    expect(listKeyPageRequests).toEqual([...Array.from({ length: 51 }, (_, i) => i + 1), 52]);
+  });
+
   it("throws when the requested target locale cannot be matched", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
