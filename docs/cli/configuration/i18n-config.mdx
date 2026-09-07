@@ -12,10 +12,10 @@ description: "Field-by-field guide for the i18n config file used by run, status,
 Pin the Hyperlocalise CLI version at the top of `i18n.yml`, similar to `packageManager` in `package.json`:
 
 ```yaml
-version: hyperlocalise@1.10.0
+version: hyperlocalise@1.11.0
 ```
 
-When set, commands that load the config (`run`, `check`, `status`, `pack`, `sync`, and others) fail if the running CLI version does not match the pinned value. The `hl` alias is also accepted (`hl@1.10.0`).
+When set, commands that load the config (`run`, `check`, `status`, `pack`, `sync`, and others) fail if the running CLI version does not match the pinned value. The `hl` alias is also accepted (`hl@1.11.0`).
 
 In GitHub Actions, set `hyperlocalise-version: config` to install the version declared in your i18n config file.
 
