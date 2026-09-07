@@ -157,6 +157,22 @@ func TestSmartlingDownloadSourcesFlags(t *testing.T) {
 }
 
 func TestSmartlingDownloadTranslationsDryRun(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"test.json": {
+					FileURI: "test.json",
+					Items:   []smartling.FileStatusLocale{{LocaleID: "fr"}},
+				},
+			},
+		}, nil
+	}
+
 	root := newRootCmd("test")
 	out := &bytes.Buffer{}
 	root.SetOut(out)
@@ -401,11 +417,25 @@ func TestSmartlingDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
 }
 
 type fakeSmartlingTranslationDownloader struct {
-	results map[string]smartling.TranslationDownloadResult
-	files   []smartling.FileListItem
-	listIn  smartling.FileListInput
-	err     error
-	listErr error
+	results     map[string]smartling.TranslationDownloadResult
+	statusByURI map[string]smartling.FileStatus
+	files       []smartling.FileListItem
+	listIn      smartling.FileListInput
+	err         error
+	listErr     error
+}
+
+func (f *fakeSmartlingTranslationDownloader) GetFileStatus(_ context.Context, in smartling.FileStatusInput) (smartling.FileStatus, error) {
+	if f.statusByURI != nil {
+		if status, ok := f.statusByURI[in.FileURI]; ok {
+			return status, nil
+		}
+	}
+	items := make([]smartling.FileStatusLocale, 0, len(f.results))
+	for locale := range f.results {
+		items = append(items, smartling.FileStatusLocale{LocaleID: locale})
+	}
+	return smartling.FileStatus{FileURI: in.FileURI, Items: items}, nil
 }
 
 func (f *fakeSmartlingTranslationDownloader) DownloadTranslationFile(_ context.Context, in smartling.TranslationDownloadInput) (smartling.TranslationDownloadResult, error) {
@@ -592,6 +622,15 @@ func TestSmartlingDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testi
 	// We need to simulate an error on the second locale. Use a custom downloader.
 	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
 		return &fakeSmartlingTranslationDownloaderWithError{
+			statusByURI: map[string]smartling.FileStatus{
+				"test.json": {
+					FileURI: "test.json",
+					Items: []smartling.FileStatusLocale{
+						{LocaleID: "fr"},
+						{LocaleID: "de"},
+					},
+				},
+			},
 			results: map[string]smartling.TranslationDownloadResult{
 				"fr": {LocaleID: "fr", Content: []byte(`{"hello":"Bonjour"}`)},
 				"de": {LocaleID: "de", Content: []byte(`{"hello":"Hallo"}`)},
@@ -621,8 +660,22 @@ func TestSmartlingDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testi
 }
 
 type fakeSmartlingTranslationDownloaderWithError struct {
-	results   map[string]smartling.TranslationDownloadResult
-	errLocale string
+	results     map[string]smartling.TranslationDownloadResult
+	statusByURI map[string]smartling.FileStatus
+	errLocale   string
+}
+
+func (f *fakeSmartlingTranslationDownloaderWithError) GetFileStatus(_ context.Context, in smartling.FileStatusInput) (smartling.FileStatus, error) {
+	if f.statusByURI != nil {
+		if status, ok := f.statusByURI[in.FileURI]; ok {
+			return status, nil
+		}
+	}
+	items := make([]smartling.FileStatusLocale, 0, len(f.results))
+	for locale := range f.results {
+		items = append(items, smartling.FileStatusLocale{LocaleID: locale})
+	}
+	return smartling.FileStatus{FileURI: in.FileURI, Items: items}, nil
 }
 
 func (f *fakeSmartlingTranslationDownloaderWithError) DownloadTranslationFile(_ context.Context, in smartling.TranslationDownloadInput) (smartling.TranslationDownloadResult, error) {
@@ -641,6 +694,22 @@ func (f *fakeSmartlingTranslationDownloaderWithError) ListFiles(_ context.Contex
 }
 
 func TestSmartlingDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"test.json": {
+					FileURI: "test.json",
+					Items:   []smartling.FileStatusLocale{{LocaleID: "fr"}},
+				},
+			},
+		}, nil
+	}
+
 	outputPath := filepath.Join(t.TempDir(), "fr.json")
 	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
 		t.Fatalf("write existing output: %v", err)
@@ -671,6 +740,15 @@ func TestSmartlingDownloadTranslationsForceKeepsOverwrittenFileOnLaterFailure(t 
 	orig := newSmartlingTranslationDownloader
 	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
 		return &fakeSmartlingTranslationDownloaderWithError{
+			statusByURI: map[string]smartling.FileStatus{
+				"test.json": {
+					FileURI: "test.json",
+					Items: []smartling.FileStatusLocale{
+						{LocaleID: "fr"},
+						{LocaleID: "de"},
+					},
+				},
+			},
 			results: map[string]smartling.TranslationDownloadResult{
 				"fr": {LocaleID: "fr", Content: []byte(`{"hello":"Bonjour"}`)},
 				"de": {LocaleID: "de", Content: []byte(`{"hello":"Hallo"}`)},
@@ -1145,5 +1223,306 @@ func TestSmartlingDownloadAllFlagExclusivityAndSafety(t *testing.T) {
 	err = run("smartling", "download", "sources", "--project-id", "123", "--all", "--output", dir)
 	if err == nil || !strings.Contains(err.Error(), "no files found") {
 		t.Fatalf("expected empty list error, got %v", err)
+	}
+}
+
+func TestSmartlingDownloadTranslationsUsesFileStatusWhenTargetLocaleOmitted(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"locales/en.json": {
+					FileURI: "locales/en.json",
+					Items: []smartling.FileStatusLocale{
+						{LocaleID: "fr-FR"},
+						{LocaleID: "de-DE"},
+					},
+				},
+			},
+			results: map[string]smartling.TranslationDownloadResult{
+				"fr-FR": {LocaleID: "fr-FR", Content: []byte(`{"fr":"oui"}`)},
+				"de-DE": {LocaleID: "de-DE", Content: []byte(`{"de":"ja"}`)},
+			},
+		}, nil
+	}
+
+	dir := t.TempDir()
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--output", filepath.Join(dir, "%locale%.json"),
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v\n%s", err, out.String())
+	}
+	for _, locale := range []string{"fr-FR", "de-DE"} {
+		path := filepath.Join(dir, locale+".json")
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("missing %s: %v", path, err)
+		}
+	}
+}
+
+func TestSmartlingDownloadTranslationsFiltersTargetLocalesAgainstFileStatus(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"locales/en.json": {
+					FileURI: "locales/en.json",
+					Items: []smartling.FileStatusLocale{
+						{LocaleID: "fr-FR"},
+						{LocaleID: "de-DE"},
+					},
+				},
+			},
+			results: map[string]smartling.TranslationDownloadResult{
+				"fr-FR": {LocaleID: "fr-FR", Content: []byte(`{"fr":"oui"}`)},
+			},
+		}, nil
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "fr.json")
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "fr-fr",
+		"--output", outputPath,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if _, err := os.Stat(outputPath); err != nil {
+		t.Fatalf("missing output: %v", err)
+	}
+}
+
+func TestSmartlingDownloadTranslationsEmptyStatusLocalesErrors(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"locales/en.json": {FileURI: "locales/en.json", Items: nil},
+			},
+		}, nil
+	}
+
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "no target locales in file status") {
+		t.Fatalf("expected empty status error, got %v", err)
+	}
+}
+
+func TestSmartlingDownloadTranslationsDryRunCallsFileStatus(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	fake := &fakeSmartlingTranslationDownloader{
+		statusByURI: map[string]smartling.FileStatus{
+			"locales/en.json": {
+				FileURI: "locales/en.json",
+				Items:   []smartling.FileStatusLocale{{LocaleID: "fr-FR"}},
+			},
+		},
+	}
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return fake, nil
+	}
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--dry-run",
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("dry-run failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "target_locales=fr-FR") {
+		t.Fatalf("unexpected dry-run output: %s", out.String())
+	}
+}
+
+func TestSmartlingDownloadTranslationsAllUsesPerFileStatusLocales(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	fake := &fakeSmartlingTranslationDownloader{
+		files: []smartling.FileListItem{
+			{FileURI: "locales/en.json"},
+			{FileURI: "app/strings.xml"},
+		},
+		statusByURI: map[string]smartling.FileStatus{
+			"locales/en.json": {
+				FileURI: "locales/en.json",
+				Items:   []smartling.FileStatusLocale{{LocaleID: "fr-FR"}},
+			},
+			"app/strings.xml": {
+				FileURI: "app/strings.xml",
+				Items:   []smartling.FileStatusLocale{{LocaleID: "de-DE"}},
+			},
+		},
+		results: map[string]smartling.TranslationDownloadResult{
+			"fr-FR": {LocaleID: "fr-FR", Content: []byte(`{"fr":"oui"}`)},
+			"de-DE": {LocaleID: "de-DE", Content: []byte(`{"de":"ja"}`)},
+		},
+	}
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return fake, nil
+	}
+
+	dir := t.TempDir()
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--all",
+		"--output", dir,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "locales", "en_fr-FR.json")); err != nil {
+		t.Fatalf("missing fr file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "app", "strings_de-DE.xml")); err != nil {
+		t.Fatalf("missing de file: %v", err)
+	}
+}
+
+func TestSmartlingDownloadTranslationsEmptyIntersectErrors(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"locales/en.json": {
+					FileURI: "locales/en.json",
+					Items:   []smartling.FileStatusLocale{{LocaleID: "fr-FR"}},
+				},
+			},
+		}, nil
+	}
+
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--target-locale", "de-DE",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "none of the requested target locales match") {
+		t.Fatalf("expected empty intersect error, got %v", err)
+	}
+}
+
+func TestSmartlingDownloadTranslationsStatusLocalesRequireOutputPattern(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = orig })
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return &fakeSmartlingTranslationDownloader{
+			statusByURI: map[string]smartling.FileStatus{
+				"locales/en.json": {
+					FileURI: "locales/en.json",
+					Items: []smartling.FileStatusLocale{
+						{LocaleID: "fr-FR"},
+						{LocaleID: "de-DE"},
+					},
+				},
+			},
+		}, nil
+	}
+
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--file-uri", "locales/en.json",
+		"--output", "translations.json",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "must include %locale%") {
+		t.Fatalf("expected output pattern error, got %v", err)
+	}
+}
+
+func TestSmartlingGlossaryListCreateImportFlags(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{"smartling", "glossary", "list"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected list required flags error, got %v", err)
+	}
+
+	root.SetArgs([]string{"smartling", "glossary", "create"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected create required flags error, got %v", err)
+	}
+
+	root.SetArgs([]string{"smartling", "glossary", "import"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected import required flags error, got %v", err)
+	}
+}
+
+func TestSmartlingGlossaryCreateRejectsInvalidOutputBeforeAPI(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "glossary", "create",
+		"--account-uid", "acc-1",
+		"--name", "Brand terms",
+		"--locale", "en-US",
+		"--output", "yaml",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), `unsupported output format "yaml"`) {
+		t.Fatalf("expected invalid output error before API, got %v", err)
 	}
 }

@@ -16,8 +16,11 @@ hyperlocalise smartling projects info --project-id <id> [--output text|json] [--
 hyperlocalise smartling upload sources --project-id <id> --file <path> [--file-uri <uri>] [--file-type <type>] [--authorize] [--directive key=value] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>] [--dry-run]
 hyperlocalise smartling upload translations --project-id <id> --file-uri <uri> --target-locale <locale> --file <path> (--published | --post-translation) [--file-type <type>] [--overwrite] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>] [--dry-run]
 hyperlocalise smartling download sources --project-id <id> (--file-uri <uri> | --all) [--uri-mask <substring>] [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
-hyperlocalise smartling download translations --project-id <id> (--file-uri <uri> | --all) --target-locale <locale> [--uri-mask <substring>] [--retrieval-type pending|published|pseudo] [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling download translations --project-id <id> (--file-uri <uri> | --all) [--target-locale <locale>] [--uri-mask <substring>] [--retrieval-type pending|published|pseudo] [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling glossary download --account-uid <id> --glossary-uid <id> [--language <locale>] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary list --account-uid <id> [--name <query>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary create --account-uid <id> --name <name> --locale <locale> [--description <text>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary import --account-uid <id> --glossary-uid <id> --file <path> [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling tm download --account-uid <id> --tm-uid <id> --source-language <code> [--target-language <code>] [--format csv|tmx] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 ```
 
@@ -96,7 +99,9 @@ Unknown extensions require `--file-type`. Values such as `android` or `gettext` 
 
 Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as `files list`, optional `--uri-mask`) then downloads each URI. `--uri-mask` is only valid with `--all`. `--output` is then a directory (default `.`). Local names match official smartling-cli default pull format: URI `locales/en.json` writes `locales/en.json` for sources and `locales/en_fr-FR.json` for `--target-locale fr-FR`. Do not pass `-` or `%locale%` with `--all`. An empty list is a non-zero error. `--all --dry-run` lists files (credentials required) and prints planned paths without downloading bytes. Downloads run sequentially and stop on the first error.
 
-`download translations` requires `--target-locale` even with `--all`. Official smartling-cli can omit locale and pull every locale from file status; Hyperlocalise does not. Use `%locale%` in `--output` when you pass more than one locale with a single `--file-uri`. `--retrieval-type` is `pending`, `published`, or `pseudo`. If you omit it, Hyperlocalise does not send `retrievalType` and Smartling uses its default. Prefer `--retrieval-type published` when you only want published text.
+`download translations` omits `--target-locale` to download every locale listed in file status for each URI. When you pass `--target-locale`, Hyperlocalise intersects your values with file status (case-insensitive) and uses Smartling's locale IDs from status. `--all` resolves locales per file URI, not once for the whole project. `--dry-run` still calls file status (credentials required). Use `%locale%` in `--output` when you download more than one locale for a single `--file-uri`. `--retrieval-type` is `pending`, `published`, or `pseudo`. If you omit it, Hyperlocalise does not send `retrievalType` and Smartling uses its default. Prefer `--retrieval-type published` when you only want published text.
+
+`glossary list` searches glossaries on an account (`--name` is an optional search query). `glossary create` needs `--name` and at least one `--locale`. `glossary import` uploads Smartling's official glossary import CSV (not the Hyperlocalise-shaped CSV from `glossary download`), confirms the import, and polls until Smartling finishes.
 
 `glossary download` and `tm download` have no `--force` or `--dry-run`. They write CSV (or TMX for `tm --format tmx`) to stdout unless you pass `--output`.
 
@@ -106,7 +111,7 @@ Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as
 | --- | --- |
 | `smartling-cli init` / `smartling.yml` | Unsupported (flag-only) |
 | `files push` / `files upload` | `upload sources` (no jobs, no YAML globs, no `--branch`; `--authorize` defaults true; `--directive` supported) |
-| `files pull` / `files download` | `download translations` (`--file-uri` or `--all`; `--retrieval-type pending\|published\|pseudo`; `--target-locale` always required; no `--format` templates, zip bulk, `--threads`, or job pull) |
+| `files pull` / `files download` | `download translations` (`--file-uri` or `--all`; optional `--target-locale` from file status; `--retrieval-type pending\|published\|pseudo`; no `--format` templates, zip bulk, `--threads`, or job pull) |
 | `files pull --source` | `download sources` (`--file-uri` or `--all`; official `name_locale.ext` paths for `--all`) |
 | `files import` | `upload translations` (`--published` or `--post-translation`; optional `--overwrite`) |
 | `files list` / `files status` | `files list` (`--uri-mask`) / `files status` (one `--file-uri`; no local-disk column) |
@@ -114,7 +119,8 @@ Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as
 | `projects list` / `info` / `locales` | `projects list` / `projects info` / `locales list` |
 | Jobs, `mt detect` / `mt translate` | Out of scope |
 | `glossaries export` | `glossary download` (Hyperlocalise CSV; not official CSV/XLSX/TBX parity) |
-| `glossaries import` / create / list | Out of scope |
+| `glossaries list` / `glossaries create` | `glossary list` / `glossary create` |
+| `glossaries import` | `glossary import` (official Smartling CSV; confirm + poll) |
 | TM export | `tm download` (CSV/TMX) |
 | TM / glossary upload | Out of scope |
 
@@ -197,13 +203,12 @@ hyperlocalise smartling download sources \
   --force
 ```
 
-Download every listed file into a directory. Translations still need `--target-locale`:
+Download every listed file into a directory. Omit `--target-locale` to pull every locale from each file's status:
 
 ```bash
 hyperlocalise smartling download translations \
   --project-id your-project-id \
   --all \
-  --target-locale fr-FR \
   --retrieval-type published \
   --output ./pulled \
   --force

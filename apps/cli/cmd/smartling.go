@@ -96,6 +96,7 @@ type smartlingSourceDownloader interface {
 
 type smartlingTranslationDownloader interface {
 	DownloadTranslationFile(context.Context, smartling.TranslationDownloadInput) (smartling.TranslationDownloadResult, error)
+	GetFileStatus(context.Context, smartling.FileStatusInput) (smartling.FileStatus, error)
 	ListFiles(context.Context, smartling.FileListInput) ([]smartling.FileListItem, error)
 }
 
@@ -140,7 +141,7 @@ func newSmartlingDownloadTranslationsCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Smartling project ID")
-	cmd.Flags().StringSliceVarP(&o.targetLocales, "target-locale", "l", nil, "target locale ID(s) to download")
+	cmd.Flags().StringSliceVarP(&o.targetLocales, "target-locale", "l", nil, "target locale ID(s) to download; omit to download every locale from file status")
 	cmd.Flags().StringVar(&o.fileURI, "file-uri", "", "Smartling file URI (exactly one of --file-uri or --all)")
 	cmd.Flags().StringVar(&o.uriMask, "uri-mask", "", "substring filter on file URI; only valid with --all")
 	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path for one URI (omit or - for stdout when downloading one locale; use %locale% for multiple locales); directory for --all (default .)")
@@ -152,7 +153,6 @@ func newSmartlingDownloadTranslationsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
 	_ = cmd.MarkFlagRequired("project-id")
-	_ = cmd.MarkFlagRequired("target-locale")
 	return cmd
 }
 
@@ -284,10 +284,6 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 	if strings.TrimSpace(o.projectID) == "" {
 		return fmt.Errorf("%s: --project-id is required", action)
 	}
-	locales := normalizeSmartlingLocales(o.targetLocales)
-	if len(locales) == 0 {
-		return fmt.Errorf("%s: at least one --target-locale is required", action)
-	}
 	if err := validateSmartlingDownloadSelection(o.all, o.fileURI, o.uriMask, action); err != nil {
 		return err
 	}
@@ -296,8 +292,41 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 		return fmt.Errorf("%s: --retrieval-type must be pending, published, or pseudo", action)
 	}
 
+	filterLocales := normalizeSmartlingLocales(o.targetLocales)
+	if !o.all && len(filterLocales) > 1 {
+		if _, err := smartlingTranslationOutputPaths(strings.TrimSpace(o.output), filterLocales); err != nil {
+			return err
+		}
+	}
+	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
+	if err != nil {
+		return err
+	}
+	cfg.ProjectID = strings.TrimSpace(o.projectID)
+	client, err := newSmartlingTranslationDownloader(cfg)
+	if err != nil {
+		return err
+	}
+
 	if o.all {
-		return executeSmartlingDownloadTranslationsAll(cmd, o, locales, retrievalType)
+		return executeSmartlingDownloadTranslationsAll(cmd, o, filterLocales, retrievalType, client)
+	}
+	return executeSmartlingDownloadTranslationsOne(cmd, o, filterLocales, retrievalType, client)
+}
+
+func executeSmartlingDownloadTranslationsOne(cmd *cobra.Command, o smartlingDownloadTranslationsOptions, filterLocales []string, retrievalType string, client smartlingTranslationDownloader) error {
+	const action = "smartling download translations"
+	fileURI := strings.TrimSpace(o.fileURI)
+	status, err := client.GetFileStatus(backgroundContext(), smartling.FileStatusInput{
+		ProjectID: strings.TrimSpace(o.projectID),
+		FileURI:   fileURI,
+	})
+	if err != nil {
+		return wrapSmartlingCommandError(action, err)
+	}
+	locales, err := resolveSmartlingDownloadLocalesFromStatus(status, filterLocales, action)
+	if err != nil {
+		return err
 	}
 
 	outputPath := strings.TrimSpace(o.output)
@@ -310,7 +339,7 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 		if destination == "" {
 			destination = "-"
 		}
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-translations project_id=%s target_locales=%s file_uri=%s retrieval_type=%s output=%s\n", strings.TrimSpace(o.projectID), strings.Join(locales, ","), strings.TrimSpace(o.fileURI), retrievalType, destination)
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-translations project_id=%s target_locales=%s file_uri=%s retrieval_type=%s output=%s\n", strings.TrimSpace(o.projectID), strings.Join(locales, ","), fileURI, retrievalType, destination)
 		return err
 	}
 	for _, output := range outputs {
@@ -319,28 +348,17 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 		}
 	}
 
-	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, "smartling download translations")
-	if err != nil {
-		return err
-	}
-	cfg.ProjectID = strings.TrimSpace(o.projectID)
-
-	client, err := newSmartlingTranslationDownloader(cfg)
-	if err != nil {
-		return err
-	}
-
 	writtenOutputs := make([]string, 0, len(outputs))
 	for idx, locale := range locales {
 		result, err := client.DownloadTranslationFile(backgroundContext(), smartling.TranslationDownloadInput{
 			ProjectID:     strings.TrimSpace(o.projectID),
-			FileURI:       strings.TrimSpace(o.fileURI),
+			FileURI:       fileURI,
 			LocaleID:      locale,
 			RetrievalType: retrievalType,
 		})
 		if err != nil {
 			removeSmartlingDownloadedTranslationOutputs(writtenOutputs)
-			return fmt.Errorf("smartling download translations: %w", err)
+			return fmt.Errorf("%s: %w", action, err)
 		}
 
 		output := outputs[idx]
@@ -359,7 +377,7 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 		if !outputExisted {
 			writtenOutputs = append(writtenOutputs, output)
 		}
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s file_uri=%s\n", output, len(result.Content), result.LocaleID, strings.TrimSpace(o.fileURI)); err != nil {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s file_uri=%s\n", output, len(result.Content), result.LocaleID, fileURI); err != nil {
 			removeSmartlingDownloadedTranslationOutputs(writtenOutputs)
 			return err
 		}
@@ -367,18 +385,9 @@ func executeSmartlingDownloadTranslations(cmd *cobra.Command, o smartlingDownloa
 	return nil
 }
 
-func executeSmartlingDownloadTranslationsAll(cmd *cobra.Command, o smartlingDownloadTranslationsOptions, locales []string, retrievalType string) error {
+func executeSmartlingDownloadTranslationsAll(cmd *cobra.Command, o smartlingDownloadTranslationsOptions, filterLocales []string, retrievalType string, client smartlingTranslationDownloader) error {
 	const action = "smartling download translations"
 	dir, err := resolveSmartlingDownloadAllDirectory(o.output, action)
-	if err != nil {
-		return err
-	}
-	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
-	if err != nil {
-		return err
-	}
-	cfg.ProjectID = strings.TrimSpace(o.projectID)
-	client, err := newSmartlingTranslationDownloader(cfg)
 	if err != nil {
 		return err
 	}
@@ -393,10 +402,21 @@ func executeSmartlingDownloadTranslationsAll(cmd *cobra.Command, o smartlingDown
 		return fmt.Errorf("%s: no files found", action)
 	}
 	if o.dryRun {
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-translations-all project_id=%s target_locales=%s retrieval_type=%s output_dir=%s\n", strings.TrimSpace(o.projectID), strings.Join(locales, ","), retrievalType, dir); err != nil {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-translations-all project_id=%s retrieval_type=%s output_dir=%s\n", strings.TrimSpace(o.projectID), retrievalType, dir); err != nil {
 			return err
 		}
 		for _, file := range files {
+			status, err := client.GetFileStatus(backgroundContext(), smartling.FileStatusInput{
+				ProjectID: strings.TrimSpace(o.projectID),
+				FileURI:   file.FileURI,
+			})
+			if err != nil {
+				return wrapSmartlingCommandError(action, err)
+			}
+			locales, err := resolveSmartlingDownloadLocalesFromStatus(status, filterLocales, action)
+			if err != nil {
+				return err
+			}
 			for _, locale := range locales {
 				dest, destErr := smartlingDownloadAllOutputPath(dir, file.FileURI, locale)
 				if destErr != nil {
@@ -413,6 +433,17 @@ func executeSmartlingDownloadTranslationsAll(cmd *cobra.Command, o smartlingDown
 		return fmt.Errorf("%s: mkdir output directory: %w", action, err)
 	}
 	for _, file := range files {
+		status, err := client.GetFileStatus(backgroundContext(), smartling.FileStatusInput{
+			ProjectID: strings.TrimSpace(o.projectID),
+			FileURI:   file.FileURI,
+		})
+		if err != nil {
+			return wrapSmartlingCommandError(action, err)
+		}
+		locales, err := resolveSmartlingDownloadLocalesFromStatus(status, filterLocales, action)
+		if err != nil {
+			return err
+		}
 		for _, locale := range locales {
 			dest, destErr := smartlingDownloadAllOutputPath(dir, file.FileURI, locale)
 			if destErr != nil {
@@ -439,6 +470,58 @@ func executeSmartlingDownloadTranslationsAll(cmd *cobra.Command, o smartlingDown
 		}
 	}
 	return nil
+}
+
+func localeIDsFromFileStatus(status smartling.FileStatus) []string {
+	seen := make(map[string]string)
+	order := make([]string, 0, len(status.Items))
+	for _, item := range status.Items {
+		id := strings.TrimSpace(item.LocaleID)
+		if id == "" {
+			continue
+		}
+		key := strings.ToLower(id)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = id
+		order = append(order, id)
+	}
+	slices.Sort(order)
+	return order
+}
+
+func resolveSmartlingDownloadLocalesFromStatus(status smartling.FileStatus, filterLocales []string, action string) ([]string, error) {
+	fromStatus := localeIDsFromFileStatus(status)
+	if len(fromStatus) == 0 {
+		uri := strings.TrimSpace(status.FileURI)
+		if uri == "" {
+			uri = "file"
+		}
+		return nil, fmt.Errorf("%s: file %q has no target locales in file status", action, uri)
+	}
+	if len(filterLocales) == 0 {
+		return fromStatus, nil
+	}
+
+	statusByLower := make(map[string]string, len(fromStatus))
+	for _, locale := range fromStatus {
+		statusByLower[strings.ToLower(locale)] = locale
+	}
+	intersection := make([]string, 0, len(filterLocales))
+	for _, locale := range filterLocales {
+		if canonical, ok := statusByLower[strings.ToLower(locale)]; ok {
+			intersection = append(intersection, canonical)
+		}
+	}
+	if len(intersection) == 0 {
+		uri := strings.TrimSpace(status.FileURI)
+		if uri == "" {
+			uri = "file"
+		}
+		return nil, fmt.Errorf("%s: none of the requested target locales match file status locales for %q", action, uri)
+	}
+	return intersection, nil
 }
 
 func validateSmartlingDownloadSelection(all bool, fileURI, uriMask, action string) error {
@@ -786,6 +869,9 @@ func newSmartlingGlossaryCmd() *cobra.Command {
 		Short: "Smartling glossary commands",
 	}
 	cmd.AddCommand(newSmartlingGlossaryDownloadCmd())
+	cmd.AddCommand(newSmartlingGlossaryListCmd())
+	cmd.AddCommand(newSmartlingGlossaryCreateCmd())
+	cmd.AddCommand(newSmartlingGlossaryImportCmd())
 	return cmd
 }
 

@@ -7,6 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//internal/csvsafe",
+        "//internal/i18n/locales",
         "//internal/i18n/storage",
     ],
 )
