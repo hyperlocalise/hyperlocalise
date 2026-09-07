@@ -2560,6 +2560,7 @@ export class IssueSheetService {
     organizationId: string;
     projectId: string;
     translationKeyId: string;
+    targetLocale: string;
   }) {
     return this.database
       .select({
@@ -2572,6 +2573,7 @@ export class IssueSheetService {
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
           eq(schema.issueSheetIssues.translationKeyId, input.translationKeyId),
+          eq(schema.issueSheetIssues.targetLocale, input.targetLocale),
         ),
       )
       .orderBy(schema.issueSheetIssues.createdAt, schema.issueSheetIssues.id);

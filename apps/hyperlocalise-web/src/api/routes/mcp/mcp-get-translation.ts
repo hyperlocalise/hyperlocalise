@@ -56,6 +56,7 @@ export async function loadMcpTranslation(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     translationKeyId: detail.segment.externalStringId,
+    targetLocale: input.targetLocale,
   });
 
   return {

@@ -4845,7 +4845,7 @@ describe("mcpRoutes", () => {
       .update(schema.projects)
       .set({
         sourceLocale: "en-AU",
-        targetLocales: ["fr-FR"],
+        targetLocales: ["fr-FR", "de-DE"],
       })
       .where(eq(schema.projects.id, stored.project.id));
 
@@ -4901,6 +4901,19 @@ describe("mcpRoutes", () => {
         issueType: "translation_mistake",
         translationKeyId: translationKey.id,
         targetLocale: "fr-FR",
+        sourcePath: "locales/home.json",
+      },
+    });
+
+    await issueService.createIssue({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      actorUserId: auth.user.localUserId,
+      body: {
+        title: "Review German homepage translation",
+        issueType: "translation_mistake",
+        translationKeyId: translationKey.id,
+        targetLocale: "de-DE",
         sourcePath: "locales/home.json",
       },
     });
