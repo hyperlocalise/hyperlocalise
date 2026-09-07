@@ -62,12 +62,12 @@ export const projectFileCatWorkspaceMessages = defineMessages({
   },
   failedToAddToIssueSheet: {
     defaultMessage: "Failed to add to Queries",
-    id: "dBZKwTIoEH",
+    id: "AJII/bEV+O",
     description: "Fallback error when creating a Queries row from CAT fails",
   },
   addedToIssueSheet: {
     defaultMessage: "Added to Queries",
-    id: "6haGvAy+HC",
+    id: "Z44SZamohK",
     description: "Toast confirmation after adding a CAT segment to Queries",
   },
   viewIssueSheetRow: {

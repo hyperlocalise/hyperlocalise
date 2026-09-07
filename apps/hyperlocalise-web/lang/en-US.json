@@ -775,7 +775,7 @@
     "defaultMessage": "Cancel",
     "description": "Button to close the translation memory import preview without writing"
   },
-  "08+4Nn7rgH": {
+  "pmPB2F7F47": {
     "defaultMessage": "Acme · Queries",
     "description": "Header breadcrumb in marketing app shell mock"
   },
@@ -1707,7 +1707,7 @@
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
     "description": "Capability 1 description for the marketing-localisation use case"
   },
-  "2Q9B8y1llx": {
+  "UznHMJ+o+o": {
     "defaultMessage": "Queries",
     "description": "Sidebar nav label in marketing app shell mock"
   },
@@ -1935,7 +1935,7 @@
     "defaultMessage": "No repository context was found for this string.",
     "description": "Empty state when agent repository context lookup returns nothing"
   },
-  "32+8NTo5Pl": {
+  "5yzXr6bGIC": {
     "defaultMessage": "Queries",
     "description": "Submenu label grouping Queries automation tools"
   },
@@ -2079,7 +2079,7 @@
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated from the detail sheet"
   },
-  "3W0VCaMyWO": {
+  "ykmACsU9kM": {
     "defaultMessage": "Create issue",
     "description": "Menu item and tool title for creating Queries issues"
   },
@@ -2375,7 +2375,7 @@
     "defaultMessage": "Contextual Audit",
     "description": "Label for the contextual dimension on a localisation audit result"
   },
-  "46zk0LJShA": {
+  "S5zYTuw8xI": {
     "defaultMessage": "Triage open work across this workspace.",
     "description": "Short description under the workspace Queries page title"
   },
@@ -2415,7 +2415,7 @@
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
   },
-  "4Bnw8oUCip": {
+  "PF5J5zLlad": {
     "defaultMessage": "Queries could not be loaded.",
     "description": "Error state when the workspace Queries page fails to load"
   },
@@ -2727,7 +2727,7 @@
     "defaultMessage": "{actor} assigned you to {issueTitle}",
     "description": "Inbox notification preview for issue assignment"
   },
-  "51tdxkVdu+": {
+  "MnuXzcJn6d": {
     "defaultMessage": "{count} P1 on Queries",
     "description": "Open issues metric subtitle showing P1 issue count on Queries"
   },
@@ -3227,7 +3227,7 @@
     "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
     "description": "Collapsed explore rollup with a subject and search count"
   },
-  "6XlImduZ6L": {
+  "MbppXfDsbM": {
     "defaultMessage": "Queries is unavailable for this string.",
     "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
   },
@@ -3303,7 +3303,7 @@
     "defaultMessage": "Inactive",
     "description": "Badge shown on inactive project cards"
   },
-  "6haGvAy+HC": {
+  "Z44SZamohK": {
     "defaultMessage": "Added to Queries",
     "description": "Toast confirmation after adding a CAT segment to Queries"
   },
@@ -5447,7 +5447,7 @@
     "defaultMessage": "Target locale",
     "description": "Label for the target locale filter"
   },
-  "C5SPm8Zbbu": {
+  "0PhWie0NMV": {
     "defaultMessage": "Queries",
     "description": "Workspace Queries page title"
   },
@@ -5499,7 +5499,7 @@
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
   },
-  "CBibCD/p8E": {
+  "8YTMjuiNpw": {
     "defaultMessage": "Read Queries issues for the selected project during this automation.",
     "description": "Description for the List issues automation tool"
   },
@@ -5783,7 +5783,7 @@
     "defaultMessage": "This Canva connect request is missing or expired.",
     "description": "Error when a Canva claim id is missing"
   },
-  "D1Wfd509ws": {
+  "1LT7IofQ2x": {
     "defaultMessage": "Choose which project should receive the imported Queries rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
   },
@@ -6243,7 +6243,7 @@
     "defaultMessage": "Failed to start agent run",
     "description": "Toast and error fallback when starting an agent run fails"
   },
-  "E8k6bvQHrX": {
+  "sqEo4EAhoy": {
     "defaultMessage": "Close Queries",
     "description": "Accessible label for closing the CAT Queries panel"
   },
@@ -7559,7 +7559,7 @@
     "defaultMessage": "From",
     "description": "Translation reporting label"
   },
-  "Hjj+QG5LDK": {
+  "+gp2sOH/Py": {
     "defaultMessage": "Request failed",
     "description": "Generic fallback when a CAT Queries API request fails"
   },
@@ -7603,7 +7603,7 @@
     "defaultMessage": "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
     "description": "Projects page description when no TMS provider is connected"
   },
-  "HrspdhKQl+": {
+  "LThxvPehnJ": {
     "defaultMessage": "Open Queries",
     "description": "Accessible label for the Queries button in the app shell footer"
   },
@@ -8043,7 +8043,7 @@
     "defaultMessage": "Web chat",
     "description": "Trigger label for a web chat automation in the list"
   },
-  "J2Tvcwc2sx": {
+  "21DxEHM2/g": {
     "defaultMessage": "Open Queries, {count} open",
     "description": "Accessible label for the Queries button when open issues are available"
   },
@@ -8071,7 +8071,7 @@
     "defaultMessage": "Improve SEO and AEO discoverability across markets",
     "description": "Feature teaser benefit for domains"
   },
-  "J8uRouTxFR": {
+  "MsQL5pndXv": {
     "defaultMessage": "Choose whether Inbox updates for Queries issues are also delivered to your email.",
     "description": "Helper text under notification preferences on account settings"
   },
@@ -8175,7 +8175,7 @@
     "defaultMessage": "Intercom",
     "description": "Name shown for the Intercom integrations row"
   },
-  "JRZrMUrfeM": {
+  "W+Q3zuZLIK": {
     "defaultMessage": "Triage localization issues for this project.",
     "description": "Short section description for the project Queries page"
   },
@@ -8423,7 +8423,7 @@
     "defaultMessage": "Uploaded",
     "description": "Badge when a native project file has no latest job"
   },
-  "KCIvL0TJB4": {
+  "C5PXkfW5jk": {
     "defaultMessage": "Queries",
     "description": "Button to open Queries for the current CAT segment"
   },
@@ -9015,7 +9015,7 @@
     "defaultMessage": "Loading progress…",
     "description": "Metric and property value while locale readiness is loading"
   },
-  "M+PhLBJ7kK": {
+  "9wRo7aY8DU": {
     "defaultMessage": "View Queries",
     "description": "Link from overview Queries to the issues page"
   },
@@ -9187,7 +9187,7 @@
     "defaultMessage": "Create: {label}",
     "description": "Mapping option to create a new Issue Sheet column from a CSV header"
   },
-  "MQYav5C7q6": {
+  "xpTr69QuG7": {
     "defaultMessage": "Queries",
     "description": "Overview section label for open Queries issues"
   },
@@ -10639,7 +10639,7 @@
     "defaultMessage": "Demo request: Reports",
     "description": "Email subject for Reports feature teaser contact link"
   },
-  "QSTiMWaXF/": {
+  "PfMYbXS/4p": {
     "defaultMessage": "Queries could not be loaded.",
     "description": "Error state when Queries rows fail to load"
   },
@@ -10863,7 +10863,7 @@
     "defaultMessage": "Display name",
     "description": "Label for Canva display name field"
   },
-  "R/mQHxnDLt": {
+  "xotII997CO": {
     "defaultMessage": "Queries",
     "description": "Section title for the project Queries page"
   },
@@ -13159,7 +13159,7 @@
     "defaultMessage": "Audit criteria",
     "description": "Heading for the criteria list on a localisation audit result"
   },
-  "XNK40wY8Cc": {
+  "Njk9QnNzuI": {
     "defaultMessage": "No open issues.",
     "description": "Empty state for overview Queries issues"
   },
@@ -13331,7 +13331,7 @@
     "defaultMessage": "Agent Actions",
     "description": "Heading for available provider agent action buttons"
   },
-  "XswXu+UFpy": {
+  "lo142sTjcF": {
     "defaultMessage": "Queries",
     "description": "Sidebar navigation item for workspace Queries"
   },
@@ -14595,7 +14595,7 @@
     "defaultMessage": "The name and slug used in navigation, invite links, and the workspace URL.",
     "description": "Workspace general settings page description"
   },
-  "bC8xP17A1P": {
+  "r7n1+etxph": {
     "defaultMessage": "Upload a spreadsheet export, map columns to Queries fields, preview the result, then import.",
     "description": "Description of the Issue Sheet CSV import dialog"
   },
@@ -14891,7 +14891,7 @@
     "defaultMessage": "Edit team",
     "description": "Button to open the edit team dialog on the detail page"
   },
-  "cAQmoTwBPJ": {
+  "GqjLAPYWZT": {
     "defaultMessage": "List issues",
     "description": "Menu item and tool title for listing Queries issues"
   },
@@ -15243,7 +15243,7 @@
     "defaultMessage": "Starter",
     "description": "Starter plan name on the pricing page"
   },
-  "dBZKwTIoEH": {
+  "AJII/bEV+O": {
     "defaultMessage": "Failed to add to Queries",
     "description": "Fallback error when creating a Queries row from CAT fails"
   },
@@ -15319,7 +15319,7 @@
     "defaultMessage": "Failed to update locked strings",
     "description": "Fallback error when locking or unlocking CAT segments fails"
   },
-  "dKznjRBgya": {
+  "Y1cFr7sG1J": {
     "defaultMessage": "Queries",
     "description": "Label for the Queries button in the app shell footer"
   },
@@ -16823,7 +16823,7 @@
     "defaultMessage": "Open {projectName} in provider",
     "description": "Screen-reader label for opening a project in its external TMS provider"
   },
-  "h5+KJI2d7A": {
+  "mBox3Bi4Wv": {
     "defaultMessage": "Could not load issues.",
     "description": "Error message when CAT segment Queries issues fail to load"
   },
@@ -16995,7 +16995,7 @@
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
   },
-  "hYi0NizHJf": {
+  "g1U3NC/CnC": {
     "defaultMessage": "Queries · this string",
     "description": "Title on the editor mock Queries overlay"
   },
@@ -17399,7 +17399,7 @@
     "defaultMessage": "Review routing",
     "description": "Workflow step 4 label for the localisation-quality-monitoring use case"
   },
-  "igJunofoju": {
+  "zI9Ceuo8wd": {
     "defaultMessage": "Queries",
     "description": "Heading for the CAT segment Queries section"
   },
@@ -18367,7 +18367,7 @@
     "defaultMessage": "—",
     "description": "Placeholder when a glossary timestamp is unavailable"
   },
-  "l+RVkhyT2N": {
+  "fxgs/d7//D": {
     "defaultMessage": "Create a project first, then import issues into Queries.",
     "description": "Empty state when there are no projects to import issues into"
   },
@@ -20619,7 +20619,7 @@
     "defaultMessage": "required",
     "description": "Badge label for a required schema property"
   },
-  "r7gtZsn8Qh": {
+  "j3S46APZAg": {
     "defaultMessage": "Queries",
     "description": "Project sidebar navigation item for project Queries"
   },
@@ -21043,7 +21043,7 @@
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
   },
-  "sJoNIftCZI": {
+  "3CjBlEDVPl": {
     "defaultMessage": "Queries",
     "description": "App shell breadcrumb title for the workspace Queries page"
   },
@@ -21259,7 +21259,7 @@
     "defaultMessage": "Block releases when quality gates fail",
     "description": "Capability 6 title for the github-release-localisation use case"
   },
-  "sslu9yZyVp": {
+  "RueTypLijF": {
     "defaultMessage": "Queries",
     "description": "App shell breadcrumb title for the project Queries page"
   },
@@ -21531,7 +21531,7 @@
     "defaultMessage": "APP",
     "description": "Badge next to the Hyperlocalise agent name in the Slack mock"
   },
-  "tX5h+jHyR2": {
+  "svxgBhLpnH": {
     "defaultMessage": "Queries · acme workspace",
     "description": "Queries panel title in content ops mock"
   },
@@ -22711,7 +22711,7 @@
     "defaultMessage": "Open job",
     "description": "CTA for a failed or active job on project overview"
   },
-  "weTyi2vT5M": {
+  "srC39pzddm": {
     "defaultMessage": "File Queries issues for the selected project from automation findings.",
     "description": "Description for the Create issue automation tool"
   },
@@ -23415,7 +23415,7 @@
     "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?",
     "description": "Startups FAQ question about needing an existing TMS"
   },
-  "yGs5M+8byg": {
+  "KAvyqkZVul": {
     "defaultMessage": "Add a project-specific workflow column to Queries.",
     "description": "Description of the dialog to add a custom Queries column"
   },

@@ -17,12 +17,12 @@ import { defineMessages } from "react-intl";
 export const issueSheetPageContentMessages = defineMessages({
   sectionTitle: {
     defaultMessage: "Queries",
-    id: "R/mQHxnDLt",
+    id: "xotII997CO",
     description: "Section title for the project Queries page",
   },
   sectionDescription: {
     defaultMessage: "Triage localization issues for this project.",
-    id: "JRZrMUrfeM",
+    id: "W+Q3zuZLIK",
     description: "Short section description for the project Queries page",
   },
   importCsv: {
@@ -102,7 +102,7 @@ export const issueSheetPageContentMessages = defineMessages({
   },
   loadIssuesError: {
     defaultMessage: "Queries could not be loaded.",
-    id: "QSTiMWaXF/",
+    id: "PfMYbXS/4p",
     description: "Error state when Queries rows fail to load",
   },
   emptyTitle: {
@@ -158,7 +158,7 @@ export const issueSheetPageContentMessages = defineMessages({
   },
   addColumnDescription: {
     defaultMessage: "Add a project-specific workflow column to Queries.",
-    id: "yGs5M+8byg",
+    id: "KAvyqkZVul",
     description: "Description of the dialog to add a custom Queries column",
   },
   columnIconLabel: {

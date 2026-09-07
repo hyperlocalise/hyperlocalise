@@ -17,7 +17,7 @@ import { defineMessages } from "react-intl";
 export const contentEditorEditorIssuesSectionMessages = defineMessages({
   title: {
     defaultMessage: "Queries",
-    id: "igJunofoju",
+    id: "zI9Ceuo8wd",
     description: "Heading for the CAT segment Queries section",
   },
   createIssue: {
@@ -37,22 +37,22 @@ export const contentEditorEditorIssuesSectionMessages = defineMessages({
   },
   loadError: {
     defaultMessage: "Could not load issues.",
-    id: "h5+KJI2d7A",
+    id: "mBox3Bi4Wv",
     description: "Error message when CAT segment Queries issues fail to load",
   },
   unavailable: {
     defaultMessage: "Queries is unavailable for this string.",
-    id: "6XlImduZ6L",
+    id: "MbppXfDsbM",
     description: "Shown when the CAT segment cannot link to Queries (missing translation key)",
   },
   requestFailed: {
     defaultMessage: "Request failed",
-    id: "Hjj+QG5LDK",
+    id: "+gp2sOH/Py",
     description: "Generic fallback when a CAT Queries API request fails",
   },
   close: {
     defaultMessage: "Close Queries",
-    id: "E8k6bvQHrX",
+    id: "sqEo4EAhoy",
     description: "Accessible label for closing the CAT Queries panel",
   },
 });

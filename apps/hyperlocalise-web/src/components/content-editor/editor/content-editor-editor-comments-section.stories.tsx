@@ -254,7 +254,9 @@ export const IssueSheetCtaOnIssueTab: Story = {
     await expect(canvas.queryByRole("button", { name: "Queries" })).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("tab", { name: "Issue" }));
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Queries" })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(canvas.getByRole("button", { name: "Queries" })).toBeInTheDocument(),
+    );
 
     await userEvent.click(canvas.getByRole("button", { name: "Queries" }));
     await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);

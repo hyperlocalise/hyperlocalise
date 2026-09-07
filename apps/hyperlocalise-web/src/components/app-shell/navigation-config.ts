@@ -140,7 +140,7 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "Queries",
-            id: "XswXu+UFpy",
+            id: "lo142sTjcF",
             description: "Sidebar navigation item for workspace Queries",
           }),
           href: org("issues"),
@@ -407,7 +407,7 @@ export function buildProjectNavigationItems(
     {
       label: intl.formatMessage({
         defaultMessage: "Queries",
-        id: "r7gtZsn8Qh",
+        id: "j3S46APZAg",
         description: "Project sidebar navigation item for project Queries",
       }),
       href: project("issue-sheet"),

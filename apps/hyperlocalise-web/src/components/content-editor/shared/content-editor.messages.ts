@@ -1006,7 +1006,7 @@ export const contentEditorEditorPanelMessages = defineMessages({
   },
   addToIssueSheet: {
     defaultMessage: "Queries",
-    id: "KCIvL0TJB4",
+    id: "C5PXkfW5jk",
     description: "Button to open Queries for the current CAT segment",
   },
   refreshContextTitle: {

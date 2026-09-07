@@ -234,13 +234,13 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "issues":
       return intl.formatMessage({
         defaultMessage: "Queries",
-        id: "sJoNIftCZI",
+        id: "3CjBlEDVPl",
         description: "App shell breadcrumb title for the workspace Queries page",
       });
     case "issue-sheet":
       return intl.formatMessage({
         defaultMessage: "Queries",
-        id: "sslu9yZyVp",
+        id: "RueTypLijF",
         description: "App shell breadcrumb title for the project Queries page",
       });
     case "jobs":

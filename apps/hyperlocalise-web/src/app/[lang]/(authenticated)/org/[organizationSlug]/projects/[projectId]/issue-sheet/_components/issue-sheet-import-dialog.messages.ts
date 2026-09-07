@@ -23,7 +23,7 @@ export const issueSheetImportDialogMessages = defineMessages({
   description: {
     defaultMessage:
       "Upload a spreadsheet export, map columns to Queries fields, preview the result, then import.",
-    id: "bC8xP17A1P",
+    id: "r7n1+etxph",
     description: "Description of the Issue Sheet CSV import dialog",
   },
   chooseCsvFile: {

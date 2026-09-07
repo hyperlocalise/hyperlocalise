@@ -22,12 +22,12 @@ export const issuesProjectImportDialogMessages = defineMessages({
   },
   description: {
     defaultMessage: "Choose which project should receive the imported Queries rows.",
-    id: "D1Wfd509ws",
+    id: "1LT7IofQ2x",
     description: "Description of the workspace issues CSV import project picker dialog",
   },
   emptyProjects: {
     defaultMessage: "Create a project first, then import issues into Queries.",
-    id: "l+RVkhyT2N",
+    id: "fxgs/d7//D",
     description: "Empty state when there are no projects to import issues into",
   },
   cancel: {

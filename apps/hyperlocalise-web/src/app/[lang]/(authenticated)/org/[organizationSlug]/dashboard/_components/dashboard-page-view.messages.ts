@@ -87,7 +87,7 @@ export const dashboardPageViewMessages = defineMessages({
   },
   p1Count: {
     defaultMessage: "{count} P1 on Queries",
-    id: "51tdxkVdu+",
+    id: "MnuXzcJn6d",
     description: "Open issues metric subtitle showing P1 issue count on Queries",
   },
   automationActivityKind: {
@@ -112,7 +112,7 @@ export const dashboardPageViewMessages = defineMessages({
   },
   boardLabel: {
     defaultMessage: "Queries",
-    id: "MQYav5C7q6",
+    id: "xpTr69QuG7",
     description: "Overview section label for open Queries issues",
   },
   automationsLabel: {
@@ -132,7 +132,7 @@ export const dashboardPageViewMessages = defineMessages({
   },
   viewBoard: {
     defaultMessage: "View Queries",
-    id: "M+PhLBJ7kK",
+    id: "9wRo7aY8DU",
     description: "Link from overview Queries to the issues page",
   },
   viewAutomations: {
@@ -152,7 +152,7 @@ export const dashboardPageViewMessages = defineMessages({
   },
   boardEmpty: {
     defaultMessage: "No open issues.",
-    id: "XNK40wY8Cc",
+    id: "Njk9QnNzuI",
     description: "Empty state for overview Queries issues",
   },
   automationsEmpty: {

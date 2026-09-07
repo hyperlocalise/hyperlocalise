@@ -17,17 +17,17 @@ import { defineMessages } from "react-intl";
 export const issuesPageViewMessages = defineMessages({
   pageTitle: {
     defaultMessage: "Queries",
-    id: "C5SPm8Zbbu",
+    id: "0PhWie0NMV",
     description: "Workspace Queries page title",
   },
   pageDescription: {
     defaultMessage: "Triage open work across this workspace.",
-    id: "46zk0LJShA",
+    id: "S5zYTuw8xI",
     description: "Short description under the workspace Queries page title",
   },
   loadError: {
     defaultMessage: "Queries could not be loaded.",
-    id: "4Bnw8oUCip",
+    id: "PF5J5zLlad",
     description: "Error state when the workspace Queries page fails to load",
   },
   empty: {

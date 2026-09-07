@@ -312,7 +312,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   issuesToolsMenu: {
     defaultMessage: "Queries",
-    id: "32+8NTo5Pl",
+    id: "5yzXr6bGIC",
     description: "Submenu label grouping Queries automation tools",
   },
   memories: {
@@ -409,22 +409,22 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   listIssues: {
     defaultMessage: "List issues",
-    id: "cAQmoTwBPJ",
+    id: "GqjLAPYWZT",
     description: "Menu item and tool title for listing Queries issues",
   },
   listIssuesDescription: {
     defaultMessage: "Read Queries issues for the selected project during this automation.",
-    id: "CBibCD/p8E",
+    id: "8YTMjuiNpw",
     description: "Description for the List issues automation tool",
   },
   createIssue: {
     defaultMessage: "Create issue",
-    id: "3W0VCaMyWO",
+    id: "ykmACsU9kM",
     description: "Menu item and tool title for creating Queries issues",
   },
   createIssueDescription: {
     defaultMessage: "File Queries issues for the selected project from automation findings.",
-    id: "weTyi2vT5M",
+    id: "srC39pzddm",
     description: "Description for the Create issue automation tool",
   },
   removeListIssues: {

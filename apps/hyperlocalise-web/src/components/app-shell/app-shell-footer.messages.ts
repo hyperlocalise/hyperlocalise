@@ -38,17 +38,17 @@ export const appShellFooterMessages = defineMessages({
   },
   issueGuidanceAriaLabel: {
     defaultMessage: "Open Queries",
-    id: "HrspdhKQl+",
+    id: "LThxvPehnJ",
     description: "Accessible label for the Queries button in the app shell footer",
   },
   issueGuidanceAvailableAriaLabel: {
     defaultMessage: "Open Queries, {count} open",
-    id: "J2Tvcwc2sx",
+    id: "21DxEHM2/g",
     description: "Accessible label for the Queries button when open issues are available",
   },
   issueGuidanceLabel: {
     defaultMessage: "Queries",
-    id: "dKznjRBgya",
+    id: "Y1cFr7sG1J",
     description: "Label for the Queries button in the app shell footer",
   },
   styleGuideAriaLabel: {
