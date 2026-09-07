@@ -57,6 +57,10 @@ overrides:
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
   prosemirror-model: "1.25.11"
+  # @tiptap/pm 3.31.2 pulls prosemirror-view 1.42.3 while nested PM packages
+  # still resolve 1.42.2; dual copies make DecorationSet unassignable to
+  # Plugin props.decorations (DecorationSource).
+  prosemirror-view: "1.42.3"
 peerDependencyRules:
   allowAny:
     - vite
