@@ -24,29 +24,29 @@ import (
 )
 
 const (
-	authAPIBaseURL           = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL        = "https://api.smartling.com/strings-api/v2"
-	filesAPIBaseURL          = "https://api.smartling.com/files-api/v2"
-	glossaryAPIBaseURL       = "https://api.smartling.com/glossary-api/v2"
-	glossaryAPIV3BaseURL     = "https://api.smartling.com/glossary-api/v3"
-	tmAPIBaseURL             = "https://api.smartling.com/translation-memory-api/v2"
-	translationsLimit        = 500
-	glossaryLimit            = 500
-	maxDownloadBytes   int64 = 50 * 1024 * 1024 // 50 MB
+	authAPIBaseURL             = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL          = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL            = "https://api.smartling.com/files-api/v2"
+	glossaryAPIBaseURL         = "https://api.smartling.com/glossary-api/v2"
+	glossaryAPIV3BaseURL       = "https://api.smartling.com/glossary-api/v3"
+	tmAPIBaseURL               = "https://api.smartling.com/translation-memory-api/v2"
+	translationsLimit          = 500
+	glossaryLimit              = 500
+	maxDownloadBytes     int64 = 50 * 1024 * 1024 // 50 MB
 )
 
 type HTTPClient struct {
-	authBaseURL     string
-	stringsBaseURL  string
-	filesBaseURL    string
-	projectsBaseURL string
-	accountsBaseURL string
-	glossaryBaseURL string
+	authBaseURL       string
+	stringsBaseURL    string
+	filesBaseURL      string
+	projectsBaseURL   string
+	accountsBaseURL   string
+	glossaryBaseURL   string
 	glossaryV3BaseURL string
-	tmBaseURL       string
-	http            *http.Client
-	userIdentifier  string
-	userSecret      string
+	tmBaseURL         string
+	http              *http.Client
+	userIdentifier    string
+	userSecret        string
 
 	tokenMu           sync.Mutex
 	cachedAccessToken string
@@ -60,17 +60,17 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	}
 
 	return &HTTPClient{
-		authBaseURL:     authAPIBaseURL,
-		stringsBaseURL:  stringsAPIBaseURL,
-		filesBaseURL:    filesAPIBaseURL,
-		projectsBaseURL: projectsAPIBaseURL,
-		accountsBaseURL: accountsAPIBaseURL,
-		glossaryBaseURL: glossaryAPIBaseURL,
+		authBaseURL:       authAPIBaseURL,
+		stringsBaseURL:    stringsAPIBaseURL,
+		filesBaseURL:      filesAPIBaseURL,
+		projectsBaseURL:   projectsAPIBaseURL,
+		accountsBaseURL:   accountsAPIBaseURL,
+		glossaryBaseURL:   glossaryAPIBaseURL,
 		glossaryV3BaseURL: glossaryAPIV3BaseURL,
-		tmBaseURL:       tmAPIBaseURL,
-		http:            &http.Client{Timeout: timeout},
-		userIdentifier:  cfg.UserIdentifier,
-		userSecret:      cfg.UserSecret,
+		tmBaseURL:         tmAPIBaseURL,
+		http:              &http.Client{Timeout: timeout},
+		userIdentifier:    cfg.UserIdentifier,
+		userSecret:        cfg.UserSecret,
 	}, nil
 }
 

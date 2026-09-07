@@ -21,9 +21,9 @@ const (
 
 var (
 	glossaryImportPollInterval = time.Second
-	glossaryImportMaxPolls       = 120
-	glossarySearchPageLimit      = 100
-	glossarySearchMaxPages       = 1000
+	glossaryImportMaxPolls     = 120
+	glossarySearchPageLimit    = 100
+	glossarySearchMaxPages     = 1000
 )
 
 // GlossarySummary is one glossary from the v3 search API.
@@ -74,8 +74,8 @@ type glossarySearchPayload struct {
 }
 
 type glossaryCreatePayload struct {
-	GlossaryUID string `json:"glossaryUid"`
-	AccountUID  string `json:"accountUid"`
+	GlossaryUID  string `json:"glossaryUid"`
+	AccountUID   string `json:"accountUid"`
 	GlossaryName string `json:"glossaryName"`
 }
 
