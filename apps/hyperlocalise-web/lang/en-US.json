@@ -16371,6 +16371,10 @@
     "defaultMessage": "View all posts",
     "description": "Link to the marketing blog index from the homepage recent posts section"
   },
+  "gL7qR2tV9mK": {
+    "defaultMessage": "No terms were imported — {count, plural, one {# issue needs} other {# issues need}} attention",
+    "description": "Toast when a glossary import applies zero terms because of validation errors"
+  },
   "gLK1qAKU2c": {
     "defaultMessage": "{position} / {total}",
     "description": "Current segment position in side-by-side CAT view footer"
@@ -16810,6 +16814,10 @@
   "hMoO98tftt": {
     "defaultMessage": "Coordinate localization reviews from Microsoft Teams workspaces.",
     "description": "Microsoft Teams integration description on the integrations page"
+  },
+  "hN4wX8pD3sQ": {
+    "defaultMessage": "Nothing was imported. Resolve these issues and try again:",
+    "description": "Title above the list of glossary import validation errors"
   },
   "hN8qhW4nL5": {
     "defaultMessage": "Search by path, name, or provider ID",

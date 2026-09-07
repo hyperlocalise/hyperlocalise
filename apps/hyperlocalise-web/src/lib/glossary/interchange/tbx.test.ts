@@ -308,6 +308,28 @@ describe("TBX-Basic DCA interchange", () => {
     expect(parsed.concepts[0]?.terms[0]?.note).toContain("\\literal note");
   });
 
+  it("does not leak language-section state into the next concept entry", () => {
+    const parsed = parseTbx(
+      `<?xml version="1.0"?><tbx xmlns="${TBX_NAMESPACE}" type="TBX-Basic" style="dca"><text><body>` +
+        `<conceptEntry id="c-first"><descrip type="definition">First definition.</descrip>` +
+        `<note>[Hyperlocalise::translatable]::true</note>` +
+        `<langSec xml:lang="en"><termSec id="t-1"><term>first</term></termSec></langSec>` +
+        `<langSec xml:lang="vi"><termSec id="t-2"><term>đầu tiên</term></termSec></langSec></conceptEntry>` +
+        `<conceptEntry id="c-second"><descrip type="definition">Second definition.</descrip>` +
+        `<note>[Hyperlocalise::translatable]::false</note>` +
+        `<langSec xml:lang="en"><termSec id="t-3"><term>second</term></termSec></langSec></conceptEntry>` +
+        `</body></text></tbx>`,
+    );
+
+    expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(parsed.concepts).toHaveLength(2);
+    expect(parsed.concepts[0]?.definition).toBe("First definition.");
+    expect(parsed.concepts[0]?.translatable).toBe(true);
+    expect(parsed.concepts[1]?.definition).toBe("Second definition.");
+    expect(parsed.concepts[1]?.translatable).toBe(false);
+    expect(parsed.concepts[1]?.languageDetails ?? []).toEqual([]);
+  });
+
   it("rejects malformed XML without truncating valid preceding concepts", () => {
     const parsed = parseTbx(
       '<?xml version="1.0"?><tbx><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>ok</term></termSec></langSec></conceptEntry><conceptEntry',

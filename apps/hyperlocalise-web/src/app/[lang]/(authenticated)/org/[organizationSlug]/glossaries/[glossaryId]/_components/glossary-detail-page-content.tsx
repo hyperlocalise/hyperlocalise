@@ -405,6 +405,9 @@ export function GlossaryDetailPageContent({
   const glossaryFileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importDiagnostics, setImportDiagnostics] = useState<
+    Array<{ severity: string; code: string; message: string }>
+  >([]);
 
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
@@ -768,6 +771,26 @@ export function GlossaryDetailPageContent({
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
+      const errorDiagnostics = (
+        (body.diagnostics ?? []) as Array<{
+          severity: string;
+          code: string;
+          message: string;
+        }>
+      ).filter((entry) => entry.severity === "error");
+      // A strict-locale import can legitimately apply zero terms (for example
+      // when every row targets an unconfigured locale). Keep the dialog open
+      // and show why instead of a misleading "Imported 0 terms" success.
+      if ((body.imported ?? 0) === 0 && errorDiagnostics.length > 0) {
+        setImportDiagnostics(errorDiagnostics.slice(0, 10));
+        toast.error(
+          intl.formatMessage(messages.termsImportBlocked, {
+            count: errorDiagnostics.length,
+          }),
+        );
+        return;
+      }
+      setImportDiagnostics([]);
       setImportDialogOpen(false);
       setImportFile(null);
       toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
@@ -2644,6 +2667,7 @@ export function GlossaryDetailPageContent({
           setImportDialogOpen(open);
           if (!open) {
             setImportFile(null);
+            setImportDiagnostics([]);
             if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
           }
         }}
@@ -2669,6 +2693,7 @@ export function GlossaryDetailPageContent({
                 const file = event.target.files?.[0];
                 if (!file) return;
                 setImportFile(file);
+                setImportDiagnostics([]);
                 importConcepts.mutate(file);
               }}
             />
@@ -2700,6 +2725,21 @@ export function GlossaryDetailPageContent({
                   ? importConcepts.error.message
                   : intl.formatMessage(messages.importTermsFailed)}
               </p>
+            ) : null}
+            {importDiagnostics.length > 0 ? (
+              <div className="grid gap-1.5" role="alert" aria-live="polite">
+                <p className="text-sm font-medium text-destructive">
+                  <FormattedMessage {...messages.termsImportBlockedTitle} />
+                </p>
+                <ul className="grid list-disc gap-1 pl-5 text-xs text-muted-foreground">
+                  {importDiagnostics.map((entry, index) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <li key={`${entry.code}-${index}`}>
+                      {entry.message} <span className="font-mono">({entry.code})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
           <DialogFooter>

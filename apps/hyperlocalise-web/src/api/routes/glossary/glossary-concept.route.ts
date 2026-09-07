@@ -39,6 +39,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
+import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 import {
   GlossaryValidationError,
   selectGlossaryPrimaryTerm,
@@ -340,7 +341,11 @@ function parseConceptImport(
   content: string,
   format: "csv" | "tbx" | "xlsx",
   contentEncoding?: "utf8" | "base64",
-  options: { strictLocale: boolean; localeMapping: Record<string, string> } = {
+  options: {
+    strictLocale: boolean;
+    localeMapping: Record<string, string>;
+    glossaryLocales?: readonly string[];
+  } = {
     strictLocale: true,
     localeMapping: {},
   },
@@ -350,15 +355,47 @@ function parseConceptImport(
       ? Uint8Array.from(Buffer.from(content, "base64"))
       : content,
   );
+  // Crowdin exports (notably TBX) carry Crowdin language IDs such as `de` or
+  // `vi` while native glossaries use region-qualified BCP-47 locales such as
+  // `de-DE` or `vi-VN`. Without a translation step every term is rejected as
+  // `unknown_locale` and the import silently completes with zero terms.
+  const glossaryLocales = options.glossaryLocales ?? [];
+  const knownLocaleKeys = new Set(glossaryLocales.map((locale) => locale.toLowerCase()));
   for (const concept of parsed.concepts) {
     for (const term of concept.terms) {
-      const mapped = options.localeMapping[term.locale] ?? term.locale;
+      const rawLocale = term.locale;
+      const mapped = options.localeMapping[rawLocale] ?? rawLocale;
       const canonical = canonicalizeLocale(mapped);
       if (!canonical) {
         parsed.diagnostics.push({
           severity: "error",
           code: "invalid_locale",
           message: "Term locale is not a valid BCP 47 language tag.",
+          conceptId: concept.id,
+          termId: term.id,
+          field: "locale",
+        });
+        continue;
+      }
+      if (options.localeMapping[rawLocale] !== undefined || knownLocaleKeys.size === 0) {
+        term.locale = canonical;
+        continue;
+      }
+      if (knownLocaleKeys.has(canonical.toLowerCase())) {
+        term.locale = canonical;
+        continue;
+      }
+      const crowdinMapped = toNativeGlossaryLocale(rawLocale, glossaryLocales);
+      const crowdinCanonical = canonicalizeLocale(crowdinMapped) ?? crowdinMapped;
+      if (
+        crowdinCanonical.toLowerCase() !== canonical.toLowerCase() &&
+        knownLocaleKeys.has(crowdinCanonical.toLowerCase())
+      ) {
+        term.locale = crowdinCanonical;
+        parsed.diagnostics.push({
+          severity: "warning",
+          code: "locale_mapped",
+          message: `Term locale "${rawLocale}" was mapped to the glossary locale "${crowdinCanonical}".`,
           conceptId: concept.id,
           termId: term.id,
           field: "locale",
@@ -445,6 +482,7 @@ export function createGlossaryConceptRoutes(
           {
             strictLocale: payload.strictLocale,
             localeMapping: payload.localeMapping,
+            glossaryLocales: [glossary.sourceLocale, ...glossary.localeCoverage],
           },
         );
         const sourceTotals = {

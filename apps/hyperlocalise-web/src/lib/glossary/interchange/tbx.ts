@@ -566,6 +566,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
       conceptCount++;
       if (conceptCount > MAX_CONCEPTS) throw new Error("TBX concept limit exceeded");
       const id = normalizeImportedId(attr(tag, "id") ?? `import-${conceptCount}`, "c");
+      // Concept-level siblings (descrip/note) must not inherit the previous
+      // concept's language section; reset locale state on every new entry.
+      currentLocale = "";
+      currentTerm = undefined;
       if (!attr(tag, "id"))
         diagnostics.push(
           diagnostic({
@@ -760,6 +764,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
         if (!currentConcept.primaryTerm) currentConcept.primaryTerm = term.term;
       }
       currentTerm = undefined;
+    } else if (frame.local === "langSec" || frame.local === "langSet") {
+      // Concept-level siblings placed after a language section must not
+      // inherit that section's locale.
+      currentLocale = "";
     } else if (frame.local === "conceptEntry" || frame.local === "termEntry") {
       if (currentConcept) {
         if (!currentConcept.terms.length)
