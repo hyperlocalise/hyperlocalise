@@ -890,6 +890,9 @@ export async function updateWorkspaceAutomation(input: {
     eq(schema.workspaceAutomations.id, input.automationId),
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
   ];
+  if (input.status !== undefined && input.status !== existing.status) {
+    updateConditions.push(eq(schema.workspaceAutomations.status, existing.status));
+  }
   if (configChanged) {
     updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
   }

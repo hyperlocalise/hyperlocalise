@@ -686,13 +686,24 @@ export function createWorkspaceAutomationRoutes(
           return mapAutomationConfigValidationError(c, result.error);
         }
 
-        if (!result.value) {
-          return notFoundResponse(c, "workspace_automation_not_found");
+        let automation = result.value;
+        let statusTransitionApplied = Boolean(automation);
+        if (!automation) {
+          const current = await getWorkspaceAutomationById({
+            automationId: params.automationId,
+            organizationId,
+          });
+          if (!current) {
+            return notFoundResponse(c, "workspace_automation_not_found");
+          }
+          statusTransitionApplied = false;
+          automation = current;
         }
 
         if (
           payload.status !== undefined &&
           payload.status !== existing.status &&
+          statusTransitionApplied &&
           (payload.status === "active" ||
             existing.status === "active" ||
             payload.status === "paused" ||
@@ -703,19 +714,19 @@ export function createWorkspaceAutomationRoutes(
             actorKind: "user",
             actorUserId: c.var.auth.user.localUserId,
             automationId: existing.id,
-            name: result.value.name,
+            name: automation.name,
             organizationId,
-            status: result.value.status,
+            status: automation.status,
           });
         }
 
         const recentRuns = await listWorkspaceAutomationRuns({
-          automationId: result.value.id,
+          automationId: automation.id,
           organizationId,
           limit: 10,
         });
 
-        return c.json({ automation: result.value, recentRuns }, 200);
+        return c.json({ automation, recentRuns }, 200);
       } catch (error) {
         return mapAutomationError(c, error);
       }
