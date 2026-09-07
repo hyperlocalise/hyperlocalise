@@ -2867,9 +2867,18 @@ async function loadPhraseQueuePage(input: {
     skipMatches = 0;
   }
 
+  // A filtered scan can exhaust its safety budget before Phrase reports the end of
+  // the key set. Expose the next page as a continuation cursor so callers can keep
+  // scanning instead of treating the partial result as the end of the queue.
+  const scanStoppedByBudget = !scanComplete && collected.length < limit;
+  if (scanStoppedByBudget) {
+    nextPhraseScanPage = scanPageBudget + 1;
+    nextPhraseScanSkip = 0;
+  }
+
   return {
     segments: collected,
-    hasMore: collected.length >= limit && !scanComplete,
+    hasMore: (collected.length >= limit && !scanComplete) || scanStoppedByBudget,
     nextPhraseScanPage,
     nextPhraseScanSkip,
   };
