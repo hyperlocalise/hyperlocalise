@@ -26,9 +26,10 @@ import Image from "next/image";
 import { useIntl } from "react-intl";
 
 import {
-  LAVENDER_MESH_GRADIENT_SRC,
+  BLUSH_MESH_GRADIENT_SRC,
   MeshStage,
-  SAGE_MESH_GRADIENT_SRC,
+  MIST_MESH_GRADIENT_SRC,
+  ROSE_MESH_GRADIENT_SRC,
 } from "@/components/marketing/hero-frame-mesh-stage";
 import { cn } from "@/lib/primitives/cn";
 
@@ -49,12 +50,12 @@ import {
 const TAB_HOLD_MS = 9000;
 const TAB_ORDER: ContentOpsMockTabId[] = ["triage", "campaign", "seo-blog", "brand", "editor"];
 
-const MESH_BY_TAB: Record<ContentOpsMockTabId, string> = {
-  triage: SAGE_MESH_GRADIENT_SRC,
-  campaign: LAVENDER_MESH_GRADIENT_SRC,
-  "seo-blog": SAGE_MESH_GRADIENT_SRC,
-  brand: LAVENDER_MESH_GRADIENT_SRC,
-  editor: LAVENDER_MESH_GRADIENT_SRC,
+const MESH_BY_TAB: Record<ContentOpsMockTabId, { src: string; mix: string }> = {
+  triage: { src: MIST_MESH_GRADIENT_SRC, mix: ROSE_MESH_GRADIENT_SRC },
+  campaign: { src: MIST_MESH_GRADIENT_SRC, mix: BLUSH_MESH_GRADIENT_SRC },
+  "seo-blog": { src: ROSE_MESH_GRADIENT_SRC, mix: MIST_MESH_GRADIENT_SRC },
+  brand: { src: ROSE_MESH_GRADIENT_SRC, mix: BLUSH_MESH_GRADIENT_SRC },
+  editor: { src: BLUSH_MESH_GRADIENT_SRC, mix: MIST_MESH_GRADIENT_SRC },
 };
 
 type TabConfig = {
@@ -152,6 +153,7 @@ export function ContentOpsMockStage({
   }, [activeTab, autoplayEnabled, shouldReduceMotion]);
 
   const pauseAutoplay = !autoplayEnabled || shouldReduceMotion;
+  const activeMesh = MESH_BY_TAB[activeTab];
 
   useEffect(() => {
     if (activeTab !== "triage" || pauseAutoplay) {
@@ -204,7 +206,8 @@ export function ContentOpsMockStage({
       </div>
 
       <MeshStage
-        meshSrc={MESH_BY_TAB[activeTab]}
+        meshSrc={activeMesh.src}
+        mixSrc={activeMesh.mix}
         priority={priority}
         layout="breakout"
         entranceAnimation="none"

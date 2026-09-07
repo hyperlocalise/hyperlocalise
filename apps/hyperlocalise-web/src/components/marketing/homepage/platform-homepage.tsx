@@ -30,7 +30,13 @@ import { AgentChannelPreview } from "./agent-channel-preview";
 import { McpClientLogos } from "./mcp-client-logos";
 import { ConnectedCampaign } from "./connected-campaign";
 import { hasProductPreviewVideoUrl, PRODUCT_PREVIEW_VIDEO_URL, PRODUCTS } from "./product-preview";
-import { SEAFOAM_MESH_GRADIENT_SRC, SectionMeshBackground } from "../hero-frame-mesh-stage";
+import {
+  BLUSH_MESH_GRADIENT_SRC,
+  LAVENDER_MESH_GRADIENT_SRC,
+  SEAFOAM_MESH_GRADIENT_SRC,
+  SAGE_MESH_GRADIENT_SRC,
+  SectionMeshBackground,
+} from "../hero-frame-mesh-stage";
 
 const SECTION_CLASS = "mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10";
 const HOME_STYLE = {
@@ -236,6 +242,230 @@ function AgentsSection() {
   );
 }
 
+function WorkflowIllustration() {
+  return (
+    <div
+      aria-hidden
+      className="flex w-[78%] flex-col gap-3 rounded-xl border border-border/70 bg-background p-4 shadow-[0_18px_40px_rgba(0,35,89,0.1)] sm:p-5"
+    >
+      <div className="flex items-center justify-between text-xs font-semibold">
+        <FormattedMessage {...m.trustWorkflowLabel} />
+        <span className="text-primary">
+          <FormattedMessage {...m.trustWorkflowActive} />
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        <WorkflowStep label={m.trustAiDraft} status={m.trustComplete} />
+        <WorkflowStep label={m.trustHumanReview} status={m.trustYourTeam} active />
+        <WorkflowStep label={m.trustReadyToPublish} status={m.trustNext} />
+      </div>
+    </div>
+  );
+}
+
+function WorkflowStep({
+  label,
+  status,
+  active = false,
+}: {
+  label: MessageDescriptor;
+  status: MessageDescriptor;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-md px-2.5 py-2 text-[0.7rem] sm:text-xs",
+        active ? "bg-blue-100" : "bg-muted/70",
+      )}
+    >
+      <span className="flex size-4 shrink-0 items-center justify-center text-primary" aria-hidden>
+        {active ? "◎" : "✓"}
+      </span>
+      <span className="min-w-0 flex-1 font-medium">
+        <FormattedMessage {...label} />
+      </span>
+      <span className="shrink-0 text-muted-foreground">
+        <FormattedMessage {...status} />
+      </span>
+    </div>
+  );
+}
+
+function GuidelinesIllustration() {
+  return (
+    <div aria-hidden className="relative flex size-full items-center justify-center">
+      <div className="flex w-[68%] rotate-[-5deg] flex-col gap-4 rounded-xl border border-border/70 bg-background p-5 shadow-[0_18px_40px_rgba(0,35,89,0.1)] sm:p-6">
+        <div className="text-[0.65rem] font-semibold tracking-[0.14em] text-primary uppercase">
+          <FormattedMessage {...m.trustGuidelinesLabel} />
+        </div>
+        <div className="font-heading text-2xl leading-[1.15] tracking-[-0.035em] sm:text-[1.75rem]">
+          <FormattedMessage {...m.trustGuidelinesTitle} />
+        </div>
+        <div className="flex gap-1.5">
+          <span className="h-2 w-8 rounded-sm bg-primary" />
+          <span className="h-2 w-8 rounded-sm bg-dew-100" />
+          <span className="h-2 w-8 rounded-sm bg-foreground" />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          <FormattedMessage {...m.trustGuidelinesNote} />
+        </div>
+      </div>
+      <div className="absolute bottom-7 right-[11%] flex rotate-[4deg] gap-1.5">
+        {[
+          { label: "EN", active: true },
+          { label: "FR", active: false },
+          { label: "JA", active: false },
+        ].map((locale) => (
+          <span
+            key={locale.label}
+            className={cn(
+              "rounded-md border px-2.5 py-2 text-xs font-semibold shadow-sm",
+              locale.active
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border/70 bg-background text-foreground",
+            )}
+          >
+            {locale.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AccessIllustration() {
+  const roles = [
+    { initials: "MC", name: "Minh", role: m.trustAdmin },
+    { initials: "AL", name: "Alex", role: m.trustEditor },
+    { initials: "JS", name: "Jamie", role: m.trustReviewer },
+  ];
+
+  return (
+    <div
+      aria-hidden
+      className="flex w-[78%] flex-col gap-3 rounded-xl border border-border/70 bg-background p-4 shadow-[0_18px_40px_rgba(0,35,89,0.1)] sm:p-5"
+    >
+      <div className="flex items-center gap-2 text-xs font-semibold">
+        <svg
+          aria-hidden
+          className="size-4 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <rect x="5" y="10" width="14" height="11" rx="3" />
+          <path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3" />
+        </svg>
+        <FormattedMessage {...m.trustWorkspaceAccess} />
+      </div>
+      <div className="flex flex-col gap-2">
+        {roles.map((person) => (
+          <div key={person.initials} className="flex items-center gap-2 text-xs">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[0.6rem] font-semibold text-blue-900">
+              {person.initials}
+            </span>
+            <span className="min-w-0 flex-1 font-medium">{person.name}</span>
+            <span className="shrink-0 text-[0.65rem] text-muted-foreground">
+              <FormattedMessage {...person.role} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TrustCard({
+  title,
+  body,
+  visual,
+  meshSrc,
+  visualClassName,
+}: {
+  title: MessageDescriptor;
+  body: MessageDescriptor;
+  visual: ReactNode;
+  meshSrc: string;
+  visualClassName: string;
+}) {
+  return (
+    <article className="flex min-w-0 flex-col gap-5">
+      <div
+        className={cn(
+          "relative isolate flex h-64 items-center justify-center overflow-hidden rounded-[1.5rem] sm:h-72",
+          visualClassName,
+        )}
+      >
+        <Image
+          src={meshSrc}
+          alt=""
+          fill
+          sizes="(min-width: 768px) 33vw, 100vw"
+          className="-z-20 object-cover"
+        />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-white/25" />
+        {visual}
+      </div>
+      <div className="flex flex-col gap-3">
+        <h3 className="text-[1.35rem] font-semibold leading-[1.15] tracking-[-0.035em] text-balance">
+          <FormattedMessage {...title} />
+        </h3>
+        <p className="text-[0.95rem] leading-7 text-pretty text-muted-foreground">
+          <FormattedMessage {...body} />
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function TrustAndControlSection() {
+  return (
+    <section id="trust" aria-labelledby="trust-heading" className="bg-background">
+      <div className={SECTION_CLASS}>
+        <div className="mx-auto mb-10 flex max-w-3xl flex-col items-center gap-4 text-center sm:mb-14">
+          <p className="text-xs font-semibold tracking-[0.16em] text-primary uppercase">
+            <FormattedMessage {...m.trustEyebrow} />
+          </p>
+          <h2
+            id="trust-heading"
+            className="font-heading text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.1] text-balance"
+          >
+            <FormattedMessage {...m.trustTitle} />
+          </h2>
+          <p className="max-w-2xl text-base leading-7 text-pretty text-muted-foreground">
+            <FormattedMessage {...m.trustBody} />
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-7 lg:gap-8">
+          <TrustCard
+            title={m.trustAiTitle}
+            body={m.trustAiBody}
+            visual={<WorkflowIllustration />}
+            meshSrc={SAGE_MESH_GRADIENT_SRC}
+            visualClassName="bg-blue-100"
+          />
+          <TrustCard
+            title={m.trustBrandTitle}
+            body={m.trustBrandBody}
+            visual={<GuidelinesIllustration />}
+            meshSrc={LAVENDER_MESH_GRADIENT_SRC}
+            visualClassName="bg-muted"
+          />
+          <TrustCard
+            title={m.trustAccessTitle}
+            body={m.trustAccessBody}
+            visual={<AccessIllustration />}
+            meshSrc={BLUSH_MESH_GRADIENT_SRC}
+            visualClassName="bg-blue-50"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function PlatformHomepage({ children, plans }: { children: ReactNode; plans: ReactNode }) {
   const locale = useAppLocale();
   const hasPreviewVideo = hasProductPreviewVideoUrl(PRODUCT_PREVIEW_VIDEO_URL);
@@ -347,6 +577,7 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
       </section>
       <ConnectedCampaign />
       {children}
+      <TrustAndControlSection />
       <section id="plans" className="bg-muted/70">
         <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">
           <SectionHeading title={m.pricingTitle} body={m.pricingBody} />

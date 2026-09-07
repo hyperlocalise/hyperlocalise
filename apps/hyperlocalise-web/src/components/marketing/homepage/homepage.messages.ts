@@ -580,4 +580,127 @@ export const homepageMessages = defineMessages({
     id: "mz2vbNq+SX",
     description: "GitHub pull request status in the homepage agent preview",
   },
+  trustEyebrow: {
+    defaultMessage: "Built around your team",
+    id: "yM+uipqq4j",
+    description: "Eyebrow for the homepage trust and control section",
+  },
+  trustTitle: {
+    defaultMessage: "Scale your content. Keep control.",
+    id: "YlQ8SQ7Hob",
+    description: "Title for the homepage trust and control section",
+  },
+  trustBody: {
+    defaultMessage: "Put AI to work across markets, with your people and standards at the centre.",
+    id: "el8e9GVZd8",
+    description: "Supporting copy for the homepage trust and control section",
+  },
+  trustAiTitle: {
+    defaultMessage: "AI that works on your terms",
+    id: "wlMkvi2Lg8",
+    description: "First card title in the homepage trust and control section",
+  },
+  trustAiBody: {
+    defaultMessage:
+      "Choose the model providers and tools your team trusts. Let agents handle repeatable work while people stay in the loop.",
+    id: "lAx3q9l5/u",
+    description: "First card body in the homepage trust and control section",
+  },
+  trustBrandTitle: {
+    defaultMessage: "Your brand, in every language",
+    id: "dSvt9WCWiW",
+    description: "Second card title in the homepage trust and control section",
+  },
+  trustBrandBody: {
+    defaultMessage:
+      "Give people and agents shared guidelines, terminology, and market context so every launch sounds like you.",
+    id: "GgszY7zQ71",
+    description: "Second card body in the homepage trust and control section",
+  },
+  trustAccessTitle: {
+    defaultMessage: "Access with clear boundaries",
+    id: "0PopXaEBoW",
+    description: "Third card title in the homepage trust and control section",
+  },
+  trustAccessBody: {
+    defaultMessage:
+      "Keep roles and permissions clear as your workspace grows. Enterprise adds SSO / SAML and dedicated support.",
+    id: "IRtZ/saWhr",
+    description: "Third card body in the homepage trust and control section",
+  },
+  trustWorkflowLabel: {
+    defaultMessage: "Launch workflow",
+    id: "5zK6mzfMaW",
+    description: "Label in the AI controls illustration",
+  },
+  trustWorkflowActive: {
+    defaultMessage: "Active",
+    id: "A+0gGrtEhf",
+    description: "Status in the AI controls illustration",
+  },
+  trustAiDraft: {
+    defaultMessage: "AI draft",
+    id: "PzaE8mCDlI",
+    description: "First step in the AI controls illustration",
+  },
+  trustHumanReview: {
+    defaultMessage: "Human review",
+    id: "dIvfpM0G46",
+    description: "Second step in the AI controls illustration",
+  },
+  trustReadyToPublish: {
+    defaultMessage: "Ready to publish",
+    id: "nmjSOLrqQz",
+    description: "Third step in the AI controls illustration",
+  },
+  trustComplete: {
+    defaultMessage: "Complete",
+    id: "N1epJN93ZL",
+    description: "Completion status in the AI controls illustration",
+  },
+  trustYourTeam: {
+    defaultMessage: "Your team",
+    id: "21UXwS0MZ6",
+    description: "Human review status in the AI controls illustration",
+  },
+  trustNext: {
+    defaultMessage: "Next",
+    id: "cUk7if0noS",
+    description: "Next status in the AI controls illustration",
+  },
+  trustGuidelinesLabel: {
+    defaultMessage: "Brand guidelines",
+    id: "CDa9RKAB5k",
+    description: "Label in the brand guidance illustration",
+  },
+  trustGuidelinesTitle: {
+    defaultMessage: "One voice. Every market.",
+    id: "aLFMn9nbVZ",
+    description: "Title in the brand guidance illustration",
+  },
+  trustGuidelinesNote: {
+    defaultMessage: "Clear. Human. Confident.",
+    id: "OjbR5imOsw",
+    description: "Supporting note in the brand guidance illustration",
+  },
+  trustWorkspaceAccess: {
+    defaultMessage: "Workspace access",
+    id: "oZQMusV7tn",
+    description: "Label in the workspace access illustration",
+  },
+  trustAdmin: {
+    defaultMessage: "Admin",
+    id: "L9CYRKrj6S",
+    description: "Admin role in the workspace access illustration",
+  },
+  trustEditor: {
+    defaultMessage: "Editor",
+    id: "uxTYzrNqo8",
+    description: "Editor role in the workspace access illustration",
+  },
+  trustReviewer: {
+    defaultMessage: "Reviewer",
+    id: "1EFh6senwK",
+    description: "Reviewer role in the workspace access illustration",
+  },
 });
