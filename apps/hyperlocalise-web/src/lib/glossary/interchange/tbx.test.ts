@@ -330,6 +330,116 @@ describe("TBX-Basic DCA interchange", () => {
     expect(parsed.concepts[1]?.languageDetails ?? []).toEqual([]);
   });
 
+  it("keeps Crowdin-style IDs stable across an export round-trip", () => {
+    const parsed = parseTbx(
+      `<?xml version="1.0"?><tbx xmlns="${TBX_NAMESPACE}" type="TBX-Basic" style="dca" xml:lang="en"><text><body>` +
+        `<conceptEntry id="c-ota-004"><descrip type="translatable">yes</descrip>` +
+        `<descrip type="subjectField">search</descrip>` +
+        `<descrip type="definition">The calendar date on which a return journey begins.</descrip>` +
+        `<note>[Hyperlocalise::translatable]::true</note>` +
+        `<langSec xml:lang="en"><termSec id="125"><term>return date</term>` +
+        `<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>` +
+        `</conceptEntry></body></text></tbx>`,
+    );
+    expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(parsed.concepts[0]?.id).toBe("c-ota-004");
+    expect(parsed.concepts[0]?.translatable).toBe(true);
+
+    const serialized = serializeTbx({
+      glossary,
+      concepts: parsed.concepts.map((concept) => ({
+        id: concept.id,
+        primaryTerm: concept.primaryTerm ?? "",
+        subject: concept.subject ?? "",
+        definition: concept.definition ?? "",
+        translatable: concept.translatable ?? true,
+        note: concept.note ?? "",
+        url: null,
+        figure: null,
+        languageDetails: [],
+        metadata: {},
+        terms: concept.terms.map((term) => ({
+          id: term.id,
+          conceptId: concept.id,
+          locale: term.locale,
+          term: term.term,
+          description: "",
+          note: "",
+          partOfSpeech: term.partOfSpeech ?? "",
+          gender: null,
+          termType: null,
+          url: null,
+          lemma: null,
+          status: term.status ?? "draft",
+          caseSensitive: false,
+          forbidden: false,
+          provenance: "manual",
+          reviewStatus: "approved",
+          metadata: {},
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        })),
+      })),
+    });
+    expect(serialized.errors).toEqual([]);
+    const xml = new TextDecoder().decode(serialized.content);
+    // No doubled prefixes: c-c-ota-004 growth would break merge matching.
+    expect(xml).toContain('conceptEntry id="c-ota-004"');
+    expect(xml).not.toContain("c-c-ota-004");
+    // Numeric Crowdin IDs are not valid XML IDs, so they gain a deterministic
+    // prefixed form instead of being emitted verbatim.
+    expect(xml).toContain('termSec id="t-125-');
+    expect(xml).not.toContain('termSec id="125"');
+    // Empty metadata objects stay out of user-visible notes.
+    expect(xml).not.toContain("[Hyperlocalise::metadata]");
+
+    const reparsed = parseTbx(xml);
+    expect(reparsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(reparsed.concepts[0]?.id).toBe("c-ota-004");
+    expect(reparsed.concepts[0]?.translatable).toBe(true);
+    const reTermId = reparsed.concepts[0]?.terms[0]?.id ?? "";
+    expect(reTermId.startsWith("t-125-")).toBe(true);
+    const reserialized = serializeTbx({
+      glossary,
+      concepts: reparsed.concepts.map((concept) => ({
+        id: concept.id,
+        primaryTerm: concept.primaryTerm ?? "",
+        subject: concept.subject ?? "",
+        definition: concept.definition ?? "",
+        translatable: concept.translatable ?? true,
+        note: concept.note ?? "",
+        url: null,
+        figure: null,
+        languageDetails: [],
+        metadata: {},
+        terms: concept.terms.map((term) => ({
+          id: term.id,
+          conceptId: concept.id,
+          locale: term.locale,
+          term: term.term,
+          description: term.description ?? "",
+          note: term.note ?? "",
+          partOfSpeech: term.partOfSpeech ?? "",
+          gender: null,
+          termType: null,
+          url: null,
+          lemma: null,
+          status: term.status ?? "draft",
+          caseSensitive: false,
+          forbidden: false,
+          provenance: "manual",
+          reviewStatus: "approved",
+          metadata: {},
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        })),
+      })),
+    });
+    expect(reserialized.errors).toEqual([]);
+    // Second-generation IDs are already XML-safe, so output is now fixed-point.
+    expect(new TextDecoder().decode(reserialized.content)).toBe(xml);
+  });
+
   it("rejects malformed XML without truncating valid preceding concepts", () => {
     const parsed = parseTbx(
       '<?xml version="1.0"?><tbx><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>ok</term></termSec></langSec></conceptEntry><conceptEntry',

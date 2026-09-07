@@ -41,6 +41,12 @@ function attr(tag: SaxesTagNS, name: string) {
 }
 
 function stableId(prefix: string, value: string) {
+  // Round-trip stability: an ID that already carries this prefix in XML-safe
+  // form (for example a re-exported import) must not gain another prefix
+  // layer, otherwise export -> import can no longer match the original record.
+  if (value.startsWith(`${prefix}-`) && /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(value)) {
+    return value;
+  }
   const base = value.replace(/[^A-Za-z0-9_.-]/g, "-");
   if (base === value && /^[A-Za-z_]/.test(base)) return `${prefix}-${base}`;
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
@@ -182,7 +188,8 @@ function addTerm(
   addTermNote("Hyperlocalise::provenance", term.provenance);
   addTermNote("Hyperlocalise::createdAt", term.createdAt);
   addTermNote("Hyperlocalise::updatedAt", term.updatedAt);
-  addTermNote("Hyperlocalise::metadata", term.metadata);
+  if (term.metadata && Object.keys(term.metadata).length > 0)
+    addTermNote("Hyperlocalise::metadata", term.metadata);
   if (term.description.trim() || notes.length > 0) {
     if (term.description.trim()) {
       const descriptionGroup = termSec.ele("descripGrp");
