@@ -23,6 +23,7 @@ describe("getAppShellTitle", () => {
   it.each([
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
+    ["/org/acme/issues", "Queries"],
     ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
@@ -30,7 +31,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/jobs", "Jobs"],
     ["/org/acme/projects/proj_1/automations", "Automations"],
     ["/org/acme/projects/proj_1/knowledge", "Guideline"],
-    ["/org/acme/projects/proj_1/issue-sheet", "Board"],
+    ["/org/acme/projects/proj_1/issue-sheet", "Queries"],
     ["/org/acme/projects/proj_1/strings", "Content Editor"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
     ["/org/acme/projects/proj_1/activity", "Activity"],
@@ -196,11 +197,11 @@ describe("getAppShellBreadcrumbs", () => {
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
-      { label: "Board" },
+      { label: "Queries" },
     ]);
   });
 
-  it("links Board when viewing a permanent issue detail URL", () => {
+  it("links Queries when viewing a permanent issue detail URL", () => {
     expect(
       getAppShellBreadcrumbs(
         "/org/acme/projects/proj_1/issue-sheet/11111111-1111-4111-8111-111111111111",
@@ -210,7 +211,7 @@ describe("getAppShellBreadcrumbs", () => {
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
-      { label: "Board", href: "/org/acme/projects/proj_1/issue-sheet" },
+      { label: "Queries", href: "/org/acme/projects/proj_1/issue-sheet" },
     ]);
   });
 

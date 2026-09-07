@@ -776,7 +776,7 @@
     "description": "Button to close the translation memory import preview without writing"
   },
   "08+4Nn7rgH": {
-    "defaultMessage": "Acme · Board",
+    "defaultMessage": "Acme · Queries",
     "description": "Header breadcrumb in marketing app shell mock"
   },
   "087Hwu4wFp": {
@@ -1708,7 +1708,7 @@
     "description": "Capability 1 description for the marketing-localisation use case"
   },
   "2Q9B8y1llx": {
-    "defaultMessage": "Board",
+    "defaultMessage": "Queries",
     "description": "Sidebar nav label in marketing app shell mock"
   },
   "2QU4QHjp8c": {
@@ -1936,8 +1936,8 @@
     "description": "Empty state when agent repository context lookup returns nothing"
   },
   "32+8NTo5Pl": {
-    "defaultMessage": "Board",
-    "description": "Submenu label grouping Board automation tools"
+    "defaultMessage": "Queries",
+    "description": "Submenu label grouping Queries automation tools"
   },
   "32TT/pgWLo": {
     "defaultMessage": "Developer",
@@ -2081,7 +2081,7 @@
   },
   "3W0VCaMyWO": {
     "defaultMessage": "Create issue",
-    "description": "Menu item and tool title for creating Board issues"
+    "description": "Menu item and tool title for creating Queries issues"
   },
   "3Z+3pA/kaR": {
     "defaultMessage": "Save",
@@ -2377,7 +2377,7 @@
   },
   "46zk0LJShA": {
     "defaultMessage": "Triage open work across this workspace.",
-    "description": "Short description under the workspace Board page title"
+    "description": "Short description under the workspace Queries page title"
   },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
@@ -2416,8 +2416,8 @@
     "description": "Loading state while project file details are fetched"
   },
   "4Bnw8oUCip": {
-    "defaultMessage": "The board could not be loaded.",
-    "description": "Error state when the workspace board fails to load"
+    "defaultMessage": "Queries could not be loaded.",
+    "description": "Error state when the workspace Queries page fails to load"
   },
   "4C48CjJZ/y": {
     "defaultMessage": "Role permissions",
@@ -2728,8 +2728,8 @@
     "description": "Inbox notification preview for issue assignment"
   },
   "51tdxkVdu+": {
-    "defaultMessage": "{count} P1 on Board",
-    "description": "Open issues metric subtitle showing P1 issue count on the board"
+    "defaultMessage": "{count} P1 on Queries",
+    "description": "Open issues metric subtitle showing P1 issue count on Queries"
   },
   "520zX1ohk1": {
     "defaultMessage": "Cancel",
@@ -3228,8 +3228,8 @@
     "description": "Collapsed explore rollup with a subject and search count"
   },
   "6XlImduZ6L": {
-    "defaultMessage": "Board is unavailable for this string.",
-    "description": "Shown when the CAT segment cannot link to the Board (missing translation key)"
+    "defaultMessage": "Queries is unavailable for this string.",
+    "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
   },
   "6YRqpDlcKq": {
     "defaultMessage": "GitHub push",
@@ -3304,8 +3304,8 @@
     "description": "Badge shown on inactive project cards"
   },
   "6haGvAy+HC": {
-    "defaultMessage": "Added to Board",
-    "description": "Toast confirmation after adding a CAT segment to the issue sheet"
+    "defaultMessage": "Added to Queries",
+    "description": "Toast confirmation after adding a CAT segment to Queries"
   },
   "6ieanONu91": {
     "defaultMessage": "Import CSV",
@@ -5448,8 +5448,8 @@
     "description": "Label for the target locale filter"
   },
   "C5SPm8Zbbu": {
-    "defaultMessage": "Board",
-    "description": "Workspace board page title"
+    "defaultMessage": "Queries",
+    "description": "Workspace Queries page title"
   },
   "C5fqvIk+YX": {
     "defaultMessage": "Old",
@@ -5500,7 +5500,7 @@
     "description": "Button label while retrying a localisation audit"
   },
   "CBibCD/p8E": {
-    "defaultMessage": "Read board issues for the selected project during this automation.",
+    "defaultMessage": "Read Queries issues for the selected project during this automation.",
     "description": "Description for the List issues automation tool"
   },
   "CCHRUS19n3": {
@@ -5784,7 +5784,7 @@
     "description": "Error when a Canva claim id is missing"
   },
   "D1Wfd509ws": {
-    "defaultMessage": "Choose which project should receive the imported board rows.",
+    "defaultMessage": "Choose which project should receive the imported Queries rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
   },
   "D2ZrcxejKr": {
@@ -6244,8 +6244,8 @@
     "description": "Toast and error fallback when starting an agent run fails"
   },
   "E8k6bvQHrX": {
-    "defaultMessage": "Close board",
-    "description": "Accessible label for closing the CAT Board panel"
+    "defaultMessage": "Close Queries",
+    "description": "Accessible label for closing the CAT Queries panel"
   },
   "E8rEmEqTpX": {
     "defaultMessage": "Resolving…",
@@ -7561,7 +7561,7 @@
   },
   "Hjj+QG5LDK": {
     "defaultMessage": "Request failed",
-    "description": "Generic fallback when a CAT Board API request fails"
+    "description": "Generic fallback when a CAT Queries API request fails"
   },
   "Hl4y/YDhod": {
     "defaultMessage": "Knowledge files must be 25 MB or smaller.",
@@ -7604,8 +7604,8 @@
     "description": "Projects page description when no TMS provider is connected"
   },
   "HrspdhKQl+": {
-    "defaultMessage": "Open board",
-    "description": "Accessible label for the Board button in the app shell footer"
+    "defaultMessage": "Open Queries",
+    "description": "Accessible label for the Queries button in the app shell footer"
   },
   "Hs6SYEddPH": {
     "defaultMessage": "Target locale",
@@ -8044,8 +8044,8 @@
     "description": "Trigger label for a web chat automation in the list"
   },
   "J2Tvcwc2sx": {
-    "defaultMessage": "Open board, {count} open",
-    "description": "Accessible label for the Board button when open issues are available"
+    "defaultMessage": "Open Queries, {count} open",
+    "description": "Accessible label for the Queries button when open issues are available"
   },
   "J4PtC/cy7o": {
     "defaultMessage": "Type",
@@ -8072,7 +8072,7 @@
     "description": "Feature teaser benefit for domains"
   },
   "J8uRouTxFR": {
-    "defaultMessage": "Choose whether Inbox updates for board issues are also delivered to your email.",
+    "defaultMessage": "Choose whether Inbox updates for Queries issues are also delivered to your email.",
     "description": "Helper text under notification preferences on account settings"
   },
   "J9N0QX7lou": {
@@ -8177,7 +8177,7 @@
   },
   "JRZrMUrfeM": {
     "defaultMessage": "Triage localization issues for this project.",
-    "description": "Short section description for the project Board page"
+    "description": "Short section description for the project Queries page"
   },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
@@ -8424,8 +8424,8 @@
     "description": "Badge when a native project file has no latest job"
   },
   "KCIvL0TJB4": {
-    "defaultMessage": "Board",
-    "description": "Button to open the Board for the current CAT segment"
+    "defaultMessage": "Queries",
+    "description": "Button to open Queries for the current CAT segment"
   },
   "KCMz//p+DR": {
     "defaultMessage": "Web chat",
@@ -9016,8 +9016,8 @@
     "description": "Metric and property value while locale readiness is loading"
   },
   "M+PhLBJ7kK": {
-    "defaultMessage": "View Board",
-    "description": "Link from overview board to the issues page"
+    "defaultMessage": "View Queries",
+    "description": "Link from overview Queries to the issues page"
   },
   "M/3YJiyMT3": {
     "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
@@ -9188,8 +9188,8 @@
     "description": "Mapping option to create a new Issue Sheet column from a CSV header"
   },
   "MQYav5C7q6": {
-    "defaultMessage": "Board",
-    "description": "Overview section label for open issues"
+    "defaultMessage": "Queries",
+    "description": "Overview section label for open Queries issues"
   },
   "MR3nUfsG07": {
     "defaultMessage": "manage",
@@ -10640,8 +10640,8 @@
     "description": "Email subject for Reports feature teaser contact link"
   },
   "QSTiMWaXF/": {
-    "defaultMessage": "The board could not be loaded.",
-    "description": "Error state when Board rows fail to load"
+    "defaultMessage": "Queries could not be loaded.",
+    "description": "Error state when Queries rows fail to load"
   },
   "QT9sZSgQql": {
     "defaultMessage": "Experiment",
@@ -10864,8 +10864,8 @@
     "description": "Label for Canva display name field"
   },
   "R/mQHxnDLt": {
-    "defaultMessage": "Board",
-    "description": "Section title for the project Board page"
+    "defaultMessage": "Queries",
+    "description": "Section title for the project Queries page"
   },
   "R/pK1EOhod": {
     "defaultMessage": "Team name must be 120 characters or fewer.",
@@ -13161,7 +13161,7 @@
   },
   "XNK40wY8Cc": {
     "defaultMessage": "No open issues.",
-    "description": "Empty state for overview board issues"
+    "description": "Empty state for overview Queries issues"
   },
   "XOLvGAW68Q": {
     "defaultMessage": "Integrations",
@@ -13332,8 +13332,8 @@
     "description": "Heading for available provider agent action buttons"
   },
   "XswXu+UFpy": {
-    "defaultMessage": "Board",
-    "description": "Sidebar navigation item for the workspace board"
+    "defaultMessage": "Queries",
+    "description": "Sidebar navigation item for workspace Queries"
   },
   "XtzSAMs4em": {
     "defaultMessage": "Chat, Slack, and general workspace questions with project and glossary context.",
@@ -14596,7 +14596,7 @@
     "description": "Workspace general settings page description"
   },
   "bC8xP17A1P": {
-    "defaultMessage": "Upload a spreadsheet export, map columns to board fields, preview the result, then import.",
+    "defaultMessage": "Upload a spreadsheet export, map columns to Queries fields, preview the result, then import.",
     "description": "Description of the Issue Sheet CSV import dialog"
   },
   "bCXvSTPFsb": {
@@ -14893,7 +14893,7 @@
   },
   "cAQmoTwBPJ": {
     "defaultMessage": "List issues",
-    "description": "Menu item and tool title for listing Board issues"
+    "description": "Menu item and tool title for listing Queries issues"
   },
   "cAVXvKrNnE": {
     "defaultMessage": "Save",
@@ -15244,8 +15244,8 @@
     "description": "Starter plan name on the pricing page"
   },
   "dBZKwTIoEH": {
-    "defaultMessage": "Failed to add to Board",
-    "description": "Fallback error when creating an issue sheet row from CAT fails"
+    "defaultMessage": "Failed to add to Queries",
+    "description": "Fallback error when creating a Queries row from CAT fails"
   },
   "dC80UX3i75": {
     "defaultMessage": "{hours} hr",
@@ -15320,8 +15320,8 @@
     "description": "Fallback error when locking or unlocking CAT segments fails"
   },
   "dKznjRBgya": {
-    "defaultMessage": "Board",
-    "description": "Label for the Board button in the app shell footer"
+    "defaultMessage": "Queries",
+    "description": "Label for the Queries button in the app shell footer"
   },
   "dLOnbBe+SR": {
     "defaultMessage": "Workspace glossaries",
@@ -16825,7 +16825,7 @@
   },
   "h5+KJI2d7A": {
     "defaultMessage": "Could not load issues.",
-    "description": "Error message when CAT segment board issues fail to load"
+    "description": "Error message when CAT segment Queries issues fail to load"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Import issues from CSV",
@@ -16996,8 +16996,8 @@
     "description": "Tool status badge when tool input is still streaming"
   },
   "hYi0NizHJf": {
-    "defaultMessage": "Board · this string",
-    "description": "Title on the editor mock board overlay"
+    "defaultMessage": "Queries · this string",
+    "description": "Title on the editor mock Queries overlay"
   },
   "hYx7Vbi5IN": {
     "defaultMessage": "Connect a provider",
@@ -17400,8 +17400,8 @@
     "description": "Workflow step 4 label for the localisation-quality-monitoring use case"
   },
   "igJunofoju": {
-    "defaultMessage": "Board",
-    "description": "Heading for the CAT segment Board section"
+    "defaultMessage": "Queries",
+    "description": "Heading for the CAT segment Queries section"
   },
   "igisWP9I+4": {
     "defaultMessage": "{confidence}% confidence",
@@ -18368,7 +18368,7 @@
     "description": "Placeholder when a glossary timestamp is unavailable"
   },
   "l+RVkhyT2N": {
-    "defaultMessage": "Create a project first, then import issues into its board.",
+    "defaultMessage": "Create a project first, then import issues into Queries.",
     "description": "Empty state when there are no projects to import issues into"
   },
   "l+wMmn4Krw": {
@@ -20620,8 +20620,8 @@
     "description": "Badge label for a required schema property"
   },
   "r7gtZsn8Qh": {
-    "defaultMessage": "Board",
-    "description": "Project sidebar navigation item for the project board"
+    "defaultMessage": "Queries",
+    "description": "Project sidebar navigation item for project Queries"
   },
   "r7qqla56RV": {
     "defaultMessage": "Shortened written form",
@@ -21044,8 +21044,8 @@
     "description": "Placeholder for the microphone search input"
   },
   "sJoNIftCZI": {
-    "defaultMessage": "Board",
-    "description": "App shell breadcrumb title for the workspace board page"
+    "defaultMessage": "Queries",
+    "description": "App shell breadcrumb title for the workspace Queries page"
   },
   "sKJqM/aeDo": {
     "defaultMessage": "Campaign brief",
@@ -21260,8 +21260,8 @@
     "description": "Capability 6 title for the github-release-localisation use case"
   },
   "sslu9yZyVp": {
-    "defaultMessage": "Board",
-    "description": "App shell breadcrumb title for the project board page"
+    "defaultMessage": "Queries",
+    "description": "App shell breadcrumb title for the project Queries page"
   },
   "svD7SMchJb": {
     "defaultMessage": "{providerName} is ready for member tokens",
@@ -21532,8 +21532,8 @@
     "description": "Badge next to the Hyperlocalise agent name in the Slack mock"
   },
   "tX5h+jHyR2": {
-    "defaultMessage": "Board · acme workspace",
-    "description": "Board panel title in content ops mock"
+    "defaultMessage": "Queries · acme workspace",
+    "description": "Queries panel title in content ops mock"
   },
   "tX7cZ1uzA9": {
     "defaultMessage": "Choose file",
@@ -22712,7 +22712,7 @@
     "description": "CTA for a failed or active job on project overview"
   },
   "weTyi2vT5M": {
-    "defaultMessage": "File board issues for the selected project from automation findings.",
+    "defaultMessage": "File Queries issues for the selected project from automation findings.",
     "description": "Description for the Create issue automation tool"
   },
   "weWSzrQ1Qp": {
@@ -23416,8 +23416,8 @@
     "description": "Startups FAQ question about needing an existing TMS"
   },
   "yGs5M+8byg": {
-    "defaultMessage": "Add a project-specific workflow column to the board.",
-    "description": "Description of the dialog to add a custom Board column"
+    "defaultMessage": "Add a project-specific workflow column to Queries.",
+    "description": "Description of the dialog to add a custom Queries column"
   },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}",

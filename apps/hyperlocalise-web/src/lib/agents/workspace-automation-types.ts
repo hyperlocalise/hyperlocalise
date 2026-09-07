@@ -395,7 +395,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, Contentful, Board, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";

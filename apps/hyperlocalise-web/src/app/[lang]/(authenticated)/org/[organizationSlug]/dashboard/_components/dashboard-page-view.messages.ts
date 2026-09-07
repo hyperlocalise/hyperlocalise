@@ -86,9 +86,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Automations metric subtitle showing how many automations are paused",
   },
   p1Count: {
-    defaultMessage: "{count} P1 on Board",
+    defaultMessage: "{count} P1 on Queries",
     id: "51tdxkVdu+",
-    description: "Open issues metric subtitle showing P1 issue count on the board",
+    description: "Open issues metric subtitle showing P1 issue count on Queries",
   },
   automationActivityKind: {
     defaultMessage: "Automation",
@@ -111,9 +111,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Overview section label for workspace projects",
   },
   boardLabel: {
-    defaultMessage: "Board",
+    defaultMessage: "Queries",
     id: "MQYav5C7q6",
-    description: "Overview section label for open issues",
+    description: "Overview section label for open Queries issues",
   },
   automationsLabel: {
     defaultMessage: "Automations",
@@ -131,9 +131,9 @@ export const dashboardPageViewMessages = defineMessages({
     description: "Link from overview projects to the projects page",
   },
   viewBoard: {
-    defaultMessage: "View Board",
+    defaultMessage: "View Queries",
     id: "M+PhLBJ7kK",
-    description: "Link from overview board to the issues page",
+    description: "Link from overview Queries to the issues page",
   },
   viewAutomations: {
     defaultMessage: "View automations",
@@ -153,7 +153,7 @@ export const dashboardPageViewMessages = defineMessages({
   boardEmpty: {
     defaultMessage: "No open issues.",
     id: "XNK40wY8Cc",
-    description: "Empty state for overview board issues",
+    description: "Empty state for overview Queries issues",
   },
   automationsEmpty: {
     defaultMessage: "No automation runs yet.",

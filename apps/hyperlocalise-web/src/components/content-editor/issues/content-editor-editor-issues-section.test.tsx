@@ -168,7 +168,7 @@ describe("ContentEditorEditorIssuesSection", () => {
     await waitFor(() =>
       expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 }),
     );
-    expect(screen.queryByRole("heading", { name: "Board" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Queries" })).toBeNull();
   });
 
   it("clears footer guidance on unmount", async () => {

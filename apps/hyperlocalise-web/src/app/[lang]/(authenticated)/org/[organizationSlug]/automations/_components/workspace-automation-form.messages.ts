@@ -311,9 +311,9 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Submenu label grouping native TMS job automation tools",
   },
   issuesToolsMenu: {
-    defaultMessage: "Board",
+    defaultMessage: "Queries",
     id: "32+8NTo5Pl",
-    description: "Submenu label grouping Board automation tools",
+    description: "Submenu label grouping Queries automation tools",
   },
   memories: {
     defaultMessage: "Use workspace guideline",
@@ -410,20 +410,20 @@ export const workspaceAutomationFormMessages = defineMessages({
   listIssues: {
     defaultMessage: "List issues",
     id: "cAQmoTwBPJ",
-    description: "Menu item and tool title for listing Board issues",
+    description: "Menu item and tool title for listing Queries issues",
   },
   listIssuesDescription: {
-    defaultMessage: "Read board issues for the selected project during this automation.",
+    defaultMessage: "Read Queries issues for the selected project during this automation.",
     id: "CBibCD/p8E",
     description: "Description for the List issues automation tool",
   },
   createIssue: {
     defaultMessage: "Create issue",
     id: "3W0VCaMyWO",
-    description: "Menu item and tool title for creating Board issues",
+    description: "Menu item and tool title for creating Queries issues",
   },
   createIssueDescription: {
-    defaultMessage: "File board issues for the selected project from automation findings.",
+    defaultMessage: "File Queries issues for the selected project from automation findings.",
     id: "weTyi2vT5M",
     description: "Description for the Create issue automation tool",
   },

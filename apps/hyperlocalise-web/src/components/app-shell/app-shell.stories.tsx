@@ -104,7 +104,7 @@ export const ContentEditorFooter: Story = {
     await expect(
       canvas.getByRole("button", { name: "Open glossary guidance" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Open board" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Open Queries" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Open plan usage:/i })).toBeInTheDocument();
   },
 };
