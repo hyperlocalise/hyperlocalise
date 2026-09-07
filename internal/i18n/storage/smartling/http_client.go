@@ -28,6 +28,7 @@ const (
 	stringsAPIBaseURL        = "https://api.smartling.com/strings-api/v2"
 	filesAPIBaseURL          = "https://api.smartling.com/files-api/v2"
 	glossaryAPIBaseURL       = "https://api.smartling.com/glossary-api/v2"
+	glossaryAPIV3BaseURL     = "https://api.smartling.com/glossary-api/v3"
 	tmAPIBaseURL             = "https://api.smartling.com/translation-memory-api/v2"
 	translationsLimit        = 500
 	glossaryLimit            = 500
@@ -41,6 +42,7 @@ type HTTPClient struct {
 	projectsBaseURL string
 	accountsBaseURL string
 	glossaryBaseURL string
+	glossaryV3BaseURL string
 	tmBaseURL       string
 	http            *http.Client
 	userIdentifier  string
@@ -64,6 +66,7 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		projectsBaseURL: projectsAPIBaseURL,
 		accountsBaseURL: accountsAPIBaseURL,
 		glossaryBaseURL: glossaryAPIBaseURL,
+		glossaryV3BaseURL: glossaryAPIV3BaseURL,
 		tmBaseURL:       tmAPIBaseURL,
 		http:            &http.Client{Timeout: timeout},
 		userIdentifier:  cfg.UserIdentifier,
