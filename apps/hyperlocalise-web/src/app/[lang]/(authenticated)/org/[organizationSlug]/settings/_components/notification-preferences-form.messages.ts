@@ -22,8 +22,8 @@ export const notificationPreferencesFormMessages = defineMessages({
   },
   sectionDescription: {
     defaultMessage:
-      "Choose whether Inbox updates for board issues are also delivered to your email.",
-    id: "J8uRouTxFR",
+      "Choose whether Inbox updates for Queries issues are also delivered to your email.",
+    id: "MsQL5pndXv",
     description: "Helper text under notification preferences on account settings",
   },
   emailEnabledLabel: {

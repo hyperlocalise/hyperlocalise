@@ -205,7 +205,7 @@ describe("path builders", () => {
     expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
-    expect(byLabel.get("Board")?.featureFlagKey).toBeUndefined();
+    expect(byLabel.get("Queries")?.featureFlagKey).toBeUndefined();
     expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
     expect(byLabel.get("Hyperlab")?.href).toBe("/org/acme/hyperlab");
     expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
@@ -221,7 +221,7 @@ describe("path builders", () => {
     expect(groups[0]?.items.map((item) => item.label)).toEqual([
       "Inbox",
       "My Jobs",
-      "Board",
+      "Queries",
       "Overview",
       "Reports",
     ]);
@@ -236,12 +236,12 @@ describe("path builders", () => {
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
-      ["Board", "/org/acme/projects/proj_1/issue-sheet"],
+      ["Queries", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
       ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
-    expect(items.find((item) => item.label === "Board")?.featureFlagKey).toBeUndefined();
+    expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBeUndefined();
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
     );

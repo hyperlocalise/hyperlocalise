@@ -233,15 +233,15 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "issues":
       return intl.formatMessage({
-        defaultMessage: "Board",
-        id: "sJoNIftCZI",
-        description: "App shell breadcrumb title for the workspace board page",
+        defaultMessage: "Queries",
+        id: "3CjBlEDVPl",
+        description: "App shell breadcrumb title for the workspace Queries page",
       });
     case "issue-sheet":
       return intl.formatMessage({
-        defaultMessage: "Board",
-        id: "sslu9yZyVp",
-        description: "App shell breadcrumb title for the project board page",
+        defaultMessage: "Queries",
+        id: "RueTypLijF",
+        description: "App shell breadcrumb title for the project Queries page",
       });
     case "jobs":
       return intl.formatMessage({
