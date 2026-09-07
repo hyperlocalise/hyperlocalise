@@ -18,6 +18,7 @@ import {
   createStreamedAssistantMessage,
   currentUserFixture,
   linkedJobsFixture,
+  longTranscriptFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { ConversationPanel } from "./conversation-panel";
@@ -30,7 +31,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className="h-[40rem] bg-background">
+      <div className="flex h-[40rem] min-h-0 flex-col overflow-hidden bg-background">
         <Story />
       </div>
     ),
@@ -117,5 +118,14 @@ export const Streaming: Story = {
   args: {
     isStreaming: true,
     streamedAssistant: createStreamedAssistantMessage(),
+  },
+};
+
+export const LongTranscript: Story = {
+  args: {
+    messages: longTranscriptFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(longTranscriptFixture[0]!.text)).toBeInTheDocument();
   },
 };

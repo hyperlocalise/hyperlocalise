@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
@@ -20,6 +21,7 @@ import {
   currentUserFixture,
   issueNotificationsFixture,
   linkedJobsFixture,
+  longTranscriptFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
@@ -31,6 +33,16 @@ const meta = {
   parameters: {
     layout: "fullscreen",
   },
+  decorators: [
+    (Story) => (
+      <div
+        className="flex h-[40rem] min-h-0 flex-col overflow-hidden"
+        style={{ "--app-shell-content-height": "40rem" } as CSSProperties}
+      >
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     organizationSlug: "acme",
     currentUser: currentUserFixture,
@@ -238,5 +250,14 @@ export const NewRequest: Story = {
     await expect(canvas.getByText("Welcome to Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
+  },
+};
+
+export const LongTranscript: Story = {
+  args: {
+    messages: longTranscriptFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(longTranscriptFixture[0]!.text)).toBeInTheDocument();
   },
 };
