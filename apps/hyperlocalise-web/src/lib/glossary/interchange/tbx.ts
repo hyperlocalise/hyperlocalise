@@ -41,6 +41,12 @@ function attr(tag: SaxesTagNS, name: string) {
 }
 
 function stableId(prefix: string, value: string) {
+  // Round-trip stability: an ID that already carries this prefix in XML-safe
+  // form (for example a re-exported import) must not gain another prefix
+  // layer, otherwise export -> import can no longer match the original record.
+  if (value.startsWith(`${prefix}-`) && /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(value)) {
+    return value;
+  }
   const base = value.replace(/[^A-Za-z0-9_.-]/g, "-");
   if (base === value && /^[A-Za-z_]/.test(base)) return `${prefix}-${base}`;
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
@@ -58,6 +64,29 @@ function normalizeImportedId(value: string, prefix: "c" | "t") {
     ),
   );
   return match?.[1] ?? value;
+}
+
+/**
+ * Assigns the XML ID for a raw interchange ID, reusing `stableId` but
+ * disambiguating when distinct raw IDs normalize to the same value (for
+ * example `foo` and `c-foo`). Disambiguation is deterministic in document
+ * order, so re-serializing a parsed export is fixed-point.
+ */
+function uniqueStableId(used: Map<string, string>, prefix: "c" | "t", rawId: string) {
+  const base = stableId(prefix, rawId);
+  const owner = used.get(base);
+  if (owner === undefined || owner === rawId) {
+    used.set(base, rawId);
+    return base;
+  }
+  const digest = createHash("sha256").update(`${prefix}:${rawId}`).digest("hex").slice(0, 8);
+  let candidate = `${base}-${digest}`;
+  let counter = 2;
+  while (used.has(candidate) && used.get(candidate) !== rawId) {
+    candidate = `${base}-${digest}-${counter++}`;
+  }
+  used.set(candidate, rawId);
+  return candidate;
 }
 
 function containsInvalidXmlCharacters(value: string) {
@@ -138,10 +167,11 @@ function addTerm(
   langSec: ReturnType<ReturnType<typeof create>["ele"]>,
   term: GlossaryInterchangeTerm,
   warnings: InterchangeDiagnostic[],
+  termXmlId: string,
 ) {
-  const termSec = langSec.ele("termSec", { id: stableId("t", term.id) });
+  const termSec = langSec.ele("termSec", { id: termXmlId });
   termSec.ele("term").txt(term.term);
-  const notes: string[] = [];
+  const notes: string[] = [`[Hyperlocalise::termId]::${JSON.stringify(term.id)}`];
   const addTermNote = (label: string, value: unknown) => {
     if (value === undefined || value === null || value === "") return;
     const serialized = typeof value === "string" ? value : JSON.stringify(value);
@@ -182,7 +212,8 @@ function addTerm(
   addTermNote("Hyperlocalise::provenance", term.provenance);
   addTermNote("Hyperlocalise::createdAt", term.createdAt);
   addTermNote("Hyperlocalise::updatedAt", term.updatedAt);
-  addTermNote("Hyperlocalise::metadata", term.metadata);
+  if (term.metadata && Object.keys(term.metadata).length > 0)
+    addTermNote("Hyperlocalise::metadata", term.metadata);
   if (term.description.trim() || notes.length > 0) {
     if (term.description.trim()) {
       const descriptionGroup = termSec.ele("descripGrp");
@@ -216,6 +247,7 @@ function addConcept(
   sourceLocale: string,
   warnings: InterchangeDiagnostic[],
   errors: InterchangeDiagnostic[],
+  ids: { conceptXmlId: string; termXmlIds: Map<string, string> },
 ) {
   if (concept.terms.length === 0) {
     errors.push(
@@ -227,12 +259,13 @@ function addConcept(
     );
     return;
   }
-  const conceptEntry = body.ele("conceptEntry", { id: stableId("c", concept.id) });
+  const conceptEntry = body.ele("conceptEntry", { id: ids.conceptXmlId });
   if (concept.subject) conceptEntry.ele("descrip", { type: "subjectField" }).txt(concept.subject);
   if (concept.definition)
     conceptEntry.ele("descrip", { type: "definition" }).txt(concept.definition);
   const conceptNotes = [
     encodeTbxUserNote(concept.note.trim()),
+    `[Hyperlocalise::conceptId]::${JSON.stringify(concept.id)}`,
     `[Hyperlocalise::translatable]::${JSON.stringify(concept.translatable)}`,
     concept.createdAt ? `[Hyperlocalise::createdAt]::${concept.createdAt}` : "",
     concept.updatedAt ? `[Hyperlocalise::updatedAt]::${concept.updatedAt}` : "",
@@ -269,7 +302,8 @@ function addConcept(
       const noteLines = languageDetailNoteLines(languageDetail);
       if (noteLines.length > 0) addNote(langSec, noteLines.join("\n"));
     }
-    for (const term of terms) addTerm(langSec, term, warnings);
+    for (const term of terms)
+      addTerm(langSec, term, warnings, ids.termXmlIds.get(term.id) ?? term.id);
   }
   if (!termsByLocale.has(sourceLocale)) {
     warnings.push(
@@ -354,7 +388,8 @@ function mergeLanguageDetailNote(
 }
 
 function applyTermLabeledNote(term: MutableTerm, labeled: { key: string; value: unknown }) {
-  if (labeled.key === "partOfSpeech" && typeof labeled.value === "string")
+  if (labeled.key === "termId" && typeof labeled.value === "string") term.id = labeled.value;
+  else if (labeled.key === "partOfSpeech" && typeof labeled.value === "string")
     term.partOfSpeech = labeled.value;
   else if (labeled.key === "gender" && typeof labeled.value === "string")
     term.gender = labeled.value;
@@ -399,11 +434,16 @@ export function serializeTbx(document: GlossaryInterchangeDocument): Serializati
       }),
     );
   }
-  const conceptIds = new Set<string>();
-  const termIds = new Set<string>();
+  const conceptXmlIds = new Map<string, string>();
+  const termXmlIds = new Map<string, string>();
+  const seenConceptRawIds = new Set<string>();
+  const seenTermRawIds = new Set<string>();
+  // Resolved XML IDs per raw interchange ID, threaded into addConcept/addTerm
+  // so emitted IDs match the validated ones exactly.
+  const conceptXmlIdByRawId = new Map<string, string>();
+  const termXmlIdByRawId = new Map<string, string>();
   for (const concept of document.concepts) {
-    const conceptXmlId = stableId("c", concept.id);
-    if (conceptIds.has(conceptXmlId)) {
+    if (seenConceptRawIds.has(concept.id)) {
       errors.push(
         diagnostic({
           code: "duplicate_concept_id",
@@ -412,10 +452,11 @@ export function serializeTbx(document: GlossaryInterchangeDocument): Serializati
         }),
       );
     }
-    conceptIds.add(conceptXmlId);
+    seenConceptRawIds.add(concept.id);
+    const conceptXmlId = uniqueStableId(conceptXmlIds, "c", concept.id);
+    conceptXmlIdByRawId.set(concept.id, conceptXmlId);
     for (const term of concept.terms) {
-      const termXmlId = stableId("t", term.id);
-      if (termIds.has(termXmlId)) {
+      if (seenTermRawIds.has(term.id)) {
         errors.push(
           diagnostic({
             code: "duplicate_term_id",
@@ -425,7 +466,9 @@ export function serializeTbx(document: GlossaryInterchangeDocument): Serializati
           }),
         );
       }
-      termIds.add(termXmlId);
+      seenTermRawIds.add(term.id);
+      const termXmlId = uniqueStableId(termXmlIds, "t", term.id);
+      termXmlIdByRawId.set(term.id, termXmlId);
       const textFields = [
         term.term,
         term.description,
@@ -497,7 +540,10 @@ export function serializeTbx(document: GlossaryInterchangeDocument): Serializati
   header.ele("sourceDesc").ele("p").txt("Exported from Hyperlocalise");
   const body = root.ele("text").ele("body");
   for (const concept of document.concepts)
-    addConcept(body, concept, document.glossary.sourceLocale, warnings, errors);
+    addConcept(body, concept, document.glossary.sourceLocale, warnings, errors, {
+      conceptXmlId: conceptXmlIdByRawId.get(concept.id) ?? concept.id,
+      termXmlIds: termXmlIdByRawId,
+    });
   if (errors.length > 0) return { content: new Uint8Array(), warnings, errors };
   const content = Buffer.from(root.end({ prettyPrint: true }), "utf8");
   if (content.byteLength > MAX_TBX_BYTES) {
@@ -566,6 +612,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
       conceptCount++;
       if (conceptCount > MAX_CONCEPTS) throw new Error("TBX concept limit exceeded");
       const id = normalizeImportedId(attr(tag, "id") ?? `import-${conceptCount}`, "c");
+      // Concept-level siblings (descrip/note) must not inherit the previous
+      // concept's language section; reset locale state on every new entry.
+      currentLocale = "";
+      currentTerm = undefined;
       if (!attr(tag, "id"))
         diagnostics.push(
           diagnostic({
@@ -648,6 +698,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
             if (decoded.escaped) return true;
             const labeled = parseLabeledNote(decoded.value);
             if (!labeled) return true;
+            if (labeled.key === "conceptId" && typeof labeled.value === "string") {
+              concept.id = labeled.value;
+              return false;
+            }
             if (labeled.key === "translatable" && typeof labeled.value === "boolean") {
               concept.translatable = labeled.value;
               return false;
@@ -760,6 +814,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
         if (!currentConcept.primaryTerm) currentConcept.primaryTerm = term.term;
       }
       currentTerm = undefined;
+    } else if (frame.local === "langSec" || frame.local === "langSet") {
+      // Concept-level siblings placed after a language section must not
+      // inherit that section's locale.
+      currentLocale = "";
     } else if (frame.local === "conceptEntry" || frame.local === "termEntry") {
       if (currentConcept) {
         if (!currentConcept.terms.length)

@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { V1_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
+import { IMPLEMENTED_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
 import { ACTIVITY_LOG_RANGES } from "@/lib/activity-log/activity-log-reader";
 
 const actorFilterSchema = z
@@ -32,7 +32,7 @@ const actorFilterSchema = z
 export const activityLogQuerySchema = z.object({
   actor: actorFilterSchema.optional(),
   cursor: z.string().trim().min(1).max(2048).optional(),
-  eventTypes: z.array(z.enum(V1_ACTIVITY_EVENT_TYPES)).default([]),
+  eventTypes: z.array(z.enum(IMPLEMENTED_ACTIVITY_EVENT_TYPES)).default([]),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   range: z.enum(ACTIVITY_LOG_RANGES).default("all"),
 });

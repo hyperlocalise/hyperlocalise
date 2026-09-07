@@ -180,6 +180,17 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "w69BfzSUw0",
     description: "Toast after glossary terms are imported from a file",
   },
+  termsImportBlocked: {
+    defaultMessage:
+      "No terms were imported — {count, plural, one {# issue needs} other {# issues need}} attention",
+    id: "YkAJNssSF4",
+    description: "Toast when a glossary import applies zero terms because of validation errors",
+  },
+  termsImportBlockedTitle: {
+    defaultMessage: "Nothing was imported. Resolve these issues and try again:",
+    id: "MJH9GKk4sA",
+    description: "Title above the list of glossary import validation errors",
+  },
   projectAssigned: {
     defaultMessage: "Project assigned",
     id: "lgRbICxGNz",

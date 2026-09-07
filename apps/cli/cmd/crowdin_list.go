@@ -336,6 +336,9 @@ func addCrowdinListFlags(cmd *cobra.Command, o *crowdinListOptions, includeLangu
 }
 
 func writeEncodedOutput(w io.Writer, output string, writeText func() error, value any) error {
+	if err := validateEncodedOutputFormat(output); err != nil {
+		return err
+	}
 	switch strings.ToLower(strings.TrimSpace(output)) {
 	case "", "text":
 		return writeText()
@@ -343,6 +346,15 @@ func writeEncodedOutput(w io.Writer, output string, writeText func() error, valu
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(value)
+	default:
+		return fmt.Errorf("unsupported output format %q", output)
+	}
+}
+
+func validateEncodedOutputFormat(output string) error {
+	switch strings.ToLower(strings.TrimSpace(output)) {
+	case "", "text", "json":
+		return nil
 	default:
 		return fmt.Errorf("unsupported output format %q", output)
 	}

@@ -24,6 +24,10 @@ import {
 } from "@/lib/billing/usage-control";
 import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import {
+  enqueueJobCreatedActivity,
+  enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
@@ -152,6 +156,17 @@ async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) 
     throw new Error("failed to create email translation job");
   }
 
+  await enqueueJobCreatedActivity({
+    actorCredentialId: null,
+    actorKind: "agent",
+    actorUserId: null,
+    jobId: job.id,
+    kind: job.kind,
+    organizationId: job.organizationId,
+    projectId: job.projectId,
+    status: job.status,
+  });
+
   return { jobId: job.id };
 }
 
@@ -187,6 +202,17 @@ async function failEmailTranslationJobBeforeRun(input: {
     .where(
       and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
     );
+
+  await enqueueJobFailedActivity({
+    actorCredentialId: null,
+    actorKind: "agent",
+    actorUserId: null,
+    errorCode: "email_file_error",
+    jobId: input.jobId,
+    kind: "translation",
+    organizationId: input.organizationId,
+    status: "failed",
+  });
 }
 
 function createEmailAgentTaskKey(input: {

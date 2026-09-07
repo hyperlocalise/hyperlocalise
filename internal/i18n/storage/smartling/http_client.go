@@ -24,27 +24,29 @@ import (
 )
 
 const (
-	authAPIBaseURL           = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL        = "https://api.smartling.com/strings-api/v2"
-	filesAPIBaseURL          = "https://api.smartling.com/files-api/v2"
-	glossaryAPIBaseURL       = "https://api.smartling.com/glossary-api/v2"
-	tmAPIBaseURL             = "https://api.smartling.com/translation-memory-api/v2"
-	translationsLimit        = 500
-	glossaryLimit            = 500
-	maxDownloadBytes   int64 = 50 * 1024 * 1024 // 50 MB
+	authAPIBaseURL             = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL          = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL            = "https://api.smartling.com/files-api/v2"
+	glossaryAPIBaseURL         = "https://api.smartling.com/glossary-api/v2"
+	glossaryAPIV3BaseURL       = "https://api.smartling.com/glossary-api/v3"
+	tmAPIBaseURL               = "https://api.smartling.com/translation-memory-api/v2"
+	translationsLimit          = 500
+	glossaryLimit              = 500
+	maxDownloadBytes     int64 = 50 * 1024 * 1024 // 50 MB
 )
 
 type HTTPClient struct {
-	authBaseURL     string
-	stringsBaseURL  string
-	filesBaseURL    string
-	projectsBaseURL string
-	accountsBaseURL string
-	glossaryBaseURL string
-	tmBaseURL       string
-	http            *http.Client
-	userIdentifier  string
-	userSecret      string
+	authBaseURL       string
+	stringsBaseURL    string
+	filesBaseURL      string
+	projectsBaseURL   string
+	accountsBaseURL   string
+	glossaryBaseURL   string
+	glossaryV3BaseURL string
+	tmBaseURL         string
+	http              *http.Client
+	userIdentifier    string
+	userSecret        string
 
 	tokenMu           sync.Mutex
 	cachedAccessToken string
@@ -58,16 +60,17 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	}
 
 	return &HTTPClient{
-		authBaseURL:     authAPIBaseURL,
-		stringsBaseURL:  stringsAPIBaseURL,
-		filesBaseURL:    filesAPIBaseURL,
-		projectsBaseURL: projectsAPIBaseURL,
-		accountsBaseURL: accountsAPIBaseURL,
-		glossaryBaseURL: glossaryAPIBaseURL,
-		tmBaseURL:       tmAPIBaseURL,
-		http:            &http.Client{Timeout: timeout},
-		userIdentifier:  cfg.UserIdentifier,
-		userSecret:      cfg.UserSecret,
+		authBaseURL:       authAPIBaseURL,
+		stringsBaseURL:    stringsAPIBaseURL,
+		filesBaseURL:      filesAPIBaseURL,
+		projectsBaseURL:   projectsAPIBaseURL,
+		accountsBaseURL:   accountsAPIBaseURL,
+		glossaryBaseURL:   glossaryAPIBaseURL,
+		glossaryV3BaseURL: glossaryAPIV3BaseURL,
+		tmBaseURL:         tmAPIBaseURL,
+		http:              &http.Client{Timeout: timeout},
+		userIdentifier:    cfg.UserIdentifier,
+		userSecret:        cfg.UserSecret,
 	}, nil
 }
 
@@ -174,13 +177,25 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 }
 
 func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("open file: %w", err)
+	return c.postMultipart(ctx, endpoint, token, params, fileFieldName, filePath, out)
+}
+
+func (c *HTTPClient) postMultipartFields(ctx context.Context, endpoint string, token string, params map[string]string, out any) error {
+	return c.postMultipart(ctx, endpoint, token, params, "", "", out)
+}
+
+func (c *HTTPClient) postMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
+	var file *os.File
+	if filePath != "" {
+		opened, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("open file: %w", err)
+		}
+		file = opened
+		defer func() {
+			_ = file.Close()
+		}()
 	}
-	defer func() {
-		_ = file.Close()
-	}()
 
 	pr, pw := io.Pipe()
 	writer := multipart.NewWriter(pw)
@@ -198,15 +213,17 @@ func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token
 				return
 			}
 		}
-		var part io.Writer
-		part, werr = writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
-		if werr != nil {
-			werr = fmt.Errorf("create form file: %w", werr)
-			return
-		}
-		if _, werr = io.Copy(part, file); werr != nil {
-			werr = fmt.Errorf("copy file to form: %w", werr)
-			return
+		if file != nil {
+			var part io.Writer
+			part, werr = writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+			if werr != nil {
+				werr = fmt.Errorf("create form file: %w", werr)
+				return
+			}
+			if _, werr = io.Copy(part, file); werr != nil {
+				werr = fmt.Errorf("copy file to form: %w", werr)
+				return
+			}
 		}
 		if werr = writer.Close(); werr != nil {
 			werr = fmt.Errorf("close multipart writer: %w", werr)

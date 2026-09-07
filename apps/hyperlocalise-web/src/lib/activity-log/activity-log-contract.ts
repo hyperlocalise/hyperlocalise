@@ -24,6 +24,8 @@ export const ACTIVITY_TARGET_KINDS = [
   "project",
   "glossary",
   "translation_memory",
+  "job",
+  "automation",
 ] as const;
 export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 
@@ -71,6 +73,12 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
   "automation_disabled",
 ] as const;
 export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number];
+
+export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
+  ...V1_ACTIVITY_EVENT_TYPES,
+  ...LATER_ACTIVITY_EVENT_TYPES,
+] as const;
+export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
 
 export type ActivityEventType =
   | V1ActivityEventType
@@ -167,6 +175,42 @@ export type ActivityPayloadByEventType = {
   translation_memory_exported: ImportExportPayload;
   translation_memory_project_attached: AttachmentPayload;
   translation_memory_project_detached: AttachmentPayload;
+  job_created: {
+    jobId: string;
+    kind: string;
+    projectId?: string;
+    status: string;
+  };
+  job_cancelled: {
+    jobId: string;
+    kind: string;
+    projectId?: string;
+    status: "cancelled";
+  };
+  job_failed: {
+    errorCode: string;
+    jobId: string;
+    kind: string;
+    projectId?: string;
+    status: "failed";
+  };
+  automation_run_started: {
+    automationId: string;
+    name: string;
+    runId: string;
+    status: "running";
+    triggerSource: string;
+  };
+  automation_enabled: {
+    automationId: string;
+    name: string;
+    status: "active";
+  };
+  automation_disabled: {
+    automationId: string;
+    name: string;
+    status: "archived" | "paused";
+  };
 };
 
 export type ActivityTargetKindByEventType = {
@@ -194,6 +238,12 @@ export type ActivityTargetKindByEventType = {
   translation_memory_exported: "translation_memory";
   translation_memory_project_attached: "project";
   translation_memory_project_detached: "project";
+  job_created: "job";
+  job_cancelled: "job";
+  job_failed: "job";
+  automation_run_started: "automation";
+  automation_enabled: "automation";
+  automation_disabled: "automation";
 };
 
 type ActivityLogEventBase = {
@@ -205,12 +255,12 @@ type ActivityLogEventBase = {
 };
 
 export type ActivityLogEventInput = {
-  [EventType in V1ActivityEventType]: ActivityLogEventBase & {
+  [EventType in ImplementedActivityEventType]: ActivityLogEventBase & {
     eventType: EventType;
     payload: ActivityPayloadByEventType[EventType];
     targetKind: ActivityTargetKindByEventType[EventType];
   };
-}[V1ActivityEventType];
+}[ImplementedActivityEventType];
 
 export type ActivityLogEventRecord = ActivityLogEventInput & {
   createdAt: Date;

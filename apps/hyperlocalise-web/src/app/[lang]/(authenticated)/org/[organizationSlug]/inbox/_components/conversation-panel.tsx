@@ -113,7 +113,7 @@ export function ConversationPanel({
     return (
       <section
         ref={panelRef}
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
       >
         <header className="border-b border-border">
           <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
@@ -170,7 +170,7 @@ export function ConversationPanel({
 
   if (!conversation) {
     return (
-      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+      <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
         <Box
           display="flex"
           alignItems="center"
@@ -190,7 +190,7 @@ export function ConversationPanel({
   const composerDisabled = isSending || isStreaming;
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+    <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

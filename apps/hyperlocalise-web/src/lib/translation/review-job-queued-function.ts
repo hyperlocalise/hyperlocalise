@@ -14,6 +14,7 @@ import { captureAnalysis, captureCompletions, captureJobStatus } from "@/lib/rep
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-events";
 import type { ReviewJobEventData } from "@/lib/workflow/types";
 
 type ReviewJobConfig = {
@@ -213,7 +214,12 @@ export async function completeReviewJob(input: {
         eq(schema.jobs.workflowRunId, input.workflowRunId),
       ),
     )
-    .returning({ id: schema.jobs.id });
+    .returning({
+      id: schema.jobs.id,
+      kind: schema.jobs.kind,
+      organizationId: schema.jobs.organizationId,
+      projectId: schema.jobs.projectId,
+    });
 
   if (!updatedJob) {
     throw new Error(
@@ -252,13 +258,30 @@ export async function failReviewJob(input: {
         eq(schema.jobs.workflowRunId, input.workflowRunId),
       ),
     )
-    .returning({ id: schema.jobs.id });
+    .returning({
+      id: schema.jobs.id,
+      kind: schema.jobs.kind,
+      organizationId: schema.jobs.organizationId,
+      projectId: schema.jobs.projectId,
+    });
 
   if (!updatedJob) {
     throw new Error(
       `review job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
+
+  await enqueueJobFailedActivity({
+    actorCredentialId: null,
+    actorKind: "system",
+    actorUserId: null,
+    errorCode: input.code,
+    jobId: updatedJob.id,
+    kind: updatedJob.kind,
+    organizationId: updatedJob.organizationId,
+    projectId: updatedJob.projectId,
+    status: "failed",
+  });
 
   return getStoredReviewJob(input.jobId, input.projectId);
 }

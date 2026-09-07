@@ -405,6 +405,9 @@ export function GlossaryDetailPageContent({
   const glossaryFileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importDiagnostics, setImportDiagnostics] = useState<
+    Array<{ severity: string; code: string; message: string }>
+  >([]);
 
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
@@ -768,9 +771,40 @@ export function GlossaryDetailPageContent({
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
+      // The import endpoint returns a union of preview and applied shapes;
+      // this mutation always uses mode:"merge", so read the applied counters
+      // defensively.
+      const result = body as {
+        imported?: number;
+        updated?: number;
+        merged?: number;
+        diagnostics?: Array<{ severity: string; code: string; message: string }>;
+      };
+      const errorDiagnostics = (result.diagnostics ?? []).filter(
+        (entry) => entry.severity === "error",
+      );
+      // A strict-locale import can legitimately apply zero new terms (for example
+      // when every row targets an unconfigured locale). Keep the dialog open
+      // and show why instead of a misleading "Imported 0 terms" success — but
+      // only when nothing was applied at all, since merge/update imports
+      // report applied work via `updated`/`merged` rather than `imported`.
+      const applied = (result.imported ?? 0) + (result.updated ?? 0) + (result.merged ?? 0);
+      if (applied === 0 && errorDiagnostics.length > 0) {
+        setImportDiagnostics(errorDiagnostics.slice(0, 10));
+        // Reset the native input so selecting the same (corrected) file still
+        // fires a change event and retries the import.
+        if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
+        toast.error(
+          intl.formatMessage(messages.termsImportBlocked, {
+            count: errorDiagnostics.length,
+          }),
+        );
+        return;
+      }
+      setImportDiagnostics([]);
       setImportDialogOpen(false);
       setImportFile(null);
-      toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
+      toast.success(intl.formatMessage(messages.termsImported, { count: result.imported ?? 0 }));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -2644,6 +2678,7 @@ export function GlossaryDetailPageContent({
           setImportDialogOpen(open);
           if (!open) {
             setImportFile(null);
+            setImportDiagnostics([]);
             if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
           }
         }}
@@ -2669,6 +2704,7 @@ export function GlossaryDetailPageContent({
                 const file = event.target.files?.[0];
                 if (!file) return;
                 setImportFile(file);
+                setImportDiagnostics([]);
                 importConcepts.mutate(file);
               }}
             />
@@ -2700,6 +2736,21 @@ export function GlossaryDetailPageContent({
                   ? importConcepts.error.message
                   : intl.formatMessage(messages.importTermsFailed)}
               </p>
+            ) : null}
+            {importDiagnostics.length > 0 ? (
+              <div className="grid gap-1.5" role="alert" aria-live="polite">
+                <p className="text-sm font-medium text-destructive">
+                  <FormattedMessage {...messages.termsImportBlockedTitle} />
+                </p>
+                <ul className="grid list-disc gap-1 pl-5 text-xs text-muted-foreground">
+                  {importDiagnostics.map((entry, index) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <li key={`${entry.code}-${index}`}>
+                      {entry.message} <span className="font-mono">({entry.code})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
           <DialogFooter>

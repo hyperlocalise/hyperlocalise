@@ -18,7 +18,10 @@ import { z } from "zod";
 import { and, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { V1_ACTIVITY_EVENT_TYPES, type V1ActivityEventType } from "./activity-log-contract";
+import {
+  IMPLEMENTED_ACTIVITY_EVENT_TYPES,
+  type ImplementedActivityEventType,
+} from "./activity-log-contract";
 
 export const ACTIVITY_LOG_RANGES = ["24h", "7d", "30d", "all"] as const;
 export type ActivityLogRange = (typeof ACTIVITY_LOG_RANGES)[number];
@@ -32,7 +35,7 @@ export type ActivityLogActorFilter =
 export type ActivityLogQuery = {
   actor?: ActivityLogActorFilter;
   cursor?: string;
-  eventTypes: V1ActivityEventType[];
+  eventTypes: ImplementedActivityEventType[];
   limit: number;
   range: ActivityLogRange;
 };
@@ -54,7 +57,7 @@ export type ActivityLogTargetView = {
 export type ActivityLogListItem = {
   actor: ActivityLogActorView;
   createdAt: string;
-  eventType: V1ActivityEventType;
+  eventType: ImplementedActivityEventType;
   id: string;
   payload: Record<string, unknown>;
   target: ActivityLogTargetView;
@@ -97,7 +100,7 @@ function filterFingerprint(query: ActivityLogQuery): string {
     .update(
       JSON.stringify({
         actor: query.actor ?? null,
-        eventTypes: [...query.eventTypes].sort(),
+        eventTypes: [...query.eventTypes].sort((left, right) => left.localeCompare(right)),
         range: query.range,
       }),
     )
@@ -186,6 +189,8 @@ async function loadTargetViews(
   const projectIds = idsByKind.get("project") ?? [];
   const glossaryIds = idsByKind.get("glossary") ?? [];
   const memoryIds = idsByKind.get("translation_memory") ?? [];
+  const jobIds = idsByKind.get("job") ?? [];
+  const automationIds = idsByKind.get("automation") ?? [];
   const membershipIds = idsByKind.get("membership") ?? [];
   const payloadMemberUserIds = [
     ...new Set(
@@ -193,67 +198,91 @@ async function loadTargetViews(
     ),
   ];
 
-  const [projects, glossaries, memories, memberships, payloadMembers] = await Promise.all([
-    projectIds.length
-      ? database
-          .select({ id: schema.projects.id, name: schema.projects.name })
-          .from(schema.projects)
-          .where(
-            and(
-              eq(schema.projects.organizationId, organizationId),
-              inArray(schema.projects.id, projectIds),
-            ),
-          )
-      : Promise.resolve([]),
-    glossaryIds.length
-      ? database
-          .select({ id: schema.glossaries.id, name: schema.glossaries.name })
-          .from(schema.glossaries)
-          .where(
-            and(
-              eq(schema.glossaries.organizationId, organizationId),
-              inArray(schema.glossaries.id, glossaryIds),
-            ),
-          )
-      : Promise.resolve([]),
-    memoryIds.length
-      ? database
-          .select({ id: schema.memories.id, name: schema.memories.name })
-          .from(schema.memories)
-          .where(
-            and(
-              eq(schema.memories.organizationId, organizationId),
-              inArray(schema.memories.id, memoryIds),
-            ),
-          )
-      : Promise.resolve([]),
-    membershipIds.length
-      ? database
-          .select({
-            id: schema.organizationMemberships.id,
-            firstName: schema.users.firstName,
-            lastName: schema.users.lastName,
-          })
-          .from(schema.organizationMemberships)
-          .leftJoin(schema.users, eq(schema.users.id, schema.organizationMemberships.userId))
-          .where(
-            and(
-              eq(schema.organizationMemberships.organizationId, organizationId),
-              inArray(schema.organizationMemberships.id, membershipIds),
-            ),
-          )
-      : Promise.resolve([]),
-    payloadMemberUserIds.length
-      ? database
-          .select({
-            id: schema.users.id,
-            firstName: schema.users.firstName,
-            lastName: schema.users.lastName,
-          })
-          .from(schema.users)
-          .where(inArray(schema.users.id, payloadMemberUserIds))
-      : Promise.resolve([]),
-  ]);
+  const [projects, glossaries, memories, jobs, automations, memberships, payloadMembers] =
+    await Promise.all([
+      projectIds.length
+        ? database
+            .select({ id: schema.projects.id, name: schema.projects.name })
+            .from(schema.projects)
+            .where(
+              and(
+                eq(schema.projects.organizationId, organizationId),
+                inArray(schema.projects.id, projectIds),
+              ),
+            )
+        : Promise.resolve([]),
+      glossaryIds.length
+        ? database
+            .select({ id: schema.glossaries.id, name: schema.glossaries.name })
+            .from(schema.glossaries)
+            .where(
+              and(
+                eq(schema.glossaries.organizationId, organizationId),
+                inArray(schema.glossaries.id, glossaryIds),
+              ),
+            )
+        : Promise.resolve([]),
+      memoryIds.length
+        ? database
+            .select({ id: schema.memories.id, name: schema.memories.name })
+            .from(schema.memories)
+            .where(
+              and(
+                eq(schema.memories.organizationId, organizationId),
+                inArray(schema.memories.id, memoryIds),
+              ),
+            )
+        : Promise.resolve([]),
+      jobIds.length
+        ? database
+            .select({
+              id: schema.jobs.id,
+              kind: schema.jobs.kind,
+              projectId: schema.jobs.projectId,
+            })
+            .from(schema.jobs)
+            .where(
+              and(eq(schema.jobs.organizationId, organizationId), inArray(schema.jobs.id, jobIds)),
+            )
+        : Promise.resolve([]),
+      automationIds.length
+        ? database
+            .select({ id: schema.workspaceAutomations.id, name: schema.workspaceAutomations.name })
+            .from(schema.workspaceAutomations)
+            .where(
+              and(
+                eq(schema.workspaceAutomations.organizationId, organizationId),
+                inArray(schema.workspaceAutomations.id, automationIds),
+              ),
+            )
+        : Promise.resolve([]),
+      membershipIds.length
+        ? database
+            .select({
+              id: schema.organizationMemberships.id,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+            })
+            .from(schema.organizationMemberships)
+            .leftJoin(schema.users, eq(schema.users.id, schema.organizationMemberships.userId))
+            .where(
+              and(
+                eq(schema.organizationMemberships.organizationId, organizationId),
+                inArray(schema.organizationMemberships.id, membershipIds),
+              ),
+            )
+        : Promise.resolve([]),
+      payloadMemberUserIds.length
+        ? database
+            .select({
+              id: schema.users.id,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+            })
+            .from(schema.users)
+            .where(inArray(schema.users.id, payloadMemberUserIds))
+        : Promise.resolve([]),
+    ]);
 
   const views = new Map<string, ActivityLogTargetView>();
   for (const project of projects) {
@@ -278,6 +307,24 @@ async function loadTargetViews(
       href: `/org/${organizationSlug}/translation-memories/${memory.id}`,
       id: memory.id,
       kind: "translation_memory",
+    });
+  }
+  for (const job of jobs) {
+    views.set(targetKey("job", job.id), {
+      displayName: job.kind,
+      href: job.projectId
+        ? `/org/${organizationSlug}/projects/${job.projectId}/jobs/${job.id}`
+        : `/org/${organizationSlug}/jobs`,
+      id: job.id,
+      kind: "job",
+    });
+  }
+  for (const automation of automations) {
+    views.set(targetKey("automation", automation.id), {
+      displayName: automation.name,
+      href: `/org/${organizationSlug}/automations/${automation.id}`,
+      id: automation.id,
+      kind: "automation",
     });
   }
   for (const membership of memberships) {
@@ -362,7 +409,7 @@ export async function listActivityLogEvents(input: {
   conditions.push(
     inArray(
       schema.organizationActivityEvents.eventType,
-      input.query.eventTypes.length ? input.query.eventTypes : V1_ACTIVITY_EVENT_TYPES,
+      input.query.eventTypes.length ? input.query.eventTypes : IMPLEMENTED_ACTIVITY_EVENT_TYPES,
     ),
   );
   if (input.query.actor) {
@@ -442,7 +489,7 @@ export async function listActivityLogEvents(input: {
       userId: row.actorUserId,
     },
     createdAt: row.createdAt.toISOString(),
-    eventType: row.eventType as V1ActivityEventType,
+    eventType: row.eventType as ImplementedActivityEventType,
     id: row.id,
     payload: row.payload,
     target: targets.get(targetKey(row.targetKind, row.targetId))!,

@@ -40,6 +40,10 @@ import {
 } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  enqueueJobCreatedActivity,
+  enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
+import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
@@ -309,6 +313,17 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           throw error;
         }
 
+        await enqueueJobCreatedActivity({
+          actorCredentialId: c.var.auth.apiKey.id,
+          actorKind: "api_key",
+          actorUserId: c.var.auth.teamAccess.user.localUserId,
+          jobId: job.id,
+          kind: job.kind,
+          organizationId,
+          projectId: job.projectId,
+          status: job.status,
+        });
+
         if (options.jobQueue) {
           try {
             await options.jobQueue.enqueue({
@@ -326,6 +341,18 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                   error instanceof Error ? error.message : "translation job queue unavailable",
               })
               .where(eq(schema.jobs.id, job.id));
+
+            await enqueueJobFailedActivity({
+              actorCredentialId: c.var.auth.apiKey.id,
+              actorKind: "api_key",
+              actorUserId: c.var.auth.teamAccess.user.localUserId,
+              errorCode: "queue_unavailable",
+              jobId: job.id,
+              kind: job.kind,
+              organizationId,
+              projectId: job.projectId,
+              status: "failed",
+            });
 
             return jobQueueUnavailableResponse(c);
           }

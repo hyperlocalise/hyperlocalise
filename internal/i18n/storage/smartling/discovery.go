@@ -96,6 +96,33 @@ type ProjectListItem struct {
 	Archived       bool   `json:"archived,omitempty"`
 }
 
+// ProjectInfoInput fetches one project by ID.
+type ProjectInfoInput struct {
+	ProjectID string
+}
+
+// ProjectInfo is GET /projects-api/v2/projects/{id} without target locales.
+type ProjectInfo struct {
+	ProjectID      string `json:"projectId"`
+	ProjectName    string `json:"projectName"`
+	AccountUID     string `json:"accountUid,omitempty"`
+	SourceLocaleID string `json:"sourceLocaleId,omitempty"`
+	Archived       bool   `json:"archived"`
+}
+
+// FileDeleteInput deletes one source file URI.
+type FileDeleteInput struct {
+	ProjectID string
+	FileURI   string
+}
+
+// FileRenameInput changes a source file URI.
+type FileRenameInput struct {
+	ProjectID  string
+	FileURI    string
+	NewFileURI string
+}
+
 type filesListPayload struct {
 	TotalCount int            `json:"totalCount"`
 	Items      []FileListItem `json:"items"`
@@ -104,6 +131,8 @@ type filesListPayload struct {
 type projectDetailsPayload struct {
 	ProjectID               string `json:"projectId"`
 	ProjectName             string `json:"projectName"`
+	AccountUID              string `json:"accountUid"`
+	Archived                bool   `json:"archived"`
 	SourceLocaleID          string `json:"sourceLocaleId"`
 	SourceLocaleDescription string `json:"sourceLocaleDescription"`
 	TargetLocales           []struct {
@@ -243,24 +272,90 @@ func (c *HTTPClient) GetFileStatus(ctx context.Context, in FileStatusInput) (Fil
 	return payload, nil
 }
 
-// ListLocales returns the project source locale plus target locales.
-func (c *HTTPClient) ListLocales(ctx context.Context, in LocaleListInput) ([]LocaleListItem, error) {
-	if strings.TrimSpace(in.ProjectID) == "" {
-		return nil, fmt.Errorf("smartling locales list: project id is required")
+// GetProject fetches GET /projects-api/v2/projects/{id}.
+func (c *HTTPClient) GetProject(ctx context.Context, in ProjectInfoInput) (ProjectInfo, error) {
+	payload, err := c.fetchProjectDetails(ctx, in.ProjectID, "smartling projects info")
+	if err != nil {
+		return ProjectInfo{}, err
 	}
+	return ProjectInfo{
+		ProjectID:      strings.TrimSpace(payload.ProjectID),
+		ProjectName:    strings.TrimSpace(payload.ProjectName),
+		AccountUID:     strings.TrimSpace(payload.AccountUID),
+		SourceLocaleID: strings.TrimSpace(payload.SourceLocaleID),
+		Archived:       payload.Archived,
+	}, nil
+}
 
+func (c *HTTPClient) fetchProjectDetails(ctx context.Context, projectID, action string) (projectDetailsPayload, error) {
+	if strings.TrimSpace(projectID) == "" {
+		return projectDetailsPayload{}, fmt.Errorf("%s: project id is required", action)
+	}
 	token, err := c.accessToken(ctx)
 	if err != nil {
-		return nil, err
+		return projectDetailsPayload{}, err
 	}
-
-	endpoint := fmt.Sprintf("%s/projects/%s", c.projectsBaseURL, url.PathEscape(strings.TrimSpace(in.ProjectID)))
+	endpoint := fmt.Sprintf("%s/projects/%s", c.projectsBaseURL, url.PathEscape(strings.TrimSpace(projectID)))
 	var envelope smartlingDataEnvelope
 	if err := c.getJSON(ctx, endpoint, token, &envelope); err != nil {
-		return nil, fmt.Errorf("smartling locales list: %w", err)
+		return projectDetailsPayload{}, fmt.Errorf("%s: %w", action, err)
 	}
 	var payload projectDetailsPayload
-	if err := decodeSmartlingData(envelope, "smartling locales list", &payload); err != nil {
+	if err := decodeSmartlingData(envelope, action, &payload); err != nil {
+		return projectDetailsPayload{}, err
+	}
+	return payload, nil
+}
+
+// DeleteFile posts POST /files-api/v2/projects/{id}/file/delete. Smartling finishes asynchronously.
+func (c *HTTPClient) DeleteFile(ctx context.Context, in FileDeleteInput) error {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return fmt.Errorf("smartling files delete: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return fmt.Errorf("smartling files delete: file uri is required")
+	}
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return err
+	}
+	endpoint := fmt.Sprintf("%s/projects/%s/file/delete", c.filesBaseURL, url.PathEscape(strings.TrimSpace(in.ProjectID)))
+	if err := c.postMultipartFields(ctx, endpoint, token, map[string]string{"fileUri": strings.TrimSpace(in.FileURI)}, nil); err != nil {
+		return fmt.Errorf("smartling files delete: %w", err)
+	}
+	return nil
+}
+
+// RenameFile posts POST /files-api/v2/projects/{id}/file/rename.
+func (c *HTTPClient) RenameFile(ctx context.Context, in FileRenameInput) error {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return fmt.Errorf("smartling files rename: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return fmt.Errorf("smartling files rename: file uri is required")
+	}
+	if strings.TrimSpace(in.NewFileURI) == "" {
+		return fmt.Errorf("smartling files rename: new file uri is required")
+	}
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return err
+	}
+	endpoint := fmt.Sprintf("%s/projects/%s/file/rename", c.filesBaseURL, url.PathEscape(strings.TrimSpace(in.ProjectID)))
+	params := map[string]string{
+		"fileUri":    strings.TrimSpace(in.FileURI),
+		"newFileUri": strings.TrimSpace(in.NewFileURI),
+	}
+	if err := c.postMultipartFields(ctx, endpoint, token, params, nil); err != nil {
+		return fmt.Errorf("smartling files rename: %w", err)
+	}
+	return nil
+}
+
+// ListLocales returns the project source locale plus target locales.
+func (c *HTTPClient) ListLocales(ctx context.Context, in LocaleListInput) ([]LocaleListItem, error) {
+	payload, err := c.fetchProjectDetails(ctx, in.ProjectID, "smartling locales list")
+	if err != nil {
 		return nil, err
 	}
 

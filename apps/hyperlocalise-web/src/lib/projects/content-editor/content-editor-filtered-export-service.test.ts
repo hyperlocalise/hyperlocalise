@@ -296,6 +296,53 @@ describe("collectCatFilteredExportRows", () => {
     ).resolves.toEqual({ kind: "empty" });
   });
 
+  it("continues through empty pages that provide a scan cursor", async () => {
+    const loadCatQueue = vi
+      .fn<ContentEditorQueueLoader>()
+      .mockResolvedValueOnce({
+        kind: "ok",
+        contentEditorQueue: queuePage({
+          segments: [],
+          hasMore: true,
+          nextPhraseScanPage: 52,
+          nextPhraseScanSkip: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        kind: "ok",
+        contentEditorQueue: queuePage({
+          segments: [segment({ externalStringId: "k1", key: "home.title", sourceText: "Title" })],
+          hasMore: false,
+          offset: 0,
+        }),
+      });
+
+    const result = await collectCatFilteredExportRows({
+      auth,
+      projectId: "project_1",
+      query: baseQuery,
+      sourceLocale: "en",
+      loadCatQueue,
+    });
+
+    expect(result).toMatchObject({
+      kind: "ok",
+      truncated: false,
+      rows: [
+        {
+          key: "home.title",
+          sourceText: "Title",
+          targetText: "",
+        },
+      ],
+    });
+    expect(loadCatQueue).toHaveBeenCalledTimes(2);
+    expect(loadCatQueue.mock.calls[1]?.[2]).toMatchObject({
+      phraseScanPage: 52,
+      phraseScanSkip: 0,
+    });
+  });
+
   it("propagates loader failures without fetching targets", async () => {
     const loadCatQueue = vi.fn<ContentEditorQueueLoader>().mockResolvedValue({
       kind: "feature_unavailable",

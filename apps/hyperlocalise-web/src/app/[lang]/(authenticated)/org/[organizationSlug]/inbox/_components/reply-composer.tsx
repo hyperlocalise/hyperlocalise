@@ -176,7 +176,7 @@ export function ReplyComposerView({
   };
 
   return (
-    <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3">
+    <section className="z-20 shrink-0 border-t border-border bg-background p-3">
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}

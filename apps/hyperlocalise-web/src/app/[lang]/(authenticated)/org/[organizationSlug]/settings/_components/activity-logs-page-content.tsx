@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { type V1ActivityEventType } from "@/lib/activity-log/activity-log-contract";
+import { type ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
 import { apiClient } from "@/lib/api-client-instance";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,14 +42,14 @@ type ActivityLogResponse = {
 
 const activityLogsQueryKey = (
   organizationSlug: string,
-  eventTypes: V1ActivityEventType[],
+  eventTypes: ImplementedActivityEventType[],
   actor: string,
   range: string,
 ) => ["activity-logs", organizationSlug, eventTypes, actor, range] as const;
 
 export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
-  const [eventTypes, setEventTypes] = useState<V1ActivityEventType[]>([]);
+  const [eventTypes, setEventTypes] = useState<ImplementedActivityEventType[]>([]);
   const [actor, setActor] = useState("");
   const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
   const [range, setRange] = useState<"24h" | "7d" | "30d" | "all">("all");

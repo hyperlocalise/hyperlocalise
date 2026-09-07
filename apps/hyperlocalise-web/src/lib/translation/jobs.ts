@@ -18,6 +18,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-events";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   isProjectTranslationKeyHidden,
@@ -76,6 +77,8 @@ class TranslationJobRepository {
     const [job] = await db
       .select({
         id: schema.jobs.id,
+        kind: schema.jobs.kind,
+        organizationId: schema.jobs.organizationId,
         projectId: schema.jobs.projectId,
         type: schema.translationJobDetails.type,
         status: schema.jobs.status,
@@ -564,6 +567,18 @@ class TranslationJobCompletionService {
     if (!failedJob) {
       throw new Error(`translation job ${input.jobId} was not found in project ${input.projectId}`);
     }
+
+    await enqueueJobFailedActivity({
+      actorCredentialId: null,
+      actorKind: "system",
+      actorUserId: null,
+      errorCode: input.code,
+      jobId: failedJob.id,
+      kind: failedJob.kind,
+      organizationId: failedJob.organizationId,
+      projectId: failedJob.projectId,
+      status: "failed",
+    });
 
     return failedJob;
   }

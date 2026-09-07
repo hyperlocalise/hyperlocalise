@@ -238,6 +238,123 @@ func TestHTTPClientListLocalesIncludesDisabledTargets(t *testing.T) {
 	}
 }
 
+func TestHTTPClientGetProjectMapsAccountAndArchived(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/proj-1":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS","data":{"projectId":"proj-1","projectName":"Demo","accountUid":"acct-1","archived":true,"sourceLocaleId":"en-US","targetLocales":[{"localeId":"fr-FR"}]}}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := discoveryTestClient(srv)
+	info, err := client.GetProject(context.Background(), ProjectInfoInput{ProjectID: "proj-1"})
+	if err != nil {
+		t.Fatalf("GetProject: %v", err)
+	}
+	if info.ProjectID != "proj-1" || info.ProjectName != "Demo" || info.AccountUID != "acct-1" || info.SourceLocaleID != "en-US" || !info.Archived {
+		t.Fatalf("unexpected info: %+v", info)
+	}
+	locales, err := client.ListLocales(context.Background(), LocaleListInput{ProjectID: "proj-1"})
+	if err != nil {
+		t.Fatalf("ListLocales: %v", err)
+	}
+	if len(locales) != 2 || locales[0].LocaleID != "en-US" || !locales[0].Source || locales[1].LocaleID != "fr-FR" {
+		t.Fatalf("unexpected locales from shared payload: %+v", locales)
+	}
+}
+
+func TestHTTPClientDeleteFileSendsFileURI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file/delete":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method=%s", r.Method)
+			}
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
+				t.Fatalf("parse form: %v", err)
+			}
+			if got := r.FormValue("fileUri"); got != "locales/en.json" {
+				t.Fatalf("fileUri=%q", got)
+			}
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := discoveryTestClient(srv)
+	if err := client.DeleteFile(context.Background(), FileDeleteInput{ProjectID: "123", FileURI: "locales/en.json"}); err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+}
+
+func TestHTTPClientDeleteFileRequiresURI(t *testing.T) {
+	err := (&HTTPClient{}).DeleteFile(context.Background(), FileDeleteInput{ProjectID: "123"})
+	if err == nil || !strings.Contains(err.Error(), "file uri is required") {
+		t.Fatalf("expected uri error, got %v", err)
+	}
+}
+
+func TestHTTPClientDeleteFileHTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file/delete":
+			http.Error(w, `{"response":{"code":"VALIDATION_ERROR"}}`, http.StatusNotFound)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := discoveryTestClient(srv)
+	err := client.DeleteFile(context.Background(), FileDeleteInput{ProjectID: "123", FileURI: "missing.json"})
+	if err == nil || !strings.Contains(err.Error(), "status 404") {
+		t.Fatalf("expected HTTP error, got %v", err)
+	}
+}
+
+func TestHTTPClientRenameFileSendsBothURIs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file/rename":
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
+				t.Fatalf("parse form: %v", err)
+			}
+			if r.FormValue("fileUri") != "old.json" || r.FormValue("newFileUri") != "new.json" {
+				t.Fatalf("form fileUri=%q newFileUri=%q", r.FormValue("fileUri"), r.FormValue("newFileUri"))
+			}
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := discoveryTestClient(srv)
+	if err := client.RenameFile(context.Background(), FileRenameInput{ProjectID: "123", FileURI: "old.json", NewFileURI: "new.json"}); err != nil {
+		t.Fatalf("RenameFile: %v", err)
+	}
+}
+
+func TestHTTPClientRenameFileRequiresURI(t *testing.T) {
+	err := (&HTTPClient{}).RenameFile(context.Background(), FileRenameInput{ProjectID: "123", FileURI: "old.json"})
+	if err == nil || !strings.Contains(err.Error(), "new file uri is required") {
+		t.Fatalf("expected new uri error, got %v", err)
+	}
+}
+
 func TestHTTPClientListProjectsPages(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

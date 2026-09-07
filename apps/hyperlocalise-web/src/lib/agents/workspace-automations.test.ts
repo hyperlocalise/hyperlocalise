@@ -20,6 +20,14 @@ const pipesMocks = vi.hoisted(() => ({
   getEmailPipesConnectionStatus: vi.fn(),
 }));
 
+const { enqueueAutomationRunStartedActivityMock } = vi.hoisted(() => ({
+  enqueueAutomationRunStartedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueAutomationRunStartedActivity: enqueueAutomationRunStartedActivityMock,
+}));
+
 vi.mock("@/lib/ahrefs/pipes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ahrefs/pipes")>();
   return {
@@ -263,6 +271,7 @@ describe("workspace automations", () => {
   });
 
   beforeEach(() => {
+    enqueueAutomationRunStartedActivityMock.mockClear();
     pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: false,
@@ -1039,6 +1048,18 @@ describe("workspace automations", () => {
       completedAt,
     });
 
+    expect(enqueueAutomationRunStartedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueAutomationRunStartedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "system",
+      actorUserId: null,
+      automationId: automation.id,
+      name: "Repository automation",
+      organizationId: scope.organizationId,
+      runId: run.id,
+      triggerSource: "scheduled",
+    });
+
     expect(completed).toMatchObject({
       id: run.id,
       automationId: automation.id,
@@ -1058,6 +1079,46 @@ describe("workspace automations", () => {
       organizationId: scope.organizationId,
     });
     expect(listedRun?.id).toBe(run.id);
+  });
+
+  it("records only the first transition of an automation run to running", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Transition automation",
+        instructions: "Run once.",
+      }),
+    );
+    const run = await createWorkspaceAutomationRun({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      triggerSource: "manual",
+    });
+
+    await updateWorkspaceAutomationRun({
+      runId: run.id,
+      organizationId: scope.organizationId,
+      status: "running",
+      startedAt: new Date(),
+    });
+    await updateWorkspaceAutomationRun({
+      runId: run.id,
+      organizationId: scope.organizationId,
+      status: "running",
+      outputSummary: { progress: "started" },
+    });
+
+    expect(enqueueAutomationRunStartedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueAutomationRunStartedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        automationId: automation.id,
+        name: "Transition automation",
+        runId: run.id,
+        triggerSource: "manual",
+      }),
+    );
   });
 
   it("rejects run creation when automation belongs to another organization", async () => {
