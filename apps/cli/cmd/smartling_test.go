@@ -237,8 +237,11 @@ func TestSmartlingDownloadSourcesSourceLocaleFlagDeprecated(t *testing.T) {
 }
 
 type fakeSmartlingSourceDownloader struct {
-	result smartling.SourceDownloadResult
-	err    error
+	result  smartling.SourceDownloadResult
+	files   []smartling.FileListItem
+	listIn  smartling.FileListInput
+	err     error
+	listErr error
 }
 
 func (f *fakeSmartlingSourceDownloader) DownloadSourceFile(_ context.Context, in smartling.SourceDownloadInput) (smartling.SourceDownloadResult, error) {
@@ -252,6 +255,14 @@ func (f *fakeSmartlingSourceDownloader) DownloadSourceFile(_ context.Context, in
 		FileURI: in.FileURI,
 		Content: []byte(`{"hello":"Hello"}`),
 	}, nil
+}
+
+func (f *fakeSmartlingSourceDownloader) ListFiles(_ context.Context, in smartling.FileListInput) ([]smartling.FileListItem, error) {
+	f.listIn = in
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.files, nil
 }
 
 func TestSmartlingDownloadSourcesWritesStdout(t *testing.T) {
@@ -391,7 +402,10 @@ func TestSmartlingDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
 
 type fakeSmartlingTranslationDownloader struct {
 	results map[string]smartling.TranslationDownloadResult
+	files   []smartling.FileListItem
+	listIn  smartling.FileListInput
 	err     error
+	listErr error
 }
 
 func (f *fakeSmartlingTranslationDownloader) DownloadTranslationFile(_ context.Context, in smartling.TranslationDownloadInput) (smartling.TranslationDownloadResult, error) {
@@ -403,6 +417,14 @@ func (f *fakeSmartlingTranslationDownloader) DownloadTranslationFile(_ context.C
 		return smartling.TranslationDownloadResult{LocaleID: in.LocaleID, Content: []byte(`{}`)}, nil
 	}
 	return result, nil
+}
+
+func (f *fakeSmartlingTranslationDownloader) ListFiles(_ context.Context, in smartling.FileListInput) ([]smartling.FileListItem, error) {
+	f.listIn = in
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.files, nil
 }
 
 func TestSmartlingDownloadTranslationsWritesStdout(t *testing.T) {
@@ -612,6 +634,10 @@ func (f *fakeSmartlingTranslationDownloaderWithError) DownloadTranslationFile(_ 
 		return smartling.TranslationDownloadResult{LocaleID: in.LocaleID, Content: []byte(`{}`)}, nil
 	}
 	return result, nil
+}
+
+func (f *fakeSmartlingTranslationDownloaderWithError) ListFiles(_ context.Context, _ smartling.FileListInput) ([]smartling.FileListItem, error) {
+	return nil, nil
 }
 
 func TestSmartlingDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
@@ -937,4 +963,159 @@ func (s stubSmartlingTranslationImporter) ImportTranslationFile(_ context.Contex
 		s.assert(in)
 	}
 	return s.result, s.err
+}
+
+func TestSmartlingOfficialPullRelativePath(t *testing.T) {
+	if got := smartlingOfficialPullRelativePath("locales/en.json", ""); got != "locales/en.json" {
+		t.Fatalf("source path=%q", got)
+	}
+	if got := smartlingOfficialPullRelativePath("locales/en.json", "fr-FR"); got != "locales/en_fr-FR.json" {
+		t.Fatalf("translation path=%q", got)
+	}
+	if got := smartlingOfficialPullRelativePath("/locales/en.json", "fr-FR"); got != "locales/en_fr-FR.json" {
+		t.Fatalf("leading slash path=%q", got)
+	}
+}
+
+func TestSmartlingDownloadAllWritesOfficialPaths(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	orig := newSmartlingSourceDownloader
+	t.Cleanup(func() { newSmartlingSourceDownloader = orig })
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{
+			files: []smartling.FileListItem{
+				{FileURI: "locales/en.json"},
+				{FileURI: "app/strings.xml"},
+			},
+		}, nil
+	}
+
+	dir := t.TempDir()
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"smartling", "download", "sources", "--project-id", "123", "--all", "--output", dir})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("sources --all: %v", err)
+	}
+	for _, rel := range []string{filepath.Join("locales", "en.json"), filepath.Join("app", "strings.xml")} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("missing %s: %v\n%s", rel, err, out.String())
+		}
+	}
+	if strings.Contains(out.String(), filepath.Join("fr-FR", "locales")) {
+		t.Fatalf("wrote locale-prefixed tree: %s", out.String())
+	}
+
+	origT := newSmartlingTranslationDownloader
+	t.Cleanup(func() { newSmartlingTranslationDownloader = origT })
+	fakeT := &fakeSmartlingTranslationDownloader{
+		files: []smartling.FileListItem{
+			{FileURI: "locales/en.json"},
+			{FileURI: "app/strings.xml"},
+		},
+		results: map[string]smartling.TranslationDownloadResult{
+			"fr-FR": {LocaleID: "fr-FR", Content: []byte(`{"hello":"Bonjour"}`)},
+			"de-DE": {LocaleID: "de-DE", Content: []byte(`{"hello":"Hallo"}`)},
+		},
+	}
+	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
+		return fakeT, nil
+	}
+
+	dir = t.TempDir()
+	out.Reset()
+	root.SetArgs([]string{
+		"smartling", "download", "translations",
+		"--project-id", "123",
+		"--all",
+		"--target-locale", "fr-FR",
+		"--target-locale", "de-DE",
+		"--output", dir,
+		"--uri-mask", "en.json",
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("translations --all: %v", err)
+	}
+	if fakeT.listIn.URIMask != "en.json" {
+		t.Fatalf("uri mask=%q", fakeT.listIn.URIMask)
+	}
+	want := []string{
+		filepath.Join("locales", "en_fr-FR.json"),
+		filepath.Join("locales", "en_de-DE.json"),
+		filepath.Join("app", "strings_fr-FR.xml"),
+		filepath.Join("app", "strings_de-DE.xml"),
+	}
+	for _, rel := range want {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("missing %s: %v\n%s", rel, err, out.String())
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fr-FR", "locales", "en.json")); err == nil {
+		t.Fatal("wrote locale/fileUri layout")
+	}
+}
+
+func TestSmartlingDownloadAllFlagExclusivityAndSafety(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	orig := newSmartlingSourceDownloader
+	t.Cleanup(func() { newSmartlingSourceDownloader = orig })
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{
+			files: []smartling.FileListItem{{FileURI: "/locales/en.json"}},
+		}, nil
+	}
+
+	run := func(args ...string) error {
+		root := newRootCmd("test")
+		out := &bytes.Buffer{}
+		root.SetOut(out)
+		root.SetErr(out)
+		root.SetArgs(args)
+		return root.Execute()
+	}
+
+	err := run("smartling", "download", "sources", "--project-id", "123", "--all", "--file-uri", "locales/en.json")
+	if err == nil || !strings.Contains(err.Error(), "exactly one of --file-uri or --all") {
+		t.Fatalf("expected exclusivity error, got %v", err)
+	}
+
+	err = run("smartling", "download", "sources", "--project-id", "123", "--file-uri", "locales/en.json", "--uri-mask", "en.json", "--dry-run")
+	if err == nil || !strings.Contains(err.Error(), "--uri-mask is only valid with --all") {
+		t.Fatalf("expected uri-mask error, got %v", err)
+	}
+
+	err = run("smartling", "download", "translations", "--project-id", "123", "--all", "--target-locale", "fr-FR", "--output", "out-%locale%.json")
+	if err == nil || !strings.Contains(err.Error(), "do not use") {
+		t.Fatalf("expected %%locale%% error, got %v", err)
+	}
+
+	dir := t.TempDir()
+	if err := run("smartling", "download", "sources", "--project-id", "123", "--all", "--output", dir); err != nil {
+		t.Fatalf("leading slash: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "locales", "en.json")); err != nil {
+		t.Fatalf("leading slash escaped directory: %v", err)
+	}
+
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{
+			files: []smartling.FileListItem{{FileURI: "../secret.json"}},
+		}, nil
+	}
+	err = run("smartling", "download", "sources", "--project-id", "123", "--all", "--output", dir)
+	if err == nil || !strings.Contains(err.Error(), "not a safe relative path") {
+		t.Fatalf("expected path safety error, got %v", err)
+	}
+
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{files: nil}, nil
+	}
+	err = run("smartling", "download", "sources", "--project-id", "123", "--all", "--output", dir)
+	if err == nil || !strings.Contains(err.Error(), "no files found") {
+		t.Fatalf("expected empty list error, got %v", err)
+	}
 }
