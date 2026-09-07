@@ -791,6 +791,9 @@ export function GlossaryDetailPageContent({
       const applied = (result.imported ?? 0) + (result.updated ?? 0) + (result.merged ?? 0);
       if (applied === 0 && errorDiagnostics.length > 0) {
         setImportDiagnostics(errorDiagnostics.slice(0, 10));
+        // Reset the native input so selecting the same (corrected) file still
+        // fires a change event and retries the import.
+        if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
         toast.error(
           intl.formatMessage(messages.termsImportBlocked, {
             count: errorDiagnostics.length,

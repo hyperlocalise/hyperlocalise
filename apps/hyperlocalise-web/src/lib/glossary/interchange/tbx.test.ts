@@ -440,6 +440,62 @@ describe("TBX-Basic DCA interchange", () => {
     expect(new TextDecoder().decode(reserialized.content)).toBe(xml);
   });
 
+  it("disambiguates distinct IDs that normalize to the same XML ID", () => {
+    const term = (id: string, locale: string, text: string) => ({
+      id,
+      conceptId: "placeholder",
+      locale,
+      term: text,
+      description: "",
+      note: "",
+      partOfSpeech: "noun",
+      gender: null,
+      termType: null,
+      url: null,
+      lemma: null,
+      status: "preferred",
+      caseSensitive: false,
+      forbidden: false,
+      provenance: "manual",
+      reviewStatus: "approved",
+      metadata: {},
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    const concept = (id: string, terms: ReturnType<typeof term>[]) => ({
+      id,
+      primaryTerm: terms[0]?.term ?? "",
+      subject: "",
+      definition: "",
+      translatable: true,
+      note: "",
+      url: null,
+      figure: null,
+      languageDetails: [],
+      metadata: {},
+      terms: terms.map((item) => ({ ...item, conceptId: id })),
+    });
+    const serialized = serializeTbx({
+      glossary,
+      concepts: [
+        concept("foo", [term("bar", "en-US", "Foo"), term("t-bar", "en-US", "Foo alias")]),
+        concept("c-foo", [term("other", "en-US", "Other")]),
+      ],
+    });
+    expect(serialized.errors).toEqual([]);
+    const xml = new TextDecoder().decode(serialized.content);
+    const conceptIds = [...xml.matchAll(/<conceptEntry id="([^"]+)"/g)].map((match) => match[1]);
+    expect(conceptIds).toHaveLength(2);
+    expect(new Set(conceptIds).size).toBe(2);
+    expect(conceptIds).toContain("c-foo");
+    const termIds = [...xml.matchAll(/<termSec id="([^"]+)"/g)].map((match) => match[1]);
+    expect(new Set(termIds).size).toBe(termIds.length);
+
+    const reparsed = parseTbx(xml);
+    expect(reparsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(reparsed.concepts).toHaveLength(2);
+  });
+
   it("rejects malformed XML without truncating valid preceding concepts", () => {
     const parsed = parseTbx(
       '<?xml version="1.0"?><tbx><text><body><conceptEntry id="c1"><langSec xml:lang="en"><termSec id="t1"><term>ok</term></termSec></langSec></conceptEntry><conceptEntry',
