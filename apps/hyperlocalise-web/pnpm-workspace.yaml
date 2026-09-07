@@ -43,7 +43,7 @@ overrides:
   browserslist: "4.28.8"
   linkify-it: "5.0.2"
   # exceljs uses CommonJS require('uuid'); keep v11 only on that path.
-  "@zwight/exceljs>uuid": "11.1.1"
+  "@zwight/exceljs>uuid": "14.0.2"
   "mermaid>uuid": "14.0.2"
   dompurify: "3.4.14"
   "js-yaml@^3.0.0": "3.15.2"
