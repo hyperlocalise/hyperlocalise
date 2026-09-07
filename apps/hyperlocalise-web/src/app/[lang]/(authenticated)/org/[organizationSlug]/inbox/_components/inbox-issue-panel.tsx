@@ -43,7 +43,7 @@ export function InboxIssuePanel({
 
   if (issueQuery.isError || (!issueQuery.isLoading && !issueQuery.data)) {
     return (
-      <section className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <section className="flex h-full min-h-0 flex-1 items-center justify-center p-6">
         <TypographyP className="text-center" tone="subtle">
           <FormattedMessage {...messages.issuePanelNotFound} />
         </TypographyP>
@@ -53,7 +53,7 @@ export function InboxIssuePanel({
 
   return (
     <section
-      className={cn("flex min-h-0 flex-1 flex-col overflow-hidden")}
+      className={cn("flex h-full min-h-0 flex-1 flex-col overflow-hidden")}
       aria-busy={issueQuery.isLoading}
       aria-label={issueQuery.isLoading ? intl.formatMessage(messages.issuePanelLoading) : undefined}
     >

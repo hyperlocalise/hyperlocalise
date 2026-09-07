@@ -15,10 +15,9 @@
 import { FormattedMessage } from "react-intl";
 
 import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 
 import { ConversationPanel } from "./conversation-panel";
+import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import { InboxIssuePanel } from "./inbox-issue-panel";
 import { InboxList, type InboxSelection } from "./inbox-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
@@ -110,87 +109,81 @@ export function InboxPageView({
           ? "new"
           : "none";
 
-  const listColumnWidth = isSparseInbox ? "1/5" : "1/4";
-
   return (
     <main
       data-organization={organizationSlug}
       className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
     >
-      <Columns spacing="0" height="full" collapseBelow="large">
-        <Column width={listColumnWidth}>
-          <InboxPanelErrorBoundary
-            scope="list"
-            className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
-            resetKeys={[
-              selectionKey,
-              conversations.length,
-              notifications.length,
-              conversationsIsLoading,
-              notificationsIsLoading,
-            ]}
-          >
-            <InboxList
-              conversations={conversations}
-              currentUser={currentUser}
-              hasMoreNotifications={hasMoreNotifications}
-              isError={listIsError}
-              isLoading={listIsLoading}
-              isLoadingMoreNotifications={isLoadingMoreNotifications}
-              notifications={notifications}
-              onLoadMoreNotifications={onLoadMoreNotifications}
-              onMarkAllRead={onMarkAllRead}
-              onSelectConversation={onSelectConversation}
-              onSelectNotification={onSelectNotification}
-              selection={selection}
-              unreadNotificationCount={unreadNotificationCount}
-            />
-          </InboxPanelErrorBoundary>
-        </Column>
+      <div className={inboxChatSplitPaneClassName(isSparseInbox)}>
+        <InboxPanelErrorBoundary
+          scope="list"
+          className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
+          resetKeys={[
+            selectionKey,
+            conversations.length,
+            notifications.length,
+            conversationsIsLoading,
+            notificationsIsLoading,
+          ]}
+        >
+          <InboxList
+            conversations={conversations}
+            currentUser={currentUser}
+            hasMoreNotifications={hasMoreNotifications}
+            isError={listIsError}
+            isLoading={listIsLoading}
+            isLoadingMoreNotifications={isLoadingMoreNotifications}
+            notifications={notifications}
+            onLoadMoreNotifications={onLoadMoreNotifications}
+            onMarkAllRead={onMarkAllRead}
+            onSelectConversation={onSelectConversation}
+            onSelectNotification={onSelectNotification}
+            selection={selection}
+            unreadNotificationCount={unreadNotificationCount}
+          />
+        </InboxPanelErrorBoundary>
 
-        <Column width="fluid">
-          {selection?.kind === "notification" ? (
-            selectedNotification ? (
-              <InboxIssuePanel
-                organizationSlug={organizationSlug}
-                projectId={selectedNotification.projectId}
-                issueId={selectedNotification.issueId}
-              />
-            ) : selectedNotificationIsLoading ? (
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                padding="3u"
-                height="full"
-                aria-busy="true"
-                aria-label="Loading notification"
-              >
-                <span className="text-sm text-muted-foreground">
-                  <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
-                </span>
-              </Box>
-            ) : null
-          ) : (
-            <ConversationPanel
-              conversation={selectedConversation}
-              currentUser={currentUser}
-              draft={draft}
-              isComposingNew={selection?.kind === "new"}
-              isSending={isSending}
-              isStreaming={isStreaming}
-              jobs={jobs}
-              jobsIsLoading={jobsIsLoading}
-              messages={messages}
-              messagesIsLoading={messagesIsLoading}
-              onDraftChange={onDraftChange}
-              onSendMessage={onSendMessage}
+        {selection?.kind === "notification" ? (
+          selectedNotification ? (
+            <InboxIssuePanel
               organizationSlug={organizationSlug}
-              streamedAssistant={streamedAssistant}
+              projectId={selectedNotification.projectId}
+              issueId={selectedNotification.issueId}
             />
-          )}
-        </Column>
-      </Columns>
+          ) : selectedNotificationIsLoading ? (
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              padding="3u"
+              height="full"
+              aria-busy="true"
+              aria-label="Loading notification"
+            >
+              <span className="text-sm text-muted-foreground">
+                <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
+              </span>
+            </Box>
+          ) : null
+        ) : (
+          <ConversationPanel
+            conversation={selectedConversation}
+            currentUser={currentUser}
+            draft={draft}
+            isComposingNew={selection?.kind === "new"}
+            isSending={isSending}
+            isStreaming={isStreaming}
+            jobs={jobs}
+            jobsIsLoading={jobsIsLoading}
+            messages={messages}
+            messagesIsLoading={messagesIsLoading}
+            onDraftChange={onDraftChange}
+            onSendMessage={onSendMessage}
+            organizationSlug={organizationSlug}
+            streamedAssistant={streamedAssistant}
+          />
+        )}
+      </div>
     </main>
   );
 }
