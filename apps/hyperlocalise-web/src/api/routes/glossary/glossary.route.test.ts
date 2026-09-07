@@ -324,6 +324,105 @@ describe("glossaryRoutes", () => {
     ]);
   });
 
+  it("maps Crowdin TBX language IDs to region-qualified glossary locales", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(
+      identity,
+      { sourceLocale: "en-US" },
+      headers,
+    );
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+    await db
+      .update(schema.glossaries)
+      .set({ localeCoverage: ["de-DE", "ja-JP", "ko-KR", "vi-VN"] })
+      .where(eq(schema.glossaries.id, glossaryId));
+
+    const tbx = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<tbx xmlns="urn:iso:std:iso:30042:ed-2" type="TBX-Basic" style="dca" xml:lang="en">',
+      "<text><body>",
+      '<conceptEntry id="c-ota-001">',
+      '<descrip type="subjectField">search</descrip>',
+      '<descrip type="definition">The place a traveler plans to visit.</descrip>',
+      "<note>[Hyperlocalise::translatable]::true</note>",
+      '<langSec xml:lang="en"><termSec id="95"><term>destination</term>',
+      '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
+      '<langSec xml:lang="de"><descrip type="definition">Deutscher Suchbegriff.</descrip><termSec id="101"><term>Reiseziel</term>',
+      '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
+      '<langSec xml:lang="ja"><termSec id="99"><term>目的地</term>',
+      '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
+      '<langSec xml:lang="ko"><termSec id="103"><term>목적지</term>',
+      '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
+      '<langSec xml:lang="vi"><termSec id="97"><term>điểm đến</term>',
+      '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
+      "</conceptEntry>",
+      "</body></text></tbx>",
+    ].join("");
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].concepts[
+      "import"
+    ].$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          format: "tbx",
+          content: tbx,
+          mode: "merge",
+          previewForMode: "merge",
+          strictLocale: true,
+          localeMapping: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      imported: number;
+      diagnostics: Array<{ code: string; severity: string; termId?: string }>;
+    };
+    expect(body.imported).toBeGreaterThan(0);
+    expect(body.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "locale_mapped", severity: "warning" }),
+      ]),
+    );
+    expect(
+      body.diagnostics.some(
+        (entry) => entry.severity === "error" && entry.code === "unknown_locale",
+      ),
+    ).toBe(false);
+    const conceptsResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$get({ param: { organizationSlug, glossaryId } }, { headers });
+    const concepts = (await conceptsResponse.json()) as {
+      concepts: Array<{
+        definition: string;
+        languageDetails: Array<{ locale: string; definition: string }>;
+        terms: Array<{ locale: string; term: string }>;
+      }>;
+    };
+    expect(concepts.concepts).toHaveLength(1);
+    expect(concepts.concepts[0]?.definition).toBe("The place a traveler plans to visit.");
+    expect(concepts.concepts[0]?.languageDetails).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: "de-DE", definition: "Deutscher Suchbegriff." }),
+      ]),
+    );
+    expect(concepts.concepts[0]?.terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: "en-US", term: "destination" }),
+        expect.objectContaining({ locale: "de-DE", term: "Reiseziel" }),
+        expect.objectContaining({ locale: "ja-JP", term: "目的地" }),
+        expect.objectContaining({ locale: "ko-KR", term: "목적지" }),
+        expect.objectContaining({ locale: "vi-VN", term: "điểm đến" }),
+      ]),
+    );
+  });
+
   it("rejects a malformed import before applying non-replace modes", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

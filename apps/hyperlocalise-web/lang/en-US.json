@@ -9087,6 +9087,10 @@
     "defaultMessage": "Flag unresolved locales before ship",
     "description": "Workflow step 6 description for the product-localisation use case"
   },
+  "MJH9GKk4sA": {
+    "defaultMessage": "Nothing was imported. Resolve these issues and try again:",
+    "description": "Title above the list of glossary import validation errors"
+  },
   "MKqk5CAbrB": {
     "defaultMessage": "Back to integrations",
     "description": "Link back to the integrations page from repository automation"
@@ -13558,6 +13562,10 @@
   "Yi/8efQvnI": {
     "defaultMessage": "Your account is signed in, but this workspace does not have an active organization context you can use.",
     "description": "Default access denied page summary"
+  },
+  "YkAJNssSF4": {
+    "defaultMessage": "No terms were imported — {count, plural, one {# issue needs} other {# issues need}} attention",
+    "description": "Toast when a glossary import applies zero terms because of validation errors"
   },
   "YkALJEyJhF": {
     "defaultMessage": "Change analysis",
