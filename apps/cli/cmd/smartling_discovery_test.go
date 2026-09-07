@@ -16,6 +16,7 @@ type fakeSmartlingDiscoveryClient struct {
 	status   smartling.FileStatus
 	locales  []smartling.LocaleListItem
 	projects []smartling.ProjectListItem
+	project  smartling.ProjectInfo
 	err      error
 	assert   func(kind string, in any)
 }
@@ -58,6 +59,30 @@ func (f *fakeSmartlingDiscoveryClient) ListProjects(_ context.Context, in smartl
 		return nil, f.err
 	}
 	return f.projects, nil
+}
+
+func (f *fakeSmartlingDiscoveryClient) GetProject(_ context.Context, in smartling.ProjectInfoInput) (smartling.ProjectInfo, error) {
+	if f.assert != nil {
+		f.assert("info", in)
+	}
+	if f.err != nil {
+		return smartling.ProjectInfo{}, f.err
+	}
+	return f.project, nil
+}
+
+func (f *fakeSmartlingDiscoveryClient) DeleteFile(_ context.Context, in smartling.FileDeleteInput) error {
+	if f.assert != nil {
+		f.assert("delete", in)
+	}
+	return f.err
+}
+
+func (f *fakeSmartlingDiscoveryClient) RenameFile(_ context.Context, in smartling.FileRenameInput) error {
+	if f.assert != nil {
+		f.assert("rename", in)
+	}
+	return f.err
 }
 
 func TestSmartlingHelpListsDiscoveryCommands(t *testing.T) {
@@ -460,5 +485,120 @@ func TestParseSmartlingUploadDirectives(t *testing.T) {
 	summary := formatSmartlingDirectiveSummary(map[string]string{"smartling.foo": "bar"})
 	if summary != "smartling.foo=bar" {
 		t.Fatalf("summary=%q", summary)
+	}
+}
+
+func TestSmartlingProjectsInfoTextAndJSON(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	orig := newSmartlingDiscoveryClient
+	t.Cleanup(func() { newSmartlingDiscoveryClient = orig })
+	newSmartlingDiscoveryClient = func(_ smartling.Config) (smartlingDiscoveryClient, error) {
+		return &fakeSmartlingDiscoveryClient{
+			project: smartling.ProjectInfo{
+				ProjectID:      "proj-1",
+				ProjectName:    "Demo",
+				AccountUID:     "acct-1",
+				SourceLocaleID: "en-US",
+				Archived:       false,
+			},
+		}, nil
+	}
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"smartling", "projects", "info", "--project-id", "proj-1"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("info: %v", err)
+	}
+	if got := out.String(); got != "project_id=proj-1 name=Demo account_uid=acct-1 source_locale=en-US archived=false\n" {
+		t.Fatalf("text output=%q", got)
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "projects", "info", "--project-id", "proj-1", "--output", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("json info: %v", err)
+	}
+	if !strings.Contains(out.String(), `"projectId": "proj-1"`) || !strings.Contains(out.String(), `"archived": false`) {
+		t.Fatalf("json output=%s", out.String())
+	}
+}
+
+func TestSmartlingFilesRenameAndDeleteDryRunVsPOST(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	orig := newSmartlingDiscoveryClient
+	t.Cleanup(func() { newSmartlingDiscoveryClient = orig })
+
+	posted := false
+	newSmartlingDiscoveryClient = func(_ smartling.Config) (smartlingDiscoveryClient, error) {
+		posted = true
+		return &fakeSmartlingDiscoveryClient{}, nil
+	}
+
+	run := func(args ...string) (*bytes.Buffer, error) {
+		root := newRootCmd("test")
+		out := &bytes.Buffer{}
+		root.SetOut(out)
+		root.SetErr(out)
+		root.SetArgs(args)
+		return out, root.Execute()
+	}
+
+	out, err := run("smartling", "files", "rename", "--project-id", "123", "--file-uri", "old.json", "--new-file-uri", "new.json", "--dry-run")
+	if err != nil {
+		t.Fatalf("rename dry-run: %v", err)
+	}
+	if posted {
+		t.Fatal("dry-run should not construct a client")
+	}
+	if !strings.Contains(out.String(), "dry-run action=smartling-files-rename") {
+		t.Fatalf("rename dry-run output=%s", out.String())
+	}
+
+	posted = false
+	out, err = run("smartling", "files", "delete", "--project-id", "123", "--file-uri", "old.json", "--dry-run")
+	if err != nil {
+		t.Fatalf("delete dry-run: %v", err)
+	}
+	if posted {
+		t.Fatal("delete dry-run should not construct a client")
+	}
+	if !strings.Contains(out.String(), "dry-run action=smartling-files-delete") {
+		t.Fatalf("delete dry-run output=%s", out.String())
+	}
+
+	out, err = run("smartling", "files", "rename", "--project-id", "123", "--file-uri", "old.json", "--new-file-uri", "new.json")
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if !posted {
+		t.Fatal("rename should POST")
+	}
+	if out.String() != "renamed uri=old.json new_uri=new.json\n" {
+		t.Fatalf("rename output=%q", out.String())
+	}
+
+	out, err = run("smartling", "files", "delete", "--project-id", "123", "--file-uri", "old.json")
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if out.String() != "deleted uri=old.json\n" {
+		t.Fatalf("delete output=%q", out.String())
+	}
+}
+
+func TestSmartlingFilesDeleteRequiresFileURI(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"smartling", "files", "delete", "--project-id", "123"})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "--file-uri is required") {
+		t.Fatalf("expected --file-uri error, got %v / %s", err, out.String())
 	}
 }

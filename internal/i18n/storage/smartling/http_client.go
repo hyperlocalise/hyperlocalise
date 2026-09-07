@@ -174,13 +174,25 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 }
 
 func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("open file: %w", err)
+	return c.postMultipart(ctx, endpoint, token, params, fileFieldName, filePath, out)
+}
+
+func (c *HTTPClient) postMultipartFields(ctx context.Context, endpoint string, token string, params map[string]string, out any) error {
+	return c.postMultipart(ctx, endpoint, token, params, "", "", out)
+}
+
+func (c *HTTPClient) postMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
+	var file *os.File
+	if filePath != "" {
+		opened, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("open file: %w", err)
+		}
+		file = opened
+		defer func() {
+			_ = file.Close()
+		}()
 	}
-	defer func() {
-		_ = file.Close()
-	}()
 
 	pr, pw := io.Pipe()
 	writer := multipart.NewWriter(pw)
@@ -198,15 +210,17 @@ func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token
 				return
 			}
 		}
-		var part io.Writer
-		part, werr = writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
-		if werr != nil {
-			werr = fmt.Errorf("create form file: %w", werr)
-			return
-		}
-		if _, werr = io.Copy(part, file); werr != nil {
-			werr = fmt.Errorf("copy file to form: %w", werr)
-			return
+		if file != nil {
+			var part io.Writer
+			part, werr = writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+			if werr != nil {
+				werr = fmt.Errorf("create form file: %w", werr)
+				return
+			}
+			if _, werr = io.Copy(part, file); werr != nil {
+				werr = fmt.Errorf("copy file to form: %w", werr)
+				return
+			}
 		}
 		if werr = writer.Close(); werr != nil {
 			werr = fmt.Errorf("close multipart writer: %w", werr)
