@@ -30,8 +30,8 @@ overrides:
   devalue: "5.9.2"
   qs: "6.16.0"
   "@anthropic-ai/sdk": "0.123.0"
-  postcss: "8.5.26"
-  postcss-selector-parser: "7.1.5"
+  postcss: "8.5.28"
+  postcss-selector-parser: "7.1.6"
   esbuild: "0.28.2"
   "ip-address": "10.7.0"
   hono: "4.13.5"
@@ -57,6 +57,10 @@ overrides:
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
   prosemirror-model: "1.25.11"
+  # @tiptap/pm 3.31.2 pulls prosemirror-view 1.42.3 while nested PM packages
+  # still resolve 1.42.2; dual copies make DecorationSet unassignable to
+  # Plugin props.decorations (DecorationSource).
+  prosemirror-view: "1.42.3"
 peerDependencyRules:
   allowAny:
     - vite
