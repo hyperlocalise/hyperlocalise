@@ -137,4 +137,79 @@ describe("stampEmailNodePipesUsersOnDefinition", () => {
       workosUserId: "user_operator_b",
     });
   });
+
+  it("rejects client-supplied workosUserId hijacks when the email fingerprint is unchanged", () => {
+    const previous = emailDefinition([
+      {
+        id: "email-1",
+        type: "action.notify_email",
+        config: {
+          kind: "action.notify_email",
+          provider: "resend",
+          from: "ops@example.com",
+          recipients: "team@example.com",
+          subject: "Hello",
+          message: "Body",
+          workosUserId: "user_operator_a",
+        },
+      },
+    ]);
+
+    const next = emailDefinition([
+      {
+        id: "email-1",
+        type: "action.notify_email",
+        config: {
+          kind: "action.notify_email",
+          provider: "resend",
+          from: "ops@example.com",
+          recipients: "team@example.com",
+          subject: "Hello",
+          message: "Body",
+          workosUserId: "user_victim_pipes_owner",
+        },
+      },
+    ]);
+
+    const stamped = stampEmailNodePipesUsersOnDefinition({
+      definition: next,
+      previousDefinition: previous,
+      actorWorkosUserId: "user_attacker",
+    });
+
+    expect(stamped.nodes[0]?.config).toMatchObject({
+      workosUserId: "user_operator_a",
+    });
+  });
+
+  it("strips client-supplied workosUserId when there is no actor to stamp", () => {
+    const definition = emailDefinition([
+      {
+        id: "email-1",
+        type: "action.notify_email",
+        config: {
+          kind: "action.notify_email",
+          provider: "resend",
+          from: "ops@example.com",
+          recipients: "team@example.com",
+          subject: "Hello",
+          message: "Body",
+          workosUserId: "user_victim_pipes_owner",
+        },
+      },
+    ]);
+
+    const stamped = stampEmailNodePipesUsersOnDefinition({
+      definition,
+    });
+
+    expect(stamped.nodes[0]?.config).toEqual({
+      kind: "action.notify_email",
+      provider: "resend",
+      from: "ops@example.com",
+      recipients: "team@example.com",
+      subject: "Hello",
+      message: "Body",
+    });
+  });
 });
