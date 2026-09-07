@@ -25,7 +25,7 @@
     "@ai-sdk/mcp": "^2.0.16",
     "@ai-sdk/openai": "4.0.58",
     "@ai-sdk/react": "^4.0.40",
-    "@base-ui/react": "1.7.0",
+    "@base-ui/react": "1.8.0",
     "@chat-adapter/github": "4.35.0",
     "@chat-adapter/slack": "4.35.0",
     "@chat-adapter/state-memory": "4.35.0",
@@ -197,7 +197,7 @@
     "typescript": "7.0.2",
     "vite-plus": "0.3.0"
   },
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@12.3.3",
   "msw": {
     "workerDirectory": [
       "public"

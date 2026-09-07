@@ -19,7 +19,7 @@ import { isReleaseSandboxVcrImageEnabled } from "@/lib/flags/release-flags";
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.10.0";
+export const sandboxHyperlocaliseReleaseVersion = "1.11.0";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.

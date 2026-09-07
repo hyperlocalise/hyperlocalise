@@ -3,7 +3,7 @@
 # This starter intentionally skips advanced sections like groups, rules, and remote cache config.
 # When groups are omitted, Hyperlocalise runs all buckets for all target locales.
 # Pin the Hyperlocalise CLI version (like packageManager in package.json).
-# version: hyperlocalise@1.10.0
+# version: hyperlocalise@1.11.0
 locales:
   # Source locale: the language your original content is written in.
   source: en-US
