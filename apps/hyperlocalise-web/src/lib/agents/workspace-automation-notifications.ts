@@ -69,8 +69,18 @@ export async function notifyWorkspaceAutomationTerminalRun(input: {
   }
 
   const email = input.automation.toolConfig.email;
-  if (email?.enabled && email.recipients && email.recipients.length > 0) {
+  if (
+    email?.enabled &&
+    email.recipients &&
+    email.recipients.length > 0 &&
+    email.from?.trim() &&
+    email.workosUserId
+  ) {
     const result = await runWorkspaceAutomationEmailNotificationTool({
+      organizationId: input.automation.organizationId,
+      provider: email.provider ?? "resend",
+      workosUserId: email.workosUserId,
+      from: email.from.trim(),
       recipients: email.recipients,
       subject: `Automation run ${input.run.status}: ${input.automation.name}`,
       message,

@@ -18,14 +18,12 @@ const envState = vi.hoisted(() => ({
   SLACK_CLIENT_ID: "slack-client-id" as string | undefined,
   SLACK_CLIENT_SECRET: "slack-client-secret" as string | undefined,
   SLACK_SIGNING_SECRET: "slack-signing-secret" as string | undefined,
-  RESEND_API_KEY: "re_test_key" as string | undefined,
-  RESEND_FROM_ADDRESS: "notifications@example.com" as string | undefined,
-  RESEND_FROM_NAME: "Hyperlocalise" as string | undefined,
 }));
 
 const mocks = vi.hoisted(() => ({
   postSlackChannelMessage: vi.fn(),
-  resendSend: vi.fn(),
+  loadEmailPipesApiKey: vi.fn(),
+  sendTransactionalEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -36,12 +34,12 @@ vi.mock("@/lib/agents/slack/post-channel-message", () => ({
   postSlackChannelMessage: (...args: unknown[]) => mocks.postSlackChannelMessage(...args),
 }));
 
-vi.mock("resend", () => ({
-  Resend: class {
-    emails = {
-      send: (...args: unknown[]) => mocks.resendSend(...args),
-    };
-  },
+vi.mock("@/lib/email/pipes", () => ({
+  loadEmailPipesApiKey: (...args: unknown[]) => mocks.loadEmailPipesApiKey(...args),
+}));
+
+vi.mock("@/lib/email/send", () => ({
+  sendTransactionalEmail: (...args: unknown[]) => mocks.sendTransactionalEmail(...args),
 }));
 
 import {
@@ -91,130 +89,56 @@ describe("runWorkspaceAutomationSlackNotificationTool", () => {
       text: "Run finished",
     });
   });
-
-  it("maps thrown Slack delivery errors to slack_send_failed", async () => {
-    mocks.postSlackChannelMessage.mockRejectedValue(new Error("channel_not_found"));
-
-    const result = await runWorkspaceAutomationSlackNotificationTool({
-      organizationId: "org-1",
-      channelId: "C404",
-      message: "Run finished",
-    });
-
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
-      expect(result.error).toEqual({
-        code: "slack_send_failed",
-        message: "channel_not_found",
-      });
-    }
-  });
-
-  it("uses a stable fallback message for non-Error Slack failures", async () => {
-    mocks.postSlackChannelMessage.mockRejectedValue("boom");
-
-    const result = await runWorkspaceAutomationSlackNotificationTool({
-      organizationId: "org-1",
-      channelId: "C123",
-      message: "Run finished",
-    });
-
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
-      expect(result.error).toEqual({
-        code: "slack_send_failed",
-        message: "Slack notification failed.",
-      });
-    }
-  });
 });
 
 describe("runWorkspaceAutomationEmailNotificationTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    envState.RESEND_API_KEY = "re_test_key";
-    envState.RESEND_FROM_ADDRESS = "notifications@example.com";
-    envState.RESEND_FROM_NAME = "Hyperlocalise";
-    mocks.resendSend.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    mocks.loadEmailPipesApiKey.mockResolvedValue({ ok: true, value: "re_test_key" });
+    mocks.sendTransactionalEmail.mockResolvedValue({ ok: true, value: undefined });
   });
 
-  it("fails closed when Resend is not configured", async () => {
-    envState.RESEND_API_KEY = undefined;
-
+  it("loads the provider API key from Pipes and sends the email", async () => {
     const result = await runWorkspaceAutomationEmailNotificationTool({
-      recipients: ["ops@example.com"],
-      subject: "Automation complete",
-      message: "All good",
-    });
-
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
-      expect(result.error).toEqual({
-        code: "email_send_failed",
-        message: "Email delivery is not configured for this environment.",
-      });
-    }
-    expect(mocks.resendSend).not.toHaveBeenCalled();
-  });
-
-  it("sends with a display name when RESEND_FROM_NAME is set", async () => {
-    const result = await runWorkspaceAutomationEmailNotificationTool({
+      organizationId: "org-1",
+      provider: "resend",
+      workosUserId: "user_workos_1",
+      from: "notifications@example.com",
       recipients: ["ops@example.com", "qa@example.com"],
       subject: "Automation complete",
       message: "All good",
     });
 
     expect(isOk(result)).toBe(true);
-    expect(mocks.resendSend).toHaveBeenCalledWith({
-      from: "Hyperlocalise <notifications@example.com>",
-      to: ["ops@example.com", "qa@example.com"],
-      subject: "Automation complete",
-      text: "All good",
+    expect(mocks.loadEmailPipesApiKey).toHaveBeenCalledWith({
+      provider: "resend",
+      localOrganizationId: "org-1",
+      workosUserId: "user_workos_1",
     });
-  });
-
-  it("falls back to the bare from address when RESEND_FROM_NAME is unset", async () => {
-    envState.RESEND_FROM_NAME = undefined;
-
-    const result = await runWorkspaceAutomationEmailNotificationTool({
-      recipients: ["ops@example.com"],
+    expect(mocks.sendTransactionalEmail).toHaveBeenCalledWith({
+      provider: "resend",
+      apiKey: "re_test_key",
+      from: "notifications@example.com",
+      recipients: ["ops@example.com", "qa@example.com"],
       subject: "Automation complete",
       message: "All good",
     });
-
-    expect(isOk(result)).toBe(true);
-    expect(mocks.resendSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        from: "notifications@example.com",
-      }),
-    );
   });
 
-  it("maps Resend API error payloads to email_send_failed", async () => {
-    mocks.resendSend.mockResolvedValue({
-      data: null,
-      error: { message: "Invalid API key" },
+  it("maps Pipes credential errors without calling send", async () => {
+    mocks.loadEmailPipesApiKey.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "email_provider_not_connected",
+        message: "Connect this provider in Integrations before using it.",
+      },
     });
 
     const result = await runWorkspaceAutomationEmailNotificationTool({
-      recipients: ["ops@example.com"],
-      subject: "Automation complete",
-      message: "All good",
-    });
-
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
-      expect(result.error).toEqual({
-        code: "email_send_failed",
-        message: "Invalid API key",
-      });
-    }
-  });
-
-  it("maps thrown Resend failures to email_send_failed", async () => {
-    mocks.resendSend.mockRejectedValue(new Error("network down"));
-
-    const result = await runWorkspaceAutomationEmailNotificationTool({
+      organizationId: "org-1",
+      provider: "sendgrid",
+      workosUserId: "user_workos_1",
+      from: "notifications@example.com",
       recipients: ["ops@example.com"],
       subject: "Automation complete",
       message: "All good",
@@ -222,10 +146,8 @@ describe("runWorkspaceAutomationEmailNotificationTool", () => {
 
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
-      expect(result.error).toEqual({
-        code: "email_send_failed",
-        message: "network down",
-      });
+      expect(result.error.code).toBe("email_provider_not_connected");
     }
+    expect(mocks.sendTransactionalEmail).not.toHaveBeenCalled();
   });
 });

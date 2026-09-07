@@ -23,6 +23,7 @@ import {
   type WorkspaceAutomationTriggerConfig,
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
+import type { EmailProviderSlug } from "@/lib/email/constants";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
@@ -61,6 +62,8 @@ export type WorkspaceAutomationFormState = {
   slackEnabled: boolean;
   slackChannelId: string;
   emailEnabled: boolean;
+  emailProvider: EmailProviderSlug;
+  emailFrom: string;
   emailRecipients: string[];
   githubCommentEnabled: boolean;
   contentfulEnabled: boolean;
@@ -121,6 +124,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "githubEvents"
     | "slackChannelId"
     | "emailRecipients"
+    | "emailFrom"
     | "contentfulConnectionId"
     | "contentfulTargetLocales"
     | "contentfulEntryId"
@@ -151,7 +155,14 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
-  email_not_connected: "Enable the email agent in Integrations before using email notifications.",
+  email_not_connected:
+    "Connect an email provider in Integrations before using email notifications.",
+  email_provider_not_connected:
+    "Connect an email provider in Integrations before using email notifications.",
+  email_pipes_needs_reauthorization:
+    "Reconnect your email provider in Integrations, then try again.",
+  email_pipes_unavailable: "Email providers are unavailable until WorkOS Pipes is configured.",
+  email_from_required: "Add a verified sender address for email notifications.",
   email_recipients_required: "Add at least one email recipient.",
   contentful_connection_required: "Choose a Contentful connection.",
   contentful_target_locales_required: "Add at least one target locale for Contentful translation.",
@@ -215,6 +226,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     slackEnabled: false,
     slackChannelId: "",
     emailEnabled: false,
+    emailProvider: "resend",
+    emailFrom: "",
     emailRecipients: [],
     githubCommentEnabled: false,
     contentfulEnabled: false,
@@ -308,6 +321,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     slackEnabled: Boolean(slack?.enabled),
     slackChannelId: slack?.channelId ?? "",
     emailEnabled: Boolean(email?.enabled),
+    emailProvider: email?.provider ?? "resend",
+    emailFrom: email?.from ?? "",
     emailRecipients: email?.recipients ? [...email.recipients] : [],
     githubCommentEnabled: Boolean(automation.toolConfig.githubComment?.enabled),
     contentfulEnabled: Boolean(contentful?.enabled),
@@ -465,6 +480,8 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           email: {
             enabled: true,
+            provider: form.emailProvider,
+            from: form.emailFrom.trim() || undefined,
             recipients: form.emailRecipients,
           },
         }
@@ -649,8 +666,13 @@ export function validateWorkspaceAutomationFormState(
     errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
 
-  if (form.emailEnabled && form.emailRecipients.length === 0) {
-    errors.emailRecipients = "Add at least one email recipient.";
+  if (form.emailEnabled) {
+    if (form.emailRecipients.length === 0) {
+      errors.emailRecipients = "Add at least one email recipient.";
+    }
+    if (!form.emailFrom.trim()) {
+      errors.emailFrom = "Add a verified sender address.";
+    }
   }
 
   if (form.contentfulEnabled) {
@@ -731,8 +753,13 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "slack_channel_required":
       return { slackChannelId: message };
     case "email_not_connected":
+    case "email_provider_not_connected":
+    case "email_pipes_needs_reauthorization":
+    case "email_pipes_unavailable":
     case "email_recipients_required":
       return { emailRecipients: message };
+    case "email_from_required":
+      return { emailFrom: message };
     case "contentful_connection_required":
       return { contentfulConnectionId: message };
     case "contentful_target_locales_required":

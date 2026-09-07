@@ -152,6 +152,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeHttp;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
+    case "action.notify_email":
+      return messages.nodeNotifyEmail;
     case "logic.if":
       return messages.nodeIf;
     case "logic.switch":
@@ -179,6 +181,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeHttpHint;
     case "action.notify_slack":
       return messages.nodeNotifySlackHint;
+    case "action.notify_email":
+      return messages.nodeNotifyEmailHint;
     case "logic.if":
       return messages.nodeIfHint;
     case "logic.switch":

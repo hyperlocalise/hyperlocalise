@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
@@ -137,9 +138,12 @@ const slackToolConfigSchema = z
 const emailToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
+    provider: z.enum(EMAIL_PROVIDER_SLUGS).default("resend"),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    from: z.string().email().optional(),
     recipients: z.array(z.string().email()).min(1).max(10).optional(),
   })
-  .default({ enabled: false });
+  .default({ enabled: false, provider: "resend" });
 
 const githubCommentToolConfigSchema = z
   .object({
@@ -418,8 +422,20 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Choose a Slack channel for automation notifications.";
     }
   | {
-      code: "email_not_connected";
-      message: "Enable the email agent before using email notifications.";
+      code: "email_provider_not_connected";
+      message: "Connect an email provider in Integrations before using email notifications.";
+    }
+  | {
+      code: "email_pipes_needs_reauthorization";
+      message: "Reconnect your email provider in Integrations, then try again.";
+    }
+  | {
+      code: "email_pipes_unavailable";
+      message: "WorkOS is not configured, so email providers cannot connect through Pipes.";
+    }
+  | {
+      code: "email_from_required";
+      message: "Add a verified sender address for email notifications.";
     }
   | {
       code: "email_recipients_required";

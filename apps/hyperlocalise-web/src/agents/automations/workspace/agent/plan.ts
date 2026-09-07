@@ -125,7 +125,9 @@ function notificationToolEnabled(
       return Boolean(
         toolConfig.email?.enabled &&
         toolConfig.email.recipients &&
-        toolConfig.email.recipients.length > 0,
+        toolConfig.email.recipients.length > 0 &&
+        toolConfig.email.from?.trim() &&
+        toolConfig.email.workosUserId,
       );
     case "notify_github_comment":
       return Boolean(toolConfig.githubComment?.enabled);

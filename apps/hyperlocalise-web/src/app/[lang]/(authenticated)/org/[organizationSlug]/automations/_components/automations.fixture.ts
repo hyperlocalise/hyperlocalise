@@ -68,6 +68,7 @@ export function createAutomationSummary(
       },
       email: {
         enabled: false,
+        provider: "resend",
       },
       contentful: disabledContentfulToolConfig,
     },
@@ -107,6 +108,8 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
       },
       email: {
         enabled: true,
+        provider: "resend",
+        from: "team@example.com",
         recipients: ["team@example.com"],
       },
       contentful: disabledContentfulToolConfig,
@@ -133,6 +136,7 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
       },
       email: {
         enabled: false,
+        provider: "resend",
       },
       contentful: disabledContentfulToolConfig,
     },

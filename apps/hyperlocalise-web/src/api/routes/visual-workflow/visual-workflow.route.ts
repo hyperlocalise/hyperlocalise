@@ -184,6 +184,7 @@ export function createVisualWorkflowRoutes() {
       const result = await createVisualWorkflow({
         organizationId: c.var.auth.organization.localOrganizationId,
         authorUserId: c.var.auth.user.localUserId,
+        actorWorkosUserId: c.var.auth.user.workosUserId,
         projectId: body.projectId,
         name: body.name,
         definition: body.definition,
@@ -218,6 +219,7 @@ export function createVisualWorkflowRoutes() {
       const result = await updateVisualWorkflow({
         organizationId: c.var.auth.organization.localOrganizationId,
         visualWorkflowId,
+        actorWorkosUserId: c.var.auth.user.workosUserId,
         name: body.name,
         definition: body.definition,
         status: body.status,

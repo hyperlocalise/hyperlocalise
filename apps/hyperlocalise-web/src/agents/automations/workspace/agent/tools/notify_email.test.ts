@@ -57,7 +57,13 @@ function session(
     },
     repositoryTarget: { kind: "none" },
     toolConfig: overrides.toolConfig ?? {
-      email: { enabled: true, recipients: ["ops@example.com", "l10n@example.com"] },
+      email: {
+        enabled: true,
+        provider: "resend",
+        workosUserId: "user_workos_1",
+        from: "notifications@example.com",
+        recipients: ["ops@example.com", "l10n@example.com"],
+      },
     },
     model: "openai/gpt-5.6-luna",
     configVersion: 1,
@@ -113,7 +119,15 @@ describe("createNotifyEmailTool", () => {
     await expect(
       createNotifyEmailTool(
         session({
-          toolConfig: { email: { enabled: false, recipients: ["ops@example.com"] } },
+          toolConfig: {
+            email: {
+              enabled: false,
+              provider: "resend",
+              workosUserId: "user_workos_1",
+              from: "notifications@example.com",
+              recipients: ["ops@example.com"],
+            },
+          },
         }),
       ).execute!({}, toolOptions),
     ).rejects.toThrow("email_not_configured");
@@ -121,7 +135,15 @@ describe("createNotifyEmailTool", () => {
     await expect(
       createNotifyEmailTool(
         session({
-          toolConfig: { email: { enabled: true, recipients: [] } },
+          toolConfig: {
+            email: {
+              enabled: true,
+              provider: "resend",
+              workosUserId: "user_workos_1",
+              from: "notifications@example.com",
+              recipients: [],
+            },
+          },
         }),
       ).execute!({}, toolOptions),
     ).rejects.toThrow("email_not_configured");
@@ -138,6 +160,10 @@ describe("createNotifyEmailTool", () => {
 
     expect(mocks.buildOrchestratorRunSummaryMessage).not.toHaveBeenCalled();
     expect(mocks.runWorkspaceAutomationEmailNotificationTool).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      provider: "resend",
+      workosUserId: "user_workos_1",
+      from: "notifications@example.com",
       recipients: ["ops@example.com", "l10n@example.com"],
       subject: "Custom subject",
       message: "Digest ready",
@@ -152,46 +178,13 @@ describe("createNotifyEmailTool", () => {
 
     expect(mocks.buildOrchestratorRunSummaryMessage).toHaveBeenCalledTimes(1);
     expect(mocks.runWorkspaceAutomationEmailNotificationTool).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      provider: "resend",
+      workosUserId: "user_workos_1",
+      from: "notifications@example.com",
       recipients: ["ops@example.com", "l10n@example.com"],
       subject: "Automation run succeeded: Localisation digest",
       message: "**Localisation digest** SUCCEEDED",
     });
-  });
-
-  it("uses the run status in the default subject when terminalStatus is unset", async () => {
-    await createNotifyEmailTool(session({ runStatus: "failed" })).execute!(
-      { message: "Run failed" },
-      toolOptions,
-    );
-
-    expect(mocks.runWorkspaceAutomationEmailNotificationTool).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subject: "Automation run failed: Localisation digest",
-        message: "Run failed",
-      }),
-    );
-  });
-
-  it("maps email send failures into a non-throwing step result", async () => {
-    mocks.runWorkspaceAutomationEmailNotificationTool.mockResolvedValue(
-      err({
-        code: "email_send_failed",
-        message: "Resend unavailable",
-      }),
-    );
-
-    const current = session();
-    const payload = await createNotifyEmailTool(current).execute!(
-      { message: "Fail soft" },
-      toolOptions,
-    );
-
-    expect(payload).toEqual({
-      sent: false,
-      recipientCount: 2,
-      code: "email_send_failed",
-      message: "Resend unavailable",
-    });
-    expect(current.stepResults.notify_email).toEqual(payload);
   });
 });

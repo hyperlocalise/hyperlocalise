@@ -203,6 +203,8 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeHttp;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
+    case "action.notify_email":
+      return messages.nodeNotifyEmail;
     case "logic.if":
       return messages.nodeIf;
     case "logic.switch":

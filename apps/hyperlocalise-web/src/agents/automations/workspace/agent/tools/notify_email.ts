@@ -28,7 +28,13 @@ export function createNotifyEmailTool(session: WorkspaceOrchestratorSession) {
     }),
     execute: async ({ message, subject }) => {
       const email = session.automation.toolConfig.email;
-      if (!email?.enabled || !email.recipients || email.recipients.length === 0) {
+      if (
+        !email?.enabled ||
+        !email.recipients ||
+        email.recipients.length === 0 ||
+        !email.from?.trim() ||
+        !email.workosUserId
+      ) {
         throw new Error("email_not_configured");
       }
 
@@ -38,6 +44,10 @@ export function createNotifyEmailTool(session: WorkspaceOrchestratorSession) {
         `Automation run ${session.terminalStatus ?? session.run.status}: ${session.automation.name}`;
 
       const result = await runWorkspaceAutomationEmailNotificationTool({
+        organizationId: session.organizationId,
+        provider: email.provider ?? "resend",
+        workosUserId: email.workosUserId,
+        from: email.from.trim(),
         recipients: email.recipients,
         subject: resolvedSubject,
         message: text,

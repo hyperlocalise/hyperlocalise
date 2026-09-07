@@ -32,6 +32,7 @@ import {
 } from "./schema/serializers";
 import type { VisualWorkflowDefinition } from "./schema/types";
 import { validateVisualWorkflowDefinition } from "./validation/validate-workflow";
+import { stampEmailNodePipesUsersOnDefinition } from "./stamp-email-node-pipes-users";
 import type {
   VisualWorkflowRecord,
   VisualWorkflowStatus,
@@ -213,6 +214,7 @@ export async function getVisualWorkflowById(input: {
 export async function createVisualWorkflow(input: {
   organizationId: string;
   authorUserId?: string | null;
+  actorWorkosUserId?: string | null;
   projectId?: string | null;
   name?: string;
   definition?: VisualWorkflowDefinition;
@@ -238,9 +240,13 @@ export async function createVisualWorkflow(input: {
   const definition =
     input.definition ??
     createEmptyVisualWorkflowDefinition(input.name?.trim() || "Untitled workflow");
-  const name = input.name?.trim() || definition.name;
+  const stampedDefinition = stampEmailNodePipesUsersOnDefinition({
+    definition,
+    actorWorkosUserId: input.actorWorkosUserId,
+  });
+  const name = input.name?.trim() || stampedDefinition.name;
 
-  const validated = validateVisualWorkflowPayload({ name, definition });
+  const validated = validateVisualWorkflowPayload({ name, definition: stampedDefinition });
   if (isErr(validated)) {
     return validated;
   }
@@ -300,6 +306,7 @@ export async function createVisualWorkflow(input: {
 export async function updateVisualWorkflow(input: {
   organizationId: string;
   visualWorkflowId: string;
+  actorWorkosUserId?: string | null;
   name?: string;
   definition?: VisualWorkflowDefinition;
   status?: VisualWorkflowStatus;
@@ -348,13 +355,18 @@ export async function updateVisualWorkflow(input: {
 
   const nextName = input.name?.trim() || existing.name;
   const nextDefinition = input.definition ?? existing.definition;
-
-  const validated = validateVisualWorkflowPayload({
-    name: nextName,
+  const stampedDefinition = stampEmailNodePipesUsersOnDefinition({
     definition: {
       ...nextDefinition,
       name: nextName,
     },
+    previousDefinition: existing.definition,
+    actorWorkosUserId: input.actorWorkosUserId,
+  });
+
+  const validated = validateVisualWorkflowPayload({
+    name: nextName,
+    definition: stampedDefinition,
   });
   if (isErr(validated)) {
     return validated;
