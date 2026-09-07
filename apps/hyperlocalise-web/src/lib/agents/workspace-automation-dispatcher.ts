@@ -51,6 +51,7 @@ import {
 } from "./workspace-automation-types";
 import type { WorkspaceAutomationExecutionQueue } from "@/lib/workflow/types";
 import { createWorkspaceAutomationExecutionQueue } from "@/workflows/adapters";
+import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
 
 const logger = createLogger("workspace-automation-dispatch");
 
@@ -163,6 +164,9 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   inputSnapshot?: Record<string, unknown>;
   preDispatchSkipReason?: string | null;
   retryFailedRuns?: boolean;
+  actorKind?: ActivityActorKind;
+  actorUserId?: string | null;
+  actorCredentialId?: string | null;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult> {
   const snapshot = {
@@ -225,6 +229,9 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
       },
       completedAt: skipReason ? new Date() : null,
       outputSummary: skipReason ? { skipReason } : {},
+      actorKind: input.actorKind,
+      actorUserId: input.actorUserId,
+      actorCredentialId: input.actorCredentialId,
     }));
 
   const inserted = !existing;
@@ -280,6 +287,9 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
   idempotencyKey: string;
   inputSnapshot?: Record<string, unknown>;
   queue?: WorkspaceAutomationExecutionQueue;
+  actorKind?: ActivityActorKind;
+  actorUserId?: string | null;
+  actorCredentialId?: string | null;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
   if (input.automation.status !== "active") {
     return null;
@@ -327,6 +337,9 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
       triggerSource: "manual",
     }),
     queue: input.queue,
+    actorKind: input.actorKind,
+    actorUserId: input.actorUserId,
+    actorCredentialId: input.actorCredentialId,
   });
 }
 

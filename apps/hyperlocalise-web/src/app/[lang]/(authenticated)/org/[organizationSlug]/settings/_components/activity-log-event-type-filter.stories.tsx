@@ -15,13 +15,17 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import {
-  V1_ACTIVITY_EVENT_TYPES,
-  type V1ActivityEventType,
+  IMPLEMENTED_ACTIVITY_EVENT_TYPES,
+  type ImplementedActivityEventType,
 } from "@/lib/activity-log/activity-log-contract";
 
 import { ActivityLogEventTypeFilter } from "./activity-log-event-type-filter";
 
-function EventTypeFilterStory({ initialValue = [] }: { initialValue?: V1ActivityEventType[] }) {
+function EventTypeFilterStory({
+  initialValue = [],
+}: {
+  initialValue?: ImplementedActivityEventType[];
+}) {
   const [value, setValue] = useState(initialValue);
 
   return (
@@ -84,15 +88,15 @@ export const SearchAndSelect: Story = {
 
 export const EveryEventTypeSelected: Story = {
   args: {
-    initialValue: [...V1_ACTIVITY_EVENT_TYPES],
+    initialValue: [...IMPLEMENTED_ACTIVITY_EVENT_TYPES],
   },
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByText(`${V1_ACTIVITY_EVENT_TYPES.length} event types`),
+      canvas.getByText(`${IMPLEMENTED_ACTIVITY_EVENT_TYPES.length} event types`),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Remove Member Invited" })).toBeInTheDocument();
     await expect(
-      canvas.getByText(`+${V1_ACTIVITY_EVENT_TYPES.length - 3} more`),
+      canvas.getByText(`+${IMPLEMENTED_ACTIVITY_EVENT_TYPES.length - 3} more`),
     ).toBeInTheDocument();
   },
 };

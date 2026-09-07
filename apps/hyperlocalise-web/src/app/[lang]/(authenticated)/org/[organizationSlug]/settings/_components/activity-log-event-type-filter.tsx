@@ -28,8 +28,8 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
-  V1_ACTIVITY_EVENT_TYPES,
-  type V1ActivityEventType,
+  IMPLEMENTED_ACTIVITY_EVENT_TYPES,
+  type ImplementedActivityEventType,
 } from "@/lib/activity-log/activity-log-contract";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ import { cn } from "@/lib/primitives/cn";
 import { activityLogsPageContentMessages as messages } from "./activity-logs-page-content.messages";
 
 type EventTypeGroup = {
-  eventTypes: readonly V1ActivityEventType[];
+  eventTypes: readonly ImplementedActivityEventType[];
   icon: typeof UserGroup02Icon;
   label: MessageDescriptor;
 };
@@ -105,6 +105,16 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "translation_memory_project_detached",
     ],
   },
+  {
+    icon: DatabaseIcon,
+    label: messages.jobEventGroup,
+    eventTypes: ["job_created", "job_cancelled", "job_failed"],
+  },
+  {
+    icon: PuzzleIcon,
+    label: messages.automationEventGroup,
+    eventTypes: ["automation_run_started", "automation_enabled", "automation_disabled"],
+  },
 ];
 
 const eventTypeLabels = {
@@ -132,27 +142,33 @@ const eventTypeLabels = {
   translation_memory_exported: messages.translationMemoryExportedEventType,
   translation_memory_project_attached: messages.translationMemoryProjectAttachedEventType,
   translation_memory_project_detached: messages.translationMemoryProjectDetachedEventType,
-} satisfies Record<V1ActivityEventType, MessageDescriptor>;
+  job_created: messages.jobCreatedEventType,
+  job_cancelled: messages.jobCancelledEventType,
+  job_failed: messages.jobFailedEventType,
+  automation_run_started: messages.automationRunStartedEventType,
+  automation_enabled: messages.automationEnabledEventType,
+  automation_disabled: messages.automationDisabledEventType,
+} satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
 export function ActivityLogEventTypeFilter({
   value,
   onChange,
 }: {
-  value: V1ActivityEventType[];
-  onChange: (value: V1ActivityEventType[]) => void;
+  value: ImplementedActivityEventType[];
+  onChange: (value: ImplementedActivityEventType[]) => void;
 }) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const selected = useMemo(() => new Set(value), [value]);
 
-  const toggleEventType = (eventType: V1ActivityEventType) => {
+  const toggleEventType = (eventType: ImplementedActivityEventType) => {
     const next = new Set(selected);
     if (next.has(eventType)) next.delete(eventType);
     else next.add(eventType);
-    onChange(V1_ACTIVITY_EVENT_TYPES.filter((item) => next.has(item)));
+    onChange(IMPLEMENTED_ACTIVITY_EVENT_TYPES.filter((item) => next.has(item)));
   };
 
-  const formatEventType = (eventType: V1ActivityEventType) =>
+  const formatEventType = (eventType: ImplementedActivityEventType) =>
     intl.formatMessage(eventTypeLabels[eventType]);
   const selectedPreview = value.slice(0, 2).map(formatEventType).join(", ");
   const remainingCount = value.length - 2;
@@ -200,8 +216,8 @@ export function ActivityLogEventTypeFilter({
                 type="button"
                 variant="ghost"
                 size="xs"
-                onClick={() => onChange([...V1_ACTIVITY_EVENT_TYPES])}
-                disabled={value.length === V1_ACTIVITY_EVENT_TYPES.length}
+                onClick={() => onChange([...IMPLEMENTED_ACTIVITY_EVENT_TYPES])}
+                disabled={value.length === IMPLEMENTED_ACTIVITY_EVENT_TYPES.length}
               >
                 <FormattedMessage {...messages.selectAllEventTypes} />
               </Button>

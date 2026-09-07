@@ -65,6 +65,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
+import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automation-events";
 
 import {
   createWorkspaceAutomationBodySchema,
@@ -685,17 +686,47 @@ export function createWorkspaceAutomationRoutes(
           return mapAutomationConfigValidationError(c, result.error);
         }
 
-        if (!result.value) {
-          return notFoundResponse(c, "workspace_automation_not_found");
+        let automation = result.value;
+        let statusTransitionApplied = Boolean(automation);
+        if (!automation) {
+          const current = await getWorkspaceAutomationById({
+            automationId: params.automationId,
+            organizationId,
+          });
+          if (!current) {
+            return notFoundResponse(c, "workspace_automation_not_found");
+          }
+          statusTransitionApplied = false;
+          automation = current;
+        }
+
+        if (
+          payload.status !== undefined &&
+          payload.status !== existing.status &&
+          statusTransitionApplied &&
+          (payload.status === "active" ||
+            existing.status === "active" ||
+            payload.status === "paused" ||
+            existing.status === "paused")
+        ) {
+          await enqueueAutomationStatusActivity({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            automationId: existing.id,
+            name: automation.name,
+            organizationId,
+            status: automation.status,
+          });
         }
 
         const recentRuns = await listWorkspaceAutomationRuns({
-          automationId: result.value.id,
+          automationId: automation.id,
           organizationId,
           limit: 10,
         });
 
-        return c.json({ automation: result.value, recentRuns }, 200);
+        return c.json({ automation, recentRuns }, 200);
       } catch (error) {
         return mapAutomationError(c, error);
       }
@@ -703,6 +734,13 @@ export function createWorkspaceAutomationRoutes(
     .delete("/:automationId", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
+      const existing = await getWorkspaceAutomationById({
+        automationId: params.automationId,
+        organizationId,
+      });
+      if (!existing) {
+        return notFoundResponse(c, "workspace_automation_not_found");
+      }
       const result = await updateWorkspaceAutomation({
         automationId: params.automationId,
         organizationId,
@@ -716,6 +754,18 @@ export function createWorkspaceAutomationRoutes(
 
       if (!result.value) {
         return notFoundResponse(c, "workspace_automation_not_found");
+      }
+
+      if (existing.status !== "archived") {
+        await enqueueAutomationStatusActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          automationId: existing.id,
+          name: result.value.name,
+          organizationId,
+          status: "archived",
+        });
       }
 
       return c.body(null, 204);
@@ -882,6 +932,8 @@ export function createWorkspaceAutomationRoutes(
           automation,
           idempotencyKey: payload.idempotencyKey,
           inputSnapshot: payload.inputSnapshot,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
         });
 
         if (!result) {

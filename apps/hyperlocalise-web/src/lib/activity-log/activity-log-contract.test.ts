@@ -38,6 +38,8 @@ describe("activity log contract", () => {
       "project",
       "glossary",
       "translation_memory",
+      "job",
+      "automation",
     ]);
   });
 

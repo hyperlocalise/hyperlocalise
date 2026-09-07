@@ -16,16 +16,25 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, workspaceAutomationExecutionEnqueueMock } =
-  vi.hoisted(() => ({
-    resolveApiAuthContextFromSessionMock: vi.fn(
-      (options) =>
-        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-        globalThis.__testApiAuthContext ??
-        null,
-    ),
-    workspaceAutomationExecutionEnqueueMock: vi.fn(async () => ({ ids: ["workflow-run-1"] })),
-  }));
+const {
+  enqueueAutomationStatusActivityMock,
+  resolveApiAuthContextFromSessionMock,
+  workspaceAutomationExecutionEnqueueMock,
+} = vi.hoisted(() => ({
+  enqueueAutomationStatusActivityMock: vi.fn(),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  workspaceAutomationExecutionEnqueueMock: vi.fn(async () => ({ ids: ["workflow-run-1"] })),
+}));
+
+vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueAutomationRunStartedActivity: vi.fn(),
+  enqueueAutomationStatusActivity: enqueueAutomationStatusActivityMock,
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -131,6 +140,61 @@ async function seedGithubRepository(input: { organizationId: string }) {
 }
 
 describe("workspace automation routes", () => {
+  it("records automation disable and enable transitions with the user actor", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Daily localization check",
+          instructions: "Check localization health.",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    const created = (await createdResponse.json()) as { automation: { id: string } };
+
+    for (const status of ["paused", "active"] as const) {
+      const response = await client.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$patch(
+        {
+          param: { organizationSlug, automationId: created.automation.id },
+          json: { status },
+        },
+        { headers },
+      );
+      expect(response.status).toBe(200);
+    }
+
+    expect(enqueueAutomationStatusActivityMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: expect.any(String),
+        automationId: created.automation.id,
+        name: "Daily localization check",
+        status: "paused",
+      }),
+    );
+    expect(enqueueAutomationStatusActivityMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: created.automation.id,
+        name: "Daily localization check",
+        status: "active",
+      }),
+    );
+  });
+
   it("creates, reads, updates, lists, and archives automations for an operator", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { UIMessage } from "ai";
+import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
 
 import {
   agentRunKindEnum,
@@ -105,6 +106,9 @@ export const workspaceAutomationRuns = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     triggerSource: workspaceAutomationRunTriggerSourceEnum("trigger_source").notNull(),
     status: workspaceAutomationRunStatusEnum("status").notNull().default("queued"),
+    actorKind: text("actor_kind").$type<ActivityActorKind>().notNull().default("system"),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    actorCredentialId: text("actor_credential_id"),
     idempotencyKey: text("idempotency_key"),
     inputSnapshot: jsonb("input_snapshot")
       .$type<Record<string, unknown>>()

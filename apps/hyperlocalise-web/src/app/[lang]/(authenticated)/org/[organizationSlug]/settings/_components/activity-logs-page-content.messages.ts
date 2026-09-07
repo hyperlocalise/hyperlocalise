@@ -200,6 +200,36 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "WMQy9MxPzs",
     description: "Activity log event type label for detaching translation memory from a project",
   },
+  jobCreatedEventType: {
+    defaultMessage: "Job Created",
+    id: "GlcR7TOaql",
+    description: "Activity log event type label for job creation",
+  },
+  jobCancelledEventType: {
+    defaultMessage: "Job Cancelled",
+    id: "2gIxGrBEow",
+    description: "Activity log event type label for job cancellation",
+  },
+  jobFailedEventType: {
+    defaultMessage: "Job Failed",
+    id: "dnuXZ5sBJ3",
+    description: "Activity log event type label for job failure",
+  },
+  automationRunStartedEventType: {
+    defaultMessage: "Automation Run Started",
+    id: "Rrk/UZvARR",
+    description: "Activity log event type label for automation runs",
+  },
+  automationEnabledEventType: {
+    defaultMessage: "Automation Enabled",
+    id: "ejzfGTXY46",
+    description: "Activity log event type label for enabling automations",
+  },
+  automationDisabledEventType: {
+    defaultMessage: "Automation Disabled",
+    id: "uIkNdFV4AX",
+    description: "Activity log event type label for disabling automations",
+  },
   membershipEventGroup: {
     defaultMessage: "Membership",
     id: "3Di0YY2oCY",
@@ -234,6 +264,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Translation memory",
     id: "c8j3V+HaKx",
     description: "Activity log event type group for translation memory",
+  },
+  jobEventGroup: {
+    defaultMessage: "Jobs",
+    id: "bOrc6CzqiC",
+    description: "Activity log event type group for jobs",
+  },
+  automationEventGroup: {
+    defaultMessage: "Automations",
+    id: "JA+rxr35jC",
+    description: "Activity log event type group for automations",
   },
   actorLabel: {
     defaultMessage: "Actor",
@@ -459,5 +499,35 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "detached translation memory from a project",
     id: "sz2LfqYMb0",
     description: "Action for detaching translation memory from a project",
+  },
+  jobCreatedAction: {
+    defaultMessage: "created a job",
+    id: "H81hDnXoeT",
+    description: "Action for job creation",
+  },
+  jobCancelledAction: {
+    defaultMessage: "cancelled a job",
+    id: "mDY8Zlbd4D",
+    description: "Action for job cancellation",
+  },
+  jobFailedAction: {
+    defaultMessage: "recorded a failed job",
+    id: "xOg2DDTtXl",
+    description: "Action for job failure",
+  },
+  automationRunStartedAction: {
+    defaultMessage: "started an automation run",
+    id: "U76tWGMJVU",
+    description: "Action for starting an automation run",
+  },
+  automationEnabledAction: {
+    defaultMessage: "enabled an automation",
+    id: "OzcJw6zkPj",
+    description: "Action for enabling an automation",
+  },
+  automationDisabledAction: {
+    defaultMessage: "disabled an automation",
+    id: "MmRAbYJJub",
+    description: "Action for disabling an automation",
   },
 });

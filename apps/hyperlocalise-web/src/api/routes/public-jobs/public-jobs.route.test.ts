@@ -16,8 +16,9 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+const { ensureAiFeaturesAllowedMock, enqueueJobCreatedActivityMock } = vi.hoisted(() => ({
   ensureAiFeaturesAllowedMock: vi.fn(),
+  enqueueJobCreatedActivityMock: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
@@ -27,6 +28,11 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
     ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
   };
 });
+
+vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueJobCreatedActivity: enqueueJobCreatedActivityMock,
+  enqueueJobFailedActivity: vi.fn(),
+}));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -171,6 +177,16 @@ describe("publicJobRoutes", () => {
       projectId: project.id,
       type: "string",
     });
+    expect(enqueueJobCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorCredentialId: expect.any(String),
+        actorKind: "api_key",
+        jobId: body.job.id,
+        organizationId: project.organizationId,
+        projectId: project.id,
+        status: "queued",
+      }),
+    );
 
     const [usageEvent] = await db
       .select({

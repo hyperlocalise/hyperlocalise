@@ -22,6 +22,8 @@ import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { enqueueAutomationRunStartedActivity } from "@/lib/activity-log/job-automation-events";
+import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
@@ -888,6 +890,9 @@ export async function updateWorkspaceAutomation(input: {
     eq(schema.workspaceAutomations.id, input.automationId),
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
   ];
+  if (input.status !== undefined && input.status !== existing.status) {
+    updateConditions.push(eq(schema.workspaceAutomations.status, existing.status));
+  }
   if (configChanged) {
     updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
   }
@@ -1269,6 +1274,9 @@ export async function createWorkspaceAutomationRun(input: {
   githubRepositoryAutomationJobId?: string | null;
   startedAt?: Date | null;
   completedAt?: Date | null;
+  actorKind?: ActivityActorKind;
+  actorUserId?: string | null;
+  actorCredentialId?: string | null;
 }): Promise<WorkspaceAutomationRunRecord> {
   const automation = await getWorkspaceAutomationById({
     automationId: input.automationId,
@@ -1296,6 +1304,9 @@ export async function createWorkspaceAutomationRun(input: {
       organizationId: input.organizationId,
       triggerSource: input.triggerSource,
       status: input.status ?? "queued",
+      actorKind: input.actorKind ?? "system",
+      actorUserId: input.actorUserId ?? null,
+      actorCredentialId: input.actorCredentialId ?? null,
       idempotencyKey: input.idempotencyKey ?? null,
       inputSnapshot: input.inputSnapshot ?? {},
       outputSummary: input.outputSummary ?? {},
@@ -1326,6 +1337,19 @@ export async function createWorkspaceAutomationRun(input: {
 
   if (!row) {
     throw new Error("failed_to_create_workspace_automation_run");
+  }
+
+  if (row.status === "running") {
+    await enqueueAutomationRunStartedActivity({
+      actorCredentialId: row.actorCredentialId,
+      actorKind: row.actorKind,
+      actorUserId: row.actorUserId,
+      automationId: row.automationId,
+      name: automation.name,
+      organizationId: row.organizationId,
+      runId: row.id,
+      triggerSource: row.triggerSource,
+    });
   }
 
   return serializeAutomationRun(row);
@@ -1394,28 +1418,78 @@ export async function updateWorkspaceAutomationRun(input: {
   startedAt?: Date | null;
   completedAt?: Date | null;
 }): Promise<WorkspaceAutomationRunRecord | null> {
-  const [row] = await db
-    .update(schema.workspaceAutomationRuns)
-    .set({
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.outputSummary !== undefined ? { outputSummary: input.outputSummary } : {}),
-      ...(input.error !== undefined ? { error: input.error } : {}),
-      ...(input.githubRepositoryAutomationJobId !== undefined
-        ? { githubRepositoryAutomationJobId: input.githubRepositoryAutomationJobId }
-        : {}),
-      ...(input.startedAt !== undefined ? { startedAt: input.startedAt } : {}),
-      ...(input.completedAt !== undefined ? { completedAt: input.completedAt } : {}),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.workspaceAutomationRuns.id, input.runId),
-        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
-      ),
-    )
-    .returning();
+  const transition = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        automationId: schema.workspaceAutomationRuns.automationId,
+        automationName: schema.workspaceAutomations.name,
+        status: schema.workspaceAutomationRuns.status,
+        triggerSource: schema.workspaceAutomationRuns.triggerSource,
+        actorKind: schema.workspaceAutomationRuns.actorKind,
+        actorUserId: schema.workspaceAutomationRuns.actorUserId,
+        actorCredentialId: schema.workspaceAutomationRuns.actorCredentialId,
+      })
+      .from(schema.workspaceAutomationRuns)
+      .innerJoin(
+        schema.workspaceAutomations,
+        eq(schema.workspaceAutomations.id, schema.workspaceAutomationRuns.automationId),
+      )
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1)
+      .for("update");
 
-  return row ? serializeAutomationRun(row) : null;
+    if (!existing) return null;
+
+    const [row] = await tx
+      .update(schema.workspaceAutomationRuns)
+      .set({
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.outputSummary !== undefined ? { outputSummary: input.outputSummary } : {}),
+        ...(input.error !== undefined ? { error: input.error } : {}),
+        ...(input.githubRepositoryAutomationJobId !== undefined
+          ? { githubRepositoryAutomationJobId: input.githubRepositoryAutomationJobId }
+          : {}),
+        ...(input.startedAt !== undefined ? { startedAt: input.startedAt } : {}),
+        ...(input.completedAt !== undefined ? { completedAt: input.completedAt } : {}),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      )
+      .returning();
+
+    return row
+      ? {
+          row,
+          existing,
+          shouldEmitStarted: input.status === "running" && existing.status !== "running",
+        }
+      : null;
+  });
+
+  if (transition?.shouldEmitStarted) {
+    const { row, existing } = transition;
+    await enqueueAutomationRunStartedActivity({
+      actorCredentialId: existing.actorCredentialId,
+      actorKind: existing.actorKind,
+      actorUserId: existing.actorUserId,
+      automationId: row.automationId,
+      name: existing.automationName,
+      organizationId: row.organizationId,
+      runId: row.id,
+      triggerSource: row.triggerSource,
+    });
+  }
+
+  return transition?.row ? serializeAutomationRun(transition.row) : null;
 }
 
 export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
