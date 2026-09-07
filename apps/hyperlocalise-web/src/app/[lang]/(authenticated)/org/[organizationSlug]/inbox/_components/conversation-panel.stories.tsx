@@ -31,7 +31,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className="flex h-[40rem] min-h-0 flex-col bg-background">
+      <div className="flex h-[40rem] min-h-0 flex-col overflow-hidden bg-background">
         <Story />
       </div>
     ),

@@ -36,8 +36,8 @@ const meta = {
   decorators: [
     (Story) => (
       <div
-        className="h-svh min-h-0 overflow-hidden"
-        style={{ "--app-shell-content-height": "100svh" } as CSSProperties}
+        className="flex h-[40rem] min-h-0 flex-col overflow-hidden"
+        style={{ "--app-shell-content-height": "40rem" } as CSSProperties}
       >
         <Story />
       </div>
