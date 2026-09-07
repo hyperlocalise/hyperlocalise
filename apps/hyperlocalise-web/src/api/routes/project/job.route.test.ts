@@ -37,14 +37,23 @@ import type { ProjectResponse } from "./project.schema";
 import type { TeamResponse } from "../team/team.schema";
 import type { WorkspaceJobsResponse } from "./job.schema";
 
-const { resolveApiAuthContextFromSessionMock, ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+const {
+  enqueueJobCancelledActivityMock,
+  enqueueJobCreatedActivityMock,
+  enqueueJobFailedActivityMock,
+  ensureAiFeaturesAllowedMock,
+  resolveApiAuthContextFromSessionMock,
+} = vi.hoisted(() => ({
+  enqueueJobCancelledActivityMock: vi.fn(),
+  enqueueJobCreatedActivityMock: vi.fn(),
+  enqueueJobFailedActivityMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-  ensureAiFeaturesAllowedMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -62,6 +71,12 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
     ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
   };
 });
+
+vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueJobCancelledActivity: enqueueJobCancelledActivityMock,
+  enqueueJobCreatedActivity: enqueueJobCreatedActivityMock,
+  enqueueJobFailedActivity: enqueueJobFailedActivityMock,
+}));
 
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture(client);
@@ -532,6 +547,17 @@ describe("project job create", () => {
     };
     expect(body.job.kind).toBe("proofread");
     expect(body.job.status).toBe("waiting_for_review");
+    expect(enqueueJobCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: expect.any(String),
+        jobId: body.job.id,
+        organizationId: organization.id,
+        projectId: project.id,
+        status: "waiting_for_review",
+      }),
+    );
     expect(enqueueJob).not.toHaveBeenCalled();
     expect(ensureAiFeaturesAllowedMock).not.toHaveBeenCalled();
   });

@@ -37,6 +37,10 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  enqueueJobCreatedActivity,
+  enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
 import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
 import type { DatabaseTransaction } from "@/lib/database/client";
 
@@ -347,6 +351,17 @@ async function createQueuedJob(
       return createdJob;
     });
 
+    await enqueueJobCreatedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: ctx.localUserId ?? null,
+      jobId: job.id,
+      kind: job.kind,
+      organizationId: job.organizationId,
+      projectId: job.projectId,
+      status: job.status,
+    });
+
     return ok(job);
   } catch (error) {
     if (error instanceof JobCreationRollbackError) {
@@ -553,6 +568,17 @@ async function createTranslationJobRecord(
       return createdJob;
     });
 
+    await enqueueJobCreatedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: ctx.localUserId ?? null,
+      jobId: job.id,
+      kind: job.kind,
+      organizationId: job.organizationId,
+      projectId: job.projectId,
+      status: job.status,
+    });
+
     return ok(job);
   } catch (error) {
     if (error instanceof JobCreationRollbackError) {
@@ -608,6 +634,18 @@ async function enqueueTranslationJob(input: {
           eq(schema.jobs.organizationId, input.ctx.organizationId),
         ),
       );
+
+    await enqueueJobFailedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: input.ctx.localUserId ?? null,
+      errorCode: "translation_job_queue_unavailable",
+      jobId: input.job.id,
+      kind: input.job.kind,
+      organizationId: input.ctx.organizationId,
+      projectId: input.job.projectId,
+      status: "failed",
+    });
 
     return err({
       code: "translation_job_queue_unavailable",
@@ -733,6 +771,17 @@ async function createReviewJobRecord(
       return createdJob;
     });
 
+    await enqueueJobCreatedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: ctx.localUserId ?? null,
+      jobId: job.id,
+      kind: job.kind,
+      organizationId: job.organizationId,
+      projectId: job.projectId,
+      status: job.status,
+    });
+
     return ok(job);
   } catch (error) {
     if (error instanceof JobCreationRollbackError) {
@@ -779,6 +828,18 @@ async function enqueueReviewJob(input: {
           eq(schema.jobs.organizationId, input.ctx.organizationId),
         ),
       );
+
+    await enqueueJobFailedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: input.ctx.localUserId ?? null,
+      errorCode: "review_job_queue_unavailable",
+      jobId: input.job.id,
+      kind: input.job.kind,
+      organizationId: input.ctx.organizationId,
+      projectId: input.job.projectId,
+      status: "failed",
+    });
 
     return err({
       code: "review_job_queue_unavailable",
@@ -944,6 +1005,17 @@ async function createSyncJobRecord(
       return createdJob;
     });
 
+    await enqueueJobCreatedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: ctx.localUserId ?? null,
+      jobId: job.id,
+      kind: job.kind,
+      organizationId: job.organizationId,
+      projectId: job.projectId,
+      status: job.status,
+    });
+
     return ok(job);
   } catch (error) {
     if (error instanceof JobCreationRollbackError) {
@@ -1038,6 +1110,17 @@ async function createAssetManagementJobRecord(
       });
 
       return createdJob;
+    });
+
+    await enqueueJobCreatedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: ctx.localUserId ?? null,
+      jobId: job.id,
+      kind: job.kind,
+      organizationId: job.organizationId,
+      projectId: job.projectId,
+      status: job.status,
     });
 
     return ok(job);

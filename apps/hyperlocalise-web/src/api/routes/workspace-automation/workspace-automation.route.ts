@@ -65,6 +65,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
+import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automation-events";
 
 import {
   createWorkspaceAutomationBodySchema,
@@ -689,6 +690,25 @@ export function createWorkspaceAutomationRoutes(
           return notFoundResponse(c, "workspace_automation_not_found");
         }
 
+        if (
+          payload.status !== undefined &&
+          payload.status !== existing.status &&
+          (payload.status === "active" ||
+            existing.status === "active" ||
+            payload.status === "paused" ||
+            existing.status === "paused")
+        ) {
+          await enqueueAutomationStatusActivity({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            automationId: existing.id,
+            name: result.value.name,
+            organizationId,
+            status: result.value.status,
+          });
+        }
+
         const recentRuns = await listWorkspaceAutomationRuns({
           automationId: result.value.id,
           organizationId,
@@ -703,6 +723,13 @@ export function createWorkspaceAutomationRoutes(
     .delete("/:automationId", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
+      const existing = await getWorkspaceAutomationById({
+        automationId: params.automationId,
+        organizationId,
+      });
+      if (!existing) {
+        return notFoundResponse(c, "workspace_automation_not_found");
+      }
       const result = await updateWorkspaceAutomation({
         automationId: params.automationId,
         organizationId,
@@ -716,6 +743,18 @@ export function createWorkspaceAutomationRoutes(
 
       if (!result.value) {
         return notFoundResponse(c, "workspace_automation_not_found");
+      }
+
+      if (existing.status !== "archived") {
+        await enqueueAutomationStatusActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          automationId: existing.id,
+          name: result.value.name,
+          organizationId,
+          status: "archived",
+        });
       }
 
       return c.body(null, 204);

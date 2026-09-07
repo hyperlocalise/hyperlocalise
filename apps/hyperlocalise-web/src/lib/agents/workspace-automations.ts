@@ -22,6 +22,7 @@ import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { enqueueAutomationRunStartedActivity } from "@/lib/activity-log/job-automation-events";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
@@ -1328,6 +1329,19 @@ export async function createWorkspaceAutomationRun(input: {
     throw new Error("failed_to_create_workspace_automation_run");
   }
 
+  if (row.status === "running") {
+    await enqueueAutomationRunStartedActivity({
+      actorCredentialId: null,
+      actorKind: "system",
+      actorUserId: null,
+      automationId: row.automationId,
+      name: automation.name,
+      organizationId: row.organizationId,
+      runId: row.id,
+      triggerSource: row.triggerSource,
+    });
+  }
+
   return serializeAutomationRun(row);
 }
 
@@ -1394,6 +1408,26 @@ export async function updateWorkspaceAutomationRun(input: {
   startedAt?: Date | null;
   completedAt?: Date | null;
 }): Promise<WorkspaceAutomationRunRecord | null> {
+  const [existing] = await db
+    .select({
+      automationId: schema.workspaceAutomationRuns.automationId,
+      automationName: schema.workspaceAutomations.name,
+      status: schema.workspaceAutomationRuns.status,
+      triggerSource: schema.workspaceAutomationRuns.triggerSource,
+    })
+    .from(schema.workspaceAutomationRuns)
+    .innerJoin(
+      schema.workspaceAutomations,
+      eq(schema.workspaceAutomations.id, schema.workspaceAutomationRuns.automationId),
+    )
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.id, input.runId),
+        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
   const [row] = await db
     .update(schema.workspaceAutomationRuns)
     .set({
@@ -1414,6 +1448,19 @@ export async function updateWorkspaceAutomationRun(input: {
       ),
     )
     .returning();
+
+  if (row && input.status === "running" && existing?.status !== "running") {
+    await enqueueAutomationRunStartedActivity({
+      actorCredentialId: null,
+      actorKind: "system",
+      actorUserId: null,
+      automationId: row.automationId,
+      name: existing.automationName,
+      organizationId: row.organizationId,
+      runId: row.id,
+      triggerSource: row.triggerSource,
+    });
+  }
 
   return row ? serializeAutomationRun(row) : null;
 }

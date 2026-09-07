@@ -25,7 +25,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import type { V1ActivityEventType } from "@/lib/activity-log/activity-log-contract";
+import type { ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TypographyP } from "@/components/ui/typography";
@@ -36,7 +36,7 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 export type ActivityLogItem = {
   actor: { displayName: string; kind: string; userId: string | null };
   createdAt: string;
-  eventType: V1ActivityEventType;
+  eventType: ImplementedActivityEventType;
   id: string;
   payload: Record<string, unknown>;
   target: { displayName: string | null; href: string | null; kind: string };
@@ -67,6 +67,12 @@ const eventActions = {
   translation_memory_exported: messages.translationMemoryExportedAction,
   translation_memory_project_attached: messages.translationMemoryProjectAttachedAction,
   translation_memory_project_detached: messages.translationMemoryProjectDetachedAction,
+  job_created: messages.jobCreatedAction,
+  job_cancelled: messages.jobCancelledAction,
+  job_failed: messages.jobFailedAction,
+  automation_run_started: messages.automationRunStartedAction,
+  automation_enabled: messages.automationEnabledAction,
+  automation_disabled: messages.automationDisabledAction,
 };
 
 type ActivityVisual = {
@@ -74,7 +80,7 @@ type ActivityVisual = {
   icon: typeof UserGroup02Icon;
 };
 
-function activityVisual(eventType: V1ActivityEventType): ActivityVisual {
+function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual {
   if (eventType.startsWith("member_")) {
     return { icon: UserGroup02Icon, className: "bg-info/10 text-info" };
   }
@@ -92,6 +98,9 @@ function activityVisual(eventType: V1ActivityEventType): ActivityVisual {
   }
   if (eventType.startsWith("glossary_")) {
     return { icon: BookOpenTextIcon, className: "bg-warning/10 text-warning" };
+  }
+  if (eventType.startsWith("automation_")) {
+    return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }

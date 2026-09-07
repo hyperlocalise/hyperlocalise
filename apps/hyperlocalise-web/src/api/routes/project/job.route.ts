@@ -47,6 +47,11 @@ import {
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  enqueueJobCancelledActivity,
+  enqueueJobCreatedActivity,
+  enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
+import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
@@ -605,6 +610,17 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         throw error;
       }
 
+      await enqueueJobCreatedActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        jobId: job.id,
+        kind: job.kind,
+        organizationId: job.organizationId,
+        projectId: job.projectId,
+        status: job.status,
+      });
+
       if (!isProofreadJob) {
         try {
           await options.jobQueue.enqueue({
@@ -622,6 +638,18 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
                 error instanceof Error ? error.message : "translation job queue unavailable",
             })
             .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+
+          await enqueueJobFailedActivity({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            errorCode: "queue_unavailable",
+            jobId: job.id,
+            kind: job.kind,
+            organizationId: job.organizationId,
+            projectId: job.projectId,
+            status: "failed",
+          });
 
           return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
         }
@@ -1408,6 +1436,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
+      await enqueueJobFailedActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        errorCode: "manual_failure",
+        jobId: updatedJob.id,
+        kind: updatedJob.kind,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        status: "failed",
+      });
+
       const [job] = await db
         .select(jobWithProjectSelect)
         .from(schema.jobs)
@@ -1529,6 +1568,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await enqueueJobCancelledActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        jobId: updatedJob.id,
+        kind: updatedJob.kind,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        status: "cancelled",
+      });
 
       const [job] = await db
         .select(jobWithProjectSelect)

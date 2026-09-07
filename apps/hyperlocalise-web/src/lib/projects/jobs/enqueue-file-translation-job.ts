@@ -12,8 +12,12 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
+import {
+  enqueueJobCreatedActivity,
+  enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import {
@@ -77,6 +81,28 @@ export type EnqueueExistingFileTranslationJobResult =
   | { ok: true; jobId: string; projectId: string }
   | { ok: false; code: string; message: string };
 
+function jobActivityActor(input: { apiKeyId?: string | null; createdByUserId?: string | null }) {
+  if (input.apiKeyId) {
+    return {
+      actorCredentialId: input.apiKeyId,
+      actorKind: "api_key" as const,
+      actorUserId: input.createdByUserId ?? null,
+    };
+  }
+  if (input.createdByUserId) {
+    return {
+      actorCredentialId: null,
+      actorKind: "user" as const,
+      actorUserId: input.createdByUserId,
+    };
+  }
+  return {
+    actorCredentialId: null,
+    actorKind: "agent" as const,
+    actorUserId: null,
+  };
+}
+
 /** Human-readable native file job title: `{filename} · {YYYY-MM-DD HH:mm}` (UTC). */
 export function buildNativeFileTranslationJobTitle(
   filename: string,
@@ -110,7 +136,7 @@ async function markFileTranslationJobEnqueueFailed(input: {
   error: unknown;
 }) {
   try {
-    await db
+    const [failedJob] = await db
       .update(schema.jobs)
       .set({
         status: "failed",
@@ -121,9 +147,29 @@ async function markFileTranslationJobEnqueueFailed(input: {
         and(
           eq(schema.jobs.organizationId, input.organizationId),
           eq(schema.jobs.id, input.jobId),
+          ne(schema.jobs.status, "failed"),
           ...(input.projectId ? [eq(schema.jobs.projectId, input.projectId)] : []),
         ),
-      );
+      )
+      .returning({
+        apiKeyId: schema.jobs.apiKeyId,
+        createdByUserId: schema.jobs.createdByUserId,
+        id: schema.jobs.id,
+        kind: schema.jobs.kind,
+        projectId: schema.jobs.projectId,
+      });
+
+    if (!failedJob) return;
+
+    await enqueueJobFailedActivity({
+      ...jobActivityActor(failedJob),
+      errorCode: "translation_job_enqueue_failed",
+      jobId: failedJob.id,
+      kind: failedJob.kind,
+      organizationId: input.organizationId,
+      projectId: failedJob.projectId,
+      status: "failed",
+    });
   } catch {
     // Best-effort cleanup; preserve the original enqueue failure response.
   }
@@ -302,6 +348,15 @@ export async function createFileTranslationJob(
         projectId: createdJob.projectId ?? input.projectId,
         sourceFileVersionId: sourceFileVersion?.id ?? null,
       };
+    });
+
+    await enqueueJobCreatedActivity({
+      ...jobActivityActor(input),
+      jobId: created.jobId,
+      kind: "translation",
+      organizationId: input.organizationId,
+      projectId: created.projectId,
+      status: "queued",
     });
 
     return { ok: true, ...created };

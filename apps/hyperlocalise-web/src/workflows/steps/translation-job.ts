@@ -186,7 +186,7 @@ export async function markEmailTranslationJobFailed(input: {
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
 
-  await db.transaction(async (tx) => {
+  const failedJob = await db.transaction(async (tx) => {
     const [updatedJob] = await tx
       .update(schema.jobs)
       .set({
@@ -205,7 +205,12 @@ export async function markEmailTranslationJobFailed(input: {
           eq(schema.jobs.workflowRunId, input.workflowRunId),
         ),
       )
-      .returning({ id: schema.jobs.id });
+      .returning({
+        id: schema.jobs.id,
+        kind: schema.jobs.kind,
+        organizationId: schema.jobs.organizationId,
+        projectId: schema.jobs.projectId,
+      });
 
     if (!updatedJob) {
       throw new Error(
@@ -217,6 +222,21 @@ export async function markEmailTranslationJobFailed(input: {
       .update(schema.translationJobDetails)
       .set({ outcomeKind: "error" })
       .where(eq(schema.translationJobDetails.jobId, input.jobId));
+
+    return updatedJob;
+  });
+
+  const { enqueueJobFailedActivity } = await import("@/lib/activity-log/job-automation-events");
+  await enqueueJobFailedActivity({
+    actorCredentialId: null,
+    actorKind: "system",
+    actorUserId: null,
+    errorCode: "email_file_error",
+    jobId: failedJob.id,
+    kind: failedJob.kind,
+    organizationId: failedJob.organizationId,
+    projectId: failedJob.projectId,
+    status: "failed",
   });
 
   const { PRODUCT_USAGE_ANALYTICS_EVENTS } = await import("@/lib/analytics/events");
