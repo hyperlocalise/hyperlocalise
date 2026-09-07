@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
@@ -20,6 +21,7 @@ import {
   currentUserFixture,
   issueNotificationsFixture,
   linkedJobsFixture,
+  longTranscriptFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
@@ -31,6 +33,16 @@ const meta = {
   parameters: {
     layout: "fullscreen",
   },
+  decorators: [
+    (Story) => (
+      <div
+        className="h-svh min-h-0 overflow-hidden"
+        style={{ "--app-shell-content-height": "100svh" } as CSSProperties}
+      >
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     organizationSlug: "acme",
     currentUser: currentUserFixture,
@@ -236,6 +248,17 @@ export const NewRequest: Story = {
     await expect(canvas.getByRole("heading", { name: "New Request" })).toBeInTheDocument();
     await expect(canvas.getByText("Start a localisation request")).toBeInTheDocument();
     await expect(canvas.getByText("Welcome to Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
+  },
+};
+
+export const LongTranscript: Story = {
+  args: {
+    messages: longTranscriptFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(longTranscriptFixture[0]!.text)).toBeInTheDocument();
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
   },

@@ -18,6 +18,7 @@ import {
   createStreamedAssistantMessage,
   currentUserFixture,
   linkedJobsFixture,
+  longTranscriptFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { ConversationPanel } from "./conversation-panel";
@@ -117,5 +118,16 @@ export const Streaming: Story = {
   args: {
     isStreaming: true,
     streamedAssistant: createStreamedAssistantMessage(),
+  },
+};
+
+export const LongTranscript: Story = {
+  args: {
+    messages: longTranscriptFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(longTranscriptFixture[0]!.text)).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
   },
 };

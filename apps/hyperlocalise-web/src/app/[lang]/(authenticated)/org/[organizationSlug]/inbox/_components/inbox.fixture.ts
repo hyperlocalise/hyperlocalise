@@ -171,6 +171,19 @@ export const messagesFixture: ConversationMessage[] = [
   }),
 ];
 
+export const longTranscriptFixture: ConversationMessage[] = Array.from({ length: 20 }, (_, index) =>
+  createConversationMessage({
+    id: `msg_long_${String(index + 1).padStart(2, "0")}`,
+    senderType: index % 2 === 0 ? "user" : "agent",
+    senderEmail: index % 2 === 0 ? "mina@example.com" : null,
+    text:
+      index % 2 === 0
+        ? `Please localize batch ${index + 1} of the homepage, pricing page, and checkout copy for French and German.`
+        : `Started translation jobs for batch ${index + 1}. I'll open a review once French and German are ready.`,
+    createdAt: iso(-1_800_000 + index * 60_000),
+  }),
+);
+
 export const linkedJobsFixture: LinkedJob[] = [
   createLinkedJob(),
   createLinkedJob({
