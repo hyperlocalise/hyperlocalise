@@ -921,6 +921,8 @@ export function createWorkspaceAutomationRoutes(
           automation,
           idempotencyKey: payload.idempotencyKey,
           inputSnapshot: payload.inputSnapshot,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
         });
 
         if (!result) {

@@ -1246,6 +1246,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           })
           .where(eq(schema.jobs.id, restartedJob.id));
 
+        await enqueueJobFailedActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          errorCode: "queue_unavailable",
+          jobId: restartedJob.id,
+          kind: "translation",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: restartedJob.projectId,
+          status: "failed",
+        });
+
         return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
       }
 
@@ -1361,6 +1373,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             .update(schema.translationJobDetails)
             .set({ outcomeKind: "error" })
             .where(eq(schema.translationJobDetails.jobId, params.jobId));
+        });
+
+        await enqueueJobFailedActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          errorCode: "queue_unavailable",
+          jobId: retriedJob.id,
+          kind: "translation",
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: retriedJob.projectId,
+          status: "failed",
         });
 
         return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
