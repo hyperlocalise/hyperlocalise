@@ -718,7 +718,10 @@ function OverviewBoardRow({
           size="sm"
           className={issue.priority === "P1" ? "bg-amber-600 text-[11px]" : "text-[11px]"}
         />
-        <span className="w-12 shrink-0 font-mono text-xs leading-4 text-muted-foreground">
+        <span
+          className="w-24 shrink-0 truncate font-mono text-xs leading-4 text-muted-foreground tabular-nums"
+          title={issue.identifier}
+        >
           {issue.identifier}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
