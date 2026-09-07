@@ -101,6 +101,7 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("action.notify_email"),
     provider: z.enum(EMAIL_PROVIDER_SLUGS).default("resend"),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
     from: z.string().trim().email().max(320),
     recipients: z.string().trim().min(1).max(4000),
     subject: z.string().max(1000),

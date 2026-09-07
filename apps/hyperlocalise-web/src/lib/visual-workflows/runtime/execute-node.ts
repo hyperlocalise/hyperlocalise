@@ -40,7 +40,6 @@ export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
-  workosUserId?: string | null;
 }): Promise<VisualWorkflowNodeExecutionResult> {
   const { node, context } = input;
   const logicResult = executeLogicVisualWorkflowNode({ node, context });
@@ -171,14 +170,15 @@ export async function executeVisualWorkflowNode(input: {
       const recipientsRaw = resolveVisualWorkflowTemplate(node.config.recipients, context).trim();
       const subject = resolveVisualWorkflowTemplate(node.config.subject, context).trim();
       const message = resolveVisualWorkflowTemplate(node.config.message, context).trim();
-      const workosUserId = input.workosUserId?.trim();
+      const workosUserId = node.config.workosUserId?.trim();
 
       if (!workosUserId) {
         return {
           ok: false,
           error: {
             code: "email_provider_not_connected",
-            message: "Connect an email provider in Integrations before sending email.",
+            message:
+              "Reconnect the email provider in Integrations and save the workflow before sending email.",
           },
         };
       }

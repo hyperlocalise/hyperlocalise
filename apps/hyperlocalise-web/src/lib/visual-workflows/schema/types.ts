@@ -94,6 +94,7 @@ export type VisualNodeConfig =
   | {
       kind: "action.notify_email";
       provider: EmailProviderSlug;
+      workosUserId?: string;
       from: string;
       recipients: string;
       subject: string;
