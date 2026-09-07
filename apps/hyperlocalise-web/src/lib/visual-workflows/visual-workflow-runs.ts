@@ -15,6 +15,7 @@ import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 
 import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import type { VisualWorkflowDefinition } from "./schema/types";
@@ -767,9 +768,13 @@ export async function executeVisualWorkflowRun(input: {
   }
 
   const { runVisualWorkflowInterpreter } = await import("./runtime/interpreter-server");
+  const workosUserId = await resolveEmailPipesWorkosUserId({
+    localUserId: workflow.authorUserId,
+  });
   const result = await runVisualWorkflowInterpreter({
     definition,
     organizationId: input.organizationId,
+    workosUserId,
     triggerInput: extractTriggerInputFromRunSnapshot(run.inputSnapshot),
     onNodeUpdate: async (update) => {
       await upsertVisualWorkflowNodeRun({

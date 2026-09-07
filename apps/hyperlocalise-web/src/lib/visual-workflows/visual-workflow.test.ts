@@ -210,6 +210,19 @@ describe("validateVisualWorkflowDefinition config", () => {
       issues.some((issue) => issue.code === "invalid_node_config" && issue.nodeId === "slack"),
     ).toBe(true);
   });
+
+  it("reports invalid node config for default email action", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Email",
+      nodes: [node("t", "trigger.manual"), node("email", "action.notify_email")],
+      edges: [{ id: "e1", source: "t", target: "email" }],
+    });
+
+    const issues = validateVisualWorkflowDefinition(definition);
+    expect(
+      issues.some((issue) => issue.code === "invalid_node_config" && issue.nodeId === "email"),
+    ).toBe(true);
+  });
 });
 
 describe("visual workflow editor graph helpers", () => {

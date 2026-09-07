@@ -290,6 +290,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "5/GGmNLCh0",
     description: "Catalog description for the notify Slack action node",
   },
+  nodeNotifyEmail: {
+    defaultMessage: "Send email",
+    id: "EfYrVZH3dW",
+    description: "Catalog title for the notify email action node",
+  },
+  nodeNotifyEmailHint: {
+    defaultMessage: "Send a transactional email through Resend or SendGrid.",
+    id: "Crp/piiRbB",
+    description: "Catalog description for the notify email action node",
+  },
   addNode: {
     defaultMessage: "Add node",
     id: "H541+RZh2a",
@@ -624,6 +634,41 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Message",
     id: "NGsHVcOyFb",
     description: "Label for Slack message on notify slack node",
+  },
+  emailProvider: {
+    defaultMessage: "Provider",
+    id: "wOs50wH/pI",
+    description: "Label for email provider on notify email node",
+  },
+  emailProviderResend: {
+    defaultMessage: "Resend",
+    id: "thK9pQi9Ut",
+    description: "Resend option on notify email node",
+  },
+  emailProviderSendgrid: {
+    defaultMessage: "SendGrid",
+    id: "ycIxrY94pB",
+    description: "SendGrid option on notify email node",
+  },
+  emailFrom: {
+    defaultMessage: "From address",
+    id: "I+GDyUI23h",
+    description: "Label for sender address on notify email node",
+  },
+  emailRecipients: {
+    defaultMessage: "Recipients",
+    id: "IVA7S1Pi6e",
+    description: "Label for recipients on notify email node",
+  },
+  emailSubject: {
+    defaultMessage: "Subject",
+    id: "oLwNToY1hg",
+    description: "Label for subject on notify email node",
+  },
+  emailMessage: {
+    defaultMessage: "Message",
+    id: "jApfF7IUNd",
+    description: "Label for message body on notify email node",
   },
   githubRepositoryId: {
     defaultMessage: "GitHub repository ID",

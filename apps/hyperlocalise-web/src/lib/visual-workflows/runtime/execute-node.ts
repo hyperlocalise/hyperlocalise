@@ -12,7 +12,10 @@
  */
 import { generateText } from "ai";
 
-import { runWorkspaceAutomationSlackNotificationTool } from "@/lib/agents/workspace-automation/notification-tools";
+import {
+  runWorkspaceAutomationEmailNotificationTool,
+  runWorkspaceAutomationSlackNotificationTool,
+} from "@/lib/agents/workspace-automation/notification-tools";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
@@ -37,6 +40,7 @@ export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  workosUserId?: string | null;
 }): Promise<VisualWorkflowNodeExecutionResult> {
   const { node, context } = input;
   const logicResult = executeLogicVisualWorkflowNode({ node, context });
@@ -159,6 +163,80 @@ export async function executeVisualWorkflowNode(input: {
         output: {
           sent: true,
           channelId,
+        },
+      };
+    }
+    case "action.notify_email": {
+      const from = resolveVisualWorkflowTemplate(node.config.from, context).trim();
+      const recipientsRaw = resolveVisualWorkflowTemplate(node.config.recipients, context).trim();
+      const subject = resolveVisualWorkflowTemplate(node.config.subject, context).trim();
+      const message = resolveVisualWorkflowTemplate(node.config.message, context).trim();
+      const workosUserId = input.workosUserId?.trim();
+
+      if (!workosUserId) {
+        return {
+          ok: false,
+          error: {
+            code: "email_provider_not_connected",
+            message: "Connect an email provider in Integrations before sending email.",
+          },
+        };
+      }
+      if (!from) {
+        return {
+          ok: false,
+          error: { code: "missing_from", message: "Sender email address is required." },
+        };
+      }
+      const recipients = recipientsRaw
+        .split(/[\n,;]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      if (recipients.length === 0) {
+        return {
+          ok: false,
+          error: { code: "missing_recipients", message: "At least one recipient is required." },
+        };
+      }
+      if (!subject) {
+        return {
+          ok: false,
+          error: { code: "missing_subject", message: "Email subject is required." },
+        };
+      }
+      if (!message) {
+        return {
+          ok: false,
+          error: { code: "missing_message", message: "Email message is required." },
+        };
+      }
+
+      const result = await runWorkspaceAutomationEmailNotificationTool({
+        organizationId: input.organizationId,
+        provider: node.config.provider,
+        workosUserId,
+        from,
+        recipients,
+        subject,
+        message,
+      });
+
+      if (!result.ok) {
+        return {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        output: {
+          sent: true,
+          provider: node.config.provider,
+          recipientCount: recipients.length,
         },
       };
     }

@@ -10,15 +10,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Resend } from "resend";
-
+import { loadEmailPipesApiKey } from "@/lib/email/pipes";
+import { sendTransactionalEmail } from "@/lib/email/send";
+import type { EmailProviderSlug } from "@/lib/email/constants";
+import type { EmailPipesError, EmailSendError } from "@/lib/email/types";
 import { env } from "@/lib/env";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-export type WorkspaceAutomationNotificationError = {
-  code: "slack_send_failed" | "email_send_failed" | "notifications_not_configured";
-  message: string;
-};
+export type WorkspaceAutomationNotificationError =
+  | { code: "slack_send_failed"; message: string }
+  | EmailSendError
+  | EmailPipesError
+  | { code: "notifications_not_configured"; message: string };
 
 export async function runWorkspaceAutomationSlackNotificationTool(input: {
   organizationId: string;
@@ -49,40 +52,29 @@ export async function runWorkspaceAutomationSlackNotificationTool(input: {
 }
 
 export async function runWorkspaceAutomationEmailNotificationTool(input: {
+  organizationId: string;
+  provider: EmailProviderSlug;
+  workosUserId: string;
+  from: string;
   recipients: string[];
   subject: string;
   message: string;
 }): Promise<Result<void, WorkspaceAutomationNotificationError>> {
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM_ADDRESS) {
-    return err({
-      code: "email_send_failed",
-      message: "Email delivery is not configured for this environment.",
-    });
+  const apiKeyResult = await loadEmailPipesApiKey({
+    provider: input.provider,
+    localOrganizationId: input.organizationId,
+    workosUserId: input.workosUserId,
+  });
+  if (isErr(apiKeyResult)) {
+    return apiKeyResult;
   }
 
-  try {
-    const resend = new Resend(env.RESEND_API_KEY);
-    const result = await resend.emails.send({
-      from: env.RESEND_FROM_NAME
-        ? `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_ADDRESS}>`
-        : env.RESEND_FROM_ADDRESS,
-      to: input.recipients,
-      subject: input.subject,
-      text: input.message,
-    });
-
-    if (result.error) {
-      return err({
-        code: "email_send_failed",
-        message: result.error.message,
-      });
-    }
-
-    return ok(undefined);
-  } catch (error) {
-    return err({
-      code: "email_send_failed",
-      message: error instanceof Error ? error.message : "Email notification failed.",
-    });
-  }
+  return sendTransactionalEmail({
+    provider: input.provider,
+    apiKey: apiKeyResult.value,
+    from: input.from,
+    recipients: input.recipients,
+    subject: input.subject,
+    message: input.message,
+  });
 }

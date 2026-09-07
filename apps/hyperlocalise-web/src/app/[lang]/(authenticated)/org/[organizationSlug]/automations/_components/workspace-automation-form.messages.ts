@@ -221,9 +221,9 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Shortcut hint when an integration must be connected first",
   },
   enableFirstShortcut: {
-    defaultMessage: "Enable first",
-    id: "ZQbvwhJWXn",
-    description: "Shortcut hint when email must be enabled first",
+    defaultMessage: "Connect first",
+    id: "G7es7H7NT8",
+    description: "Shortcut hint when an email provider must be connected first",
   },
   triggersSection: {
     defaultMessage: "Triggers",
@@ -611,9 +611,9 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Badge when a tool requires connecting an integration first",
   },
   enableFirstBadge: {
-    defaultMessage: "Enable first",
-    id: "33PBu8aQXh",
-    description: "Badge when email notifications require enabling the email agent first",
+    defaultMessage: "Connect first",
+    id: "LoDf9OMJWo",
+    description: "Badge when email notifications require connecting an email provider first",
   },
   slackConnectedDescription: {
     defaultMessage: "Notify a channel when runs reach a terminal state.",
@@ -695,15 +695,40 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Slack channel option label for a public channel",
   },
   emailConnectedDescription: {
-    defaultMessage: "Send terminal run summaries to specific recipients.",
-    id: "DdTfqNy1em",
+    defaultMessage: "Send terminal run summaries through your connected email provider.",
+    id: "cs9xdfnPbE",
     description: "Description for email notifications when email is enabled",
   },
   emailDisconnectedDescription: {
     defaultMessage:
-      "Enable the email agent in <link>Integrations</link> to use email notifications.",
-    id: "QlWnr3uEAw",
+      "Connect Resend or SendGrid in <link>Integrations</link> to use email notifications.",
+    id: "Vl/WJ79qHw",
     description: "Description for email notifications when email is not enabled",
+  },
+  emailProviderLabel: {
+    defaultMessage: "Provider",
+    id: "li9608JKLe",
+    description: "Label for the email provider selector in automation form",
+  },
+  emailProviderResend: {
+    defaultMessage: "Resend",
+    id: "rAeEoKNL9f",
+    description: "Resend option in email provider selector",
+  },
+  emailProviderSendgrid: {
+    defaultMessage: "SendGrid",
+    id: "zvyVcnRDh9",
+    description: "SendGrid option in email provider selector",
+  },
+  emailFromLabel: {
+    defaultMessage: "From address",
+    id: "rJRBMWgpmE",
+    description: "Label for the sender email address field",
+  },
+  emailFromPlaceholder: {
+    defaultMessage: "notifications@company.com",
+    id: "Dea29MjWIQ",
+    description: "Placeholder for the sender email address field",
   },
   removeEmailNotifications: {
     defaultMessage: "Remove email notifications",

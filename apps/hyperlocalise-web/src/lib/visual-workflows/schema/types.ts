@@ -12,6 +12,8 @@
  */
 import type { Edge, Node } from "@xyflow/react";
 
+import type { EmailProviderSlug } from "@/lib/email/constants";
+
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 1 as const;
 
 export type VisualCatalogType =
@@ -21,6 +23,7 @@ export type VisualCatalogType =
   | "trigger.source_upload"
   | "action.http"
   | "action.notify_slack"
+  | "action.notify_email"
   | "logic.if"
   | "logic.switch"
   | "logic.set"
@@ -85,6 +88,15 @@ export type VisualNodeConfig =
   | {
       kind: "action.notify_slack";
       channelId: string;
+      message: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.notify_email";
+      provider: EmailProviderSlug;
+      from: string;
+      recipients: string;
+      subject: string;
       message: string;
       onError?: VisualNodeErrorBehavior;
     }

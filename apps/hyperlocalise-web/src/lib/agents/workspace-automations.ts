@@ -18,6 +18,7 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
+import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -203,11 +204,19 @@ function validateWorkspaceAutomationConfig(input: {
   }
 
   const emailTools = input.toolConfig.email;
-  if (emailTools?.enabled && (!emailTools.recipients || emailTools.recipients.length === 0)) {
-    return err({
-      code: "email_recipients_required",
-      message: "Add at least one email recipient for automation notifications.",
-    });
+  if (emailTools?.enabled) {
+    if (!emailTools.recipients || emailTools.recipients.length === 0) {
+      return err({
+        code: "email_recipients_required",
+        message: "Add at least one email recipient for automation notifications.",
+      });
+    }
+    if (!emailTools.from?.trim()) {
+      return err({
+        code: "email_from_required",
+        message: "Add a verified sender address for email notifications.",
+      });
+    }
   }
 
   const createNativeTmsJob = input.toolConfig.createNativeTmsJob;
@@ -304,21 +313,50 @@ export async function validateWorkspaceAutomationIntegrations(input: {
   }
 
   if (input.toolConfig.email?.enabled) {
-    const [connector] = await database
-      .select({ enabled: schema.connectors.enabled })
-      .from(schema.connectors)
-      .where(
-        and(
-          eq(schema.connectors.organizationId, input.organizationId),
-          eq(schema.connectors.kind, "email"),
-        ),
-      )
-      .limit(1);
-
-    if (!connector?.enabled) {
+    const workosUserId = input.toolConfig.email.workosUserId;
+    if (!workosUserId) {
       return err({
-        code: "email_not_connected",
-        message: "Enable the email agent before using email notifications.",
+        code: "email_provider_not_connected",
+        message: "Connect an email provider in Integrations before using email notifications.",
+      });
+    }
+
+    const provider = input.toolConfig.email.provider ?? "resend";
+    const status = await getEmailPipesConnectionStatus({
+      provider,
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      if (status.error.code === "email_pipes_needs_reauthorization") {
+        return err({
+          code: "email_pipes_needs_reauthorization",
+          message: "Reconnect your email provider in Integrations, then try again.",
+        });
+      }
+      if (status.error.code === "email_provider_not_connected") {
+        return err({
+          code: "email_provider_not_connected",
+          message: "Connect an email provider in Integrations before using email notifications.",
+        });
+      }
+      return err({
+        code: "email_pipes_unavailable",
+        message: "WorkOS is not configured, so email providers cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "email_pipes_needs_reauthorization",
+        message: "Reconnect your email provider in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "email_provider_not_connected",
+        message: "Connect an email provider in Integrations before using email notifications.",
       });
     }
   }
@@ -596,27 +634,45 @@ function shouldLockSemrushConnectionForToolConfig(
   return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
 }
 
-async function stampAhrefsPipesUserOnToolConfig(input: {
+async function stampPipesUsersOnToolConfig(input: {
   toolConfig: WorkspaceAutomationToolConfig;
   actorWorkosUserId?: string | null;
   authorUserId?: string | null;
 }): Promise<WorkspaceAutomationToolConfig> {
-  if (!input.toolConfig.ahrefs?.enabled) {
-    return input.toolConfig;
+  let toolConfig = input.toolConfig;
+
+  if (toolConfig.ahrefs?.enabled) {
+    const workosUserId = await resolveAhrefsPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId ?? toolConfig.ahrefs.workosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      ahrefs: {
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
   }
 
-  const workosUserId = await resolveAhrefsPipesWorkosUserId({
-    workosUserId: input.actorWorkosUserId ?? input.toolConfig.ahrefs.workosUserId,
-    localUserId: input.authorUserId,
-  });
+  if (toolConfig.email?.enabled) {
+    const workosUserId = await resolveEmailPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId ?? toolConfig.email.workosUserId,
+      localUserId: input.authorUserId,
+    });
 
-  return {
-    ...input.toolConfig,
-    ahrefs: {
-      enabled: true,
-      ...(workosUserId ? { workosUserId } : {}),
-    },
-  };
+    toolConfig = {
+      ...toolConfig,
+      email: {
+        ...toolConfig.email,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  return toolConfig;
 }
 
 export async function createWorkspaceAutomation(input: {
@@ -640,7 +696,7 @@ export async function createWorkspaceAutomation(input: {
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
-  const toolConfig = await stampAhrefsPipesUserOnToolConfig({
+  const toolConfig = await stampPipesUsersOnToolConfig({
     toolConfig: config.toolConfig,
     actorWorkosUserId: input.actorWorkosUserId,
     authorUserId: input.authorUserId,
@@ -779,7 +835,7 @@ export async function updateWorkspaceAutomation(input: {
         toolConfig: existing.toolConfig,
       };
   const stampedToolConfig = configChanged
-    ? await stampAhrefsPipesUserOnToolConfig({
+    ? await stampPipesUsersOnToolConfig({
         toolConfig: parsedConfig.toolConfig,
         actorWorkosUserId: input.actorWorkosUserId,
         authorUserId: existing.authorUserId,

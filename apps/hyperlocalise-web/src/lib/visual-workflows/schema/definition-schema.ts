@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -50,6 +51,7 @@ const visualCatalogTypeSchema = z.enum([
   "trigger.source_upload",
   "action.http",
   "action.notify_slack",
+  "action.notify_email",
   "logic.if",
   "logic.switch",
   "logic.set",
@@ -93,6 +95,15 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("action.notify_slack"),
     channelId: z.string().trim().min(1).max(64),
+    message: z.string().max(4000),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.notify_email"),
+    provider: z.enum(EMAIL_PROVIDER_SLUGS).default("resend"),
+    from: z.string().trim().email().max(320),
+    recipients: z.string().trim().min(1).max(4000),
+    subject: z.string().max(1000),
     message: z.string().max(4000),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),

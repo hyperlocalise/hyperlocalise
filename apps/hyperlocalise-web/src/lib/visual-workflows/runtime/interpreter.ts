@@ -367,11 +367,13 @@ export type VisualWorkflowInterpreterExecuteNode = (args: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  workosUserId?: string | null;
 }) => Promise<VisualWorkflowNodeExecutionResult>;
 
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
+  workosUserId?: string | null;
   triggerInput?: Record<string, unknown>;
   executeNode: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;
@@ -414,6 +416,7 @@ export async function runVisualWorkflowInterpreter(input: {
       node,
       context,
       organizationId: input.organizationId,
+      workosUserId: input.workosUserId,
     });
 
     if (!execution.ok) {

@@ -1802,6 +1802,7 @@ function ToolsSettings({
   crowdinLiveProjects,
   disabled,
   emailConnected,
+  emailProviderConnected,
   errors,
   form,
   githubConnected,
@@ -1822,6 +1823,7 @@ function ToolsSettings({
   crowdinLiveProjects: ProjectOption[];
   disabled?: boolean;
   emailConnected: boolean;
+  emailProviderConnected: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
@@ -2153,7 +2155,7 @@ function ToolsSettings({
                 <span>
                   <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
                 </span>
-                {!emailConnected ? (
+                {!emailProviderConnected ? (
                   <Badge variant="secondary">
                     <FormattedMessage {...workspaceAutomationFormMessages.enableFirstBadge} />
                   </Badge>
@@ -2161,7 +2163,7 @@ function ToolsSettings({
               </>
             }
             description={
-              emailConnected
+              emailProviderConnected
                 ? intl.formatMessage(workspaceAutomationFormMessages.emailConnectedDescription)
                 : intl.formatMessage(workspaceAutomationFormMessages.emailDisconnectedDescription, {
                     link: (chunks) => (
@@ -2175,31 +2177,89 @@ function ToolsSettings({
               <DeleteToolButton
                 disabled={disabled}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeEmailNotifications)}
-                onClick={() => onChange({ ...form, emailEnabled: false, emailRecipients: [] })}
-              />
-            }
-          >
-            <div className="grid gap-1.5">
-              <Label htmlFor="email-recipients" className="text-xs text-muted-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.recipientsLabel} />
-              </Label>
-              <Textarea
-                id="email-recipients"
-                value={form.emailRecipients.join("\n")}
-                disabled={disabled || !emailConnected}
-                className="min-h-20 rounded-lg text-sm"
-                placeholder={"ops@company.com\ndev@company.com"}
-                onChange={(event) =>
+                onClick={() =>
                   onChange({
                     ...form,
-                    emailRecipients: event.target.value
-                      .split(/\n|,/)
-                      .map((value) => value.trim())
-                      .filter(Boolean),
+                    emailEnabled: false,
+                    emailRecipients: [],
+                    emailFrom: "",
                   })
                 }
               />
-              <FieldError message={errors.emailRecipients} />
+            }
+          >
+            <div className="grid gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  <FormattedMessage {...workspaceAutomationFormMessages.emailProviderLabel} />
+                </Label>
+                <Select
+                  value={form.emailProvider}
+                  disabled={disabled}
+                  onValueChange={(value) => {
+                    if (value !== "resend" && value !== "sendgrid") {
+                      return;
+                    }
+                    onChange({ ...form, emailProvider: value });
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {form.emailProvider === "sendgrid"
+                        ? intl.formatMessage(workspaceAutomationFormMessages.emailProviderSendgrid)
+                        : intl.formatMessage(workspaceAutomationFormMessages.emailProviderResend)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resend">
+                      <FormattedMessage {...workspaceAutomationFormMessages.emailProviderResend} />
+                    </SelectItem>
+                    <SelectItem value="sendgrid">
+                      <FormattedMessage
+                        {...workspaceAutomationFormMessages.emailProviderSendgrid}
+                      />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="email-from" className="text-xs text-muted-foreground">
+                  <FormattedMessage {...workspaceAutomationFormMessages.emailFromLabel} />
+                </Label>
+                <Input
+                  id="email-from"
+                  type="email"
+                  value={form.emailFrom}
+                  disabled={disabled || !emailProviderConnected}
+                  placeholder={intl.formatMessage(
+                    workspaceAutomationFormMessages.emailFromPlaceholder,
+                  )}
+                  onChange={(event) => onChange({ ...form, emailFrom: event.target.value })}
+                />
+                <FieldError message={errors.emailFrom} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="email-recipients" className="text-xs text-muted-foreground">
+                  <FormattedMessage {...workspaceAutomationFormMessages.recipientsLabel} />
+                </Label>
+                <Textarea
+                  id="email-recipients"
+                  value={form.emailRecipients.join("\n")}
+                  disabled={disabled || !emailProviderConnected}
+                  className="min-h-20 rounded-lg text-sm"
+                  placeholder={"ops@company.com\ndev@company.com"}
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      emailRecipients: event.target.value
+                        .split(/\n|,/)
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+                <FieldError message={errors.emailRecipients} />
+              </div>
             </div>
           </EditorRow>
         ) : null}
@@ -3078,17 +3138,39 @@ export function WorkspaceAutomationEditor({
     },
   });
 
-  const emailQuery = useQuery({
-    queryKey: ["email-agent", organizationSlug],
+  const resendPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, "resend"],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["agent-email"].$get({
-        param: { organizationSlug },
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: "resend" },
       });
       if (!response.ok) {
-        throw new Error("Failed to load email agent settings");
+        throw new Error("Failed to load Resend connection");
       }
       const body = await response.json();
-      return body.emailAgent;
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
+  const sendgridPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, "sendgrid"],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: "sendgrid" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load SendGrid connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
     },
   });
 
@@ -3162,7 +3244,12 @@ export function WorkspaceAutomationEditor({
   );
   const canActivate = workspaceAutomationFormCanActivate(form);
   const slackConnected = Boolean(slackQuery.data?.enabled);
-  const emailConnected = Boolean(emailQuery.data?.enabled);
+  const emailProviderConnected =
+    form.emailProvider === "sendgrid"
+      ? Boolean(sendgridPipesQuery.data?.connected)
+      : Boolean(resendPipesQuery.data?.connected);
+  const emailConnected =
+    Boolean(resendPipesQuery.data?.connected) || Boolean(sendgridPipesQuery.data?.connected);
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
@@ -3304,6 +3391,7 @@ export function WorkspaceAutomationEditor({
             crowdinLiveProjects={crowdinLiveProjects}
             disabled={disabled}
             emailConnected={emailConnected}
+            emailProviderConnected={emailProviderConnected}
             errors={errors}
             form={form}
             githubConnected={githubConnected}

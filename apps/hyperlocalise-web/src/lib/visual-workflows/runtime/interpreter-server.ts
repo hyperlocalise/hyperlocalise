@@ -33,6 +33,7 @@ export { getVisualWorkflowGraphIndex };
 export async function runVisualWorkflowInterpreter(input: {
   definition: VisualWorkflowDefinition;
   organizationId: string;
+  workosUserId?: string | null;
   triggerInput?: Record<string, unknown>;
   executeNode?: VisualWorkflowInterpreterExecuteNode;
   onNodeUpdate?: (update: VisualWorkflowInterpreterNodeUpdate) => Promise<void> | void;

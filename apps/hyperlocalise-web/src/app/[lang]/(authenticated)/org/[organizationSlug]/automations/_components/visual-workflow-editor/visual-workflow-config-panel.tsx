@@ -342,6 +342,70 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
+        {config.kind === "action.notify_email" ? (
+          <>
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.emailProvider} />
+              </Label>
+              <Select
+                value={config.provider}
+                onValueChange={(value) => {
+                  if (value !== "resend" && value !== "sendgrid") {
+                    return;
+                  }
+                  onChangeConfig({ ...config, provider: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {config.provider === "sendgrid"
+                      ? intl.formatMessage(messages.emailProviderSendgrid)
+                      : intl.formatMessage(messages.emailProviderResend)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="resend">
+                    <FormattedMessage {...messages.emailProviderResend} />
+                  </SelectItem>
+                  <SelectItem value="sendgrid">
+                    <FormattedMessage {...messages.emailProviderSendgrid} />
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <TextField
+              id="vw-email-from"
+              label={intl.formatMessage(messages.emailFrom)}
+              value={config.from}
+              onChange={(value) => onChangeConfig({ ...config, from: value })}
+              placeholder="notifications@company.com"
+            />
+            <TextAreaField
+              id="vw-email-recipients"
+              label={intl.formatMessage(messages.emailRecipients)}
+              value={config.recipients}
+              onChange={(value) => onChangeConfig({ ...config, recipients: value })}
+              placeholder="ops@company.com, dev@company.com"
+            />
+            <TextField
+              id="vw-email-subject"
+              label={intl.formatMessage(messages.emailSubject)}
+              value={config.subject}
+              onChange={(value) => onChangeConfig({ ...config, subject: value })}
+            />
+            <TextAreaField
+              id="vw-email-message"
+              label={intl.formatMessage(messages.emailMessage)}
+              value={config.message}
+              onChange={(value) => onChangeConfig({ ...config, message: value })}
+            />
+            <ErrorBehaviorField
+              value={config.onError ?? "stop"}
+              onChange={(onError) => onChangeConfig({ ...config, onError })}
+            />
+          </>
+        ) : null}
         {config.kind === "trigger.github" ? (
           <>
             <TextField

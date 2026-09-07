@@ -17,6 +17,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 const pipesMocks = vi.hoisted(() => ({
   getAhrefsPipesConnectionStatus: vi.fn(),
+  getEmailPipesConnectionStatus: vi.fn(),
 }));
 
 vi.mock("@/lib/ahrefs/pipes", async (importOriginal) => {
@@ -25,6 +26,15 @@ vi.mock("@/lib/ahrefs/pipes", async (importOriginal) => {
     ...actual,
     getAhrefsPipesConnectionStatus: (...args: unknown[]) =>
       pipesMocks.getAhrefsPipesConnectionStatus(...args),
+  };
+});
+
+vi.mock("@/lib/email/pipes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/email/pipes")>();
+  return {
+    ...actual,
+    getEmailPipesConnectionStatus: (...args: unknown[]) =>
+      pipesMocks.getEmailPipesConnectionStatus(...args),
   };
 });
 
@@ -254,6 +264,13 @@ describe("workspace automations", () => {
 
   beforeEach(() => {
     pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
+    pipesMocks.getEmailPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: false,
         needsReauthorization: false,
@@ -1175,17 +1192,30 @@ describe("workspace automations", () => {
       kind: "email",
       enabled: false,
     });
+    pipesMocks.getEmailPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
     const emailDisabled = await createWorkspaceAutomation({
       ...base,
       toolConfig: {
-        email: { enabled: true, recipients: ["ops@example.test"] },
+        email: {
+          enabled: true,
+          provider: "resend",
+          workosUserId: "user_workos_1",
+          from: "notifications@example.test",
+          recipients: ["ops@example.test"],
+        },
       },
     });
     expect(emailDisabled.ok).toBe(false);
     if (emailDisabled.ok) {
       throw new Error("expected email validation error");
     }
-    expect(emailDisabled.error.code).toBe("email_not_connected");
+    expect(emailDisabled.error.code).toBe("email_provider_not_connected");
 
     const mcpMissing = await createWorkspaceAutomation({
       ...base,

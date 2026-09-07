@@ -89,6 +89,62 @@ async function executePlaygroundVisualWorkflowNode(input: {
         },
       };
     }
+    case "action.notify_email": {
+      const from = resolveVisualWorkflowTemplate(input.node.config.from, input.context).trim();
+      const recipientsRaw = resolveVisualWorkflowTemplate(
+        input.node.config.recipients,
+        input.context,
+      ).trim();
+      const subject = resolveVisualWorkflowTemplate(
+        input.node.config.subject,
+        input.context,
+      ).trim();
+      const message = resolveVisualWorkflowTemplate(
+        input.node.config.message,
+        input.context,
+      ).trim();
+      if (!from) {
+        return {
+          ok: false,
+          error: { code: "missing_from", message: "Sender email address is required." },
+        };
+      }
+      const recipients = recipientsRaw
+        .split(/[\n,;]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      if (recipients.length === 0) {
+        return {
+          ok: false,
+          error: { code: "missing_recipients", message: "At least one recipient is required." },
+        };
+      }
+      if (!subject) {
+        return {
+          ok: false,
+          error: { code: "missing_subject", message: "Email subject is required." },
+        };
+      }
+      if (!message) {
+        return {
+          ok: false,
+          error: { code: "missing_message", message: "Email message is required." },
+        };
+      }
+
+      return {
+        ok: true,
+        output: {
+          sent: true,
+          provider: input.node.config.provider,
+          from,
+          recipients,
+          subject,
+          message,
+          simulated: true,
+        },
+      };
+    }
     case "ai.agent": {
       const prompt = resolveVisualWorkflowTemplate(input.node.config.prompt, input.context).trim();
       if (!prompt) {

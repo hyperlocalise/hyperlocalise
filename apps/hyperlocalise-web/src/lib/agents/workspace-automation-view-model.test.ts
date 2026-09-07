@@ -28,6 +28,7 @@ import {
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   selectableAutomationRepositories,
+  type WorkspaceAutomationFormState,
   validateWorkspaceAutomationFormState,
   workspaceAutomationFormCanActivate,
   workspaceAutomationFormHasChanges,
@@ -73,11 +74,11 @@ describe("workspace automation view model", () => {
   });
 
   it("maps form state to API payload", () => {
-    const form = {
+    const form: WorkspaceAutomationFormState = {
       ...createDefaultWorkspaceAutomationFormState(),
       name: "Nightly validation",
       instructions: "Validate repository changes.",
-      triggerMode: "scheduled" as const,
+      triggerMode: "scheduled",
       projectId: "project-1",
       githubEnabled: true,
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
@@ -85,6 +86,8 @@ describe("workspace automation view model", () => {
       slackEnabled: true,
       slackChannelId: "C01234567",
       emailEnabled: true,
+      emailProvider: "resend",
+      emailFrom: "notifications@example.com",
       emailRecipients: ["ops@example.com"],
     };
 
@@ -107,6 +110,8 @@ describe("workspace automation view model", () => {
     });
     expect(payload.toolConfig.email).toEqual({
       enabled: true,
+      provider: "resend",
+      from: "notifications@example.com",
       recipients: ["ops@example.com"],
     });
     expect(payload.model).toBe("openai/gpt-5.6-luna");

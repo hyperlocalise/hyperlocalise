@@ -76,6 +76,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: Mail01Icon,
   },
   {
+    type: "action.notify_email",
+    category: "action",
+    enabled: true,
+    icon: Mail01Icon,
+  },
+  {
     type: "logic.if",
     category: "logic",
     enabled: true,
@@ -150,6 +156,16 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "action.notify_slack":
       return { kind: "action.notify_slack", channelId: "", message: "", onError: "stop" };
+    case "action.notify_email":
+      return {
+        kind: "action.notify_email",
+        provider: "resend",
+        from: "",
+        recipients: "",
+        subject: "",
+        message: "",
+        onError: "stop",
+      };
     case "logic.if":
       return { kind: "logic.if", condition: "" };
     case "logic.switch":
@@ -214,6 +230,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.method;
     case "action.notify_slack":
       return config.channelId ? "Slack" : "Slack channel";
+    case "action.notify_email":
+      return config.from ? config.provider : "Email";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
     case "logic.switch":
