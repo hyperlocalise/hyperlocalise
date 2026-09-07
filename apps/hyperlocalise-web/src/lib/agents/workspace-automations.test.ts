@@ -271,6 +271,7 @@ describe("workspace automations", () => {
   });
 
   beforeEach(() => {
+    enqueueAutomationRunStartedActivityMock.mockClear();
     pipesMocks.getAhrefsPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: false,
