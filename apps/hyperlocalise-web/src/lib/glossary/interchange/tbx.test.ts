@@ -397,8 +397,7 @@ describe("TBX-Basic DCA interchange", () => {
     expect(reparsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
     expect(reparsed.concepts[0]?.id).toBe("c-ota-004");
     expect(reparsed.concepts[0]?.translatable).toBe(true);
-    const reTermId = reparsed.concepts[0]?.terms[0]?.id ?? "";
-    expect(reTermId.startsWith("t-125-")).toBe(true);
+    expect(reparsed.concepts[0]?.terms[0]?.id).toBe("125");
     const reserialized = serializeTbx({
       glossary,
       concepts: reparsed.concepts.map((concept) => ({
@@ -494,6 +493,12 @@ describe("TBX-Basic DCA interchange", () => {
     const reparsed = parseTbx(xml);
     expect(reparsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
     expect(reparsed.concepts).toHaveLength(2);
+    expect(reparsed.concepts.map((item) => item.id)).toEqual(["foo", "c-foo"]);
+    expect(reparsed.concepts.flatMap((item) => item.terms.map((item) => item.id))).toEqual([
+      "bar",
+      "t-bar",
+      "other",
+    ]);
   });
 
   it("rejects malformed XML without truncating valid preceding concepts", () => {

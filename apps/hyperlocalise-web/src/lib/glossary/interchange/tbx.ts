@@ -171,7 +171,7 @@ function addTerm(
 ) {
   const termSec = langSec.ele("termSec", { id: termXmlId });
   termSec.ele("term").txt(term.term);
-  const notes: string[] = [];
+  const notes: string[] = [`[Hyperlocalise::termId]::${JSON.stringify(term.id)}`];
   const addTermNote = (label: string, value: unknown) => {
     if (value === undefined || value === null || value === "") return;
     const serialized = typeof value === "string" ? value : JSON.stringify(value);
@@ -265,6 +265,7 @@ function addConcept(
     conceptEntry.ele("descrip", { type: "definition" }).txt(concept.definition);
   const conceptNotes = [
     encodeTbxUserNote(concept.note.trim()),
+    `[Hyperlocalise::conceptId]::${JSON.stringify(concept.id)}`,
     `[Hyperlocalise::translatable]::${JSON.stringify(concept.translatable)}`,
     concept.createdAt ? `[Hyperlocalise::createdAt]::${concept.createdAt}` : "",
     concept.updatedAt ? `[Hyperlocalise::updatedAt]::${concept.updatedAt}` : "",
@@ -387,7 +388,8 @@ function mergeLanguageDetailNote(
 }
 
 function applyTermLabeledNote(term: MutableTerm, labeled: { key: string; value: unknown }) {
-  if (labeled.key === "partOfSpeech" && typeof labeled.value === "string")
+  if (labeled.key === "termId" && typeof labeled.value === "string") term.id = labeled.value;
+  else if (labeled.key === "partOfSpeech" && typeof labeled.value === "string")
     term.partOfSpeech = labeled.value;
   else if (labeled.key === "gender" && typeof labeled.value === "string")
     term.gender = labeled.value;
@@ -696,6 +698,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
             if (decoded.escaped) return true;
             const labeled = parseLabeledNote(decoded.value);
             if (!labeled) return true;
+            if (labeled.key === "conceptId" && typeof labeled.value === "string") {
+              concept.id = labeled.value;
+              return false;
+            }
             if (labeled.key === "translatable" && typeof labeled.value === "boolean") {
               concept.translatable = labeled.value;
               return false;
