@@ -361,12 +361,57 @@ function parseConceptImport(
   // `unknown_locale` and the import silently completes with zero terms.
   const glossaryLocales = options.glossaryLocales ?? [];
   const knownLocaleKeys = new Set(glossaryLocales.map((locale) => locale.toLowerCase()));
+  // Resolves a raw import locale to the glossary locale, recording a warning
+  // when the Crowdin catalog translation changes it. Returns null when the
+  // locale is not a valid BCP 47 tag.
+  const resolveImportLocale = (
+    rawLocale: string,
+    diagnostic: { conceptId: string; termId?: string; field: string; subject: string },
+  ): { locale: string; mapped: boolean } | null => {
+    const mapped = options.localeMapping[rawLocale] ?? rawLocale;
+    const canonical = canonicalizeLocale(mapped);
+    if (!canonical) return null;
+    if (options.localeMapping[rawLocale] !== undefined || knownLocaleKeys.size === 0) {
+      return { locale: canonical, mapped: false };
+    }
+    if (knownLocaleKeys.has(canonical.toLowerCase())) {
+      return { locale: canonical, mapped: false };
+    }
+    const crowdinMapped = toNativeGlossaryLocale(rawLocale, glossaryLocales);
+    const crowdinCanonical = canonicalizeLocale(crowdinMapped) ?? crowdinMapped;
+    if (
+      crowdinCanonical.toLowerCase() !== canonical.toLowerCase() &&
+      knownLocaleKeys.has(crowdinCanonical.toLowerCase())
+    ) {
+      parsed.diagnostics.push({
+        severity: "warning",
+        code: "locale_mapped",
+        message: `${diagnostic.subject} locale "${rawLocale}" was mapped to the glossary locale "${crowdinCanonical}".`,
+        conceptId: diagnostic.conceptId,
+        ...(diagnostic.termId ? { termId: diagnostic.termId } : {}),
+        field: diagnostic.field,
+      });
+      return { locale: crowdinCanonical, mapped: true };
+    }
+    return { locale: canonical, mapped: false };
+  };
   for (const concept of parsed.concepts) {
+    for (const detail of concept.languageDetails ?? []) {
+      const resolved = resolveImportLocale(detail.locale, {
+        conceptId: concept.id,
+        field: "locale",
+        subject: "Language detail",
+      });
+      if (resolved) detail.locale = resolved.locale;
+    }
     for (const term of concept.terms) {
-      const rawLocale = term.locale;
-      const mapped = options.localeMapping[rawLocale] ?? rawLocale;
-      const canonical = canonicalizeLocale(mapped);
-      if (!canonical) {
+      const resolved = resolveImportLocale(term.locale, {
+        conceptId: concept.id,
+        termId: term.id,
+        field: "locale",
+        subject: "Term",
+      });
+      if (!resolved) {
         parsed.diagnostics.push({
           severity: "error",
           code: "invalid_locale",
@@ -377,32 +422,7 @@ function parseConceptImport(
         });
         continue;
       }
-      if (options.localeMapping[rawLocale] !== undefined || knownLocaleKeys.size === 0) {
-        term.locale = canonical;
-        continue;
-      }
-      if (knownLocaleKeys.has(canonical.toLowerCase())) {
-        term.locale = canonical;
-        continue;
-      }
-      const crowdinMapped = toNativeGlossaryLocale(rawLocale, glossaryLocales);
-      const crowdinCanonical = canonicalizeLocale(crowdinMapped) ?? crowdinMapped;
-      if (
-        crowdinCanonical.toLowerCase() !== canonical.toLowerCase() &&
-        knownLocaleKeys.has(crowdinCanonical.toLowerCase())
-      ) {
-        term.locale = crowdinCanonical;
-        parsed.diagnostics.push({
-          severity: "warning",
-          code: "locale_mapped",
-          message: `Term locale "${rawLocale}" was mapped to the glossary locale "${crowdinCanonical}".`,
-          conceptId: concept.id,
-          termId: term.id,
-          field: "locale",
-        });
-      } else {
-        term.locale = canonical;
-      }
+      term.locale = resolved.locale;
     }
   }
   const entries = entriesFromImportDocument(parsed);

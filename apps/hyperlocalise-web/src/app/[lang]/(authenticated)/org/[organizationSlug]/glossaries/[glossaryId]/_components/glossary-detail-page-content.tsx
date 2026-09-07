@@ -771,17 +771,25 @@ export function GlossaryDetailPageContent({
     },
     onSuccess: async (body) => {
       await invalidateConcepts();
-      const errorDiagnostics = (
-        (body.diagnostics ?? []) as Array<{
-          severity: string;
-          code: string;
-          message: string;
-        }>
-      ).filter((entry) => entry.severity === "error");
-      // A strict-locale import can legitimately apply zero terms (for example
+      // The import endpoint returns a union of preview and applied shapes;
+      // this mutation always uses mode:"merge", so read the applied counters
+      // defensively.
+      const result = body as {
+        imported?: number;
+        updated?: number;
+        merged?: number;
+        diagnostics?: Array<{ severity: string; code: string; message: string }>;
+      };
+      const errorDiagnostics = (result.diagnostics ?? []).filter(
+        (entry) => entry.severity === "error",
+      );
+      // A strict-locale import can legitimately apply zero new terms (for example
       // when every row targets an unconfigured locale). Keep the dialog open
-      // and show why instead of a misleading "Imported 0 terms" success.
-      if ((body.imported ?? 0) === 0 && errorDiagnostics.length > 0) {
+      // and show why instead of a misleading "Imported 0 terms" success — but
+      // only when nothing was applied at all, since merge/update imports
+      // report applied work via `updated`/`merged` rather than `imported`.
+      const applied = (result.imported ?? 0) + (result.updated ?? 0) + (result.merged ?? 0);
+      if (applied === 0 && errorDiagnostics.length > 0) {
         setImportDiagnostics(errorDiagnostics.slice(0, 10));
         toast.error(
           intl.formatMessage(messages.termsImportBlocked, {
@@ -793,7 +801,7 @@ export function GlossaryDetailPageContent({
       setImportDiagnostics([]);
       setImportDialogOpen(false);
       setImportFile(null);
-      toast.success(intl.formatMessage(messages.termsImported, { count: body.imported ?? 0 }));
+      toast.success(intl.formatMessage(messages.termsImported, { count: result.imported ?? 0 }));
     },
     onError: (error) => toast.error(error.message),
   });

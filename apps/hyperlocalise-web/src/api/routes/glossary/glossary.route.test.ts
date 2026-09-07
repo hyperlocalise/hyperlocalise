@@ -350,7 +350,7 @@ describe("glossaryRoutes", () => {
       "<note>[Hyperlocalise::translatable]::true</note>",
       '<langSec xml:lang="en"><termSec id="95"><term>destination</term>',
       '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
-      '<langSec xml:lang="de"><termSec id="101"><term>Reiseziel</term>',
+      '<langSec xml:lang="de"><descrip type="definition">Deutscher Suchbegriff.</descrip><termSec id="101"><term>Reiseziel</term>',
       '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
       '<langSec xml:lang="ja"><termSec id="99"><term>目的地</term>',
       '<termNote type="administrativeStatus">preferredTerm-admn-sts</termNote></termSec></langSec>',
@@ -401,11 +401,17 @@ describe("glossaryRoutes", () => {
     const concepts = (await conceptsResponse.json()) as {
       concepts: Array<{
         definition: string;
+        languageDetails: Array<{ locale: string; definition: string }>;
         terms: Array<{ locale: string; term: string }>;
       }>;
     };
     expect(concepts.concepts).toHaveLength(1);
     expect(concepts.concepts[0]?.definition).toBe("The place a traveler plans to visit.");
+    expect(concepts.concepts[0]?.languageDetails).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: "de-DE", definition: "Deutscher Suchbegriff." }),
+      ]),
+    );
     expect(concepts.concepts[0]?.terms).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ locale: "en-US", term: "destination" }),
