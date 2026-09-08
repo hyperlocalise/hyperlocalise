@@ -72,7 +72,13 @@ describe("fetchCatSegmentValidation", () => {
           sourcePath: "/messages/en.json",
           maxLength: 40,
           targetLocale: "fr-FR",
-          modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch", "spelling"],
+          modes: [
+            "not_localized",
+            "whitespace_only",
+            "same_as_source",
+            "escaped_char_mismatch",
+            "spelling",
+          ],
         }),
       }),
     );
@@ -381,7 +387,13 @@ describe("fetchCatSegmentValidation", () => {
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
       targetLocale: "fr-FR",
-      modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch", "spelling"],
+      modes: [
+        "not_localized",
+        "whitespace_only",
+        "same_as_source",
+        "escaped_char_mismatch",
+        "spelling",
+      ],
     });
   });
 
