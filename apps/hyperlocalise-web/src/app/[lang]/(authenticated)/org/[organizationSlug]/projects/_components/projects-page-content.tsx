@@ -573,7 +573,11 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         />
       ) : null}
 
-      {hasAnyProjects && searchQuery.trim() && !hasFilteredResults && !nativeProjectsQuery.isLoading && !isTmsProjectsLoading ? (
+      {hasAnyProjects &&
+      searchQuery.trim() &&
+      !hasFilteredResults &&
+      !nativeProjectsQuery.isLoading &&
+      !isTmsProjectsLoading ? (
         <div className="border-t border-border px-1 py-8 text-sm text-muted-foreground">
           <FormattedMessage
             {...projectsPageContentMessages.noSearchResults}

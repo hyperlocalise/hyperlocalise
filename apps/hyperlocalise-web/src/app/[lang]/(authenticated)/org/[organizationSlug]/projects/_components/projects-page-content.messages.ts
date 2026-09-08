@@ -82,7 +82,7 @@ export const projectsPageContentMessages = defineMessages({
   },
   pageDescriptionWithTms: {
     defaultMessage: "Manage Hyperlocalise projects and browse live TMS-synced projects.",
-    id: 'PKp1AQm4Ed',
+    id: "PKp1AQm4Ed",
     description: "Projects page description when a TMS provider is connected",
   },
   pageDescriptionWithoutTms: {
@@ -154,7 +154,7 @@ export const projectsPageContentMessages = defineMessages({
   },
   searchPlaceholder: {
     defaultMessage: "Search projects…",
-    id: 'OUDcVk0AHJ',
+    id: "OUDcVk0AHJ",
     description: "Placeholder for the projects search field",
   },
   filterAll: {

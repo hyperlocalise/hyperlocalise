@@ -146,15 +146,31 @@ describe("ProjectsTable", () => {
     const user = userEvent.setup();
     const onLoadMore = vi.fn();
     const onOpenProject = vi.fn();
-    renderWithIntl(<ProjectsTable projects={[createProject({openJobCount: 3, targetLocales: ["vi", "fr"]})]} projectsQuery={successQuery()} organizationSlug="acme" variant="native" isSavingProject={false} isDeletingProject={false} groupLabel="Hyperlocalise" totalCount={15} hasMore onLoadMore={onLoadMore} onOpenProject={onOpenProject} />);
+    renderWithIntl(
+      <ProjectsTable
+        projects={[createProject({ openJobCount: 3, targetLocales: ["vi", "fr"] })]}
+        projectsQuery={successQuery()}
+        organizationSlug="acme"
+        variant="native"
+        isSavingProject={false}
+        isDeletingProject={false}
+        groupLabel="Hyperlocalise"
+        totalCount={15}
+        hasMore
+        onLoadMore={onLoadMore}
+        onOpenProject={onOpenProject}
+      />,
+    );
     expect(screen.getByText("15 projects")).toBeInTheDocument();
-    const row = screen.getByRole("link", {name: "Hyperlocalise Web"}).closest("tr")!;
+    const row = screen.getByRole("link", { name: "Hyperlocalise Web" }).closest("tr")!;
     expect(within(row).getByTitle("en → vi, fr")).toHaveTextContent("2");
-    expect(within(row).getByRole("link", {name: "3 jobs"})).toHaveAttribute("href", "/org/acme/projects/project_native/jobs");
-    await user.click(screen.getByRole("button", {name: "Load more"}));
+    expect(within(row).getByRole("link", { name: "3 jobs" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_native/jobs",
+    );
+    await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(onLoadMore).toHaveBeenCalledOnce();
-    await user.click(screen.getByRole("link", {name: "Hyperlocalise Web"}));
+    await user.click(screen.getByRole("link", { name: "Hyperlocalise Web" }));
     expect(onOpenProject).toHaveBeenCalledWith("project_native");
   });
-
 });

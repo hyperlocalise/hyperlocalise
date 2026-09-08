@@ -138,12 +138,29 @@ export const projectsTableMessages = defineMessages({
     id: "C31IoV3z9k",
     description: "Button to load more projects in the list",
   },
-  nativeSource: { defaultMessage: "Native", id: 'mMLVebRDAJ', description: "Projects list nativeSource" },
-  projectLabel: { defaultMessage: "Project", id: 'Qh1hAhKzYj', description: "Projects list projectLabel" },
-  sourceLabel: { defaultMessage: "Source", id: 'PBDgruWZRx', description: "Projects list sourceLabel" },
-  actionsLabel: { defaultMessage: "Actions", id: 'IigPo0Yd+k', description: "Projects list actionsLabel" },
+  nativeSource: {
+    defaultMessage: "Native",
+    id: "mMLVebRDAJ",
+    description: "Projects list nativeSource",
+  },
+  projectLabel: {
+    defaultMessage: "Project",
+    id: "Qh1hAhKzYj",
+    description: "Projects list projectLabel",
+  },
+  sourceLabel: {
+    defaultMessage: "Source",
+    id: "PBDgruWZRx",
+    description: "Projects list sourceLabel",
+  },
+  actionsLabel: {
+    defaultMessage: "Actions",
+    id: "IigPo0Yd+k",
+    description: "Projects list actionsLabel",
+  },
   projectCount: {
-    defaultMessage: "{count, plural, one {# project} other {# projects}}", id: 'pDidtWgxX9',
+    defaultMessage: "{count, plural, one {# project} other {# projects}}",
+    id: "pDidtWgxX9",
     description: "Projects list projectCount",
   },
 });
