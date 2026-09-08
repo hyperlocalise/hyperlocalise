@@ -18,7 +18,10 @@ import { buildLocaleProgressRow, type ProjectLocaleProgressRow } from "./project
 
 const sourceWordCountSql = sql<number>`case
   when btrim(${schema.projectTranslationKeys.sourceText}) = '' then 0
-  else coalesce(cardinality(regexp_split_to_array(btrim(${schema.projectTranslationKeys.sourceText}), E'\\s+')), 0)
+  else coalesce(
+    cardinality(regexp_split_to_array(btrim(${schema.projectTranslationKeys.sourceText}), '[[:space:]]+')),
+    0
+  )
 end`;
 
 function toIsoTimestamp(value: Date | string | null | undefined) {
