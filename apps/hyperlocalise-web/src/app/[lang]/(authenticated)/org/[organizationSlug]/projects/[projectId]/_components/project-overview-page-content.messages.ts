@@ -45,15 +45,35 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "6lH73749rG",
     description: "Fallback project description on the project overview page",
   },
-  needsYouNowTitle: {
-    defaultMessage: "Needs you now",
-    id: "dGhvlRGto0",
-    description: "Heading for the project overview triage band",
+  projectsBreadcrumb: {
+    defaultMessage: "Projects",
+    id: "htyIICw1rr",
+    description: "Breadcrumb link above the project overview title",
   },
-  needsYouNowCount: {
-    defaultMessage: "{count, plural, one {# item} other {# items}}",
-    id: "obkqu+QKmi",
-    description: "Count badge for triage items on project overview",
+  todayTitle: {
+    defaultMessage: "Today",
+    id: "3ljQO/9DOw",
+    description: "Heading for the project overview triage list",
+  },
+  statusReview: {
+    defaultMessage: "Review",
+    id: "XbqvvLRiXp",
+    description: "Status label for a job waiting for review on project overview",
+  },
+  statusFailed: {
+    defaultMessage: "Failed",
+    id: "FNmh/WsutT",
+    description: "Status label for a failed job on project overview",
+  },
+  statusRunning: {
+    defaultMessage: "Running",
+    id: "82QjeMOgLE",
+    description: "Status label for a queued or running job on project overview",
+  },
+  statusGuidance: {
+    defaultMessage: "Guidance",
+    id: "dtHLu+0N41",
+    description: "Status label when translation guidance is missing on project overview",
   },
   triageEmptyTitle: {
     defaultMessage: "No reviews waiting",
@@ -80,16 +100,6 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "Z92vemu70G",
     description: "CTA when the project style guide is missing on project overview",
   },
-  triageReviewTitle: {
-    defaultMessage: "Waiting for review",
-    id: "t4mhc63bGr",
-    description: "Status label for review triage items",
-  },
-  triageFailedTitle: {
-    defaultMessage: "Job failed",
-    id: "piWs1xE1NT",
-    description: "Status label for failed job triage items",
-  },
   triageGuidanceTitle: {
     defaultMessage: "Add a style guide",
     id: "2DwX6LeAoB",
@@ -100,20 +110,10 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "X02KnwxTqG",
     description: "Description when the native project style guide is missing",
   },
-  triageJobRunning: {
-    defaultMessage: "In progress",
-    id: "KYKSoue+Dr",
-    description: "Status label for queued or running jobs in triage",
-  },
   viewAllJobs: {
     defaultMessage: "View all jobs",
     id: "QaBpv8qa4h",
     description: "Link from triage band to the project jobs page",
-  },
-  signalsTitle: {
-    defaultMessage: "Project",
-    id: "RZNls0g+WM",
-    description: "Section heading for lightweight project signals on overview",
   },
   signalsLocales: {
     defaultMessage: "Locales",
@@ -126,9 +126,14 @@ export const projectOverviewPageContentMessages = defineMessages({
     description: "Shown when the project has no target locales configured",
   },
   guidanceTitle: {
-    defaultMessage: "Style guide",
-    id: "dPOyhsBM1G",
-    description: "Section heading for the style guide preview on project overview",
+    defaultMessage: "Guidance",
+    id: "iG6m4ZRJFP",
+    description: "Section heading for the translation guidance preview on project overview",
+  },
+  guidanceMissingDescription: {
+    defaultMessage: "Add tone and terminology so agents stay consistent.",
+    id: "Y21JPIRCgK",
+    description: "Sidebar prompt when the project has no translation guidance yet",
   },
   guidanceEdit: {
     defaultMessage: "Edit",
@@ -149,11 +154,6 @@ export const projectOverviewPageContentMessages = defineMessages({
     defaultMessage: "Not synced yet",
     id: "wk5x4r43TH",
     description: "Shown when a native project has never synced",
-  },
-  shipCliHint: {
-    defaultMessage: "Download translations from Files or run <code>sync pull</code>.",
-    id: "1x7rivVz4j",
-    description: "CLI hint in the sync section on project overview",
   },
   shipConnectCli: {
     defaultMessage: "Connect CLI & CI",

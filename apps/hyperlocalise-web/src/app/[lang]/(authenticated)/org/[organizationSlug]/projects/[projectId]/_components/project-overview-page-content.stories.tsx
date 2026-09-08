@@ -46,9 +46,12 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Website localization" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
-    await expect(canvas.getByText("Needs you now")).toBeInTheDocument();
-    await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
+    await expect(canvas.getByText("Today")).toBeInTheDocument();
+    await expect(canvas.getByText("Review")).toBeInTheDocument();
+    await expect(canvas.getByText("Failed")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
     await expect(
       canvas.getByText((content) => content.includes("fr-FR") && content.includes("Otto")),
     ).toBeInTheDocument();
@@ -58,7 +61,7 @@ export const Default: Story = {
           content.includes("de-DE") && content.includes("es-ES") && content.includes("Mina"),
       ),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("Style guide")).toBeInTheDocument();
+    await expect(canvas.getByText("Guidance")).toBeInTheDocument();
     await expect(canvas.getByText("Sync")).toBeInTheDocument();
     await expect(canvas.queryByText("Locale health")).toBeNull();
   },
@@ -74,6 +77,7 @@ export const CaughtUp: Story = {
     await expect(
       canvas.getByText("Open Files for coverage, or create a job when you are ready."),
     ).toBeInTheDocument();
+    await expect(canvas.getByText("0")).toBeInTheDocument();
   },
 };
 
@@ -85,6 +89,9 @@ export const MissingGuidance: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Add a style guide")).toBeInTheDocument();
     await expect(canvas.getByText("Add style guide")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Add tone and terminology so agents stay consistent."),
+    ).toBeInTheDocument();
   },
 };
 
@@ -99,7 +106,7 @@ export const TmsProject: Story = {
       "/org/acme/projects/ext%3Acrowdin%3A42/strings",
     );
     await expect(canvas.queryByText("Sync")).toBeNull();
-    await expect(canvas.queryByText("Style guide")).toBeNull();
+    await expect(canvas.queryByText("Guidance")).toBeNull();
     await expect(canvas.getByText("Locales")).toBeInTheDocument();
   },
 };
