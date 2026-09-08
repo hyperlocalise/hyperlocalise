@@ -273,6 +273,7 @@ describe("proxy matcher", () => {
     const regex = new RegExp(`^${localeMatcher}$`);
 
     expect(regex.test("/auth.md")).toBe(false);
+    expect(regex.test("/llms.txt")).toBe(false);
     expect(regex.test("/en/org/acme/dashboard")).toBe(true);
   });
 });

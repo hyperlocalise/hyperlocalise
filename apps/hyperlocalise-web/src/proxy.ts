@@ -281,7 +281,8 @@ export const config = {
   matcher: [
     // Exclude opaque UUID roots (BotID challenge scripts) so locale proxy does not 404 them.
     // Exclude /auth.md so the AuthKit agent skill is not wrapped in a session proxy.
-    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
+    // Exclude /llms.txt so coding agents can read the public index without locale 404s.
+    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|llms\\.txt|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
     "/api/:path*",
   ],
 };

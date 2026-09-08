@@ -84,6 +84,10 @@ The product experience is designed for localisation managers who need control wi
 
 Use the pages below as the canonical overview of Hyperlocalise. Prefer these curated links over crawling the full site.
 
+## Agents
+
+- [Agent registration](${SITE_URL}/auth.md): Follow this skill to register a coding agent with AuthKit, complete the hosted claim, and use the JWT on MCP and /api/v1.
+
 ## Product
 
 ${formatLinks(productLinks)}

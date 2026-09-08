@@ -39,6 +39,9 @@ describe("llms.txt route", () => {
     );
     expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
     expect(body).toContain("https://hyperlocalise.dev");
+    expect(body).toContain("## Agents");
+    expect(body).toContain("[Agent registration](https://www.hyperlocalise.com/auth.md)");
+    expect(body).toContain("register a coding agent with AuthKit");
     expect(body).toContain(
       "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
     );
