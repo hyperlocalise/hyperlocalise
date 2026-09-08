@@ -395,10 +395,7 @@ export function AutomationEditorMock() {
         <div className="overflow-hidden rounded-xl border border-border/80 bg-background/95 shadow-lg">
           <div className="grid md:grid-cols-[1.4fr_1fr]">
             <div className="border-b border-border/60 bg-background/80 md:border-b-0 md:border-r">
-              <MockEditorPreview
-                highlight={steps[currentStep]!.highlightSection}
-                isDone={isDone}
-              />
+              <MockEditorPreview highlight={steps[currentStep]!.highlightSection} isDone={isDone} />
               <div className="border-t border-border/60 px-4 py-3">
                 <div className="h-0.5 w-full overflow-hidden rounded-full bg-border/40">
                   <motion.div

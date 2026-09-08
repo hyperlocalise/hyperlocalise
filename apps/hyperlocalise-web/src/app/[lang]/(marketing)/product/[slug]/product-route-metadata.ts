@@ -18,13 +18,13 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
       return {
         title: intl.formatMessage({
           defaultMessage: "The Workflow for Multilingual Content Operations | Hyperlocalise",
-          id: 'Ymk9Cn134n',
+          id: "hVJSeRbcfp",
           description: "Page title for the agents automation product page",
         }),
         description: intl.formatMessage({
           defaultMessage:
             "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
-          id: 'i+ZXi3RYEe',
+          id: "e7VR7VzeVP",
           description: "Meta description for the agents automation product page",
         }),
       };

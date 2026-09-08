@@ -208,13 +208,13 @@ export const productPageMessages = defineMessages({
   },
   agentsAutomationMetadataTitle: {
     defaultMessage: "The Workflow for Multilingual Content Operations | Hyperlocalise",
-    id: 'Ymk9Cn134n',
+    id: "hVJSeRbcfp",
     description: "Page title for the agents automation product page",
   },
   agentsAutomationMetadataDescription: {
     defaultMessage:
       "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
-    id: 'i+ZXi3RYEe',
+    id: "e7VR7VzeVP",
     description: "Meta description for the agents automation product page",
   },
   agentsAutomationHeroEyebrow: {
@@ -224,13 +224,13 @@ export const productPageMessages = defineMessages({
   },
   agentsAutomationHeroHeadline: {
     defaultMessage: "The workflow for multilingual content operations.",
-    id: 'RqRp3rYeS0',
+    id: "TGHvKVZXDF",
     description: "Hero headline for the agents automation product page",
   },
   agentsAutomationHeroSubcopy: {
     defaultMessage:
       "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language.",
-    id: 'E0YpfncLtp',
+    id: "cnDPnDwo8a",
     description: "Hero subcopy for the agents automation product page",
   },
   agentsAutomationDetailsHeadline: {
@@ -290,7 +290,7 @@ export const productPageMessages = defineMessages({
   agentsAutomationCtaDescription: {
     defaultMessage:
       "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
-    id: 'bXnJyD63X6',
+    id: "bXnJyD63X6",
     description: "Bottom CTA description for the agents automation product page",
   },
   nextGenCatToolMetadataTitle: {
