@@ -22,13 +22,13 @@ export const guidelinesPageMessages = defineMessages({
   },
   heroHeadline: {
     defaultMessage: "Keep the docs you have.\nPut them to work.",
-    id: 'sMO5kn7k5p',
+    id: "sMO5kn7k5p",
     description: "Hero headline for the Guidelines product page",
   },
   heroSubcopy: {
     defaultMessage:
       "Connect Google Drive, Notion, and SharePoint. Agents read the brand and compliance files your team already maintains and flag what does not match.",
-    id: 'GtjItsMfqV',
+    id: "WqdPR2o5QO",
     description: "Hero description for the Guidelines product page",
   },
   requestDemo: {
@@ -38,167 +38,167 @@ export const guidelinesPageMessages = defineMessages({
   },
   exploreGuidelines: {
     defaultMessage: "See a guideline check",
-    id: 'QIAc4hvHDk',
+    id: "QIAc4hvHDk",
     description: "Anchor link from the Guidelines hero to the product preview",
   },
   fromRulesToDrafts: {
     defaultMessage: "From Drive, Notion, and SharePoint into every draft.",
-    id: '05WQ9chsaJ',
+    id: "05WQ9chsaJ",
     description: "Caption under the Guidelines preview",
   },
   stepConnect: {
     defaultMessage: "01 Connect",
-    id: '/2vDnBJJnU',
+    id: "/2vDnBJJnU",
     description: "Guidelines workflow step 1",
   },
   stepRead: {
     defaultMessage: "02 Read the file",
-    id: 'IdXW81ey7i',
+    id: "IdXW81ey7i",
     description: "Guidelines workflow step 2",
   },
   stepFlag: {
     defaultMessage: "03 Flag the issues",
-    id: 'nIxPibE5kf',
+    id: "nIxPibE5kf",
     description: "Guidelines workflow step 3",
   },
   stepShip: {
     defaultMessage: "04 Ship",
-    id: 'L09pgcuANE',
+    id: "L09pgcuANE",
     description: "Guidelines workflow step 4",
   },
   sourcesEyebrow: {
     defaultMessage: "Where your guidelines already live",
-    id: 'BTimRLPa1I',
+    id: "BTimRLPa1I",
     description: "Eyebrow for the Guidelines sources section",
   },
   sourcesHeadline: {
     defaultMessage: "Drive. Notion.\nSharePoint.",
-    id: 'pym2jLFt91',
+    id: "pym2jLFt91",
     description: "Headline for the Guidelines sources section",
   },
   sourcesBody: {
     defaultMessage:
       "Leave brand PDFs, market notes, and policy libraries where legal and brand already keep them. Hyperlocalise reads those files instead of asking you to rebuild a second playbook.",
-    id: '5VP6QS58Jl',
+    id: "5VP6QS58Jl",
     description: "Body copy for the Guidelines sources section",
   },
   sourcesAriaLabel: {
     defaultMessage: "Guideline sources",
-    id: 'LguOyBNnte',
+    id: "LguOyBNnte",
     description: "Accessible label for the Guidelines source tabs",
   },
   sourceDrive: {
     defaultMessage: "Google Drive",
-    id: 'I4iH2T3OLx',
+    id: "I4iH2T3OLx",
     description: "Guidelines source tab for Google Drive",
   },
   sourceNotion: {
     defaultMessage: "Notion",
-    id: '4nr1WS9kIp',
+    id: "4nr1WS9kIp",
     description: "Guidelines source tab for Notion",
   },
   sourceSharepoint: {
     defaultMessage: "SharePoint",
-    id: '1kGndGN4wG',
+    id: "1kGndGN4wG",
     description: "Guidelines source tab for SharePoint",
   },
   sourceDriveTitle: {
     defaultMessage: "The PDF stays\nin Drive.",
-    id: 'SbXclIFUB9',
+    id: "SbXclIFUB9",
     description: "Title for the Google Drive source panel",
   },
   sourceDriveBody: {
     defaultMessage:
       "Connect brand-voice and claims PDFs from Google Drive. Agents cite the clause in the file when they flag a draft.",
-    id: 'oNE0YnvOn0',
+    id: "oNE0YnvOn0",
     description: "Body for the Google Drive source panel",
   },
   sourceDriveLink: {
     defaultMessage: "From style guides to claims policies",
-    id: 'XcvWJmyVfR',
+    id: "XcvWJmyVfR",
     description: "Supporting link line for the Google Drive source panel",
   },
   sourceNotionTitle: {
     defaultMessage: "Market notes\nstay in Notion.",
-    id: 'dGJ4DQ8pi3',
+    id: "dGJ4DQ8pi3",
     description: "Title for the Notion source panel",
   },
   sourceNotionBody: {
     defaultMessage:
       "Import the pages your GTM team already writes: dos and don'ts, proof points, and the tone that works in each market.",
-    id: '0roQJLdsUq',
+    id: "0roQJLdsUq",
     description: "Body for the Notion source panel",
   },
   sourceNotionLink: {
     defaultMessage: "From wiki pages to agent context",
-    id: 'KwEv4D6hGN',
+    id: "KwEv4D6hGN",
     description: "Supporting link line for the Notion source panel",
   },
   sourceSharepointTitle: {
     defaultMessage: "Legal keeps\nthe library.",
-    id: 'DbGIc4sGDx',
+    id: "DbGIc4sGDx",
     description: "Title for the SharePoint source panel",
   },
   sourceSharepointBody: {
     defaultMessage:
       "Point Hyperlocalise at the SharePoint library that already holds disclosures, approved wording, and regulated claims.",
-    id: 'buVScYQI5w',
+    id: "buVScYQI5w",
     description: "Body for the SharePoint source panel",
   },
   sourceSharepointLink: {
     defaultMessage: "From policy libraries to pre-publish checks",
-    id: 'chTXcZSMoe',
+    id: "chTXcZSMoe",
     description: "Supporting link line for the SharePoint source panel",
   },
   sourceDriveFile: {
     defaultMessage: "Brand-claims-policy.pdf",
-    id: 'yxDI0UUubE',
+    id: "yxDI0UUubE",
     description: "Example Drive filename in the source preview",
   },
   sourceDriveDetail: {
     defaultMessage: "Legal · 6 pages · Connected",
-    id: '7t3FQ5TrY6',
+    id: "7t3FQ5TrY6",
     description: "Example Drive file detail in the source preview",
   },
   sourceDriveClause: {
     defaultMessage: "3.2 German advertising — no superlatives",
-    id: 'u/BgSogOwb',
+    id: "u/BgSogOwb",
     description: "Highlighted PDF clause in the Google Drive source preview",
   },
   sourceNotionFile: {
     defaultMessage: "Japan market notes",
-    id: 'hXu3TQ7nei',
+    id: "hXu3TQ7nei",
     description: "Example Notion page title in the source preview",
   },
   sourceNotionDetail: {
     defaultMessage: "GTM wiki · Updated this week",
-    id: 'KaF5SxLR8X',
+    id: "KaF5SxLR8X",
     description: "Example Notion page detail in the source preview",
   },
   sourceSharepointFile: {
     defaultMessage: "EU disclosures library",
-    id: 'zdNwM1KXY3',
+    id: "zdNwM1KXY3",
     description: "Example SharePoint library name in the source preview",
   },
   sourceSharepointDetail: {
     defaultMessage: "18 policy files · Compliance",
-    id: 'PRW9ZtkzIN',
+    id: "PRW9ZtkzIN",
     description: "Example SharePoint library detail in the source preview",
   },
   appliedEyebrow: {
     defaultMessage: "Used while you work",
-    id: 'gu7P/76etG',
+    id: "gu7P/76etG",
     description: "Eyebrow for the Guidelines applied-in-studio section",
   },
   appliedHeadline: {
     defaultMessage: "The file is the source\nof truth.",
-    id: 'wwGzx8T1wq',
+    id: "wwGzx8T1wq",
     description: "Headline for the Guidelines applied-in-studio section",
   },
   appliedBody: {
     defaultMessage:
       "When a draft opens in Content Studio, the connected Drive PDF, Notion page, or SharePoint policy sits beside it. Reviewers and agents read the same document.",
-    id: 'w9pu7kC+rH',
+    id: "w9pu7kC+rH",
     description: "Body for the Guidelines applied-in-studio section",
   },
   exploreStudio: {
@@ -208,133 +208,133 @@ export const guidelinesPageMessages = defineMessages({
   },
   campaignGuidelines: {
     defaultMessage: "Attached to this draft",
-    id: 'cJoA3WyajT',
+    id: "cJoA3WyajT",
     description: "Title of the attached guidelines mock card",
   },
   appliedToDraft: {
     defaultMessage: "From Google Drive",
-    id: '0B4ezwZ7oK',
+    id: "0B4ezwZ7oK",
     description: "Status on the attached guidelines mock card",
   },
   attachedFile: {
     defaultMessage: "File",
-    id: 'rOvqLQGma3',
+    id: "rOvqLQGma3",
     description: "File row label in the attached guidelines mock",
   },
   attachedFileValue: {
     defaultMessage: "Brand-claims-policy.pdf",
-    id: 'IIohVs/IF0',
+    id: "IIohVs/IF0",
     description: "File row value in the attached guidelines mock",
   },
   attachedClause: {
     defaultMessage: "Last cited",
-    id: 'rJ5ZNEEfrR',
+    id: "rJ5ZNEEfrR",
     description: "Clause row label in the attached guidelines mock",
   },
   attachedClauseValue: {
     defaultMessage: "3.2 German advertising — no superlatives",
-    id: 'b95XI61qEi',
+    id: "b95XI61qEi",
     description: "Clause row value in the attached guidelines mock",
   },
   attachedStatus: {
     defaultMessage: "Status",
-    id: 'x9lPZa0R66',
+    id: "x9lPZa0R66",
     description: "Status row label in the attached guidelines mock",
   },
   attachedStatusValue: {
     defaultMessage: "Two flags still open on this draft",
-    id: 'CXZaVZ1tZ8',
+    id: "CXZaVZ1tZ8",
     description: "Status row value in the attached guidelines mock",
   },
   auditEyebrow: {
     defaultMessage: "Automations",
-    id: "gpAuditEye",
+    id: "rXIITR1I9M",
     description: "Eyebrow for the Guidelines daily-audit section",
   },
   auditHeadline: {
     defaultMessage: "Audit product and the website.\nEvery day.",
-    id: "gpAuditHead",
+    id: "csK4Zbn9gk",
     description: "Headline for the Guidelines daily-audit section",
   },
   auditBody: {
     defaultMessage:
       "Schedule an Automation to check live pages and product copy against the same Drive, Notion, or SharePoint files. Flags show up in the morning instead of after a launch.",
-    id: "gpAuditBody",
+    id: "XwyHRK/RCH",
     description: "Body for the Guidelines daily-audit section",
   },
   exploreAutomations: {
     defaultMessage: "Explore Automations",
-    id: "gpAuditLink",
+    id: "PDQi8zzuSM",
     description: "Link from Guidelines to the Automations product page",
   },
   auditCardTitle: {
     defaultMessage: "Daily compliance audit",
-    id: "gpAuditCard",
+    id: "d0PnxJ1PQM",
     description: "Title of the daily compliance audit mock card",
   },
   auditCardSchedule: {
     defaultMessage: "Every day at 07:00",
-    id: "gpAuditSched",
+    id: "O5n4exVoSO",
     description: "Schedule on the daily compliance audit mock card",
   },
   auditChecks: {
     defaultMessage: "Checks",
-    id: "gpAuditChecks",
+    id: "NW1SDAit+W",
     description: "Checks label on the daily compliance audit mock card",
   },
   auditCheckProduct: {
     defaultMessage: "Product copy · app and CMS strings",
-    id: "gpAuditProd",
+    id: "yid8b+P/VX",
     description: "Product check row on the daily compliance audit mock card",
   },
   auditCheckWebsite: {
     defaultMessage: "Website · live pages",
-    id: "gpAuditWeb",
+    id: "dBfjJqRtAx",
     description: "Website check row on the daily compliance audit mock card",
   },
   auditAgainst: {
     defaultMessage: "Against",
-    id: "gpAuditAgainst",
+    id: "T1Sk0Af2ER",
     description: "Guidelines label on the daily compliance audit mock card",
   },
   auditAgainstFile: {
     defaultMessage: "Brand-claims-policy.pdf · Google Drive",
-    id: "gpAuditFile",
+    id: "8qg+o4BfKa",
     description: "Guideline file on the daily compliance audit mock card",
   },
   auditLastRun: {
     defaultMessage: "Last run · this morning",
-    id: "gpAuditRun",
+    id: "p5YTxqry+c",
     description: "Last-run label on the daily compliance audit mock card",
   },
   auditFindingDe: {
     defaultMessage: "DE homepage",
-    id: "gpAuditDe",
+    id: "vQdLFmWq8o",
     description: "German finding target on the daily compliance audit mock card",
   },
   auditFindingDeFlags: {
     defaultMessage: "3 flags · clause 3.2",
-    id: "gpAuditDeF",
+    id: "hujEaVVQkb",
     description: "German finding result on the daily compliance audit mock card",
   },
   auditFindingJp: {
     defaultMessage: "JP product page",
-    id: "gpAuditJp",
+    id: "SRAb4hnti/",
     description: "Japanese finding target on the daily compliance audit mock card",
   },
   auditFindingJpFlags: {
     defaultMessage: "1 flag · clause 2.1",
-    id: "gpAuditJpF",
+    id: "w9Jksgm8Dg",
     description: "Japanese finding result on the daily compliance audit mock card",
   },
   auditFindingFr: {
     defaultMessage: "FR website",
-    id: "gpAuditFr",
+    id: "YzyMyGmYFN",
     description: "French finding target on the daily compliance audit mock card",
   },
   auditFindingFrFlags: {
     defaultMessage: "Clear",
-    id: "gpAuditFrF",
+    id: "ooufH8cRvw",
     description: "French finding result on the daily compliance audit mock card",
   },
   connectedHeadline: {
@@ -344,7 +344,7 @@ export const guidelinesPageMessages = defineMessages({
   },
   connectedBody: {
     defaultMessage: "Apply the same files in the studio. Automate the checks in your workflows.",
-    id: '5r5QUAR3/o',
+    id: "5r5QUAR3/o",
     description: "Body for the Guidelines connected-products section",
   },
   contentStudio: {
@@ -369,57 +369,57 @@ export const guidelinesPageMessages = defineMessages({
   },
   faqWhereQuestion: {
     defaultMessage: "Do we have to move our guidelines into Hyperlocalise?",
-    id: '1t3wSermT8',
+    id: "1t3wSermT8",
     description: "Guidelines FAQ question about moving files",
   },
   faqWhereAnswer: {
     defaultMessage:
       "No. Connect Google Drive, Notion, or SharePoint and leave the files where brand and legal already keep them. Agents read those sources.",
-    id: 'bOpIXEky0N',
+    id: "bOpIXEky0N",
     description: "Guidelines FAQ answer about moving files",
   },
   faqWhatQuestion: {
     defaultMessage: "What kinds of files can agents use?",
-    id: '11Fkff+o29',
+    id: "11Fkff+o29",
     description: "Guidelines FAQ question about file types",
   },
   faqWhatAnswer: {
     defaultMessage:
       "Brand-voice PDFs, claims policies, Notion market notes, and SharePoint disclosure libraries. If your team already treats it as the rule, connect it.",
-    id: 'LNwKJ8Zkta',
+    id: "LNwKJ8Zkta",
     description: "Guidelines FAQ answer about file types",
   },
   faqAgentsQuestion: {
     defaultMessage: "How does an agent flag a compliance issue?",
-    id: 'nPSlG6dRhe',
+    id: "nPSlG6dRhe",
     description: "Guidelines FAQ question about agent flags",
   },
   faqAgentsAnswer: {
     defaultMessage:
       "It reads the connected file, cites the clause, and flags the line that breaks it—so a reviewer can open the PDF instead of re-explaining the rule.",
-    id: '8zHJojmnLS',
+    id: "8zHJojmnLS",
     description: "Guidelines FAQ answer about agent flags",
   },
   faqAuditQuestion: {
     defaultMessage: "Can Automations audit the product and website every day?",
-    id: "gpFaqAudQ",
+    id: "LW2UZg0KZP",
     description: "Guidelines FAQ question about daily Automations audits",
   },
   faqAuditAnswer: {
     defaultMessage:
       "Yes. Schedule a daily Automation to check product copy and live pages against the connected guideline files. Reviewers see the flags in the morning.",
-    id: "gpFaqAudA",
+    id: "/LUmtjuJsT",
     description: "Guidelines FAQ answer about daily Automations audits",
   },
   faqUpdateQuestion: {
     defaultMessage: "What happens when legal updates the PDF?",
-    id: 'yyQsNyHMHz',
+    id: "yyQsNyHMHz",
     description: "Guidelines FAQ question about file updates",
   },
   faqUpdateAnswer: {
     defaultMessage:
       "The connected file is the source of truth. When Drive or SharePoint changes, the next check uses the updated wording.",
-    id: 'h/TaCp7kf5',
+    id: "h/TaCp7kf5",
     description: "Guidelines FAQ answer about file updates",
   },
   faqStudioQuestion: {
@@ -430,18 +430,18 @@ export const guidelinesPageMessages = defineMessages({
   faqStudioAnswer: {
     defaultMessage:
       "Attach a connected file to a campaign or draft. Reviewers see the PDF or page beside the copy, and agent suggestions cite the same clauses.",
-    id: 'K1TC/ecjoE',
+    id: "K1TC/ecjoE",
     description: "Guidelines FAQ answer about Content Studio",
   },
   faqSourcesQuestion: {
     defaultMessage: "Can we use more than one source?",
-    id: 'ryd9aeww4k',
+    id: "ryd9aeww4k",
     description: "Guidelines FAQ question about multiple sources",
   },
   faqSourcesAnswer: {
     defaultMessage:
       "Yes. Keep claims PDFs in Drive, market notes in Notion, and disclosures in SharePoint. Agents check the files that apply to that draft.",
-    id: 'SnsLWu5goL',
+    id: "SnsLWu5goL",
     description: "Guidelines FAQ answer about multiple sources",
   },
   faqFitQuestion: {
@@ -452,34 +452,34 @@ export const guidelinesPageMessages = defineMessages({
   faqFitAnswer: {
     defaultMessage:
       "Guidelines is the connected file layer. Content Studio applies it while you create and review. Automation Workflow uses it when agents run repeatable jobs.",
-    id: 'doe6TBv1GS',
+    id: "doe6TBv1GS",
     description: "Guidelines FAQ answer about product fit",
   },
   faqWhoQuestion: {
     defaultMessage: "Who should own the connected files?",
-    id: 'nqWsz/vBZ6',
+    id: "nqWsz/vBZ6",
     description: "Guidelines FAQ question about ownership",
   },
   faqWhoAnswer: {
     defaultMessage:
       "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
-    id: 'TUhxc0TwuH',
+    id: "TUhxc0TwuH",
     description: "Guidelines FAQ answer about ownership",
   },
   ctaHeadline: {
     defaultMessage: "Leave the guidelines where they are.\nLet agents read them.",
-    id: 'zWj2+vAiX7',
+    id: "G94O+ZUEet",
     description: "Bottom CTA headline on the Guidelines product page",
   },
   ctaBody: {
     defaultMessage:
       "Connect Drive, Notion, or SharePoint and check the next draft against the real file.",
-    id: '3MyXNc43TJ',
+    id: "3MyXNc43TJ",
     description: "Bottom CTA body on the Guidelines product page",
   },
   ctaNote: {
     defaultMessage: "No second playbook to maintain.",
-    id: '76D+ZZX3Tn',
+    id: "76D+ZZX3Tn",
     description: "Supporting note under the Guidelines bottom CTA",
   },
 });

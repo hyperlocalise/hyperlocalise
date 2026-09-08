@@ -46,13 +46,13 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
       return {
         title: intl.formatMessage({
           defaultMessage: "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
-          id: 'qqzc5HNRQF',
+          id: "qqzc5HNRQF",
           description: "Page title for the Guidelines product page",
         }),
         description: intl.formatMessage({
           defaultMessage:
             "Connect Google Drive, Notion, and SharePoint. Agents check drafts against the brand and compliance files your team already maintains.",
-          id: '2HF+fAMIDb',
+          id: "2HF+fAMIDb",
           description: "Meta description for the Guidelines product page",
         }),
       };

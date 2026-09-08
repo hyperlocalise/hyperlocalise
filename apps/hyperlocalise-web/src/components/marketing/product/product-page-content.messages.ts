@@ -399,13 +399,13 @@ export const productPageMessages = defineMessages({
   },
   guidelinesMetadataTitle: {
     defaultMessage: "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
-    id: 'qqzc5HNRQF',
+    id: "qqzc5HNRQF",
     description: "Page title for the Guidelines product page",
   },
   guidelinesMetadataDescription: {
     defaultMessage:
       "Connect Google Drive, Notion, and SharePoint. Agents check drafts against the brand and compliance files your team already maintains.",
-    id: '2HF+fAMIDb',
+    id: "2HF+fAMIDb",
     description: "Meta description for the Guidelines product page",
   },
   guidelinesHeroEyebrow: {
@@ -415,66 +415,66 @@ export const productPageMessages = defineMessages({
   },
   guidelinesHeroHeadline: {
     defaultMessage: "Keep the docs you have. Put them to work.",
-    id: '60zsYx+OAc',
+    id: "60zsYx+OAc",
     description: "Hero headline for the Guidelines product page",
   },
   guidelinesHeroSubcopy: {
     defaultMessage:
       "Connect Google Drive, Notion, and SharePoint. Agents read the brand and compliance files your team already maintains and flag what does not match.",
-    id: 'CihbYTYKi/',
+    id: "0aO5cDtCkQ",
     description: "Hero subcopy for the Guidelines product page",
   },
   guidelinesDetailsHeadline: {
     defaultMessage: "Leave the guidelines where they are. Let agents read them.",
-    id: 'nfMyedI5a6',
+    id: "bwRkCyVWjg",
     description: "Details section headline for the Guidelines product page",
   },
   guidelinesSummary: {
     defaultMessage:
       "Connect Google Drive, Notion, and SharePoint so agents check drafts against the files brand and legal already maintain.",
-    id: 'ZhqgSTt9NF',
+    id: "ZhqgSTt9NF",
     description: "Details section summary for the Guidelines product page",
   },
   guidelinesProof0Title: {
     defaultMessage: "Keep them in Drive",
-    id: '8ubp0pkM3E',
+    id: "8ubp0pkM3E",
     description: "Proof point 1 title for the Guidelines product page",
   },
   guidelinesProof0Body: {
     defaultMessage:
       "Brand-voice and claims PDFs stay in Google Drive. Agents cite the clause when they flag a draft.",
-    id: 'IaGMAEBgFR',
+    id: "IaGMAEBgFR",
     description: "Proof point 1 body for the Guidelines product page",
   },
   guidelinesProof1Title: {
     defaultMessage: "Keep notes in Notion",
-    id: 'E+gsjwOkn+',
+    id: "E+gsjwOkn+",
     description: "Proof point 2 title for the Guidelines product page",
   },
   guidelinesProof1Body: {
     defaultMessage: "Market dos and don'ts stay on the pages your GTM team already writes.",
-    id: 'iu8wk5djA0',
+    id: "iu8wk5djA0",
     description: "Proof point 2 body for the Guidelines product page",
   },
   guidelinesProof2Title: {
     defaultMessage: "Keep policy in SharePoint",
-    id: '9Hmj8F68fv',
+    id: "9Hmj8F68fv",
     description: "Proof point 3 title for the Guidelines product page",
   },
   guidelinesProof2Body: {
     defaultMessage: "Disclosures and approved wording stay in the library legal already owns.",
-    id: 'WATviG34Qf',
+    id: "WATviG34Qf",
     description: "Proof point 3 body for the Guidelines product page",
   },
   guidelinesCtaHeadline: {
     defaultMessage: "Leave the guidelines where they are. Let agents read them.",
-    id: 'ggY8ufdyFe',
+    id: "p5U71/xQBI",
     description: "Bottom CTA headline for the Guidelines product page",
   },
   guidelinesCtaDescription: {
     defaultMessage:
       "Connect Drive, Notion, or SharePoint and check the next draft against the real file.",
-    id: 'b4qmyBy/VI',
+    id: "b4qmyBy/VI",
     description: "Bottom CTA description for the Guidelines product page",
   },
 });

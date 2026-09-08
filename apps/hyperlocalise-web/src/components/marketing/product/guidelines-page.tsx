@@ -303,11 +303,7 @@ function DailyAuditSection({ locale }: { locale: AppLocale }) {
                     <span>
                       <FormattedMessage {...messages[finding.target]} />
                     </span>
-                    <span
-                      className={
-                        finding.flagged ? "text-destructive" : "text-primary"
-                      }
-                    >
+                    <span className={finding.flagged ? "text-destructive" : "text-primary"}>
                       <FormattedMessage {...messages[finding.result]} />
                     </span>
                   </div>
