@@ -45,6 +45,8 @@ type I18NConfig struct {
 	Buckets       map[string]BucketConfig `json:"buckets" jsonschema:"required"`
 	Groups        map[string]GroupConfig  `json:"groups,omitempty"`
 	LLM           LLMConfig               `json:"llm" jsonschema:"required"`
+	Translation   *TranslationConfig      `json:"translation,omitempty"`
+	MT            *MTConfig               `json:"mt,omitempty"`
 	Hyperlocalise *HyperlocaliseConfig    `json:"hyperlocalise,omitempty"`
 	Storage       *StorageConfig          `json:"storage,omitempty"`
 	Cache         CacheConfig             `json:"cache,omitempty"`
@@ -271,6 +273,13 @@ func (c I18NConfig) Validate() error {
 	}
 
 	if err := c.validateLLM(groupSet); err != nil {
+		return err
+	}
+
+	if err := c.validateMT(); err != nil {
+		return err
+	}
+	if err := c.validateTranslation(groupSet); err != nil {
 		return err
 	}
 
