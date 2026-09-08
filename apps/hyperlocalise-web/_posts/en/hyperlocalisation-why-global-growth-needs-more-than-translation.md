@@ -129,7 +129,7 @@ We believe that knowledge should become reusable.
 
 A localisation system should learn from how a company communicates. It should remember how terms are used across products. It should understand how reviewers make decisions. It should recognise patterns in market feedback. It should help teams apply the right rules and context without requiring the same manual setup every time.
 
-This is what we mean by [self-evolving localisation intelligence](/product/self-evolving-knowledge).
+This is what we mean by [self-evolving localisation intelligence](/product/guidelines).
 
 The system should become more useful with every project. It should reduce repeated questions, improve consistency, and help teams make better decisions over time. The more a company localises, the stronger its localisation intelligence should become.
 

@@ -115,8 +115,9 @@ export const homepageMessages = defineMessages({
     description: "Marketing homepage hyperlabShort",
   },
   guidelinesShort: {
-    defaultMessage: "Keep every output on-brand, compliant, and consistent across markets.",
-    id: "mTRhHwVIHd",
+    defaultMessage:
+      "Connect Google Drive, Notion, and SharePoint. Agents check the files you already have.",
+    id: 'KvdvawHM1m',
     description: "Marketing homepage guidelinesShort",
   },
   studioBody: {
@@ -145,8 +146,8 @@ export const homepageMessages = defineMessages({
   },
   guidelinesBody: {
     defaultMessage:
-      "Give your team and agents shared brand guidance, terminology, and market context.",
-    id: "tSAM5aO3Q/",
+      "Leave brand PDFs, market notes, and policy libraries where they live. Agents flag what does not match.",
+    id: 'Y38gH31xOM',
     description: "Marketing homepage guidelinesBody",
   },
   agentsEyebrow: {

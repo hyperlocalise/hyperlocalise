@@ -55,10 +55,10 @@ export const productPageMessages = defineMessages({
     id: "JNXXTToFFQ",
     description: "Navigation label for the multilingual Content Studio product page",
   },
-  productNavSelfEvolvingKnowledge: {
-    defaultMessage: "Self-evolving Knowledge",
-    id: "Ktkp7Xxut2",
-    description: "Navigation label for the self-evolving knowledge product page",
+  productNavGuidelines: {
+    defaultMessage: "Guidelines",
+    id: "gtD9AzyGIn",
+    description: "Navigation label for the Guidelines product page",
   },
   visualAutomationLaunchRequest: {
     defaultMessage: "Launch request",
@@ -397,88 +397,85 @@ export const productPageMessages = defineMessages({
     id: "Icd4dfBmnK",
     description: "Bottom CTA description for the next-gen CAT tool product page",
   },
-  selfEvolvingKnowledgeMetadataTitle: {
-    defaultMessage: "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
-    id: "Ov7k7O9mR3",
-    description: "Page title for the self-evolving knowledge product page",
+  guidelinesMetadataTitle: {
+    defaultMessage: "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
+    id: 'qqzc5HNRQF',
+    description: "Page title for the Guidelines product page",
   },
-  selfEvolvingKnowledgeMetadataDescription: {
+  guidelinesMetadataDescription: {
     defaultMessage:
-      "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
-    id: "G1is+5n2E6",
-    description: "Meta description for the self-evolving knowledge product page",
+      "Connect Google Drive, Notion, and SharePoint. Agents check drafts against the brand and compliance files your team already maintains.",
+    id: '2HF+fAMIDb',
+    description: "Meta description for the Guidelines product page",
   },
-  selfEvolvingKnowledgeHeroEyebrow: {
-    defaultMessage: "Self-evolving Knowledge",
-    id: "XlVRjq3zhp",
-    description: "Hero eyebrow for the self-evolving knowledge product page",
+  guidelinesHeroEyebrow: {
+    defaultMessage: "Guidelines",
+    id: "es92Uya8hG",
+    description: "Hero eyebrow for the Guidelines product page",
   },
-  selfEvolvingKnowledgeHeroHeadline: {
-    defaultMessage: "Stop repeating the same localisation feedback",
-    id: "GuBuwlp/SU",
-    description: "Hero headline for the self-evolving knowledge product page",
+  guidelinesHeroHeadline: {
+    defaultMessage: "Keep the docs you have. Put them to work.",
+    id: '60zsYx+OAc',
+    description: "Hero headline for the Guidelines product page",
   },
-  selfEvolvingKnowledgeHeroSubcopy: {
+  guidelinesHeroSubcopy: {
     defaultMessage:
-      "Stop explaining the same rules twice. Hyperlocalise turns every review into reusable context",
-    id: "WabecnK7ou",
-    description: "Hero subcopy for the self-evolving knowledge product page",
+      "Connect Google Drive, Notion, and SharePoint. Agents read the brand and compliance files your team already maintains and flag what does not match.",
+    id: 'CihbYTYKi/',
+    description: "Hero subcopy for the Guidelines product page",
   },
-  selfEvolvingKnowledgeDetailsHeadline: {
+  guidelinesDetailsHeadline: {
+    defaultMessage: "Leave the guidelines where they are. Let agents read them.",
+    id: 'nfMyedI5a6',
+    description: "Details section headline for the Guidelines product page",
+  },
+  guidelinesSummary: {
     defaultMessage:
-      "If the last review taught the team something, the next workflow should know it.",
-    id: "n2pk6Y4oGA",
-    description: "Details section headline for the self-evolving knowledge product page",
+      "Connect Google Drive, Notion, and SharePoint so agents check drafts against the files brand and legal already maintain.",
+    id: 'ZhqgSTt9NF',
+    description: "Details section summary for the Guidelines product page",
   },
-  selfEvolvingKnowledgeSummary: {
+  guidelinesProof0Title: {
+    defaultMessage: "Keep them in Drive",
+    id: '8ubp0pkM3E',
+    description: "Proof point 1 title for the Guidelines product page",
+  },
+  guidelinesProof0Body: {
     defaultMessage:
-      "Every approved translation, reviewer correction, glossary choice, and market-specific decision becomes context that agents and humans can reuse on the next job.",
-    id: "xCstEdPlMf",
-    description: "Details section summary for the self-evolving knowledge product page",
+      "Brand-voice and claims PDFs stay in Google Drive. Agents cite the clause when they flag a draft.",
+    id: 'IaGMAEBgFR',
+    description: "Proof point 1 body for the Guidelines product page",
   },
-  selfEvolvingKnowledgeProof0Title: {
-    defaultMessage: "Keep the decision",
-    id: "OHKDUsYT8n",
-    description: "Proof point 1 title for the self-evolving knowledge product page",
+  guidelinesProof1Title: {
+    defaultMessage: "Keep notes in Notion",
+    id: 'E+gsjwOkn+',
+    description: "Proof point 2 title for the Guidelines product page",
   },
-  selfEvolvingKnowledgeProof0Body: {
+  guidelinesProof1Body: {
+    defaultMessage: "Market dos and don'ts stay on the pages your GTM team already writes.",
+    id: 'iu8wk5djA0',
+    description: "Proof point 2 body for the Guidelines product page",
+  },
+  guidelinesProof2Title: {
+    defaultMessage: "Keep policy in SharePoint",
+    id: '9Hmj8F68fv',
+    description: "Proof point 3 title for the Guidelines product page",
+  },
+  guidelinesProof2Body: {
+    defaultMessage: "Disclosures and approved wording stay in the library legal already owns.",
+    id: 'WATviG34Qf',
+    description: "Proof point 3 body for the Guidelines product page",
+  },
+  guidelinesCtaHeadline: {
+    defaultMessage: "Leave the guidelines where they are. Let agents read them.",
+    id: 'ggY8ufdyFe',
+    description: "Bottom CTA headline for the Guidelines product page",
+  },
+  guidelinesCtaDescription: {
     defaultMessage:
-      "Corrections, terminology choices, and product context stop disappearing into old comments.",
-    id: "SmMQDr7bGf",
-    description: "Proof point 1 body for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeProof1Title: {
-    defaultMessage: "Reuse the nuance",
-    id: "4tk5H2G6vH",
-    description: "Proof point 2 title for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeProof1Body: {
-    defaultMessage:
-      "Future suggestions can start from what the team already approved instead of asking again.",
-    id: "bgORmzhoWV",
-    description: "Proof point 2 body for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeProof2Title: {
-    defaultMessage: "Reduce review churn",
-    id: "6g9RHsjL+m",
-    description: "Proof point 3 title for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeProof2Body: {
-    defaultMessage:
-      "Market rules, voice preferences, and repeated mistakes stay visible across workflows.",
-    id: "VWQFJ0pM9H",
-    description: "Proof point 3 body for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeCtaHeadline: {
-    defaultMessage: "Make every review improve the next one.",
-    id: "QTY8pCBi2f",
-    description: "Bottom CTA headline for the self-evolving knowledge product page",
-  },
-  selfEvolvingKnowledgeCtaDescription: {
-    defaultMessage:
-      "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
-    id: "19Yj5RY029",
-    description: "Bottom CTA description for the self-evolving knowledge product page",
+      "Connect Drive, Notion, or SharePoint and check the next draft against the real file.",
+    id: 'b4qmyBy/VI',
+    description: "Bottom CTA description for the Guidelines product page",
   },
 });
 

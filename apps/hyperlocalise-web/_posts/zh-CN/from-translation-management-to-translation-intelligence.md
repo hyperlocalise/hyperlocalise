@@ -280,7 +280,7 @@ Translation Intelligence 将评估贯穿整个流程。
 
 从翻译管理到翻译智能。
 
-Hyperlocalise 正在通过[AI 代理](/product/agents-automation)、[下一代 CAT 体验](/product/next-gen-cat-tool)以及[一个自我演进的上下文引擎](/product/self-evolving-knowledge)来构建这一未来，旨在帮助全球团队以更少的人工调查产出更优质的翻译。
+Hyperlocalise 正在通过[AI 代理](/product/agents-automation)、[下一代 CAT 体验](/product/next-gen-cat-tool)以及[一个自我演进的上下文引擎](/product/guidelines)来构建这一未来，旨在帮助全球团队以更少的人工调查产出更优质的翻译。
 
 下一代本地化软件将不仅仅管理翻译。
 

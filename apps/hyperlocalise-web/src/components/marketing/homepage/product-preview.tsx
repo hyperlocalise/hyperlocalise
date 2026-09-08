@@ -56,7 +56,7 @@ export const PRODUCTS = [
   },
   {
     id: "guidelines",
-    href: "#explore",
+    href: "/product/guidelines",
     title: m.guidelinesCardTitle,
     short: m.guidelinesShort,
     body: m.guidelinesBody,

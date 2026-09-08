@@ -280,7 +280,7 @@ Des actifs linguistiques statiques à une connaissance auto-évolutive.
 
 De la gestion de la traduction à l’intelligence de la traduction.
 
-Hyperlocalise construit cet avenir grâce à [agents d’IA](/product/agents-automation), une [expérience CAT de nouvelle génération](/product/next-gen-cat-tool) et un [moteur de contexte auto-évolutif](/product/self-evolving-knowledge) conçu pour aider les équipes internationales à produire de meilleures traductions avec moins d’investigations manuelles.
+Hyperlocalise construit cet avenir grâce à [agents d’IA](/product/agents-automation), une [expérience CAT de nouvelle génération](/product/next-gen-cat-tool) et un [moteur de contexte auto-évolutif](/product/guidelines) conçu pour aider les équipes internationales à produire de meilleures traductions avec moins d’investigations manuelles.
 
 La prochaine génération de logiciels de localisation ne se contentera pas de gérer la traduction.
 

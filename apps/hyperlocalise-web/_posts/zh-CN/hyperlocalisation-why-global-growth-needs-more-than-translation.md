@@ -129,7 +129,7 @@ Hyperlocalise 的长期愿景是为全球沟通创建一个动态智能层。
 
 本地化系统应从公司的沟通方式中学习。它应记住术语在不同产品中的使用方式。它应理解审校人员如何做出决策。它应识别市场反馈中的模式。它应帮助团队应用正确的规则和上下文，而无需每次都进行相同的手动设置。
 
-这就是我们所说的 [self-evolving localisation intelligence](/product/self-evolving-knowledge)。
+这就是我们所说的 [self-evolving localisation intelligence](/product/guidelines)。
 
 系统应随着每个项目变得更加实用。它应减少重复提问，提高一致性，并帮助团队随着时间推移做出更好的决策。公司本地化得越多，其本地化智能就应越强。
 

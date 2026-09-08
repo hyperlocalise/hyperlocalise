@@ -280,7 +280,7 @@ From static linguistic assets to self-evolving knowledge.
 
 From Translation Management to Translation Intelligence.
 
-Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/self-evolving-knowledge) designed to help global teams produce better translations with less manual investigation.
+Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/guidelines) designed to help global teams produce better translations with less manual investigation.
 
 The next generation of localisation software will not simply manage translation.
 

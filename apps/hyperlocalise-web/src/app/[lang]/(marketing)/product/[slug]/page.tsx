@@ -15,6 +15,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { ProductPage } from "@/components/marketing/product/product-page";
+import { GuidelinesPage } from "@/components/marketing/product/guidelines-page";
 import { MultilingualContentStudioPage } from "@/components/marketing/product/multilingual-content-studio-page";
 import {
   productPagesBySlug,
@@ -41,12 +42,13 @@ type ProductRouteProps = {
 };
 
 export function generateStaticParams() {
-  return SUPPORTED_APP_LOCALES.flatMap((lang) => productSlugs.map((slug) => ({ lang, slug })));
+  const slugs = [...productSlugs, "next-gen-cat-tool", "self-evolving-knowledge"];
+  return SUPPORTED_APP_LOCALES.flatMap((lang) => slugs.map((slug) => ({ lang, slug })));
 }
 
 export async function generateMetadata({ params }: ProductRouteProps): Promise<Metadata> {
   const { lang, slug } = await params;
-  if (slug === "next-gen-cat-tool") {
+  if (slug === "next-gen-cat-tool" || slug === "self-evolving-knowledge") {
     return {};
   }
   const content = productPagesBySlug[slug as keyof typeof productPagesBySlug];
@@ -93,8 +95,16 @@ async function ProductRouteContent({ params }: ProductRouteProps) {
     permanentRedirect(`/${lang}/product/multilingual-content-studio`);
   }
 
+  if (slug === "self-evolving-knowledge") {
+    permanentRedirect(`/${lang}/product/guidelines`);
+  }
+
   if (slug === "multilingual-content-studio") {
     return <MultilingualContentStudioPage />;
+  }
+
+  if (slug === "guidelines") {
+    return <GuidelinesPage />;
   }
   const content = productPagesBySlug[slug as keyof typeof productPagesBySlug];
 
