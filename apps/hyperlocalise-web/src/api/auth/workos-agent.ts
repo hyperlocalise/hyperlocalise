@@ -103,20 +103,16 @@ export const publicApiAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthV
       : null;
 
     if (!token || !isCompactJwt(token)) {
-      return c.json(
-        { error: "unauthorized", message: "Authentication required" },
-        401,
-        { "WWW-Authenticate": publicApiWwwAuthenticate(c.req.url) },
-      );
+      return c.json({ error: "unauthorized", message: "Authentication required" }, 401, {
+        "WWW-Authenticate": publicApiWwwAuthenticate(c.req.url),
+      });
     }
 
     const verified = await verifyWorkosAgentAccessToken(token);
     if (isErr(verified)) {
-      return c.json(
-        { error: "unauthorized", message: "Authentication required" },
-        401,
-        { "WWW-Authenticate": publicApiWwwAuthenticate(c.req.url) },
-      );
+      return c.json({ error: "unauthorized", message: "Authentication required" }, 401, {
+        "WWW-Authenticate": publicApiWwwAuthenticate(c.req.url),
+      });
     }
 
     const resolved = await resolveAgentAccessContext(verified.value);
@@ -125,11 +121,7 @@ export const publicApiAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthV
     }
 
     if (resolved.status !== "authorized") {
-      return forbiddenResponse(
-        c,
-        "forbidden",
-        "Agent is not authorized for this workspace",
-      );
+      return forbiddenResponse(c, "forbidden", "Agent is not authorized for this workspace");
     }
 
     c.set("auth", {
@@ -139,6 +131,7 @@ export const publicApiAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthV
       apiKey: {
         id: resolved.claims.registrationId,
         permissions: resolved.claims.scopes,
+        kind: "agent",
       },
       teamAccess: resolved.teamAccess,
     });
@@ -195,7 +188,7 @@ export async function authenticateMcpAgentBearer(
         slug: resolved.organization.slug,
       },
       membership: {
-        workosMembershipId: resolved.teamAccess.membership.workosMembershipId,
+        workosMembershipId: resolved.teamAccess.membership.workosMembershipId ?? null,
         role: resolved.teamAccess.membership.role,
       },
       session: {

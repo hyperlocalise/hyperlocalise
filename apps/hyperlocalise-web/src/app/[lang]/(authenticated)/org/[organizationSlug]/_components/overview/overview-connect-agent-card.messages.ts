@@ -67,12 +67,12 @@ export const overviewConnectAgentCardMessages = defineMessages({
   },
   authMdGuide: {
     defaultMessage: "Or follow {link} to register an agent with AuthKit.",
-    id: "k8nQ2pL0wR",
+    id: "JfG/xfnGBv",
     description: "Overview card link to the WorkOS agent registration skill document",
   },
   authMdLabel: {
     defaultMessage: "/auth.md",
-    id: "n3tR9vC4sM",
+    id: "bvPNfnGgVD",
     description: "Visible path for the agent registration skill document",
   },
 });

@@ -10,8 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getPublicApiProtectedResourceMetadata } from "@/lib/workos/agent-access-token";
-import { getWorkosAuthkitIssuerUrl } from "@/lib/workos/config";
+import { getPublicApiProtectedResourceMetadata } from "../../../../../lib/workos/agent-access-token";
+import { getWorkosAuthkitIssuerUrl } from "../../../../../lib/workos/config";
 
 export function GET(request: Request) {
   if (!getWorkosAuthkitIssuerUrl()) {

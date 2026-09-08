@@ -57,7 +57,9 @@ describe("agent access tokens", () => {
   });
 
   it("accepts a claimed token signed for the AuthKit issuer", async () => {
-    setAgentAccessTokenPublicKeyResolverForTest(async () => publicKey.export({ type: "spki", format: "pem" }).toString());
+    setAgentAccessTokenPublicKeyResolverForTest(async () =>
+      publicKey.export({ type: "spki", format: "pem" }).toString(),
+    );
 
     const token = signAgentToken({
       iss: "https://authkit.test",
@@ -81,9 +83,11 @@ describe("agent access tokens", () => {
   });
 
   it("rejects expired tokens, wrong audiences, and unclaimed tokens", async () => {
-    setAgentAccessTokenPublicKeyResolverForTest(async () => publicKey.export({ type: "spki", format: "pem" }).toString());
+    setAgentAccessTokenPublicKeyResolverForTest(async () =>
+      publicKey.export({ type: "spki", format: "pem" }).toString(),
+    );
 
-    const expired = signAgentToken(
+    const expired = jwt.sign(
       {
         iss: "https://authkit.test",
         aud: env.WORKOS_CLIENT_ID,
@@ -94,7 +98,11 @@ describe("agent access tokens", () => {
         iat: Math.floor(Date.now() / 1000) - 120,
         exp: Math.floor(Date.now() / 1000) - 60,
       },
-      undefined,
+      privateKey,
+      {
+        algorithm: "RS256",
+        keyid: "test-kid",
+      },
     );
     expect(isErr(await verifyWorkosAgentAccessToken(expired))).toBe(true);
 
@@ -116,5 +124,26 @@ describe("agent access tokens", () => {
       scope: "mcp",
     });
     expect(isErr(await verifyWorkosAgentAccessToken(unclaimed))).toBe(true);
+  });
+
+  it("keeps only recognized PAT and mcp scopes from the token", async () => {
+    setAgentAccessTokenPublicKeyResolverForTest(async () =>
+      publicKey.export({ type: "spki", format: "pem" }).toString(),
+    );
+
+    const token = signAgentToken({
+      iss: "https://authkit.test",
+      aud: env.WORKOS_CLIENT_ID,
+      sub: "agent_reg_01TEST",
+      org_id: "org_claimed",
+      scope: "mcp jobs:read anonymous unknown:scope",
+      act: { sub: "user_claimed" },
+    });
+
+    const result = await verifyWorkosAgentAccessToken(token);
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.scopes).toEqual(["mcp", "jobs:read"]);
+    }
   });
 });

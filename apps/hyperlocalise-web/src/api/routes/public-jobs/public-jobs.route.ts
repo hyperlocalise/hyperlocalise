@@ -17,7 +17,11 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
-import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
+import {
+  requireApiKeyPermission,
+  storedOrganizationApiKeyId,
+  type ApiKeyAuthVariables,
+} from "@/api/auth/api-key";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -272,7 +276,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                 kind: "translation",
                 status: "queued",
                 inputPayload,
-                apiKeyId: c.var.auth.apiKey.id,
+                apiKeyId: storedOrganizationApiKeyId(c.var.auth),
               })
               .returning();
 

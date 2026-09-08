@@ -23,6 +23,8 @@ import { ownerCanExerciseApiKeyPermission } from "@/api/routes/api-key/api-key.p
 import { forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
 
+export type PublicApiCredentialKind = "pat" | "agent";
+
 export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
   auth: {
     organization: {
@@ -31,10 +33,16 @@ export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
     apiKey: {
       id: string;
       permissions: string[];
+      kind: PublicApiCredentialKind;
     };
     teamAccess: ApiAuthContext;
   };
 };
+
+/** PAT ids are UUIDs stored on jobs/files. Agent registration ids are not. */
+export function storedOrganizationApiKeyId(auth: ApiKeyAuthVariables["auth"]): string | undefined {
+  return auth.apiKey.kind === "pat" ? auth.apiKey.id : undefined;
+}
 
 /** Shared 401 for unknown, revoked, and ownerless tokens. Do not distinguish them. */
 export const INVALID_OR_REVOKED_API_KEY_MESSAGE = "Invalid or revoked API key";
@@ -130,6 +138,7 @@ export async function authenticatePresentedApiKey(
     apiKey: {
       id: keyRecord.id,
       permissions: keyRecord.permissions,
+      kind: "pat",
     },
     teamAccess,
   });

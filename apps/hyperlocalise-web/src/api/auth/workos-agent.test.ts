@@ -230,6 +230,33 @@ describe("WorkOS agent JWT on /api/v1", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("does not grant job writes when the token only has files:read", async () => {
+    const { project, user } = await createPublicApiFixture();
+    const claimedToken = await claimedAgentToken({
+      organizationId: project.organizationId,
+      workosUserId: user.workosUserId,
+      scope: "files:read",
+      registrationId: "agent_reg_01SCOPE",
+    });
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "string",
+          projectId: project.id,
+          stringInput: {
+            sourceText: "Hello",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers: { Authorization: `Bearer ${claimedToken}` } },
+    );
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe("WorkOS agent JWT on MCP", () => {

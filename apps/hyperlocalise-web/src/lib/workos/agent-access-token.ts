@@ -122,6 +122,15 @@ async function resolvePublicKey(kid: string, issuer: string): Promise<string> {
   return signingKey.getPublicKey();
 }
 
+function audienceMatches(aud: jwt.JwtPayload["aud"], allowed: string[]): boolean {
+  if (!aud) {
+    return false;
+  }
+
+  const values = Array.isArray(aud) ? aud : [aud];
+  return values.some((value) => allowed.includes(value));
+}
+
 export async function verifyWorkosAgentAccessToken(
   token: string,
 ): Promise<Result<AgentAccessTokenClaims, AgentAccessTokenError>> {
@@ -143,17 +152,22 @@ export async function verifyWorkosAgentAccessToken(
     const payload = jwt.verify(token, publicKey, {
       algorithms: ["RS256"],
       issuer,
-      audience: audiences,
     });
 
     if (typeof payload !== "object" || payload === null) {
       return err({ code: "invalid_agent_access_token" });
     }
 
-    const registrationId = typeof payload.sub === "string" ? payload.sub : null;
-    const workosOrganizationId = typeof payload.org_id === "string" ? payload.org_id : null;
-    const workosUserId = parseActSubject(payload.act);
-    const scopes = parseScope(payload.scope);
+    const claims = payload as jwt.JwtPayload & { org_id?: unknown; act?: unknown };
+    if (!audienceMatches(claims.aud, audiences)) {
+      return err({ code: "invalid_agent_access_token" });
+    }
+
+    const registrationId = typeof claims.sub === "string" ? claims.sub : null;
+    const workosOrganizationId = typeof claims.org_id === "string" ? claims.org_id : null;
+    const workosUserId = parseActSubject(claims.act);
+    const allowedScopes = new Set<string>(AGENT_ACCESS_SCOPES);
+    const scopes = parseScope(claims.scope).filter((scope) => allowedScopes.has(scope));
 
     if (!registrationId || !workosOrganizationId || !workosUserId) {
       return err({ code: "invalid_agent_access_token" });
