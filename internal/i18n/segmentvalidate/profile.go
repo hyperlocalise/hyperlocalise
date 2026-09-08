@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -167,18 +168,17 @@ func validateSpecialCharParityWithTokens(source, translated string) (bool, error
 	)
 }
 
-const escapedControlChars = "\t\n\r\v\f"
-
 // IntroducedEscapedChars reports escape sequences and control characters that
 // appear in target but not in source. It covers both literal two-character
-// sequences such as `\t` and the decoded control runes they represent.
+// sequences such as `\t` and decoded Unicode control runes (Cc), including
+// NUL, backspace, and escape after JSON or CAT unescape.
 func IntroducedEscapedChars(source, target string) []string {
 	if target == "" || target == source {
 		return nil
 	}
 	hasLiteralEscapes := strings.Contains(target, "\\")
-	hasControlChars := strings.ContainsAny(target, escapedControlChars)
-	if !hasLiteralEscapes && !hasControlChars {
+	controlTokens := extractControlCharTokens(target)
+	if !hasLiteralEscapes && len(controlTokens) == 0 {
 		return nil
 	}
 
@@ -186,8 +186,8 @@ func IntroducedEscapedChars(source, target string) []string {
 	if hasLiteralEscapes {
 		extras = append(extras, extraTokens(extractSpecialCharLiterals(target), extractSpecialCharLiterals(source))...)
 	}
-	if hasControlChars {
-		extras = append(extras, extraTokens(extractControlCharTokens(target), extractControlCharTokens(source))...)
+	if len(controlTokens) > 0 {
+		extras = append(extras, extraTokens(controlTokens, extractControlCharTokens(source))...)
 	}
 	if len(extras) == 0 {
 		return nil
@@ -221,25 +221,35 @@ func extraTokens(got, expected []string) []string {
 }
 
 func extractControlCharTokens(value string) []string {
-	if value == "" || !strings.ContainsAny(value, escapedControlChars) {
+	if value == "" || !strings.ContainsFunc(value, unicode.IsControl) {
 		return nil
 	}
 	var out []string
 	for _, r := range value {
-		switch r {
-		case '\t':
-			out = append(out, `\t`)
-		case '\n':
-			out = append(out, `\n`)
-		case '\r':
-			out = append(out, `\r`)
-		case '\v':
-			out = append(out, `\v`)
-		case '\f':
-			out = append(out, `\f`)
+		if token := controlCharToken(r); token != "" {
+			out = append(out, token)
 		}
 	}
 	return out
+}
+
+func controlCharToken(r rune) string {
+	switch r {
+	case '\t':
+		return `\t`
+	case '\n':
+		return `\n`
+	case '\r':
+		return `\r`
+	case '\v':
+		return `\v`
+	case '\f':
+		return `\f`
+	}
+	if unicode.IsControl(r) {
+		return fmt.Sprintf(`\u%04x`, r)
+	}
+	return ""
 }
 
 func extractSpecialCharLiterals(value string) []string {

@@ -88,6 +88,17 @@ func TestQAModesEdgeCases(t *testing.T) {
 			wantMsg: "Target introduces escaped characters (\\t) that are not in the source.",
 		},
 		{
+			name: "escaped_char_mismatch with decoded NUL",
+			req: Request{
+				SourceText: "Included",
+				TargetText: "Inclus\u0000granted",
+				SourcePath: "en.json",
+				Modes:      []string{QAModeEscapedChar},
+			},
+			wantIDs: []string{"format-parity", "qa-escaped-char-mismatch"},
+			wantMsg: "Target introduces escaped characters (\\u0000) that are not in the source.",
+		},
+		{
 			name: "modes trimming and deduplication",
 			req: Request{
 				SourceText: "Hello",

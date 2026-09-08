@@ -92,6 +92,19 @@ func TestQAModesEscapedChar(t *testing.T) {
 
 	checks = ValidateSegment(Request{
 		SourceText: "Included",
+		TargetText: "Inclus\u0000granted",
+		SourcePath: "/pkg/en.json",
+		Modes:      []string{QAModeEscapedChar},
+	})
+	if len(checks) != 2 {
+		t.Fatalf("expected format pass + escaped-char warning for decoded NUL, got %+v", checks)
+	}
+	if checks[1].ID != "qa-escaped-char-mismatch" || len(checks[1].RelatedTokens) != 1 || checks[1].RelatedTokens[0] != `\u0000` {
+		t.Fatalf("unexpected decoded NUL check: %+v", checks[1])
+	}
+
+	checks = ValidateSegment(Request{
+		SourceText: "Included",
 		TargetText: "Inclus",
 		SourcePath: "/pkg/en.json",
 		Modes:      []string{QAModeEscapedChar},

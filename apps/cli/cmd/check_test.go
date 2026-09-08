@@ -843,6 +843,36 @@ func TestCollectEntryCheckFindingsEscapedCharMismatch(t *testing.T) {
 	}
 }
 
+func TestCollectEntryCheckFindingsDecodedControlChars(t *testing.T) {
+	findings := collectEntryCheckFindings(
+		&checkLocationResolver{},
+		"ui",
+		"fr",
+		"source.json",
+		"target.json",
+		map[string]string{
+			"included": "Included",
+		},
+		map[string]string{
+			"included": "Inclus\u0000granted",
+		},
+		map[string]struct{}{
+			checkEscapedChar: {},
+		},
+		checkSelection{},
+	)
+
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %+v", findings)
+	}
+	if findings[0].Type != checkEscapedChar {
+		t.Fatalf("unexpected finding: %+v", findings[0])
+	}
+	if !strings.Contains(findings[0].Message, `\u0000`) {
+		t.Fatalf("expected \\u0000 in message, got %q", findings[0].Message)
+	}
+}
+
 func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
 	findings := collectEntryCheckFindings(
 		&checkLocationResolver{},

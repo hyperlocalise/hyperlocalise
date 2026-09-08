@@ -332,6 +332,36 @@ func TestIntroducedEscapedChars(t *testing.T) {
 			target: `Dossier C:\tmp`,
 			want:   []string{`\t`},
 		},
+		{
+			name:   "decoded NUL without backslash",
+			source: "Included",
+			target: "Inclus\u0000granted",
+			want:   []string{`\u0000`},
+		},
+		{
+			name:   "decoded backspace without backslash",
+			source: "Included",
+			target: "Inclus\bgranted",
+			want:   []string{`\u0008`},
+		},
+		{
+			name:   "decoded escape without backslash",
+			source: "Included",
+			target: "Inclus\u001bgranted",
+			want:   []string{`\u001b`},
+		},
+		{
+			name:   "decoded DEL and C1 NEL",
+			source: "Included",
+			target: "Inclus\u007f\u0085",
+			want:   []string{`\u007f`, `\u0085`},
+		},
+		{
+			name:   "matching decoded NUL is not introduced",
+			source: "Col A\u0000Col B",
+			target: "Col A\u0000Col B",
+			want:   nil,
+		},
 	}
 
 	for _, tt := range tests {

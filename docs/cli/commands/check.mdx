@@ -29,7 +29,7 @@ With **`--diff-stdin`**, `check` reads a unified git patch from stdin and valida
 - `same_as_source`: target value matches the source text. Common for brands, codes, or locale-neutral strings; use `--exclude-check same_as_source` if you want to hide these
 - `orphaned_key`: target key exists but the source key does not
 - `whitespace_only`: target value contains only whitespace
-- `escaped_char_mismatch`: target introduces escaped characters or control characters (`\t`, `\n`, `\r`, `\uXXXX`, `\xXX`) that are not in the source. Common when a model leaves leftover English after a tab, such as `Inclus\tgranted`
+- `escaped_char_mismatch`: target introduces escaped characters or control characters (`\t`, `\n`, `\r`, `\uXXXX`, `\xXX`, and other C0/C1 controls such as NUL) that are not in the source. Common when a model leaves leftover English after a tab, such as `Inclus\tgranted`. Also flags decoded controls after JSON or CAT unescape, not only the literal two-character sequences
 
 Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include `markdown_ast_mismatch`. Use both flags if you need ICU and MD/MDX structure checks together.
 
