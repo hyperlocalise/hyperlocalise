@@ -17,11 +17,8 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
-import {
-  apiKeyAuthMiddleware,
-  requireApiKeyPermission,
-  type ApiKeyAuthVariables,
-} from "@/api/auth/api-key";
+import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
+import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/response.schema";
@@ -181,7 +178,7 @@ function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScop
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", apiKeyAuthMiddleware)
+    .use("*", publicApiAuthMiddleware)
     .post(
       "/",
       requireApiKeyPermission("jobs:write"),

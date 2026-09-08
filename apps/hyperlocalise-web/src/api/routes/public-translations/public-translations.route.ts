@@ -14,12 +14,9 @@ import { Hono } from "hono";
 import path from "node:path";
 import { validator } from "hono/validator";
 
-import {
-  apiKeyAuthMiddleware,
-  requireApiKeyPermission,
-  type ApiKeyAuthVariables,
-} from "@/api/auth/api-key";
+import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
+import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
@@ -62,7 +59,7 @@ function downloadFilename(sourcePath: string, locale: string) {
 
 export function createPublicTranslationRoutes() {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", apiKeyAuthMiddleware)
+    .use("*", publicApiAuthMiddleware)
     .get(
       "/:projectId/translations/download",
       requireApiKeyPermission("files:read"),

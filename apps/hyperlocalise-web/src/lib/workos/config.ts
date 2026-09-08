@@ -40,3 +40,13 @@ export function getWorkosAuthKitConfig(): WorkosAuthKitConfig | null {
     ...hostOptions,
   };
 }
+
+/** AuthKit host used for agent registration discovery and JWT issuer checks. */
+export function getWorkosAuthkitDomain(): string | null {
+  return env.WORKOS_AUTHKIT_DOMAIN ?? null;
+}
+
+export function getWorkosAuthkitIssuerUrl(): string | null {
+  const domain = getWorkosAuthkitDomain();
+  return domain ? `https://${domain}` : null;
+}

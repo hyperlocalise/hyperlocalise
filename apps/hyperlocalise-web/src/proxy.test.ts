@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { APP_LOCALE_HEADER_NAME } from "@/lib/app-i18n/locales";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
-import proxy, { ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
+import proxy, { config, ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
 
 const { authkitProxyMock } = vi.hoisted(() => ({
   authkitProxyMock: vi.fn(),
@@ -264,5 +264,15 @@ describe("proxy", () => {
       buildCrowdinAppFrameAncestorsCsp(),
     );
     expect(response?.headers.get("X-Frame-Options")).toBeNull();
+  });
+});
+
+describe("proxy matcher", () => {
+  it("excludes /auth.md from the locale AuthKit matcher", () => {
+    const [localeMatcher] = config.matcher;
+    const regex = new RegExp(`^${localeMatcher}$`);
+
+    expect(regex.test("/auth.md")).toBe(false);
+    expect(regex.test("/en/org/acme/dashboard")).toBe(true);
   });
 });

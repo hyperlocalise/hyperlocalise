@@ -58,6 +58,24 @@ It runs:
 
 `users.workos_memberships_reconciled_at` records the last successful reconcile. If WorkOS lookup fails and the timestamp is older than five minutes, access is denied instead of trusting stale local membership rows.
 
+## Agent registration
+
+AuthKit Agent Registration is a third credential channel for MCP and `/api/v1`.
+Agents discover AuthKit through `/auth.md` (reverse-proxied from the AuthKit
+domain in `WORKOS_AUTHKIT_DOMAIN`). After a hosted `service_auth` claim, they
+exchange an identity assertion for a JWT. Hyperlocalise verifies the JWT locally
+(`iss` = AuthKit issuer, `aud` = client id or public resource URI), maps
+`act.sub` and `org_id` to local user/org rows, then applies the same live
+membership gate as personal access tokens.
+
+Do not enable anonymous registration. MCP OAuth metadata continues to list
+Hyperlocalise as the first authorization server. The public API advertises
+AuthKit at `/.well-known/oauth-protected-resource/api/v1`.
+
+Dashboard: Authentication → Agents — service auth on, anonymous off, access
+token credentials, trusted permissions matching PAT scopes plus `mcp`. See
+[`docs/adr/2026-09-08-workos-agent-registration-design.md`](../../../../docs/adr/2026-09-08-workos-agent-registration-design.md).
+
 ## Placeholder users
 
 Invited users who have not signed in use `users.workos_user_id` values prefixed with `invited_user_`. They may have pending local membership rows for member management UI, but they never receive `workos_authoritative` access until WorkOS confirms membership and the placeholder id is promoted on `user.created`.

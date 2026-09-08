@@ -15,12 +15,9 @@ import { Hono } from "hono";
 import path from "node:path";
 import { validator } from "hono/validator";
 
-import {
-  apiKeyAuthMiddleware,
-  requireApiKeyPermission,
-  type ApiKeyAuthVariables,
-} from "@/api/auth/api-key";
+import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
+import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import { db, schema } from "@/lib/database/client";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
@@ -126,7 +123,7 @@ async function loadProjectFileVariant(input: {
 
 export function createPublicImageRoutes(options: CreatePublicImageRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", apiKeyAuthMiddleware)
+    .use("*", publicApiAuthMiddleware)
     .get(
       "/:projectId/files/download",
       requireApiKeyPermission("files:read"),

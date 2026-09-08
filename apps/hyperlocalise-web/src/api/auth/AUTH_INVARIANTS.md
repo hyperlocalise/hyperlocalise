@@ -63,6 +63,16 @@ full WorkOS identity model.
    role, team access, and capabilities. Do not accept WorkOS sealed sessions,
    `X-Hyperlocalise-Figma-Session`, or `Authorization: Bearer` as Figma
    integration auth. Do not mint a Figma-specific identity token.
+   9d. **WorkOS agent JWTs are an explicit alternate channel for MCP and
+   `/api/v1` only.** Agents register through AuthKit (`service_auth`), complete
+   the hosted claim ceremony, and present a short-lived access token as
+   `Authorization: Bearer`. The JWT must carry `act.sub` (claimed user) and
+   `org_id`. Access is the token `scope` ∩ the claimed user's live WorkOS
+   membership, role, team access, and capabilities. Tokens without a claim,
+   unknown users/orgs, and unauthoritative memberships fail closed. Do not
+   accept these JWTs on Figma, Crowdin embed, org-scoped session routes, or
+   native Mac session channels. Keep first-party MCP OAuth (`hl_mcp_*`) and
+   PATs (`x-api-key`) as separate channels.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable

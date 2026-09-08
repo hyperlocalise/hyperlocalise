@@ -63,6 +63,10 @@ describe("OverviewConnectAgentCard", () => {
     expect(
       screen.getByText("Add this to ~/.cursor/mcp.json, then open Settings → MCP and click Login."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "/auth.md" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/\/auth\.md$/),
+    );
   });
 
   it("copies the selected install snippet", async () => {
@@ -93,5 +97,6 @@ describe("OverviewConnectAgentCard", () => {
       screen.queryByText("Access your Hyperlocalise workspace from MCP clients."),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Then run")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "/auth.md" })).not.toBeInTheDocument();
   });
 });

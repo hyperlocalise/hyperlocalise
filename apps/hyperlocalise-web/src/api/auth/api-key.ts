@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import type { Context } from "hono";
 import type { EvlogVariables } from "evlog/hono";
 
 import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
@@ -70,6 +71,73 @@ export function touchApiKeyLastUsedAt(apiKeyId: string) {
     .catch(() => {});
 }
 
+export async function authenticatePresentedApiKey(
+  c: Context<{ Variables: ApiKeyAuthVariables }>,
+  next: () => Promise<void>,
+  apiKey: string,
+) {
+  const keyHash = hashApiKey(apiKey);
+
+  const [keyRecord] = await db
+    .select({
+      id: schema.organizationApiKeys.id,
+      organizationId: schema.organizationApiKeys.organizationId,
+      keyPrefix: schema.organizationApiKeys.keyPrefix,
+      permissions: schema.organizationApiKeys.permissions,
+      createdByUserId: schema.organizationApiKeys.createdByUserId,
+      revokedAt: schema.organizationApiKeys.revokedAt,
+      lifecycleStatus: schema.organizations.lifecycleStatus,
+    })
+    .from(schema.organizationApiKeys)
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationApiKeys.organizationId, schema.organizations.id),
+    )
+    .where(eq(schema.organizationApiKeys.keyHash, keyHash))
+    .limit(1);
+
+  // Unknown, revoked, and ownerless tokens share one 401 so callers cannot
+  // probe whether a secret hashes to a stored row.
+  if (!keyRecord || keyRecord.revokedAt || !keyRecord.createdByUserId) {
+    return unauthorizedResponse(c, "unauthorized", INVALID_OR_REVOKED_API_KEY_MESSAGE);
+  }
+
+  if (keyRecord.lifecycleStatus !== "active") {
+    return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
+  }
+
+  const teamAccess = await resolveApiKeyTeamAccessContext({
+    organizationId: keyRecord.organizationId,
+    createdByUserId: keyRecord.createdByUserId,
+  });
+
+  if (!teamAccess) {
+    return forbiddenResponse(
+      c,
+      "forbidden",
+      "API key creator is not authorized for this workspace",
+    );
+  }
+
+  // Telemetry only. Never block the request, and never write on a rejected
+  // credential — lastUsedAt is set only after authentication succeeds.
+  touchApiKeyLastUsedAt(keyRecord.id);
+
+  c.set("auth", {
+    organization: {
+      localOrganizationId: keyRecord.organizationId,
+    },
+    apiKey: {
+      id: keyRecord.id,
+      permissions: keyRecord.permissions,
+    },
+    teamAccess,
+  });
+  c.get("log").set(apiKeyAuthLogContext(keyRecord));
+
+  await next();
+}
+
 export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVariables }>(
   async (c, next) => {
     const apiKey = c.req.header("x-api-key");
@@ -78,66 +146,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       return unauthorizedResponse(c, "unauthorized", "API key is required");
     }
 
-    const keyHash = hashApiKey(apiKey);
-
-    const [keyRecord] = await db
-      .select({
-        id: schema.organizationApiKeys.id,
-        organizationId: schema.organizationApiKeys.organizationId,
-        keyPrefix: schema.organizationApiKeys.keyPrefix,
-        permissions: schema.organizationApiKeys.permissions,
-        createdByUserId: schema.organizationApiKeys.createdByUserId,
-        revokedAt: schema.organizationApiKeys.revokedAt,
-        lifecycleStatus: schema.organizations.lifecycleStatus,
-      })
-      .from(schema.organizationApiKeys)
-      .innerJoin(
-        schema.organizations,
-        eq(schema.organizationApiKeys.organizationId, schema.organizations.id),
-      )
-      .where(eq(schema.organizationApiKeys.keyHash, keyHash))
-      .limit(1);
-
-    // Unknown, revoked, and ownerless tokens share one 401 so callers cannot
-    // probe whether a secret hashes to a stored row.
-    if (!keyRecord || keyRecord.revokedAt || !keyRecord.createdByUserId) {
-      return unauthorizedResponse(c, "unauthorized", INVALID_OR_REVOKED_API_KEY_MESSAGE);
-    }
-
-    if (keyRecord.lifecycleStatus !== "active") {
-      return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
-    }
-
-    const teamAccess = await resolveApiKeyTeamAccessContext({
-      organizationId: keyRecord.organizationId,
-      createdByUserId: keyRecord.createdByUserId,
-    });
-
-    if (!teamAccess) {
-      return forbiddenResponse(
-        c,
-        "forbidden",
-        "API key creator is not authorized for this workspace",
-      );
-    }
-
-    // Telemetry only. Never block the request, and never write on a rejected
-    // credential — lastUsedAt is set only after authentication succeeds.
-    touchApiKeyLastUsedAt(keyRecord.id);
-
-    c.set("auth", {
-      organization: {
-        localOrganizationId: keyRecord.organizationId,
-      },
-      apiKey: {
-        id: keyRecord.id,
-        permissions: keyRecord.permissions,
-      },
-      teamAccess,
-    });
-    c.get("log").set(apiKeyAuthLogContext(keyRecord));
-
-    await next();
+    return authenticatePresentedApiKey(c, next, apiKey);
   },
 );
 
