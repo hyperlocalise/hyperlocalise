@@ -15,6 +15,7 @@ import "dotenv/config";
 import { createHash } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
+import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { OAuthProtectedResourceMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -86,6 +87,7 @@ vi.mock("@/api/auth/mcp-client-metadata", async (importOriginal) => {
 });
 
 const app = createMcpTestApp();
+const mcpClient = testClient(app);
 const apiApp = createApp();
 const fixture = createProjectTestFixture();
 const originalMcpAuthEnabled = env.MCP_AUTH_ENABLED;
@@ -5078,28 +5080,32 @@ describe("mcpRoutes", () => {
     ];
 
     for (const testCase of cases) {
-      const response = await app.request("http://localhost/mcp", {
-        method: "POST",
-        headers: {
-          ...headers,
-          accept: "application/json, text/event-stream",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "tools/call",
-          params: {
-            name: "update_translation",
-            arguments: {
-              projectId: stored.project.id,
-              translationKeyId: translationKey.id,
-              targetLocale: "fr-FR",
-              targetText: testCase.targetText,
-            },
+      const response = await mcpClient.mcp.$post(
+        {},
+        {
+          headers: {
+            ...headers,
+            accept: "application/json, text/event-stream",
+            "content-type": "application/json",
           },
-        }),
-      });
+          init: {
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "tools/call",
+              params: {
+                name: "update_translation",
+                arguments: {
+                  projectId: stored.project.id,
+                  translationKeyId: translationKey.id,
+                  targetLocale: "fr-FR",
+                  targetText: testCase.targetText,
+                },
+              },
+            }),
+          },
+        },
+      );
 
       expect(response.status).toBe(200);
 
@@ -5688,20 +5694,24 @@ describe("mcpRoutes", () => {
   it("advertises update_translation with bounded inputs", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    const response = await app.request("http://localhost/mcp", {
-      method: "POST",
-      headers: {
-        ...headers,
-        accept: "application/json, text/event-stream",
-        "content-type": "application/json",
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
       },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/list",
-        params: {},
-      }),
-    });
+    );
 
     expect(response.status).toBe(200);
 
