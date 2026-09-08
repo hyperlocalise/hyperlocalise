@@ -16,6 +16,7 @@ import {
   ACTIVITY_ACTOR_KINDS,
   ACTIVITY_TARGET_KINDS,
   assertSafeActivityLogPayload,
+  CONTENT_EDITOR_ACTIVITY_EVENT_TYPES,
   isV1ActivityEventType,
   LATER_ACTIVITY_EVENT_TYPES,
   RESERVED_ACTIVITY_EVENT_TYPES,
@@ -40,6 +41,8 @@ describe("activity log contract", () => {
       "translation_memory",
       "job",
       "automation",
+      "file",
+      "segment",
     ]);
   });
 
@@ -60,6 +63,18 @@ describe("activity log contract", () => {
       "automation_run_started",
       "automation_enabled",
       "automation_disabled",
+    ]);
+    expect(CONTENT_EDITOR_ACTIVITY_EVENT_TYPES).toEqual([
+      "file_uploaded",
+      "file_imported",
+      "file_exported",
+      "segment_draft_saved",
+      "segment_approved",
+      "segment_hidden",
+      "segment_unhidden",
+      "segment_locked",
+      "segment_unlocked",
+      "segment_commented",
     ]);
   });
 

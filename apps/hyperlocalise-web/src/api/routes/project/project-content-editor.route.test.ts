@@ -60,6 +60,9 @@ const {
   createStoredFileMock,
   deleteStoredFileMock,
   isReleaseContentEditorAllFilesEnabledMock,
+  enqueueFileActivityMock,
+  enqueueSegmentActivityMock,
+  enqueueSegmentActivitiesMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
@@ -75,6 +78,15 @@ const {
   createStoredFileMock: vi.fn(),
   deleteStoredFileMock: vi.fn(),
   isReleaseContentEditorAllFilesEnabledMock: vi.fn(async () => false),
+  enqueueFileActivityMock: vi.fn(),
+  enqueueSegmentActivityMock: vi.fn(),
+  enqueueSegmentActivitiesMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueFileActivity: enqueueFileActivityMock,
+  enqueueSegmentActivity: enqueueSegmentActivityMock,
+  enqueueSegmentActivities: enqueueSegmentActivitiesMock,
 }));
 
 vi.mock("@/lib/flags/release-flags", () => ({
@@ -766,6 +778,15 @@ describe("project file CAT routes", () => {
         status: "draft",
       },
     );
+    expect(enqueueSegmentActivityMock).toHaveBeenCalledWith(
+      "segment_draft_saved",
+      expect.objectContaining({
+        externalStringId: translationKey!.id,
+        projectId: project.id,
+        sourcePath,
+        targetLocale: "fr-FR",
+      }),
+    );
 
     const approveResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -792,6 +813,14 @@ describe("project file CAT routes", () => {
         source: "native",
         status: "approved",
       },
+    );
+    expect(enqueueSegmentActivityMock).toHaveBeenCalledWith(
+      "segment_approved",
+      expect.objectContaining({
+        externalStringId: translationKey!.id,
+        projectId: project.id,
+        sourcePath,
+      }),
     );
 
     trackSpy.mockClear();

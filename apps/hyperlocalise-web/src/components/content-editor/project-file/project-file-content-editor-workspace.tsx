@@ -68,6 +68,7 @@ import {
   isFileBackedCatSegment,
   resolveCatLinkedIssueTranslationKeyId,
 } from "@/components/content-editor/issues/content-editor-linked-issue-translation-key";
+import { ContentEditorActivityLogDialog } from "@/components/content-editor/activity/content-editor-activity-log-dialog";
 import {
   ContentEditorLinkedIssuesDialog,
   type ContentEditorLinkedIssueSegmentContext,
@@ -143,6 +144,7 @@ export function ProjectFileContentEditorWorkspace({
       ? { organizationSlug, href: buildAvailablePlansHref(organizationSlug) }
       : null;
   const [linkedIssuesOpen, setLinkedIssuesOpen] = useState(false);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
   const [linkedIssuesSegment, setLinkedIssuesSegment] =
     useState<ContentEditorLinkedIssueSegmentContext | null>(null);
   const internalPageNavigationGuardRef = useRef<ContentEditorPageNavigationGuard | null>(null);
@@ -946,8 +948,16 @@ export function ProjectFileContentEditorWorkspace({
           nativeIssuesEnabled={isNativeProject}
           onDownloadFilteredView={handleDownloadFilteredView}
           isDownloadingFilteredView={isExporting}
+          onOpenActivityLog={() => setActivityLogOpen(true)}
         />
       </AiFeaturesUpgradeHrefProvider>
+      <ContentEditorActivityLogDialog
+        open={activityLogOpen}
+        onOpenChange={setActivityLogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourcePath={sourcePath}
+      />
       <ContentEditorLinkedIssuesDialog
         open={linkedIssuesOpen}
         onOpenChange={setLinkedIssuesOpen}

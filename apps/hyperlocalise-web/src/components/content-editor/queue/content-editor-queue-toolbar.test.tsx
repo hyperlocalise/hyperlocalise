@@ -73,6 +73,19 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
   });
 
+  it("opens activity log from the history icon button", async () => {
+    const user = userEvent.setup();
+    const onOpenActivityLog = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar onOpenActivityLog={onOpenActivityLog} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Show file activity" }));
+
+    expect(onOpenActivityLog).toHaveBeenCalledTimes(1);
+  });
+
   it("hides sort when untranslated first is not available", () => {
     renderWithContentEditorProviders(
       <ContentEditorQueueToolbar

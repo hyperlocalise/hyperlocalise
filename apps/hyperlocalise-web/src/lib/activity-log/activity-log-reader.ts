@@ -19,9 +19,12 @@ import { and, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import {
+  CONTENT_EDITOR_ACTIVITY_EVENT_TYPES,
   IMPLEMENTED_ACTIVITY_EVENT_TYPES,
   type ImplementedActivityEventType,
 } from "./activity-log-contract";
+import { fileActivityTargetId, segmentActivityTargetId } from "./activity-log-ids";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 export const ACTIVITY_LOG_RANGES = ["24h", "7d", "30d", "all"] as const;
 export type ActivityLogRange = (typeof ACTIVITY_LOG_RANGES)[number];
@@ -36,8 +39,11 @@ export type ActivityLogQuery = {
   actor?: ActivityLogActorFilter;
   cursor?: string;
   eventTypes: ImplementedActivityEventType[];
+  externalStringId?: string;
   limit: number;
+  projectId?: string;
   range: ActivityLogRange;
+  sourcePath?: string;
 };
 
 export type ActivityLogActorView = {
@@ -101,10 +107,36 @@ function filterFingerprint(query: ActivityLogQuery): string {
       JSON.stringify({
         actor: query.actor ?? null,
         eventTypes: [...query.eventTypes].sort((left, right) => left.localeCompare(right)),
+        externalStringId: query.externalStringId ?? null,
+        projectId: query.projectId ?? null,
         range: query.range,
+        sourcePath: query.sourcePath ?? null,
       }),
     )
     .digest("hex");
+}
+
+function contentEditorTargetHref(
+  organizationSlug: string,
+  payload: Record<string, unknown>,
+  segment?: string,
+): string | null {
+  if (typeof payload.projectId !== "string" || !payload.projectId.trim()) {
+    return null;
+  }
+  if (typeof payload.sourcePath !== "string" || !payload.sourcePath.trim()) {
+    return null;
+  }
+
+  const params = new URLSearchParams({ sourcePath: payload.sourcePath });
+  if (typeof payload.targetLocale === "string" && payload.targetLocale.trim()) {
+    params.set("locale", payload.targetLocale);
+  }
+  if (segment?.trim()) {
+    params.set("segment", segment.trim());
+  }
+
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(payload.projectId)}/files/content-editor?${params.toString()}`;
 }
 
 function encodeCursor(cursor: { createdAt: Date; id: string }, fingerprint: string): string {
@@ -352,6 +384,20 @@ async function loadTargetViews(
       continue;
     }
 
+    if (row.targetKind === "file" || row.targetKind === "segment") {
+      const segmentId =
+        row.targetKind === "segment" && typeof row.payload.externalStringId === "string"
+          ? row.payload.externalStringId
+          : undefined;
+      views.set(key, {
+        displayName: payloadTargetDisplayName(row.payload),
+        href: contentEditorTargetHref(organizationSlug, row.payload, segmentId),
+        id: row.targetId,
+        kind: row.targetKind,
+      });
+      continue;
+    }
+
     views.set(key, {
       displayName: payloadTargetDisplayName(row.payload),
       href: null,
@@ -423,6 +469,38 @@ export async function listActivityLogEvents(input: {
         )!,
       );
     }
+  }
+  if (input.query.projectId) {
+    conditions.push(
+      sql`${schema.organizationActivityEvents.payload} ->> 'projectId' = ${input.query.projectId}`,
+    );
+  }
+  if (
+    input.query.projectId &&
+    input.query.sourcePath &&
+    !isContentEditorAllFilesSourcePath(input.query.sourcePath)
+  ) {
+    const fileTargetId = fileActivityTargetId(input.query.projectId, input.query.sourcePath);
+    conditions.push(
+      or(
+        and(
+          eq(schema.organizationActivityEvents.targetKind, "file"),
+          eq(schema.organizationActivityEvents.targetId, fileTargetId),
+        ),
+        sql`${schema.organizationActivityEvents.payload} ->> 'sourcePath' = ${input.query.sourcePath}`,
+      )!,
+    );
+  }
+  if (input.query.projectId && input.query.externalStringId) {
+    conditions.push(
+      and(
+        eq(schema.organizationActivityEvents.targetKind, "segment"),
+        eq(
+          schema.organizationActivityEvents.targetId,
+          segmentActivityTargetId(input.query.projectId, input.query.externalStringId),
+        ),
+      )!,
+    );
   }
   if (cursor) {
     conditions.push(
@@ -501,4 +579,30 @@ export async function listActivityLogEvents(input: {
     actors,
     nextCursor: hasNextPage && last ? encodeCursor(last, fingerprint) : null,
   };
+}
+
+export async function listContentEditorActivityLogEvents(input: {
+  database?: DatabaseClient;
+  externalStringId?: string;
+  limit: number;
+  organizationId: string;
+  organizationSlug: string;
+  projectId: string;
+  sourcePath?: string;
+  cursor?: string;
+}): Promise<ActivityLogListResult> {
+  return listActivityLogEvents({
+    database: input.database,
+    organizationId: input.organizationId,
+    organizationSlug: input.organizationSlug,
+    query: {
+      cursor: input.cursor,
+      eventTypes: [...CONTENT_EDITOR_ACTIVITY_EVENT_TYPES],
+      externalStringId: input.externalStringId,
+      limit: input.limit,
+      projectId: input.projectId,
+      range: "all",
+      sourcePath: input.sourcePath,
+    },
+  });
 }

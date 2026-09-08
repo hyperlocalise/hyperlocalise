@@ -1,0 +1,1 @@
+CREATE INDEX "idx_organization_activity_events_org_target_created_at_id" ON "organization_activity_events" USING btree ("organization_id","target_kind","target_id","created_at","id");

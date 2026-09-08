@@ -15,6 +15,7 @@
 import {
   Download01Icon,
   FilterIcon,
+  HistoryIcon,
   MoreHorizontalCircle01Icon,
   SearchIcon,
   Sorting01Icon,
@@ -98,6 +99,7 @@ export function ContentEditorQueueToolbar({
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  onOpenActivityLog,
 }: {
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -129,6 +131,7 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
   isDownloadingFilteredView?: boolean;
+  onOpenActivityLog?: () => void;
 }) {
   const intl = useIntl();
   const hasBulkActions = Boolean(
@@ -246,6 +249,22 @@ export function ContentEditorQueueToolbar({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : null}
+
+        {onOpenActivityLog ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="size-8 shrink-0 px-0 font-normal"
+            onClick={onOpenActivityLog}
+            aria-label={intl.formatMessage(contentEditorQueuePanelMessages.activityLogAria)}
+          >
+            <HugeiconsIcon icon={HistoryIcon} className="size-3.5" />
+            <span className="sr-only">
+              <FormattedMessage {...contentEditorQueuePanelMessages.activityLog} />
+            </span>
+          </Button>
         ) : null}
 
         {onDownloadFilteredView ? (

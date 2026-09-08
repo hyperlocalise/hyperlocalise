@@ -230,6 +230,56 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "uIkNdFV4AX",
     description: "Activity log event type label for disabling automations",
   },
+  fileUploadedEventType: {
+    defaultMessage: "File Uploaded",
+    id: "actFileUploadedType",
+    description: "Activity log event type label for file uploads",
+  },
+  fileImportedEventType: {
+    defaultMessage: "File Imported",
+    id: "actFileImportedType",
+    description: "Activity log event type label for translation file imports",
+  },
+  fileExportedEventType: {
+    defaultMessage: "File Exported",
+    id: "actFileExportedType",
+    description: "Activity log event type label for file exports",
+  },
+  segmentDraftSavedEventType: {
+    defaultMessage: "Segment Draft Saved",
+    id: "actSegDraftType",
+    description: "Activity log event type label for saving a segment draft",
+  },
+  segmentApprovedEventType: {
+    defaultMessage: "Segment Approved",
+    id: "actSegApprovedType",
+    description: "Activity log event type label for approving a segment",
+  },
+  segmentHiddenEventType: {
+    defaultMessage: "Segment Hidden",
+    id: "actSegHiddenType",
+    description: "Activity log event type label for hiding a segment",
+  },
+  segmentUnhiddenEventType: {
+    defaultMessage: "Segment Unhidden",
+    id: "actSegUnhiddenType",
+    description: "Activity log event type label for unhiding a segment",
+  },
+  segmentLockedEventType: {
+    defaultMessage: "Segment Locked",
+    id: "actSegLockedType",
+    description: "Activity log event type label for locking a segment",
+  },
+  segmentUnlockedEventType: {
+    defaultMessage: "Segment Unlocked",
+    id: "actSegUnlockedType",
+    description: "Activity log event type label for unlocking a segment",
+  },
+  segmentCommentedEventType: {
+    defaultMessage: "Segment Commented",
+    id: "actSegCommentedType",
+    description: "Activity log event type label for commenting on a segment",
+  },
   membershipEventGroup: {
     defaultMessage: "Membership",
     id: "3Di0YY2oCY",
@@ -274,6 +324,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Automations",
     id: "JA+rxr35jC",
     description: "Activity log event type group for automations",
+  },
+  fileEventGroup: {
+    defaultMessage: "Files",
+    id: "actFileEventGroup",
+    description: "Activity log event type group for files",
+  },
+  segmentEventGroup: {
+    defaultMessage: "Strings",
+    id: "actSegEventGroup",
+    description: "Activity log event type group for string segments",
   },
   actorLabel: {
     defaultMessage: "Actor",
@@ -529,5 +589,55 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "disabled an automation",
     id: "MmRAbYJJub",
     description: "Action for disabling an automation",
+  },
+  fileUploadedAction: {
+    defaultMessage: "uploaded a file",
+    id: "actFileUploadedAction",
+    description: "Action for a file upload activity",
+  },
+  fileImportedAction: {
+    defaultMessage: "imported translations into a file",
+    id: "actFileImportedAction",
+    description: "Action for a file import activity",
+  },
+  fileExportedAction: {
+    defaultMessage: "exported a file",
+    id: "actFileExportedAction",
+    description: "Action for a file export activity",
+  },
+  segmentDraftSavedAction: {
+    defaultMessage: "saved a string draft",
+    id: "actSegDraftAction",
+    description: "Action for saving a segment draft",
+  },
+  segmentApprovedAction: {
+    defaultMessage: "approved a string",
+    id: "actSegApprovedAction",
+    description: "Action for approving a segment",
+  },
+  segmentHiddenAction: {
+    defaultMessage: "hid a string",
+    id: "actSegHiddenAction",
+    description: "Action for hiding a segment",
+  },
+  segmentUnhiddenAction: {
+    defaultMessage: "unhid a string",
+    id: "actSegUnhiddenAction",
+    description: "Action for unhiding a segment",
+  },
+  segmentLockedAction: {
+    defaultMessage: "locked a string",
+    id: "actSegLockedAction",
+    description: "Action for locking a segment",
+  },
+  segmentUnlockedAction: {
+    defaultMessage: "unlocked a string",
+    id: "actSegUnlockedAction",
+    description: "Action for unlocking a segment",
+  },
+  segmentCommentedAction: {
+    defaultMessage: "commented on a string",
+    id: "actSegCommentedAction",
+    description: "Action for commenting on a segment",
   },
 });

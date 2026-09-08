@@ -304,6 +304,13 @@ export const projectFileCatQuerySchema = z.object({
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
 });
 
+export const projectFileCatActivityLogsQuerySchema = z.object({
+  cursor: z.string().trim().min(1).max(2048).optional(),
+  externalStringId: z.string().trim().min(1).max(128).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+});
+
 export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
 
 export const projectFileCatExportQuerySchema = projectFileCatQuerySchema
@@ -829,6 +836,9 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileContentEditorActivityLogsQuery = z.infer<
+  typeof projectFileCatActivityLogsQuerySchema
+>;
 export type ProjectFileContentEditorExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
 export type ProjectFileContentEditorQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileContentEditorQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;

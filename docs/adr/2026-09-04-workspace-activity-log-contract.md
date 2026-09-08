@@ -49,10 +49,14 @@ writers emit the personal-access-token events until the data model distinguishes
 Job and automation events are later additions: `job_created`, `job_cancelled`, `job_failed`,
 `automation_run_started`, `automation_enabled`, and `automation_disabled`.
 
-The log excludes issue comments and field changes, CAT edits, TM entry text, glossary term text,
-emails, file contents, prompts, agent transcripts, request bodies, raw tokens, token hashes,
-authorization headers, and provider secrets. Existing resource timelines continue to own their
-history.
+The log excludes issue comments and field changes, CAT source/target text, TM entry text, glossary
+term text, emails, file contents, prompts, agent transcripts, request bodies, raw tokens, token
+hashes, authorization headers, and provider secrets. Existing resource timelines continue to own
+their history.
+
+File and segment metadata events were added later. They record upload, import, export, draft save,
+approval, hide, lock, and comment actions without storing linguistic content. See
+`apps/hyperlocalise-web/docs/adr/2026-09-08-file-and-segment-activity-events-design.md`.
 
 ### Actor and target
 
@@ -65,7 +69,7 @@ Each event has these fields:
 | `actorUserId` | Nullable internal user ID. Set for a human session and when an API credential owner is known. |
 | `actorCredentialId` | Nullable opaque credential ID. Set for `api_key`; never store the credential secret or hash. |
 | `eventType` | Stable snake_case event name from the catalog. |
-| `targetKind` | Organization, invitation, membership, credential, integration, project, glossary, or translation memory. |
+| `targetKind` | Organization, invitation, membership, credential, integration, project, glossary, translation memory, job, automation, file, or segment. |
 | `targetId` | Opaque ID of the affected target. |
 | `payload` | Event-specific safe metadata defined by the typed contract. |
 | `createdAt` | Event occurrence timestamp assigned before Workflow enqueueing. |

@@ -51,4 +51,13 @@ describe("payloadTargetDisplayName", () => {
     expect(payloadTargetDisplayName({ keyPrefix: "hl_AbCd" })).toBe("hl_AbCd");
     expect(payloadTargetDisplayName({ resourceId: "resource_123" })).toBeNull();
   });
+
+  it("uses the safe file or string name from content-editor payloads", () => {
+    expect(payloadTargetDisplayName({ name: "en.json", sourcePath: "locales/en.json" })).toBe(
+      "en.json",
+    );
+    expect(payloadTargetDisplayName({ name: "home.title", externalStringId: "key_1" })).toBe(
+      "home.title",
+    );
+  });
 });

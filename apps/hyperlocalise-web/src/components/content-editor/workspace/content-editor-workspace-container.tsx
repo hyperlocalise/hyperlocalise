@@ -104,6 +104,7 @@ export interface ContentEditorWorkspaceContainerProps {
   nativeIssuesEnabled?: boolean;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
   isDownloadingFilteredView?: boolean;
+  onOpenActivityLog?: () => void;
 }
 
 const ContentEditorWorkspaceContainerObserver = observer(
@@ -140,6 +141,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
     nativeIssuesEnabled = false,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onOpenActivityLog,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
     const controller = useContentEditorWorkspaceRuntime({
       store,
@@ -263,6 +265,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
           }
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
+          onOpenActivityLog={onOpenActivityLog}
         />
 
         <ContentEditorPanelErrorBoundary

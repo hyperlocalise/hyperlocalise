@@ -22,6 +22,8 @@ import {
   PuzzleIcon,
   UserGroup02Icon,
   DatabaseIcon,
+  File01Icon,
+  TextIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -73,6 +75,16 @@ const eventActions = {
   automation_run_started: messages.automationRunStartedAction,
   automation_enabled: messages.automationEnabledAction,
   automation_disabled: messages.automationDisabledAction,
+  file_uploaded: messages.fileUploadedAction,
+  file_imported: messages.fileImportedAction,
+  file_exported: messages.fileExportedAction,
+  segment_draft_saved: messages.segmentDraftSavedAction,
+  segment_approved: messages.segmentApprovedAction,
+  segment_hidden: messages.segmentHiddenAction,
+  segment_unhidden: messages.segmentUnhiddenAction,
+  segment_locked: messages.segmentLockedAction,
+  segment_unlocked: messages.segmentUnlockedAction,
+  segment_commented: messages.segmentCommentedAction,
 };
 
 type ActivityVisual = {
@@ -101,6 +113,12 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   }
   if (eventType.startsWith("automation_")) {
     return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+  }
+  if (eventType.startsWith("file_")) {
+    return { icon: File01Icon, className: "bg-primary/10 text-primary" };
+  }
+  if (eventType.startsWith("segment_")) {
+    return { icon: TextIcon, className: "bg-warning/10 text-warning" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }
@@ -140,15 +158,15 @@ function targetDisplayName(item: ActivityLogItem): string | null {
 export function ActivityLogList({
   activityLogs,
   now = Date.now(),
+  framed = true,
 }: {
   activityLogs: ActivityLogItem[];
   now?: number;
+  framed?: boolean;
 }) {
   const intl = useIntl();
 
-  return (
-    <Card>
-      <CardContent className="p-0">
+  const list = (
         <ol className="divide-y divide-border">
           {activityLogs.map((item) => {
             const displayName = targetDisplayName(item);
@@ -198,7 +216,15 @@ export function ActivityLogList({
             );
           })}
         </ol>
-      </CardContent>
+  );
+
+  if (!framed) {
+    return list;
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-0">{list}</CardContent>
     </Card>
   );
 }

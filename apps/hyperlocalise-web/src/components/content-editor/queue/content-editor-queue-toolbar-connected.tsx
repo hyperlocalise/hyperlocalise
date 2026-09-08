@@ -45,6 +45,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onOpenActivityLog,
   }: {
     onQueueSearchChange?: (value: string) => void;
     onQueueFilterChange?: (filter: ContentEditorQueueFilter) => void;
@@ -64,6 +65,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock?: () => void;
     onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
     isDownloadingFilteredView?: boolean;
+    onOpenActivityLog?: () => void;
   }) {
     const store = useContentEditorWorkspace();
     const [host, setHost] = useState<HTMLElement | null | undefined>(undefined);
@@ -142,6 +144,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         isBulkActionPending={store.isBulkActionPending}
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
+        onOpenActivityLog={onOpenActivityLog}
       />
     );
 

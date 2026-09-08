@@ -26,6 +26,8 @@ export const ACTIVITY_TARGET_KINDS = [
   "translation_memory",
   "job",
   "automation",
+  "file",
+  "segment",
 ] as const;
 export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 
@@ -74,16 +76,32 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
 ] as const;
 export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number];
 
+export const CONTENT_EDITOR_ACTIVITY_EVENT_TYPES = [
+  "file_uploaded",
+  "file_imported",
+  "file_exported",
+  "segment_draft_saved",
+  "segment_approved",
+  "segment_hidden",
+  "segment_unhidden",
+  "segment_locked",
+  "segment_unlocked",
+  "segment_commented",
+] as const;
+export type ContentEditorActivityEventType = (typeof CONTENT_EDITOR_ACTIVITY_EVENT_TYPES)[number];
+
 export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
   ...V1_ACTIVITY_EVENT_TYPES,
   ...LATER_ACTIVITY_EVENT_TYPES,
+  ...CONTENT_EDITOR_ACTIVITY_EVENT_TYPES,
 ] as const;
 export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
 
 export type ActivityEventType =
   | V1ActivityEventType
   | ReservedActivityEventType
-  | LaterActivityEventType;
+  | LaterActivityEventType
+  | ContentEditorActivityEventType;
 
 export type ActivityMembershipRole =
   | "admin"
@@ -211,6 +229,33 @@ export type ActivityPayloadByEventType = {
     name: string;
     status: "archived" | "paused";
   };
+  file_uploaded: FileActivityPayload;
+  file_imported: FileActivityPayload;
+  file_exported: FileActivityPayload;
+  segment_draft_saved: SegmentActivityPayload;
+  segment_approved: SegmentActivityPayload;
+  segment_hidden: SegmentActivityPayload;
+  segment_unhidden: SegmentActivityPayload;
+  segment_locked: SegmentActivityPayload;
+  segment_unlocked: SegmentActivityPayload;
+  segment_commented: SegmentActivityPayload;
+};
+
+export type FileActivityPayload = {
+  format?: string;
+  itemCount?: number;
+  name: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale?: string;
+};
+
+export type SegmentActivityPayload = {
+  externalStringId: string;
+  name: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale?: string;
 };
 
 export type ActivityTargetKindByEventType = {
@@ -244,6 +289,16 @@ export type ActivityTargetKindByEventType = {
   automation_run_started: "automation";
   automation_enabled: "automation";
   automation_disabled: "automation";
+  file_uploaded: "file";
+  file_imported: "file";
+  file_exported: "file";
+  segment_draft_saved: "segment";
+  segment_approved: "segment";
+  segment_hidden: "segment";
+  segment_unhidden: "segment";
+  segment_locked: "segment";
+  segment_unlocked: "segment";
+  segment_commented: "segment";
 };
 
 type ActivityLogEventBase = {

@@ -27,13 +27,20 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 import { createProjectTestFixture } from "./project.fixture";
 import { createMemoryFileStorageAdapter } from "../public-files/public-files.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, enqueueFileActivityMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  enqueueFileActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueFileActivity: enqueueFileActivityMock,
+  enqueueSegmentActivity: vi.fn(),
+  enqueueSegmentActivities: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -139,6 +146,14 @@ describe("project file translation import route", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
     });
+    expect(enqueueFileActivityMock).toHaveBeenCalledWith(
+      "file_imported",
+      expect.objectContaining({
+        projectId,
+        sourcePath: "locales/en.json",
+        targetLocale: "fr",
+      }),
+    );
 
     const storedFiles = await db
       .select({ role: schema.storedFiles.role })

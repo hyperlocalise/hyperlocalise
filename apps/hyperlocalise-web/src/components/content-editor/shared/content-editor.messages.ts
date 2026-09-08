@@ -69,6 +69,16 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "Kjim0yzISM",
     description: "Accessible label for CAT queue search input",
   },
+  activityLog: {
+    defaultMessage: "Activity",
+    id: "ceQActivityLog",
+    description: "Button label to open the content editor activity log",
+  },
+  activityLogAria: {
+    defaultMessage: "Show file activity",
+    id: "ceQActivityLogAria",
+    description: "Accessible label for the content editor activity log button",
+  },
   downloadFiltered: {
     defaultMessage: "Download",
     id: "kUl1Jpz/6B",

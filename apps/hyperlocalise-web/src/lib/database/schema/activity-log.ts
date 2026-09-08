@@ -55,5 +55,12 @@ export const organizationActivityEvents = pgTable(
       table.createdAt,
       table.id,
     ),
+    index("idx_organization_activity_events_org_target_created_at_id").on(
+      table.organizationId,
+      table.targetKind,
+      table.targetId,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
