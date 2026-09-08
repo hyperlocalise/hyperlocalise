@@ -120,6 +120,7 @@ beforeAll(async () => {
 beforeEach(() => {
   reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
   ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+  enqueueJobCreatedActivityMock.mockClear();
   setAgentAccessTokenPublicKeyResolverForTest(async () =>
     publicKey.export({ type: "spki", format: "pem" }).toString(),
   );
@@ -161,6 +162,14 @@ describe("WorkOS agent JWT on /api/v1", () => {
     );
 
     expect(jwtResponse.status).toBe(201);
+    expect(enqueueJobCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "agent",
+        actorCredentialId: "agent_reg_01API",
+      }),
+    );
+
+    enqueueJobCreatedActivityMock.mockClear();
 
     const patResponse = await client.api.v1.jobs.$post(
       {
@@ -178,6 +187,11 @@ describe("WorkOS agent JWT on /api/v1", () => {
     );
 
     expect(patResponse.status).toBe(201);
+    expect(enqueueJobCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "api_key",
+      }),
+    );
   });
 
   it("challenges missing credentials with public API resource metadata", async () => {

@@ -10,11 +10,25 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import { getWorkosAuthkitIssuerUrl } from "@/lib/workos/config";
 
 import { GET } from "./route";
 
+vi.mock("@/lib/workos/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/workos/config")>();
+  return {
+    ...actual,
+    getWorkosAuthkitIssuerUrl: vi.fn(),
+  };
+});
+
 describe("llms.txt route", () => {
+  beforeEach(() => {
+    vi.mocked(getWorkosAuthkitIssuerUrl).mockReturnValue("https://authkit.test");
+  });
+
   it("returns a spec-shaped markdown index for agents", async () => {
     const response = GET();
     const body = await response.text();
@@ -47,5 +61,15 @@ describe("llms.txt route", () => {
     );
     expect(body).not.toContain("github.com/hyperlocalise");
     expect(body).not.toContain("mailto:minh@hyperlocalise.com");
+  });
+
+  it("omits AuthKit registration when the AuthKit domain is unset", async () => {
+    vi.mocked(getWorkosAuthkitIssuerUrl).mockReturnValue(null);
+
+    const body = await GET().text();
+
+    expect(body).not.toContain("## Agents");
+    expect(body).not.toContain("/auth.md");
+    expect(body).toContain("## Product");
   });
 });

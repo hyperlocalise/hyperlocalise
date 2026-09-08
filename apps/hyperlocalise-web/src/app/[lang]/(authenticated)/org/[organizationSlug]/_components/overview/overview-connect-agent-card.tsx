@@ -125,10 +125,12 @@ export function OverviewConnectAgentCard({
   mcpUrl: mcpUrlProp,
   className,
   compact = false,
+  showAuthMdRegistration = false,
 }: {
   mcpUrl?: string;
   className?: string;
   compact?: boolean;
+  showAuthMdRegistration?: boolean;
 }) {
   const intl = useIntl();
   const origin = useBrowserOrigin();
@@ -228,7 +230,7 @@ export function OverviewConnectAgentCard({
           </TypographyP>
         )}
 
-        {compact ? null : (
+        {compact || !showAuthMdRegistration ? null : (
           <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <FormattedMessage
               {...messages.authMdGuide}

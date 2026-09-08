@@ -44,6 +44,15 @@ export function storedOrganizationApiKeyId(auth: ApiKeyAuthVariables["auth"]): s
   return auth.apiKey.kind === "pat" ? auth.apiKey.id : undefined;
 }
 
+/** Activity provenance for `/api/v1` jobs: PAT vs claimed WorkOS agent JWT. */
+export function publicApiActivityActor(auth: ApiKeyAuthVariables["auth"]) {
+  return {
+    actorCredentialId: auth.apiKey.id,
+    actorKind: auth.apiKey.kind === "agent" ? ("agent" as const) : ("api_key" as const),
+    actorUserId: auth.teamAccess.user.localUserId,
+  };
+}
+
 /** Shared 401 for unknown, revoked, and ownerless tokens. Do not distinguish them. */
 export const INVALID_OR_REVOKED_API_KEY_MESSAGE = "Invalid or revoked API key";
 

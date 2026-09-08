@@ -18,6 +18,7 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import {
+  publicApiActivityActor,
   requireApiKeyPermission,
   storedOrganizationApiKeyId,
   type ApiKeyAuthVariables,
@@ -315,9 +316,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         }
 
         await enqueueJobCreatedActivity({
-          actorCredentialId: c.var.auth.apiKey.id,
-          actorKind: "api_key",
-          actorUserId: c.var.auth.teamAccess.user.localUserId,
+          ...publicApiActivityActor(c.var.auth),
           jobId: job.id,
           kind: job.kind,
           organizationId,
@@ -344,9 +343,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               .where(eq(schema.jobs.id, job.id));
 
             await enqueueJobFailedActivity({
-              actorCredentialId: c.var.auth.apiKey.id,
-              actorKind: "api_key",
-              actorUserId: c.var.auth.teamAccess.user.localUserId,
+              ...publicApiActivityActor(c.var.auth),
               errorCode: "queue_unavailable",
               jobId: job.id,
               kind: job.kind,

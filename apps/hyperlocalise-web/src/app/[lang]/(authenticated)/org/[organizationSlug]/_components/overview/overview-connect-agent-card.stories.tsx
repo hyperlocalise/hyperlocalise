@@ -22,6 +22,7 @@ const meta = {
   component: OverviewConnectAgentCard,
   args: {
     mcpUrl,
+    showAuthMdRegistration: true,
   },
   parameters: {
     layout: "padded",
