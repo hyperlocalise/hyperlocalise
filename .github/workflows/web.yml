@@ -36,7 +36,9 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          working-directory: apps/hyperlocalise-web
           cache: true
+          run-install: false
 
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
@@ -105,7 +107,9 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          working-directory: apps/hyperlocalise-web
           cache: true
+          run-install: false
 
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
