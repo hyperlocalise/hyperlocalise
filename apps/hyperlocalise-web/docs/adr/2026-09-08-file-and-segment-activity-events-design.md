@@ -34,7 +34,8 @@ Recorded events:
 - `string_segment_unlocked`
 - `string_segment_commented`
 
-Do not emit events on every draft save.
+Do not emit events on every draft save. Emit `file_translations_imported`
+only after `translationFileImportWorkflow` finishes importing entries.
 
 Payloads stay privacy-safe: project id, source path, file name, optional stored
 file / version ids, segment id, locale, item counts, and statuses. Never store

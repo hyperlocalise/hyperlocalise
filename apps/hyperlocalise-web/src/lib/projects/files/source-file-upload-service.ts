@@ -169,7 +169,7 @@ async function uploadNativeSourceFile(
     );
   });
 
-  void enqueueFileUploadedActivity({
+  await enqueueFileUploadedActivity({
     ...uploadActivityActor(input),
     organizationId: input.organizationId,
     projectId: input.project.id,
@@ -263,7 +263,7 @@ async function uploadExternalTmsSourceFile(
     return providerResult;
   }
 
-  void enqueueFileUploadedActivity({
+  await enqueueFileUploadedActivity({
     ...uploadActivityActor(input),
     organizationId: input.organizationId,
     projectId: input.project.id,

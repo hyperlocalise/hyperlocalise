@@ -41,7 +41,6 @@ import {
 } from "@/lib/billing/workspace-resource-limits";
 import { FILE_SEGMENT_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
 import {
-  enqueueFileTranslationsImportedActivity,
   enqueueFileUploadedActivity,
   enqueueStringSegmentApprovedActivity,
   enqueueStringSegmentCommentedActivity,
@@ -1236,15 +1235,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return providerProjectUnavailableResponse(c, target);
         }
 
-        if (target.kind !== "provider") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
-            return projectNotFoundResponse(c);
-          }
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
         }
 
         try {
-          const result = await listActivityLogEvents({
+          const { activityLogs, nextCursor } = await listActivityLogEvents({
+            includeActors: false,
             organizationId: c.var.auth.organization.localOrganizationId,
             organizationSlug: c.req.param("organizationSlug") ?? "",
             query: {
@@ -1256,7 +1254,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               cursor: query.cursor,
             },
           });
-          return c.json(result, 200);
+          return c.json({ activityLogs, nextCursor }, 200);
         } catch (error) {
           if (error instanceof InvalidActivityLogCursorError) {
             return badRequestResponse(
@@ -1586,7 +1584,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
 
           if (body.approve) {
-            void enqueueStringSegmentApprovedActivity({
+            await enqueueStringSegmentApprovedActivity({
               ...sessionActivityActor(c.var.auth.user.localUserId),
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
@@ -1627,7 +1625,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
 
           if (translation.isApproved) {
-            void enqueueStringSegmentApprovedActivity({
+            await enqueueStringSegmentApprovedActivity({
               ...sessionActivityActor(c.var.auth.user.localUserId),
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
@@ -1697,7 +1695,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             feature: "comment",
           });
 
-          void enqueueStringSegmentCommentedActivity({
+          await enqueueStringSegmentCommentedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -1733,7 +1731,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             feature: body.type === "issue" ? "issue" : "comment",
           });
 
-          void enqueueStringSegmentCommentedActivity({
+          await enqueueStringSegmentCommentedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -2024,7 +2022,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             source: "native",
             status: "approved",
           });
-          void enqueueStringSegmentApprovedActivity({
+          await enqueueStringSegmentApprovedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -2033,7 +2031,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
           });
         } else {
-          void enqueueStringSegmentStatusChangedActivity({
+          await enqueueStringSegmentStatusChangedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
             nextStatus: body.status,
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -2083,7 +2081,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               { actorUserId: c.var.auth.user.localUserId },
             );
 
-            void enqueueStringSegmentHiddenActivity({
+            await enqueueStringSegmentHiddenActivity({
               ...sessionActivityActor(c.var.auth.user.localUserId),
               isHidden: result.isHidden,
               itemCount: result.updatedCount,
@@ -2118,7 +2116,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourcePath: body.sourcePath,
         });
 
-        void enqueueStringSegmentHiddenActivity({
+        await enqueueStringSegmentHiddenActivity({
           ...sessionActivityActor(c.var.auth.user.localUserId),
           isHidden: body.isHidden,
           itemCount: result.updatedCount,
@@ -2169,7 +2167,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           actorUserId: c.var.auth.user.localUserId,
         });
 
-        void enqueueStringSegmentLockedActivity({
+        await enqueueStringSegmentLockedActivity({
           ...sessionActivityActor(c.var.auth.user.localUserId),
           isLocked: body.isLocked,
           itemCount: result.updatedCount,
@@ -3618,7 +3616,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         });
 
-        void enqueueFileUploadedActivity({
+        await enqueueFileUploadedActivity({
           ...sessionActivityActor(c.var.auth.user.localUserId),
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
@@ -3744,15 +3742,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => undefined);
           throw error;
         }
-
-        void enqueueFileTranslationsImportedActivity({
-          ...sessionActivityActor(c.var.auth.user.localUserId),
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          sourcePath: parsed.data.sourcePath,
-          storedFileId: storedFile.id,
-          targetLocale: parsed.data.locale,
-        });
 
         return c.json(
           {

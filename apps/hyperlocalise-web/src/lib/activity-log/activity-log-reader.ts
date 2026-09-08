@@ -417,6 +417,7 @@ export async function listActivityLogActors(input: {
 
 export async function listActivityLogEvents(input: {
   database?: DatabaseClient;
+  includeActors?: boolean;
   organizationId: string;
   organizationSlug: string;
   query: ActivityLogQuery;
@@ -490,10 +491,12 @@ export async function listActivityLogEvents(input: {
         desc(schema.organizationActivityEvents.id),
       )
       .limit(input.query.limit + 1),
-    listActivityLogActors({
-      database,
-      organizationId: input.organizationId,
-    }),
+    input.includeActors === false
+      ? Promise.resolve([])
+      : listActivityLogActors({
+          database,
+          organizationId: input.organizationId,
+        }),
   ]);
 
   const hasNextPage = rows.length > input.query.limit;

@@ -149,13 +149,7 @@ describe("project file translation import route", () => {
       sourcePath: "locales/en.json",
       targetLocale: "fr",
     });
-    expect(enqueueFileTranslationsImportedActivityMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId,
-        sourcePath: "locales/en.json",
-        targetLocale: "fr",
-      }),
-    );
+    expect(enqueueFileTranslationsImportedActivityMock).not.toHaveBeenCalled();
 
     const storedFiles = await db
       .select({ role: schema.storedFiles.role })

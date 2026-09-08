@@ -46,3 +46,24 @@ export async function importTranslationsFromEntriesStep(input: {
     actorUserId: input.actorUserId ?? null,
   });
 }
+
+export async function enqueueFileTranslationsImportedActivityStep(input: {
+  actorUserId?: string | null;
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  storedFileId?: string | null;
+  targetLocale: string;
+}) {
+  "use step";
+  const { enqueueFileTranslationsImportedActivity, sessionActivityActor } =
+    await import("@/lib/activity-log/file-segment-events");
+  await enqueueFileTranslationsImportedActivity({
+    ...sessionActivityActor(input.actorUserId),
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    storedFileId: input.storedFileId,
+    targetLocale: input.targetLocale,
+  });
+}

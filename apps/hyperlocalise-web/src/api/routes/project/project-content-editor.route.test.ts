@@ -3273,11 +3273,38 @@ describe("project file CAT routes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       activityLogs: Array<{ eventType: string; target: { displayName: string | null } }>;
+      actors?: unknown;
     };
     expect(body.activityLogs).toHaveLength(1);
     expect(body.activityLogs[0]).toMatchObject({
       eventType: "file_uploaded",
       target: { displayName: "en.json" },
     });
+    expect(body.actors).toBeUndefined();
+  });
+
+  it("rejects provider activity logs when the live project is not accessible", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat["activity-logs"].$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:999",
+        },
+        query: { sourcePath: "locales/en.json", limit: "50" },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(404);
   });
 });

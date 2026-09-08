@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { enqueueFileUploadedActivity } from "@/lib/activity-log/file-segment-events";
 import { db } from "@/lib/database/client";
 import { getFileStorageAdapter } from "./get-file-storage-adapter";
 import { createLogger } from "@/lib/log";
@@ -148,6 +149,17 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
         outcome: "uploaded",
         fileId: storedFile.id,
         sourceFileVersionId: version.id,
+      });
+
+      await enqueueFileUploadedActivity({
+        actorCredentialId: null,
+        actorKind: "agent",
+        actorUserId: null,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: normalizedPath,
+        storedFileId: storedFile.id,
+        versionId: version.id,
       });
 
       void enqueueSourceFileIngestAfterUpload({

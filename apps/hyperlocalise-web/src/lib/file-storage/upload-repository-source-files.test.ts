@@ -17,6 +17,7 @@ const {
   createStoredFileMock,
   dbTransactionMock,
   deleteStoredObjectMock,
+  enqueueFileUploadedActivityMock,
   enqueueSourceFileIngestAfterUploadMock,
   getLatestRepositorySourceFileVersionMock,
   readTranslatedFileMock,
@@ -25,6 +26,7 @@ const {
   createStoredFileMock: vi.fn(),
   dbTransactionMock: vi.fn(),
   deleteStoredObjectMock: vi.fn(),
+  enqueueFileUploadedActivityMock: vi.fn(),
   enqueueSourceFileIngestAfterUploadMock: vi.fn(),
   getLatestRepositorySourceFileVersionMock: vi.fn(),
   readTranslatedFileMock: vi.fn(),
@@ -54,6 +56,10 @@ vi.mock("@/lib/file-storage/records", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueFileUploadedActivity: enqueueFileUploadedActivityMock,
+}));
+
 vi.mock("@/lib/projects/files/source-file-ingest", () => ({
   enqueueSourceFileIngestAfterUpload: enqueueSourceFileIngestAfterUploadMock,
 }));
@@ -78,6 +84,7 @@ describe("uploadRepositorySourceFilesFromSandbox", () => {
     dbTransactionMock.mockImplementation(async (callback) => callback("tx"));
     getLatestRepositorySourceFileVersionMock.mockResolvedValue(null);
     enqueueSourceFileIngestAfterUploadMock.mockResolvedValue(undefined);
+    enqueueFileUploadedActivityMock.mockResolvedValue(undefined);
     createStoredFileMock.mockImplementation(async (input) => ({
       id: "file_utf8",
       organizationId: input.organizationId,
@@ -152,6 +159,16 @@ describe("uploadRepositorySourceFilesFromSandbox", () => {
       sourceFileVersionId: "source_file_version_utf8",
       sourcePath: "src/messages/en.json",
       sourceHash: expectedSourceHash,
+    });
+    expect(enqueueFileUploadedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: null,
+      organizationId: "org_1",
+      projectId: "proj_1",
+      sourcePath: "src/messages/en.json",
+      storedFileId: "file_utf8",
+      versionId: "source_file_version_utf8",
     });
   });
 });
