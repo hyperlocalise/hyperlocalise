@@ -43,7 +43,7 @@ Do not put the API token in `i18n.yml`. Point `apiTokenEnv` at an environment va
 
 `upload translations` requires `--target-locale` on every run. It does **not** take the locale from `sourceLanguage` or `targetLanguages` in `--config`. Config may still supply the project id and token. The locale comes from the flag, not the filename: uploading `en.json` as French uses `--target-locale fr`.
 
-Without `--replace-modified`, Lokalise **keeps** translations that already exist. The command then looks like a no-op for those keys. Dry-run and the success line print `existing_translations=kept` or `existing_translations=overwritten`. Pass `--replace-modified` when you intend to overwrite.
+`--replace-modified` maps to Lokalise `replace_modified`. Off (the default) preserves translations Lokalise treats as modified. On replaces those modified translations from the uploaded file. It is not a guarantee that every existing key stays unchanged. Dry-run and the success line print `modified_translations=preserved` or `modified_translations=replaced`.
 
 Success means the import is **queued**, not that strings are already visible in Lokalise. The command prints a process id and stops. It does not wait for the background import to finish.
 

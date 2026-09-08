@@ -685,7 +685,7 @@ func newLokaliseUploadTranslationsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Lokalise API base URL")
 	cmd.Flags().IntVar(&o.timeoutSeconds, "timeout-seconds", o.timeoutSeconds, "Lokalise API timeout in seconds")
 	cmd.Flags().BoolVar(&o.convertPlaceholders, "convert-placeholders", false, "convert placeholders to Lokalise universal placeholders")
-	cmd.Flags().BoolVar(&o.replaceModified, "replace-modified", false, "overwrite existing translations that also appear in the uploaded file")
+	cmd.Flags().BoolVar(&o.replaceModified, "replace-modified", false, "replace translations modified in the uploaded file")
 	cmd.Flags().BoolVar(&o.distinguishByFile, "distinguish-by-file", false, "allow same key names in different filenames")
 	cmd.Flags().BoolVar(&o.applyTM, "apply-tm", false, "apply 100% translation memory matches during import")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
@@ -821,13 +821,13 @@ func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTrans
 	if err != nil {
 		return err
 	}
-	existing := lokaliseExistingTranslationsLabel(o.replaceModified)
+	modified := lokaliseModifiedTranslationsLabel(o.replaceModified)
 	if o.dryRun {
 		format := strings.TrimSpace(o.format)
 		if format == "" {
 			format = "auto"
 		}
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=lokalise-upload-translations project_id=%s target_locale=%s format=%s files=%d existing_translations=%s\n", cfg.ProjectID, targetLocale, format, len(files), existing)
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=lokalise-upload-translations project_id=%s target_locale=%s format=%s files=%d modified_translations=%s\n", cfg.ProjectID, targetLocale, format, len(files), modified)
 		return err
 	}
 
@@ -853,19 +853,19 @@ func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTrans
 			return fmt.Errorf("lokalise upload translations: %w", err)
 		}
 		processed++
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s existing_translations=%s\n", file, result.ProcessID, result.Status, result.Type, existing); err != nil {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s modified_translations=%s\n", file, result.ProcessID, result.Status, result.Type, modified); err != nil {
 			return err
 		}
 	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-translations processed=%d existing_translations=%s\n", processed, existing)
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-translations processed=%d modified_translations=%s\n", processed, modified)
 	return err
 }
 
-func lokaliseExistingTranslationsLabel(replaceModified bool) string {
+func lokaliseModifiedTranslationsLabel(replaceModified bool) string {
 	if replaceModified {
-		return "overwritten"
+		return "replaced"
 	}
-	return "kept"
+	return "preserved"
 }
 
 func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSourcesOptions, requireAuth bool) (lokalise.Config, string, error) {

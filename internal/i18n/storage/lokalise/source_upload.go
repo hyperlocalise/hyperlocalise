@@ -65,7 +65,8 @@ type lokaliseFileUploadRequest struct {
 	LangISO             string   `json:"lang_iso"`
 	Format              string   `json:"format,omitempty"`
 	Tags                []string `json:"tags,omitempty"`
-	ConvertPlaceholders bool     `json:"convert_placeholders,omitempty"`
+	// Always send convert_placeholders. Lokalise defaults omitted values to true.
+	ConvertPlaceholders bool     `json:"convert_placeholders"`
 	ReplaceModified     bool     `json:"replace_modified,omitempty"`
 	DistinguishByFile   bool     `json:"distinguish_by_file,omitempty"`
 	ApplyTM             bool     `json:"apply_tm,omitempty"`

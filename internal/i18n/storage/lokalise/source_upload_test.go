@@ -277,6 +277,9 @@ func TestUploadTranslationFilePostsTargetLocaleAndSkipsFilenameDetection(t *test
 		if body["skip_detect_lang_iso"] != true {
 			t.Fatalf("skip_detect_lang_iso = %#v, want true so filename en.json cannot override fr", body["skip_detect_lang_iso"])
 		}
+		if body["convert_placeholders"] != false {
+			t.Fatalf("convert_placeholders = %#v, want false so Lokalise does not default to converting placeholders", body["convert_placeholders"])
+		}
 		if body["replace_modified"] != true {
 			t.Fatalf("replace_modified = %#v, want true", body["replace_modified"])
 		}

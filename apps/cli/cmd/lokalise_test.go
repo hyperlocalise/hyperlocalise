@@ -964,7 +964,7 @@ func TestLokaliseUploadTranslationsDryRunDoesNotRequireToken(t *testing.T) {
 		t.Fatalf("execute lokalise upload translations dry-run: %v", err)
 	}
 	got := out.String()
-	if !strings.Contains(got, "dry-run action=lokalise-upload-translations") || !strings.Contains(got, "target_locale=fr") || !strings.Contains(got, "existing_translations=kept") {
+	if !strings.Contains(got, "dry-run action=lokalise-upload-translations") || !strings.Contains(got, "target_locale=fr") || !strings.Contains(got, "modified_translations=preserved") {
 		t.Fatalf("unexpected output: %q", got)
 	}
 }
@@ -1094,8 +1094,8 @@ storage:
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute lokalise upload translations: %v", err)
 	}
-	if !strings.Contains(out.String(), "existing_translations=overwritten") {
-		t.Fatalf("missing overwrite note: %q", out.String())
+	if !strings.Contains(out.String(), "modified_translations=replaced") {
+		t.Fatalf("missing replace-modified note: %q", out.String())
 	}
 	if len(fake.inputs) != 1 {
 		t.Fatalf("inputs = %#v, want one upload", fake.inputs)
