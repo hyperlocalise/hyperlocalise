@@ -16,9 +16,21 @@ import { productPagesBySlug } from "./product-page-content";
 import { productPageMessages } from "./product-page-content.messages";
 
 describe("agents automation product copy", () => {
-  it("describes creating a multilingual workflow instead of chasing tickets", () => {
+  it("names the product as a workflow for multilingual content operations", () => {
     const page = productPagesBySlug["agents-automation"];
 
+    expect(productPageMessages[page.hero.headlineKey].defaultMessage).toBe(
+      "The workflow for multilingual content operations.",
+    );
+    expect(productPageMessages[page.hero.subcopyKey].defaultMessage).toBe(
+      "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language.",
+    );
+    expect(page.metadata.keywords).toEqual([
+      "multilingual content operations",
+      "multilingual content automation",
+      "campaign workflow automation",
+      "CMS content automation",
+    ]);
     expect(productPageMessages[page.detailsHeadlineKey].defaultMessage).toBe(
       "Build it once. Every language follows it.",
     );

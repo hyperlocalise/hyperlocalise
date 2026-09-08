@@ -17,14 +17,14 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
     case "agents-automation":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
-          id: "AWZymO5ooC",
+          defaultMessage: "The Workflow for Multilingual Content Operations | Hyperlocalise",
+          id: 'Ymk9Cn134n',
           description: "Page title for the agents automation product page",
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
-          id: "63np7ewMDD",
+            "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
+          id: 'i+ZXi3RYEe',
           description: "Meta description for the agents automation product page",
         }),
       };

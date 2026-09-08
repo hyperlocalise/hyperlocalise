@@ -18,6 +18,7 @@ import { motion } from "motion/react";
 import {
   GitBranchIcon,
   PlusSignIcon,
+  RefreshIcon,
   SecurityCheckIcon,
   Tick01Icon,
 } from "@hugeicons/core-free-icons";
@@ -25,8 +26,11 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import Image from "next/image";
 
+import {
+  LAVENDER_MESH_GRADIENT_SRC,
+  MeshStage,
+} from "@/components/marketing/hero-frame-mesh-stage";
 import { cn } from "@/lib/primitives/cn";
-import { RefreshIcon } from "@hugeicons/core-free-icons";
 
 import { automationEditorMockMessages } from "./automation-editor-mock.messages";
 
@@ -383,35 +387,40 @@ export function AutomationEditorMock() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
-        <div className="grid md:grid-cols-[1.4fr_1fr]">
-          <div className="border-b border-border/60 md:border-b-0 md:border-r">
-            <MockEditorPreview
-              highlight={steps[currentStep]!.highlightSection}
-
-              isDone={isDone}
-            />
-            <div className="border-t border-border/60 px-4 py-3">
-              <div className="h-0.5 w-full overflow-hidden rounded-full bg-border/40">
-                <motion.div
-                  className="h-full rounded-full bg-foreground/60"
-                  animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                />
+      <MeshStage
+        meshSrc={LAVENDER_MESH_GRADIENT_SRC}
+        entranceAnimation="none"
+        contentClassName="p-3 sm:p-5 lg:p-8"
+      >
+        <div className="overflow-hidden rounded-xl border border-border/80 bg-background/95 shadow-lg">
+          <div className="grid md:grid-cols-[1.4fr_1fr]">
+            <div className="border-b border-border/60 bg-background/80 md:border-b-0 md:border-r">
+              <MockEditorPreview
+                highlight={steps[currentStep]!.highlightSection}
+                isDone={isDone}
+              />
+              <div className="border-t border-border/60 px-4 py-3">
+                <div className="h-0.5 w-full overflow-hidden rounded-full bg-border/40">
+                  <motion.div
+                    className="h-full rounded-full bg-foreground/60"
+                    animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-6">
-            <VerticalStepper
-              steps={steps}
-              current={currentStep}
-              onSelect={handleSelect}
-              onReplay={handleReplay}
-            />
+            <div className="bg-background/90 p-6">
+              <VerticalStepper
+                steps={steps}
+                current={currentStep}
+                onSelect={handleSelect}
+                onReplay={handleReplay}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      </MeshStage>
     </div>
   );
 }

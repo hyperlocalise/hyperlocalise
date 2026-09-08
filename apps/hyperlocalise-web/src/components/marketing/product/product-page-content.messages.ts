@@ -207,14 +207,14 @@ export const productPageMessages = defineMessages({
     description: "Knowledge product visual decision panel example text",
   },
   agentsAutomationMetadataTitle: {
-    defaultMessage: "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
-    id: "AWZymO5ooC",
+    defaultMessage: "The Workflow for Multilingual Content Operations | Hyperlocalise",
+    id: 'Ymk9Cn134n',
     description: "Page title for the agents automation product page",
   },
   agentsAutomationMetadataDescription: {
     defaultMessage:
-      "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
-    id: "63np7ewMDD",
+      "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
+    id: 'i+ZXi3RYEe',
     description: "Meta description for the agents automation product page",
   },
   agentsAutomationHeroEyebrow: {
@@ -223,14 +223,14 @@ export const productPageMessages = defineMessages({
     description: "Hero eyebrow for the agents automation product page",
   },
   agentsAutomationHeroHeadline: {
-    defaultMessage: "Stop chasing localisation work across tools",
-    id: "q89JS2cAvL",
+    defaultMessage: "The workflow for multilingual content operations.",
+    id: 'RqRp3rYeS0',
     description: "Hero headline for the agents automation product page",
   },
   agentsAutomationHeroSubcopy: {
     defaultMessage:
-      "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed.",
-    id: "kAcQvgg6Yl",
+      "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language.",
+    id: 'E0YpfncLtp',
     description: "Hero subcopy for the agents automation product page",
   },
   agentsAutomationDetailsHeadline: {
@@ -289,8 +289,8 @@ export const productPageMessages = defineMessages({
   },
   agentsAutomationCtaDescription: {
     defaultMessage:
-      "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
-    id: "kn/uJAgJBn",
+      "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
+    id: 'bXnJyD63X6',
     description: "Bottom CTA description for the agents automation product page",
   },
   nextGenCatToolMetadataTitle: {

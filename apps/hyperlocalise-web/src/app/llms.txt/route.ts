@@ -23,7 +23,7 @@ const productLinks: LlmsLink[] = [
   {
     title: "Agent Automation",
     href: `${SITE_URL}/en/product/agents-automation`,
-    description: "Stop chasing localisation work across tools",
+    description: "The workflow for multilingual content operations.",
   },
   {
     title: "Multilingual Content Studio",
