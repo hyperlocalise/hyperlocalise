@@ -51,6 +51,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `list_files`           | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`)                                                                    |
 | `list_translations`    | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
 | `get_translation`      | Full CAT detail for one translation key (`projectId`, `translationKeyId`, `targetLocale`)                                                                               |
+| `update_translation`   | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                |
 | `get_project_status`   | Locale coverage counts by `projectId`, with optional `sourcePath`                                                                                                       |
 | `list_glossaries`      | List glossaries linked to accessible projects                                                                                                                           |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
@@ -70,7 +71,9 @@ Optional filters match the Content Editor queue:
 - `queueFilter` — `all`, `untranslated`, `needs_review`, `approved` (same as CAT `reviewed`), `has_issues`, plus the other Content Editor filters.
 - `queueSort` — `file_order` (default) or `untranslated_first`.
 
-Read-only roles may list. Writes stay on `update_translation` when that tool is wired. Missing or inaccessible projects, including cross-team and cross-organization reads, return `project_not_found`.
+`update_translation` uses the same text constraints, segment locks, permissions, and native save/approve path as the Content Editor. It saves drafts by default; pass `approve: true` to save and approve as the authenticated MCP user. Placeholder or ICU failures return `invalid_translation` with structured `issues` and do not save. Provider-only live CAT writes return `provider_cat_unsupported` unless a native overlay is available.
+
+Read-only roles may list. Translation writes require an admin or localization manager. Missing or inaccessible projects, including cross-team and cross-organization reads, return `project_not_found`.
 
 For TMS-backed projects the tool still returns native overlay keys (`coverageSource: "native_overlay"`). Live Crowdin, Phrase, Lokalise, or Smartling listing is out of scope. Use the provider CAT or CLI for live provider strings.
 
@@ -168,7 +171,9 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `project_not_found`                            | Wrong `projectId` or missing project access on `list_files`, `list_translations`, `get_project_status`, or `list_jobs` |
 | `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                |
 | `translation_not_found`                        | Wrong or inaccessible project, translation key, target locale, or a hidden key                                         |
-| `provider_cat_unsupported`                     | The requested translation exists only in a live TMS provider and has no supported native overlay                       |
+| `translation_locked`                           | The requested translation segment is locked in the Content Editor                                                      |
+| `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                         |
+| `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                     |
 | Agent cannot reach local Cloud                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                   |
 
 ## Next
