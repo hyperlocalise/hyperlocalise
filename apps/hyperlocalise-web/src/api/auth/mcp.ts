@@ -24,6 +24,7 @@ import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
 import { forbiddenResponse } from "@/api/response.schema";
+import { authenticateMcpAgentBearer } from "@/api/auth/workos-agent";
 import {
   isMembershipReconcileFresh,
   reconcileWorkosMembershipsForUser,
@@ -32,6 +33,7 @@ import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { isCompactJwt } from "@/lib/workos/agent-access-token";
 
 export type McpAuthVariables = EvlogVariables["Variables"] & {
   mcpAuth: {
@@ -420,6 +422,34 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
 
     if (!token) {
       return unauthorizedResponse();
+    }
+
+    if (isCompactJwt(token)) {
+      const agentAuth = await authenticateMcpAgentBearer(token);
+
+      if (agentAuth.status === "workspace_archived") {
+        return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
+      }
+
+      if (agentAuth.status === "forbidden") {
+        return forbiddenResponse(c, "forbidden", "Missing required permission: mcp");
+      }
+
+      if (agentAuth.status !== "authorized") {
+        return unauthorizedResponse();
+      }
+
+      c.set("mcpAuth", agentAuth.auth);
+      c.get("log").set({
+        auth: {
+          agentRegistrationId: agentAuth.auth.session.id,
+          localUserId: agentAuth.auth.user.localUserId,
+          localOrganizationId: agentAuth.auth.organization.localOrganizationId,
+        },
+      });
+
+      await next();
+      return;
     }
 
     const [session] = await db

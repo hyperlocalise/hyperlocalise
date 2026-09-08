@@ -65,4 +65,14 @@ export const overviewConnectAgentCardMessages = defineMessages({
     id: "V9ow5L2f7M",
     description: "Next step after copying the Hyperlocalise MCP config for Cursor",
   },
+  authMdGuide: {
+    defaultMessage: "Or follow {link} to register an agent with AuthKit.",
+    id: "JfG/xfnGBv",
+    description: "Overview card link to the WorkOS agent registration skill document",
+  },
+  authMdLabel: {
+    defaultMessage: "/auth.md",
+    id: "bvPNfnGgVD",
+    description: "Visible path for the agent registration skill document",
+  },
 });

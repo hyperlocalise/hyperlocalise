@@ -28,6 +28,19 @@ const nextConfig: NextConfig = {
   experimental: {
     exposeTestingApiInProductionBuild: true,
   },
+  async rewrites() {
+    const authkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
+    if (!authkitDomain) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/auth.md",
+        destination: `https://${authkitDomain}/agent/auth.md`,
+      },
+    ];
+  },
   // View transitions work without config in Next.js 16.3+ (experimental.viewTransition removed).
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {

@@ -125,14 +125,17 @@ export function OverviewConnectAgentCard({
   mcpUrl: mcpUrlProp,
   className,
   compact = false,
+  showAuthMdRegistration = false,
 }: {
   mcpUrl?: string;
   className?: string;
   compact?: boolean;
+  showAuthMdRegistration?: boolean;
 }) {
   const intl = useIntl();
   const origin = useBrowserOrigin();
   const mcpUrl = mcpUrlProp ?? (origin ? buildHyperlocaliseMcpUrl(origin) : "");
+  const authMdUrl = origin ? new URL("/auth.md", origin).toString() : "/auth.md";
   const [client, setClient] = useState<McpAgentClient>("claude");
   const snippet = mcpUrl ? buildMcpAgentSnippet(client, mcpUrl) : "";
   const clientLabel = intl.formatMessage(
@@ -224,6 +227,24 @@ export function OverviewConnectAgentCard({
         {compact ? null : (
           <TypographyP wrapStyle="pretty" size="small" tone="subtle">
             <ClientNextStep client={client} />
+          </TypographyP>
+        )}
+
+        {compact || !showAuthMdRegistration ? null : (
+          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+            <FormattedMessage
+              {...messages.authMdGuide}
+              values={{
+                link: (
+                  <a
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                    href={authMdUrl}
+                  >
+                    <FormattedMessage {...messages.authMdLabel} />
+                  </a>
+                ),
+              }}
+            />
           </TypographyP>
         )}
       </CardContent>

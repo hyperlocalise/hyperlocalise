@@ -280,7 +280,9 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 export const config = {
   matcher: [
     // Exclude opaque UUID roots (BotID challenge scripts) so locale proxy does not 404 them.
-    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
+    // Exclude /auth.md so the AuthKit agent skill is not wrapped in a session proxy.
+    // Exclude /llms.txt so coding agents can read the public index without locale 404s.
+    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|llms\\.txt|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
     "/api/:path*",
   ],
 };

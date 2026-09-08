@@ -23,11 +23,11 @@ import { OverviewConnectAgentCard } from "./overview-connect-agent-card";
 
 const mcpUrl = "https://www.hyperlocalise.com/mcp";
 
-function renderCard() {
+function renderCard(showAuthMdRegistration = true) {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <TooltipProvider>
-        <OverviewConnectAgentCard mcpUrl={mcpUrl} />
+        <OverviewConnectAgentCard mcpUrl={mcpUrl} showAuthMdRegistration={showAuthMdRegistration} />
       </TooltipProvider>
     </IntlProvider>,
   );
@@ -63,6 +63,16 @@ describe("OverviewConnectAgentCard", () => {
     expect(
       screen.getByText("Add this to ~/.cursor/mcp.json, then open Settings → MCP and click Login."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "/auth.md" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/\/auth\.md$/),
+    );
+  });
+
+  it("hides the AuthKit registration link until it is enabled", () => {
+    renderCard(false);
+
+    expect(screen.queryByRole("link", { name: "/auth.md" })).not.toBeInTheDocument();
   });
 
   it("copies the selected install snippet", async () => {
@@ -93,5 +103,6 @@ describe("OverviewConnectAgentCard", () => {
       screen.queryByText("Access your Hyperlocalise workspace from MCP clients."),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Then run")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "/auth.md" })).not.toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { SITE_URL } from "@/lib/seo/site-url";
+import { getWorkosAuthkitIssuerUrl } from "@/lib/workos/config";
 
 type LlmsLink = {
   title: string;
@@ -73,6 +74,18 @@ function formatLinks(links: LlmsLink[]): string {
   return links.map((link) => `- [${link.title}](${link.href}): ${link.description}.`).join("\n");
 }
 
+function agentRegistrationSection(): string {
+  if (!getWorkosAuthkitIssuerUrl()) {
+    return "";
+  }
+
+  return `## Agents
+
+- [Agent registration](${SITE_URL}/auth.md): Follow this skill to register a coding agent with AuthKit, complete the hosted claim, and use the JWT on MCP and /api/v1.
+
+`;
+}
+
 function buildLlmsTxt(): string {
   return `# Hyperlocalise
 
@@ -84,7 +97,7 @@ The product experience is designed for localisation managers who need control wi
 
 Use the pages below as the canonical overview of Hyperlocalise. Prefer these curated links over crawling the full site.
 
-## Product
+${agentRegistrationSection()}## Product
 
 ${formatLinks(productLinks)}
 

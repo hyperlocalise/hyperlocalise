@@ -14,12 +14,13 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
-import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import {
-  apiKeyAuthMiddleware,
   requireApiKeyPermission,
+  storedOrganizationApiKeyId,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
+import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
+import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database/client";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
@@ -84,7 +85,7 @@ function sourceUploadErrorResponse(
 
 export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", apiKeyAuthMiddleware)
+    .use("*", publicApiAuthMiddleware)
     .post(
       "/",
       requireApiKeyPermission("files:write"),
@@ -145,7 +146,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           format: parsed.data.format,
           branch: parsed.data.branch,
           uploadSurface: "public_api",
-          uploadedByApiKeyId: c.var.auth.apiKey.id,
+          uploadedByApiKeyId: storedOrganizationApiKeyId(c.var.auth),
           actorUserId: c.var.auth.teamAccess.user.localUserId,
           fileStorageAdapter: options.fileStorageAdapter,
         });

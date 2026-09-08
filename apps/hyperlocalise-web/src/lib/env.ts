@@ -94,6 +94,16 @@ export const env = createEnv({
     /** Optional WorkOS API port override (e.g. `4100` for workos-emulate). */
     WORKOS_API_PORT: z.coerce.number().int().positive().optional(),
 
+    /**
+     * AuthKit domain for agent registration (host only, no scheme).
+     * Used to reverse-proxy `/auth.md` and to verify agent access-token JWTs.
+     * Example: `hyperlocalise.authkit.app`
+     */
+    WORKOS_AUTHKIT_DOMAIN: z
+      .string()
+      .regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i, "AuthKit domain must be a hostname")
+      .optional(),
+
     /** Secret used by Flags SDK for toolbar overrides and encrypted flag values. */
     FLAGS_SECRET: z.string().min(32).optional(),
 
@@ -314,6 +324,8 @@ export const env = createEnv({
     WORKOS_API_HOSTNAME: process.env.WORKOS_API_HOSTNAME,
     WORKOS_API_HTTPS: process.env.WORKOS_API_HTTPS as "true" | "false" | undefined,
     WORKOS_API_PORT: process.env.WORKOS_API_PORT,
+    WORKOS_AUTHKIT_DOMAIN:
+      process.env.WORKOS_AUTHKIT_DOMAIN ?? (isTestEnv ? "authkit.test" : undefined),
     FLAGS_SECRET:
       process.env.FLAGS_SECRET ??
       (isTestEnv ? "test-flags-secret-at-least-32-characters-long" : undefined),

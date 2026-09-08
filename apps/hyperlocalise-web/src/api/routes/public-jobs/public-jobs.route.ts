@@ -18,10 +18,12 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import {
-  apiKeyAuthMiddleware,
+  publicApiActivityActor,
   requireApiKeyPermission,
+  storedOrganizationApiKeyId,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
+import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/response.schema";
@@ -181,7 +183,7 @@ function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScop
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", apiKeyAuthMiddleware)
+    .use("*", publicApiAuthMiddleware)
     .post(
       "/",
       requireApiKeyPermission("jobs:write"),
@@ -275,7 +277,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                 kind: "translation",
                 status: "queued",
                 inputPayload,
-                apiKeyId: c.var.auth.apiKey.id,
+                apiKeyId: storedOrganizationApiKeyId(c.var.auth),
               })
               .returning();
 
@@ -314,9 +316,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         }
 
         await enqueueJobCreatedActivity({
-          actorCredentialId: c.var.auth.apiKey.id,
-          actorKind: "api_key",
-          actorUserId: c.var.auth.teamAccess.user.localUserId,
+          ...publicApiActivityActor(c.var.auth),
           jobId: job.id,
           kind: job.kind,
           organizationId,
@@ -343,9 +343,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               .where(eq(schema.jobs.id, job.id));
 
             await enqueueJobFailedActivity({
-              actorCredentialId: c.var.auth.apiKey.id,
-              actorKind: "api_key",
-              actorUserId: c.var.auth.teamAccess.user.localUserId,
+              ...publicApiActivityActor(c.var.auth),
               errorCode: "queue_unavailable",
               jobId: job.id,
               kind: job.kind,
