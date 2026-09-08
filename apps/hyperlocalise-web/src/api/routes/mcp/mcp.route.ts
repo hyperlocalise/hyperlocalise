@@ -79,6 +79,7 @@ import {
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import {
+  isJobCreateAllowed,
   isWriteBackApproveAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
@@ -113,6 +114,14 @@ import { resolveProjectResourceTarget } from "@/api/routes/project/project.share
 import type { ToolContext } from "@/lib/tools/types";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import {
+  maxPublicUploadBytes,
+  uploadBodySchema,
+} from "@/api/routes/public-files/public-files.schema";
+import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
+import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import { updateMcpTranslation } from "./mcp-update-translation";
 
 const authorizationQuerySchema = z.object({
@@ -733,6 +742,62 @@ const mcpGetTranslationInputSchema = z.object({
 
   targetLocale: z.string().min(1).max(50).describe("BCP-47 target locale tag."),
 });
+
+const sourceUploadShape = uploadBodySchema.shape;
+
+const mcpUploadSourcesInputSchema = z.object({
+  projectId: sourceUploadShape.projectId.describe("ID of the accessible Hyperlocalise project."),
+
+  sourcePath: sourceUploadShape.sourcePath.describe("Repository-relative path of the source file."),
+
+  content: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Source file bytes represented as UTF-8 text. Provide exactly one of content or contentBase64.",
+    ),
+
+  contentBase64: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Source file bytes encoded as base64. Provide exactly one of content or contentBase64.",
+    ),
+
+  sourceLocale: sourceUploadShape.sourceLocale.describe("Optional source locale."),
+
+  format: sourceUploadShape.format.describe("Optional explicit source file format."),
+
+  branch: sourceUploadShape.branch.describe("Optional repository branch."),
+
+  sourceHash: sourceUploadShape.sourceHash.describe("Optional caller-provided source hash."),
+
+  commitSha: sourceUploadShape.commitSha.describe("Optional repository commit SHA."),
+
+  workflowRunId: sourceUploadShape.workflowRunId.describe("Optional workflow run identifier."),
+});
+
+function decodeMcpBase64(value: string): Uint8Array | null {
+  const normalized = value.trim();
+
+  if (
+    normalized.length === 0 ||
+    normalized.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)
+  ) {
+    return null;
+  }
+
+  const decoded = Buffer.from(normalized, "base64");
+
+  if (decoded.toString("base64") !== normalized) {
+    return null;
+  }
+
+  return new Uint8Array(decoded);
+}
 
 function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
   return {
@@ -1756,7 +1821,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of ["upload_sources", "download_translations", "run_workflow"] as const) {
+  for (const name of ["download_translations", "run_workflow"] as const) {
     server.registerTool(
       name,
       {
@@ -1908,6 +1973,159 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           {
             type: "text",
             text: JSON.stringify(result.value),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "upload_sources",
+    {
+      description: "Upload one source file to an accessible Hyperlocalise project.",
+      inputSchema: mcpUploadSourcesInputSchema,
+    },
+    async ({
+      projectId,
+      sourcePath,
+      content,
+      contentBase64,
+      sourceLocale,
+      format,
+      branch,
+      sourceHash,
+      commitSha,
+      workflowRunId,
+    }) => {
+      if (!isJobCreateAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to upload source files");
+      }
+
+      const hasTextContent = content !== undefined;
+      const hasBase64Content = contentBase64 !== undefined;
+
+      if (hasTextContent === hasBase64Content) {
+        return mcpToolError(
+          "invalid_file_payload",
+          "Provide exactly one of content or contentBase64",
+        );
+      }
+
+      let fileBytes: Uint8Array;
+
+      if (content !== undefined) {
+        fileBytes = new TextEncoder().encode(content);
+      } else {
+        if (contentBase64 === undefined) {
+          return mcpToolError(
+            "invalid_file_payload",
+            "Provide exactly one of content or contentBase64",
+          );
+        }
+
+        const decoded = decodeMcpBase64(contentBase64);
+
+        if (!decoded) {
+          return mcpToolError("invalid_file_payload", "contentBase64 must contain valid base64");
+        }
+
+        fileBytes = decoded;
+      }
+
+      if (fileBytes.byteLength > maxPublicUploadBytes) {
+        return mcpToolError("invalid_file_payload", "Source file exceeds the 25 MiB upload limit");
+      }
+
+      if (!inferSupportedSourceUploadFormat(sourcePath)) {
+        return mcpToolError("unsupported_file", "Source file format is not supported");
+      }
+
+      const target = await resolveProjectResourceTarget(apiAuth, projectId);
+
+      if (target.kind === "provider_unavailable") {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      let resolvedProjectId = target.kind === "native" ? target.projectId : projectId;
+
+      if (target.kind === "provider") {
+        const ensuredProject = await ensureOrganizationProjectRecord({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId,
+          userId: apiAuth.user.localUserId,
+        });
+
+        if (isErr(ensuredProject)) {
+          return mcpToolError("project_not_found", "Project not found or inaccessible");
+        }
+
+        resolvedProjectId = ensuredProject.value;
+      }
+
+      const projectWhere =
+        target.kind === "provider"
+          ? and(
+              eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
+              eq(schema.projects.id, resolvedProjectId),
+            )
+          : await ownedProjectWhere(apiAuth, resolvedProjectId);
+
+      const [project] = await db.select().from(schema.projects).where(projectWhere).limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const result = await uploadSourceFile({
+        organizationId: apiAuth.organization.localOrganizationId,
+        project,
+        file: {
+          filename: sourceFilename(sourcePath),
+          contentType: sourceContentType(sourcePath),
+          content: fileBytes,
+        },
+        sourcePath,
+        sourceHash,
+        commitSha,
+        workflowRunId,
+        sourceLocale,
+        format,
+        branch,
+        uploadSurface: "mcp",
+        uploadedByUserId: apiAuth.user.localUserId,
+        actorUserId: apiAuth.user.localUserId,
+      });
+
+      if (isErr(result)) {
+        switch (result.error.code) {
+          case "external_tms_project_not_found":
+            return mcpToolError("project_not_found", "Project not found or inaccessible");
+
+          case "source_upload_failed":
+            return mcpToolError("source_upload_failed", "Source file upload failed");
+
+          case "provider_credential_not_found":
+          case "invalid_crowdin_project_id":
+          case "crowdin_branch_not_found":
+          case "phrase_source_locale_not_found":
+          case "phrase_source_file_format_required":
+          case "lokalise_source_locale_required":
+          case "lokalise_source_file_format_required":
+          case "smartling_source_file_type_required":
+            return mcpToolError("invalid_file_payload", "Source file payload is invalid");
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              file: {
+                ...result.value.file,
+                destination: result.value.destination,
+              },
+            }),
           },
         ],
       };
