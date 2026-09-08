@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "i18n.go",
         "schema.go",
+        "translation.go",
         "version.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig",

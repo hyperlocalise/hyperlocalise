@@ -124,6 +124,66 @@ func TestRunImageRejectsNonOpenAIProvider(t *testing.T) {
 	}
 }
 
+func TestRunImageRejectsMTRoutedGroup(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.png"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := imageTestConfig(sourcePath, "/tmp/fr/image.png")
+		cfg.MT = &config.MTConfig{
+			Profiles: map[string]config.MTProfile{
+				"google": {Provider: "google", APIKeyEnv: "GOOGLE_TRANSLATE_API_KEY"},
+			},
+		}
+		cfg.Translation = &config.TranslationConfig{
+			Default: config.TranslationSelection{Type: config.TranslationTypeMT, Profile: "google"},
+		}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte("source-image"), nil
+		}
+		return nil, filepath.ErrBadPattern
+	}
+
+	_, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err == nil {
+		t.Fatal("expected mt-routed image error")
+	}
+	if got := err.Error(); !strings.Contains(got, "image localization is only supported with type \"llm\"") || !strings.Contains(got, sourcePath) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunImageStillRequiresOpenAIProviderWhenTranslationPresent(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.png"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := imageTestConfig(sourcePath, "/tmp/fr/image.png")
+		profile := cfg.LLM.Profiles["default"]
+		profile.Provider = "anthropic"
+		cfg.LLM.Profiles["default"] = profile
+		cfg.Translation = &config.TranslationConfig{
+			Default: config.TranslationSelection{Type: config.TranslationTypeLLM, Profile: "default"},
+		}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte("source-image"), nil
+		}
+		return nil, filepath.ErrBadPattern
+	}
+
+	_, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err == nil {
+		t.Fatal("expected non-OpenAI provider error")
+	}
+	if got := err.Error(); !strings.Contains(got, "image localization is only supported with provider \"openai\"") || !strings.Contains(got, sourcePath) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunImageEditWritesLocalizedImage(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.png"
