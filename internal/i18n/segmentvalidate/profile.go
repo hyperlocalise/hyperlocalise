@@ -167,6 +167,81 @@ func validateSpecialCharParityWithTokens(source, translated string) (bool, error
 	)
 }
 
+const escapedControlChars = "\t\n\r\v\f"
+
+// IntroducedEscapedChars reports escape sequences and control characters that
+// appear in target but not in source. It covers both literal two-character
+// sequences such as `\t` and the decoded control runes they represent.
+func IntroducedEscapedChars(source, target string) []string {
+	if target == "" || target == source {
+		return nil
+	}
+	hasLiteralEscapes := strings.Contains(target, "\\")
+	hasControlChars := strings.ContainsAny(target, escapedControlChars)
+	if !hasLiteralEscapes && !hasControlChars {
+		return nil
+	}
+
+	var extras []string
+	if hasLiteralEscapes {
+		extras = append(extras, extraTokens(extractSpecialCharLiterals(target), extractSpecialCharLiterals(source))...)
+	}
+	if hasControlChars {
+		extras = append(extras, extraTokens(extractControlCharTokens(target), extractControlCharTokens(source))...)
+	}
+	if len(extras) == 0 {
+		return nil
+	}
+	slices.Sort(extras)
+	return slices.Compact(extras)
+}
+
+func extraTokens(got, expected []string) []string {
+	if len(got) == 0 {
+		return nil
+	}
+	expectedCounts := make(map[string]int, len(expected))
+	for _, token := range expected {
+		expectedCounts[token]++
+	}
+	seen := make(map[string]struct{})
+	var extras []string
+	for _, token := range got {
+		if expectedCounts[token] > 0 {
+			expectedCounts[token]--
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		extras = append(extras, token)
+	}
+	return extras
+}
+
+func extractControlCharTokens(value string) []string {
+	if value == "" || !strings.ContainsAny(value, escapedControlChars) {
+		return nil
+	}
+	var out []string
+	for _, r := range value {
+		switch r {
+		case '\t':
+			out = append(out, `\t`)
+		case '\n':
+			out = append(out, `\n`)
+		case '\r':
+			out = append(out, `\r`)
+		case '\v':
+			out = append(out, `\v`)
+		case '\f':
+			out = append(out, `\f`)
+		}
+	}
+	return out
+}
+
 func extractSpecialCharLiterals(value string) []string {
 	// BOLT OPTIMIZATION: Fast-path for strings without backslashes to avoid
 	// unnecessary processing and map allocation (~2.5x faster).

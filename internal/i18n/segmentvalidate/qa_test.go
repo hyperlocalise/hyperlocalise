@@ -57,10 +57,64 @@ func TestQAModesNotLocalized(t *testing.T) {
 	}
 }
 
+func TestQAModesEscapedChar(t *testing.T) {
+	checks := ValidateSegment(Request{
+		SourceText: "Included",
+		TargetText: "Inclus\\tgranted",
+		SourcePath: "/pkg/en.json",
+		Modes:      []string{QAModeEscapedChar},
+	})
+	if len(checks) != 2 {
+		t.Fatalf("expected format fail + escaped-char warning, got %+v", checks)
+	}
+	if checks[0].ID != "format-special-char-mismatch" {
+		t.Fatalf("expected special char format failure first, got %+v", checks[0])
+	}
+	if checks[1].ID != "qa-escaped-char-mismatch" || checks[1].Status != StatusWarn {
+		t.Fatalf("unexpected escaped-char check: %+v", checks[1])
+	}
+	if checks[1].Message != "Target introduces escaped characters (\\t) that are not in the source." {
+		t.Fatalf("unexpected escaped-char message: %q", checks[1].Message)
+	}
+
+	checks = ValidateSegment(Request{
+		SourceText: "Created job",
+		TargetText: "已创建工作\tjob",
+		SourcePath: "/pkg/en.json",
+		Modes:      []string{QAModeEscapedChar},
+	})
+	if len(checks) != 2 {
+		t.Fatalf("expected format pass + escaped-char warning for decoded tab, got %+v", checks)
+	}
+	if checks[0].ID != "format-parity" || checks[1].ID != "qa-escaped-char-mismatch" {
+		t.Fatalf("unexpected checks for decoded tab: %+v", checks)
+	}
+
+	checks = ValidateSegment(Request{
+		SourceText: "Included",
+		TargetText: "Inclus",
+		SourcePath: "/pkg/en.json",
+		Modes:      []string{QAModeEscapedChar},
+	})
+	if len(checks) != 1 || checks[0].ID != "format-parity" {
+		t.Fatalf("expected only format pass, got %+v", checks)
+	}
+}
+
 func TestKnownQAModes(t *testing.T) {
 	modes := KnownQAModes()
-	if len(modes) != 3 {
-		t.Fatalf("expected 3 known QA modes, got %v", modes)
+	if len(modes) != 4 {
+		t.Fatalf("expected 4 known QA modes, got %v", modes)
+	}
+	found := false
+	for _, mode := range modes {
+		if mode == QAModeEscapedChar {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected %q in known QA modes, got %v", QAModeEscapedChar, modes)
 	}
 }
 

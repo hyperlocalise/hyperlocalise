@@ -23,6 +23,7 @@ const hlCheckTypeMap: Partial<Record<string, ProviderQaCheckType>> = {
   html_tag_mismatch: "html_tag_mismatch",
   same_as_source: "tone_style_issue",
   whitespace_only: "whitespace_only_translation",
+  escaped_char_mismatch: "escaped_char_mismatch",
 };
 
 const hlSuggestedFixes: Partial<Record<ProviderQaCheckType, string>> = {
@@ -36,6 +37,8 @@ const hlSuggestedFixes: Partial<Record<ProviderQaCheckType, string>> = {
     "Translate the string instead of copying the source text, unless the source should remain untranslated.",
   whitespace_only_translation:
     "Replace whitespace-only content with a meaningful translation or remove the entry.",
+  escaped_char_mismatch:
+    "Remove escaped or control characters that are not in the source, such as leftover \\t text.",
 };
 
 function mapSeverity(severity: string): ProviderQaSeverity {

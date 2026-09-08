@@ -118,6 +118,36 @@ func TestValidateSegmentSuccess(t *testing.T) {
 	require.Equal(t, segmentvalidate.StatusPass, resp.Checks[0].Status)
 }
 
+func TestValidateSegmentEscapedCharMismatch(t *testing.T) {
+	h := newHandler()
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	payload := `{"sourceText":"Included","targetText":"Inclus\\tgranted","sourcePath":"/messages/en.json","modes":["escaped_char_mismatch"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.GreaterOrEqual(t, len(resp.Checks), 2)
+	found := false
+	for _, check := range resp.Checks {
+		if check.ID == "qa-escaped-char-mismatch" {
+			found = true
+			require.Equal(t, segmentvalidate.StatusWarn, check.Status)
+			require.Contains(t, check.Message, `\t`)
+		}
+	}
+	require.True(t, found, "expected qa-escaped-char-mismatch, got %+v", resp.Checks)
+}
+
 func TestValidateSegmentWithQAModes(t *testing.T) {
 	h := newHandler()
 	mux := http.NewServeMux()

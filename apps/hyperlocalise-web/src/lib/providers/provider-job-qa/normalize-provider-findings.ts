@@ -20,6 +20,7 @@ const hlCheckConfidence: Partial<Record<string, number>> = {
   html_tag_mismatch: 1,
   same_as_source: 0.95,
   whitespace_only: 1,
+  escaped_char_mismatch: 1,
 };
 
 const supplementalCheckConfidence: Partial<Record<ProviderQaCheckType, number>> = {
