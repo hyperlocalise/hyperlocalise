@@ -34,10 +34,10 @@ type androidResourceDocument struct {
 }
 
 type androidPluralState struct {
-	name      string
-	itemCount int
-	hasOther  bool
-	startLine int
+	name        string
+	itemCount   int
+	hasOther    bool
+	startOffset int
 }
 
 type androidValueCapture struct {
@@ -204,10 +204,10 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 
 			if capture == nil && depth == 2 && plural != nil && token.Name.Local == "plurals" {
 				if plural.itemCount == 0 {
-					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, plural.startLine)
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, lineNumberAtOffset(text, plural.startOffset))
 				}
 				if !plural.hasOther {
-					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, plural.startLine)
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, lineNumberAtOffset(text, plural.startOffset))
 				}
 				plural = nil
 			}
@@ -230,7 +230,8 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	return doc, nil
 }
 
-// BOLT OPTIMIZATION: Compute line number lazily only when formatting errors or initializing plurals.
+// lineNumberAtOffset counts newlines only when formatting an error. Valid files
+// never pay this cost, and invalid files pay it once per reported error.
 func lineNumberAtOffset(text string, offset int) int {
 	if offset > len(text) {
 		offset = len(text)
@@ -264,7 +265,7 @@ func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.Sta
 		capture, err := startAndroidValueCapture(text, decoder, token, name, seenKeys)
 		return capture, nil, err
 	case "plurals":
-		return nil, &androidPluralState{name: name, startLine: lineNumberAtOffset(text, offset)}, nil
+		return nil, &androidPluralState{name: name, startOffset: offset}, nil
 	default:
 		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, lineNumberAtOffset(text, offset))
 	}
