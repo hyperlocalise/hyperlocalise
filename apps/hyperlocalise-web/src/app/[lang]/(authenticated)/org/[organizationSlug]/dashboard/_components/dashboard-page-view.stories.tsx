@@ -98,6 +98,8 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Connect your agent" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Developer resources" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: /MCP server/ })).toBeInTheDocument();
     await expect(canvas.getByText("2 P1 on Queries")).toBeInTheDocument();
     await expect(canvas.getByText("Activity")).toBeInTheDocument();
     await expect(canvas.getByText("Projects")).toBeInTheDocument();
