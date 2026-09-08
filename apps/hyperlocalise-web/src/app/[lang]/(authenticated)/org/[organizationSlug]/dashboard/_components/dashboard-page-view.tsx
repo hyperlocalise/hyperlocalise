@@ -36,6 +36,7 @@ import {
 } from "@/lib/workspace/overview-snapshot-model";
 
 import { OverviewConnectAgentCard } from "../../_components/overview/overview-connect-agent-card";
+import { OverviewDeveloperResources } from "../../_components/overview/overview-developer-resources";
 import { IssuePriorityIcon } from "../../_components/issue-detail/issue-priority-icon";
 import {
   formatCompactRelativeTimestamp,
@@ -583,6 +584,8 @@ export function DashboardPageView({
         <OverviewConnectAgentCard compact className="min-w-0 flex-1" />
         {slackConnectCard}
       </section>
+
+      <OverviewDeveloperResources />
     </WorkspacePageShell>
   );
 }
