@@ -22,6 +22,8 @@ import {
   PuzzleIcon,
   UserGroup02Icon,
   DatabaseIcon,
+  File01Icon,
+  TextFontIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -73,6 +75,15 @@ const eventActions = {
   automation_run_started: messages.automationRunStartedAction,
   automation_enabled: messages.automationEnabledAction,
   automation_disabled: messages.automationDisabledAction,
+  file_uploaded: messages.fileUploadedAction,
+  file_translations_imported: messages.fileTranslationsImportedAction,
+  string_segment_approved: messages.stringSegmentApprovedAction,
+  string_segment_status_changed: messages.stringSegmentStatusChangedAction,
+  string_segment_hidden: messages.stringSegmentHiddenAction,
+  string_segment_unhidden: messages.stringSegmentUnhiddenAction,
+  string_segment_locked: messages.stringSegmentLockedAction,
+  string_segment_unlocked: messages.stringSegmentUnlockedAction,
+  string_segment_commented: messages.stringSegmentCommentedAction,
 };
 
 type ActivityVisual = {
@@ -101,6 +112,12 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   }
   if (eventType.startsWith("automation_")) {
     return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+  }
+  if (eventType.startsWith("file_")) {
+    return { icon: File01Icon, className: "bg-primary/10 text-primary" };
+  }
+  if (eventType.startsWith("string_segment_")) {
+    return { icon: TextFontIcon, className: "bg-warning/10 text-warning" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }
@@ -140,65 +157,76 @@ function targetDisplayName(item: ActivityLogItem): string | null {
 export function ActivityLogList({
   activityLogs,
   now = Date.now(),
+  variant = "card",
 }: {
   activityLogs: ActivityLogItem[];
   now?: number;
+  variant?: "card" | "plain";
 }) {
   const intl = useIntl();
 
+  const list = (
+    <ol className="divide-y divide-border">
+      {activityLogs.map((item) => {
+        const displayName = targetDisplayName(item);
+        const target = displayName ? ` · ${displayName}` : "";
+        const relative = relativeTime(item.createdAt, now);
+        const visual = activityVisual(item.eventType);
+        return (
+          <li
+            key={item.id}
+            className={cn("flex gap-3", variant === "plain" ? "px-1 py-3" : "px-4 py-4 md:px-6")}
+          >
+            <div
+              className={cn(
+                "grid size-8 shrink-0 place-content-center rounded-full",
+                visual.className,
+              )}
+              aria-hidden="true"
+            >
+              <HugeiconsIcon icon={visual.icon} strokeWidth={1.8} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <TypographyP size="small" weight="medium" tone="content">
+                  {intl.formatMessage(messages.eventDescription, {
+                    actor: item.actor.displayName,
+                    action: intl.formatMessage(eventActions[item.eventType]),
+                    target,
+                  })}
+                </TypographyP>
+                <Badge variant="outline">{item.actor.kind}</Badge>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {item.target.href && displayName ? (
+                  <Link
+                    className="underline underline-offset-2 hover:text-foreground"
+                    href={item.target.href}
+                  >
+                    {displayName}
+                  </Link>
+                ) : null}
+                <span title={new Date(item.createdAt).toLocaleString()}>
+                  {new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+                    relative.value,
+                    relative.unit,
+                  )}
+                </span>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+
+  if (variant === "plain") {
+    return list;
+  }
+
   return (
     <Card>
-      <CardContent className="p-0">
-        <ol className="divide-y divide-border">
-          {activityLogs.map((item) => {
-            const displayName = targetDisplayName(item);
-            const target = displayName ? ` · ${displayName}` : "";
-            const relative = relativeTime(item.createdAt, now);
-            const visual = activityVisual(item.eventType);
-            return (
-              <li key={item.id} className="flex gap-3 px-4 py-4 md:px-6">
-                <div
-                  className={cn(
-                    "grid size-8 shrink-0 place-content-center rounded-full",
-                    visual.className,
-                  )}
-                  aria-hidden="true"
-                >
-                  <HugeiconsIcon icon={visual.icon} strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TypographyP size="small" weight="medium" tone="content">
-                      {intl.formatMessage(messages.eventDescription, {
-                        actor: item.actor.displayName,
-                        action: intl.formatMessage(eventActions[item.eventType]),
-                        target,
-                      })}
-                    </TypographyP>
-                    <Badge variant="outline">{item.actor.kind}</Badge>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    {item.target.href && displayName ? (
-                      <Link
-                        className="underline underline-offset-2 hover:text-foreground"
-                        href={item.target.href}
-                      >
-                        {displayName}
-                      </Link>
-                    ) : null}
-                    <span title={new Date(item.createdAt).toLocaleString()}>
-                      {new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
-                        relative.value,
-                        relative.unit,
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      </CardContent>
+      <CardContent className="p-0">{list}</CardContent>
     </Card>
   );
 }

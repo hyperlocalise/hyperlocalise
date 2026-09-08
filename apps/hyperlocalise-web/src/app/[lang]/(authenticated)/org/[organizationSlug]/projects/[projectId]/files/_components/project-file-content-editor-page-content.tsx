@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
+import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
@@ -611,6 +612,12 @@ export function ProjectFileContentEditorPageContent({
               onTargetLocaleChange={handleLocaleChange}
             />
           ) : null}
+
+          <ContentEditorActivityLogButton
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={allFiles ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH : (sourcePath as string)}
+          />
         </div>
 
         <ContentEditorQueueToolbarHost />

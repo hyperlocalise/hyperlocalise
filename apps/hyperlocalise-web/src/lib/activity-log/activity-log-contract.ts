@@ -26,6 +26,8 @@ export const ACTIVITY_TARGET_KINDS = [
   "translation_memory",
   "job",
   "automation",
+  "file",
+  "string_segment",
 ] as const;
 export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 
@@ -74,16 +76,31 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
 ] as const;
 export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number];
 
+export const FILE_SEGMENT_ACTIVITY_EVENT_TYPES = [
+  "file_uploaded",
+  "file_translations_imported",
+  "string_segment_approved",
+  "string_segment_status_changed",
+  "string_segment_hidden",
+  "string_segment_unhidden",
+  "string_segment_locked",
+  "string_segment_unlocked",
+  "string_segment_commented",
+] as const;
+export type FileSegmentActivityEventType = (typeof FILE_SEGMENT_ACTIVITY_EVENT_TYPES)[number];
+
 export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
   ...V1_ACTIVITY_EVENT_TYPES,
   ...LATER_ACTIVITY_EVENT_TYPES,
+  ...FILE_SEGMENT_ACTIVITY_EVENT_TYPES,
 ] as const;
 export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
 
 export type ActivityEventType =
   | V1ActivityEventType
   | ReservedActivityEventType
-  | LaterActivityEventType;
+  | LaterActivityEventType
+  | FileSegmentActivityEventType;
 
 export type ActivityMembershipRole =
   | "admin"
@@ -110,6 +127,25 @@ type ImportExportPayload = {
 type AttachmentPayload = {
   projectId: string;
   resourceId: string;
+};
+
+type FileActivityPayload = {
+  fileName: string;
+  name: string;
+  projectId: string;
+  sourcePath: string;
+  storedFileId?: string;
+  versionId?: string;
+};
+
+type StringSegmentActivityPayload = {
+  fileName: string;
+  itemCount?: number;
+  name: string;
+  projectId: string;
+  segmentId: string;
+  sourcePath: string;
+  targetLocale?: string;
 };
 
 export type ActivityPayloadByEventType = {
@@ -211,6 +247,20 @@ export type ActivityPayloadByEventType = {
     name: string;
     status: "archived" | "paused";
   };
+  file_uploaded: FileActivityPayload;
+  file_translations_imported: FileActivityPayload & {
+    targetLocale: string;
+  };
+  string_segment_approved: StringSegmentActivityPayload;
+  string_segment_status_changed: StringSegmentActivityPayload & {
+    nextStatus: string;
+    previousStatus?: string;
+  };
+  string_segment_hidden: StringSegmentActivityPayload;
+  string_segment_unhidden: StringSegmentActivityPayload;
+  string_segment_locked: StringSegmentActivityPayload;
+  string_segment_unlocked: StringSegmentActivityPayload;
+  string_segment_commented: StringSegmentActivityPayload;
 };
 
 export type ActivityTargetKindByEventType = {
@@ -244,6 +294,15 @@ export type ActivityTargetKindByEventType = {
   automation_run_started: "automation";
   automation_enabled: "automation";
   automation_disabled: "automation";
+  file_uploaded: "file";
+  file_translations_imported: "file";
+  string_segment_approved: "string_segment";
+  string_segment_status_changed: "string_segment";
+  string_segment_hidden: "string_segment";
+  string_segment_unhidden: "string_segment";
+  string_segment_locked: "string_segment";
+  string_segment_unlocked: "string_segment";
+  string_segment_commented: "string_segment";
 };
 
 type ActivityLogEventBase = {

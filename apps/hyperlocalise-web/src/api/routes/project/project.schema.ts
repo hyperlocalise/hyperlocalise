@@ -304,6 +304,12 @@ export const projectFileCatQuerySchema = z.object({
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
 });
 
+export const projectFileCatActivityLogQuerySchema = z.object({
+  cursor: z.string().trim().min(1).max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  sourcePath: z.string().trim().min(1).max(2048),
+});
+
 export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
 
 export const projectFileCatExportQuerySchema = projectFileCatQuerySchema

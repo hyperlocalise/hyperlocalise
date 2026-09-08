@@ -39,6 +39,21 @@ import {
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
 } from "@/lib/billing/workspace-resource-limits";
+import { FILE_SEGMENT_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
+import {
+  enqueueFileTranslationsImportedActivity,
+  enqueueFileUploadedActivity,
+  enqueueStringSegmentApprovedActivity,
+  enqueueStringSegmentCommentedActivity,
+  enqueueStringSegmentHiddenActivity,
+  enqueueStringSegmentLockedActivity,
+  enqueueStringSegmentStatusChangedActivity,
+  sessionActivityActor,
+} from "@/lib/activity-log/file-segment-events";
+import {
+  InvalidActivityLogCursorError,
+  listActivityLogEvents,
+} from "@/lib/activity-log/activity-log-reader";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
@@ -167,6 +182,7 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
+  projectFileCatActivityLogQuerySchema,
   projectFileCatExportQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
@@ -647,6 +663,16 @@ const validateProjectFileContentEditorQuery = validator("query", (value, c) => {
 
 const validateProjectFileContentEditorExportQuery = validator("query", (value, c) => {
   const parsed = projectFileCatExportQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileContentEditorActivityLogQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatActivityLogQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1199,6 +1225,51 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .get(
+      "/:projectId/files/detail/cat/activity-logs",
+      validateProjectParams,
+      validateProjectFileContentEditorActivityLogQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+        }
+
+        try {
+          const result = await listActivityLogEvents({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            organizationSlug: c.req.param("organizationSlug") ?? "",
+            query: {
+              eventTypes: [...FILE_SEGMENT_ACTIVITY_EVENT_TYPES],
+              limit: query.limit,
+              projectId: params.projectId,
+              range: "all",
+              sourcePath: query.sourcePath,
+              cursor: query.cursor,
+            },
+          });
+          return c.json(result, 200);
+        } catch (error) {
+          if (error instanceof InvalidActivityLogCursorError) {
+            return badRequestResponse(
+              c,
+              "invalid_activity_log_cursor",
+              "Activity log cursor is invalid",
+            );
+          }
+          throw error;
+        }
+      },
+    )
+    .get(
       "/:projectId/files/detail/cat/export",
       validateProjectParams,
       validateProjectFileContentEditorExportQuery,
@@ -1514,6 +1585,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             },
           );
 
+          if (body.approve) {
+            void enqueueStringSegmentApprovedActivity({
+              ...sessionActivityActor(c.var.auth.user.localUserId),
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              segmentId: body.externalStringId,
+              sourcePath: body.sourcePath,
+              targetLocale: body.targetLocale,
+            });
+          }
+
           return c.json({ translation }, 200);
         }
 
@@ -1543,6 +1625,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               status: translation.isApproved ? "approved" : "draft",
             },
           );
+
+          if (translation.isApproved) {
+            void enqueueStringSegmentApprovedActivity({
+              ...sessionActivityActor(c.var.auth.user.localUserId),
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              segmentId: body.externalStringId,
+              sourcePath: body.sourcePath,
+              targetLocale: body.targetLocale,
+            });
+          }
 
           return c.json({ translation }, 200);
         } catch (error) {
@@ -1604,6 +1697,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             feature: "comment",
           });
 
+          void enqueueStringSegmentCommentedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
+
           return c.json({ comment }, 200);
         }
 
@@ -1629,6 +1731,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorCommentCreated, {
             source: "external_tms",
             feature: body.type === "issue" ? "issue" : "comment",
+          });
+
+          void enqueueStringSegmentCommentedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
           });
 
           return c.json({ comment }, 200);
@@ -1913,6 +2024,24 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             source: "native",
             status: "approved",
           });
+          void enqueueStringSegmentApprovedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
+        } else {
+          void enqueueStringSegmentStatusChangedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            nextStatus: body.status,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
         }
 
         return c.json({ translation }, 200);
@@ -1954,6 +2083,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               { actorUserId: c.var.auth.user.localUserId },
             );
 
+            void enqueueStringSegmentHiddenActivity({
+              ...sessionActivityActor(c.var.auth.user.localUserId),
+              isHidden: result.isHidden,
+              itemCount: result.updatedCount,
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              segmentId: body.externalStringIds[0]!,
+              sourcePath: body.sourcePath,
+            });
+
             return c.json(
               {
                 updatedCount: result.updatedCount,
@@ -1976,6 +2115,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           translationKeyIds: body.externalStringIds,
           isHidden: body.isHidden,
+          sourcePath: body.sourcePath,
+        });
+
+        void enqueueStringSegmentHiddenActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          isHidden: body.isHidden,
+          itemCount: result.updatedCount,
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          segmentId: body.externalStringIds[0]!,
           sourcePath: body.sourcePath,
         });
 
@@ -2018,6 +2167,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           externalStringIds: body.externalStringIds,
           isLocked: body.isLocked,
           actorUserId: c.var.auth.user.localUserId,
+        });
+
+        void enqueueStringSegmentLockedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          isLocked: body.isLocked,
+          itemCount: result.updatedCount,
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          segmentId: body.externalStringIds[0]!,
+          sourcePath: body.sourcePath,
+          targetLocale: body.targetLocale,
         });
 
         return c.json({ contentEditorSegmentLock: result }, 200);
@@ -3458,6 +3618,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         });
 
+        void enqueueFileUploadedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: parsed.data.sourcePath,
+          storedFileId: storedFile.id,
+          versionId: version.id,
+        });
+
         return c.json(
           {
             file: {
@@ -3575,6 +3744,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => undefined);
           throw error;
         }
+
+        void enqueueFileTranslationsImportedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: parsed.data.sourcePath,
+          storedFileId: storedFile.id,
+          targetLocale: parsed.data.locale,
+        });
 
         return c.json(
           {

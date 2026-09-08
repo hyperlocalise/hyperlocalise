@@ -52,6 +52,7 @@ import {
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
+import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
@@ -662,6 +663,12 @@ export function JobContentEditorPageContent({
                 onTargetLocaleChange={handleAllFilesLocaleChange}
               />
             ) : null}
+
+            <ContentEditorActivityLogButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
+            />
           </div>
 
           <ContentEditorQueueToolbarHost />
@@ -840,6 +847,12 @@ export function JobContentEditorPageContent({
                 onTargetLocaleChange={handleLocaleChange}
               />
             ) : null}
+
+            <ContentEditorActivityLogButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              sourcePath={selectedFile.sourcePath}
+            />
           </div>
 
           <ContentEditorQueueToolbarHost />
@@ -980,6 +993,12 @@ export function JobContentEditorPageContent({
               onTargetLocaleChange={handleLocaleChange}
             />
           ) : null}
+
+          <ContentEditorActivityLogButton
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={selectedFile.sourcePath}
+          />
         </div>
 
         <ContentEditorQueueToolbarHost />
