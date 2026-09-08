@@ -171,19 +171,20 @@ type Event struct {
 }
 
 type Task struct {
-	Kind         string `json:"kind,omitempty"`
-	SourceLocale string `json:"sourceLocale"`
-	TargetLocale string `json:"targetLocale"`
-	SourcePath   string `json:"sourcePath"`
-	TargetPath   string `json:"targetPath"`
-	EntryKey     string `json:"entryKey"`
-	SourceText   string `json:"sourceText"`
-	ProfileName  string `json:"profileName"`
-	Provider     string `json:"provider"`
-	Model        string `json:"model"`
-	SystemPrompt string `json:"systemPrompt,omitempty"`
-	UserPrompt   string `json:"userPrompt,omitempty"`
-	LegacyPrompt bool   `json:"-"`
+	Kind            string `json:"kind,omitempty"`
+	SourceLocale    string `json:"sourceLocale"`
+	TargetLocale    string `json:"targetLocale"`
+	SourcePath      string `json:"sourcePath"`
+	TargetPath      string `json:"targetPath"`
+	EntryKey        string `json:"entryKey"`
+	SourceText      string `json:"sourceText"`
+	ProfileName     string `json:"profileName"`
+	Provider        string `json:"provider"`
+	Model           string `json:"model"`
+	TranslationType string `json:"translationType,omitempty"`
+	SystemPrompt    string `json:"systemPrompt,omitempty"`
+	UserPrompt      string `json:"userPrompt,omitempty"`
+	LegacyPrompt    bool   `json:"-"`
 	// Prompt*Template are profile templates; SystemPrompt/UserPrompt are rendered lazily for memory.
 	PromptLegacyTemplate string `json:"-"`
 	PromptSystemTemplate string `json:"-"`
@@ -413,12 +414,17 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			continue
 		}
 		group := cfg.Groups[groupName]
-		profileName, profile, err := resolveProfile(cfg, groupName)
+		selection, err := resolveTranslation(cfg, groupName)
 		if err != nil {
 			return nil, nil, err
 		}
-		contextProvider, contextModel := resolveContextMemoryModel(profile, cfg.LLM.ContextMemory)
-		promptVersion := resolvePromptVersion(profile)
+		profileName := selection.ProfileName
+
+		var contextProvider, contextModel, promptVersion string
+		if selection.Type == config.TranslationTypeLLM {
+			contextProvider, contextModel = resolveContextMemoryModel(selection.LLMProfile, cfg.LLM.ContextMemory)
+			promptVersion = resolvePromptVersion(selection.LLMProfile)
+		}
 
 		targets := group.Targets
 		if len(targets) == 0 {
@@ -486,8 +492,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
 						}
 						sourceFingerprint := imageLockSourceHash(sourceContent)
-						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
-							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
+						if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
+							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
 						}
 						if !filterFixes && cap(tasks)-len(tasks) < len(targets) {
 							tasks = slices.Grow(tasks, len(targets))
@@ -516,6 +522,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								ProfileName:       profileName,
 								Provider:          translator.ProviderOpenAI,
 								Model:             translator.OpenAIImageModel,
+								TranslationType:   config.TranslationTypeLLM,
 								ContextProvider:   contextProvider,
 								ContextModel:      contextModel,
 								GroupName:         groupName,
@@ -571,8 +578,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
-							legacyRendered := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
-							legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
 							task := Task{
 								SourceLocale:             cfg.Locales.Source,
 								TargetLocale:             target,
@@ -581,12 +586,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								EntryKey:                 key,
 								SourceText:               sourceText,
 								ProfileName:              profileName,
-								Provider:                 profile.Provider,
-								Model:                    profile.Model,
-								LegacyPrompt:             legacyPromptUsed,
-								PromptLegacyTemplate:     profile.Prompt,
-								PromptSystemTemplate:     profile.SystemPrompt,
-								PromptUserTemplate:       profile.UserPrompt,
+								TranslationType:          selection.Type,
 								SourceContext:            sourceContextByKey[key],
 								ContextProvider:          contextProvider,
 								ContextModel:             contextModel,
@@ -597,6 +597,21 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								sourceTextHash:           snapshot.sourceTextHashes[key],
 								sourceContextFingerprint: snapshot.sourceContextFingerprints[key],
 							}
+
+							switch selection.Type {
+							case config.TranslationTypeLLM:
+								legacyRendered := renderPrompt(selection.LLMProfile.Prompt, cfg.Locales.Source, target, sourceText)
+								legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(selection.LLMProfile.SystemPrompt) == "" && strings.TrimSpace(selection.LLMProfile.UserPrompt) == ""
+								task.Provider = selection.LLMProfile.Provider
+								task.Model = selection.LLMProfile.Model
+								task.LegacyPrompt = legacyPromptUsed
+								task.PromptLegacyTemplate = selection.LLMProfile.Prompt
+								task.PromptSystemTemplate = selection.LLMProfile.SystemPrompt
+								task.PromptUserTemplate = selection.LLMProfile.UserPrompt
+							case config.TranslationTypeMT:
+								task.Provider = selection.MTProfile.Provider
+							}
+
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
 								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)
@@ -895,6 +910,67 @@ func resolveProfile(cfg *config.I18NConfig, groupName string) (string, config.LL
 	}
 
 	return bestProfile, profile, nil
+}
+
+type translationSelection struct {
+	Type        string
+	ProfileName string
+	LLMProfile  config.LLMProfile
+	MTProfile   config.MTProfile
+}
+
+func resolveTranslation(cfg *config.I18NConfig, groupName string) (translationSelection, error) {
+	if cfg.Translation == nil {
+		profileName, profile, err := resolveProfile(cfg, groupName)
+		if err != nil {
+			return translationSelection{}, err
+		}
+		return translationSelection{
+			Type:        config.TranslationTypeLLM,
+			ProfileName: profileName,
+			LLMProfile:  profile,
+		}, nil
+	}
+
+	bestPriority := -1
+	bestType := ""
+	bestProfile := ""
+
+	for _, rule := range cfg.Translation.Rules {
+		if rule.Group != groupName {
+			continue
+		}
+		if rule.Priority > bestPriority {
+			bestPriority = rule.Priority
+			bestType = rule.Type
+			bestProfile = rule.Profile
+		}
+	}
+
+	if strings.TrimSpace(bestProfile) == "" {
+		bestType = cfg.Translation.Default.Type
+		bestProfile = cfg.Translation.Default.Profile
+	}
+
+	switch strings.ToLower(strings.TrimSpace(bestType)) {
+	case config.TranslationTypeLLM:
+		profile, ok := cfg.LLM.Profiles[bestProfile]
+		if !ok {
+			return translationSelection{}, fmt.Errorf("planning tasks: unresolvable llm profile %q for group %q", bestProfile, groupName)
+		}
+		return translationSelection{Type: config.TranslationTypeLLM, ProfileName: bestProfile, LLMProfile: profile}, nil
+	case config.TranslationTypeMT:
+		if cfg.MT == nil {
+			return translationSelection{}, fmt.Errorf("planning tasks: unresolvable mt profile %q for group %q", bestProfile, groupName)
+		}
+		profile, ok := cfg.MT.Profiles[bestProfile]
+		if !ok {
+			return translationSelection{}, fmt.Errorf("planning tasks: unresolvable mt profile %q for group %q", bestProfile, groupName)
+		}
+		return translationSelection{Type: config.TranslationTypeMT, ProfileName: bestProfile, MTProfile: profile}, nil
+	default:
+		return translationSelection{}, fmt.Errorf("planning tasks: unresolvable translation type %q for group %q", bestType, groupName)
+	}
 }
 
 func resolveContextMemoryModel(profile config.LLMProfile, contextProfile *config.LLMContextMemoryProfile) (provider, model string) {

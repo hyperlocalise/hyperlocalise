@@ -7,7 +7,7 @@ import (
 
 const (
 	TranslationTypeLLM = "llm"
-	TranslationTypeMT = "mt"
+	TranslationTypeMT  = "mt"
 
 	mtProviderGoogle = "google"
 	mtProviderDeepL  = "deepl"
@@ -33,6 +33,7 @@ type TranslationRule struct {
 type MTConfig struct {
 	Profiles map[string]MTProfile `json:"profiles" jsonschema:"required"`
 }
+
 // MTProfile stores environment variable names.
 type MTProfile struct {
 	Provider           string `json:"provider" jsonschema:"required"`
