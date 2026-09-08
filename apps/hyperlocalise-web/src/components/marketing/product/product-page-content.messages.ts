@@ -207,14 +207,14 @@ export const productPageMessages = defineMessages({
     description: "Knowledge product visual decision panel example text",
   },
   agentsAutomationMetadataTitle: {
-    defaultMessage: "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
-    id: "AWZymO5ooC",
+    defaultMessage: "The Workflow for Multilingual Content Operations | Hyperlocalise",
+    id: "hVJSeRbcfp",
     description: "Page title for the agents automation product page",
   },
   agentsAutomationMetadataDescription: {
     defaultMessage:
-      "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
-    id: "63np7ewMDD",
+      "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
+    id: "e7VR7VzeVP",
     description: "Meta description for the agents automation product page",
   },
   agentsAutomationHeroEyebrow: {
@@ -223,69 +223,74 @@ export const productPageMessages = defineMessages({
     description: "Hero eyebrow for the agents automation product page",
   },
   agentsAutomationHeroHeadline: {
-    defaultMessage: "Stop chasing localisation work across tools",
-    id: "q89JS2cAvL",
+    defaultMessage: "The workflow for multilingual content operations.",
+    id: "TGHvKVZXDF",
     description: "Hero headline for the agents automation product page",
   },
   agentsAutomationHeroSubcopy: {
     defaultMessage:
-      "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed.",
-    id: "kAcQvgg6Yl",
+      "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language.",
+    id: "cnDPnDwo8a",
     description: "Hero subcopy for the agents automation product page",
   },
   agentsAutomationDetailsHeadline: {
-    defaultMessage: "When launch work is scattered, translations become a last-minute scramble.",
-    id: "sZFiP5Oe8M",
+    defaultMessage: "Build it once. Every language follows it.",
+    id: "Uc51ukp3UG",
     description: "Details section headline for the agents automation product page",
   },
   agentsAutomationSummary: {
     defaultMessage:
-      "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack.",
-    id: "ahBTXzQA9r",
+      "You create the workflow once: where work starts, how it gets written, how it gets checked, where it goes live. Slack, Notion, Canva, Contentful, GitHub, Crowdin, and the rest plug into those steps. Then every campaign can follow the same path in every language.",
+    id: "x/f6L/kjpD",
     description: "Details section summary for the agents automation product page",
   },
   agentsAutomationProof0Title: {
-    defaultMessage: "Catch the change",
-    id: "lecYTYG81Q",
+    defaultMessage: "Create the workflow",
+    id: "IUbDcw9z2P",
     description: "Proof point 1 title for the agents automation product page",
   },
   agentsAutomationProof0Body: {
     defaultMessage:
-      "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
-    id: "vJGZC1FhAF",
+      "Pick where work starts (Notion, Slack, Contentful, GitHub). Draw the steps: write, translate, check, publish.",
+    id: "q0HrIWf6j7",
     description: "Proof point 1 body for the agents automation product page",
   },
   agentsAutomationProof1Title: {
-    defaultMessage: "Route the review",
-    id: "9OS3Rz0crI",
+    defaultMessage: "It runs in every language",
+    id: "9QrrRor3/1",
     description: "Proof point 2 title for the agents automation product page",
   },
   agentsAutomationProof1Body: {
     defaultMessage:
-      "Agents prepare the work, but reviewers still decide what is good enough to ship.",
-    id: "1RW3XeR+vN",
+      "The same path runs for French, German, Japanese. A person only looks if something is off.",
+    id: "aGVgwRHbj0",
     description: "Proof point 2 body for the agents automation product page",
   },
   agentsAutomationProof2Title: {
-    defaultMessage: "Close the loop",
-    id: "BCjjJI52jI",
+    defaultMessage: "It lands back in your tools",
+    id: "X0QoMyZV2K",
     description: "Proof point 3 title for the agents automation product page",
   },
   agentsAutomationProof2Body: {
     defaultMessage:
-      "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
-    id: "ZeIIMmL97I",
+      "Live in Contentful or Webflow. A ping in Slack. Help articles in Intercom. Translations into Crowdin, Lokalise, Phrase, or Smartling if you still use them.",
+    id: "NwknAq8TGX",
     description: "Proof point 3 body for the agents automation product page",
   },
   agentsAutomationCtaHeadline: {
-    defaultMessage: "Make missed localisation work harder to miss.",
-    id: "iNt/60shfS",
+    defaultMessage: "Set up the workflow. Watch the next campaign follow it.",
+    id: "BlXinWb00f",
     description: "Bottom CTA headline for the agents automation product page",
+  },
+  agentsAutomationIntegrationsLabel: {
+    defaultMessage: "Tools you can connect",
+    id: "cKejfY9OwZ",
+    description: "Accessible label for the Agent Automation How it works integration logo row",
   },
   agentsAutomationCtaDescription: {
     defaultMessage:
-      "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
-    id: "kn/uJAgJBn",
+      "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
+    id: "bXnJyD63X6",
     description: "Bottom CTA description for the agents automation product page",
   },
   nextGenCatToolMetadataTitle: {

@@ -26,14 +26,16 @@ import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 import type { ProductPageContent } from "./product-page-content";
-import { AutomationsMockUI } from "./automations-mock-ui";
-import { GuidelineMockUI } from "./guideline-mock-ui";
-import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
-import { IntegrationStripSection } from "./integration-strip-section";
+import { AutomationHowItWorksIntegrations } from "./automation-how-it-works-integrations";
+import { AutomationsMockUI } from "./automations-mock-ui";
 import { GlobeHeroVisual } from "./globe-hero-visual";
-import { KnowledgeMockUI } from "./knowledge-mock-ui";
+import { GuidelineMockUI } from "./guideline-mock-ui";
+import { IntegrationStripSection } from "./integration-strip-section";
 import { KnowledgeHero } from "./knowledge-hero";
+import { KnowledgeMockUI } from "./knowledge-mock-ui";
+import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
+import { VisualWorkflowPlayground } from "./visual-workflow-playground";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -180,6 +182,12 @@ function ProductDetailsSection({ content }: ProductPageProps) {
           </div>
         ))}
 
+        {content.visualKind === "automation" ? (
+          <div className="py-8">
+            <AutomationHowItWorksIntegrations />
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-base font-semibold leading-7">
@@ -251,6 +259,12 @@ export function ProductPage({ content }: ProductPageProps) {
         {content.visualKind === "automation" && (
           <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
             <AutomationEditorMock />
+          </section>
+        )}
+
+        {content.visualKind === "automation" && (
+          <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+            <VisualWorkflowPlayground />
           </section>
         )}
 

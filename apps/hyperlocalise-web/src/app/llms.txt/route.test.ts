@@ -43,8 +43,9 @@ describe("llms.txt route", () => {
     );
     expect(body).toContain("## Product");
     expect(body).toContain(
-      "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation): Stop chasing localisation work across tools.",
+      "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation): The workflow for multilingual content operations.",
     );
+    expect(body).not.toContain("content operations..");
     expect(body).toContain(
       "[Multilingual Content Studio](https://www.hyperlocalise.com/en/product/multilingual-content-studio): Create and adapt every content format in one multilingual workspace.",
     );
