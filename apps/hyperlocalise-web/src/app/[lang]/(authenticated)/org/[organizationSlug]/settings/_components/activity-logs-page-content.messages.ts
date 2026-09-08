@@ -232,47 +232,47 @@ export const activityLogsPageContentMessages = defineMessages({
   },
   fileUploadedEventType: {
     defaultMessage: "File Uploaded",
-    id: "fUp1eVtY2a",
+    id: "b0hzgbcjSl",
     description: "Activity log event type label for file uploads",
   },
   fileTranslationsImportedEventType: {
     defaultMessage: "File Translations Imported",
-    id: "kIm2rTwP8c",
+    id: "fKmUmenDYW",
     description: "Activity log event type label for file translation imports",
   },
   stringSegmentApprovedEventType: {
     defaultMessage: "String Approved",
-    id: "sEg3aPrQ1d",
+    id: "4IGqbe4A0j",
     description: "Activity log event type label for string approval",
   },
   stringSegmentStatusChangedEventType: {
     defaultMessage: "String Status Changed",
-    id: "sEg4sTcH2e",
+    id: "NtW3KnFblK",
     description: "Activity log event type label for string status changes",
   },
   stringSegmentHiddenEventType: {
     defaultMessage: "String Hidden",
-    id: "sEg5hIdN3f",
+    id: "Qw3AuwhQJ4",
     description: "Activity log event type label for hiding strings",
   },
   stringSegmentUnhiddenEventType: {
     defaultMessage: "String Unhidden",
-    id: "sEg6uNhI4g",
+    id: "ZJtpLzte1C",
     description: "Activity log event type label for unhiding strings",
   },
   stringSegmentLockedEventType: {
     defaultMessage: "String Locked",
-    id: "sEg7lOcK5h",
+    id: "79CAb1uFN6",
     description: "Activity log event type label for locking strings",
   },
   stringSegmentUnlockedEventType: {
     defaultMessage: "String Unlocked",
-    id: "sEg8uNlK6i",
+    id: "4pUrDejiya",
     description: "Activity log event type label for unlocking strings",
   },
   stringSegmentCommentedEventType: {
     defaultMessage: "String Commented",
-    id: "sEg9cOmM7j",
+    id: "o2Y08elyIM",
     description: "Activity log event type label for string comments",
   },
   membershipEventGroup: {
@@ -322,12 +322,12 @@ export const activityLogsPageContentMessages = defineMessages({
   },
   fileEventGroup: {
     defaultMessage: "Files",
-    id: "fIl0eVtG8k",
+    id: "gWW0AlUbAk",
     description: "Activity log event type group for files",
   },
   stringSegmentEventGroup: {
     defaultMessage: "Strings",
-    id: "sTr1sEgG9l",
+    id: "HAcQZdyjXj",
     description: "Activity log event type group for string segments",
   },
   actorLabel: {
@@ -587,47 +587,47 @@ export const activityLogsPageContentMessages = defineMessages({
   },
   fileUploadedAction: {
     defaultMessage: "uploaded a file",
-    id: "fUp2aCtI0m",
+    id: "qICJFGMBSv",
     description: "Action for a file upload activity",
   },
   fileTranslationsImportedAction: {
     defaultMessage: "imported translations",
-    id: "fIm3tRnJ1n",
+    id: "2evxUsSaO3",
     description: "Action for a file translation import activity",
   },
   stringSegmentApprovedAction: {
     defaultMessage: "approved a string",
-    id: "sAp4pRvK2o",
+    id: "9d14HnH3r+",
     description: "Action for a string approval activity",
   },
   stringSegmentStatusChangedAction: {
     defaultMessage: "changed a string status",
-    id: "sSt5cHgL3p",
+    id: "D4SMVMIcIp",
     description: "Action for a string status change activity",
   },
   stringSegmentHiddenAction: {
     defaultMessage: "hid a string",
-    id: "sHi6dStM4q",
+    id: "e5w8XM92TM",
     description: "Action for a hidden string activity",
   },
   stringSegmentUnhiddenAction: {
     defaultMessage: "unhid a string",
-    id: "sUn7hIdN5r",
+    id: "LCaZaBXgAV",
     description: "Action for an unhidden string activity",
   },
   stringSegmentLockedAction: {
     defaultMessage: "locked a string",
-    id: "sLo8cKeO6s",
+    id: "Lhr+5G4eBn",
     description: "Action for a locked string activity",
   },
   stringSegmentUnlockedAction: {
     defaultMessage: "unlocked a string",
-    id: "sUl9nCkP7t",
+    id: "BfavHio26Z",
     description: "Action for an unlocked string activity",
   },
   stringSegmentCommentedAction: {
     defaultMessage: "commented on a string",
-    id: "sCo0mNtQ8u",
+    id: "UKiNYTCKL8",
     description: "Action for a string comment activity",
   },
 });

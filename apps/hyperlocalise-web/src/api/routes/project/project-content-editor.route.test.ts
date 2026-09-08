@@ -3265,7 +3265,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
-        query: { sourcePath: "locales/en.json" },
+        query: { sourcePath: "locales/en.json", limit: "50" },
       },
       { headers },
     );

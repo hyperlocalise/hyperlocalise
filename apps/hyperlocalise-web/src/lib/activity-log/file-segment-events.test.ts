@@ -42,12 +42,12 @@ describe("file and segment activity helpers", () => {
 
   it("derives a stable file target from project and path", () => {
     expect(fileActivityFileName("./locales/en.json")).toBe("en.json");
-    expect(fileActivityTargetId("project-1", "./locales/en.json")).toBe("project-1:locales/en.json");
+    expect(fileActivityTargetId("project-1", "./locales/en.json")).toBe(
+      "project-1:locales/en.json",
+    );
   });
 
   it("records a file upload without linguistic content", async () => {
-    enqueueMock.mockResolvedValue({ ok: true, value: { createdAt: new Date(), id: "event-1" } });
-
     await enqueueFileUploadedActivity({
       ...actor,
       organizationId: "org-1",
@@ -77,8 +77,6 @@ describe("file and segment activity helpers", () => {
   });
 
   it("records a translation import against the file", async () => {
-    enqueueMock.mockResolvedValue({ ok: true, value: { createdAt: new Date(), id: "event-1" } });
-
     await enqueueFileTranslationsImportedActivity({
       ...actor,
       organizationId: "org-1",
@@ -100,8 +98,6 @@ describe("file and segment activity helpers", () => {
   });
 
   it("records segment approval and hide batches with opaque identifiers", async () => {
-    enqueueMock.mockResolvedValue({ ok: true, value: { createdAt: new Date(), id: "event-1" } });
-
     await enqueueStringSegmentApprovedActivity({
       ...actor,
       organizationId: "org-1",

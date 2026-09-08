@@ -132,7 +132,12 @@ export function ContentEditorActivityLogButton({
                 <TypographyP size="small" weight="medium" tone="critical">
                   <FormattedMessage {...messages.loadError} />
                 </TypographyP>
-                <Button type="button" variant="outline" size="sm" onClick={() => activityQuery.refetch()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => activityQuery.refetch()}
+                >
                   <FormattedMessage {...messages.retry} />
                 </Button>
               </div>

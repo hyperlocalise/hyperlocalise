@@ -17,52 +17,52 @@ import { defineMessages } from "react-intl";
 export const contentEditorActivityLogMessages = defineMessages({
   openAria: {
     defaultMessage: "Show file activity",
-    id: "cAt1oPnA9v",
+    id: "7qG8V9eHbJ",
     description: "Accessible label for the file editor activity log button",
   },
   title: {
     defaultMessage: "Activity",
-    id: "cAt2tItL0w",
+    id: "2uw5+lQ54T",
     description: "Title for the file editor activity dialog",
   },
   description: {
     defaultMessage: "Changes to this file and its strings.",
-    id: "cAt3dScP1x",
+    id: "VL1n4lhYVe",
     description: "Description for the file editor activity dialog",
   },
   allFilesDescription: {
     defaultMessage: "Changes to files and strings in this project.",
-    id: "cAt4aLfD2y",
+    id: "1Kqhhea0Ee",
     description: "Description for the All Files activity dialog",
   },
   loading: {
     defaultMessage: "Loading activity…",
-    id: "cAt5lOdA3z",
+    id: "mF2ibzlVS8",
     description: "Loading state for the file editor activity dialog",
   },
   emptyTitle: {
     defaultMessage: "No activity yet",
-    id: "cAt6eMpT4a",
+    id: "CrdjVes1wn",
     description: "Empty state title for the file editor activity dialog",
   },
   emptyDescription: {
     defaultMessage: "Approvals, comments, and file changes will appear here.",
-    id: "cAt7eMpD5b",
+    id: "kKTupKEcTR",
     description: "Empty state description for the file editor activity dialog",
   },
   loadError: {
     defaultMessage: "Activity could not be loaded.",
-    id: "cAt8eRrT6c",
+    id: "m3RSvNywAR",
     description: "Error title when file editor activity fails to load",
   },
   retry: {
     defaultMessage: "Retry",
-    id: "cAt9rTyB7d",
+    id: "rttw694uiK",
     description: "Retry button for the file editor activity dialog",
   },
   loadMore: {
     defaultMessage: "Load more",
-    id: "cAt0lDmR8e",
+    id: "l1mlJzFoj/",
     description: "Load more button for the file editor activity dialog",
   },
 });
