@@ -116,8 +116,8 @@ export const homepageMessages = defineMessages({
   },
   guidelinesShort: {
     defaultMessage:
-      "Connect Google Drive, Notion, and SharePoint. Agents check the files you already have.",
-    id: "KvdvawHM1m",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check the files you already have.",
+    id: "xQjhAYVKZT",
     description: "Marketing homepage guidelinesShort",
   },
   studioBody: {
@@ -146,8 +146,8 @@ export const homepageMessages = defineMessages({
   },
   guidelinesBody: {
     defaultMessage:
-      "Leave brand PDFs, market notes, and policy libraries where they live. Agents flag what does not match.",
-    id: "Y38gH31xOM",
+      "Leave brand PDFs, market notes, and policy libraries where they live, or type guidelines in. Agents flag what does not match.",
+    id: "JCbR6p89qW",
     description: "Marketing homepage guidelinesBody",
   },
   agentsEyebrow: {

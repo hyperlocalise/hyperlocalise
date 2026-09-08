@@ -404,8 +404,8 @@ export const productPageMessages = defineMessages({
   },
   guidelinesMetadataDescription: {
     defaultMessage:
-      "Connect Google Drive, Notion, and SharePoint. Agents check drafts against the brand and compliance files your team already maintains.",
-    id: "2HF+fAMIDb",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
+    id: "wwKiGsumAM",
     description: "Meta description for the Guidelines product page",
   },
   guidelinesHeroEyebrow: {
@@ -420,8 +420,8 @@ export const productPageMessages = defineMessages({
   },
   guidelinesHeroSubcopy: {
     defaultMessage:
-      "Connect Google Drive, Notion, and SharePoint. Agents read the brand and compliance files your team already maintains and flag what does not match.",
-    id: "0aO5cDtCkQ",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
+    id: "lNHTcG3rKm",
     description: "Hero subcopy for the Guidelines product page",
   },
   guidelinesDetailsHeadline: {
@@ -431,8 +431,8 @@ export const productPageMessages = defineMessages({
   },
   guidelinesSummary: {
     defaultMessage:
-      "Connect Google Drive, Notion, and SharePoint so agents check drafts against the files brand and legal already maintain.",
-    id: "ZhqgSTt9NF",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents check drafts against the files brand and legal already maintain.",
+    id: "Zz6wbG5K6M",
     description: "Details section summary for the Guidelines product page",
   },
   guidelinesProof0Title: {
@@ -473,8 +473,8 @@ export const productPageMessages = defineMessages({
   },
   guidelinesCtaDescription: {
     defaultMessage:
-      "Connect Drive, Notion, or SharePoint and check the next draft against the real file.",
-    id: "b4qmyBy/VI",
+      "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
+    id: "cqdHse07GI",
     description: "Bottom CTA description for the Guidelines product page",
   },
 });

@@ -33,7 +33,7 @@ const productLinks: LlmsLink[] = [
     title: "Guidelines",
     href: `${SITE_URL}/en/product/guidelines`,
     description:
-      "Connect Google Drive, Notion, and SharePoint so agents can check drafts against your files",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files",
   },
 ];
 

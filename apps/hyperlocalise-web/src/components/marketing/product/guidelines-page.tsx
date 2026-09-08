@@ -369,7 +369,7 @@ export function GuidelinesPage() {
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
+                  variant="secondary"
                   nativeButton={false}
                   render={<a href="#guidelines" />}
                 >

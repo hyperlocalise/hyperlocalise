@@ -35,7 +35,7 @@ describe("llms.txt route", () => {
       "[Multilingual Content Studio](https://www.hyperlocalise.com/en/product/multilingual-content-studio): Create and adapt every content format in one multilingual workspace.",
     );
     expect(body).toContain(
-      "[Guidelines](https://www.hyperlocalise.com/en/product/guidelines): Connect Google Drive, Notion, and SharePoint so agents can check drafts against your files.",
+      "[Guidelines](https://www.hyperlocalise.com/en/product/guidelines): Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files.",
     );
     expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
     expect(body).toContain("https://hyperlocalise.dev");

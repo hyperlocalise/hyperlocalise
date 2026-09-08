@@ -27,8 +27,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   heroSubcopy: {
     defaultMessage:
-      "Connect Google Drive, Notion, and SharePoint. Agents read the brand and compliance files your team already maintains and flag what does not match.",
-    id: "WqdPR2o5QO",
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
+    id: "MmdCe+3eSk",
     description: "Hero description for the Guidelines product page",
   },
   requestDemo: {
@@ -42,8 +42,8 @@ export const guidelinesPageMessages = defineMessages({
     description: "Anchor link from the Guidelines hero to the product preview",
   },
   fromRulesToDrafts: {
-    defaultMessage: "From Drive, Notion, and SharePoint into every draft.",
-    id: "05WQ9chsaJ",
+    defaultMessage: "From Drive, Notion, SharePoint, or typed guidelines into every draft.",
+    id: "ePfYPq2DH8",
     description: "Caption under the Guidelines preview",
   },
   stepConnect: {
@@ -78,8 +78,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   sourcesBody: {
     defaultMessage:
-      "Leave brand PDFs, market notes, and policy libraries where legal and brand already keep them. Hyperlocalise reads those files instead of asking you to rebuild a second playbook.",
-    id: "5VP6QS58Jl",
+      "Leave brand PDFs, market notes, and policy libraries where legal and brand already keep them. Or type a guideline in Hyperlocalise. Agents read either one.",
+    id: "FkOEgV248R",
     description: "Body copy for the Guidelines sources section",
   },
   sourcesAriaLabel: {
@@ -374,8 +374,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   faqWhereAnswer: {
     defaultMessage:
-      "No. Connect Google Drive, Notion, or SharePoint and leave the files where brand and legal already keep them. Agents read those sources.",
-    id: "bOpIXEky0N",
+      "No. Connect Google Drive, Notion, or SharePoint and leave the files where brand and legal already keep them. You can also type guidelines directly in Hyperlocalise.",
+    id: "QawNHvJsXE",
     description: "Guidelines FAQ answer about moving files",
   },
   faqWhatQuestion: {
@@ -385,8 +385,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   faqWhatAnswer: {
     defaultMessage:
-      "Brand-voice PDFs, claims policies, Notion market notes, and SharePoint disclosure libraries. If your team already treats it as the rule, connect it.",
-    id: "LNwKJ8Zkta",
+      "Brand-voice PDFs, claims policies, Notion market notes, SharePoint disclosure libraries, and guidelines you type in Hyperlocalise.",
+    id: "CbRYAHGDV4",
     description: "Guidelines FAQ answer about file types",
   },
   faqAgentsQuestion: {
@@ -440,8 +440,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   faqSourcesAnswer: {
     defaultMessage:
-      "Yes. Keep claims PDFs in Drive, market notes in Notion, and disclosures in SharePoint. Agents check the files that apply to that draft.",
-    id: "SnsLWu5goL",
+      "Yes. Keep claims PDFs in Drive, market notes in Notion, and disclosures in SharePoint, or type a guideline in Hyperlocalise. Agents check the ones that apply to that draft.",
+    id: "Ya2igat4Ug",
     description: "Guidelines FAQ answer about multiple sources",
   },
   faqFitQuestion: {
@@ -473,8 +473,8 @@ export const guidelinesPageMessages = defineMessages({
   },
   ctaBody: {
     defaultMessage:
-      "Connect Drive, Notion, or SharePoint and check the next draft against the real file.",
-    id: "3MyXNc43TJ",
+      "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
+    id: "ddhlBSQ8lR",
     description: "Bottom CTA body on the Guidelines product page",
   },
   ctaNote: {

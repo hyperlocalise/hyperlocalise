@@ -51,8 +51,8 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Connect Google Drive, Notion, and SharePoint. Agents check drafts against the brand and compliance files your team already maintains.",
-          id: "2HF+fAMIDb",
+            "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
+          id: "wwKiGsumAM",
           description: "Meta description for the Guidelines product page",
         }),
       };
