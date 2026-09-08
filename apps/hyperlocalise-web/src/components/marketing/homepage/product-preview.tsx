@@ -24,6 +24,7 @@ export function hasProductPreviewVideoUrl(url: string | null | undefined): boole
 export const PRODUCTS = [
   {
     id: "studio",
+    href: "/product/multilingual-content-studio",
     title: m.studioCardTitle,
     short: m.studioShort,
     body: m.studioBody,
@@ -31,6 +32,7 @@ export const PRODUCTS = [
   },
   {
     id: "automation",
+    href: "#explore",
     title: m.automationCardTitle,
     short: m.automationShort,
     body: m.automationBody,
@@ -38,6 +40,7 @@ export const PRODUCTS = [
   },
   {
     id: "domains",
+    href: "#explore",
     title: m.domainsCardTitle,
     short: m.domainsShort,
     body: m.domainsBody,
@@ -45,6 +48,7 @@ export const PRODUCTS = [
   },
   {
     id: "hyperlab",
+    href: "#explore",
     title: m.hyperlabCardTitle,
     short: m.hyperlabShort,
     body: m.hyperlabBody,
@@ -52,6 +56,7 @@ export const PRODUCTS = [
   },
   {
     id: "guidelines",
+    href: "#explore",
     title: m.guidelinesCardTitle,
     short: m.guidelinesShort,
     body: m.guidelinesBody,

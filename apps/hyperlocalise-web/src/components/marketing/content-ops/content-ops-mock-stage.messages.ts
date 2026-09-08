@@ -158,6 +158,47 @@ export const contentOpsMockStageMessages = defineMessages({
     id: "g1U3NC/CnC",
     description: "Title on the editor mock Queries overlay",
   },
+  editorGlossaryPanelTitle: {
+    defaultMessage: "Glossary guidance",
+    id: "WtFmZHHKpF",
+    description: "Title on the editor mock glossary footer panel",
+  },
+  editorGlossaryPreferredTerm: {
+    defaultMessage: "Daylight",
+    id: "Yo96f8fXbJ",
+    description: "Preferred glossary term in editor mock footer panel",
+  },
+  editorGlossaryPreferredNote: {
+    defaultMessage: "Preferred · keep in every language",
+    id: "KHhslFYk0s",
+    description: "Note for preferred glossary term in editor mock footer panel",
+  },
+  editorGlossaryNotRecommendedTerm: {
+    defaultMessage: "Launch globally",
+    id: "N/7JtE/mmo",
+    description: "Not recommended glossary term in editor mock footer panel",
+  },
+  editorGlossaryNotRecommendedNote: {
+    defaultMessage: "Not recommended · use approved market phrase",
+    id: "vsGtnGOHlx",
+    description: "Note for not recommended glossary term in editor mock footer panel",
+  },
+  editorChatSuggestion: {
+    defaultMessage: "Does this French headline match our voice?",
+    id: "lJreXyrXC1",
+    description: "Suggested prompt in editor mock chat footer panel",
+  },
+  editorChatAnswer: {
+    defaultMessage:
+      "Yes — keep it direct and confident. The approved FR launch copy uses active verbs and avoids literal calques from English.",
+    id: "cZaYlDA8+F",
+    description: "Assistant reply in editor mock chat footer panel",
+  },
+  editorFooterPanelClose: {
+    defaultMessage: "Close panel",
+    id: "VgCemC5cLg",
+    description: "Accessible label for closing an editor mock footer panel",
+  },
   editorHighlightEditor: {
     defaultMessage: "File editor",
     id: "/ApELcd47S",

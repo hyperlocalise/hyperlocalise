@@ -50,6 +50,11 @@ export const productPageMessages = defineMessages({
     id: "gI9FpYYW4p",
     description: "Navigation label for the next-gen CAT tool product page",
   },
+  productNavContentStudio: {
+    defaultMessage: "Multilingual Content Studio",
+    id: "JNXXTToFFQ",
+    description: "Navigation label for the multilingual Content Studio product page",
+  },
   productNavSelfEvolvingKnowledge: {
     defaultMessage: "Self-evolving Knowledge",
     id: "Ktkp7Xxut2",
@@ -287,6 +292,33 @@ export const productPageMessages = defineMessages({
     defaultMessage: "Review Translations Without Guessing What the String Means | Hyperlocalise",
     id: "jeP5GjQn+Q",
     description: "Page title for the next-gen CAT tool product page",
+  },
+  contentStudioMetadataTitle: {
+    defaultMessage: "Multilingual Content Studio | Hyperlocalise",
+    id: "8GHZDPEhIo",
+    description: "Page title for the multilingual Content Studio product page",
+  },
+  contentStudioMetadataDescription: {
+    defaultMessage:
+      "Create and adapt text, documents, slides, images, and video in one multilingual workspace with shared context and human review.",
+    id: "yfyxggCpJF",
+    description: "Meta description for the multilingual Content Studio product page",
+  },
+  contentStudioHeroEyebrow: {
+    defaultMessage: "Multilingual Content Studio",
+    id: "d0ATgb33fq",
+    description: "Hero eyebrow for the multilingual Content Studio product page",
+  },
+  contentStudioHeroHeadline: {
+    defaultMessage: "One workspace. Every language.",
+    id: "/7ItNZTY2W",
+    description: "Hero headline for the multilingual Content Studio product page",
+  },
+  contentStudioHeroSubcopy: {
+    defaultMessage:
+      "Create and adapt text, documents, slides, images, and video. Keep your context, your voice, and your team together.",
+    id: "Y9uUKekkpa",
+    description: "Hero description for the multilingual Content Studio product page",
   },
   nextGenCatToolMetadataDescription: {
     defaultMessage:

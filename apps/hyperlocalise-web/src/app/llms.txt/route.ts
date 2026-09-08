@@ -25,9 +25,9 @@ const productLinks: LlmsLink[] = [
     description: "Stop chasing localisation work across tools",
   },
   {
-    title: "Next-gen CAT Tool",
-    href: `${SITE_URL}/en/product/next-gen-cat-tool`,
-    description: "Review translations without guessing what the string means",
+    title: "Multilingual Content Studio",
+    href: `${SITE_URL}/en/product/multilingual-content-studio`,
+    description: "Create and adapt every content format in one multilingual workspace",
   },
   {
     title: "Self-evolving Knowledge",
