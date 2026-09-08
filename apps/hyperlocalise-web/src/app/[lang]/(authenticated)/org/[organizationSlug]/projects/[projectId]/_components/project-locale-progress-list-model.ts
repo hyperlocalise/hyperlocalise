@@ -11,7 +11,10 @@
  * Version 2.0 or later.
  */
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
-import { remainingCount } from "@/lib/projects/locale-progress/project-locale-progress";
+import {
+  remainingCount,
+  toProgressPercent,
+} from "@/lib/projects/locale-progress/project-locale-progress";
 
 export type LocaleProgressSort = "az" | "za";
 export type LocaleProgressUnit = "words" | "phrases";
@@ -55,6 +58,14 @@ export function remainingLocaleWork(
     return remainingCount(row.phrases);
   }
   return remainingCount(counts);
+}
+
+export function localeProgressPercents(row: ProjectLocaleProgressRow, unit: LocaleProgressUnit) {
+  const counts = localeProgressCounts(row, unit);
+  return {
+    translation: toProgressPercent(counts.translated, counts.total),
+    approval: toProgressPercent(counts.approved, counts.total),
+  };
 }
 
 export function buildLocaleEditorHref(input: {

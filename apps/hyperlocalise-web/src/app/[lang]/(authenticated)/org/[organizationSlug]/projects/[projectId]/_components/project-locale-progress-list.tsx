@@ -41,6 +41,7 @@ import {
   buildLocaleEditorHref,
   filterAndSortLocaleProgress,
   localeProgressCounts,
+  localeProgressPercents,
   remainingLocaleWork,
   type LocaleProgressSort,
   type LocaleProgressUnit,
@@ -129,6 +130,7 @@ function LocaleProgressDetails({
 }) {
   const intl = useIntl();
   const counts = localeProgressCounts(row, unit);
+  const percents = localeProgressPercents(row, unit);
   const translatedTodo = Math.max(0, counts.total - counts.translated);
   const approvedTodo = Math.max(0, counts.total - counts.approved);
   const lastActivity = row.lastActivityAt
@@ -195,14 +197,14 @@ function LocaleProgressDetails({
           tone="translated"
           todo={translatedTodo}
           done={counts.translated}
-          percent={row.translationProgress}
+          percent={percents.translation}
         />
         <ProgressDetailRow
           label={intl.formatMessage(messages.approved)}
           tone="approved"
           todo={approvedTodo}
           done={counts.approved}
-          percent={row.approvalProgress}
+          percent={percents.approval}
         />
       </Rows>
 

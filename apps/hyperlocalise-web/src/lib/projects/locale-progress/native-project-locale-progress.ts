@@ -10,19 +10,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { countSourceWords } from "@/lib/reporting/word-analysis";
 
 import { buildLocaleProgressRow, type ProjectLocaleProgressRow } from "./project-locale-progress";
 
-const sourceWordCountSql = sql<number>`case
-  when btrim(${schema.projectTranslationKeys.sourceText}) = '' then 0
-  else coalesce(
-    cardinality(regexp_split_to_array(btrim(${schema.projectTranslationKeys.sourceText}), '[[:space:]]+')),
-    0
-  )
-end`;
+function whitespaceWordCount(sourceText: string) {
+  const trimmed = sourceText.trim();
+  if (!trimmed) {
+    return 0;
+  }
+
+  return trimmed.split(/\s+/).length;
+}
+
+export function countNativeSourceWords(sourceText: string, sourceLocale: string) {
+  const trimmed = sourceText.trim();
+  if (!trimmed) {
+    return 0;
+  }
+
+  return countSourceWords(trimmed, sourceLocale) ?? whitespaceWordCount(trimmed);
+}
 
 function toIsoTimestamp(value: Date | string | null | undefined) {
   if (!value) {
@@ -37,64 +48,92 @@ function toIsoTimestamp(value: Date | string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+type NativeLocaleStats = {
+  translatedPhrases: number;
+  approvedPhrases: number;
+  translatedWords: number;
+  approvedWords: number;
+  lastActivityAt: Date | string | null;
+};
+
 export async function listNativeProjectLocaleProgress(input: {
   organizationId: string;
   projectId: string;
+  sourceLocale?: string | null;
   targetLocales: readonly string[];
 }): Promise<ProjectLocaleProgressRow[]> {
-  const [totals] = await db
-    .select({
-      phraseTotal: sql<number>`count(*)::int`.mapWith(Number),
-      wordTotal: sql<number>`coalesce(sum(${sourceWordCountSql}), 0)::int`.mapWith(Number),
-    })
-    .from(schema.projectTranslationKeys)
-    .where(
-      and(
-        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-        eq(schema.projectTranslationKeys.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.isHidden, false),
+  const sourceLocale = input.sourceLocale?.trim() || "en";
+
+  const [keys, translations] = await Promise.all([
+    db
+      .select({
+        id: schema.projectTranslationKeys.id,
+        sourceText: schema.projectTranslationKeys.sourceText,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.isHidden, false),
+        ),
       ),
-    );
-
-  const phraseTotal = totals?.phraseTotal ?? 0;
-  const wordTotal = totals?.wordTotal ?? 0;
-
-  const localeStats = await db
-    .select({
-      targetLocale: schema.projectTranslations.targetLocale,
-      translatedPhrases:
-        sql<number>`count(*) filter (where btrim(${schema.projectTranslations.text}) <> '')::int`.mapWith(
-          Number,
+    db
+      .select({
+        translationKeyId: schema.projectTranslations.translationKeyId,
+        targetLocale: schema.projectTranslations.targetLocale,
+        text: schema.projectTranslations.text,
+        status: schema.projectTranslations.status,
+        updatedAt: schema.projectTranslations.updatedAt,
+      })
+      .from(schema.projectTranslations)
+      .innerJoin(
+        schema.projectTranslationKeys,
+        eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+      )
+      .where(
+        and(
+          eq(schema.projectTranslations.organizationId, input.organizationId),
+          eq(schema.projectTranslations.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.isHidden, false),
         ),
-      approvedPhrases:
-        sql<number>`count(*) filter (where ${schema.projectTranslations.status} = 'approved')::int`.mapWith(
-          Number,
-        ),
-      translatedWords:
-        sql<number>`coalesce(sum(${sourceWordCountSql}) filter (where btrim(${schema.projectTranslations.text}) <> ''), 0)::int`.mapWith(
-          Number,
-        ),
-      approvedWords:
-        sql<number>`coalesce(sum(${sourceWordCountSql}) filter (where ${schema.projectTranslations.status} = 'approved'), 0)::int`.mapWith(
-          Number,
-        ),
-      lastActivityAt: sql<Date | string | null>`max(${schema.projectTranslations.updatedAt})`,
-    })
-    .from(schema.projectTranslations)
-    .innerJoin(
-      schema.projectTranslationKeys,
-      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
-    )
-    .where(
-      and(
-        eq(schema.projectTranslations.organizationId, input.organizationId),
-        eq(schema.projectTranslations.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.isHidden, false),
       ),
-    )
-    .groupBy(schema.projectTranslations.targetLocale);
+  ]);
 
-  const statsByLocale = new Map(localeStats.map((row) => [row.targetLocale, row] as const));
+  const wordCountByKeyId = new Map(
+    keys.map((key) => [key.id, countNativeSourceWords(key.sourceText, sourceLocale)] as const),
+  );
+  const phraseTotal = keys.length;
+  const wordTotal = [...wordCountByKeyId.values()].reduce((sum, count) => sum + count, 0);
+
+  const statsByLocale = new Map<string, NativeLocaleStats>();
+  for (const translation of translations) {
+    const wordCount = wordCountByKeyId.get(translation.translationKeyId) ?? 0;
+    const current = statsByLocale.get(translation.targetLocale) ?? {
+      translatedPhrases: 0,
+      approvedPhrases: 0,
+      translatedWords: 0,
+      approvedWords: 0,
+      lastActivityAt: null,
+    };
+    const hasText = translation.text.trim() !== "";
+    if (hasText) {
+      current.translatedPhrases += 1;
+      current.translatedWords += wordCount;
+    }
+    if (translation.status === "approved") {
+      current.approvedPhrases += 1;
+      current.approvedWords += wordCount;
+    }
+    if (
+      !current.lastActivityAt ||
+      new Date(translation.updatedAt).getTime() > new Date(current.lastActivityAt).getTime()
+    ) {
+      current.lastActivityAt = translation.updatedAt;
+    }
+    statsByLocale.set(translation.targetLocale, current);
+  }
+
   const seen = new Set<string>();
   const rows: ProjectLocaleProgressRow[] = [];
 

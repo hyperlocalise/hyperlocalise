@@ -51,6 +51,7 @@ export const Default: Story = {
     );
     await userEvent.click(canvas.getByRole("tab", { name: "Strings" }));
     await expect(canvas.getByText("40 translatable strings in total")).toBeInTheDocument();
+    await expect(canvas.getByText("25%")).toBeInTheDocument();
   },
 };
 

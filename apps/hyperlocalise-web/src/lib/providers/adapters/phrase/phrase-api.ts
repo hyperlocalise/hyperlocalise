@@ -65,11 +65,22 @@ export interface PhraseProject {
   updatedAt: string | null;
 }
 
+export interface PhraseLocaleStatistics {
+  keysTotalCount: number;
+  keysUntranslatedCount: number;
+  wordsTotalCount: number;
+  translationsCompletedCount: number;
+  translationsUnverifiedCount: number;
+  unverifiedWordsCount: number;
+  missingWordsCount: number;
+}
+
 export interface PhraseLocale {
   id: string;
   name: string;
   code: string | null;
   default: boolean;
+  statistics?: PhraseLocaleStatistics | null;
 }
 
 export interface PhraseBranch {
@@ -323,6 +334,13 @@ export class PhraseApiClient {
         }),
       normalize: (record) => normalizePhraseLocale(record as PhraseLocaleApiRecord),
     });
+  }
+
+  async getLocale(projectId: string, localeId: string): Promise<PhraseLocale> {
+    const record = await this.get<PhraseLocaleApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/locales/${encodeURIComponent(localeId)}`,
+    );
+    return normalizePhraseLocale(record);
   }
 
   async listBranches(projectId: string): Promise<PhraseBranch[]> {
@@ -893,11 +911,22 @@ type PhraseProjectApiRecord = {
   updated_at?: string | null;
 };
 
+type PhraseLocaleStatisticsApiRecord = {
+  keys_total_count?: number | null;
+  keys_untranslated_count?: number | null;
+  words_total_count?: number | null;
+  translations_completed_count?: number | null;
+  translations_unverified_count?: number | null;
+  unverified_words_count?: number | null;
+  missing_words_count?: number | null;
+};
+
 type PhraseLocaleApiRecord = {
   id: string;
   name: string;
   code?: string | null;
   default?: boolean;
+  statistics?: PhraseLocaleStatisticsApiRecord | null;
 };
 
 type PhraseBranchApiRecord = {
@@ -1020,12 +1049,35 @@ function normalizePhraseProject(project: PhraseProjectApiRecord): PhraseProject 
   };
 }
 
+function asLocaleCount(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+}
+
+function normalizePhraseLocaleStatistics(
+  statistics: PhraseLocaleStatisticsApiRecord | null | undefined,
+): PhraseLocaleStatistics | null {
+  if (!statistics) {
+    return null;
+  }
+
+  return {
+    keysTotalCount: asLocaleCount(statistics.keys_total_count),
+    keysUntranslatedCount: asLocaleCount(statistics.keys_untranslated_count),
+    wordsTotalCount: asLocaleCount(statistics.words_total_count),
+    translationsCompletedCount: asLocaleCount(statistics.translations_completed_count),
+    translationsUnverifiedCount: asLocaleCount(statistics.translations_unverified_count),
+    unverifiedWordsCount: asLocaleCount(statistics.unverified_words_count),
+    missingWordsCount: asLocaleCount(statistics.missing_words_count),
+  };
+}
+
 function normalizePhraseLocale(locale: PhraseLocaleApiRecord): PhraseLocale {
   return {
     id: locale.id,
     name: locale.name,
     code: locale.code ?? null,
     default: locale.default ?? false,
+    statistics: normalizePhraseLocaleStatistics(locale.statistics),
   };
 }
 

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildLocaleEditorHref,
   filterAndSortLocaleProgress,
+  localeProgressPercents,
   remainingLocaleWork,
 } from "./project-locale-progress-list-model";
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
@@ -67,6 +68,19 @@ describe("remainingLocaleWork", () => {
         words: { total: 0, translated: 0, approved: 0 },
       }),
     ).toBe(2);
+  });
+});
+
+describe("localeProgressPercents", () => {
+  it("derives percents from the selected words or strings bucket", () => {
+    expect(localeProgressPercents(rows[0]!, "words")).toEqual({
+      translation: 50,
+      approval: 10,
+    });
+    expect(localeProgressPercents(rows[0]!, "phrases")).toEqual({
+      translation: 50,
+      approval: 25,
+    });
   });
 });
 

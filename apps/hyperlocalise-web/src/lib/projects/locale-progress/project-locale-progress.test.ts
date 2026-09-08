@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { countNativeSourceWords } from "./native-project-locale-progress";
 import {
   buildLocaleProgressRow,
   emptyLocaleProgressRow,
@@ -20,6 +21,13 @@ import {
   remainingCount,
   toProgressPercent,
 } from "./project-locale-progress";
+
+describe("countNativeSourceWords", () => {
+  it("uses locale-aware segmentation instead of whitespace for Japanese", () => {
+    expect(countNativeSourceWords("Hello world", "en")).toBe(2);
+    expect(countNativeSourceWords("日本語の翻訳", "ja")).toBeGreaterThan(1);
+  });
+});
 
 describe("toProgressPercent", () => {
   it("rounds completed work against the total", () => {

@@ -3820,6 +3820,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const locales = await listNativeProjectLocaleProgress({
         organizationId,
         projectId: project.id,
+        sourceLocale: project.sourceLocale,
         targetLocales: project.targetLocales,
       });
       return c.json({ locales }, 200);

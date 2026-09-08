@@ -55,6 +55,7 @@ import {
   type ProjectFileContentEditorPaginationInput,
 } from "@/lib/projects/content-editor/project-file-content-editor-pagination";
 import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
+import { toProgressPercent } from "@/lib/projects/locale-progress/project-locale-progress";
 import type { ExternalTmsApprovedTranslationUpload } from "@/lib/providers/jobs/tms-provider-types";
 import { buildProviderReviewThreadId } from "@/lib/providers/provider-job-review/build-thread-id";
 import type {
@@ -292,6 +293,115 @@ export class PhraseTmsProvider extends TmsProvider {
         };
       }
     });
+  }
+
+  /** Computes locale readiness percentages from Phrase locale statistics. */
+  async loadProjectLocaleReadiness(input: {
+    client: PhraseApiClient;
+    projectId: string;
+    languageId?: string;
+  }) {
+    if (!input.projectId.trim()) {
+      return {};
+    }
+
+    let locales: PhraseLocale[];
+    try {
+      locales = await input.client.listLocales(input.projectId);
+    } catch (error) {
+      this.rethrowStringsAuthError(error);
+    }
+
+    const requestedLanguageId = input.languageId?.trim();
+    const targetLocales = locales.filter((locale) => {
+      if (requestedLanguageId) {
+        return (
+          locale.id === requestedLanguageId ||
+          locale.code === requestedLanguageId ||
+          locale.name === requestedLanguageId
+        );
+      }
+      return !locale.default;
+    });
+
+    const localeDetails = await mapWithConcurrency(
+      targetLocales,
+      FILE_LOCALE_FETCH_CONCURRENCY,
+      async (locale) => {
+        if (locale.statistics) {
+          return locale;
+        }
+
+        try {
+          return await input.client.getLocale(input.projectId, locale.id);
+        } catch (error) {
+          if (error instanceof PhraseApiError && error.status === 401) {
+            this.rethrowStringsAuthError(error);
+          }
+          return locale;
+        }
+      },
+    );
+
+    const localeReadiness: Record<string, unknown> = {};
+    for (const locale of localeDetails) {
+      const localeKey = locale.code?.trim() || locale.name.trim() || locale.id;
+      if (!localeKey) {
+        continue;
+      }
+      localeReadiness[localeKey] = this.mapLocaleStatisticsToReadiness(locale.statistics);
+    }
+
+    if (requestedLanguageId) {
+      if (localeReadiness[requestedLanguageId]) {
+        return localeReadiness[requestedLanguageId] as Record<string, unknown>;
+      }
+
+      const entries = Object.values(localeReadiness);
+      if (entries.length === 1) {
+        return entries[0] as Record<string, unknown>;
+      }
+    }
+
+    return localeReadiness;
+  }
+
+  /** Maps Phrase locale statistics into Crowdin-compatible progress fields. */
+  mapLocaleStatisticsToReadiness(statistics: PhraseLocale["statistics"]) {
+    const phrases = {
+      total: statistics?.keysTotalCount ?? 0,
+      translated: Math.max(
+        0,
+        (statistics?.keysTotalCount ?? 0) - (statistics?.keysUntranslatedCount ?? 0),
+      ),
+      approved: Math.max(
+        0,
+        (statistics?.keysTotalCount ?? 0) -
+          (statistics?.keysUntranslatedCount ?? 0) -
+          (statistics?.translationsUnverifiedCount ?? 0),
+      ),
+    };
+    const words = {
+      total: statistics?.wordsTotalCount ?? 0,
+      translated: Math.max(
+        0,
+        (statistics?.wordsTotalCount ?? 0) - (statistics?.missingWordsCount ?? 0),
+      ),
+      approved: Math.max(
+        0,
+        (statistics?.wordsTotalCount ?? 0) -
+          (statistics?.missingWordsCount ?? 0) -
+          (statistics?.unverifiedWordsCount ?? 0),
+      ),
+    };
+    const percentCounts = words.total > 0 ? words : phrases;
+
+    return {
+      translationProgress: toProgressPercent(percentCounts.translated, percentCounts.total),
+      approvalProgress: toProgressPercent(percentCounts.approved, percentCounts.total),
+      words,
+      phrases,
+    };
   }
 
   /**
