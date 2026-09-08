@@ -81,6 +81,7 @@ import {
 import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import {
   projectFileCatQueueSortSchema,
+  projectFileCatTranslationBodySchema,
   type ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
 import {
@@ -107,6 +108,9 @@ import {
 import { loadMcpTranslation } from "@/api/routes/mcp/mcp-get-translation";
 import { resolveProjectResourceTarget } from "@/api/routes/project/project.shared";
 import type { ToolContext } from "@/lib/tools/types";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+import { updateMcpTranslation } from "./mcp-update-translation";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -701,6 +705,24 @@ const mcpQueryGlossaryInputSchema = z.object({
     .describe("Maximum number of ranked hits to return."),
 });
 
+const catTranslationShape = projectFileCatTranslationBodySchema.shape;
+
+const mcpUpdateTranslationInputSchema = z.object({
+  projectId: z.string().trim().min(1).max(128),
+
+  translationKeyId: z.uuid(),
+
+  targetLocale: catTranslationShape.targetLocale.describe(
+    "Target locale whose translation should be updated.",
+  ),
+
+  targetText: catTranslationShape.text.describe("New translated text to save."),
+
+  approve: catTranslationShape.approve.describe(
+    "Approve the translation after saving it. Defaults to false.",
+  ),
+});
+
 const mcpGetTranslationInputSchema = z.object({
   projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
 
@@ -771,12 +793,12 @@ function mcpCreateIssueFingerprint(
   return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
 }
 
-function mcpToolError(code: string, message: string) {
+function mcpToolError(code: string, message: string, details?: Record<string, unknown>) {
   return {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify({ error: code, message }),
+        text: JSON.stringify({ error: code, message, ...details }),
       },
     ],
     isError: true,
@@ -1797,6 +1819,88 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           {
             type: "text",
             text: JSON.stringify(translation),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "update_translation",
+    {
+      description:
+        "Save and optionally approve a target translation in an accessible Hyperlocalise project.",
+      inputSchema: mcpUpdateTranslationInputSchema,
+    },
+    async ({ projectId, translationKeyId, targetLocale, targetText, approve }) => {
+      if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to update translations");
+      }
+
+      const target = await resolveProjectResourceTarget(apiAuth, projectId);
+
+      if (target.kind !== "native") {
+        return mcpToolError(
+          "provider_cat_unsupported",
+          "Provider-only CAT translations are not supported",
+        );
+      }
+
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, target.projectId))
+        .limit(1);
+
+      if (!project || !project.targetLocales.includes(targetLocale)) {
+        return mcpToolError("translation_not_found", "Translation not found");
+      }
+
+      const result = await updateMcpTranslation({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        translationKeyId,
+        targetLocale,
+        targetText,
+        approve,
+        actorUserId: apiAuth.user.localUserId,
+      });
+
+      if (!result.ok) {
+        switch (result.error) {
+          case "translation_not_found":
+            return mcpToolError("translation_not_found", "Translation not found");
+
+          case "translation_locked":
+            return mcpToolError("translation_locked", "This translation is locked");
+
+          case "invalid_translation":
+            return mcpToolError(
+              "invalid_translation",
+              "Translation has invalid placeholders or ICU syntax",
+              { issues: result.issues },
+            );
+        }
+      }
+
+      serverAnalytics.track(
+        approve
+          ? PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved
+          : PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentDraftSaved,
+        {
+          source: "native",
+          status: result.value.status,
+        },
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.value),
           },
         ],
       };

@@ -730,7 +730,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
-  }): Promise<ProjectFileContentEditorTranslation | null> {
+  }): Promise<(ProjectFileContentEditorTranslation & { updatedAt: Date }) | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -823,6 +823,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         id: schema.projectTranslations.id,
         text: schema.projectTranslations.text,
         status: schema.projectTranslations.status,
+        updatedAt: schema.projectTranslations.updatedAt,
       });
 
     if (!saved) {
@@ -848,7 +849,11 @@ export class NativeContentEditorService extends ProjectServiceBase {
         provenance: (input.provenance ?? "manual") === "manual" ? "human" : "automated",
         step: input.approve ? "review" : "translation",
       });
-    return toCatTranslation(saved);
+
+    return {
+      ...toCatTranslation(saved),
+      updatedAt: saved.updatedAt,
+    };
   }
 
   async updateTranslationStatus(input: {
