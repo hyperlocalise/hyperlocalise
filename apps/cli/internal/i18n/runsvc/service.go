@@ -492,6 +492,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
 						}
 						sourceFingerprint := imageLockSourceHash(sourceContent)
+						if selection.Type != config.TranslationTypeLLM {
+							return nil, nil, fmt.Errorf("planning tasks: image source %q in group %q is routed to translation type %q; image localization is only supported with type %q", sourcePath, groupName, selection.Type, config.TranslationTypeLLM)
+						}
 						if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
 							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
 						}

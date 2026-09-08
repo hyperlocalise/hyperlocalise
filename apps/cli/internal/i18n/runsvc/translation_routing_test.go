@@ -1,6 +1,8 @@
 package runsvc
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -141,6 +143,112 @@ func TestPlanTasksMTGroupLeavesLLMFieldsZeroValued(t *testing.T) {
 	}
 	if task.PromptVersion != "" {
 		t.Fatalf("prompt version=%q, want empty", task.PromptVersion)
+	}
+}
+
+func TestPlanTasksMixedLLMAndMTGroupsResolveDeterministically(t *testing.T) {
+	dir := t.TempDir()
+	sourceUI := filepath.Join(dir, "ui", "en.json")
+	sourceDocs := filepath.Join(dir, "docs", "en.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourceUI), 0o755); err != nil {
+		t.Fatalf("mkdir ui source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sourceDocs), 0o755); err != nil {
+		t.Fatalf("mkdir docs source dir: %v", err)
+	}
+	if err := os.WriteFile(sourceUI, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write ui source: %v", err)
+	}
+	if err := os.WriteFile(sourceDocs, []byte(`{"doc":"Hello docs"}`), 0o644); err != nil {
+		t.Fatalf("write docs source: %v", err)
+	}
+
+	configPath := filepath.Join(dir, "i18n.yml")
+	configContent := `
+locales:
+  source: en
+  targets:
+    - fr
+groups:
+  bulk-ui:
+    targets:
+      - fr
+    buckets:
+      - ui
+  docs-team:
+    targets:
+      - fr
+    buckets:
+      - docs
+buckets:
+  ui:
+    files:
+      - from: ` + sourceUI + `
+        to: ` + filepath.Join(dir, "out", "ui", "{{target}}.json") + `
+  docs:
+    files:
+      - from: ` + sourceDocs + `
+        to: ` + filepath.Join(dir, "out", "docs", "{{target}}.json") + `
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+mt:
+  profiles:
+    google:
+      provider: google
+      api_key_env: GOOGLE_TRANSLATE_API_KEY
+translation:
+  default:
+    type: llm
+    profile: default
+  rules:
+    - priority: 100
+      group: bulk-ui
+      type: mt
+      profile: google
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	tasks, _, err := svc.planTasks(cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("plan tasks: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("task count=%d, want 2", len(tasks))
+	}
+
+	byGroup := make(map[string]Task, len(tasks))
+	for _, task := range tasks {
+		byGroup[task.GroupName] = task
+	}
+
+	uiTask, ok := byGroup["bulk-ui"]
+	if !ok {
+		t.Fatalf("missing task for group bulk-ui: %+v", tasks)
+	}
+	if uiTask.TranslationType != config.TranslationTypeMT || uiTask.Provider != "google" || uiTask.Model != "" {
+		t.Fatalf("unexpected bulk-ui task: %+v", uiTask)
+	}
+
+	docsTask, ok := byGroup["docs-team"]
+	if !ok {
+		t.Fatalf("missing task for group docs-team: %+v", tasks)
+	}
+	if docsTask.TranslationType != config.TranslationTypeLLM || docsTask.Provider != "openai" || docsTask.Model != "gpt-4.1-mini" {
+		t.Fatalf("unexpected docs-team task: %+v", docsTask)
 	}
 }
 
