@@ -6,6 +6,7 @@ const (
 	QAModeSameAsSource   = "same_as_source"
 	QAModeWhitespaceOnly = "whitespace_only"
 	QAModeNotLocalized   = "not_localized"
+	QAModeEscapedChar    = "escaped_char_mismatch"
 )
 
 // KnownQAModes lists supported optional QA mode identifiers.
@@ -14,6 +15,7 @@ func KnownQAModes() []string {
 		QAModeSameAsSource,
 		QAModeWhitespaceOnly,
 		QAModeNotLocalized,
+		QAModeEscapedChar,
 	}
 }
 
@@ -22,10 +24,8 @@ func qaChecks(req Request) []Check {
 		return nil
 	}
 
-	// BOLT OPTIMIZATION: Parse/check active modes using a simple loop and local boolean flags,
-	// avoiding allocating a map[string]struct{}. Since there are only 3 known QA modes,
-	// this is a clean, 100% equivalent, and completely allocation-free solution.
-	var hasNotLocalized, hasWhitespaceOnly, hasSameAsSource bool
+	// Parse active modes with local flags to avoid allocating a mode set.
+	var hasNotLocalized, hasWhitespaceOnly, hasSameAsSource, hasEscapedChar bool
 	for _, mode := range req.Modes {
 		mode = strings.TrimSpace(mode)
 		switch mode {
@@ -35,6 +35,8 @@ func qaChecks(req Request) []Check {
 			hasWhitespaceOnly = true
 		case QAModeSameAsSource:
 			hasSameAsSource = true
+		case QAModeEscapedChar:
+			hasEscapedChar = true
 		}
 	}
 
@@ -48,12 +50,15 @@ func qaChecks(req Request) []Check {
 	if hasSameAsSource {
 		enabled++
 	}
+	if hasEscapedChar {
+		enabled++
+	}
 	if enabled == 0 {
 		return nil
 	}
 
 	// Size capacity to the enabled mode count so single-mode requests do not
-	// over-allocate the result slice (fixed cap of 3 increased heap bytes).
+	// over-allocate the result slice.
 	checks := make([]Check, 0, enabled)
 	if hasNotLocalized {
 		if check, include := notLocalizedCheck(req.SourceText, req.TargetText); include {
@@ -67,6 +72,11 @@ func qaChecks(req Request) []Check {
 	}
 	if hasSameAsSource {
 		if check, include := sameAsSourceCheck(req.SourceText, req.TargetText); include {
+			checks = append(checks, check)
+		}
+	}
+	if hasEscapedChar {
+		if check, include := escapedCharCheck(req.SourceText, req.TargetText); include {
 			checks = append(checks, check)
 		}
 	}
@@ -119,4 +129,30 @@ func sameAsSourceCheck(source, target string) (Check, bool) {
 		Message:  "Target value matches source.",
 		Category: "qa",
 	}, true
+}
+
+func escapedCharCheck(source, target string) (Check, bool) {
+	tokens := IntroducedEscapedChars(source, target)
+	if len(tokens) == 0 {
+		return Check{}, false
+	}
+	return Check{
+		ID:            "qa-escaped-char-mismatch",
+		Label:         "Escaped characters",
+		Status:        StatusWarn,
+		Message:       DescribeIntroducedEscapedChars(tokens),
+		Category:      "qa",
+		RelatedTokens: tokens,
+	}, true
+}
+
+// DescribeIntroducedEscapedChars formats a warning for tokens returned by IntroducedEscapedChars.
+func DescribeIntroducedEscapedChars(tokens []string) string {
+	if len(tokens) == 0 {
+		return "Target introduces escaped characters that are not in the source."
+	}
+	if len(tokens) == 1 {
+		return "Target introduces escaped characters (" + tokens[0] + ") that are not in the source."
+	}
+	return "Target introduces escaped characters (" + strings.Join(tokens, ", ") + ") that are not in the source."
 }

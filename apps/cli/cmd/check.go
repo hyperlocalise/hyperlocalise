@@ -22,6 +22,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -48,6 +49,7 @@ const (
 	checkICUShape          = "icu_shape_mismatch"
 	checkMarkdownAST       = "markdown_ast_mismatch"
 	checkWhitespaceOnly    = "whitespace_only"
+	checkEscapedChar       = "escaped_char_mismatch"
 	checkSeverityError     = "error"
 	checkSeverityWarning   = "warning"
 )
@@ -64,6 +66,7 @@ var (
 		checkICUShape,
 		checkMarkdownAST,
 		checkWhitespaceOnly,
+		checkEscapedChar,
 	}
 )
 
@@ -592,6 +595,7 @@ func restrictChecksForDiffMode(enabledChecks []string) []string {
 		checkNotLocalized:   {},
 		checkSameAsSource:   {},
 		checkWhitespaceOnly: {},
+		checkEscapedChar:    {},
 		checkPlaceholder:    {},
 		checkHTMLTag:        {},
 		checkICUShape:       {},
@@ -820,7 +824,7 @@ func fixTargetDedupeKey(sourcePath, targetPath, locale, key string) string {
 
 func isFixableFindingType(t string) bool {
 	switch t {
-	case checkNotLocalized, checkWhitespaceOnly, checkPlaceholder, checkHTMLTag, checkICUShape:
+	case checkNotLocalized, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder, checkHTMLTag, checkICUShape:
 		return true
 	default:
 		return false
@@ -1116,6 +1120,23 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationFile: annotationFile,
 				AnnotationLine: annotationLine,
 			})
+		}
+		if _, ok := checkSet[checkEscapedChar]; ok {
+			if tokens := segmentvalidate.IntroducedEscapedChars(sourceValue, targetValue); len(tokens) > 0 {
+				annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
+				findings = append(findings, checkFinding{
+					Type:           checkEscapedChar,
+					Severity:       severityForCheck(checkEscapedChar),
+					Bucket:         bucketName,
+					Locale:         locale,
+					SourceFile:     sourcePath,
+					TargetFile:     targetPath,
+					Key:            key,
+					Message:        describeEscapedCharMismatch(tokens),
+					AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
+			}
 		}
 		if _, ok := checkSet[checkHTMLTag]; ok && htmltagparity.Mismatch(sourceValue, targetValue) {
 			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
@@ -1589,6 +1610,13 @@ func describeSameAsSource() string {
 	return "target value matches source"
 }
 
+func describeEscapedCharMismatch(tokens []string) string {
+	if len(tokens) == 0 {
+		return "target introduces escaped characters that are not in the source"
+	}
+	return "target introduces escaped characters (" + strings.Join(tokens, ", ") + ") that are not in the source"
+}
+
 func sortCheckFindings(findings []checkFinding) {
 	slices.SortFunc(findings, func(a, b checkFinding) int {
 		if cmp := strings.Compare(a.Type, b.Type); cmp != 0 {
@@ -1928,7 +1956,7 @@ func writeCheckText(w io.Writer, report checkReport) error {
 
 func severityForCheck(name string) string {
 	switch name {
-	case checkOrphanedKey, checkWhitespaceOnly, checkSameAsSource:
+	case checkOrphanedKey, checkWhitespaceOnly, checkSameAsSource, checkEscapedChar:
 		return checkSeverityWarning
 	default:
 		return checkSeverityError

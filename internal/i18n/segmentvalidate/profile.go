@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -165,6 +166,90 @@ func validateSpecialCharParityWithTokens(source, translated string) (bool, error
 		got,
 		formatInvariantDebugContext(source, translated),
 	)
+}
+
+// IntroducedEscapedChars reports escape sequences and control characters that
+// appear in target but not in source. It covers both literal two-character
+// sequences such as `\t` and decoded Unicode control runes (Cc), including
+// NUL, backspace, and escape after JSON or CAT unescape.
+func IntroducedEscapedChars(source, target string) []string {
+	if target == "" || target == source {
+		return nil
+	}
+	hasLiteralEscapes := strings.Contains(target, "\\")
+	controlTokens := extractControlCharTokens(target)
+	if !hasLiteralEscapes && len(controlTokens) == 0 {
+		return nil
+	}
+
+	var extras []string
+	if hasLiteralEscapes {
+		extras = append(extras, extraTokens(extractSpecialCharLiterals(target), extractSpecialCharLiterals(source))...)
+	}
+	if len(controlTokens) > 0 {
+		extras = append(extras, extraTokens(controlTokens, extractControlCharTokens(source))...)
+	}
+	if len(extras) == 0 {
+		return nil
+	}
+	slices.Sort(extras)
+	return slices.Compact(extras)
+}
+
+func extraTokens(got, expected []string) []string {
+	if len(got) == 0 {
+		return nil
+	}
+	expectedCounts := make(map[string]int, len(expected))
+	for _, token := range expected {
+		expectedCounts[token]++
+	}
+	seen := make(map[string]struct{})
+	var extras []string
+	for _, token := range got {
+		if expectedCounts[token] > 0 {
+			expectedCounts[token]--
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		extras = append(extras, token)
+	}
+	return extras
+}
+
+func extractControlCharTokens(value string) []string {
+	if value == "" || !strings.ContainsFunc(value, unicode.IsControl) {
+		return nil
+	}
+	var out []string
+	for _, r := range value {
+		if token := controlCharToken(r); token != "" {
+			out = append(out, token)
+		}
+	}
+	return out
+}
+
+func controlCharToken(r rune) string {
+	switch r {
+	case '\t':
+		return `\t`
+	case '\n':
+		return `\n`
+	case '\r':
+		return `\r`
+	case '\v':
+		return `\v`
+	case '\f':
+		return `\f`
+	}
+	if unicode.IsControl(r) {
+		return fmt.Sprintf(`\u%04x`, r)
+	}
+	return ""
 }
 
 func extractSpecialCharLiterals(value string) []string {

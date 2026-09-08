@@ -253,6 +253,127 @@ func TestExtractSpecialCharLiteralsEdgeCases(t *testing.T) {
 	}
 }
 
+func TestIntroducedEscapedChars(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		target string
+		want   []string
+	}{
+		{
+			name:   "literal tab leftover after french badge",
+			source: "Included",
+			target: "Inclus\\tgranted",
+			want:   []string{`\t`},
+		},
+		{
+			name:   "decoded tab leftover after chinese activity label",
+			source: "Created job",
+			target: "已创建工作\tjob",
+			want:   []string{`\t`},
+		},
+		{
+			name:   "decoded tab leftover after vietnamese error",
+			source: "Unable to add to Board",
+			target: "Không thể thêm vào Bảng\tl",
+			want:   []string{`\t`},
+		},
+		{
+			name:   "literal newline and unicode escape introduced",
+			source: "Save",
+			target: "Enregistrer\\n\\u00A0",
+			want:   []string{`\n`, `\u00A0`},
+		},
+		{
+			name:   "matching literal escapes are not introduced",
+			source: "Line1\\nLine2",
+			target: "Ligne1\\nLigne2",
+			want:   nil,
+		},
+		{
+			name:   "matching decoded tabs are not introduced",
+			source: "Col A\tCol B",
+			target: "Col A\tCol B",
+			want:   nil,
+		},
+		{
+			name:   "identical strings",
+			source: "Inclus\\tgranted",
+			target: "Inclus\\tgranted",
+			want:   nil,
+		},
+		{
+			name:   "empty target",
+			source: "Included",
+			target: "",
+			want:   nil,
+		},
+		{
+			name:   "plain translation",
+			source: "Included",
+			target: "Inclus",
+			want:   nil,
+		},
+		{
+			name:   "extra decoded newline on otherwise matching text",
+			source: "Hello",
+			target: "Bonjour\n",
+			want:   []string{`\n`},
+		},
+		{
+			name:   "windows path backslash-t in both sides",
+			source: `Path C:\tmp`,
+			target: `Chemin C:\tmp`,
+			want:   nil,
+		},
+		{
+			name:   "windows path backslash-t only in target",
+			source: "Temp folder",
+			target: `Dossier C:\tmp`,
+			want:   []string{`\t`},
+		},
+		{
+			name:   "decoded NUL without backslash",
+			source: "Included",
+			target: "Inclus\u0000granted",
+			want:   []string{`\u0000`},
+		},
+		{
+			name:   "decoded backspace without backslash",
+			source: "Included",
+			target: "Inclus\bgranted",
+			want:   []string{`\u0008`},
+		},
+		{
+			name:   "decoded escape without backslash",
+			source: "Included",
+			target: "Inclus\u001bgranted",
+			want:   []string{`\u001b`},
+		},
+		{
+			name:   "decoded DEL and C1 NEL",
+			source: "Included",
+			target: "Inclus\u007f\u0085",
+			want:   []string{`\u007f`, `\u0085`},
+		},
+		{
+			name:   "matching decoded NUL is not introduced",
+			source: "Col A\u0000Col B",
+			target: "Col A\u0000Col B",
+			want:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IntroducedEscapedChars(tt.source, tt.target)
+			if !stringSlicesEqual(got, tt.want) {
+				t.Fatalf("IntroducedEscapedChars(%q, %q) = %v, want %v", tt.source, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidateSpecialCharParity(t *testing.T) {
 	if err := validateSpecialCharParity(`Save\n`, `Enregistrer\n`); err != nil {
 		t.Fatalf("expected special char parity pass, got %v", err)

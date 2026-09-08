@@ -51,17 +51,20 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `list_files`           | List source files in a project (`projectId`, `limit` default 20 max 50, `offset`, optional `search`)                                                                    |
 | `list_translations`    | Paginated CAT queue of translation keys (`projectId`, optional `sourcePath`, `targetLocale`, `search`, `queueFilter`, `queueSort`, `limit` default 20 max 50, `offset`) |
 | `get_translation`      | Full CAT detail for one translation key (`projectId`, `translationKeyId`, `targetLocale`)                                                                               |
-| `update_translation`   | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                |
+| `update_translation`   | Save a target translation and optionally approve it (`projectId`, `translationKeyId`, `targetLocale`, `targetText`, optional `approve`)                                 |
 | `get_project_status`   | Locale coverage counts by `projectId`, with optional `sourcePath`                                                                                                       |
 | `list_glossaries`      | List glossaries linked to accessible projects                                                                                                                           |
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
 | `query_glossary`       | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
+| `upload_sources`       | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
 `list_translations` is the CAT queue for agents. It lists native overlay keys so you can find untranslated, needs-review, or matching strings without opening the Content Editor. Each row is compact: `id`, `key`, `sourcePath`, `sourceText`, `targetLocale`, `targetText`, `status`, `maxLength`, and `isHidden`. The response includes `total`, pagination (`hasMore`, `nextOffset`), and `coverageSource: "native_overlay"`. It does not include TM or glossary hits.
 
 `get_translation` is the detail view for a translation returned by `list_translations`. Pass the row's `id` as `translationKeyId` together with its `projectId` and `targetLocale`. The tool returns source and target text, locales, status, context, maximum length, and linked Board issue identifiers. A key without a target translation is returned with `targetText` and `status` set to `null`.
+
+`upload_sources` uploads one source file using the same native or external TMS path as `POST /v1/files`. Provide exactly one of `content` or `contentBase64`. Native uploads are queued for background ingestion so their keys become available to `list_translations`. The maximum payload size is 25 MiB. This tool does not create a translation job; use `run_workflow` for that.
 
 Optional filters match the Content Editor queue:
 
@@ -136,7 +139,6 @@ Missing or inaccessible jobs, including jobs from another organization, return `
 
 These tools are advertised but return `not_implemented` today:
 
-- `upload_sources`
 - `download_translations`
 - `run_workflow`
 
@@ -175,6 +177,9 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `invalid_translation`                          | Target text has a blocking placeholder or ICU validation error                                                         |
 | `provider_cat_unsupported`                     | The requested operation targets a provider-only live CAT string without a supported native overlay                     |
 | Agent cannot reach local Cloud                 | Use `http://localhost:3000/mcp` and ensure the dev server is running                                                   |
+| `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                  |
+| `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                   |
+| `source_upload_failed`                         | The native or external TMS source upload failed                                                                        |
 
 ## Next
 

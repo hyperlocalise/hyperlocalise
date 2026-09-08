@@ -55,6 +55,10 @@
     "defaultMessage": "Want me to open translation tasks and attach the brand brief as context?",
     "description": "Agent follow-up asking to create translation tasks"
   },
+  "+3eUjtxudU": {
+    "defaultMessage": "Getting to know Content Studio.",
+    "description": "FAQ subheading on the multilingual Content Studio product page"
+  },
   "+3ic9geD5G": {
     "defaultMessage": "Archived",
     "description": "Badge label for an archived GitHub repository"
@@ -83,6 +87,10 @@
     "defaultMessage": "Flow",
     "description": "Node picker category for looping and flow nodes"
   },
+  "+6ZAiLLMdQ": {
+    "defaultMessage": "Turn your content into a live webpage.",
+    "description": "Headline for the Content Studio web publishing section"
+  },
   "+6k/AAnIp9": {
     "defaultMessage": "See how your brand travels.",
     "description": "Primary headline on the public localisation audit landing page"
@@ -106,6 +114,10 @@
   "+CvStp9tzG": {
     "defaultMessage": "Intercom connection deleted.",
     "description": "Toast when Intercom connection is deleted"
+  },
+  "+EaeyANHgn": {
+    "defaultMessage": "Content formats",
+    "description": "Accessible label for the Content Studio format tabs"
   },
   "+EhuajKQYW": {
     "defaultMessage": "Stay",
@@ -251,6 +263,10 @@
     "defaultMessage": "This file can’t be opened in the Content Editor.",
     "description": "Toast when a selected file cannot open in the Content Editor"
   },
+  "+gp2sOH/Py": {
+    "defaultMessage": "Request failed",
+    "description": "Generic fallback when a CAT Queries API request fails"
+  },
   "+h67bEnfK7": {
     "defaultMessage": "Time",
     "description": "Translation reporting label"
@@ -286,6 +302,10 @@
   "+je2CrABfF": {
     "defaultMessage": "Cut hours lost to manual review and delivery handoffs",
     "description": "Feature teaser benefit for automations"
+  },
+  "+l38vFeeBu": {
+    "defaultMessage": "Summer campaign",
+    "description": "Campaign name in the language review mock"
   },
   "+lT5g7sqtS": {
     "defaultMessage": "Web chat",
@@ -399,6 +419,14 @@
     "defaultMessage": "Open term URL",
     "description": "Accessible label for opening a term reference URL"
   },
+  "/2VDnVeMa5": {
+    "defaultMessage": "Connect GitHub, TMS providers, Slack, and design tools your team already uses.",
+    "description": "Developer resources link description for third-party integration docs"
+  },
+  "/2vDnBJJnU": {
+    "defaultMessage": "01 Connect",
+    "description": "Guidelines workflow step 1"
+  },
   "/2wzw7IAoz": {
     "defaultMessage": "Unable to open Hyperlocalise",
     "description": "Title when Crowdin JWT bootstrap fails"
@@ -430,6 +458,14 @@
   "/6wXYQGzwZ": {
     "defaultMessage": "GitHub pull request opened",
     "description": "Automations mock UI trigger label for a GitHub pull request opening"
+  },
+  "/7ItNZTY2W": {
+    "defaultMessage": "One workspace. Every language.",
+    "description": "Hero headline for the multilingual Content Studio product page"
+  },
+  "/7Y7qcmjyZ": {
+    "defaultMessage": "Your team has the final say.",
+    "description": "Headline for the Content Studio review section"
   },
   "/8fHPQltQc": {
     "defaultMessage": "Bring the right context back when needed.",
@@ -511,6 +547,10 @@
     "defaultMessage": "Error",
     "description": "Section heading for tool error output"
   },
+  "/LUmtjuJsT": {
+    "defaultMessage": "Yes. Schedule a daily Automation to check product copy and live pages against the connected guideline files. Reviewers see the flags in the morning.",
+    "description": "Guidelines FAQ answer about daily Automations audits"
+  },
   "/MBsvL6JVH": {
     "defaultMessage": "Find context",
     "description": "Button to look up repository context for the current string"
@@ -574,6 +614,10 @@
   "/VCDNxDquX": {
     "defaultMessage": "Save",
     "description": "Save button for issue column edit dialogs"
+  },
+  "/Vytq8laTc": {
+    "defaultMessage": "SOURCE · ENGLISH",
+    "description": "Source-language label in the image format mock"
   },
   "/WSX2GW1p1": {
     "defaultMessage": "Recall",
@@ -711,6 +755,10 @@
     "defaultMessage": "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
     "description": "Placeholder for the global guidance TipTap editor"
   },
+  "/yrnrzsaf9": {
+    "defaultMessage": "Todo",
+    "description": "Column heading for remaining work in the locale progress table"
+  },
   "/zPj/3x/+q": {
     "defaultMessage": "Slack agent enabled",
     "description": "Toast after enabling the Slack agent"
@@ -763,6 +811,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the CAT file view AI generate dialog"
   },
+  "071psyOiAM": {
+    "defaultMessage": "\"klinisch erwiesen\" is not on the approved list in clause 2.1.",
+    "description": "Second compliance flag body"
+  },
   "07NPIW0cJ3": {
     "defaultMessage": "Clear filters",
     "description": "Button that clears all active issue list filters"
@@ -774,10 +826,6 @@
   "07zZke+A8Q": {
     "defaultMessage": "Cancel",
     "description": "Button to close the translation memory import preview without writing"
-  },
-  "pmPB2F7F47": {
-    "defaultMessage": "Acme · Queries",
-    "description": "Header breadcrumb in marketing app shell mock"
   },
   "087Hwu4wFp": {
     "defaultMessage": "Built for support content at scale",
@@ -806,6 +854,10 @@
   "0AwFQKS1li": {
     "defaultMessage": "Verifying channel...",
     "description": "Status while a Slack channel ID is being verified"
+  },
+  "0B4ezwZ7oK": {
+    "defaultMessage": "From Google Drive",
+    "description": "Status on the attached guidelines mock card"
   },
   "0DSwLmDrDB": {
     "defaultMessage": "No files yet",
@@ -894,6 +946,10 @@
   "0P74I0pkYn": {
     "defaultMessage": "Shared with {teamName}.",
     "description": "Helper note that CAT glossary concepts are shared with the project team"
+  },
+  "0PhWie0NMV": {
+    "defaultMessage": "Queries",
+    "description": "Workspace Queries page title"
   },
   "0PopXaEBoW": {
     "defaultMessage": "Access with clear boundaries",
@@ -991,6 +1047,10 @@
     "defaultMessage": "Loading domains…",
     "description": "Loading state for the domains list"
   },
+  "0cglRpvqFz": {
+    "defaultMessage": "Explore the studio",
+    "description": "Anchor link from the Content Studio hero to the studio preview"
+  },
   "0czRTKBGYl": {
     "defaultMessage": "Delete",
     "description": "Delete Intercom connection button"
@@ -1035,6 +1095,10 @@
     "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey.",
     "description": "Help text for where to find a Semrush API key"
   },
+  "0l7PHiSZRI": {
+    "defaultMessage": "Upload sources, create jobs, and pull translations over HTTP.",
+    "description": "Developer resources link description for the public HTTP API docs"
+  },
   "0lByDvasg5": {
     "defaultMessage": "Queue banner for translation reviews that still need human approval.",
     "description": "Looked-up context for the QA warning segment"
@@ -1051,6 +1115,10 @@
     "defaultMessage": "Changes made by workspace operators will appear here.",
     "description": "Empty state description for activity logs"
   },
+  "0njV/b+hso": {
+    "defaultMessage": "02 Adapt",
+    "description": "Content Studio workflow step 2"
+  },
   "0oWOPc6WxE": {
     "defaultMessage": "resolved the thread",
     "description": "Status text after Hyperlocalise resolves the PR thread"
@@ -1066,6 +1134,10 @@
   "0rhtNVSwNB": {
     "defaultMessage": "Getting started",
     "description": "Heading for the integration setup instructions section"
+  },
+  "0roQJLdsUq": {
+    "defaultMessage": "Import the pages your GTM team already writes: dos and don'ts, proof points, and the tone that works in each market.",
+    "description": "Body for the Notion source panel"
   },
   "0s28QK0gJ3": {
     "defaultMessage": "Settings · Primary action",
@@ -1155,6 +1227,10 @@
     "defaultMessage": "Member added to team",
     "description": "Toast after a member is added to a team"
   },
+  "11Fkff+o29": {
+    "defaultMessage": "What kinds of files can agents use?",
+    "description": "Guidelines FAQ question about file types"
+  },
   "11wuxnX/XF": {
     "defaultMessage": "Triggers",
     "description": "Triggers section heading in the marketing automation editor mock"
@@ -1182,10 +1258,6 @@
   "19Hyjf99DQ": {
     "defaultMessage": "Mina assigned you · Payment button label too long",
     "description": "Inbox issue notification preview in content ops mock"
-  },
-  "19Yj5RY029": {
-    "defaultMessage": "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
-    "description": "Bottom CTA description for the self-evolving knowledge product page"
   },
   "1B4aT4LjmI": {
     "defaultMessage": "Access",
@@ -1223,6 +1295,10 @@
     "defaultMessage": "{count} matching",
     "description": "Badge showing filtered matching issue count on the Issue Sheet page"
   },
+  "1Hzp15bVmL": {
+    "defaultMessage": "Guidelines that travel with the work.",
+    "description": "Headline for the Guidelines connected-products section"
+  },
   "1INOkRkMDD": {
     "defaultMessage": "Guideline",
     "description": "App shell breadcrumb title for the guideline page"
@@ -1234,6 +1310,14 @@
   "1KXz+b/LeX": {
     "defaultMessage": "Heading 3",
     "description": "Slash menu item for a level-3 heading"
+  },
+  "1Kqhhea0Ee": {
+    "defaultMessage": "Changes to files and strings in this project.",
+    "description": "Description for the All Files activity dialog"
+  },
+  "1LT7IofQ2x": {
+    "defaultMessage": "Choose which project should receive the imported Queries rows.",
+    "description": "Description of the workspace issues CSV import project picker dialog"
   },
   "1M4Hu48OSE": {
     "defaultMessage": "Dedicated support",
@@ -1266,10 +1350,6 @@
   "1QeX69p2Dj": {
     "defaultMessage": "Workspace",
     "description": "Breadcrumb label above the Guideline page"
-  },
-  "1RW3XeR+vN": {
-    "defaultMessage": "Agents prepare the work, but reviewers still decide what is good enough to ship.",
-    "description": "Proof point 2 body for the agents automation product page"
   },
   "1RfCN9F8ux": {
     "defaultMessage": "—",
@@ -1435,6 +1515,10 @@
     "defaultMessage": "Review: {value}",
     "description": "Chip label for the active review status filter"
   },
+  "1kGndGN4wG": {
+    "defaultMessage": "SharePoint",
+    "description": "Guidelines source tab for SharePoint"
+  },
   "1krX2eFo9o": {
     "defaultMessage": "Contentful webhook",
     "description": "Label for the Contentful webhook trigger"
@@ -1450,6 +1534,10 @@
   "1rvztL9O9G": {
     "defaultMessage": "Multilingual blog",
     "description": "Flow template pill for multilingual blog publishing"
+  },
+  "1t3wSermT8": {
+    "defaultMessage": "Do we have to move our guidelines into Hyperlocalise?",
+    "description": "Guidelines FAQ question about moving files"
   },
   "1um5cM9poq": {
     "defaultMessage": "New Automation",
@@ -1478,10 +1566,6 @@
   "1weHpJduuv": {
     "defaultMessage": "Glossary Project Attached",
     "description": "Activity log event type label for attaching a glossary to a project"
-  },
-  "1x7rivVz4j": {
-    "defaultMessage": "Download translations from Files or run <code>sync pull</code>.",
-    "description": "CLI hint in the sync section on project overview"
   },
   "1xBioz9EDW": {
     "defaultMessage": "Validation",
@@ -1542,6 +1626,14 @@
   "20wJJveUDM": {
     "defaultMessage": "Next step",
     "description": "Heading for the next-step CTA section on a localisation audit result"
+  },
+  "21DxEHM2/g": {
+    "defaultMessage": "Open Queries, {count} open",
+    "description": "Accessible label for the Queries button when open issues are available"
+  },
+  "21S/RyUHaa": {
+    "defaultMessage": "Compare side by side · Refine in context",
+    "description": "Supporting line for Content Studio review capabilities"
   },
   "21UXwS0MZ6": {
     "defaultMessage": "Your team",
@@ -1618,6 +1710,10 @@
   "2C7ykfN2tG": {
     "defaultMessage": "Pull request opened",
     "description": "Toggle label for GitHub pull request opened trigger events"
+  },
+  "2CQAb/Wvw0": {
+    "defaultMessage": "Brand voice",
+    "description": "Brand voice row label in the campaign context mock"
   },
   "2CcWvThdpB": {
     "defaultMessage": "Vendor and reviewer assignments happen manually across spreadsheets and Slack.",
@@ -1707,10 +1803,6 @@
     "defaultMessage": "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
     "description": "Capability 1 description for the marketing-localisation use case"
   },
-  "UznHMJ+o+o": {
-    "defaultMessage": "Queries",
-    "description": "Sidebar nav label in marketing app shell mock"
-  },
   "2QU4QHjp8c": {
     "defaultMessage": "I",
     "description": "Visible abbreviation on the italic formatting toolbar button"
@@ -1767,6 +1859,10 @@
     "defaultMessage": "QA failure on hero headline",
     "description": "Issue row title in content ops mock"
   },
+  "2bIgjVHpIr": {
+    "defaultMessage": "How does the editor help translators work faster?",
+    "description": "Content Studio FAQ question about the editor"
+  },
   "2bsWQjcWxE": {
     "defaultMessage": "Content Editor action",
     "description": "TM match context for the QA banner segment in the hero Content Editor mock"
@@ -1791,9 +1887,17 @@
     "defaultMessage": "Save changes",
     "description": "Title of the dialog used to save global guidance"
   },
+  "2evxUsSaO3": {
+    "defaultMessage": "imported translations",
+    "description": "Action for a file translation import activity"
+  },
   "2f2Oa8dJQI": {
     "defaultMessage": "Inbox",
     "description": "App shell breadcrumb title for the inbox page"
+  },
+  "2fjmQhrN05": {
+    "defaultMessage": "VIETNAMESE · ADAPTED",
+    "description": "Vietnamese adaptation label in the image format mock"
   },
   "2gIxGrBEow": {
     "defaultMessage": "Job Cancelled",
@@ -1887,6 +1991,10 @@
     "defaultMessage": "Keep everything on-brand and compliant",
     "description": "Capability carousel card 05 title"
   },
+  "2uw5+lQ54T": {
+    "defaultMessage": "Activity",
+    "description": "Title for the file editor activity dialog"
+  },
   "2uwHtwT4Tc": {
     "defaultMessage": "Reviews",
     "description": "App shell breadcrumb title for the reviews page"
@@ -1934,10 +2042,6 @@
   "30EiG+BWcI": {
     "defaultMessage": "No repository context was found for this string.",
     "description": "Empty state when agent repository context lookup returns nothing"
-  },
-  "5yzXr6bGIC": {
-    "defaultMessage": "Queries",
-    "description": "Submenu label grouping Queries automation tools"
   },
   "32TT/pgWLo": {
     "defaultMessage": "Developer",
@@ -1994,6 +2098,10 @@
   "3CTikplBoF": {
     "defaultMessage": "Select a run to inspect node-level status.",
     "description": "Prompt when no run is selected in the executions tab"
+  },
+  "3CjBlEDVPl": {
+    "defaultMessage": "Queries",
+    "description": "App shell breadcrumb title for the workspace Queries page"
   },
   "3DGUvjJg6U": {
     "defaultMessage": "Cancel",
@@ -2078,10 +2186,6 @@
   "3VvPI125F/": {
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated from the detail sheet"
-  },
-  "ykmACsU9kM": {
-    "defaultMessage": "Create issue",
-    "description": "Menu item and tool title for creating Queries issues"
   },
   "3Z+3pA/kaR": {
     "defaultMessage": "Save",
@@ -2170,6 +2274,10 @@
   "3kmGzc1eFE": {
     "defaultMessage": "Default template",
     "description": "Label for the default template select"
+  },
+  "3ljQO/9DOw": {
+    "defaultMessage": "Today",
+    "description": "Heading for the project overview triage list"
   },
   "3lnMAqI5qB": {
     "defaultMessage": "Advanced settings",
@@ -2375,10 +2483,6 @@
     "defaultMessage": "Contextual Audit",
     "description": "Label for the contextual dimension on a localisation audit result"
   },
-  "S5zYTuw8xI": {
-    "defaultMessage": "Triage open work across this workspace.",
-    "description": "Short description under the workspace Queries page title"
-  },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
@@ -2415,10 +2519,6 @@
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
   },
-  "PF5J5zLlad": {
-    "defaultMessage": "Queries could not be loaded.",
-    "description": "Error state when the workspace Queries page fails to load"
-  },
   "4C48CjJZ/y": {
     "defaultMessage": "Role permissions",
     "description": "App shell breadcrumb title for the role permissions page"
@@ -2450,6 +2550,10 @@
   "4HsCO20k/1": {
     "defaultMessage": "Connect enterprise localization programs.",
     "description": "Smartling TMS integration description on the integrations page"
+  },
+  "4IGqbe4A0j": {
+    "defaultMessage": "String Approved",
+    "description": "Activity log event type label for string approval"
   },
   "4Iy9AzpaNC": {
     "defaultMessage": "Week",
@@ -2599,6 +2703,10 @@
     "defaultMessage": "General question",
     "description": "Issue Sheet issue type option for a general question"
   },
+  "4ipjfzP7qr": {
+    "defaultMessage": "Translate",
+    "description": "Link from a locale row into the content editor untranslated queue"
+  },
   "4jL6ZFEZhQ": {
     "defaultMessage": "Glossary",
     "description": "Resource type badge for a glossary resource"
@@ -2631,9 +2739,21 @@
     "defaultMessage": "Saving...",
     "description": "Save button label while the automation update request is pending"
   },
+  "4nr1WS9kIp": {
+    "defaultMessage": "Notion",
+    "description": "Guidelines source tab for Notion"
+  },
   "4nvKEU8P6F": {
     "defaultMessage": "Tools",
     "description": "Disabled AI node slot label for tools"
+  },
+  "4p/SsmkJuR": {
+    "defaultMessage": "Check this German launch line against Brand-claims-policy.pdf: \"Unsere einzigartige KI-Plattform ist klinisch erwiesen.\"",
+    "description": "User prompt in the guidelines board chat"
+  },
+  "4pUrDejiya": {
+    "defaultMessage": "String Unlocked",
+    "description": "Activity log event type label for unlocking strings"
   },
   "4rKdbq38y5": {
     "defaultMessage": "Translation exceeds the recommended {maxLength} characters.",
@@ -2650,10 +2770,6 @@
   "4rrhdZuDqB": {
     "defaultMessage": "Sign in again to manage the Ahrefs connection.",
     "description": "Error when a WorkOS access token is missing for the Pipes widget"
-  },
-  "4tk5H2G6vH": {
-    "defaultMessage": "Reuse the nuance",
-    "description": "Proof point 2 title for the self-evolving knowledge product page"
   },
   "4vXdOuz0pQ": {
     "defaultMessage": "Copied!",
@@ -2675,6 +2791,10 @@
     "defaultMessage": "Human review",
     "description": "Marketing homepage humanReview"
   },
+  "4xfa2MgxvC": {
+    "defaultMessage": "3.2 German advertising",
+    "description": "PDF clause title for German advertising"
+  },
   "4y4y0oNFFl": {
     "defaultMessage": "Capture style, market, and compliance guidance so teams scale into new markets with confidence.",
     "description": "Feature teaser page description for workspace guideline"
@@ -2694,6 +2814,10 @@
   "4zerueK9Yh": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale field on a translation memory entry"
+  },
+  "5+8B2Tn+yG": {
+    "defaultMessage": "French",
+    "description": "French locale name in the language review mock"
   },
   "5+B0FprGyT": {
     "defaultMessage": "Set up an automation in minutes. Choose a trigger, write instructions, and connect your tools.",
@@ -2726,10 +2850,6 @@
   "517eSE0isf": {
     "defaultMessage": "{actor} assigned you to {issueTitle}",
     "description": "Inbox notification preview for issue assignment"
-  },
-  "MnuXzcJn6d": {
-    "defaultMessage": "{count} P1 on Queries",
-    "description": "Open issues metric subtitle showing P1 issue count on Queries"
   },
   "520zX1ohk1": {
     "defaultMessage": "Cancel",
@@ -2995,6 +3115,10 @@
     "defaultMessage": "Add a project to track localization work and shared translation guidance.",
     "description": "Description of the create project dialog"
   },
+  "5o3YTJGgiG": {
+    "defaultMessage": "{selected} / {total} selected",
+    "description": "Selected item count in a Content Studio format mock"
+  },
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
@@ -3011,6 +3135,14 @@
     "defaultMessage": "Locales are managed by the connected TMS provider.",
     "description": "Description when project locales are provider-managed"
   },
+  "5r5QUAR3/o": {
+    "defaultMessage": "Apply the same files in the studio. Automate the checks in your workflows.",
+    "description": "Body for the Guidelines connected-products section"
+  },
+  "5tFadU6T26": {
+    "defaultMessage": "Does Content Studio include translation memory and glossaries?",
+    "description": "Content Studio FAQ question about TM and glossaries"
+  },
   "5tlPxcqfUt": {
     "defaultMessage": "Coordinate localization reviews from Slack mentions and DMs.",
     "description": "Slack integration description before OAuth connection"
@@ -3022,6 +3154,10 @@
   "5yXqdk0MWc": {
     "defaultMessage": "From new article to monitored locale coverage",
     "description": "Workflow section title for the help-center-localisation use case"
+  },
+  "5yzXr6bGIC": {
+    "defaultMessage": "Queries",
+    "description": "Submenu label grouping Queries automation tools"
   },
   "5zK6mzfMaW": {
     "defaultMessage": "Launch workflow",
@@ -3038,6 +3174,10 @@
   "60PQQ7C+fN": {
     "defaultMessage": "Last used {date}",
     "description": "API key row showing last-used timestamp"
+  },
+  "60zsYx+OAc": {
+    "defaultMessage": "Keep the docs you have. Put them to work.",
+    "description": "Hero headline for the Guidelines product page"
   },
   "61ETFYprI6": {
     "defaultMessage": "Renews {date}",
@@ -3070,10 +3210,6 @@
   "62pAZqbZzL": {
     "defaultMessage": "Unable to load entries",
     "description": "Fallback error when translation memory entries fail to load"
-  },
-  "63np7ewMDD": {
-    "defaultMessage": "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
-    "description": "Meta description for the agents automation product page"
   },
   "66l3idHXx9": {
     "defaultMessage": "New regions ramp up faster with shared GTM playbooks",
@@ -3135,6 +3271,10 @@
     "defaultMessage": "name@company.com",
     "description": "Placeholder for the invite member email field"
   },
+  "6Iy982Sau4": {
+    "defaultMessage": "Can we manage review status across languages?",
+    "description": "Content Studio FAQ question about review status"
+  },
   "6JQLX0bSZ4": {
     "defaultMessage": "Case Study",
     "description": "Eyebrow label above the Tourfinder case study section"
@@ -3179,6 +3319,10 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when an Issues API request fails"
   },
+  "6OX4GFk9EP": {
+    "defaultMessage": "Review AI drafts and translations side by side. Check for accuracy, make changes, and approve content when it meets your standards.",
+    "description": "Body for the Content Studio review section"
+  },
   "6PFnjoc6zP": {
     "defaultMessage": "Editor panel failed to load",
     "description": "Error boundary title when the CAT editor panel crashes"
@@ -3207,6 +3351,10 @@
     "defaultMessage": "Revoke",
     "description": "Button to open the revoke API key confirmation dialog"
   },
+  "6SHDHgWJLa": {
+    "defaultMessage": "{count, plural, one {# word} other {# words}}",
+    "description": "Remaining untranslated word count on a collapsed locale row"
+  },
   "6Su/xhxJZL": {
     "defaultMessage": "Slack",
     "description": "Inbox conversation source label for the Slack agent"
@@ -3227,9 +3375,9 @@
     "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
     "description": "Collapsed explore rollup with a subject and search count"
   },
-  "MbppXfDsbM": {
-    "defaultMessage": "Queries is unavailable for this string.",
-    "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
+  "6Wo0GmkOW8": {
+    "defaultMessage": "This is a playground. Add a step, edit a prompt, press test. Refresh the page and it resets. Nothing is saved.",
+    "description": "Visual workflow playground section description"
   },
   "6YRqpDlcKq": {
     "defaultMessage": "GitHub push",
@@ -3295,17 +3443,9 @@
     "defaultMessage": "Localisation report",
     "description": "Eyebrow above a public localisation audit company report"
   },
-  "6g9RHsjL+m": {
-    "defaultMessage": "Reduce review churn",
-    "description": "Proof point 3 title for the self-evolving knowledge product page"
-  },
   "6hZ0OrRvp2": {
     "defaultMessage": "Inactive",
     "description": "Badge shown on inactive project cards"
-  },
-  "Z44SZamohK": {
-    "defaultMessage": "Added to Queries",
-    "description": "Toast confirmation after adding a CAT segment to Queries"
   },
   "6ieanONu91": {
     "defaultMessage": "Import CSV",
@@ -3483,6 +3623,14 @@
     "defaultMessage": "Activity logs",
     "description": "Settings nav item for workspace activity logs"
   },
+  "76/g24/Q69": {
+    "defaultMessage": "Turn repeatable work into workflows. Take approved content to your markets.",
+    "description": "Body for the Content Studio connected-products section"
+  },
+  "76D+ZZX3Tn": {
+    "defaultMessage": "No second playbook to maintain.",
+    "description": "Supporting note under the Guidelines bottom CTA"
+  },
   "76aHgfoqyy": {
     "defaultMessage": "Segment validation request failed.",
     "description": "Error when the CAT segment validation network request fails"
@@ -3506,6 +3654,10 @@
   "78uBrU8JbG": {
     "defaultMessage": "Start with a single seat, then add seats, agent runs, and automations as your content operations grow.",
     "description": "Marketing homepage pricingBody"
+  },
+  "79CAb1uFN6": {
+    "defaultMessage": "String Locked",
+    "description": "Activity log event type label for locking strings"
   },
   "79OV0Q8xnc": {
     "defaultMessage": "The maximum discount is 80% off Growth list pricing. The final amount depends on stage, scope, and fit. We share a clear number on the demo — nothing is charged until you agree.",
@@ -3571,6 +3723,10 @@
     "defaultMessage": "Processing speech",
     "description": "Accessible label for the speech input button while transcribing audio"
   },
+  "7HLNE1VQKG": {
+    "defaultMessage": "Translate your subtitles. Refine each line in context, and keep every word in time with your story.",
+    "description": "Body for the video format panel"
+  },
   "7Hd4+o+eaU": {
     "defaultMessage": "Search issues…",
     "description": "Placeholder for the issue search input in the relationship picker"
@@ -3610,6 +3766,10 @@
   "7OOuogoYcn": {
     "defaultMessage": "Show less",
     "description": "Button label to collapse secondary job properties"
+  },
+  "7PBZ6NZm7K": {
+    "defaultMessage": "Bring your content and your team into one studio.",
+    "description": "Bottom CTA body on the multilingual Content Studio product page"
   },
   "7QPFtqQQDE": {
     "defaultMessage": "Free",
@@ -3691,6 +3851,10 @@
     "defaultMessage": "{count, plural, one {# missing} other {# missing}}",
     "description": "Locale readiness summary segment for missing or stale locales"
   },
+  "7eizbN+V+O": {
+    "defaultMessage": "Ask to check another line against the connected files",
+    "description": "Placeholder in the guidelines board composer after send"
+  },
   "7gM4E5eO9R": {
     "defaultMessage": "Rename column",
     "description": "Title for rename issue column dialog"
@@ -3735,6 +3899,10 @@
     "defaultMessage": "Grouped rows will expand after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
     "description": "Disable grouping confirmation description"
   },
+  "7qG8V9eHbJ": {
+    "defaultMessage": "Show file activity",
+    "description": "Accessible label for the file editor activity log button"
+  },
   "7qHTh1/iSP": {
     "defaultMessage": "Failed to create translation job",
     "description": "Fallback error when a native translation job fails to create"
@@ -3770,6 +3938,14 @@
   "7sxlGNyze6": {
     "defaultMessage": "Agent Automations",
     "description": "Automation editor mock section eyebrow"
+  },
+  "7t3FQ5TrY6": {
+    "defaultMessage": "Legal · 6 pages · Connected",
+    "description": "Example Drive file detail in the source preview"
+  },
+  "7tPiM+8vOJ": {
+    "defaultMessage": "Applied to this draft",
+    "description": "Status on the campaign context mock card"
   },
   "7u4XqrtDZ0": {
     "defaultMessage": "Translation Memory Exported",
@@ -3831,9 +4007,21 @@
     "defaultMessage": "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request.",
     "description": "Problem pain point 2 for the product-localisation use case"
   },
+  "82QjeMOgLE": {
+    "defaultMessage": "Running",
+    "description": "Status label for a queued or running job on project overview"
+  },
   "82drjDfpox": {
     "defaultMessage": "Select issue {title}",
     "description": "Accessible label for selecting an issue row for bulk actions"
+  },
+  "82yO8++nrp": {
+    "defaultMessage": "Bring every part of your story into one workspace, with an editing experience that fits the format.",
+    "description": "Body copy for the Content Studio formats section"
+  },
+  "83cJ0Qff+x": {
+    "defaultMessage": "{index} / Headline selected",
+    "description": "Selected layer status in the image format mock"
   },
   "85veKzf/Q7": {
     "defaultMessage": "Open Files for coverage, or create a job when you are ready.",
@@ -3923,9 +4111,17 @@
     "defaultMessage": "Free",
     "description": "Schema.org offer category indicating a free tier on the marketing homepage"
   },
+  "8GHZDPEhIo": {
+    "defaultMessage": "Multilingual Content Studio | Hyperlocalise",
+    "description": "Page title for the multilingual Content Studio product page"
+  },
   "8Gb40LZzb8": {
     "defaultMessage": "That branch pattern is already listed.",
     "description": "Validation error when adding a duplicate branch pattern"
+  },
+  "8H9U3m6U34": {
+    "defaultMessage": "Tools, auth, and permissions for Claude, Codex, and Cursor agents.",
+    "description": "Developer resources link description for the hosted MCP server docs"
   },
   "8HFDJwATIe": {
     "defaultMessage": "No microphone found.",
@@ -4038,6 +4234,10 @@
   "8Y+UNS2n64": {
     "defaultMessage": "Working as a Localisation Engineer at Canva — a product used by millions around the world — Minh saw firsthand that localisation wasn't simply about translating software. It was one of the highest-leverage investments a company could make. Every new language unlocked new customers, stronger engagement, and deeper trust. More importantly, it allowed people to use technology in a language and culture that felt like home.",
     "description": "Second paragraph of the founders note on the company page"
+  },
+  "8YTMjuiNpw": {
+    "defaultMessage": "Read Queries issues for the selected project during this automation.",
+    "description": "Description for the List issues automation tool"
   },
   "8YwlZNuV6a": {
     "defaultMessage": "Bearer token",
@@ -4155,6 +4355,10 @@
     "defaultMessage": "Edit options",
     "description": "Button to edit select options for an issue column"
   },
+  "8nvnmIvxt+": {
+    "defaultMessage": "France · Conversational, use “vous”.",
+    "description": "Market context example in the campaign context mock"
+  },
   "8pW28B/viJ": {
     "defaultMessage": "Remove Contentful translate",
     "description": "Accessible label to remove the Contentful translate tool"
@@ -4166,6 +4370,10 @@
   "8qa1pUW6eX": {
     "defaultMessage": "Account",
     "description": "Account settings link in the user menu"
+  },
+  "8qg+o4BfKa": {
+    "defaultMessage": "Brand-claims-policy.pdf · Google Drive",
+    "description": "Guideline file on the daily compliance audit mock card"
   },
   "8qtlRUPEdv": {
     "defaultMessage": "English",
@@ -4199,6 +4407,10 @@
     "defaultMessage": "Settings",
     "description": "Settings tab label in the marketing automation editor mock"
   },
+  "8ubp0pkM3E": {
+    "defaultMessage": "Keep them in Drive",
+    "description": "Proof point 1 title for the Guidelines product page"
+  },
   "8uzShqQtyV": {
     "defaultMessage": "Guidelines",
     "description": "Marketing homepage guidelines"
@@ -4231,6 +4443,10 @@
     "defaultMessage": "Leave a comment…",
     "description": "Placeholder for the top-level issue comment composer"
   },
+  "8xWtqhNe5Z": {
+    "defaultMessage": "Subtitles",
+    "description": "Label for the video format mock subtitle panel"
+  },
   "8y3Le4FJl2": {
     "defaultMessage": "Regenerate token",
     "description": "Regenerate Canva connection token button"
@@ -4242,6 +4458,10 @@
   "8yfcbh9AO6": {
     "defaultMessage": "For teams running localisation in production every week.",
     "description": "Growth plan description on the pricing page"
+  },
+  "8zHJojmnLS": {
+    "defaultMessage": "It reads the connected file, cites the clause, and flags the line that breaks it—so a reviewer can open the PDF instead of re-explaining the rule.",
+    "description": "Guidelines FAQ answer about agent flags"
   },
   "9/2rO3b/i4": {
     "defaultMessage": "Site owner note",
@@ -4270,6 +4490,10 @@
   "93RU1YIXH5": {
     "defaultMessage": "This source file is not in the project file list anymore.",
     "description": "Empty state when the requested CAT source file is missing from the project"
+  },
+  "93i6HvwXyA": {
+    "defaultMessage": "{count, plural, one {# translatable string in total} other {# translatable strings in total}}",
+    "description": "Total translatable string count in an expanded locale row"
   },
   "94S5baAyIV": {
     "defaultMessage": "Failed to update workspace",
@@ -4351,6 +4575,10 @@
     "defaultMessage": "No glossaries match your search. <clear>Clear search</clear>",
     "description": "Empty search state for glossaries, with a clear-search action"
   },
+  "9Hmj8F68fv": {
+    "defaultMessage": "Keep policy in SharePoint",
+    "description": "Proof point 3 title for the Guidelines product page"
+  },
   "9I//qXyS2N": {
     "defaultMessage": "Copy",
     "description": "Tooltip and aria label for copying snippet text"
@@ -4383,13 +4611,13 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after terminal output is copied to the clipboard"
   },
+  "9LD3POhUor": {
+    "defaultMessage": "Your story.\nThe same impact.",
+    "description": "Title for the slides format panel"
+  },
   "9LcPjakBL/": {
     "defaultMessage": "2 integrations",
     "description": "Free plan feature: integration limit"
-  },
-  "9OS3Rz0crI": {
-    "defaultMessage": "Route the review",
-    "description": "Proof point 2 title for the agents automation product page"
   },
   "9Pt2hFyO/v": {
     "defaultMessage": "Skipped",
@@ -4398,6 +4626,10 @@
   "9QLXCOIwOa": {
     "defaultMessage": "API keys",
     "description": "API keys settings page heading"
+  },
+  "9QrrRor3/1": {
+    "defaultMessage": "It runs in every language",
+    "description": "Proof point 2 title for the agents automation product page"
   },
   "9RkSMcYnN2": {
     "defaultMessage": "File context",
@@ -4490,6 +4722,10 @@
   "9crjwN89e0": {
     "defaultMessage": "Failed to load files.",
     "description": "Fallback error when project files fail without a detailed message"
+  },
+  "9d14HnH3r+": {
+    "defaultMessage": "approved a string",
+    "description": "Action for a string approval activity"
   },
   "9glYgHRgqB": {
     "defaultMessage": "Integrations",
@@ -4590,6 +4826,10 @@
   "9w0U+WoX/B": {
     "defaultMessage": "Route to marketing and legal reviewers",
     "description": "Workflow step 4 description for the marketing-localisation use case"
+  },
+  "9wRo7aY8DU": {
+    "defaultMessage": "View Queries",
+    "description": "Link from overview Queries to the issues page"
   },
   "9wiaS9Svb/": {
     "defaultMessage": "Regression checks run manually — or not at all — before major releases.",
@@ -4783,6 +5023,10 @@
     "defaultMessage": "Task type",
     "description": "Label for the job task type select"
   },
+  "AJII/bEV+O": {
+    "defaultMessage": "Failed to add to Queries",
+    "description": "Fallback error when creating a Queries row from CAT fails"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "Needs attention ({count})",
     "description": "Heading for failed localisation audit criteria"
@@ -4850,10 +5094,6 @@
   "AWCVIFfr/k": {
     "defaultMessage": "Enter a whole number from 1 to 100,000.",
     "description": "Validation error when the max length input is not a positive integer"
-  },
-  "AWZymO5ooC": {
-    "defaultMessage": "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
-    "description": "Page title for the agents automation product page"
   },
   "AXQ2DriknB": {
     "defaultMessage": "Delete",
@@ -5099,10 +5339,6 @@
     "defaultMessage": "Add Google Drive",
     "description": "Button to add knowledge from Google Drive"
   },
-  "BCjjJI52jI": {
-    "defaultMessage": "Close the loop",
-    "description": "Proof point 3 title for the agents automation product page"
-  },
   "BCsSQdOvtG": {
     "defaultMessage": "View integrations",
     "description": "Permission row for viewing integrations"
@@ -5118,6 +5354,10 @@
   "BGQKZth3v0": {
     "defaultMessage": "String editing is only available for supported provider task files.",
     "description": "Empty state when the selected provider file cannot open in CAT"
+  },
+  "BGZhnA5Bkq": {
+    "defaultMessage": "{count, plural, one {# translatable word in total} other {# translatable words in total}}",
+    "description": "Total translatable word count in an expanded locale row"
   },
   "BGfQ06k8Pb": {
     "defaultMessage": "Failed to look up repository context.",
@@ -5138,6 +5378,10 @@
   "BJVuvQezV6": {
     "defaultMessage": "Unable to assign project",
     "description": "Fallback error when assigning a project to a translation memory fails"
+  },
+  "BJpPKh03Ub": {
+    "defaultMessage": "Guidelines",
+    "description": "Link from Content Studio to the Guidelines product page"
   },
   "BK7MTjV8FM": {
     "defaultMessage": "Integration",
@@ -5183,6 +5427,10 @@
     "defaultMessage": "Show passed audits",
     "description": "Control to expand passed localisation audit criteria"
   },
+  "BTimRLPa1I": {
+    "defaultMessage": "Where your guidelines already live",
+    "description": "Eyebrow for the Guidelines sources section"
+  },
   "BUGP6fk/PM": {
     "defaultMessage": "In review",
     "description": "Label for in-review string count in visual editor progress"
@@ -5198,6 +5446,10 @@
   "BUv0z8Fa04": {
     "defaultMessage": "Previous",
     "description": "Button to go to the previous page of glossaries"
+  },
+  "BVHeBhvF9c": {
+    "defaultMessage": "PDF · 6 pages · Legal",
+    "description": "Google Drive file metadata on the guidelines board"
   },
   "BVsezPmDFQ": {
     "defaultMessage": "Enter provider API token",
@@ -5263,6 +5515,10 @@
     "defaultMessage": "Allow memory updates",
     "description": "Toggle label letting this automation append to organization Memory.md"
   },
+  "BfavHio26Z": {
+    "defaultMessage": "unlocked a string",
+    "description": "Action for an unlocked string activity"
+  },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
@@ -5299,6 +5555,10 @@
     "defaultMessage": "Remove from team...",
     "description": "Menu item to remove a member from the team"
   },
+  "BkbHzcKWkt": {
+    "defaultMessage": "{locale} translation progress",
+    "description": "Accessible label for a locale translation progress bar"
+  },
   "BkcBYxLJtW": {
     "defaultMessage": "Key",
     "description": "Column header for translation keys in the source strings preview table"
@@ -5306,6 +5566,10 @@
   "BlBj/2poZ0": {
     "defaultMessage": "Unable to update columns",
     "description": "Toast when an issue column mutation fails"
+  },
+  "BlXinWb00f": {
+    "defaultMessage": "Set up the workflow. Watch the next campaign follow it.",
+    "description": "Bottom CTA headline for the agents automation product page"
   },
   "Bn0C5KWma3": {
     "defaultMessage": "Connect GitHub in Integrations to choose repositories.",
@@ -5447,9 +5711,9 @@
     "defaultMessage": "Target locale",
     "description": "Label for the target locale filter"
   },
-  "0PhWie0NMV": {
+  "C5PXkfW5jk": {
     "defaultMessage": "Queries",
-    "description": "Workspace Queries page title"
+    "description": "Button to open Queries for the current CAT segment"
   },
   "C5fqvIk+YX": {
     "defaultMessage": "Old",
@@ -5498,10 +5762,6 @@
   "CBECdPWm0s": {
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
-  },
-  "8YTMjuiNpw": {
-    "defaultMessage": "Read Queries issues for the selected project during this automation.",
-    "description": "Description for the List issues automation tool"
   },
   "CCHRUS19n3": {
     "defaultMessage": "No categories found.",
@@ -5567,6 +5827,10 @@
     "defaultMessage": "Remove Ahrefs tool",
     "description": "Accessible label to remove the Ahrefs tool"
   },
+  "CNPbYe/F7H": {
+    "defaultMessage": "In review",
+    "description": "In-review status in the language review mock"
+  },
   "CP+VovcJDY": {
     "defaultMessage": "Cancel",
     "description": "Button that closes the global guidance save dialog"
@@ -5582,6 +5846,10 @@
   "CQCxmYWm3f": {
     "defaultMessage": "Update connection",
     "description": "Save button label when editing an existing Contentful connection"
+  },
+  "CQEmCrymE3": {
+    "defaultMessage": "Brand-claims-policy.pdf",
+    "description": "Google Drive PDF filename on the guidelines board"
   },
   "CR4EdyZSZI": {
     "defaultMessage": "Who is eligible?",
@@ -5599,6 +5867,10 @@
     "defaultMessage": "Delete",
     "description": "Delete Semrush connection button"
   },
+  "CSpuSDILYV": {
+    "defaultMessage": "How do Guidelines work with Content Studio?",
+    "description": "Guidelines FAQ question about Content Studio"
+  },
   "CT9/X7v9OM": {
     "defaultMessage": "Link",
     "description": "Bubble menu button to add or remove a hyperlink"
@@ -5615,6 +5887,14 @@
     "defaultMessage": "Review hours",
     "description": "Reports mock UI review hours metric label"
   },
+  "CX0QAoWQz1": {
+    "defaultMessage": "Keep every draft aligned\nwith your content standards.",
+    "description": "Headline for the Content Studio context section"
+  },
+  "CXZaVZ1tZ8": {
+    "defaultMessage": "Two flags still open on this draft",
+    "description": "Status row value in the attached guidelines mock"
+  },
   "CXxeX4tNjR": {
     "defaultMessage": "Push source",
     "description": "Toggle label for the push source GitHub sync workflow"
@@ -5622,6 +5902,14 @@
   "CYGau9cDQe": {
     "defaultMessage": "The best agentic localisation platform",
     "description": "Open Graph fallback description for unknown pages"
+  },
+  "CbRYAHGDV4": {
+    "defaultMessage": "Brand-voice PDFs, claims policies, Notion market notes, SharePoint disclosure libraries, and guidelines you type in Hyperlocalise.",
+    "description": "Guidelines FAQ answer about file types"
+  },
+  "CbuvPB6HCw": {
+    "defaultMessage": "Approved",
+    "description": "Progress table row label for approved work"
   },
   "CcgTbDz1bK": {
     "defaultMessage": "Accrued spend",
@@ -5727,6 +6015,10 @@
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise avatar in the review PR illustration"
   },
+  "CrdjVes1wn": {
+    "defaultMessage": "No activity yet",
+    "description": "Empty state title for the file editor activity dialog"
+  },
   "Crp/piiRbB": {
     "defaultMessage": "Send a transactional email through Resend or SendGrid.",
     "description": "Catalog description for the notify email action node"
@@ -5783,9 +6075,9 @@
     "defaultMessage": "This Canva connect request is missing or expired.",
     "description": "Error when a Canva claim id is missing"
   },
-  "1LT7IofQ2x": {
-    "defaultMessage": "Choose which project should receive the imported Queries rows.",
-    "description": "Description of the workspace issues CSV import project picker dialog"
+  "D2D16fgUkP": {
+    "defaultMessage": "Close",
+    "description": "Accessible label to close the guidelines board chat"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers",
@@ -5802,6 +6094,10 @@
   "D3q/aG4RpR": {
     "defaultMessage": "Put repetitive global content work on autopilot so your team ships to more markets, faster.",
     "description": "Feature teaser page description for workspace automations"
+  },
+  "D4SMVMIcIp": {
+    "defaultMessage": "changed a string status",
+    "description": "Action for a string status change activity"
   },
   "D622LHuyX8": {
     "defaultMessage": "Mark all as read",
@@ -6039,6 +6335,10 @@
     "defaultMessage": "Website",
     "description": "External link label to an integration vendor website"
   },
+  "DbGIc4sGDx": {
+    "defaultMessage": "Legal keeps\nthe library.",
+    "description": "Title for the SharePoint source panel"
+  },
   "DbP96xw9zS": {
     "defaultMessage": "Live API",
     "description": "Badge for a glossary backed by a live provider API"
@@ -6091,6 +6391,10 @@
     "defaultMessage": "Could not create a workflow.",
     "description": "Toast when visual workflow creation fails"
   },
+  "Dn9lhDiLkD": {
+    "defaultMessage": "Your story.\nIn sync everywhere.",
+    "description": "Title for the video format panel"
+  },
   "Dnd66cVwTk": {
     "defaultMessage": "Run regression evals before sync and release",
     "description": "Capability 3 title for the localisation-quality-monitoring use case"
@@ -6106,6 +6410,10 @@
   "DqaqeEsPck": {
     "defaultMessage": "Catch translation drift before your customers do",
     "description": "Hero headline for the localisation-quality-monitoring use case"
+  },
+  "Dr6q7soTm3": {
+    "defaultMessage": "Review this German launch line",
+    "description": "Suggestion button in the guidelines board chat"
   },
   "DsCAD1RMQU": {
     "defaultMessage": "Actor",
@@ -6179,6 +6487,10 @@
     "defaultMessage": "{actor} marked this as no longer blocked by {relatedIssue}",
     "description": "Activity line when a blocked-by relationship is removed"
   },
+  "E+gsjwOkn+": {
+    "defaultMessage": "Keep notes in Notion",
+    "description": "Proof point 2 title for the Guidelines product page"
+  },
   "E+sPOppKGh": {
     "defaultMessage": "Remove {filename}",
     "description": "Accessible label to delete one knowledge file"
@@ -6242,10 +6554,6 @@
   "E7wP6qIlhP": {
     "defaultMessage": "Failed to start agent run",
     "description": "Toast and error fallback when starting an agent run fails"
-  },
-  "sqEo4EAhoy": {
-    "defaultMessage": "Close Queries",
-    "description": "Accessible label for closing the CAT Queries panel"
   },
   "E8rEmEqTpX": {
     "defaultMessage": "Resolving…",
@@ -6535,6 +6843,10 @@
     "defaultMessage": "No related variants.",
     "description": "Empty state when a translation memory entry has no related variants"
   },
+  "Eu5Sh1lJHw": {
+    "defaultMessage": "Export subtitles",
+    "description": "Export action in the video format mock"
+  },
   "Euo1Muino3": {
     "defaultMessage": "Orchestrate localisation across TMS platforms, LLM providers, vendors, and reviewers. One workflow layer for localisation managers without replacing your stack.",
     "description": "Meta description for the localisation-operations use case"
@@ -6602,6 +6914,10 @@
   "F25y8G/ydQ": {
     "defaultMessage": "All",
     "description": "Tab to show all project sources"
+  },
+  "F2Mfo5rtgk": {
+    "defaultMessage": "Create and adapt text, documents, slides, images, and video in one shared multilingual workspace—so every format in a campaign stays together.",
+    "description": "Content Studio FAQ answer about supported formats"
   },
   "F3gTJhCvdi": {
     "defaultMessage": "Localise",
@@ -6775,6 +7091,10 @@
     "defaultMessage": "Your role cannot resolve issues in the provider.",
     "description": "Error when the user tries to resolve an issue without write permission"
   },
+  "FNmh/WsutT": {
+    "defaultMessage": "Failed",
+    "description": "Status label for a failed job on project overview"
+  },
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned",
     "description": "Issue list assignee filter option for issues with no assignee"
@@ -6879,6 +7199,10 @@
     "defaultMessage": "Context",
     "description": "App shell breadcrumb title for a project context section"
   },
+  "FkOEgV248R": {
+    "defaultMessage": "Leave brand PDFs, market notes, and policy libraries where legal and brand already keep them. Or type a guideline in Hyperlocalise. Agents read either one.",
+    "description": "Body copy for the Guidelines sources section"
+  },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation",
     "description": "Job kind label for translation jobs"
@@ -6979,10 +7303,6 @@
     "defaultMessage": "{actor} related this to {relatedIssue}",
     "description": "Activity line when a related-issue relationship is added"
   },
-  "G1is+5n2E6": {
-    "defaultMessage": "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
-    "description": "Meta description for the self-evolving knowledge product page"
-  },
   "G2WzhHiN3d": {
     "defaultMessage": "{requestedLocale} is not a target locale for this file. Opening {targetLocale} instead.",
     "description": "Warning toast when CAT opens a fallback target locale"
@@ -7022,6 +7342,10 @@
   "G8YOSjr1Lc": {
     "defaultMessage": "Yes. MCP gives compatible AI assistants access to Hyperlocalise capabilities, bringing content operations into your existing AI workspace.",
     "description": "Homepage FAQ answer about platform topic 8"
+  },
+  "G94O+ZUEet": {
+    "defaultMessage": "Leave the guidelines where they are.\nLet agents read them.",
+    "description": "Bottom CTA headline on the Guidelines product page"
   },
   "G9IH7mtmIb": {
     "defaultMessage": "Codex",
@@ -7243,6 +7567,10 @@
     "defaultMessage": "Users",
     "description": "Section header for people in the @ mention popover"
   },
+  "GqjLAPYWZT": {
+    "defaultMessage": "List issues",
+    "description": "Menu item and tool title for listing Queries issues"
+  },
   "Gs4Pgl/iTx": {
     "defaultMessage": "Optional. Extra localisation review instructions for this workspace.",
     "description": "Placeholder for the Auto-review additional prompt textarea"
@@ -7250,10 +7578,6 @@
   "Gsz+RNFKoM": {
     "defaultMessage": "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
     "description": "Description for GitHub comment notifications when GitHub is not connected"
-  },
-  "GuBuwlp/SU": {
-    "defaultMessage": "Stop repeating the same localisation feedback",
-    "description": "Hero headline for the self-evolving knowledge product page"
   },
   "GuEU+qQCHt": {
     "defaultMessage": "Overwrite targets",
@@ -7403,9 +7727,17 @@
     "defaultMessage": "Build deterministic automation graphs with triggers, actions, and branching.",
     "description": "Description for the visual workflows list page"
   },
+  "H9XcqBCX7n": {
+    "defaultMessage": "How do we keep our brand voice consistent?",
+    "description": "Content Studio FAQ question about brand voice"
+  },
   "HA9fSDFTe4": {
     "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly.",
     "description": "Success body after the agent commits the PR fix, wrapping code examples"
+  },
+  "HAcQZdyjXj": {
+    "defaultMessage": "Strings",
+    "description": "Activity log event type group for string segments"
   },
   "HCHtNgw+mH": {
     "defaultMessage": "—",
@@ -7559,10 +7891,6 @@
     "defaultMessage": "From",
     "description": "Translation reporting label"
   },
-  "+gp2sOH/Py": {
-    "defaultMessage": "Request failed",
-    "description": "Generic fallback when a CAT Queries API request fails"
-  },
   "Hl4y/YDhod": {
     "defaultMessage": "Knowledge files must be 25 MB or smaller.",
     "description": "Toast when a knowledge file exceeds the size limit"
@@ -7602,10 +7930,6 @@
   "HrQO2GGbYJ": {
     "defaultMessage": "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
     "description": "Projects page description when no TMS provider is connected"
-  },
-  "LThxvPehnJ": {
-    "defaultMessage": "Open Queries",
-    "description": "Accessible label for the Queries button in the app shell footer"
   },
   "Hs6SYEddPH": {
     "defaultMessage": "Target locale",
@@ -7691,6 +8015,10 @@
     "defaultMessage": "Last output",
     "description": "Heading for inline node output inspector"
   },
+  "I4iH2T3OLx": {
+    "defaultMessage": "Google Drive",
+    "description": "Guidelines source tab for Google Drive"
+  },
   "I5EnnRppoI": {
     "defaultMessage": "Automations",
     "description": "App shell breadcrumb title for the automations page"
@@ -7771,6 +8099,10 @@
     "defaultMessage": "Assignee change",
     "description": "Short label for assignee-change notification type icon in the inbox list"
   },
+  "IIohVs/IF0": {
+    "defaultMessage": "Brand-claims-policy.pdf",
+    "description": "File row value in the attached guidelines mock"
+  },
   "IJ657tMK8/": {
     "defaultMessage": "Agent proposal",
     "description": "Column heading for the agent-proposed target text"
@@ -7835,6 +8167,10 @@
     "defaultMessage": "Import entries",
     "description": "Button to confirm a translation memory import after preview"
   },
+  "IUbDcw9z2P": {
+    "defaultMessage": "Create the workflow",
+    "description": "Proof point 1 title for the agents automation product page"
+  },
   "IVA7S1Pi6e": {
     "defaultMessage": "Recipients",
     "description": "Label for recipients on notify email node"
@@ -7847,9 +8183,17 @@
     "defaultMessage": "Thought for a few seconds",
     "description": "Label when reasoning completed without a measured duration"
   },
+  "IW6zsfvtOy": {
+    "defaultMessage": "\"einzigartige\" is blocked by clause 3.2.",
+    "description": "First compliance flag body"
+  },
   "IWQH2bHvzr": {
     "defaultMessage": "No MCP servers connected yet.",
     "description": "Empty state when no MCP server connections exist"
+  },
+  "IaGMAEBgFR": {
+    "defaultMessage": "Brand-voice and claims PDFs stay in Google Drive. Agents cite the clause when they flag a draft.",
+    "description": "Proof point 1 body for the Guidelines product page"
   },
   "IarSQrZ6vP": {
     "defaultMessage": "Copy value",
@@ -7870,6 +8214,10 @@
   "Icd4dfBmnK": {
     "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
     "description": "Bottom CTA description for the next-gen CAT tool product page"
+  },
+  "IdXW81ey7i": {
+    "defaultMessage": "02 Read the file",
+    "description": "Guidelines workflow step 2"
   },
   "IdceAsRVCE": {
     "defaultMessage": "Delete this term?",
@@ -7895,6 +8243,10 @@
     "defaultMessage": "Hyperlocalise Agent",
     "description": "Section heading for Hyperlocalise Agent capability model settings"
   },
+  "IigPo0Yd+k": {
+    "defaultMessage": "Actions",
+    "description": "Projects list actionsLabel"
+  },
   "IiixLmh3Z0": {
     "defaultMessage": "Filter by creator",
     "description": "Button that applies the current entry creator as a filter"
@@ -7902,6 +8254,10 @@
   "Ik3lLiqJti": {
     "defaultMessage": "Double-click a file or use Open Editor to edit {targetLocale}.",
     "description": "Hint explaining how to open the selected file in the Content Editor"
+  },
+  "IkCkDVLrow": {
+    "defaultMessage": "Market context",
+    "description": "Market context row label in the campaign context mock"
   },
   "IksPpT37Wn": {
     "defaultMessage": "{count} open",
@@ -8027,10 +8383,6 @@
     "defaultMessage": "Contentful webhook registered",
     "description": "Toast title when a Contentful webhook is created"
   },
-  "IyzX73LnS8": {
-    "defaultMessage": "Self-evolving Knowledge",
-    "description": "Knowledge mock UI eyebrow label"
-  },
   "J/94oLjLEp": {
     "defaultMessage": "The API base URL is saved for this workspace. Each member connects with their own Crowdin personal access token—no OAuth app required.",
     "description": "Status description when Crowdin PAT mode is configured"
@@ -8042,10 +8394,6 @@
   "J210+x7u6p": {
     "defaultMessage": "Web chat",
     "description": "Trigger label for a web chat automation in the list"
-  },
-  "21DxEHM2/g": {
-    "defaultMessage": "Open Queries, {count} open",
-    "description": "Accessible label for the Queries button when open issues are available"
   },
   "J4PtC/cy7o": {
     "defaultMessage": "Type",
@@ -8067,13 +8415,13 @@
     "defaultMessage": "Select channel",
     "description": "Placeholder when no Slack channel is selected"
   },
+  "J7cTAVBjzv": {
+    "defaultMessage": "Language",
+    "description": "Label for the language selector in the webpage preview"
+  },
   "J7hBoTRR5O": {
     "defaultMessage": "Improve SEO and AEO discoverability across markets",
     "description": "Feature teaser benefit for domains"
-  },
-  "MsQL5pndXv": {
-    "defaultMessage": "Choose whether Inbox updates for Queries issues are also delivered to your email.",
-    "description": "Helper text under notification preferences on account settings"
   },
   "J9N0QX7lou": {
     "defaultMessage": "{value} {unit}",
@@ -8106,6 +8454,14 @@
   "JBzesbmAoL": {
     "defaultMessage": "Slug",
     "description": "Teams table column header for team slug"
+  },
+  "JC6yhq1JP6": {
+    "defaultMessage": "SharePoint",
+    "description": "SharePoint source name on the guidelines board"
+  },
+  "JCbR6p89qW": {
+    "defaultMessage": "Leave brand PDFs, market notes, and policy libraries where they live, or type guidelines in. Agents flag what does not match.",
+    "description": "Marketing homepage guidelinesBody"
   },
   "JERGbk68rN": {
     "defaultMessage": "Copy source",
@@ -8155,6 +8511,10 @@
     "defaultMessage": "Native",
     "description": "Project source label when the project is a native Hyperlocalise project"
   },
+  "JNXXTToFFQ": {
+    "defaultMessage": "Multilingual Content Studio",
+    "description": "Navigation label for the multilingual Content Studio product page"
+  },
   "JO5M8qgbCX": {
     "defaultMessage": "Upload a UTF-8 CSV file",
     "description": "Toast when the selected file is not a CSV"
@@ -8175,10 +8535,6 @@
     "defaultMessage": "Intercom",
     "description": "Name shown for the Intercom integrations row"
   },
-  "W+Q3zuZLIK": {
-    "defaultMessage": "Triage localization issues for this project.",
-    "description": "Short section description for the project Queries page"
-  },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
     "description": "Live explore status when the agent is reading a named file"
@@ -8194,6 +8550,10 @@
   "JS3/JRN7Fy": {
     "defaultMessage": "Loading team...",
     "description": "Loading state for the team detail page"
+  },
+  "JSHjNwtBB0": {
+    "defaultMessage": "Terminology",
+    "description": "Terminology row label in the campaign context mock"
   },
   "JSKKU7Lpex": {
     "defaultMessage": "Translator",
@@ -8214,6 +8574,10 @@
   "JXB2wuhw1Z": {
     "defaultMessage": "No issues for this string",
     "description": "Empty-state title when the CAT segment has no linked issues"
+  },
+  "JY9Ed02KEb": {
+    "defaultMessage": "Collapse",
+    "description": "Accessible label to collapse the guidelines board chat"
   },
   "JZdvnbrCrK": {
     "defaultMessage": "Translate",
@@ -8242,6 +8606,10 @@
   "JemgHUamHh": {
     "defaultMessage": "Unable to load terms",
     "description": "Fallback error when glossary terms fail to load"
+  },
+  "JfG/xfnGBv": {
+    "defaultMessage": "Or follow {link} to register an agent with AuthKit.",
+    "description": "Overview card link to the WorkOS agent registration skill document"
   },
   "JfbQQEL9oW": {
     "defaultMessage": "Set type",
@@ -8371,6 +8739,10 @@
     "defaultMessage": "No API keys yet",
     "description": "Empty state title when the workspace has no API keys"
   },
+  "K1TC/ecjoE": {
+    "defaultMessage": "Attach a connected file to a campaign or draft. Reviewers see the PDF or page beside the copy, and agent suggestions cite the same clauses.",
+    "description": "Guidelines FAQ answer about Content Studio"
+  },
   "K2qrpmrlsF": {
     "defaultMessage": "{minutes} min",
     "description": "Time spent on a comment when under one hour"
@@ -8419,13 +8791,13 @@
     "defaultMessage": "Give your automation a clear name so your team knows what it does at a glance.",
     "description": "Step 1 description"
   },
+  "KAvyqkZVul": {
+    "defaultMessage": "Add a project-specific workflow column to Queries.",
+    "description": "Description of the dialog to add a custom Queries column"
+  },
   "KC1mEy5GJx": {
     "defaultMessage": "Uploaded",
     "description": "Badge when a native project file has no latest job"
-  },
-  "C5PXkfW5jk": {
-    "defaultMessage": "Queries",
-    "description": "Button to open Queries for the current CAT segment"
   },
   "KCMz//p+DR": {
     "defaultMessage": "Web chat",
@@ -8455,9 +8827,17 @@
     "defaultMessage": "Board",
     "description": "Button label to show jobs as a kanban board"
   },
+  "KGbU+pSYaa": {
+    "defaultMessage": "Developer resources",
+    "description": "Overview section title for developer documentation links"
+  },
   "KHXRS/XkKV": {
     "defaultMessage": "Included on Growth and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
     "description": "Supporting copy under the AI features heading on the pricing page"
+  },
+  "KHhslFYk0s": {
+    "defaultMessage": "Preferred · keep in every language",
+    "description": "Note for preferred glossary term in editor mock footer panel"
   },
   "KHmNU2OTMW": {
     "defaultMessage": "localization",
@@ -8531,10 +8911,6 @@
     "defaultMessage": "HTTP",
     "description": "MCP transport option: streamable HTTP"
   },
-  "KYKSoue+Dr": {
-    "defaultMessage": "In progress",
-    "description": "Status label for queued or running jobs in triage"
-  },
   "KYOkDtqOsb": {
     "defaultMessage": "Select locale",
     "description": "Placeholder for the issue locale picker"
@@ -8550,6 +8926,10 @@
   "Ka+dKs8Zz9": {
     "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
     "description": "CTA section description for the github-release-localisation use case"
+  },
+  "KaF5SxLR8X": {
+    "defaultMessage": "GTM wiki · Updated this week",
+    "description": "Example Notion page detail in the source preview"
   },
   "KaiqOsFp5/": {
     "defaultMessage": "Built by people who believe localisation connects the world",
@@ -8631,10 +9011,6 @@
     "defaultMessage": "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
     "description": "Lokalise TMS integration description on the integrations page"
   },
-  "Ktkp7Xxut2": {
-    "defaultMessage": "Self-evolving Knowledge",
-    "description": "Navigation label for the self-evolving knowledge product page"
-  },
   "Kua+B+Kq3s": {
     "defaultMessage": "—",
     "description": "Placeholder shown when a source string has no context"
@@ -8650,6 +9026,10 @@
   "Kw73KEGJmb": {
     "defaultMessage": "No matching people or issues",
     "description": "Empty state when @ mention filter matches nothing"
+  },
+  "KwEv4D6hGN": {
+    "defaultMessage": "From wiki pages to agent context",
+    "description": "Supporting link line for the Notion source panel"
   },
   "KwXDYK7tXX": {
     "defaultMessage": "Unable to create the team glossary",
@@ -8686,6 +9066,10 @@
   "L/LTF1REU5": {
     "defaultMessage": "Research keywords, localise drafts, and write to CMS on schedule.",
     "description": "Workflow description for SEO template in content ops flow mock"
+  },
+  "L09pgcuANE": {
+    "defaultMessage": "04 Ship",
+    "description": "Guidelines workflow step 4"
   },
   "L0cbBkfUu2": {
     "defaultMessage": "Label",
@@ -8742,6 +9126,10 @@
   "LCZuQN14MY": {
     "defaultMessage": "Publish localized campaigns and landing pages across markets",
     "description": "Automations mock UI GTM content publishing use case description"
+  },
+  "LCaZaBXgAV": {
+    "defaultMessage": "unhid a string",
+    "description": "Action for an unhidden string activity"
   },
   "LCvdY0etjh": {
     "defaultMessage": "Leave blank for Crowdin.com. For Crowdin Enterprise, use your organization API URL including /api/v2, for example https://yourorg.api.crowdin.com/api/v2. A trailing slash is optional.",
@@ -8835,6 +9223,10 @@
     "defaultMessage": "Account",
     "description": "Account settings page heading"
   },
+  "LThxvPehnJ": {
+    "defaultMessage": "Open Queries",
+    "description": "Accessible label for the Queries button in the app shell footer"
+  },
   "LTjIAI6GQC": {
     "defaultMessage": "Open",
     "description": "Issue Sheet status option when an issue is open"
@@ -8842,6 +9234,10 @@
   "LURuzj5+No": {
     "defaultMessage": "Failed to load provider data.",
     "description": "Generic error heading when TMS provider data fails to load"
+  },
+  "LW2UZg0KZP": {
+    "defaultMessage": "Can Automations audit the product and website every day?",
+    "description": "Guidelines FAQ question about daily Automations audits"
   },
   "LW8iVMYvaG": {
     "defaultMessage": "Cancel at period end if you need to leave.",
@@ -8895,6 +9291,10 @@
     "defaultMessage": "Connect remote MCP servers for automation tools.",
     "description": "Description for the MCP server integrations row"
   },
+  "LguOyBNnte": {
+    "defaultMessage": "Guideline sources",
+    "description": "Accessible label for the Guidelines source tabs"
+  },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack",
     "description": "Automation product visual integration source name"
@@ -8902,6 +9302,10 @@
   "LhocbJWKLx": {
     "defaultMessage": "All providers",
     "description": "Provider filter option for all TMS providers"
+  },
+  "Lhr+5G4eBn": {
+    "defaultMessage": "locked a string",
+    "description": "Action for a locked string activity"
   },
   "Ljk3e3F6pc": {
     "defaultMessage": "Automate localisation checks in CI/CD. Detect string changes in pull requests, draft translations, and gate releases before bad translations reach production.",
@@ -9015,10 +9419,6 @@
     "defaultMessage": "Loading progress…",
     "description": "Metric and property value while locale readiness is loading"
   },
-  "9wRo7aY8DU": {
-    "defaultMessage": "View Queries",
-    "description": "Link from overview Queries to the issues page"
-  },
   "M/3YJiyMT3": {
     "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
     "description": "Meta description for the public localisation audit landing page"
@@ -9071,6 +9471,10 @@
     "defaultMessage": "Delete glossary",
     "description": "Button to delete the current glossary"
   },
+  "M7YWxB1rFS": {
+    "defaultMessage": "Visual Workflow",
+    "description": "Visual workflow playground section eyebrow"
+  },
   "M7pTNyMB/G": {
     "defaultMessage": "{count, plural, one {# proposal} other {# proposals}}",
     "description": "Count of reviewable proposals on an agent run"
@@ -9119,6 +9523,10 @@
     "defaultMessage": "Operations report",
     "description": "Workflow step 6 label for the localisation-operations use case"
   },
+  "MGO8MFzpRG": {
+    "defaultMessage": "Approved",
+    "description": "Approved review status in the language review mock"
+  },
   "MGTrrVsq/f": {
     "defaultMessage": "Reviewers",
     "description": "Knowledge mock UI memory item tag"
@@ -9147,6 +9555,10 @@
     "defaultMessage": "Back to integrations",
     "description": "Link back to the integrations page from repository automation"
   },
+  "ML8rZ08xO0": {
+    "defaultMessage": "Product meaning, screenshots, brand guidance, market notes, and issue history—so reviewers understand intent before they choose wording.",
+    "description": "Content Studio FAQ answer about reviewer context"
+  },
   "MMFb5MTldp": {
     "defaultMessage": "{open} open · {inProgress} in progress · {resolved} resolved",
     "description": "Issues summary line in content ops mock"
@@ -9167,10 +9579,6 @@
     "defaultMessage": "See all plans",
     "description": "Link to the available plans section from the plan usage dialog"
   },
-  "MOJri1ONT9": {
-    "defaultMessage": "Browse live {providerName} projects and manage Hyperlocalise workspace projects.",
-    "description": "Projects page description when a TMS provider is connected"
-  },
   "MOu/tPioP9": {
     "defaultMessage": "GitHub sync workflows",
     "description": "GitHub tool name"
@@ -9179,6 +9587,10 @@
     "defaultMessage": "Re-run audit",
     "description": "Button to re-run a completed localisation audit"
   },
+  "MPOlaJ9dCq": {
+    "defaultMessage": "Guidelines",
+    "description": "Knowledge mock UI eyebrow label"
+  },
   "MQ66vndy7a": {
     "defaultMessage": "Review ready for your team",
     "description": "Marketing homepage agentResult"
@@ -9186,10 +9598,6 @@
   "MQK2DQjTRa": {
     "defaultMessage": "Create: {label}",
     "description": "Mapping option to create a new Issue Sheet column from a CSV header"
-  },
-  "xpTr69QuG7": {
-    "defaultMessage": "Queries",
-    "description": "Overview section label for open Queries issues"
   },
   "MR3nUfsG07": {
     "defaultMessage": "manage",
@@ -9259,6 +9667,10 @@
     "defaultMessage": "Load more",
     "description": "Button to load more workspace issues"
   },
+  "MbppXfDsbM": {
+    "defaultMessage": "Queries is unavailable for this string.",
+    "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
+  },
   "McBaOEOgmY": {
     "defaultMessage": "Edit team",
     "description": "Title of the edit team dialog on the detail page"
@@ -9307,6 +9719,10 @@
     "defaultMessage": "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance.",
     "description": "Hero subheadline for the help-center-localisation use case"
   },
+  "MjeUyFbT8y": {
+    "defaultMessage": "Library · Compliance · 18 files",
+    "description": "SharePoint library metadata on the guidelines board"
+  },
   "Mk8D3Ht2wh": {
     "defaultMessage": "Payment button label too long · checkout.json",
     "description": "Issue row detail in content ops mock"
@@ -9330,6 +9746,14 @@
   "MmRAbYJJub": {
     "defaultMessage": "disabled an automation",
     "description": "Action for disabling an automation"
+  },
+  "MmdCe+3eSk": {
+    "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
+    "description": "Hero description for the Guidelines product page"
+  },
+  "MnuXzcJn6d": {
+    "defaultMessage": "{count} P1 on Queries",
+    "description": "Open issues metric subtitle showing P1 issue count on Queries"
   },
   "Mo34UnIccj": {
     "defaultMessage": "Branch pattern",
@@ -9366,6 +9790,10 @@
   "MsLC2ttSM5": {
     "defaultMessage": "Style guide",
     "description": "Accessible label for the project style guide editor"
+  },
+  "MsQL5pndXv": {
+    "defaultMessage": "Choose whether Inbox updates for Queries issues are also delivered to your email.",
+    "description": "Helper text under notification preferences on account settings"
   },
   "MsnNcIq3o0": {
     "defaultMessage": "Trigger",
@@ -9406,6 +9834,10 @@
   "MyhfQjH0sE": {
     "defaultMessage": "Active",
     "description": "Badge label when an automation is active"
+  },
+  "N/7JtE/mmo": {
+    "defaultMessage": "Launch globally",
+    "description": "Not recommended glossary term in editor mock footer panel"
   },
   "N/k3pDV14E": {
     "defaultMessage": "Remove member",
@@ -9495,6 +9927,10 @@
     "defaultMessage": "Succeeded",
     "description": "Automation run status badge for succeeded"
   },
+  "N9Db20xFJr": {
+    "defaultMessage": "Yes. Approved terminology and past translations surface as you work, so reviewers catch conflicts early instead of after content ships.",
+    "description": "Content Studio FAQ answer about TM and glossaries"
+  },
   "NBLnrSCLwC": {
     "defaultMessage": "Save provider",
     "description": "Button label to save a BYOK provider credential"
@@ -9567,6 +10003,10 @@
     "defaultMessage": "Due date",
     "description": "Detail row label for the job due date"
   },
+  "NP4duQIbJD": {
+    "defaultMessage": "Search languages",
+    "description": "Placeholder for filtering project locales by name or code"
+  },
   "NPcxGbshkv": {
     "defaultMessage": "Enable check run",
     "description": "Label for enabling GitHub status checks"
@@ -9594,6 +10034,10 @@
   "NUXNiXqQOj": {
     "defaultMessage": "Input tokens",
     "description": "Translation reporting label"
+  },
+  "NW1SDAit+W": {
+    "defaultMessage": "Checks",
+    "description": "Checks label on the daily compliance audit mock card"
   },
   "NW5w/HG5/G": {
     "defaultMessage": "Status",
@@ -9703,6 +10147,10 @@
     "defaultMessage": "Saving…",
     "description": "Save button label while TMS provider credentials are saving"
   },
+  "Njk9QnNzuI": {
+    "defaultMessage": "No open issues.",
+    "description": "Empty state for overview Queries issues"
+  },
   "Nk/Q6qJpTk": {
     "defaultMessage": "Launch tone",
     "description": "Format check label for launch tone in the hero CAT mock"
@@ -9739,6 +10187,10 @@
     "defaultMessage": "Brand guidelines applied",
     "description": "Marketing homepage contextApplied"
   },
+  "NtW3KnFblK": {
+    "defaultMessage": "String Status Changed",
+    "description": "Activity log event type label for string status changes"
+  },
   "NtZH3V1Cow": {
     "defaultMessage": "Start where launch work already happens",
     "description": "Feature card title for Slack and design-tool intake"
@@ -9746,6 +10198,10 @@
   "NtgimRwM7t": {
     "defaultMessage": "We're building Hyperlocalise with immense respect for the people behind localisation. They are often invisible to end users, yet their work helps millions of people access products, ideas, and opportunities across cultures every day.",
     "description": "Tenth paragraph of the founders note on the company page"
+  },
+  "NtrP9v6nQ4": {
+    "defaultMessage": "A–Z",
+    "description": "Button label to sort locales alphabetically"
   },
   "NuOuhehPIz": {
     "defaultMessage": "Leave blank for Phrase Cloud. For a custom Phrase TMS host, enter the full web API base URL, for example https://cloud.memsource.com/web.",
@@ -9766,6 +10222,10 @@
   "Nw/qZUdZvV": {
     "defaultMessage": "Owner note",
     "description": "Label for issue owner note field"
+  },
+  "NwknAq8TGX": {
+    "defaultMessage": "Live in Contentful or Webflow. A ping in Slack. Help articles in Intercom. Translations into Crowdin, Lokalise, Phrase, or Smartling if you still use them.",
+    "description": "Proof point 3 body for the agents automation product page"
   },
   "Nx+ZrjUtj2": {
     "defaultMessage": "Cancel",
@@ -9839,6 +10299,10 @@
     "defaultMessage": "Brief received · 4 markets, 12 assets",
     "description": "Automations mock UI GTM publishing step 1"
   },
+  "O5n4exVoSO": {
+    "defaultMessage": "Every day at 07:00",
+    "description": "Schedule on the daily compliance audit mock card"
+  },
   "O7tg9OZcEc": {
     "defaultMessage": "Detect string changes, gather PR context, draft translations, and gate releases — so engineering teams catch localisation issues before merge, not after launch.",
     "description": "Hero subheadline for the github-release-localisation use case"
@@ -9878,10 +10342,6 @@
   "OGfnfxue9S": {
     "defaultMessage": "Search ID, title, description, or source path",
     "description": "Placeholder for the issue list search field"
-  },
-  "OHKDUsYT8n": {
-    "defaultMessage": "Keep the decision",
-    "description": "Proof point 1 title for the self-evolving knowledge product page"
   },
   "OJJq7qIvtH": {
     "defaultMessage": "Back",
@@ -9951,6 +10411,10 @@
     "defaultMessage": "You",
     "description": "Badge shown next to the current user’s member row"
   },
+  "OUDcVk0AHJ": {
+    "defaultMessage": "Search projects…",
+    "description": "Placeholder for the projects search field"
+  },
   "OUVC3TaOp2": {
     "defaultMessage": "Create audience",
     "description": "Primary action to create an audience"
@@ -10014,6 +10478,10 @@
   "OcefiTvR3e": {
     "defaultMessage": "No team glossary is available for this project",
     "description": "Error when CAT add-to-glossary is missing a glossary target"
+  },
+  "Od0MLRTrMp": {
+    "defaultMessage": "Can my team review AI-generated content?",
+    "description": "Content Studio FAQ question about AI review"
   },
   "OfQ4bwN572": {
     "defaultMessage": "Length",
@@ -10091,10 +10559,6 @@
     "defaultMessage": "SSO / SAML",
     "description": "Enterprise plan feature: SSO"
   },
-  "Ov7k7O9mR3": {
-    "defaultMessage": "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
-    "description": "Page title for the self-evolving knowledge product page"
-  },
   "OwqE5YCGeO": {
     "defaultMessage": "Glossaries",
     "description": "Accessible label for the glossaries list section"
@@ -10106,6 +10570,10 @@
   "Oxu+yRmzWu": {
     "defaultMessage": "Heidi Health",
     "description": "Alt text for the Heidi Health logo in the hero trusted-by strip"
+  },
+  "Oy/qd39Day": {
+    "defaultMessage": "Page · GTM · Updated this week",
+    "description": "Notion page metadata on the guidelines board"
   },
   "OzcJw6zkPj": {
     "defaultMessage": "enabled an automation",
@@ -10199,6 +10667,10 @@
     "defaultMessage": "Ask Hyperlocalise to take your content global.",
     "description": "Marketing homepage capability section title"
   },
+  "PBDgruWZRx": {
+    "defaultMessage": "Source",
+    "description": "Projects list sourceLabel"
+  },
   "PBd06JWdET": {
     "defaultMessage": "Style guide",
     "description": "Heading for the project style guide settings section"
@@ -10207,6 +10679,10 @@
     "defaultMessage": "Upload a PDF, Word, markdown, CSV, JSON, or text file.",
     "description": "Toast when a knowledge file type is not supported"
   },
+  "PDQi8zzuSM": {
+    "defaultMessage": "Explore Automations",
+    "description": "Link from Guidelines to the Automations product page"
+  },
   "PEOKvIZPuS": {
     "defaultMessage": "Create issue",
     "description": "Submit button in the create Issue Sheet issue dialog"
@@ -10214,6 +10690,10 @@
   "PEkJb1qGtI": {
     "defaultMessage": "Prefer concise French that still feels executive.",
     "description": "Reviewer preference in the hero CAT mock intelligence panel"
+  },
+  "PF5J5zLlad": {
+    "defaultMessage": "Queries could not be loaded.",
+    "description": "Error state when the workspace Queries page fails to load"
   },
   "PFZxqLi3PC": {
     "defaultMessage": "Delete",
@@ -10251,6 +10731,10 @@
     "defaultMessage": "Create a workspace glossary, import terms, then assign it to the projects that should use it.",
     "description": "Empty state description when the user can create glossaries"
   },
+  "PKp1AQm4Ed": {
+    "defaultMessage": "Manage Hyperlocalise projects and browse live TMS-synced projects.",
+    "description": "Projects page description when a TMS provider is connected"
+  },
   "PLM8yKkR8+": {
     "defaultMessage": "Generate locale drafts automatically when strings change, using glossary and TM context.",
     "description": "Capability 3 description for the github-release-localisation use case"
@@ -10286,6 +10770,10 @@
   "PQSsu6Ru/k": {
     "defaultMessage": "Revoked",
     "description": "Badge for a revoked client key"
+  },
+  "PRW9ZtkzIN": {
+    "defaultMessage": "18 policy files · Compliance",
+    "description": "Example SharePoint library detail in the source preview"
   },
   "PRbdh+Ryiw": {
     "defaultMessage": "No repositories are available to this GitHub App installation.",
@@ -10327,6 +10815,10 @@
     "defaultMessage": "Check your inbox for a summary of this report.",
     "description": "Success message after requesting a completed-audit summary email"
   },
+  "PZZ/+9b/45": {
+    "defaultMessage": "Three clauses in the Drive PDF are broken. Open a flag to see it in the file.",
+    "description": "Agent reply intro after reading the PDF"
+  },
   "PapSWiA4OI": {
     "defaultMessage": "Loading progress...",
     "description": "Placeholder while Crowdin locale readiness is loading"
@@ -10358,6 +10850,10 @@
   "Pele5LgqUl": {
     "defaultMessage": "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches.",
     "description": "Meta description for the marketing-localisation use case"
+  },
+  "PfMYbXS/4p": {
+    "defaultMessage": "Queries could not be loaded.",
+    "description": "Error state when Queries rows fail to load"
   },
   "PgliwXORHi": {
     "defaultMessage": "Regenerate video",
@@ -10418,6 +10914,10 @@
   "Pso/sy4WEl": {
     "defaultMessage": "Next",
     "description": "Accessible label for navigating to the next citation in a carousel"
+  },
+  "PsuANqhGSg": {
+    "defaultMessage": "One workspace.\nEvery language.",
+    "description": "Hero headline for the multilingual Content Studio product page"
   },
   "PtTFfFyjEn": {
     "defaultMessage": "{count, plural, one {Opened # file} other {Opened # files}}",
@@ -10579,9 +11079,17 @@
     "defaultMessage": "Manage projects and technical jobs (sync, repositories); read integrations. No review approval or org admin.",
     "description": "Description of the developer role"
   },
+  "QG31S8uFy7": {
+    "defaultMessage": "Track every locale in one campaign—who is reviewing, what is approved, and what still needs attention—without switching tools.",
+    "description": "Content Studio FAQ answer about review status"
+  },
   "QHSMConoTh": {
     "defaultMessage": "Refresh the page to try again.",
     "description": "Fallback error when teams fail to load without a message"
+  },
+  "QIAc4hvHDk": {
+    "defaultMessage": "See a guideline check",
+    "description": "Anchor link from the Guidelines hero to the product preview"
   },
   "QIcAmkRq1i": {
     "defaultMessage": "Product",
@@ -10594,6 +11102,10 @@
   "QJD09qoHFD": {
     "defaultMessage": "updated workspace settings",
     "description": "Action for a workspace settings activity"
+  },
+  "QJDVG0G3MR": {
+    "defaultMessage": "Set up projects, upload sources, and run your first translation workflow in Cloud.",
+    "description": "Developer resources link description for platform getting started docs"
   },
   "QKWLDi+L9H": {
     "defaultMessage": "Issue",
@@ -10639,17 +11151,9 @@
     "defaultMessage": "Demo request: Reports",
     "description": "Email subject for Reports feature teaser contact link"
   },
-  "PfMYbXS/4p": {
-    "defaultMessage": "Queries could not be loaded.",
-    "description": "Error state when Queries rows fail to load"
-  },
   "QT9sZSgQql": {
     "defaultMessage": "Experiment",
     "description": "Hyperlab mock UI flag kind badge"
-  },
-  "QTY8pCBi2f": {
-    "defaultMessage": "Make every review improve the next one.",
-    "description": "Bottom CTA headline for the self-evolving knowledge product page"
   },
   "QU4Ror5CEN": {
     "defaultMessage": "Save",
@@ -10674,6 +11178,10 @@
   "QVQzu9FFdo": {
     "defaultMessage": "Wednesday",
     "description": "Wednesday option for weekly schedule"
+  },
+  "QVvwDJw1I3": {
+    "defaultMessage": "No activity yet",
+    "description": "Shown when a locale has no translation updates"
   },
   "QVweQ7BzMt": {
     "defaultMessage": "Native issue",
@@ -10710,6 +11218,10 @@
   "Qao/O64dbg": {
     "defaultMessage": "No Crowdin project members found.",
     "description": "Empty state when Crowdin project members cannot be listed"
+  },
+  "QawNHvJsXE": {
+    "defaultMessage": "No. Connect Google Drive, Notion, or SharePoint and leave the files where brand and legal already keep them. You can also type guidelines directly in Hyperlocalise.",
+    "description": "Guidelines FAQ answer about moving files"
   },
   "Qb8e9HBTwT": {
     "defaultMessage": "Switch",
@@ -10754,6 +11266,10 @@
   "QgqbdcDGCR": {
     "defaultMessage": "Search",
     "description": "Search tool chip in content ops terminal mock"
+  },
+  "Qh1hAhKzYj": {
+    "defaultMessage": "Project",
+    "description": "Projects list projectLabel"
   },
   "QhAV2nb4PW": {
     "defaultMessage": "Status",
@@ -10839,9 +11355,17 @@
     "defaultMessage": "No value",
     "description": "Empty state when a long-text custom column has no value"
   },
+  "Qrwlw6Dfd/": {
+    "defaultMessage": "Review and approval",
+    "description": "Eyebrow for the Content Studio review section"
+  },
   "QsCILqwet/": {
     "defaultMessage": "Ask Hyperlocalise…",
     "description": "Default placeholder for the inbox reply composer textarea"
+  },
+  "Qw3AuwhQJ4": {
+    "defaultMessage": "String Hidden",
+    "description": "Activity log event type label for hiding strings"
   },
   "Qy1pnimpzM": {
     "defaultMessage": "Block merge when locales are unresolved",
@@ -10862,10 +11386,6 @@
   "R/LlfIB0DY": {
     "defaultMessage": "Display name",
     "description": "Label for Canva display name field"
-  },
-  "xotII997CO": {
-    "defaultMessage": "Queries",
-    "description": "Section title for the project Queries page"
   },
   "R/pK1EOhod": {
     "defaultMessage": "Team name must be 120 characters or fewer.",
@@ -10963,6 +11483,10 @@
     "defaultMessage": "Who should choose Starter vs Growth?",
     "description": "Pricing FAQ question comparing Starter and Growth"
   },
+  "RNFkjkR2en": {
+    "defaultMessage": "Connected guideline sources",
+    "description": "Accessible label for the guidelines board file list"
+  },
   "RO0Hv9SR8x": {
     "defaultMessage": "Failed to load Content Editor queue",
     "description": "Fallback error when the project file Content Editor queue request fails"
@@ -11003,6 +11527,10 @@
     "defaultMessage": "Workspace activity",
     "description": "Accessible label for the activity log list"
   },
+  "RWUw6HKSvD": {
+    "defaultMessage": "Last activity {when}",
+    "description": "Relative timestamp of the latest translation activity for a locale"
+  },
   "RWVk6HWH77": {
     "defaultMessage": "Assign translation, review, and QA work based on locale, content type, or expertise.",
     "description": "Capability 2 description for the localisation-operations use case"
@@ -11030,10 +11558,6 @@
   "RZLaeRVZkR": {
     "defaultMessage": "Activity logs",
     "description": "Title for the activity logs settings page"
-  },
-  "RZNls0g+WM": {
-    "defaultMessage": "Project",
-    "description": "Section heading for lightweight project signals on overview"
   },
   "RZPckpbVtF": {
     "defaultMessage": "Ask an organization admin to update your role, or choose another organization.",
@@ -11171,6 +11695,10 @@
     "defaultMessage": "Target includes {tokens} that is not in the source string.",
     "description": "CAT format check message listing extra placeholders in the target"
   },
+  "RueTypLijF": {
+    "defaultMessage": "Queries",
+    "description": "App shell breadcrumb title for the project Queries page"
+  },
   "Rw5WXF50Q2": {
     "defaultMessage": "Copy",
     "description": "Button to copy an approved glossary target term to the clipboard"
@@ -11219,6 +11747,10 @@
     "defaultMessage": "Tools",
     "description": "Tools section label"
   },
+  "S5zYTuw8xI": {
+    "defaultMessage": "Triage open work across this workspace.",
+    "description": "Short description under the workspace Queries page title"
+  },
   "S62HZ0fFCx": {
     "defaultMessage": "External TMS",
     "description": "Source label for external TMS glossaries without a provider badge"
@@ -11258,6 +11790,10 @@
   "SCoaZFO7Pm": {
     "defaultMessage": "Warning type",
     "description": "Placeholder for the proposal warning-type filter"
+  },
+  "SE8vhhcRvh": {
+    "defaultMessage": "Read guideline",
+    "description": "Tool name while the agent reads the PDF"
   },
   "SEclZdUwgN": {
     "defaultMessage": "Create more",
@@ -11327,6 +11863,10 @@
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for workspace automations"
   },
+  "SRAb4hnti/": {
+    "defaultMessage": "JP product page",
+    "description": "Japanese finding target on the daily compliance audit mock card"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "Collaboration",
     "description": "Integrations page section heading for collaboration tools"
@@ -11378,6 +11918,10 @@
   "Sb98ftC3/T": {
     "defaultMessage": "Generate locale drafts with your LLM",
     "description": "Workflow step 3 description for the product-localisation use case"
+  },
+  "SbXclIFUB9": {
+    "defaultMessage": "The PDF stays\nin Drive.",
+    "description": "Title for the Google Drive source panel"
   },
   "Sc1cRdhWAf": {
     "defaultMessage": "Save credentials to connect {providerName}. The secret is encrypted at rest and used for live API calls to projects, files, and jobs.",
@@ -11450,10 +11994,6 @@
   "SmCgybn22Q": {
     "defaultMessage": "Launch request",
     "description": "Automation product visual mock card title"
-  },
-  "SmMQDr7bGf": {
-    "defaultMessage": "Corrections, terminology choices, and product context stop disappearing into old comments.",
-    "description": "Proof point 1 body for the self-evolving knowledge product page"
   },
   "SnTFQm1KyV": {
     "defaultMessage": "Search the live web through AI Gateway. Auto lets the agent pick Perplexity or Exa.",
@@ -11543,6 +12083,10 @@
     "defaultMessage": "Actions",
     "description": "Column header for member row actions"
   },
+  "T1Sk0Af2ER": {
+    "defaultMessage": "Against",
+    "description": "Guidelines label on the daily compliance audit mock card"
+  },
   "T2BImrk8yG": {
     "defaultMessage": "Choose another project or check Crowdin for glossaries available to this workspace.",
     "description": "Empty state description for live Crowdin glossaries"
@@ -11619,6 +12163,10 @@
     "defaultMessage": "Switch workspace",
     "description": "Submenu trigger to switch between workspaces"
   },
+  "TGHvKVZXDF": {
+    "defaultMessage": "The workflow for multilingual content operations.",
+    "description": "Hero headline for the agents automation product page"
+  },
   "TGxX41HjAL": {
     "defaultMessage": "Column hidden",
     "description": "Toast after hiding an issue column"
@@ -11626,6 +12174,10 @@
   "THoRXiMHfa": {
     "defaultMessage": "Could not load notification preferences.",
     "description": "Error when notification preferences fail to load"
+  },
+  "TIlDexJ1Y8": {
+    "defaultMessage": "Words",
+    "description": "Tab showing word-based translation progress"
   },
   "TIsb5WlP88": {
     "defaultMessage": "Something went wrong in this panel. You can retry or keep working in the other panels.",
@@ -11707,6 +12259,10 @@
     "defaultMessage": "See the full leaderboard",
     "description": "CTA linking from a localisation audit result to the public leaderboard"
   },
+  "TUhxc0TwuH": {
+    "defaultMessage": "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
+    "description": "Guidelines FAQ answer about ownership"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise",
     "description": "Deep link to the same conversation in the main app"
@@ -11742,6 +12298,10 @@
   "TYvjU7uCVI": {
     "defaultMessage": "Inbox",
     "description": "Inbox panel title in content ops mock"
+  },
+  "TZ3ud06CD+": {
+    "defaultMessage": "Japan market notes",
+    "description": "Notion page title on the guidelines board"
   },
   "Tb7h0w/7fY": {
     "defaultMessage": "No options available",
@@ -11798,6 +12358,10 @@
   "TictSeLm8D": {
     "defaultMessage": "Forecast (USD)",
     "description": "Translation reporting label"
+  },
+  "TjFXSXtMQ3": {
+    "defaultMessage": "Timing preserved",
+    "description": "Status line in the video format mock"
   },
   "Tl0CYs/kQf": {
     "defaultMessage": "Scheduled run · 1st of month",
@@ -12043,6 +12607,10 @@
     "defaultMessage": "Loading domain…",
     "description": "Loading state for linked domain detail"
   },
+  "UKiNYTCKL8": {
+    "defaultMessage": "commented on a string",
+    "description": "Action for a string comment activity"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Markup order",
     "description": "CAT format check label when markup sentinel order does not match source"
@@ -12163,6 +12731,10 @@
     "defaultMessage": "Enable email agent",
     "description": "Aria label for the email agent enable switch"
   },
+  "Uc51ukp3UG": {
+    "defaultMessage": "Build it once. Every language follows it.",
+    "description": "Details section headline for the agents automation product page"
+  },
   "UcF3Gc/Vdi": {
     "defaultMessage": "Developer",
     "description": "Organization membership role label for developers"
@@ -12186,6 +12758,10 @@
   "UfyoQ9IKvC": {
     "defaultMessage": "Code block",
     "description": "Slash menu item for a fenced code block"
+  },
+  "UgXh/JEfra": {
+    "defaultMessage": "Brand-claims-policy.pdf",
+    "description": "Context chip in the guidelines board composer"
   },
   "Uga+NfEpia": {
     "defaultMessage": "Replay",
@@ -12239,6 +12815,10 @@
     "defaultMessage": "Remove team member",
     "description": "Title of the remove team member confirmation dialog"
   },
+  "UsjppO5ENO": {
+    "defaultMessage": "Lead with trust signals and social proof. Do not use aggressive discount language or urgency tactics.",
+    "description": "Body of the Notion guideline preview"
+  },
   "Uuw7RsxOWd": {
     "defaultMessage": "Perplexity",
     "description": "Web Search provider option for Perplexity Search"
@@ -12266,6 +12846,10 @@
   "UxoXtyoyQB": {
     "defaultMessage": "What can my team do in Content Studio?",
     "description": "Homepage FAQ question about platform topic 2"
+  },
+  "UznHMJ+o+o": {
+    "defaultMessage": "Queries",
+    "description": "Sidebar nav label in marketing app shell mock"
   },
   "V+8wDWpBnh": {
     "defaultMessage": "All strings",
@@ -12415,6 +12999,10 @@
     "defaultMessage": "Concept added to the team glossary",
     "description": "Toast after a CAT concept is added to a team glossary"
   },
+  "VL1n4lhYVe": {
+    "defaultMessage": "Changes to this file and its strings.",
+    "description": "Description for the file editor activity dialog"
+  },
   "VLSdATui0m": {
     "defaultMessage": "Member removed",
     "description": "Success toast after removing a workspace member"
@@ -12463,6 +13051,10 @@
     "defaultMessage": "Open in ChatGPT",
     "description": "Menu item to open the prompt in ChatGPT"
   },
+  "VS0VH/0762": {
+    "defaultMessage": "Connected guidelines",
+    "description": "Title of the connected guidelines file board"
+  },
   "VSVVptSaLR": {
     "defaultMessage": "Hide secret",
     "description": "Aria label for hiding a credential secret field"
@@ -12482,10 +13074,6 @@
   "VUwFgX4OmD": {
     "defaultMessage": "Permissions: {permissions}",
     "description": "API key row showing granted permissions"
-  },
-  "VWQFJ0pM9H": {
-    "defaultMessage": "Market rules, voice preferences, and repeated mistakes stay visible across workflows.",
-    "description": "Proof point 3 body for the self-evolving knowledge product page"
   },
   "VWlnmvdHxp": {
     "defaultMessage": "Download",
@@ -12547,6 +13135,14 @@
     "defaultMessage": "Modified",
     "description": "Label for the modified actor and timestamp"
   },
+  "Vfgm2yT4Or": {
+    "defaultMessage": "A studio connected to the bigger picture.",
+    "description": "Headline for the Content Studio connected-products section"
+  },
+  "VgCemC5cLg": {
+    "defaultMessage": "Close panel",
+    "description": "Accessible label for closing an editor mock footer panel"
+  },
   "VkNsZOH7xT": {
     "defaultMessage": "Choose an organization",
     "description": "Page title for selecting which organization workspace to open"
@@ -12562,6 +13158,10 @@
   "Vm1k8EkL8L": {
     "defaultMessage": "Issue",
     "description": "Source label for issue notification rows in the inbox list"
+  },
+  "VmCEhPgA0d": {
+    "defaultMessage": "Do not use superlatives such as einzigartig, beste, or sensationell in German ads.",
+    "description": "PDF clause body for German advertising"
   },
   "VmLY6IFMWn": {
     "defaultMessage": "AI-native infrastructure for multilingual content operations.",
@@ -12659,6 +13259,10 @@
     "defaultMessage": "Send an invitation by email. They join after accepting through your identity provider.",
     "description": "Description of the invite member dialog"
   },
+  "W+Q3zuZLIK": {
+    "defaultMessage": "Triage localization issues for this project.",
+    "description": "Short section description for the project Queries page"
+  },
   "W/3juG8Ln3": {
     "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
     "description": "Workflow section description for the localisation-quality-monitoring use case"
@@ -12698,6 +13302,10 @@
   "WA49vhY6w5": {
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
     "description": "Tooltip for the refresh repository list button"
+  },
+  "WATviG34Qf": {
+    "defaultMessage": "Disclosures and approved wording stay in the library legal already owns.",
+    "description": "Proof point 3 body for the Guidelines product page"
   },
   "WAbDlyKYQP": {
     "defaultMessage": "Channel not found or the app is not a member. For private channels, invite the Hyperlocalise app first.",
@@ -12750,6 +13358,10 @@
   "WHrTXX3A2/": {
     "defaultMessage": "Open glossary guidance",
     "description": "Accessible label for the glossary guidance button in the app shell footer"
+  },
+  "WIHinYIhc4": {
+    "defaultMessage": "From pitch decks to keynotes",
+    "description": "Supporting link line for the slides format panel"
   },
   "WIwcX3Fw30": {
     "defaultMessage": "Current translation",
@@ -12846,10 +13458,6 @@
   "WZko2fwHOK": {
     "defaultMessage": "GitHub status check",
     "description": "Section heading for GitHub status check settings"
-  },
-  "WabecnK7ou": {
-    "defaultMessage": "Stop explaining the same rules twice. Hyperlocalise turns every review into reusable context",
-    "description": "Hero subcopy for the self-evolving knowledge product page"
   },
   "Wbm7kwzdGk": {
     "defaultMessage": "Open Editor",
@@ -12975,6 +13583,10 @@
     "defaultMessage": "Icon",
     "description": "Icon field for a custom issue column"
   },
+  "WtFmZHHKpF": {
+    "defaultMessage": "Glossary guidance",
+    "description": "Title on the editor mock glossary footer panel"
+  },
   "Wtnws5pYza": {
     "defaultMessage": "Failed to load provider files",
     "description": "Fallback error when provider project files fail to load"
@@ -12982,6 +13594,10 @@
   "WuN0lCA6yk": {
     "defaultMessage": "Trigger",
     "description": "Section heading for automation trigger settings"
+  },
+  "WuOMg44dT2": {
+    "defaultMessage": "Request a Demo",
+    "description": "Call-to-action to request a Content Studio demo"
   },
   "Ww6hf/sreW": {
     "defaultMessage": "Translation memories failed to load.",
@@ -13003,6 +13619,10 @@
     "defaultMessage": "Running",
     "description": "Job status label for running jobs"
   },
+  "X+8j5AXyLj": {
+    "defaultMessage": "Approved EU AI Act disclosure, GDPR marketing claims, and health-claim wording live in this library.",
+    "description": "Body of the SharePoint guideline preview"
+  },
   "X+DJxUtTco": {
     "defaultMessage": "Copied",
     "description": "Copied confirmation for Canva connection token"
@@ -13014,6 +13634,10 @@
   "X02KnwxTqG": {
     "defaultMessage": "Shared tone and terminology so agents stay consistent.",
     "description": "Description when the native project style guide is missing"
+  },
+  "X0QoMyZV2K": {
+    "defaultMessage": "It lands back in your tools",
+    "description": "Proof point 3 title for the agents automation product page"
   },
   "X1JobycgOR": {
     "defaultMessage": "All",
@@ -13099,6 +13723,10 @@
     "defaultMessage": "Changed: {fields}",
     "description": "Badge listing which fields changed on an agent proposal"
   },
+  "XH27tSt/JN": {
+    "defaultMessage": "FRENCH · TRANSLATION",
+    "description": "French translation label in a Content Studio format mock"
+  },
   "XHI21GKve1": {
     "defaultMessage": "Entering a new market should feel like growth, not a second product launch that stalls the company.",
     "description": "Supporting copy under the why-startups heading"
@@ -13158,10 +13786,6 @@
   "XN2gagpvC2": {
     "defaultMessage": "Audit criteria",
     "description": "Heading for the criteria list on a localisation audit result"
-  },
-  "Njk9QnNzuI": {
-    "defaultMessage": "No open issues.",
-    "description": "Empty state for overview Queries issues"
   },
   "XOLvGAW68Q": {
     "defaultMessage": "Integrations",
@@ -13235,6 +13859,10 @@
     "defaultMessage": "Upload PDFs and documents this agent can search during web chat. Files stay scoped to this automation.",
     "description": "Description of the knowledge files automation tool"
   },
+  "XbqvvLRiXp": {
+    "defaultMessage": "Review",
+    "description": "Status label for a job waiting for review on project overview"
+  },
   "Xc4174DTX1": {
     "defaultMessage": "Description",
     "description": "Label for the issue description editor"
@@ -13246,6 +13874,10 @@
   "XcO+si/Q8F": {
     "defaultMessage": "Team",
     "description": "Badge and option for a team-controlled glossary"
+  },
+  "XcvWJmyVfR": {
+    "defaultMessage": "From style guides to claims policies",
+    "description": "Supporting link line for the Google Drive source panel"
   },
   "XdFM8Ff6nf": {
     "defaultMessage": "Set {label}",
@@ -13291,10 +13923,6 @@
     "defaultMessage": "you@company.com",
     "description": "Placeholder for the work email field on a localisation audit result"
   },
-  "XlVRjq3zhp": {
-    "defaultMessage": "Self-evolving Knowledge",
-    "description": "Hero eyebrow for the self-evolving knowledge product page"
-  },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation",
     "description": "Translation reporting label"
@@ -13331,10 +13959,6 @@
     "defaultMessage": "Agent Actions",
     "description": "Heading for available provider agent action buttons"
   },
-  "lo142sTjcF": {
-    "defaultMessage": "Queries",
-    "description": "Sidebar navigation item for workspace Queries"
-  },
   "XtzSAMs4em": {
     "defaultMessage": "Chat, Slack, and general workspace questions with project and glossary context.",
     "description": "Hyperlocalise Agent Ask capability description"
@@ -13354,6 +13978,10 @@
   "Xwo9y3RloU": {
     "defaultMessage": "Linked to Canva brand {brandId}",
     "description": "Shows the Canva brand bound to a connection"
+  },
+  "XwyHRK/RCH": {
+    "defaultMessage": "Schedule an Automation to check live pages and product copy against the same Drive, Notion, or SharePoint files. Flags show up in the morning instead of after a launch.",
+    "description": "Body for the Guidelines daily-audit section"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "No teams yet",
@@ -13398,6 +14026,14 @@
   "Y1DzYaPZ4D": {
     "defaultMessage": "Continue verification",
     "description": "Button to continue verifying this domain"
+  },
+  "Y1cFr7sG1J": {
+    "defaultMessage": "Queries",
+    "description": "Label for the Queries button in the app shell footer"
+  },
+  "Y21JPIRCgK": {
+    "defaultMessage": "Add tone and terminology so agents stay consistent.",
+    "description": "Sidebar prompt when the project has no translation guidance yet"
   },
   "Y2HSD0YkmQ": {
     "defaultMessage": "Metadata",
@@ -13450,6 +14086,10 @@
   "Y9q11GovtH": {
     "defaultMessage": "Marketing teams move fast. Localisation becomes a bottleneck when brand nuance and regional intent never reach the translator.",
     "description": "Problem section description for the marketing-localisation use case"
+  },
+  "Y9uUKekkpa": {
+    "defaultMessage": "Create and adapt text, documents, slides, images, and video. Keep your context, your voice, and your team together.",
+    "description": "Hero description for the multilingual Content Studio product page"
   },
   "YApKomjAhZ": {
     "defaultMessage": "Short label · Avoid ambiguity around reviews",
@@ -13571,6 +14211,10 @@
     "defaultMessage": "Assign the created job to Translate with agent and start localisation.",
     "description": "Description for the Translate with agent automation tool"
   },
+  "YZiaFZNuPi": {
+    "defaultMessage": "Superlative in DE copy",
+    "description": "First compliance flag title"
+  },
   "YZlH8FHk0N": {
     "defaultMessage": "Introduce the new collection with a confident, welcoming voice. Adapt the story for each market.",
     "description": "Marketing homepage briefBody"
@@ -13582,6 +14226,10 @@
   "Ya1gnhy/x1": {
     "defaultMessage": "Manual run",
     "description": "Menu item to select a manual trigger"
+  },
+  "Ya2igat4Ug": {
+    "defaultMessage": "Yes. Keep claims PDFs in Drive, market notes in Notion, and disclosures in SharePoint, or type a guideline in Hyperlocalise. Agents check the ones that apply to that draft.",
+    "description": "Guidelines FAQ answer about multiple sources"
   },
   "YaKRAqJTYd": {
     "defaultMessage": "Stop reviewing strings in the dark.",
@@ -13659,6 +14307,10 @@
     "defaultMessage": "Use a Content Management API personal access token from Contentful Settings → Content management tokens. Do not use Content Delivery or Preview API keys — those are read-only and cannot write draft translations or register webhooks.",
     "description": "Guidance for choosing a Contentful Management API token"
   },
+  "Yo96f8fXbJ": {
+    "defaultMessage": "Daylight",
+    "description": "Preferred glossary term in editor mock footer panel"
+  },
   "YoR3hQqYL1": {
     "defaultMessage": "Send localized transactional email through SendGrid.",
     "description": "SendGrid integration description on the integrations page"
@@ -13694,6 +14346,10 @@
   "YsqTULzKIY": {
     "defaultMessage": "Usage unavailable",
     "description": "Shown when workspace resource usage cannot be loaded"
+  },
+  "Yt1RZ0FH89": {
+    "defaultMessage": "Published webpage preview",
+    "description": "Caption above the published webpage preview"
   },
   "Yt7zrC9Btd": {
     "defaultMessage": "Loading translation memory entries",
@@ -13755,6 +14411,10 @@
     "defaultMessage": "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667",
     "description": "Copyright notice in the marketing footer with the current year"
   },
+  "YzyMyGmYFN": {
+    "defaultMessage": "FR website",
+    "description": "French finding target on the daily compliance audit mock card"
+  },
   "Z/xptRbaiC": {
     "defaultMessage": "Content Editor",
     "description": "App shell breadcrumb title for the project Content Editor page"
@@ -13782,6 +14442,10 @@
   "Z3fCUPrSEf": {
     "defaultMessage": "Import",
     "description": "Button to import translation memory entries from a CSV or TMX file"
+  },
+  "Z44SZamohK": {
+    "defaultMessage": "Added to Queries",
+    "description": "Toast confirmation after adding a CAT segment to Queries"
   },
   "Z4KBzMvHKO": {
     "defaultMessage": "Glossary guidance, concept matches available",
@@ -13879,6 +14543,10 @@
     "defaultMessage": "changed a member's role",
     "description": "Action for a changed member role activity"
   },
+  "ZJtpLzte1C": {
+    "defaultMessage": "String Unhidden",
+    "description": "Activity log event type label for unhiding strings"
+  },
   "ZK/+GGmA14": {
     "defaultMessage": "Close",
     "description": "Accessible label and tooltip for closing an artifact panel"
@@ -13911,6 +14579,10 @@
     "defaultMessage": "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually.",
     "description": "Toast description when a Contentful webhook is created"
   },
+  "ZOC86/UJbR": {
+    "defaultMessage": "Add target languages in settings to track translation progress here.",
+    "description": "Empty-state description when a project has no target locales"
+  },
   "ZQECIF/mni": {
     "defaultMessage": "Stop grouping identical strings?",
     "description": "Disable grouping confirmation title"
@@ -13939,6 +14611,10 @@
     "defaultMessage": "Provenance",
     "description": "Heading for provenance on a translation memory entry"
   },
+  "ZTwQhpeJIW": {
+    "defaultMessage": "Explore Content Studio",
+    "description": "Link from Guidelines to the Content Studio product page"
+  },
   "ZV8a5iOSNX": {
     "defaultMessage": "Published to staging · notified #gtm",
     "description": "Campaign mock step 4"
@@ -13966,10 +14642,6 @@
   "Ze+mVOXG0h": {
     "defaultMessage": "TMS jobs",
     "description": "Section title for live TMS provider jobs"
-  },
-  "ZeIIMmL97I": {
-    "defaultMessage": "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
-    "description": "Proof point 3 body for the agents automation product page"
   },
   "ZeIi5DDF02": {
     "defaultMessage": "Type",
@@ -14119,6 +14791,10 @@
     "defaultMessage": "Plans are configured in Autumn. Pricing changes there do not require app migrations.",
     "description": "Available plans card description on billing settings"
   },
+  "Zz6wbG5K6M": {
+    "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents check drafts against the files brand and legal already maintain.",
+    "description": "Details section summary for the Guidelines product page"
+  },
   "Zz7JN17WYM": {
     "defaultMessage": "Validate glossary and UI label consistency",
     "description": "Workflow step 4 description for the help-center-localisation use case"
@@ -14154,6 +14830,10 @@
   "a1tmRYQQWa": {
     "defaultMessage": "Connect Ahrefs in Integrations before using this tool.",
     "description": "Description when Ahrefs is not connected"
+  },
+  "a3n8jBbMmU": {
+    "defaultMessage": "No languages match “{query}”.",
+    "description": "Shown when locale search filters out every row"
   },
   "a4IAS0WZRR": {
     "defaultMessage": "Glossaries",
@@ -14267,6 +14947,10 @@
     "defaultMessage": "View",
     "description": "Button on an overview action card to open the related job or file"
   },
+  "aGVgwRHbj0": {
+    "defaultMessage": "The same path runs for French, German, Japanese. A person only looks if something is off.",
+    "description": "Proof point 2 body for the agents automation product page"
+  },
   "aGXP2V6FOj": {
     "defaultMessage": "https://api.smartling.com/auth-api/v2",
     "description": "Example placeholder for the Smartling API base URL field"
@@ -14367,6 +15051,10 @@
     "defaultMessage": "Source locale",
     "description": "Label for the source locale filter"
   },
+  "aaULJeFGWL": {
+    "defaultMessage": "Getting to know Guidelines.",
+    "description": "FAQ subheading on the Guidelines product page"
+  },
   "aaZ+fOJPdY": {
     "defaultMessage": "Loading...",
     "description": "Button label while more workspace issues are loading"
@@ -14410,10 +15098,6 @@
   "afM0hfkHOH": {
     "defaultMessage": "Latest posts",
     "description": "Marketing homepage recent blog posts section title"
-  },
-  "ahBTXzQA9r": {
-    "defaultMessage": "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack.",
-    "description": "Details section summary for the agents automation product page"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Save {providerName}",
@@ -14527,6 +15211,14 @@
     "defaultMessage": "+{count}",
     "description": "Suffix showing how many additional citation sources exist beyond the first"
   },
+  "b0Ch7Q4CAZ": {
+    "defaultMessage": "Integrations",
+    "description": "Developer resources link title for third-party integration docs"
+  },
+  "b0hzgbcjSl": {
+    "defaultMessage": "File Uploaded",
+    "description": "Activity log event type label for file uploads"
+  },
   "b1aqjjuIqX": {
     "defaultMessage": "Crowdin",
     "description": "Crowdin TMS integration name on the integrations page"
@@ -14538,6 +15230,10 @@
   "b20aCSFLbS": {
     "defaultMessage": "Search",
     "description": "Label for the workspace files search field"
+  },
+  "b2dI5BHWEO": {
+    "defaultMessage": "How does Content Studio fit with the rest of Hyperlocalise?",
+    "description": "Content Studio FAQ question about product fit"
   },
   "b5I27EcBHD": {
     "defaultMessage": "Resets {date}",
@@ -14579,6 +15275,10 @@
     "defaultMessage": "On the 1st of each month, research high-intent keyword gaps per locale, draft localised SEO posts with adapted meta and H1, run QA, write to CMS, and notify #content.",
     "description": "Agent instructions in SEO setup mock"
   },
+  "b95XI61qEi": {
+    "defaultMessage": "3.2 German advertising — no superlatives",
+    "description": "Clause row value in the attached guidelines mock"
+  },
   "b9pqYzF7KI": {
     "defaultMessage": "{actor} changed type from {previousIssueType} to {nextIssueType}",
     "description": "Activity line when an issue type changes"
@@ -14594,10 +15294,6 @@
   "bBPogMMlZW": {
     "defaultMessage": "The name and slug used in navigation, invite links, and the workspace URL.",
     "description": "Workspace general settings page description"
-  },
-  "r7n1+etxph": {
-    "defaultMessage": "Upload a spreadsheet export, map columns to Queries fields, preview the result, then import.",
-    "description": "Description of the Issue Sheet CSV import dialog"
   },
   "bCXvSTPFsb": {
     "defaultMessage": "Scheduled",
@@ -14691,6 +15387,10 @@
     "defaultMessage": "About Hyperlocalise | Building the Agentic Localisation Platform",
     "description": "Meta title for the marketing company page"
   },
+  "bV29A4VqV7": {
+    "defaultMessage": "Give AI and your team clear rules to follow, from approved terminology to market-specific requirements, so content is easier to review and approve.",
+    "description": "Body for the Content Studio context section"
+  },
   "bVLy351hp/": {
     "defaultMessage": "Activity logs could not be loaded",
     "description": "Error title when activity logs fail to load"
@@ -14706,6 +15406,10 @@
   "bXM2sr8gtz": {
     "defaultMessage": "API key copied to clipboard",
     "description": "Success toast after copying a newly created API key"
+  },
+  "bXnJyD63X6": {
+    "defaultMessage": "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
+    "description": "Bottom CTA description for the agents automation product page"
   },
   "bYpd314kqN": {
     "defaultMessage": "Localisation memory layer",
@@ -14755,9 +15459,9 @@
     "defaultMessage": "Other target locale",
     "description": "Placeholder for adding a custom target locale"
   },
-  "bgORmzhoWV": {
-    "defaultMessage": "Future suggestions can start from what the team already approved instead of asking again.",
-    "description": "Proof point 2 body for the self-evolving knowledge product page"
+  "bhFZvUICCV": {
+    "defaultMessage": "03 Review",
+    "description": "Content Studio workflow step 3"
   },
   "biOvOrRTZF": {
     "defaultMessage": "Import",
@@ -14819,9 +15523,21 @@
     "defaultMessage": "Spend warning",
     "description": "Translation reporting label"
   },
+  "buVScYQI5w": {
+    "defaultMessage": "Point Hyperlocalise at the SharePoint library that already holds disclosures, approved wording, and regulated claims.",
+    "description": "Body for the SharePoint source panel"
+  },
   "bubst9Dzg+": {
     "defaultMessage": "Refresh repo list",
     "description": "Refresh repository list button label"
+  },
+  "bvPNfnGgVD": {
+    "defaultMessage": "/auth.md",
+    "description": "Visible path for the agent registration skill document"
+  },
+  "bwRkCyVWjg": {
+    "defaultMessage": "Leave the guidelines where they are. Let agents read them.",
+    "description": "Details section headline for the Guidelines product page"
   },
   "bxdlmS/zEn": {
     "defaultMessage": "at",
@@ -14891,10 +15607,6 @@
     "defaultMessage": "Edit team",
     "description": "Button to open the edit team dialog on the detail page"
   },
-  "GqjLAPYWZT": {
-    "defaultMessage": "List issues",
-    "description": "Menu item and tool title for listing Queries issues"
-  },
   "cAVXvKrNnE": {
     "defaultMessage": "Save",
     "description": "Generic save button"
@@ -14935,6 +15647,10 @@
     "defaultMessage": "Raise issue",
     "description": "Button to submit a new Crowdin issue on the current segment"
   },
+  "cJoA3WyajT": {
+    "defaultMessage": "Attached to this draft",
+    "description": "Title of the attached guidelines mock card"
+  },
   "cK7XskRaCj": {
     "defaultMessage": "Enable the workspace guideline for this organization before using it in automations.",
     "description": "Description when the workspace guideline cannot be used yet"
@@ -14942,6 +15658,10 @@
   "cKb/sPVSsm": {
     "defaultMessage": "No stack frames",
     "description": "Empty state when a stack trace has no frames to display"
+  },
+  "cKejfY9OwZ": {
+    "defaultMessage": "Tools you can connect",
+    "description": "Accessible label for the Agent Automation How it works integration logo row"
   },
   "cMuLE7Fon0": {
     "defaultMessage": "Needs review",
@@ -14982,6 +15702,10 @@
   "cRykdemD86": {
     "defaultMessage": "Localisation review",
     "description": "Automations mock UI localisation review use case title"
+  },
+  "cSLAN3amsY": {
+    "defaultMessage": "Documentation",
+    "description": "Developer resources link title for platform getting started docs"
   },
   "cSkIY27SIk": {
     "defaultMessage": "Trigger",
@@ -15043,6 +15767,10 @@
     "defaultMessage": "The job will move to cancelled and stop running. You can create a new job if you need the work again.",
     "description": "Description in the cancel job confirmation dialog"
   },
+  "cZaYlDA8+F": {
+    "defaultMessage": "Yes — keep it direct and confident. The approved FR launch copy uses active verbs and avoids literal calques from English.",
+    "description": "Assistant reply in editor mock chat footer panel"
+  },
   "cbNqGo9VKV": {
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed inbox panel"
@@ -15058,6 +15786,14 @@
   "ceDFVw/CRC": {
     "defaultMessage": "Overview",
     "description": "Translation reporting label"
+  },
+  "ceF41648YF": {
+    "defaultMessage": "Slides",
+    "description": "Content Studio format tab for slides"
+  },
+  "ceYYf6k52c": {
+    "defaultMessage": "What context do reviewers see beyond the text?",
+    "description": "Content Studio FAQ question about reviewer context"
   },
   "cgByBDP5Dl": {
     "defaultMessage": "Project updated",
@@ -15078,6 +15814,10 @@
   "ch9kNq8+UC": {
     "defaultMessage": "Unknown size",
     "description": "Fallback file size label when byte size is unavailable"
+  },
+  "chTXcZSMoe": {
+    "defaultMessage": "From policy libraries to pre-publish checks",
+    "description": "Supporting link line for the SharePoint source panel"
   },
   "cjBFGkHog4": {
     "defaultMessage": "Fail the automation run when the localization check reports errors.",
@@ -15111,6 +15851,14 @@
     "defaultMessage": "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).",
     "description": "Validation error for an invalid custom translation memory locale"
   },
+  "cnDPnDwo8a": {
+    "defaultMessage": "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language.",
+    "description": "Hero subcopy for the agents automation product page"
+  },
+  "cnS8vYmi1I": {
+    "defaultMessage": "MCP server",
+    "description": "Developer resources link title for the hosted MCP server docs"
+  },
   "cnWyuPT5ua": {
     "defaultMessage": "Assign glossary to the following projects:",
     "description": "Label for the project multi-select on glossary creation"
@@ -15122,6 +15870,10 @@
   "cp1XJQA8yT": {
     "defaultMessage": "Ascending",
     "description": "Issue list sort direction ascending"
+  },
+  "cpSIo6rBul": {
+    "defaultMessage": "Z–A",
+    "description": "Button label to sort locales in reverse alphabetical order"
   },
   "cpV11AmTHs": {
     "defaultMessage": "Update term",
@@ -15135,6 +15887,10 @@
     "defaultMessage": "Start your team in minutes. No credit card required.",
     "description": "Guideline mock UI after copy example"
   },
+  "cqdHse07GI": {
+    "defaultMessage": "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
+    "description": "Bottom CTA description for the Guidelines product page"
+  },
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters",
     "description": "Character count for the organization knowledge memory editor"
@@ -15142,6 +15898,10 @@
   "cs9xdfnPbE": {
     "defaultMessage": "Send terminal run summaries through your connected email provider.",
     "description": "Description for email notifications when email is enabled"
+  },
+  "csK4Zbn9gk": {
+    "defaultMessage": "Audit product and the website.\nEvery day.",
+    "description": "Headline for the Guidelines daily-audit section"
   },
   "ct3IfkjjG0": {
     "defaultMessage": "Source locale",
@@ -15183,9 +15943,21 @@
     "defaultMessage": "Delete step",
     "description": "Button that removes the selected node from the visual workflow canvas"
   },
+  "d0ATgb33fq": {
+    "defaultMessage": "Multilingual Content Studio",
+    "description": "Hero eyebrow for the multilingual Content Studio product page"
+  },
+  "d0PnxJ1PQM": {
+    "defaultMessage": "Daily compliance audit",
+    "description": "Title of the daily compliance audit mock card"
+  },
   "d1YNCoenDE": {
     "defaultMessage": "Should AcmePay stay untranslated in ES onboarding?",
     "description": "Inbox conversation preview in content ops mock"
+  },
+  "d2A2zGHowt": {
+    "defaultMessage": "Missing AI disclosure",
+    "description": "Third compliance flag title"
   },
   "d2lnyxMtP0": {
     "defaultMessage": "A developer opens a pull request that renames fourteen UI strings and adds six new ones. Hyperlocalise comments on the PR with affected locales, generates translation drafts using glossary context from the linked launch brief, opens review tasks in Lokalise, runs the GitHub Action to verify all target locales are covered, and blocks merge until German and Japanese reviewers approve the updated pricing terminology.",
@@ -15243,9 +16015,9 @@
     "defaultMessage": "Starter",
     "description": "Starter plan name on the pricing page"
   },
-  "AJII/bEV+O": {
-    "defaultMessage": "Failed to add to Queries",
-    "description": "Fallback error when creating a Queries row from CAT fails"
+  "dBfjJqRtAx": {
+    "defaultMessage": "Website · live pages",
+    "description": "Website check row on the daily compliance audit mock card"
   },
   "dC80UX3i75": {
     "defaultMessage": "{hours} hr",
@@ -15275,9 +16047,9 @@
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
     "description": "Scenario section title for the localisation-operations use case"
   },
-  "dGhvlRGto0": {
-    "defaultMessage": "Needs you now",
-    "description": "Heading for the project overview triage band"
+  "dGJ4DQ8pi3": {
+    "defaultMessage": "Market notes\nstay in Notion.",
+    "description": "Title for the Notion source panel"
   },
   "dHB1MtjiIw": {
     "defaultMessage": "Unknown",
@@ -15319,9 +16091,9 @@
     "defaultMessage": "Failed to update locked strings",
     "description": "Fallback error when locking or unlocking CAT segments fails"
   },
-  "Y1cFr7sG1J": {
-    "defaultMessage": "Queries",
-    "description": "Label for the Queries button in the app shell footer"
+  "dLBcaBGQjS": {
+    "defaultMessage": "Keep people in the review loop",
+    "description": "Supporting line for keeping humans in Content Studio review"
   },
   "dLOnbBe+SR": {
     "defaultMessage": "Workspace glossaries",
@@ -15342,10 +16114,6 @@
   "dOsXIMNL7P": {
     "defaultMessage": "Unable to dismiss this invite right now.",
     "description": "Toast when dismissing the Slack Connect banner fails"
-  },
-  "dPOyhsBM1G": {
-    "defaultMessage": "Style guide",
-    "description": "Section heading for the style guide preview on project overview"
   },
   "dQccrvPeHu": {
     "defaultMessage": "Segment",
@@ -15407,6 +16175,10 @@
     "defaultMessage": "Failed to save description",
     "description": "Fallback toast when saving a job description fails without a message"
   },
+  "dXqj3V56mP": {
+    "defaultMessage": "04 Ready for your market",
+    "description": "Content Studio workflow step 4"
+  },
   "dY8L59VF27": {
     "defaultMessage": "TMS provider",
     "description": "Fallback provider name in the TMS disconnect dialog title"
@@ -15446,6 +16218,10 @@
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainian (Ukraine)",
     "description": "Display name for BCP-47 locale uk-UA"
+  },
+  "ddhlBSQ8lR": {
+    "defaultMessage": "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
+    "description": "Bottom CTA body on the Guidelines product page"
   },
   "ddoWNAQtXz": {
     "defaultMessage": "Show more",
@@ -15511,6 +16287,10 @@
     "defaultMessage": "View all workspaces",
     "description": "Link to the organization selection page from the user menu"
   },
+  "doe6TBv1GS": {
+    "defaultMessage": "Guidelines is the connected file layer. Content Studio applies it while you create and review. Automation Workflow uses it when agents run repeatable jobs.",
+    "description": "Guidelines FAQ answer about product fit"
+  },
   "dpJb4JeW+k": {
     "defaultMessage": "12 high-intent gaps found in DE",
     "description": "Automations mock UI keyword research step 3 — highlight"
@@ -15526,6 +16306,10 @@
   "dtA9CObQ6G": {
     "defaultMessage": "Add link…",
     "description": "More menu action to add an external link"
+  },
+  "dtHLu+0N41": {
+    "defaultMessage": "Guidance",
+    "description": "Status label when translation guidance is missing on project overview"
   },
   "du55QFnCON": {
     "defaultMessage": "Flags",
@@ -15575,9 +16359,17 @@
     "defaultMessage": "Included",
     "description": "Badge on Hyperlocalise Included model provider cards"
   },
+  "dznTTN8Ymt": {
+    "defaultMessage": "What can I create in Content Studio?",
+    "description": "Content Studio FAQ question about supported formats"
+  },
   "e+CeFvSaNg": {
     "defaultMessage": "Files",
     "description": "Workspace files type filter option for file resources (plural)"
+  },
+  "e+MvZA0TTv": {
+    "defaultMessage": "One shared source of context",
+    "description": "Footer line on the campaign context mock card"
   },
   "e+WPqvuP5X": {
     "defaultMessage": "Resolved",
@@ -15635,9 +16427,17 @@
     "defaultMessage": "Australia and New Zealand's leading startup accelerator.",
     "description": "Short description under the Startmate name"
   },
+  "e4Xzg6LTW9": {
+    "defaultMessage": "From product demos to campaigns",
+    "description": "Supporting link line for the video format panel"
+  },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, locale coverage, and multilingual content quality",
     "description": "Domains mock UI localisation audit use case description"
+  },
+  "e5w8XM92TM": {
+    "defaultMessage": "hid a string",
+    "description": "Action for a hidden string activity"
   },
   "e60mrsiJjc": {
     "defaultMessage": "Search",
@@ -15658,6 +16458,10 @@
   "e7P2+EV7Eq": {
     "defaultMessage": "Route to LLM agents or human reviewers",
     "description": "Workflow step 3 description for the localisation-operations use case"
+  },
+  "e7VR7VzeVP": {
+    "defaultMessage": "Connect Slack, Notion, Contentful, and GitHub. Draft, review, and publish in every language from one workflow.",
+    "description": "Meta description for the agents automation product page"
   },
   "e7p8bFrcw5": {
     "defaultMessage": "Something went wrong in this part of the tool. You can retry or keep working in the other panels.",
@@ -15702,6 +16506,10 @@
   "eD/50+uzSI": {
     "defaultMessage": "Choose column icon",
     "description": "Accessible label for the custom issue column icon picker trigger"
+  },
+  "eDTK5TLRPI": {
+    "defaultMessage": "From the first draft to the final review.",
+    "description": "Caption under the Content Studio preview"
   },
   "eE1yzdT/dq": {
     "defaultMessage": "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step.",
@@ -15775,6 +16583,10 @@
     "defaultMessage": "Could not update selected issues",
     "description": "Toast when every issue in a bulk action failed"
   },
+  "ePfYPq2DH8": {
+    "defaultMessage": "From Drive, Notion, SharePoint, or typed guidelines into every draft.",
+    "description": "Caption under the Guidelines preview"
+  },
   "ePmyaYpkGS": {
     "defaultMessage": "No workspace members yet",
     "description": "Empty state title when the workspace has no members"
@@ -15831,6 +16643,10 @@
     "defaultMessage": "Delete",
     "description": "Button to delete a custom issue column"
   },
+  "eXGK8mxaRF": {
+    "defaultMessage": "2.1 Health claims",
+    "description": "PDF clause title for health claims"
+  },
   "eYMRp4gEgK": {
     "defaultMessage": "Invitation sent; access starts after they accept.",
     "description": "Description of the pending invitation membership status"
@@ -15838,6 +16654,10 @@
   "eZMddlPk0j": {
     "defaultMessage": "Connect {integrationName} to Hyperlocalise and start running localization workflows with agents, reviewers, and automations in one workspace.",
     "description": "Supporting copy for the bottom CTA on integration detail pages"
+  },
+  "eZwaIz7tNc": {
+    "defaultMessage": "4.3 AI features",
+    "description": "PDF clause title for AI disclosures"
   },
   "eaNtS/5vOt": {
     "defaultMessage": "Collapse properties",
@@ -15926,6 +16746,10 @@
   "erXgCbsSqH": {
     "defaultMessage": "Export filtered as CSV",
     "description": "Glossary action to export the current language filter as CSV"
+  },
+  "es92Uya8hG": {
+    "defaultMessage": "Guidelines",
+    "description": "Hero eyebrow for the Guidelines product page"
   },
   "etNARyGJup": {
     "defaultMessage": "Markets",
@@ -16071,6 +16895,10 @@
     "defaultMessage": "Save settings",
     "description": "Save button label for project settings"
   },
+  "fEqp3yJRPt": {
+    "defaultMessage": "Hide {locale} details",
+    "description": "Accessible label to collapse a locale progress row"
+  },
   "fEvE7sN4RY": {
     "defaultMessage": "{usage} / {granted}",
     "description": "Usage row showing consumed versus granted amount"
@@ -16110,6 +16938,10 @@
   "fJMsDnWedi": {
     "defaultMessage": "Create new",
     "description": "Picker option to create a team glossary from CAT"
+  },
+  "fKmUmenDYW": {
+    "defaultMessage": "File Translations Imported",
+    "description": "Activity log event type label for file translation imports"
   },
   "fM2wynVWWB": {
     "defaultMessage": "Search members…",
@@ -16223,6 +17055,10 @@
     "defaultMessage": "GitHub push · {repository} · {branches}",
     "description": "Header summary for a GitHub push trigger"
   },
+  "fgo8+NGFAV": {
+    "defaultMessage": "Context in. Confidence out.",
+    "description": "Eyebrow for the Content Studio context section"
+  },
   "fhtliL5Eg6": {
     "defaultMessage": "Could not save changes.",
     "description": "Toast when issue detail update fails"
@@ -16315,6 +17151,10 @@
     "defaultMessage": "Cancel glossary name edit",
     "description": "Accessible label for canceling the glossary name edit"
   },
+  "fxgs/d7//D": {
+    "defaultMessage": "Create a project first, then import issues into Queries.",
+    "description": "Empty state when there are no projects to import issues into"
+  },
   "fyM/dYzEbh": {
     "defaultMessage": "Jobs",
     "description": "Submenu label grouping native TMS job automation tools"
@@ -16366,6 +17206,10 @@
   "g1Tiy1/MKw": {
     "defaultMessage": "GitHub repo",
     "description": "Repository selector placeholder when no repository is selected yet"
+  },
+  "g1U3NC/CnC": {
+    "defaultMessage": "Queries · this string",
+    "description": "Title on the editor mock Queries overlay"
   },
   "g2W3opbod8": {
     "defaultMessage": "Choose a Hyperlocalise project for push source.",
@@ -16503,6 +17347,10 @@
     "defaultMessage": "Deleting...",
     "description": "Delete button label while a project is being deleted"
   },
+  "gMIZAR6HUF": {
+    "defaultMessage": "Images",
+    "description": "Content Studio format tab for images"
+  },
   "gMK6GFoBBA": {
     "defaultMessage": "Members",
     "description": "Back link from role permissions to the members list"
@@ -16559,6 +17407,14 @@
     "defaultMessage": "Upload an already-translated file for {path}. Keys are matched to the source file and imported as approved.",
     "description": "Description of the import translations dialog, with the source file path"
   },
+  "gWJIlIDF6/": {
+    "defaultMessage": "Library preview",
+    "description": "Label above the SharePoint guideline preview"
+  },
+  "gWW0AlUbAk": {
+    "defaultMessage": "Files",
+    "description": "Activity log event type group for files"
+  },
   "gWsVpsBaTk": {
     "defaultMessage": "Create, orchestrate, publish, and optimise multilingual content with Content Studio, Automation Workflow, Domains, Hyperlab, Guidelines, and AI agents.",
     "description": "Meta description for the marketing homepage"
@@ -16590,6 +17446,10 @@
   "gYPVPf6Rwy": {
     "defaultMessage": "Connect to Zendesk, Intercom, Contentful, and more",
     "description": "Capability 1 title for the help-center-localisation use case"
+  },
+  "gYY0k8FFO9": {
+    "defaultMessage": "Work on source and translated content side by side. Refine the language while keeping headings, formatting, and context in view.",
+    "description": "Body for the text and documents format panel"
   },
   "gbtHgYP/IG": {
     "defaultMessage": "Failed to delete Intercom connection.",
@@ -16630,6 +17490,10 @@
   "ggf5heOubM": {
     "defaultMessage": "{count, plural, one {# string} other {# strings}} (preview truncated)",
     "description": "Count of source strings when the preview list is truncated"
+  },
+  "gggJ8QIERW": {
+    "defaultMessage": "Try the workflow. Change anything you want.",
+    "description": "Visual workflow playground section headline"
   },
   "ggrU8wuuic": {
     "defaultMessage": "API base URL",
@@ -16719,6 +17583,14 @@
     "defaultMessage": "Approved terms for launch and globally are present in the target.",
     "description": "Format check message for glossary alignment in the hero CAT mock"
   },
+  "gtD9AzyGIn": {
+    "defaultMessage": "Guidelines",
+    "description": "Navigation label for the Guidelines product page"
+  },
+  "gu7P/76etG": {
+    "defaultMessage": "Used while you work",
+    "description": "Eyebrow for the Guidelines applied-in-studio section"
+  },
   "gus2NGbaV8": {
     "defaultMessage": "Review coverage is unclear: which locales were human-approved vs. machine-translated only.",
     "description": "Problem pain point 4 for the localisation-quality-monitoring use case"
@@ -16766,6 +17638,10 @@
   "h+QA+7BAPb": {
     "defaultMessage": "Push",
     "description": "GitHub push event checkbox label"
+  },
+  "h/TaCp7kf5": {
+    "defaultMessage": "The connected file is the source of truth. When Drive or SharePoint changes, the next check uses the updated wording.",
+    "description": "Guidelines FAQ answer about file updates"
   },
   "h/hbKtjuxJ": {
     "defaultMessage": "Primary conversion button for the public waitlist.",
@@ -16823,9 +17699,9 @@
     "defaultMessage": "Open {projectName} in provider",
     "description": "Screen-reader label for opening a project in its external TMS provider"
   },
-  "mBox3Bi4Wv": {
-    "defaultMessage": "Could not load issues.",
-    "description": "Error message when CAT segment Queries issues fail to load"
+  "h4qqRHFDUX": {
+    "defaultMessage": "Send",
+    "description": "Send button in the guidelines board chat"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Import issues from CSV",
@@ -16907,6 +17783,10 @@
     "defaultMessage": "{count, plural, one {# memory} other {# memories}}",
     "description": "Status label showing how many translation memories exist"
   },
+  "hL0sGC6Xoj": {
+    "defaultMessage": "{count, plural, one {# string} other {# strings}}",
+    "description": "Remaining untranslated string count on a collapsed locale row"
+  },
   "hLYu5z/3mF": {
     "defaultMessage": "Publish and optimise multilingual web content for SEO, AEO, and local discovery.",
     "description": "Marketing homepage domainsShort"
@@ -16983,6 +17863,10 @@
     "defaultMessage": "Executions",
     "description": "Top chrome tab for workflow run history"
   },
+  "hVJSeRbcfp": {
+    "defaultMessage": "The Workflow for Multilingual Content Operations | Hyperlocalise",
+    "description": "Page title for the agents automation product page"
+  },
   "hVUJVF+t4e": {
     "defaultMessage": "Assignee",
     "description": "Table column header for issue assignee"
@@ -16995,9 +17879,9 @@
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
   },
-  "g1U3NC/CnC": {
-    "defaultMessage": "Queries · this string",
-    "description": "Title on the editor mock Queries overlay"
+  "hXu3TQ7nei": {
+    "defaultMessage": "Japan market notes",
+    "description": "Example Notion page title in the source preview"
   },
   "hYx7Vbi5IN": {
     "defaultMessage": "Connect a provider",
@@ -17075,6 +17959,10 @@
     "defaultMessage": "Failed to load provider glossaries ({status})",
     "description": "Error when live provider glossaries fail to load"
   },
+  "hj+HpjmXDL": {
+    "defaultMessage": "Text & documents",
+    "description": "Content Studio format tab for text and documents"
+  },
   "hj7GTNbnw4": {
     "defaultMessage": "Secret: {secret}",
     "description": "Displays the Contentful webhook signing secret"
@@ -17123,6 +18011,10 @@
     "defaultMessage": "80% off Growth to launch globally in days.",
     "description": "Offer line under the startups page headline"
   },
+  "htyIICw1rr": {
+    "defaultMessage": "Projects",
+    "description": "Breadcrumb link above the project overview title"
+  },
   "hu3lSudbHb": {
     "defaultMessage": "Audit timeline",
     "description": "Heading for the translation memory entry audit timeline"
@@ -17130,6 +18022,10 @@
   "huDfeEPmkj": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the github-release-localisation use case"
+  },
+  "hujEaVVQkb": {
+    "defaultMessage": "3 flags · clause 3.2",
+    "description": "German finding result on the daily compliance audit mock card"
   },
   "hvve+jJHsJ": {
     "defaultMessage": "Failed to load the {providerName} connection.",
@@ -17155,6 +18051,10 @@
     "defaultMessage": "Use the model you prefer",
     "description": "AI feature capability title: bring your own LLM"
   },
+  "hzccK8c1vn": {
+    "defaultMessage": "Notion",
+    "description": "Notion source name on the guidelines board"
+  },
   "i/10E+WnLM": {
     "defaultMessage": "This domain blocked the crawler, so we did not score the site.",
     "description": "Body explaining that a blocked crawl did not produce a localisation score"
@@ -17162,6 +18062,14 @@
   "i0qX7/ht0A": {
     "defaultMessage": "Invite teammates to assign localization ownership before work moves through the workspace.",
     "description": "Empty state description for the workspace members list"
+  },
+  "i1PMbnhRAE": {
+    "defaultMessage": "Language review",
+    "description": "Status heading in the language review mock"
+  },
+  "i29Xh/8PGM": {
+    "defaultMessage": "Done",
+    "description": "Column heading for completed work in the locale progress table"
   },
   "i2TQ8zUvre": {
     "defaultMessage": "Add Notion",
@@ -17215,6 +18123,10 @@
     "defaultMessage": "Language filters also show unallocated costs. These shared costs are not attributed to the selected language.",
     "description": "Explains shared costs in language-filtered reports"
   },
+  "iCZtn2vyra": {
+    "defaultMessage": "Pages that mention KI or AI must include the EU AI Act disclosure from this policy.",
+    "description": "PDF clause body for AI disclosures"
+  },
   "iCizofrwwK": {
     "defaultMessage": "Unable to save term",
     "description": "Fallback error when saving a glossary term fails"
@@ -17227,9 +18139,21 @@
     "defaultMessage": "Segment",
     "description": "Translation reporting label"
   },
+  "iDOdRMXYSX": {
+    "defaultMessage": "Show {locale} details",
+    "description": "Accessible label to expand a locale progress row"
+  },
+  "iEesyqaQVt": {
+    "defaultMessage": "Brand & claims policy",
+    "description": "Title shown on the fake guidelines PDF"
+  },
   "iEwQSllTi8": {
     "defaultMessage": "Enter URL",
     "description": "Prompt shown when adding a hyperlink via the slash menu"
+  },
+  "iG6m4ZRJFP": {
+    "defaultMessage": "Guidance",
+    "description": "Section heading for the translation guidance preview on project overview"
   },
   "iGZHcOe2Wd": {
     "defaultMessage": "Any more questions?",
@@ -17291,10 +18215,6 @@
     "defaultMessage": "{count} paused",
     "description": "Automations metric subtitle showing how many automations are paused"
   },
-  "iNt/60shfS": {
-    "defaultMessage": "Make missed localisation work harder to miss.",
-    "description": "Bottom CTA headline for the agents automation product page"
-  },
   "iOJxHuvYs1": {
     "defaultMessage": "Automate the busywork",
     "description": "AI feature capability title: agent automations"
@@ -17330,6 +18250,10 @@
   "iRcEEhi/N4": {
     "defaultMessage": "Connect Hyperlocalise through MCP in the AI assistants your team already uses—translation, content ops, and guidelines without switching tools.",
     "description": "Marketing homepage mcpBody"
+  },
+  "iSz2hKqv1Z": {
+    "defaultMessage": "Your next story.\nReady for the world.",
+    "description": "Bottom CTA headline on the multilingual Content Studio product page"
   },
   "iTLkbt2liA": {
     "defaultMessage": "Provider glossaries",
@@ -17371,6 +18295,10 @@
     "defaultMessage": "Uses deployment language that fits a B2B product launch while staying short enough for the hero layout.",
     "description": "AI reasoning for regenerating the hero title suggestion"
   },
+  "iagx5dCcQh": {
+    "defaultMessage": "One visual.\nA local point of view.",
+    "description": "Title for the images format panel"
+  },
   "iaqmpRkx+y": {
     "defaultMessage": "QA triage",
     "description": "Issue list view preset for QA triage issues"
@@ -17399,9 +18327,13 @@
     "defaultMessage": "Review routing",
     "description": "Workflow step 4 label for the localisation-quality-monitoring use case"
   },
-  "zI9Ceuo8wd": {
-    "defaultMessage": "Queries",
-    "description": "Heading for the CAT segment Queries section"
+  "igKhQOsrv+": {
+    "defaultMessage": "Translated",
+    "description": "Progress table row label for translated work"
+  },
+  "igXJErVret": {
+    "defaultMessage": "Page preview",
+    "description": "Label above the Notion guideline preview"
   },
   "igisWP9I+4": {
     "defaultMessage": "{confidence}% confidence",
@@ -17467,6 +18399,10 @@
     "defaultMessage": "Created",
     "description": "Created timestamp column in the concept table"
   },
+  "iqtybHn407": {
+    "defaultMessage": "Video",
+    "description": "Content Studio format tab for video"
+  },
   "irDjU9PSS4": {
     "defaultMessage": "Approved glossary terms are used correctly and forbidden terms are absent.",
     "description": "CAT format check message when glossary terms pass validation"
@@ -17506,6 +18442,10 @@
   "itUSZfLzOK": {
     "defaultMessage": "AI recommendation",
     "description": "CAT format check label when AI translation recommendation fails"
+  },
+  "iu8wk5djA0": {
+    "defaultMessage": "Market dos and don'ts stay on the pages your GTM team already writes.",
+    "description": "Proof point 2 body for the Guidelines product page"
   },
   "iuBZTCJ+YX": {
     "defaultMessage": "Warnings",
@@ -17562,6 +18502,10 @@
   "j3NSWZrB6O": {
     "defaultMessage": "Export as CSV",
     "description": "Glossary action to export all concepts as CSV"
+  },
+  "j3S46APZAg": {
+    "defaultMessage": "Queries",
+    "description": "Project sidebar navigation item for project Queries"
   },
   "j3sarok4E/": {
     "defaultMessage": "MCP Server",
@@ -17659,6 +18603,10 @@
     "defaultMessage": "Origin: {value}",
     "description": "Chip label for the active origin filter"
   },
+  "jKKc2sCkP4": {
+    "defaultMessage": "German",
+    "description": "German locale name in the language review mock"
+  },
   "jKWiD5tx0t": {
     "defaultMessage": "Pricing",
     "description": "Segment context label for pricing strings in the CAT mock"
@@ -17718,6 +18666,10 @@
   "jSY7h//Jq9": {
     "defaultMessage": "Compare against approved baselines",
     "description": "Workflow step 3 description for the localisation-quality-monitoring use case"
+  },
+  "jSvr21uwu7": {
+    "defaultMessage": "A few things\nyou might ask.",
+    "description": "FAQ heading on the Guidelines product page"
   },
   "jTZSup9Rup": {
     "defaultMessage": "Search projects",
@@ -17915,6 +18867,10 @@
     "defaultMessage": "CI check",
     "description": "Workflow step 5 label for the github-release-localisation use case"
   },
+  "k/A4aI77+z": {
+    "defaultMessage": "How does Guidelines fit with the rest of Hyperlocalise?",
+    "description": "Guidelines FAQ question about product fit"
+  },
   "k/ObF2e19m": {
     "defaultMessage": "Save",
     "description": "Save action in the concept editor"
@@ -18015,10 +18971,6 @@
     "defaultMessage": "Reporting on throughput, quality, and locale coverage requires stitching data from multiple tools.",
     "description": "Problem pain point 5 for the localisation-operations use case"
   },
-  "kAcQvgg6Yl": {
-    "defaultMessage": "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed.",
-    "description": "Hero subcopy for the agents automation product page"
-  },
   "kAj/pNbn2C": {
     "defaultMessage": "Description",
     "description": "System field mapping label for issue description"
@@ -18107,6 +19059,10 @@
     "defaultMessage": "Billing request failed. Try again in a moment.",
     "description": "Generic fallback error for billing requests"
   },
+  "kKTupKEcTR": {
+    "defaultMessage": "Approvals, comments, and file changes will appear here.",
+    "description": "Empty state description for the file editor activity dialog"
+  },
   "kKzg8D/hvU": {
     "defaultMessage": "Send",
     "description": "Send button on the public web chat composer"
@@ -18118,6 +19074,10 @@
   "kM/dmaarD3": {
     "defaultMessage": "Glossary checks",
     "description": "Editor mock use case pill for glossary term enforcement"
+  },
+  "kNO9FnuZT5": {
+    "defaultMessage": "Needs review",
+    "description": "Needs-review status in the language review mock"
   },
   "kNbIVbtAlh": {
     "defaultMessage": "We've invited your team to a shared Slack channel",
@@ -18263,9 +19223,9 @@
     "defaultMessage": "OpenAI, Anthropic, or Gemini — without changing how you work.",
     "description": "AI feature capability body: bring your own LLM"
   },
-  "kn/uJAgJBn": {
-    "defaultMessage": "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
-    "description": "Bottom CTA description for the agents automation product page"
+  "kn7ATogig+": {
+    "defaultMessage": "Adapt every slide together. Keep the layout, refine the message, and present it in any language.",
+    "description": "Body for the slides format panel"
   },
   "knFaGwAEFJ": {
     "defaultMessage": "Localisation checks that run with every pull request",
@@ -18335,6 +19295,10 @@
     "defaultMessage": "Files",
     "description": "Section title for the project files page"
   },
+  "kvUTmvykXa": {
+    "defaultMessage": "Unapproved health claim",
+    "description": "Second compliance flag title"
+  },
   "kvuiTkSvGX": {
     "defaultMessage": "Unable to load automation settings.",
     "description": "Error message when automation settings query fails"
@@ -18367,10 +19331,6 @@
     "defaultMessage": "—",
     "description": "Placeholder when a glossary timestamp is unavailable"
   },
-  "fxgs/d7//D": {
-    "defaultMessage": "Create a project first, then import issues into Queries.",
-    "description": "Empty state when there are no projects to import issues into"
-  },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections.",
     "description": "Error when Semrush connections cannot be loaded"
@@ -18382,6 +19342,10 @@
   "l0dInWPeYD": {
     "defaultMessage": "Knowledge files",
     "description": "Tool badge when an automation uses uploaded knowledge files"
+  },
+  "l1mlJzFoj/": {
+    "defaultMessage": "Load more",
+    "description": "Load more button for the file editor activity dialog"
   },
   "l1pfctOYid": {
     "defaultMessage": "Save",
@@ -18463,6 +19427,10 @@
     "defaultMessage": "Source path",
     "description": "Label for issue source path field"
   },
+  "lGHZQiNbmr": {
+    "defaultMessage": "Keep the meaning.\nKeep the structure.",
+    "description": "Title for the text and documents format panel"
+  },
   "lH4tr3c/1j": {
     "defaultMessage": "{count, plural, one {Translation file downloaded.} other {# translation files downloaded.}}",
     "description": "Toast after translation files download successfully"
@@ -18487,6 +19455,10 @@
     "defaultMessage": "Name",
     "description": "Label for a client key name field"
   },
+  "lJreXyrXC1": {
+    "defaultMessage": "Does this French headline match our voice?",
+    "description": "Suggested prompt in editor mock chat footer panel"
+  },
   "lKE9esALm9": {
     "defaultMessage": "String unlinked",
     "description": "Toast when a translation string is unlinked from an issue"
@@ -18502,6 +19474,10 @@
   "lNH8JueKxa": {
     "defaultMessage": "Name A–Z",
     "description": "Crowdin glossary ordering option for ascending names"
+  },
+  "lNHTcG3rKm": {
+    "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
+    "description": "Hero subcopy for the Guidelines product page"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Automation settings saved",
@@ -18526,6 +19502,10 @@
   "lRSf7hxCZ6": {
     "defaultMessage": "See how the five products and your AI agents can work for your team.",
     "description": "Marketing homepage finalBody"
+  },
+  "lSPsuv9k/H": {
+    "defaultMessage": "Request a Demo",
+    "description": "Call-to-action to request a Guidelines demo"
   },
   "lSWmCYvw9u": {
     "defaultMessage": "Create key",
@@ -18583,9 +19563,9 @@
     "defaultMessage": "requested changes",
     "description": "Action text next to Hyperlocalise when requesting changes on a PR"
   },
-  "lecYTYG81Q": {
-    "defaultMessage": "Catch the change",
-    "description": "Proof point 1 title for the agents automation product page"
+  "ldsa6EOMk/": {
+    "defaultMessage": "ENGLISH · SOURCE",
+    "description": "Source-language label in a Content Studio format mock"
   },
   "lf5Y/6HP3L": {
     "defaultMessage": "Sort",
@@ -18635,6 +19615,14 @@
     "defaultMessage": "Publish a check run so teams can see localization results on commits and pull requests.",
     "description": "Section description for GitHub status check settings"
   },
+  "ln7JKojYPi": {
+    "defaultMessage": "Text layers",
+    "description": "Label for the image format mock layers panel"
+  },
+  "lo142sTjcF": {
+    "defaultMessage": "Queries",
+    "description": "Sidebar navigation item for workspace Queries"
+  },
   "lpIsUoLsfZ": {
     "defaultMessage": "{count} preview rows",
     "description": "Badge showing how many preview rows are shown while mapping"
@@ -18658,6 +19646,10 @@
   "lsXD2TTIpU": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the localisation-quality-monitoring use case"
+  },
+  "lsmpBVLKpZ": {
+    "defaultMessage": "Proofread",
+    "description": "Link from a locale row into the content editor review queue"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub",
@@ -18703,6 +19695,10 @@
     "defaultMessage": "Comment on pull requests with localisation status",
     "description": "Capability 4 title for the github-release-localisation use case"
   },
+  "m3RSvNywAR": {
+    "defaultMessage": "Activity could not be loaded.",
+    "description": "Error title when file editor activity fails to load"
+  },
   "m3woOgoczi": {
     "defaultMessage": "3h ago",
     "description": "Knowledge mock UI relative timestamp"
@@ -18743,6 +19739,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel adding Intercom connection"
   },
+  "mBox3Bi4Wv": {
+    "defaultMessage": "Could not load issues.",
+    "description": "Error message when CAT segment Queries issues fail to load"
+  },
   "mC64PC89AZ": {
     "defaultMessage": "Task type",
     "description": "Detail row label for the job or Crowdin task type"
@@ -18775,6 +19775,10 @@
     "defaultMessage": "Tablet preview",
     "description": "Aria label for tablet device toggle in visual editor canvas"
   },
+  "mF2ibzlVS8": {
+    "defaultMessage": "Loading activity…",
+    "description": "Loading state for the file editor activity dialog"
+  },
   "mF3XaS/Oxa": {
     "defaultMessage": "Failed to create job",
     "description": "Fallback toast when job creation fails without an error message"
@@ -18798,6 +19802,10 @@
   "mGMHPd7U67": {
     "defaultMessage": "Source file",
     "description": "Accessible label for the CAT header source file picker trigger"
+  },
+  "mGQ8u5Lds5": {
+    "defaultMessage": "{percent}%",
+    "description": "Translated percent shown on a locale progress row"
   },
   "mGfu/yi14X": {
     "defaultMessage": "Create and refine multilingual content in a shared workspace, with context and human review close at hand.",
@@ -18834,6 +19842,10 @@
   "mKyo1eMyN6": {
     "defaultMessage": "Fix first",
     "description": "Heading for the top findings to fix on a localisation audit result"
+  },
+  "mMLVebRDAJ": {
+    "defaultMessage": "Native",
+    "description": "Projects list nativeSource"
   },
   "mMp/zOre+X": {
     "defaultMessage": "Private",
@@ -18887,10 +19899,6 @@
     "defaultMessage": "Zoom out",
     "description": "Accessible label for zooming out within the image lightbox"
   },
-  "mTRhHwVIHd": {
-    "defaultMessage": "Keep every output on-brand, compliant, and consistent across markets.",
-    "description": "Marketing homepage guidelinesShort"
-  },
   "mUdENNqEWz": {
     "defaultMessage": "Revoke",
     "description": "Button to revoke a client key"
@@ -18935,6 +19943,10 @@
     "defaultMessage": "exported a glossary",
     "description": "Action for a glossary export activity"
   },
+  "mZUHzvJrS8": {
+    "defaultMessage": "Adapt the words inside your images. Refine each market’s message while keeping your visual identity.",
+    "description": "Body for the images format panel"
+  },
   "mZxMVREyg5": {
     "defaultMessage": "Use lowercase letters, numbers, and hyphens only.",
     "description": "Validation error when the team slug has invalid characters"
@@ -18966,6 +19978,14 @@
   "mg4r+1o1Aq": {
     "defaultMessage": "Web chat",
     "description": "Header summary for a web chat trigger"
+  },
+  "mgqDzjgTSc": {
+    "defaultMessage": "Brand-claims-policy.pdf · Google Drive",
+    "description": "Tool detail while the agent reads the PDF"
+  },
+  "mhbklWULOm": {
+    "defaultMessage": "Google Drive",
+    "description": "Google Drive source name on the guidelines board"
   },
   "mi29vosn6Y": {
     "defaultMessage": "Select a supported provider.",
@@ -19107,10 +20127,6 @@
     "defaultMessage": "Remove",
     "description": "Button to remove a project from a glossary"
   },
-  "n2pk6Y4oGA": {
-    "defaultMessage": "If the last review taught the team something, the next workflow should know it.",
-    "description": "Details section headline for the self-evolving knowledge product page"
-  },
   "n3G74L1ESt": {
     "defaultMessage": "This audit looks stuck",
     "description": "Title when a public localisation audit appears stalled"
@@ -19118,6 +20134,10 @@
   "n3a+6mF2IX": {
     "defaultMessage": "Searching",
     "description": "Live explore status when the agent is searching without a subject"
+  },
+  "n3fs1Skt3S": {
+    "defaultMessage": "Mentioning KI requires the EU AI Act wording in clause 4.3.",
+    "description": "Third compliance flag body"
   },
   "n4hpRZLl37": {
     "defaultMessage": "Add case",
@@ -19215,6 +20235,10 @@
     "defaultMessage": "Unable to update glossary name",
     "description": "Fallback error when updating the glossary name fails"
   },
+  "nIxPibE5kf": {
+    "defaultMessage": "03 Flag the issues",
+    "description": "Guidelines workflow step 3"
+  },
   "nJUCs4vSKi": {
     "defaultMessage": "Saving...",
     "description": "Button label while repository automation settings are saving"
@@ -19255,6 +20279,14 @@
     "defaultMessage": "Agent Automations",
     "description": "Automations mock UI eyebrow label"
   },
+  "nPSlG6dRhe": {
+    "defaultMessage": "How does an agent flag a compliance issue?",
+    "description": "Guidelines FAQ question about agent flags"
+  },
+  "nQ/dkYYamv": {
+    "defaultMessage": "From product copy to long-form stories",
+    "description": "Supporting link line for the text and documents format panel"
+  },
   "nQSI1fGvRy": {
     "defaultMessage": "GitHub",
     "description": "GitHub integration label on the dashboard"
@@ -19279,10 +20311,6 @@
     "defaultMessage": "Close",
     "description": "Label and tooltip for the dialog close control"
   },
-  "nSqpG2XwMB": {
-    "defaultMessage": "Search by name...",
-    "description": "Placeholder for the projects search field"
-  },
   "nU96BLMwJI": {
     "defaultMessage": "Enter image URL",
     "description": "Label for the image URL field in the insert-image dialog"
@@ -19306,6 +20334,10 @@
   "nVaRoL1Gb1": {
     "defaultMessage": "Unable to load agent runs",
     "description": "Fallback error when agent runs fail to load without an Error message"
+  },
+  "nXCktzp8yW": {
+    "defaultMessage": "Automation Workflow",
+    "description": "Link from Guidelines to the automation product page"
   },
   "nXG6iEdVXv": {
     "defaultMessage": "Failed to remove member",
@@ -19443,6 +20475,10 @@
     "defaultMessage": "File and string translation jobs, batch localization, and translation subagents.",
     "description": "Hyperlocalise Agent Translation capability description"
   },
+  "nqWsz/vBZ6": {
+    "defaultMessage": "Who should own the connected files?",
+    "description": "Guidelines FAQ question about ownership"
+  },
   "nqfqbc0zeN": {
     "defaultMessage": "Failed to approve image",
     "description": "Fallback error when approving an image translation fails"
@@ -19511,6 +20547,10 @@
     "defaultMessage": "Run glossary, drift, and coverage checks",
     "description": "Workflow step 2 description for the localisation-quality-monitoring use case"
   },
+  "o2Y08elyIM": {
+    "defaultMessage": "String Commented",
+    "description": "Activity log event type label for string comments"
+  },
   "o5RLnUXcEq": {
     "defaultMessage": "Startmate",
     "description": "Startmate name shown in the backed-by section"
@@ -19518,6 +20558,10 @@
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining",
     "description": "Usage row showing remaining allowance"
+  },
+  "o76L/3NXxQ": {
+    "defaultMessage": "Confidential · Page 2 of 6",
+    "description": "Meta line on the fake guidelines PDF"
   },
   "o7Q2VF9914": {
     "defaultMessage": "Unlink",
@@ -19530,6 +20574,10 @@
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection.",
     "description": "Error when Semrush connection save fails"
+  },
+  "o9VQDmuCLQ": {
+    "defaultMessage": "Multilingual Content Studio",
+    "description": "Link from Guidelines to the Content Studio product page"
   },
   "oAaG6RQRA7": {
     "defaultMessage": "Choose one or more existing project files. Each file starts its own run.",
@@ -19554,6 +20602,10 @@
   "oFlc5dBfFx": {
     "defaultMessage": "Got it, Maya — I pulled the Canva board and scoped launch intake:",
     "description": "Agent intro line before the structured intake summary"
+  },
+  "oFoqUqR3xA": {
+    "defaultMessage": "Unable to load language progress.",
+    "description": "Error message when locale progress fails to load"
   },
   "oHlz44sQOv": {
     "defaultMessage": "Save glossary name",
@@ -19619,9 +20671,17 @@
     "defaultMessage": "Created",
     "description": "Audit event label for a created translation memory entry"
   },
+  "oNE0YnvOn0": {
+    "defaultMessage": "Connect brand-voice and claims PDFs from Google Drive. Agents cite the clause in the file when they flag a draft.",
+    "description": "Body for the Google Drive source panel"
+  },
   "oNrNYjWrTm": {
     "defaultMessage": "Translation memory not found.",
     "description": "Empty state when a translation memory cannot be found"
+  },
+  "oNw/Do5A5A": {
+    "defaultMessage": "Drive, Notion, and SharePoint stay the source of truth",
+    "description": "Subtitle of the connected guidelines file board"
   },
   "oOPiJrePOj": {
     "defaultMessage": "Review launch copy against brand guidelines",
@@ -19691,10 +20751,6 @@
     "defaultMessage": "Context found by agent",
     "description": "Section heading for repository context discovered by an agent"
   },
-  "obkqu+QKmi": {
-    "defaultMessage": "{count, plural, one {# item} other {# items}}",
-    "description": "Count badge for triage items on project overview"
-  },
   "oc3EaT6uAq": {
     "defaultMessage": "Next open",
     "description": "Keyboard shortcut hint for jumping to the next unfinished string"
@@ -19706,6 +20762,10 @@
   "oeVZ6ETPjK": {
     "defaultMessage": "Select a member",
     "description": "Placeholder for the member select"
+  },
+  "ofjXB5MTLN": {
+    "defaultMessage": "Published",
+    "description": "Published status badge in the webpage preview"
   },
   "og0hJhgZ7f": {
     "defaultMessage": "Match",
@@ -19783,6 +20843,10 @@
     "defaultMessage": "Translated document",
     "description": "Accessible label for the raw Markdown/MDX document editor in Content Editor File view"
   },
+  "ooufH8cRvw": {
+    "defaultMessage": "Clear",
+    "description": "French finding result on the daily compliance audit mock card"
+  },
   "opXLqo3spW": {
     "defaultMessage": "Built for quality at scale",
     "description": "Capabilities section title for the localisation-quality-monitoring use case"
@@ -19806,6 +20870,14 @@
   "ou63JKkZ6w": {
     "defaultMessage": "Locale",
     "description": "Table column header for target locale"
+  },
+  "ovj4Hc0MYp": {
+    "defaultMessage": "From social posts to campaigns",
+    "description": "Supporting link line for the images format panel"
+  },
+  "ow+0+l1ZrI": {
+    "defaultMessage": "Clear. Human. Confident.",
+    "description": "Brand voice example in the campaign context mock"
   },
   "owW1Hvk/pe": {
     "defaultMessage": "Do I need to replace my TMS?",
@@ -19871,6 +20943,14 @@
     "defaultMessage": "Next branch",
     "description": "Accessible label and tooltip for navigating to the next message branch"
   },
+  "p5U71/xQBI": {
+    "defaultMessage": "Leave the guidelines where they are. Let agents read them.",
+    "description": "Bottom CTA headline for the Guidelines product page"
+  },
+  "p5YTxqry+c": {
+    "defaultMessage": "Last run · this morning",
+    "description": "Last-run label on the daily compliance audit mock card"
+  },
   "p5nI6qGcmh": {
     "defaultMessage": "{count, plural, one {# ready} other {# ready}}",
     "description": "Locale readiness summary segment for ready locales"
@@ -19903,6 +20983,10 @@
     "defaultMessage": "Analyzing",
     "description": "Progress step label when a localisation audit is analyzing signals"
   },
+  "pDidtWgxX9": {
+    "defaultMessage": "{count, plural, one {# project} other {# projects}}",
+    "description": "Projects list projectCount"
+  },
   "pDmu9CvY1J": {
     "defaultMessage": "Reuse the US homepage hero without local proof points",
     "description": "Guideline mock UI Brazil market don't guidance"
@@ -19918,6 +21002,10 @@
   "pF/btP7bSZ": {
     "defaultMessage": "Failed to update job",
     "description": "Error when a native job title, description, or owner update fails"
+  },
+  "pFQ34kvcvg": {
+    "defaultMessage": "EU disclosures library",
+    "description": "SharePoint library name on the guidelines board"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Target text",
@@ -19979,9 +21067,17 @@
     "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit.",
     "description": "Startups FAQ answer about eligibility"
   },
+  "pPpG4zo8Yj": {
+    "defaultMessage": "Attach approved terminology, brand guidance, and market context so every person and agent works from the same source of truth.",
+    "description": "Content Studio FAQ answer about brand voice"
+  },
   "pQttDyq4Mr": {
     "defaultMessage": "Close glossary guidance",
     "description": "Accessible label for closing the glossary guidance panel"
+  },
+  "pS4CYtUU3j": {
+    "defaultMessage": "A few things\nyou might ask.",
+    "description": "FAQ heading on the multilingual Content Studio product page"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send",
@@ -20047,6 +21143,10 @@
     "defaultMessage": "Agent Automation",
     "description": "Hero eyebrow for the agents automation product page"
   },
+  "pZ59Fsnn9/": {
+    "defaultMessage": "Japanese",
+    "description": "Japanese locale name in the language review mock"
+  },
   "pbA55RTgks": {
     "defaultMessage": "{position} / {total}",
     "description": "Current string index and total count in the visual editor detail panel"
@@ -20058,6 +21158,10 @@
   "pdHOl1weOs": {
     "defaultMessage": "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
     "description": "GitHub connect error when installation awaits org owner approval"
+  },
+  "pe8wOIBCi/": {
+    "defaultMessage": "Ask the agent to read Brand-claims-policy.pdf and flag anything that breaks a clause.",
+    "description": "Empty-state subtitle in the guidelines board chat"
   },
   "peYw3ULGLY": {
     "defaultMessage": "Supported triggers",
@@ -20103,9 +21207,9 @@
     "defaultMessage": "Automation",
     "description": "Automations list column header for name"
   },
-  "piWs1xE1NT": {
-    "defaultMessage": "Job failed",
-    "description": "Status label for failed job triage items"
+  "pi6YCralA1": {
+    "defaultMessage": "Public API",
+    "description": "Developer resources link title for the public HTTP API docs"
   },
   "pj6HuYI/BY": {
     "defaultMessage": "GitHub connected",
@@ -20122,6 +21226,10 @@
   "plDoLEcfb7": {
     "defaultMessage": "Decisions compound as teams learn what works in each market",
     "description": "Feature teaser benefit for guideline"
+  },
+  "pmPB2F7F47": {
+    "defaultMessage": "Acme · Queries",
+    "description": "Header breadcrumb in marketing app shell mock"
   },
   "pmeyEQny7X": {
     "defaultMessage": "Install command for {client}",
@@ -20195,9 +21303,17 @@
     "defaultMessage": "Enforce brand voice and terminology",
     "description": "Capability 2 title for the marketing-localisation use case"
   },
+  "pyFu72KXFM": {
+    "defaultMessage": "Campaign context",
+    "description": "Title of the campaign context mock card"
+  },
   "pyS8Vyq98T": {
     "defaultMessage": "Nested For Each loops are not supported yet.",
     "description": "Validation message when a for-each loop contains another for-each loop"
+  },
+  "pym2jLFt91": {
+    "defaultMessage": "Drive. Notion.\nSharePoint.",
+    "description": "Headline for the Guidelines sources section"
   },
   "pzP0LynEOg": {
     "defaultMessage": "Not saved yet",
@@ -20222,6 +21338,10 @@
   "q/krUbYzC9": {
     "defaultMessage": "Query Ahrefs SEO data through the connection in Integrations.",
     "description": "Description for the Ahrefs automation tool when a connection exists"
+  },
+  "q0HrIWf6j7": {
+    "defaultMessage": "Pick where work starts (Notion, Slack, Contentful, GitHub). Draw the steps: write, translate, check, publish.",
+    "description": "Proof point 1 body for the agents automation product page"
   },
   "q0vQCpRAVI": {
     "defaultMessage": "No files match this search.",
@@ -20271,10 +21391,6 @@
     "defaultMessage": "{total, plural, one {# matching entry} other {# matching entries}}",
     "description": "Live status announcing how many translation memory entries match the query"
   },
-  "q89JS2cAvL": {
-    "defaultMessage": "Stop chasing localisation work across tools",
-    "description": "Hero headline for the agents automation product page"
-  },
   "q8JPEoD1z3": {
     "defaultMessage": "Show localisation health directly in GitHub so engineering and localisation share one view.",
     "description": "Capability 5 description for the localisation-quality-monitoring use case"
@@ -20306,6 +21422,10 @@
   "qABPUMMqNa": {
     "defaultMessage": "Bangla (Bangladesh)",
     "description": "Display name for BCP-47 locale bn-BD"
+  },
+  "qAENVVTQnI": {
+    "defaultMessage": "Explore Guidelines",
+    "description": "Link from Content Studio to the Guidelines product page"
   },
   "qAnWJy2K6s": {
     "defaultMessage": "Structured answers, FAQ coverage, and AI-search readiness",
@@ -20350,6 +21470,10 @@
   "qHxiBnE/J7": {
     "defaultMessage": "Ask about strings, context, progress, or translations",
     "description": "Empty-state subtitle inside the marketing chat dock mock"
+  },
+  "qICJFGMBSv": {
+    "defaultMessage": "uploaded a file",
+    "description": "Action for a file upload activity"
   },
   "qIu/YA1mT+": {
     "defaultMessage": "Link copied",
@@ -20495,6 +21619,10 @@
     "defaultMessage": "Context signal",
     "description": "Knowledge product visual memory node description"
   },
+  "qjnIHRqIL8": {
+    "defaultMessage": "Replay",
+    "description": "Replay button in the guidelines board chat"
+  },
   "qjpFG9aLeM": {
     "defaultMessage": "Glossary violation in onboarding",
     "description": "Issue row title in content ops mock"
@@ -20518,6 +21646,10 @@
   "qqo0mtljp2": {
     "defaultMessage": "From intake to orchestrated delivery",
     "description": "Workflow section title for the localisation-operations use case"
+  },
+  "qqzc5HNRQF": {
+    "defaultMessage": "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
+    "description": "Page title for the Guidelines product page"
   },
   "qs2xntPsAx": {
     "defaultMessage": "SEO & AEO",
@@ -20619,9 +21751,9 @@
     "defaultMessage": "required",
     "description": "Badge label for a required schema property"
   },
-  "j3S46APZAg": {
-    "defaultMessage": "Queries",
-    "description": "Project sidebar navigation item for project Queries"
+  "r7n1+etxph": {
+    "defaultMessage": "Upload a spreadsheet export, map columns to Queries fields, preview the result, then import.",
+    "description": "Description of the Issue Sheet CSV import dialog"
   },
   "r7qqla56RV": {
     "defaultMessage": "Shortened written form",
@@ -20707,6 +21839,10 @@
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the help-center-localisation use case"
   },
+  "rJ5ZNEEfrR": {
+    "defaultMessage": "Last cited",
+    "description": "Clause row label in the attached guidelines mock"
+  },
   "rJRBMWgpmE": {
     "defaultMessage": "From address",
     "description": "Label for the sender email address field"
@@ -20739,6 +21875,10 @@
     "defaultMessage": "Project files",
     "description": "Accessible name for the project files tree"
   },
+  "rOvqLQGma3": {
+    "defaultMessage": "File",
+    "description": "File row label in the attached guidelines mock"
+  },
   "rPAVRcXZc+": {
     "defaultMessage": "Localisation is still a manual step outside the release pipeline",
     "description": "Problem section title for the github-release-localisation use case"
@@ -20746,6 +21886,10 @@
   "rPDum93Cv6": {
     "defaultMessage": "Cannot save because the segment source file is missing.",
     "description": "Error when a CAT mutation cannot resolve the segment source path"
+  },
+  "rPN3Y2jfH0": {
+    "defaultMessage": "Check copy against the PDF",
+    "description": "Empty-state title in the guidelines board chat"
   },
   "rQ4NeDF7KU": {
     "defaultMessage": "Continue",
@@ -20786,6 +21930,10 @@
   "rWt5vl0XvQ": {
     "defaultMessage": "Status",
     "description": "Issue list sort option by status"
+  },
+  "rXIITR1I9M": {
+    "defaultMessage": "Automations",
+    "description": "Eyebrow for the Guidelines daily-audit section"
   },
   "rYXZcW+sgJ": {
     "defaultMessage": "Enable Slack agent",
@@ -20911,6 +22059,10 @@
     "defaultMessage": "Unable to send that message right now.",
     "description": "Toast when a public web chat message fails"
   },
+  "rttw694uiK": {
+    "defaultMessage": "Retry",
+    "description": "Retry button for the file editor activity dialog"
+  },
   "ruYDTOKKtU": {
     "defaultMessage": "Market opportunity → measurable growth",
     "description": "Capability carousel card 03 kicker"
@@ -20926,6 +22078,10 @@
   "ryGOjbG4Wd": {
     "defaultMessage": "User agent",
     "description": "Label for the blocked localisation audit crawler user agent"
+  },
+  "ryd9aeww4k": {
+    "defaultMessage": "Can we use more than one source?",
+    "description": "Guidelines FAQ question about multiple sources"
   },
   "rzRd9sk8q6": {
     "defaultMessage": "Project created",
@@ -21043,10 +22199,6 @@
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
   },
-  "3CjBlEDVPl": {
-    "defaultMessage": "Queries",
-    "description": "App shell breadcrumb title for the workspace Queries page"
-  },
   "sKJqM/aeDo": {
     "defaultMessage": "Campaign brief",
     "description": "Marketing homepage brief"
@@ -21058,6 +22210,10 @@
   "sKtMhwDjRp": {
     "defaultMessage": "Config JSON",
     "description": "Label for a config flag JSON value"
+  },
+  "sMO5kn7k5p": {
+    "defaultMessage": "Keep the docs you have.\nPut them to work.",
+    "description": "Hero headline for the Guidelines product page"
   },
   "sMpopGaY+v": {
     "defaultMessage": "Unable to save entry",
@@ -21130,10 +22286,6 @@
   "sZ3Qm/SOaW": {
     "defaultMessage": "Numbered list",
     "description": "Slash menu item for a numbered list"
-  },
-  "sZFiP5Oe8M": {
-    "defaultMessage": "When launch work is scattered, translations become a last-minute scramble.",
-    "description": "Details section headline for the agents automation product page"
   },
   "sZSpLe4vdi": {
     "defaultMessage": "Plural branches and the '{'count'}' token match the source.",
@@ -21255,13 +22407,17 @@
     "defaultMessage": "No description",
     "description": "Empty state when a provider job has no description"
   },
+  "sqEo4EAhoy": {
+    "defaultMessage": "Close Queries",
+    "description": "Accessible label for closing the CAT Queries panel"
+  },
+  "srC39pzddm": {
+    "defaultMessage": "File Queries issues for the selected project from automation findings.",
+    "description": "Description for the Create issue automation tool"
+  },
   "ssMiRZyu1M": {
     "defaultMessage": "Block releases when quality gates fail",
     "description": "Capability 6 title for the github-release-localisation use case"
-  },
-  "RueTypLijF": {
-    "defaultMessage": "Queries",
-    "description": "App shell breadcrumb title for the project Queries page"
   },
   "svD7SMchJb": {
     "defaultMessage": "{providerName} is ready for member tokens",
@@ -21270,6 +22426,10 @@
   "svMnxMDrsO": {
     "defaultMessage": "Export filtered glossary",
     "description": "Label for filtered glossary export choices"
+  },
+  "svxgBhLpnH": {
+    "defaultMessage": "Queries · acme workspace",
+    "description": "Queries panel title in content ops mock"
   },
   "sw288YpOpz": {
     "defaultMessage": "Added",
@@ -21331,10 +22491,6 @@
     "defaultMessage": "Configure step",
     "description": "Right panel heading when a node is selected"
   },
-  "t4mhc63bGr": {
-    "defaultMessage": "Waiting for review",
-    "description": "Status label for review triage items"
-  },
   "t6CkSuu5ac": {
     "defaultMessage": "Output: faster cycles you can run again and again",
     "description": "Marketing homepage journeyAutomateOutput"
@@ -21346,6 +22502,10 @@
   "t6Jk21Xb6m": {
     "defaultMessage": "Copy OAuth callback URL",
     "description": "Aria label for the copy OAuth callback URL button"
+  },
+  "t7VshKcR+p": {
+    "defaultMessage": "View settings",
+    "description": "Link to project settings from the empty locale progress state"
   },
   "t7l1acivlq": {
     "defaultMessage": "Failed to load members",
@@ -21362,6 +22522,10 @@
   "t9IIjKdbNq": {
     "defaultMessage": "Engineering and localisation coordinate over Slack instead of inside CI/CD.",
     "description": "Problem pain point 2 for the github-release-localisation use case"
+  },
+  "t9KG4W2FU+": {
+    "defaultMessage": "Publish to the web",
+    "description": "Eyebrow for the Content Studio web publishing section"
   },
   "t9YYiKFrxA": {
     "defaultMessage": "Product docs",
@@ -21386,6 +22550,10 @@
   "tCoNRn2dnG": {
     "defaultMessage": "Delete Crowdin task?",
     "description": "Title of the delete Crowdin task confirmation dialog"
+  },
+  "tCw1pmceT2": {
+    "defaultMessage": "Yes. AI moves drafts forward while reviewers compare, refine, comment, and make the final approval decision.",
+    "description": "Content Studio FAQ answer about AI review"
   },
   "tDv3EqS/ae": {
     "defaultMessage": "Cancel",
@@ -21434,6 +22602,10 @@
   "tLThxyOpTE": {
     "defaultMessage": "We couldn't load this page",
     "description": "Heading shown when an application route fails unexpectedly"
+  },
+  "tLb8BuElrp": {
+    "defaultMessage": "Made for your content",
+    "description": "Eyebrow for the Content Studio formats section"
   },
   "tMOiEvbyBd": {
     "defaultMessage": "Project-specific guidance for agents and teams",
@@ -21487,10 +22659,6 @@
     "defaultMessage": "AEO",
     "description": "Domains mock UI audit dimension label"
   },
-  "tSAM5aO3Q/": {
-    "defaultMessage": "Give your team and agents shared brand guidance, terminology, and market context.",
-    "description": "Marketing homepage guidelinesBody"
-  },
   "tSRJft1T5O": {
     "defaultMessage": "Logic",
     "description": "Node picker category for branching nodes"
@@ -21531,10 +22699,6 @@
     "defaultMessage": "APP",
     "description": "Badge next to the Hyperlocalise agent name in the Slack mock"
   },
-  "svxgBhLpnH": {
-    "defaultMessage": "Queries · acme workspace",
-    "description": "Queries panel title in content ops mock"
-  },
   "tX7cZ1uzA9": {
     "defaultMessage": "Choose file",
     "description": "Button to open the file picker for importing translations"
@@ -21550,6 +22714,10 @@
   "tZkO4BrIat": {
     "defaultMessage": "Inactive",
     "description": "Disabled workflow active-state toggle label"
+  },
+  "tbWhMwM8OM": {
+    "defaultMessage": "No target languages yet",
+    "description": "Empty-state title when a project has no target locales"
   },
   "tcEBE8+x0p": {
     "defaultMessage": "MB",
@@ -21607,6 +22775,10 @@
     "defaultMessage": "Post a sticky review comment on the matching pull request. Later runs update the same comment.",
     "description": "Description for GitHub pull request comment notifications when GitHub is connected"
   },
+  "tqJRWwDupO": {
+    "defaultMessage": "More than words.\nYour whole campaign.",
+    "description": "Headline for the Content Studio formats section"
+  },
   "tr/WtfszIz": {
     "defaultMessage": "Every",
     "description": "Prefix label before the schedule cadence select"
@@ -21642,6 +22814,10 @@
   "tznfLKixWB": {
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for workspace reports"
+  },
+  "u/BgSogOwb": {
+    "defaultMessage": "3.2 German advertising — no superlatives",
+    "description": "Highlighted PDF clause in the Google Drive source preview"
   },
   "u0JPXvQtPf": {
     "defaultMessage": "Provider supplied",
@@ -21790,6 +22966,10 @@
   "uPLvPG1gYg": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after copying the inbound email address"
+  },
+  "uQThnP+5M7": {
+    "defaultMessage": "Review source and target side by side, with translation memory matches, AI suggestions, glossary checks, and visual context for each string in the same view.",
+    "description": "Content Studio FAQ answer about the editor"
   },
   "uQY+c5lAJq": {
     "defaultMessage": "The Content Editor is not available for this provider file type yet.",
@@ -22039,6 +23219,10 @@
     "defaultMessage": "Localize audiences, campaigns, and automations in Mailchimp.",
     "description": "Mailchimp integration description on the integrations page"
   },
+  "v//TLtlSQz": {
+    "defaultMessage": "Automation Workflow",
+    "description": "Link from Content Studio to the automation product page"
+  },
   "v/bExbFK7z": {
     "defaultMessage": "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
     "description": "Problem section description for the product-localisation use case"
@@ -22155,10 +23339,6 @@
     "defaultMessage": "Failed to create API key",
     "description": "Error when creating an API key fails"
   },
-  "vJGZC1FhAF": {
-    "defaultMessage": "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
-    "description": "Proof point 1 body for the agents automation product page"
-  },
   "vK7GusCjy3": {
     "defaultMessage": "main",
     "description": "Placeholder for branch pattern input"
@@ -22190,6 +23370,10 @@
   "vNt29KgOjZ": {
     "defaultMessage": "Project assigned",
     "description": "Toast after a project is assigned to a translation memory"
+  },
+  "vQdLFmWq8o": {
+    "defaultMessage": "DE homepage",
+    "description": "German finding target on the daily compliance audit mock card"
   },
   "vQvodKQirM": {
     "defaultMessage": "Placeholder agent step with tools.",
@@ -22395,6 +23579,10 @@
     "defaultMessage": "Manage membership and roles for the {slug} team.",
     "description": "Team detail page description when the team slug is known"
   },
+  "vsGtnGOHlx": {
+    "defaultMessage": "Not recommended · use approved market phrase",
+    "description": "Note for not recommended glossary term in editor mock footer panel"
+  },
   "vtr+j44k6z": {
     "defaultMessage": "Issue unlinked",
     "description": "Toast when an issue is unlinked from the string"
@@ -22515,9 +23703,21 @@
     "defaultMessage": "@hyperlocalise review runs the same review on demand and uses this additional prompt, even when Auto-review is off. Extra text after review is ignored.",
     "description": "Note that mention review shares the Auto-review prompt"
   },
+  "w8q/KN/ZqF": {
+    "defaultMessage": "Guideline check",
+    "description": "Chat header title in the guidelines board mock"
+  },
+  "w9Jksgm8Dg": {
+    "defaultMessage": "1 flag · clause 2.1",
+    "description": "Japanese finding result on the daily compliance audit mock card"
+  },
   "w9jgu/gyZT": {
     "defaultMessage": "Contentful Help Center",
     "description": "Default display name for a new Contentful CMS connection"
+  },
+  "w9pu7kC+rH": {
+    "defaultMessage": "When a draft opens in Content Studio, the connected Drive PDF, Notion page, or SharePoint policy sits beside it. Reviewers and agents read the same document.",
+    "description": "Body for the Guidelines applied-in-studio section"
   },
   "wA5BTp/Pxl": {
     "defaultMessage": "Everyone",
@@ -22711,10 +23911,6 @@
     "defaultMessage": "Open job",
     "description": "CTA for a failed or active job on project overview"
   },
-  "srC39pzddm": {
-    "defaultMessage": "File Queries issues for the selected project from automation findings.",
-    "description": "Description for the Create issue automation tool"
-  },
   "weWSzrQ1Qp": {
     "defaultMessage": "Manage terms and assign this glossary to projects.",
     "description": "Fallback description when a glossary has no description"
@@ -22803,6 +23999,10 @@
     "defaultMessage": "Repository automation",
     "description": "Page heading for GitHub repository automation settings"
   },
+  "wqX73vSqoO": {
+    "defaultMessage": "Content Studio connects to Automation Workflow and Domains so approved content can move into repeatable workflows and reach every market.",
+    "description": "Content Studio FAQ answer about product fit"
+  },
   "wr3AKpuOi3": {
     "defaultMessage": "Brand voice · Style guide",
     "description": "Brand style guide panel title"
@@ -22855,6 +24055,14 @@
     "defaultMessage": "Open the chat dock from review, ask what a string means, and watch agents search the repository before they answer.",
     "description": "Supporting copy for the marketing chat dock mock section"
   },
+  "wwGzx8T1wq": {
+    "defaultMessage": "The file is the source\nof truth.",
+    "description": "Headline for the Guidelines applied-in-studio section"
+  },
+  "wwKiGsumAM": {
+    "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
+    "description": "Meta description for the Guidelines product page"
+  },
   "wwl2e+kYrU": {
     "defaultMessage": "Usage meter copy shown in billing and review dashboards.",
     "description": "Looked-up context for the usage limit segment"
@@ -22890,6 +24098,10 @@
   "x/Kqcar7eA": {
     "defaultMessage": "Access token",
     "description": "Label for Intercom access token field"
+  },
+  "x/f6L/kjpD": {
+    "defaultMessage": "You create the workflow once: where work starts, how it gets written, how it gets checked, where it goes live. Slack, Notion, Canva, Contentful, GitHub, Crowdin, and the rest plug into those steps. Then every campaign can follow the same path in every language.",
+    "description": "Details section summary for the agents automation product page"
   },
   "x1FhjXZK5S": {
     "defaultMessage": "plan",
@@ -22959,6 +24171,10 @@
     "defaultMessage": "Team slug is required.",
     "description": "Validation error when the team slug is empty"
   },
+  "x9lPZa0R66": {
+    "defaultMessage": "Status",
+    "description": "Status row label in the attached guidelines mock"
+  },
   "x9qwrwtKqR": {
     "defaultMessage": "For small teams that need more seats and projects.",
     "description": "Starter plan description on the pricing page"
@@ -22974,10 +24190,6 @@
   "xCSk4L7Wzd": {
     "defaultMessage": "Accepted",
     "description": "Filter option for accepted proposals"
-  },
-  "xCstEdPlMf": {
-    "defaultMessage": "Every approved translation, reviewer correction, glossary choice, and market-specific decision becomes context that agents and humans can reuse on the next job.",
-    "description": "Details section summary for the self-evolving knowledge product page"
   },
   "xCzW2pNolA": {
     "defaultMessage": "Publish to your CMS with SEO and AEO in the same motion. Every market gets a page that ranks, answers, and converts, not just a translated file sitting in a folder.",
@@ -23046,6 +24258,10 @@
   "xQCn9y4Cu3": {
     "defaultMessage": "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
     "description": "Accessible label for side-by-side format check failure icon"
+  },
+  "xQjhAYVKZT": {
+    "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check the files you already have.",
+    "description": "Marketing homepage guidelinesShort"
   },
   "xRY53GWVL8": {
     "defaultMessage": "Status",
@@ -23219,6 +24435,10 @@
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated successfully"
   },
+  "xotII997CO": {
+    "defaultMessage": "Queries",
+    "description": "Section title for the project Queries page"
+  },
   "xovEZE5T2r": {
     "defaultMessage": "Add",
     "description": "Button label to add a branch pattern"
@@ -23230,6 +24450,14 @@
   "xp1ilN6OAp": {
     "defaultMessage": "New articles and updates live in Zendesk, Intercom, Contentful, or Notion — disconnected from localisation queues.",
     "description": "Problem pain point 1 for the help-center-localisation use case"
+  },
+  "xpMULNdb04": {
+    "defaultMessage": "01 Create",
+    "description": "Content Studio workflow step 1"
+  },
+  "xpTr69QuG7": {
+    "defaultMessage": "Queries",
+    "description": "Overview section label for open Queries issues"
   },
   "xqxlUUUa9e": {
     "defaultMessage": "Hyperlocalise",
@@ -23290,6 +24518,10 @@
   "y/0rjxqRwk": {
     "defaultMessage": "Apply anyway",
     "description": "Confirm button for applying a low-quality TM match"
+  },
+  "y/2/+8rxbw": {
+    "defaultMessage": "Use this policy when reviewing campaign copy. Agents must cite the clause that applies.",
+    "description": "Intro paragraph on the fake guidelines PDF"
   },
   "y0gXcEiYv6": {
     "defaultMessage": "{source} → {targets}",
@@ -23415,10 +24647,6 @@
     "defaultMessage": "Do I need Crowdin, Lokalise, or another TMS first?",
     "description": "Startups FAQ question about needing an existing TMS"
   },
-  "KAvyqkZVul": {
-    "defaultMessage": "Add a project-specific workflow column to Queries.",
-    "description": "Description of the dialog to add a custom Queries column"
-  },
   "yGxOn6oNGU": {
     "defaultMessage": "{count, plural, one {# glossary} other {# glossaries}}",
     "description": "Status label showing how many glossaries exist"
@@ -23483,6 +24711,10 @@
     "defaultMessage": "New job",
     "description": "Create job dialog title"
   },
+  "yRuWK+QTKd": {
+    "defaultMessage": "Strings",
+    "description": "Tab showing string-based translation progress"
+  },
   "yU1JjWL9rR": {
     "defaultMessage": "{providerName} task",
     "description": "Metric label identifying a TMS provider-backed job task"
@@ -23527,6 +24759,10 @@
     "defaultMessage": "Collapse chat",
     "description": "Accessible label for collapsing the chat dock panel"
   },
+  "ya2E3z8gto": {
+    "defaultMessage": "Keep “Daylight” in every language.",
+    "description": "Terminology example in the campaign context mock"
+  },
   "yc2ziR1Owc": {
     "defaultMessage": "Runs only start when a teammate queues one from this automation.",
     "description": "Description for the manual-only trigger"
@@ -23539,6 +24775,10 @@
     "defaultMessage": "Showing {pageCount} of {filteredCount} filtered · {totalCount} total",
     "description": "Pagination summary for filtered agent proposals"
   },
+  "yfyxggCpJF": {
+    "defaultMessage": "Create and adapt text, documents, slides, images, and video in one multilingual workspace with shared context and human review.",
+    "description": "Meta description for the multilingual Content Studio product page"
+  },
   "yh5N07rqk9": {
     "defaultMessage": "Built for developer-led release workflows",
     "description": "Capabilities section title for the github-release-localisation use case"
@@ -23546,6 +24786,10 @@
   "yhk0AaA8SA": {
     "defaultMessage": "Primary CTA",
     "description": "Segment context label for the primary CTA in the CAT mock"
+  },
+  "yid8b+P/VX": {
+    "defaultMessage": "Product copy · app and CMS strings",
+    "description": "Product check row on the daily compliance audit mock card"
   },
   "yj2BSHV6l8": {
     "defaultMessage": "Use OpenAI, Claude, Gemini, or another provider without locking your stack to one model vendor.",
@@ -23558,6 +24802,10 @@
   "ykXAFysnC5": {
     "defaultMessage": "Remove MCP Server tool",
     "description": "Accessible label to remove the MCP Server tool"
+  },
+  "ykmACsU9kM": {
+    "defaultMessage": "Create issue",
+    "description": "Menu item and tool title for creating Queries issues"
   },
   "ykrA6Q/ZFk": {
     "defaultMessage": "Publish localized articles without manual copy-paste between your TMS and help center.",
@@ -23627,9 +24875,17 @@
     "defaultMessage": "Signal",
     "description": "Automation product visual source column label"
   },
+  "yxDI0UUubE": {
+    "defaultMessage": "Brand-claims-policy.pdf",
+    "description": "Example Drive filename in the source preview"
+  },
   "yxHGupHq+k": {
     "defaultMessage": "Treat as video",
     "description": "Button to treat a URL source string as a localizable video"
+  },
+  "yyQsNyHMHz": {
+    "defaultMessage": "What happens when legal updates the PDF?",
+    "description": "Guidelines FAQ question about file updates"
   },
   "z+yNDK6TMM": {
     "defaultMessage": "Comfortable",
@@ -23735,6 +24991,10 @@
     "defaultMessage": "Opens in a new tab",
     "description": "Screen-reader hint for external navbar links"
   },
+  "zCQhaHX3Xw": {
+    "defaultMessage": "{percent}%",
+    "description": "Approved percent shown on a locale progress row"
+  },
   "zCn3UqvqWI": {
     "defaultMessage": "Skip selected",
     "description": "Bulk action to skip all selected CAT segments"
@@ -23746,6 +25006,10 @@
   "zEYxUcr2AM": {
     "defaultMessage": "No description",
     "description": "Fallback when a glossary has no description"
+  },
+  "zEhmEZ0r+l": {
+    "defaultMessage": "Do not use \"clinically proven\" or \"klinisch erwiesen\" unless the wording is on the approved claims list.",
+    "description": "PDF clause body for health claims"
   },
   "zElCbJDM+q": {
     "defaultMessage": "Agent Proposal Review",
@@ -23770,6 +25034,10 @@
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",
     "description": "Translation memories page heading"
+  },
+  "zI9Ceuo8wd": {
+    "defaultMessage": "Queries",
+    "description": "Heading for the CAT segment Queries section"
   },
   "zIyXVsMpay": {
     "defaultMessage": "Generic AI translation flattens brand voice, cultural references, and regional nuance.",
@@ -23815,6 +25083,10 @@
     "defaultMessage": "Open account menu for {name}",
     "description": "Screen-reader label for the account menu trigger button"
   },
+  "zNif9FKga+": {
+    "defaultMessage": "Languages",
+    "description": "Heading for the project locale translation progress list"
+  },
   "zNmC1jJaJH": {
     "defaultMessage": "Domains",
     "description": "Marketing homepage domains"
@@ -23835,6 +25107,10 @@
     "defaultMessage": "No translation memories yet",
     "description": "Empty state title when the workspace has no translation memories"
   },
+  "zR0I34Xobx": {
+    "defaultMessage": "Build your multilingual workflow.",
+    "description": "Supporting note under the Content Studio bottom CTA"
+  },
   "zSP+9VJuxd": {
     "defaultMessage": "You can upload 1 file at a time.",
     "description": "Toast when more than one knowledge upload file is selected"
@@ -23850,6 +25126,10 @@
   "zTcUh0/Ogq": {
     "defaultMessage": "Reviewing translated strings with legal and market nuance",
     "description": "Console line for review step in the translation flow illustration"
+  },
+  "zU54dIP7FC": {
+    "defaultMessage": "Publish articles, guides, and landing pages directly from Content Studio. Manage your content and translations in one place, then share a link with your audience.",
+    "description": "Body for the Content Studio web publishing section"
   },
   "zUNfzXrjpU": {
     "defaultMessage": "Rejected: {count}",
@@ -23898,6 +25178,10 @@
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary",
     "description": "Fallback error when a glossary fails to load"
+  },
+  "zdNwM1KXY3": {
+    "defaultMessage": "EU disclosures library",
+    "description": "Example SharePoint library name in the source preview"
   },
   "zdR5Xed7Lx": {
     "defaultMessage": "Add variant",

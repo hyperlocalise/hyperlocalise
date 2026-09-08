@@ -749,6 +749,130 @@ func TestCheckCommandPropertiesFileRecognized(t *testing.T) {
 	assertFindingType(t, report.Findings, checkOrphanedKey)
 }
 
+func TestCheckCommandEscapedCharMismatch(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{
+  "included": "Included",
+  "createdJob": "Created job",
+  "addToBoard": "Unable to add to Board",
+  "ok": "Save"
+}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{
+  "included": "Inclus\\tgranted",
+  "createdJob": "已创建工作\tjob",
+  "addToBoard": "Không thể thêm vào Bảng\tl",
+  "ok": "Enregistrer"
+}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail", "--check", checkEscapedChar})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if len(report.Findings) != 3 {
+		t.Fatalf("expected 3 escaped-char findings, got %+v", report.Findings)
+	}
+	for _, finding := range report.Findings {
+		if finding.Type != checkEscapedChar {
+			t.Fatalf("unexpected finding type: %+v", finding)
+		}
+		if finding.Severity != checkSeverityWarning {
+			t.Fatalf("expected warning severity, got %+v", finding)
+		}
+		if !strings.Contains(finding.Message, `\t`) {
+			t.Fatalf("expected \\t in message, got %+v", finding)
+		}
+	}
+}
+
+func TestCollectEntryCheckFindingsEscapedCharMismatch(t *testing.T) {
+	findings := collectEntryCheckFindings(
+		&checkLocationResolver{},
+		"ui",
+		"fr",
+		"source.json",
+		"target.json",
+		map[string]string{
+			"included": "Included",
+			"ok":       "Save",
+		},
+		map[string]string{
+			"included": "Inclus\\tgranted",
+			"ok":       "Enregistrer",
+		},
+		map[string]struct{}{
+			checkEscapedChar: {},
+		},
+		checkSelection{},
+	)
+
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %+v", findings)
+	}
+	if findings[0].Type != checkEscapedChar || findings[0].Severity != checkSeverityWarning {
+		t.Fatalf("unexpected finding: %+v", findings[0])
+	}
+	if findings[0].Key != "included" {
+		t.Fatalf("expected included key, got %+v", findings[0])
+	}
+	if !strings.Contains(findings[0].Message, `\t`) {
+		t.Fatalf("expected \\t in message, got %q", findings[0].Message)
+	}
+}
+
+func TestCollectEntryCheckFindingsDecodedControlChars(t *testing.T) {
+	findings := collectEntryCheckFindings(
+		&checkLocationResolver{},
+		"ui",
+		"fr",
+		"source.json",
+		"target.json",
+		map[string]string{
+			"included": "Included",
+		},
+		map[string]string{
+			"included": "Inclus\u0000granted",
+		},
+		map[string]struct{}{
+			checkEscapedChar: {},
+		},
+		checkSelection{},
+	)
+
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %+v", findings)
+	}
+	if findings[0].Type != checkEscapedChar {
+		t.Fatalf("unexpected finding: %+v", findings[0])
+	}
+	if !strings.Contains(findings[0].Message, `\u0000`) {
+		t.Fatalf("expected \\u0000 in message, got %q", findings[0].Message)
+	}
+}
+
 func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
 	findings := collectEntryCheckFindings(
 		&checkLocationResolver{},
@@ -1624,6 +1748,9 @@ func TestCheckHelperFunctions(t *testing.T) {
 	t.Run("severityForCheck", func(t *testing.T) {
 		if got := severityForCheck(checkSameAsSource); got != checkSeverityWarning {
 			t.Fatalf("same_as_source severity: %q", got)
+		}
+		if got := severityForCheck(checkEscapedChar); got != checkSeverityWarning {
+			t.Fatalf("escaped_char_mismatch severity: %q", got)
 		}
 		if got := severityForCheck(checkNotLocalized); got != checkSeverityError {
 			t.Fatalf("not_localized severity: %q", got)

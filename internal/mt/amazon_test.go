@@ -373,7 +373,7 @@ func TestAmazonClientTranslateContextCanceledBetweenCalls(t *testing.T) {
 	defer cancel()
 
 	var calls int
-	client := newAmazonTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+	cfg := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		require.Equal(t, 1, calls, "no request should be sent for a source after cancellation")
 
@@ -382,14 +382,30 @@ func TestAmazonClientTranslateContextCanceledBetweenCalls(t *testing.T) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(respBody)))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(respBody))
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
-
-		cancel()
 	})
+	cfg.AccessKeyID = "AKIATEST"
+	cfg.SecretAccessKey = "test-secret"
+	cfg.Region = "us-east-1"
 
-	_, err := client.Translate(ctx, Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"one", "two"}})
+	// Cancel after the first response is received on the client. Canceling from
+	// the server handler races: the client can start the next source before the
+	// handler runs cancel().
+	baseTransport := cfg.HTTPClient.Transport
+	if baseTransport == nil {
+		baseTransport = http.DefaultTransport
+	}
+	cfg.HTTPClient = &http.Client{
+		Transport: amazonRoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			resp, err := baseTransport.RoundTrip(req)
+			cancel()
+			return resp, err
+		}),
+	}
+
+	client, err := NewAmazonClient(cfg)
+	require.NoError(t, err)
+
+	_, err = client.Translate(ctx, Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"one", "two"}})
 	require.Error(t, err)
 	require.True(t, errors.Is(err, context.Canceled))
 	_, ok := AsError(err)

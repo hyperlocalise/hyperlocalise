@@ -21,6 +21,7 @@ export const providerQaCheckTypes = [
   "glossary_violation",
   "tone_style_issue",
   "whitespace_only_translation",
+  "escaped_char_mismatch",
 ] as const;
 
 export type ProviderQaCheckType = (typeof providerQaCheckTypes)[number];
