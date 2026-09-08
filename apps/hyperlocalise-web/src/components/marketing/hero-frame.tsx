@@ -17,6 +17,7 @@ import type { IntlShape } from "react-intl";
 import { useIntl } from "react-intl";
 
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
+import type { ContentEditorWorkspaceViewMode } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import { toQueueSegment } from "@/components/content-editor/workspace/store/content-editor-segment-view";
 import type {
   ContentEditorFormatCheck,
@@ -36,6 +37,8 @@ type HeroFrameProps = {
   initialSelectedSegmentId?: string;
   /** Override the workspace viewport height (contained layouts). */
   workspaceClassName?: string;
+  /** Lock the demo workspace to a view mode without touching persisted preferences. */
+  initialViewMode?: ContentEditorWorkspaceViewMode;
 };
 
 const DEFAULT_WORKSPACE_CLASSNAME =
@@ -727,6 +730,7 @@ export function HeroFrame({
   className,
   initialSelectedSegmentId,
   workspaceClassName = DEFAULT_WORKSPACE_CLASSNAME,
+  initialViewMode = "comfortable",
 }: HeroFrameProps) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
@@ -741,18 +745,24 @@ export function HeroFrame({
     className,
   );
   const workspace = (
-    <div className={workspaceClassName}>
+    <div
+      className={cn(
+        workspaceClassName,
+        layout === "contained" && "flex h-full min-h-0 flex-col overflow-hidden",
+      )}
+    >
       <ContentEditorWorkspaceContainer
         initialState={initialState}
-        initialViewMode="comfortable"
+        initialViewMode={initialViewMode}
         services={services}
+        className={layout === "contained" ? "min-h-0 flex-1" : undefined}
       />
     </div>
   );
 
   // Contained layout is staged by the parent (e.g. whileInView); skip mount animation.
   if (layout === "contained") {
-    return <div className={frameClassName}>{workspace}</div>;
+    return <div className={cn(frameClassName, "flex h-full min-h-0 flex-col")}>{workspace}</div>;
   }
 
   return (

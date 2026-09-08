@@ -28,19 +28,18 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
           description: "Meta description for the agents automation product page",
         }),
       };
-    case "next-gen-cat-tool":
+    case "multilingual-content-studio":
       return {
         title: intl.formatMessage({
-          defaultMessage:
-            "Review Translations Without Guessing What the String Means | Hyperlocalise",
-          id: "jeP5GjQn+Q",
-          description: "Page title for the next-gen CAT tool product page",
+          defaultMessage: "Multilingual Content Studio | Hyperlocalise",
+          id: "8GHZDPEhIo",
+          description: "Page title for the multilingual Content Studio product page",
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Give reviewers the source, target, product context, glossary guidance, AI notes, comments, and quality checks in one translation workspace.",
-          id: "fdVXMcsjuq",
-          description: "Meta description for the next-gen CAT tool product page",
+            "Create and adapt text, documents, slides, images, and video in one multilingual workspace with shared context and human review.",
+          id: "yfyxggCpJF",
+          description: "Meta description for the multilingual Content Studio product page",
         }),
       };
     case "self-evolving-knowledge":

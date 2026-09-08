@@ -522,7 +522,11 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
           {PRODUCTS.map((product, index) => (
             <a
               key={product.id}
-              href="#explore"
+              href={
+                product.href.startsWith("/")
+                  ? rewriteAppLocalePath(product.href, locale)
+                  : product.href
+              }
               className="group flex flex-col overflow-hidden rounded-xl border border-border focus-visible:outline-2 focus-visible:outline-offset-4"
             >
               <div className="relative isolate flex h-44 items-center justify-between overflow-hidden px-6 text-white">

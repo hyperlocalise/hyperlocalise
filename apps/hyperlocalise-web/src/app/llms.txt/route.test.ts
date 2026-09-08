@@ -32,7 +32,7 @@ describe("llms.txt route", () => {
       "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation): Stop chasing localisation work across tools.",
     );
     expect(body).toContain(
-      "[Next-gen CAT Tool](https://www.hyperlocalise.com/en/product/next-gen-cat-tool): Review translations without guessing what the string means.",
+      "[Multilingual Content Studio](https://www.hyperlocalise.com/en/product/multilingual-content-studio): Create and adapt every content format in one multilingual workspace.",
     );
     expect(body).toContain(
       "[Self-evolving Knowledge](https://www.hyperlocalise.com/en/product/self-evolving-knowledge): Stop repeating the same localisation feedback.",

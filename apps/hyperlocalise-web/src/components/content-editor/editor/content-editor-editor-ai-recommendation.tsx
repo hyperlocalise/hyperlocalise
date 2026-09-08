@@ -42,32 +42,59 @@ export function ContentEditorEditorAiRecommendation({
 }) {
   const upgradeHref = useAiFeaturesUpgradeHref();
   const hasSuggestion = Boolean(intelligence.aiSuggestion);
+  const showActions = hasSuggestion || Boolean(onGenerateAiRecommendation) || Boolean(upgradeHref);
 
   return (
     <aside
       className={cn(
-        "rounded-xl border px-3.5 py-3 transition-opacity",
-        hasSuggestion ? "border-grove-300/35 bg-grove-500/[0.07]" : "border-border/80 bg-muted/50",
+        "overflow-hidden rounded-2xl bg-muted/50 px-3.5 py-3 ring-1 ring-inset ring-border/50",
         isLoading && "opacity-80",
         className,
       )}
       aria-busy={isLoading}
     >
-      <div className="mb-2.5 flex items-center justify-between gap-3">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <HugeiconsIcon
-            icon={SparklesIcon}
-            className={cn(
-              "size-3.5 shrink-0",
-              hasSuggestion ? "text-grove-300" : "text-grove-300/70",
-            )}
-            aria-hidden
-          />
+      <div className="flex items-center gap-1.5">
+        <HugeiconsIcon
+          icon={SparklesIcon}
+          className="size-3.5 shrink-0 text-grove-400"
+          aria-hidden
+        />
+        <p className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...contentEditorEditorPanelMessages.aiRecommendation} />
         </p>
-        <div className="flex items-center gap-1.5">
+      </div>
+
+      <div className="mt-2.5">
+        {error ? (
+          <p className="text-sm leading-relaxed text-flame-100">{error}</p>
+        ) : hasSuggestion ? (
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed text-foreground">{intelligence.aiSuggestion}</p>
+            {intelligence.aiReasoning ? (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                <FormattedMessage
+                  {...contentEditorEditorPanelMessages.aiReasoning}
+                  values={{
+                    reasoning: intelligence.aiReasoning,
+                    b: (chunks) => (
+                      <span className="font-medium text-subtle-foreground">{chunks}</span>
+                    ),
+                  }}
+                />
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            <FormattedMessage {...contentEditorEditorPanelMessages.aiSuggestionEmpty} />
+          </p>
+        )}
+      </div>
+
+      {showActions ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
           {hasSuggestion ? (
-            <Button variant="ghost" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
+            <Button variant="outline" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
               <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
@@ -80,7 +107,7 @@ export function ContentEditorEditorAiRecommendation({
             />
           ) : onGenerateAiRecommendation ? (
             <Button
-              variant="outline"
+              variant={hasSuggestion ? "ghost" : "outline"}
               size="xs"
               onClick={onGenerateAiRecommendation}
               disabled={isLoading}
@@ -98,31 +125,7 @@ export function ContentEditorEditorAiRecommendation({
             </Button>
           ) : null}
         </div>
-      </div>
-      {error ? (
-        <p className="text-sm leading-relaxed text-flame-100">{error}</p>
-      ) : hasSuggestion ? (
-        <div className="space-y-2">
-          <p className="text-sm leading-relaxed text-foreground">{intelligence.aiSuggestion}</p>
-          {intelligence.aiReasoning ? (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              <FormattedMessage
-                {...contentEditorEditorPanelMessages.aiReasoning}
-                values={{
-                  reasoning: intelligence.aiReasoning,
-                  b: (chunks) => (
-                    <span className="font-medium text-subtle-foreground">{chunks}</span>
-                  ),
-                }}
-              />
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...contentEditorEditorPanelMessages.aiSuggestionEmpty} />
-        </p>
-      )}
+      ) : null}
     </aside>
   );
 }

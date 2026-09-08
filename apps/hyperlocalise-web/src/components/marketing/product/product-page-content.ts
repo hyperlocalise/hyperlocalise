@@ -14,7 +14,10 @@ import type { ProductMessageKey } from "./product-page-content.messages";
 
 export type { ProductMessageKey } from "./product-page-content.messages";
 
-export type ProductPageSlug = "agents-automation" | "next-gen-cat-tool" | "self-evolving-knowledge";
+export type ProductPageSlug =
+  | "agents-automation"
+  | "multilingual-content-studio"
+  | "self-evolving-knowledge";
 
 export type ProductVisualKind = "automation" | "cat" | "knowledge";
 
@@ -89,27 +92,27 @@ export const productPages: ProductPageContent[] = [
       descriptionKey: "agentsAutomationCtaDescription",
     },
     related: [
-      { labelKey: "productNavNextGenCatTool", href: "/product/next-gen-cat-tool" },
+      { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
       { labelKey: "productNavSelfEvolvingKnowledge", href: "/product/self-evolving-knowledge" },
     ],
   },
   {
-    slug: "next-gen-cat-tool",
+    slug: "multilingual-content-studio",
     metadata: {
-      titleKey: "nextGenCatToolMetadataTitle",
-      descriptionKey: "nextGenCatToolMetadataDescription",
+      titleKey: "contentStudioMetadataTitle",
+      descriptionKey: "contentStudioMetadataDescription",
       keywords: [
-        "next-gen CAT tool",
-        "AI assisted translation",
-        "human in the loop translation",
-        "localisation quality checks",
+        "multilingual content studio",
+        "multilingual content creation",
+        "AI content localisation",
+        "multilingual campaign workflow",
       ],
     },
     visualKind: "cat",
     hero: {
-      eyebrowKey: "nextGenCatToolHeroEyebrow",
-      headlineKey: "nextGenCatToolHeroHeadline",
-      subcopyKey: "nextGenCatToolHeroSubcopy",
+      eyebrowKey: "contentStudioHeroEyebrow",
+      headlineKey: "contentStudioHeroHeadline",
+      subcopyKey: "contentStudioHeroSubcopy",
     },
     detailsHeadlineKey: "nextGenCatToolDetailsHeadline",
     summaryKey: "nextGenCatToolSummary",
@@ -176,7 +179,7 @@ export const productPages: ProductPageContent[] = [
     },
     related: [
       { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
-      { labelKey: "productNavNextGenCatTool", href: "/product/next-gen-cat-tool" },
+      { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
     ],
   },
 ];

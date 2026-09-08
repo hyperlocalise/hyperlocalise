@@ -13,10 +13,12 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import {
   BookOpenTextIcon,
   Bookmark01Icon,
+  Cancel01Icon,
   Chat01Icon,
   CheckmarkCircle02Icon,
   Copy01Icon,
@@ -40,7 +42,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/primitives/cn";
 
-import { CONTENT_OPS_MOCK_SHELL_CLASSNAME } from "./content-ops-mock-stage.constants";
+import {
+  CONTENT_OPS_MOCK_SHELL_DEFAULT_HEIGHT_CLASSNAME,
+  CONTENT_OPS_MOCK_SHELL_SURFACE_CLASSNAME,
+  CONTENT_OPS_MOCK_SHELL_VIEWPORT_HEIGHT_CLASSNAME,
+} from "./content-ops-mock-stage.constants";
 import {
   contentOpsMockStageMessages,
   type ContentOpsMockTabId,
@@ -107,85 +113,296 @@ const MOCK_EDITOR_GLOSSARY_PREFERRED = 1;
 const MOCK_EDITOR_GLOSSARY_NOT_RECOMMENDED = 1;
 const MOCK_EDITOR_OPEN_ISSUES = 2;
 
-function MockEditorFooter() {
+type MockEditorFooterPanel = "glossary" | "issues" | "chat";
+
+function MockFloatingFooterPanel({
+  title,
+  onClose,
+  children,
+  closeLabel,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  closeLabel: string;
+}) {
   return (
-    <footer className="flex h-10 shrink-0 items-stretch border-t border-border px-2">
-      <div className="flex h-10 w-full min-w-0 items-center gap-2">
-        <Button type="button" variant="outline" size="xs" tabIndex={-1} className="shrink-0">
-          <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} data-icon="inline-start" />
-          <span className="max-w-40 truncate">
-            <FormattedMessage {...contentOpsMockStageMessages.mockShellPlanButton} />
-          </span>
-        </Button>
+    <section className="absolute right-2 bottom-11 z-30 flex max-h-[min(16rem,42vh)] w-[min(24rem,calc(100%-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/20">
+      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
+        <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</h3>
+        <button
+          type="button"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={closeLabel}
+          onClick={onClose}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+        </button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </section>
+  );
+}
 
-        <div className="ms-auto flex min-w-0 items-center gap-2 overflow-x-auto">
+function MockEditorGlossaryPanel({
+  onClose,
+  closeLabel,
+}: {
+  onClose: () => void;
+  closeLabel: string;
+}) {
+  const intl = useIntl();
+
+  const terms = [
+    {
+      term: intl.formatMessage(contentOpsMockStageMessages.editorGlossaryPreferredTerm),
+      note: intl.formatMessage(contentOpsMockStageMessages.editorGlossaryPreferredNote),
+      tone: "preferred" as const,
+    },
+    {
+      term: intl.formatMessage(contentOpsMockStageMessages.editorGlossaryNotRecommendedTerm),
+      note: intl.formatMessage(contentOpsMockStageMessages.editorGlossaryNotRecommendedNote),
+      tone: "not-recommended" as const,
+    },
+  ];
+
+  return (
+    <MockFloatingFooterPanel
+      title={intl.formatMessage(contentOpsMockStageMessages.editorGlossaryPanelTitle)}
+      onClose={onClose}
+      closeLabel={closeLabel}
+    >
+      <ul className="space-y-2 p-2">
+        {terms.map((entry) => (
+          <li
+            key={entry.term}
+            className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-sm font-medium text-foreground">{entry.term}</span>
+              {entry.tone === "preferred" ? (
+                <HugeiconsIcon
+                  icon={CheckmarkCircle02Icon}
+                  className="size-4 shrink-0 text-emerald-500"
+                  aria-hidden
+                />
+              ) : (
+                <HugeiconsIcon
+                  icon={MinusSignCircleIcon}
+                  className="size-4 shrink-0 text-rose-500"
+                  aria-hidden
+                />
+              )}
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">{entry.note}</p>
+          </li>
+        ))}
+      </ul>
+    </MockFloatingFooterPanel>
+  );
+}
+
+function MockEditorIssuesPanel({
+  onClose,
+  closeLabel,
+}: {
+  onClose: () => void;
+  closeLabel: string;
+}) {
+  const intl = useIntl();
+
+  const issues = [
+    {
+      id: "web-2",
+      identifier: "WEB-2",
+      title: intl.formatMessage(contentOpsMockStageMessages.issueWeb2Title),
+      detail: intl.formatMessage(contentOpsMockStageMessages.issueWeb2Detail),
+      status: intl.formatMessage(contentOpsMockStageMessages.statusInProgress),
+    },
+    {
+      id: "mob-1",
+      identifier: "MOB-1",
+      title: intl.formatMessage(contentOpsMockStageMessages.issueMob1Title),
+      detail: intl.formatMessage(contentOpsMockStageMessages.issueMob1Detail),
+      status: intl.formatMessage(contentOpsMockStageMessages.statusOpen),
+    },
+  ];
+
+  return (
+    <MockFloatingFooterPanel
+      title={intl.formatMessage(contentOpsMockStageMessages.editorIssuesPanelTitle)}
+      onClose={onClose}
+      closeLabel={closeLabel}
+    >
+      <ul className="space-y-2 p-2">
+        {issues.map((issue) => (
+          <li key={issue.id} className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-mono text-[10px] font-medium text-muted-foreground">
+                {issue.identifier}
+              </span>
+              <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-200">
+                {issue.status}
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-medium text-foreground">{issue.title}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{issue.detail}</p>
+          </li>
+        ))}
+      </ul>
+    </MockFloatingFooterPanel>
+  );
+}
+
+function MockEditorChatPanel({ onClose, closeLabel }: { onClose: () => void; closeLabel: string }) {
+  const intl = useIntl();
+  const [started, setStarted] = useState(false);
+  const suggestion = intl.formatMessage(contentOpsMockStageMessages.editorChatSuggestion);
+  const answer = intl.formatMessage(contentOpsMockStageMessages.editorChatAnswer);
+
+  return (
+    <MockFloatingFooterPanel
+      title={intl.formatMessage(chatDockMessages.newChat)}
+      onClose={onClose}
+      closeLabel={closeLabel}
+    >
+      {started ? (
+        <div className="flex flex-col gap-3 p-3">
+          <div className="ms-auto max-w-[92%] rounded-2xl bg-muted px-3 py-2 text-pretty text-xs leading-5 text-foreground">
+            {suggestion}
+          </div>
+          <p className="text-pretty text-xs leading-5 text-foreground">{answer}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-4" />
+          </div>
+          <div className="max-w-xs space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              <FormattedMessage {...chatDockMessages.emptyTitle} />
+            </p>
+            <p className="text-pretty text-xs leading-5 text-muted-foreground">
+              <FormattedMessage {...chatDockMessages.emptySubtitle} />
+            </p>
+          </div>
           <Button
             type="button"
-            variant="ghost"
-            size="xs"
-            tabIndex={-1}
-            className="shrink-0 gap-1.5 px-2"
+            variant="outline"
+            size="sm"
+            className="h-8 max-w-full text-pretty text-xs"
+            onClick={() => setStarted(true)}
           >
-            <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} className="size-3.5" />
-            <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
-            <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-              <HugeiconsIcon
-                icon={CheckmarkCircle02Icon}
-                strokeWidth={2}
-                className="size-4"
-                aria-hidden="true"
-              />
-              <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_PREFERRED}</span>
-            </span>
-            <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-              <HugeiconsIcon
-                icon={MinusSignCircleIcon}
-                strokeWidth={2}
-                className="size-4"
-                aria-hidden="true"
-              />
-              <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_NOT_RECOMMENDED}</span>
-            </span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            tabIndex={-1}
-            className="shrink-0 gap-1.5 px-2"
-          >
-            <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
-            <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
-            <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
-              {MOCK_EDITOR_OPEN_ISSUES}
-            </span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            tabIndex={-1}
-            className="shrink-0 gap-1.5 px-2"
-          >
-            <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
-            <FormattedMessage {...chatDockMessages.newChat} />
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            tabIndex={-1}
-            className="shrink-0 gap-1.5 px-2"
-          >
-            <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} className="size-3.5" />
-            <FormattedMessage {...appShellFooterMessages.supportLabel} />
+            {suggestion}
           </Button>
         </div>
-      </div>
-    </footer>
+      )}
+    </MockFloatingFooterPanel>
+  );
+}
+
+function MockEditorFooter() {
+  const intl = useIntl();
+  const [openPanel, setOpenPanel] = useState<MockEditorFooterPanel | null>(null);
+  const closeLabel = intl.formatMessage(contentOpsMockStageMessages.editorFooterPanelClose);
+
+  const togglePanel = (panel: MockEditorFooterPanel) => {
+    setOpenPanel((current) => (current === panel ? null : panel));
+  };
+
+  return (
+    <>
+      {openPanel === "glossary" ? (
+        <MockEditorGlossaryPanel onClose={() => setOpenPanel(null)} closeLabel={closeLabel} />
+      ) : null}
+      {openPanel === "issues" ? (
+        <MockEditorIssuesPanel onClose={() => setOpenPanel(null)} closeLabel={closeLabel} />
+      ) : null}
+      {openPanel === "chat" ? (
+        <MockEditorChatPanel onClose={() => setOpenPanel(null)} closeLabel={closeLabel} />
+      ) : null}
+
+      <footer className="flex h-10 shrink-0 items-stretch border-t border-border px-2">
+        <div className="flex h-10 w-full min-w-0 items-center gap-2">
+          <Button type="button" variant="outline" size="xs" tabIndex={-1} className="shrink-0">
+            <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} data-icon="inline-start" />
+            <span className="max-w-40 truncate">
+              <FormattedMessage {...contentOpsMockStageMessages.mockShellPlanButton} />
+            </span>
+          </Button>
+
+          <div className="ms-auto flex min-w-0 items-center gap-2 overflow-x-auto">
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="shrink-0 gap-1.5 px-2"
+              aria-expanded={openPanel === "glossary"}
+              onClick={() => togglePanel("glossary")}
+            >
+              <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} className="size-3.5" />
+              <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
+                <HugeiconsIcon
+                  icon={CheckmarkCircle02Icon}
+                  strokeWidth={2}
+                  className="size-4"
+                  aria-hidden="true"
+                />
+                <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_PREFERRED}</span>
+              </span>
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
+                <HugeiconsIcon
+                  icon={MinusSignCircleIcon}
+                  strokeWidth={2}
+                  className="size-4"
+                  aria-hidden="true"
+                />
+                <span className="tabular-nums">{MOCK_EDITOR_GLOSSARY_NOT_RECOMMENDED}</span>
+              </span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="shrink-0 gap-1.5 px-2"
+              aria-expanded={openPanel === "issues"}
+              onClick={() => togglePanel("issues")}
+            >
+              <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} className="size-3.5" />
+              <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
+              <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
+                {MOCK_EDITOR_OPEN_ISSUES}
+              </span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="shrink-0 gap-1.5 px-2"
+              aria-expanded={openPanel === "chat"}
+              onClick={() => togglePanel("chat")}
+            >
+              <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-3.5" />
+              <FormattedMessage {...chatDockMessages.newChat} />
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              tabIndex={-1}
+              className="shrink-0 gap-1.5 px-2"
+            >
+              <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} className="size-3.5" />
+              <FormattedMessage {...appShellFooterMessages.supportLabel} />
+            </Button>
+          </div>
+        </div>
+      </footer>
+    </>
   );
 }
 
@@ -205,9 +422,14 @@ function MockDefaultFooter() {
 export function ContentOpsMockAppShell({
   activeTab,
   children,
+  className,
+  size = "default",
 }: {
   activeTab: ContentOpsMockTabId;
   children: ReactNode;
+  className?: string;
+  /** `viewport` fills up to 80% of the screen — used on the Multilingual Content Studio page. */
+  size?: "default" | "viewport";
 }) {
   const intl = useIntl();
   const activeNavId = ACTIVE_NAV_BY_TAB[activeTab];
@@ -215,8 +437,16 @@ export function ContentOpsMockAppShell({
     contentOpsMockStageMessages[BREADCRUMB_KEY_BY_TAB[activeTab]],
   );
 
+  const heightClassName =
+    size === "viewport"
+      ? CONTENT_OPS_MOCK_SHELL_VIEWPORT_HEIGHT_CLASSNAME
+      : CONTENT_OPS_MOCK_SHELL_DEFAULT_HEIGHT_CLASSNAME;
+
   return (
-    <div className={CONTENT_OPS_MOCK_SHELL_CLASSNAME} aria-hidden>
+    <div
+      className={cn(CONTENT_OPS_MOCK_SHELL_SURFACE_CLASSNAME, heightClassName, className)}
+      aria-hidden
+    >
       <div className="flex h-full min-h-0">
         <aside
           className="hidden w-12 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar sm:flex"
@@ -247,7 +477,7 @@ export function ContentOpsMockAppShell({
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col bg-background">
+        <div className="relative flex min-w-0 flex-1 flex-col bg-background">
           <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
             <div className="flex min-w-0 items-center gap-2">
               <span className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground sm:hidden">

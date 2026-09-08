@@ -129,7 +129,7 @@ export function ContentOpsEditorPanel({ pauseAutoplay = false }: { pauseAutoplay
       <ClientHeroFrame
         key={scene}
         layout="contained"
-        className="rounded-none border-0 shadow-none"
+        className="h-full min-h-0 flex-1 rounded-none border-0 shadow-none"
         initialSelectedSegmentId={SCENE_SEGMENT[scene]}
         workspaceClassName={CONTENT_OPS_EDITOR_WORKSPACE_CLASSNAME}
       />

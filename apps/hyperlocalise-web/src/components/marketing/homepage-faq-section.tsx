@@ -15,6 +15,7 @@
 import { Add01Icon, ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
@@ -33,9 +34,11 @@ import { homepageFaqSectionMessages } from "./homepage-faq-section.messages";
 
 type HomepageFaqSectionProps = {
   items: readonly HomepageFaqItem[];
+  heading?: ReactNode;
+  subheading?: ReactNode;
 };
 
-export function HomepageFaqSection({ items }: HomepageFaqSectionProps) {
+export function HomepageFaqSection({ items, heading, subheading }: HomepageFaqSectionProps) {
   const locale = useAppLocale();
 
   return (
@@ -50,10 +53,10 @@ export function HomepageFaqSection({ items }: HomepageFaqSectionProps) {
             id="homepage-faq-heading"
             className="pb-0 text-balance text-[clamp(2.75rem,6vw,4.5rem)] leading-[1.02] font-semibold tracking-[-0.04em] normal-case text-foreground"
           >
-            <FormattedMessage {...homepageFaqSectionMessages.heading} />
+            {heading ?? <FormattedMessage {...homepageFaqSectionMessages.heading} />}
           </TypographyH2>
           <p className="mt-4 font-sans text-2xl font-medium tracking-tight text-muted-foreground sm:text-3xl">
-            <FormattedMessage {...homepageFaqSectionMessages.subheading} />
+            {subheading ?? <FormattedMessage {...homepageFaqSectionMessages.subheading} />}
           </p>
         </div>
 

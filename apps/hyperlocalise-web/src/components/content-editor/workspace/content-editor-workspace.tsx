@@ -303,6 +303,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         resetKeys={[viewMode, queueSearch, queueFilter, editorSegment.id]}
       >
         <ContentEditorSideBySidePanel
+          className="min-h-0 flex-1"
           segments={queueSegments}
           focusedSegmentId={editorSegment.id}
           intelligenceSegment={intelligenceSegment}
