@@ -17,6 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentOpsEditorPanel } from "@/components/marketing/content-ops/content-ops-editor-panel";
 import { ContentOpsMockAppShell } from "@/components/marketing/content-ops/content-ops-mock-app-shell";
@@ -39,31 +40,40 @@ import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { cn } from "@/lib/primitives/cn";
 
-const formats = ["Text & documents", "Slides", "Images", "Video"] as const;
-type Format = (typeof formats)[number];
+import { multilingualContentStudioPageMessages as messages } from "./multilingual-content-studio-page.messages";
 
-const formatCopy: Record<Format, { title: string; body: string; link: string }> = {
-  "Text & documents": {
-    title: "Keep the meaning.\nKeep the structure.",
-    body: "Work on source and translated content side by side. Refine the language while keeping headings, formatting, and context in view.",
-    link: "From product copy to long-form stories",
+const formatIds = ["text", "slides", "images", "video"] as const;
+type FormatId = (typeof formatIds)[number];
+
+const formatLabelKeys = {
+  text: "formatText",
+  slides: "formatSlides",
+  images: "formatImages",
+  video: "formatVideo",
+} as const;
+
+const formatCopyKeys = {
+  text: {
+    title: "formatTextTitle",
+    body: "formatTextBody",
+    link: "formatTextLink",
   },
-  Slides: {
-    title: "Your story.\nThe same impact.",
-    body: "Adapt every slide together. Keep the layout, refine the message, and present it in any language.",
-    link: "From pitch decks to keynotes",
+  slides: {
+    title: "formatSlidesTitle",
+    body: "formatSlidesBody",
+    link: "formatSlidesLink",
   },
-  Images: {
-    title: "One visual.\nA local point of view.",
-    body: "Adapt the words inside your images. Refine each market’s message while keeping your visual identity.",
-    link: "From social posts to campaigns",
+  images: {
+    title: "formatImagesTitle",
+    body: "formatImagesBody",
+    link: "formatImagesLink",
   },
-  Video: {
-    title: "Your story.\nIn sync everywhere.",
-    body: "Translate your subtitles. Refine each line in context, and keep every word in time with your story.",
-    link: "From product demos to campaigns",
+  video: {
+    title: "formatVideoTitle",
+    body: "formatVideoBody",
+    link: "formatVideoLink",
   },
-};
+} as const;
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-medium text-muted-foreground">{children}</p>;
@@ -152,19 +162,20 @@ function WebPublishingSection() {
     <section className="px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
       <div className="mx-auto flex max-w-7xl flex-col gap-10 sm:gap-12">
         <div className="mx-auto max-w-3xl text-center">
-          <Eyebrow>Publish to the web</Eyebrow>
+          <Eyebrow>
+            <FormattedMessage {...messages.publishEyebrow} />
+          </Eyebrow>
           <h2 className="mt-5 text-balance font-heading text-4xl leading-tight sm:text-5xl">
-            Turn your content into a live webpage.
+            <FormattedMessage {...messages.publishHeadline} />
           </h2>
           <p className="mt-6 text-pretty text-lg leading-8 text-muted-foreground">
-            Publish articles, guides, and landing pages directly from Content Studio. Manage your
-            content and translations in one place, then share a link with your audience.
+            <FormattedMessage {...messages.publishBody} />
           </p>
         </div>
         <figure className="relative isolate min-w-0 overflow-hidden rounded-xl p-4 sm:p-8 lg:p-12">
           <SectionMeshBackground src={SEAFOAM_MESH_GRADIENT_SRC} className="opacity-80" />
           <figcaption className="relative mb-3 text-center text-xs text-foreground">
-            Published webpage preview
+            <FormattedMessage {...messages.publishedPreviewCaption} />
           </figcaption>
           <div className="relative mx-auto max-w-5xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-5 py-4 text-xs">
@@ -173,14 +184,14 @@ function WebPublishingSection() {
               </span>
               <span className="inline-flex items-center gap-2 font-medium text-primary">
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-                Published
+                <FormattedMessage {...messages.publishedStatus} />
               </span>
             </div>
             <div className="p-5 sm:p-8 lg:px-12">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
                 <span className="font-heading text-xl">Daylight</span>
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  Language
+                  <FormattedMessage {...messages.languageLabel} />
                   <select
                     value={language}
                     onChange={(event) => {
@@ -372,8 +383,8 @@ function StudioPreview() {
   );
 }
 
-function FormatPreview({ format }: { format: Format }) {
-  if (format === "Video") {
+function FormatPreview({ format }: { format: FormatId }) {
+  if (format === "video") {
     return (
       <div className="grid min-h-80 flex-1 bg-[#dfe7f2] p-4 lg:grid-cols-[1.15fr_.85fr] lg:p-6">
         <div className="overflow-hidden rounded-md">
@@ -389,28 +400,43 @@ function FormatPreview({ format }: { format: Format }) {
         </div>
         <div className="flex flex-col gap-4 rounded-md bg-white p-5 text-[#0b121b]">
           <div className="flex justify-between text-xs">
-            <b>Subtitles</b>
-            <span className="text-[#006bff]">02 / 08 selected</span>
+            <b>
+              <FormattedMessage {...messages.previewSubtitles} />
+            </b>
+            <span className="text-[#006bff]">
+              <FormattedMessage
+                {...messages.previewSelectedCount}
+                values={{ selected: "02", total: "08" }}
+              />
+            </span>
           </div>
           <div>
             <p className="font-mono text-[11px] text-[#5f7188]">00:06.400 → 00:11.200</p>
-            <p className="mt-2 text-[10px] tracking-wider text-[#5f7188]">ENGLISH · SOURCE</p>
+            <p className="mt-2 text-[10px] tracking-wider text-[#5f7188]">
+              <FormattedMessage {...messages.previewEnglishSource} />
+            </p>
             <p className="mt-1 text-sm">A little further. A little closer to you.</p>
           </div>
           <div className="rounded-sm border border-[#94ccff] bg-[#f0f7ff] p-3">
-            <p className="text-[10px] tracking-wider text-[#002359]">FRENCH · TRANSLATION</p>
+            <p className="text-[10px] tracking-wider text-[#002359]">
+              <FormattedMessage {...messages.previewFrenchTranslation} />
+            </p>
             <p className="mt-2 text-sm">Un peu plus loin. Un peu plus près.</p>
           </div>
           <div className="mt-auto flex justify-between text-xs">
-            <span className="text-green-700">✓ Timing preserved</span>
-            <span className="text-[#006bff]">Export subtitles ↗</span>
+            <span className="text-green-700">
+              ✓ <FormattedMessage {...messages.previewTimingPreserved} />
+            </span>
+            <span className="text-[#006bff]">
+              <FormattedMessage {...messages.previewExportSubtitles} /> ↗
+            </span>
           </div>
         </div>
       </div>
     );
   }
 
-  if (format === "Images") {
+  if (format === "images") {
     return (
       <div className="grid min-h-80 flex-1 gap-5 bg-[#ebcbd8] p-5 sm:grid-cols-[16rem_1fr]">
         <div className="relative min-h-64 overflow-hidden bg-[#efc667] p-5 text-[#172541]">
@@ -425,13 +451,21 @@ function FormatPreview({ format }: { format: Format }) {
         </div>
         <div className="rounded-md bg-white p-5 text-[#0b121b]">
           <div className="flex justify-between text-xs">
-            <b>Text layers</b>
-            <span className="text-[#006bff]">02 / Headline selected</span>
+            <b>
+              <FormattedMessage {...messages.previewTextLayers} />
+            </b>
+            <span className="text-[#006bff]">
+              <FormattedMessage {...messages.previewHeadlineSelected} values={{ index: "02" }} />
+            </span>
           </div>
-          <p className="mt-6 text-[10px] tracking-wider text-[#5f7188]">SOURCE · ENGLISH</p>
+          <p className="mt-6 text-[10px] tracking-wider text-[#5f7188]">
+            <FormattedMessage {...messages.previewSourceEnglish} />
+          </p>
           <p className="mt-1 text-sm">A little further. A little closer to you.</p>
           <div className="mt-5 rounded-sm border border-[#94ccff] bg-[#f0f7ff] p-3">
-            <p className="text-[10px] tracking-wider text-[#002359]">VIETNAMESE · ADAPTED</p>
+            <p className="text-[10px] tracking-wider text-[#002359]">
+              <FormattedMessage {...messages.previewVietnameseAdapted} />
+            </p>
             <p className="mt-2">Đi xa hơn. Gần nhau hơn.</p>
           </div>
         </div>
@@ -439,7 +473,7 @@ function FormatPreview({ format }: { format: Format }) {
     );
   }
 
-  if (format === "Slides") {
+  if (format === "slides") {
     return (
       <div className="grid min-h-80 flex-1 bg-[#ddd9ec] p-5 sm:grid-cols-[5rem_1fr]">
         <div className="hidden flex-col gap-3 pr-4 sm:flex">
@@ -473,7 +507,9 @@ function FormatPreview({ format }: { format: Format }) {
     <div className="relative isolate grid min-h-80 flex-1 gap-5 overflow-hidden p-5 sm:grid-cols-2">
       <SectionMeshBackground src={BLUSH_MESH_GRADIENT_SRC} className="opacity-80" />
       <article className="relative rounded-t-md bg-white p-6 text-[#0b121b]">
-        <p className="text-[10px] tracking-wider text-[#5f7188]">ENGLISH · SOURCE</p>
+        <p className="text-[10px] tracking-wider text-[#5f7188]">
+          <FormattedMessage {...messages.previewEnglishSource} />
+        </p>
         <h3 className="mt-5 font-heading text-3xl">
           A guide to
           <br />
@@ -485,7 +521,9 @@ function FormatPreview({ format }: { format: Format }) {
         </p>
       </article>
       <article className="relative rounded-t-md border border-[#94ccff] bg-white p-6 text-[#0b121b]">
-        <p className="text-[10px] tracking-wider text-[#006bff]">FRENCH · TRANSLATION</p>
+        <p className="text-[10px] tracking-wider text-[#006bff]">
+          <FormattedMessage {...messages.previewFrenchTranslation} />
+        </p>
         <h3 className="mt-5 font-heading text-3xl">
           L’art de
           <br />
@@ -501,32 +539,32 @@ function FormatPreview({ format }: { format: Format }) {
 }
 
 function ContentFormats() {
-  const [format, setFormat] = useState<Format>("Text & documents");
-  const copy = formatCopy[format];
+  const intl = useIntl();
+  const [format, setFormat] = useState<FormatId>("text");
+  const copy = formatCopyKeys[format];
 
   return (
     <section className="px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div>
-            <Eyebrow>Made for your content</Eyebrow>
-            <h2 className="mt-5 font-heading text-4xl leading-tight tracking-tight sm:text-5xl">
-              More than words.
-              <br />
-              Your whole campaign.
+            <Eyebrow>
+              <FormattedMessage {...messages.formatsEyebrow} />
+            </Eyebrow>
+            <h2 className="mt-5 whitespace-pre-line font-heading text-4xl leading-tight tracking-tight sm:text-5xl">
+              <FormattedMessage {...messages.formatsHeadline} />
             </h2>
           </div>
           <p className="max-w-md text-lg leading-8 text-muted-foreground">
-            Bring every part of your story into one workspace, with an editing experience that fits
-            the format.
+            <FormattedMessage {...messages.formatsBody} />
           </p>
         </div>
         <div
           className="mt-10 flex gap-7 overflow-x-auto"
           role="tablist"
-          aria-label="Content formats"
+          aria-label={intl.formatMessage(messages.formatsAriaLabel)}
         >
-          {formats.map((item) => (
+          {formatIds.map((item) => (
             <button
               key={item}
               type="button"
@@ -539,17 +577,21 @@ function ContentFormats() {
                   : "shrink-0 pb-3 text-sm text-muted-foreground hover:text-foreground"
               }
             >
-              {item}
+              <FormattedMessage {...messages[formatLabelKeys[item]]} />
             </button>
           ))}
         </div>
         <div className="mt-6 overflow-hidden rounded-xl bg-muted lg:flex">
           <div className="flex w-full shrink-0 flex-col justify-center gap-5 bg-background/55 p-8 lg:w-[34%] lg:p-12">
             <h3 className="whitespace-pre-line text-2xl leading-8 font-semibold tracking-tight">
-              {copy.title}
+              <FormattedMessage {...messages[copy.title]} />
             </h3>
-            <p className="text-base leading-7 text-muted-foreground">{copy.body}</p>
-            <p className="pt-2 text-sm text-primary">{copy.link} ↗</p>
+            <p className="text-base leading-7 text-muted-foreground">
+              <FormattedMessage {...messages[copy.body]} />
+            </p>
+            <p className="pt-2 text-sm text-primary">
+              <FormattedMessage {...messages[copy.link]} /> ↗
+            </p>
           </div>
           <FormatPreview format={format} />
         </div>
@@ -558,43 +600,55 @@ function ContentFormats() {
   );
 }
 
-const faqItems = [
-  [
-    "What can I create in Content Studio?",
-    "Create and adapt text, documents, slides, images, and video in one shared multilingual workspace—so every format in a campaign stays together.",
-  ],
-  [
-    "How does the editor help translators work faster?",
-    "Review source and target side by side, with translation memory matches, AI suggestions, glossary checks, and visual context for each string in the same view.",
-  ],
-  [
-    "Does Content Studio include translation memory and glossaries?",
-    "Yes. Approved terminology and past translations surface as you work, so reviewers catch conflicts early instead of after content ships.",
-  ],
-  [
-    "What context do reviewers see beyond the text?",
-    "Product meaning, screenshots, brand guidance, market notes, and issue history—so reviewers understand intent before they choose wording.",
-  ],
-  [
-    "Can my team review AI-generated content?",
-    "Yes. AI moves drafts forward while reviewers compare, refine, comment, and make the final approval decision.",
-  ],
-  [
-    "Can we manage review status across languages?",
-    "Track every locale in one campaign—who is reviewing, what is approved, and what still needs attention—without switching tools.",
-  ],
-  [
-    "How do we keep our brand voice consistent?",
-    "Attach approved terminology, brand guidance, and market context so every person and agent works from the same source of truth.",
-  ],
-  [
-    "How does Content Studio fit with the rest of Hyperlocalise?",
-    "Content Studio connects to Automation Workflow and Domains so approved content can move into repeatable workflows and reach every market.",
-  ],
+const faqMessageKeys = [
+  ["faqCreateQuestion", "faqCreateAnswer"],
+  ["faqEditorQuestion", "faqEditorAnswer"],
+  ["faqTmQuestion", "faqTmAnswer"],
+  ["faqContextQuestion", "faqContextAnswer"],
+  ["faqAiQuestion", "faqAiAnswer"],
+  ["faqStatusQuestion", "faqStatusAnswer"],
+  ["faqBrandQuestion", "faqBrandAnswer"],
+  ["faqFitQuestion", "faqFitAnswer"],
+] as const;
+
+const reviewRows = [
+  {
+    code: "FR",
+    language: "languageFrench",
+    reviewer: "Alex",
+    status: "statusApproved",
+    tone: "bg-green-100 text-green-800",
+  },
+  {
+    code: "DE",
+    language: "languageGerman",
+    reviewer: "Jamie",
+    status: "statusInReview",
+    tone: "bg-blue-100 text-blue-800",
+  },
+  {
+    code: "JA",
+    language: "languageJapanese",
+    reviewer: "Minh",
+    status: "statusNeedsReview",
+    tone: "bg-amber-100 text-amber-800",
+  },
+] as const;
+
+const contextRows = [
+  ["brandVoice", "brandVoiceValue"],
+  ["terminology", "terminologyValue"],
+  ["marketContext", "marketContextValue"],
 ] as const;
 
 export function MultilingualContentStudioPage() {
   const locale = useAppLocale();
+  const intl = useIntl();
+  const faqItems = faqMessageKeys.map(([question, answer]) => ({
+    question: intl.formatMessage(messages[question]),
+    answer: intl.formatMessage(messages[answer]),
+  }));
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div>
@@ -603,16 +657,14 @@ export function MultilingualContentStudioPage() {
             <FloatingWelcome key={welcome.code} {...welcome} />
           ))}
           <div className="relative mx-auto flex max-w-3xl flex-col items-center">
-            <Eyebrow>Multilingual Content Studio</Eyebrow>
-            <h1 className="mt-6 font-heading text-[clamp(3rem,7vw,5.5rem)] leading-[0.98] tracking-[-0.045em]">
-              One workspace.
-              <br />
-              Every language.
+            <Eyebrow>
+              <FormattedMessage {...messages.heroEyebrow} />
+            </Eyebrow>
+            <h1 className="mt-6 whitespace-pre-line font-heading text-[clamp(3rem,7vw,5.5rem)] leading-[0.98] tracking-[-0.045em]">
+              <FormattedMessage {...messages.heroHeadline} />
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-[#344564] sm:text-xl">
-              Create and adapt text, documents, slides, images, and video.
-              <br className="hidden sm:block" /> Keep your context, your voice, and your team
-              together.
+              <FormattedMessage {...messages.heroSubcopy} />
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -620,7 +672,8 @@ export function MultilingualContentStudioPage() {
                 nativeButton={false}
                 render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
               >
-                Request a Demo <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                <FormattedMessage {...messages.requestDemo} />{" "}
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
               </Button>
               <Button
                 size="lg"
@@ -628,7 +681,7 @@ export function MultilingualContentStudioPage() {
                 nativeButton={false}
                 render={<a href="#studio" />}
               >
-                Explore the studio ↓
+                <FormattedMessage {...messages.exploreStudio} /> ↓
               </Button>
             </div>
           </div>
@@ -637,12 +690,22 @@ export function MultilingualContentStudioPage() {
         <section className="px-3 pb-0 sm:px-6 lg:px-8">
           <StudioPreview />
           <div className="mx-auto flex max-w-6xl flex-col justify-between gap-4 border-b border-border py-7 text-sm text-muted-foreground sm:flex-row">
-            <span>From the first draft to the final review.</span>
+            <span>
+              <FormattedMessage {...messages.fromDraftToReview} />
+            </span>
             <span className="flex flex-wrap gap-x-7 gap-y-2">
-              <span>01　Create</span>
-              <span>02　Adapt</span>
-              <span>03　Review</span>
-              <span>04　Ready for your market</span>
+              <span>
+                <FormattedMessage {...messages.stepCreate} />
+              </span>
+              <span>
+                <FormattedMessage {...messages.stepAdapt} />
+              </span>
+              <span>
+                <FormattedMessage {...messages.stepReview} />
+              </span>
+              <span>
+                <FormattedMessage {...messages.stepReady} />
+              </span>
             </span>
           </div>
         </section>
@@ -652,38 +715,41 @@ export function MultilingualContentStudioPage() {
         <section className="px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
             <div className="max-w-xl">
-              <Eyebrow>Context in. Confidence out.</Eyebrow>
-              <h2 className="mt-5 font-heading text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
-                Keep every draft aligned
-                <br />
-                with your content standards.
+              <Eyebrow>
+                <FormattedMessage {...messages.contextEyebrow} />
+              </Eyebrow>
+              <h2 className="mt-5 whitespace-pre-line font-heading text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
+                <FormattedMessage {...messages.contextHeadline} />
               </h2>
               <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                Give AI and your team clear rules to follow, from approved terminology to
-                market-specific requirements, so content is easier to review and approve.
+                <FormattedMessage {...messages.contextBody} />
               </p>
               <Link
                 href={rewriteAppLocalePath("/product/self-evolving-knowledge", locale)}
                 className="mt-5 inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
-                Explore Guidelines ↗
+                <FormattedMessage {...messages.exploreGuidelines} /> ↗
               </Link>
             </div>
             <div className="relative isolate overflow-hidden rounded-xl p-4 sm:p-5">
               <SectionMeshBackground src={LAVENDER_MESH_GRADIENT_SRC} className="opacity-80" />
               <div className="relative rounded-xl border border-border bg-card p-6 text-card-foreground sm:p-8">
                 <div className="flex justify-between gap-3 border-b border-border pb-6 text-sm">
-                  <b>Campaign context</b>
-                  <span className="text-primary">Applied to this draft ✓</span>
+                  <b>
+                    <FormattedMessage {...messages.campaignContext} />
+                  </b>
+                  <span className="text-primary">
+                    <FormattedMessage {...messages.appliedToDraft} /> ✓
+                  </span>
                 </div>
-                {[
-                  ["Brand voice", "Clear. Human. Confident."],
-                  ["Terminology", "Keep “Daylight” in every language."],
-                  ["Market context", "France · Conversational, use “vous”."],
-                ].map(([label, value]) => (
+                {contextRows.map(([label, value]) => (
                   <div key={label} className="grid gap-2 pt-5 text-sm sm:grid-cols-[8rem_1fr]">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span>{value}</span>
+                    <span className="text-muted-foreground">
+                      <FormattedMessage {...messages[label]} />
+                    </span>
+                    <span>
+                      <FormattedMessage {...messages[value]} />
+                    </span>
                   </div>
                 ))}
                 <div className="mt-6 flex gap-3 border-t border-border pt-5 text-xs text-muted-foreground">
@@ -692,7 +758,9 @@ export function MultilingualContentStudioPage() {
                   <span className="text-primary">FR</span>
                   <span>DE</span>
                   <span>JA</span>
-                  <span className="ml-auto hidden sm:block">One shared source of context</span>
+                  <span className="ms-auto hidden sm:block">
+                    <FormattedMessage {...messages.sharedContext} />
+                  </span>
                 </div>
               </div>
             </div>
@@ -705,40 +773,45 @@ export function MultilingualContentStudioPage() {
               <SectionMeshBackground src={ROSE_MESH_GRADIENT_SRC} className="opacity-75" />
               <div className="relative overflow-hidden rounded-lg border border-border bg-card">
                 <div className="flex justify-between bg-muted/60 p-5 text-sm">
-                  <b>Summer campaign</b>
-                  <span className="text-muted-foreground">Language review</span>
+                  <b>
+                    <FormattedMessage {...messages.summerCampaign} />
+                  </b>
+                  <span className="text-muted-foreground">
+                    <FormattedMessage {...messages.languageReview} />
+                  </span>
                 </div>
-                {[
-                  ["FR", "French", "Alex", "Approved", "bg-green-100 text-green-800"],
-                  ["DE", "German", "Jamie", "In review", "bg-blue-100 text-blue-800"],
-                  ["JA", "Japanese", "Minh", "Needs review", "bg-amber-100 text-amber-800"],
-                ].map(([code, language, reviewer, status, tone]) => (
+                {reviewRows.map((row) => (
                   <div
-                    key={code}
+                    key={row.code}
                     className="grid grid-cols-[2rem_1fr_auto] items-center gap-4 border-t border-border p-5 text-sm sm:grid-cols-[2rem_1fr_7rem_8rem_auto]"
                   >
-                    <span className="text-xs text-muted-foreground">{code}</span>
-                    <b>{language}</b>
-                    <span className="hidden text-muted-foreground sm:block">{reviewer}</span>
-                    <span className={`rounded-full px-3 py-1 text-xs ${tone}`}>{status}</span>
+                    <span className="text-xs text-muted-foreground">{row.code}</span>
+                    <b>
+                      <FormattedMessage {...messages[row.language]} />
+                    </b>
+                    <span className="hidden text-muted-foreground sm:block">{row.reviewer}</span>
+                    <span className={`rounded-full px-3 py-1 text-xs ${row.tone}`}>
+                      <FormattedMessage {...messages[row.status]} />
+                    </span>
                     <span>↗</span>
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <Eyebrow>Review and approval</Eyebrow>
+              <Eyebrow>
+                <FormattedMessage {...messages.reviewEyebrow} />
+              </Eyebrow>
               <h2 className="mt-5 font-heading text-4xl leading-tight tracking-tight sm:text-5xl">
-                Your team has the final say.
+                <FormattedMessage {...messages.reviewHeadline} />
               </h2>
               <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                Review AI drafts and translations side by side. Check for accuracy, make changes,
-                and approve content when it meets your standards.
+                <FormattedMessage {...messages.reviewBody} />
               </p>
               <p className="mt-5 text-sm leading-7 text-muted-foreground">
-                Compare side by side　·　Refine in context
+                <FormattedMessage {...messages.reviewCompare} />
                 <br />
-                Keep people in the review loop
+                <FormattedMessage {...messages.reviewLoop} />
               </p>
             </div>
           </div>
@@ -750,10 +823,10 @@ export function MultilingualContentStudioPage() {
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-2xl font-medium tracking-tight">
-                A studio connected to the bigger picture.
+                <FormattedMessage {...messages.connectedHeadline} />
               </h2>
               <p className="mt-2 text-base text-muted-foreground">
-                Turn repeatable work into workflows. Take approved content to your markets.
+                <FormattedMessage {...messages.connectedBody} />
               </p>
             </div>
             <div className="flex flex-wrap gap-6">
@@ -761,13 +834,13 @@ export function MultilingualContentStudioPage() {
                 href={rewriteAppLocalePath("/product/agents-automation", locale)}
                 className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
-                Automation Workflow ↗
+                <FormattedMessage {...messages.automationWorkflow} /> ↗
               </Link>
               <Link
                 href={rewriteAppLocalePath("/product/self-evolving-knowledge", locale)}
                 className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
-                Guidelines ↗
+                <FormattedMessage {...messages.guidelines} /> ↗
               </Link>
             </div>
           </div>
@@ -775,15 +848,13 @@ export function MultilingualContentStudioPage() {
 
         <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <HomepageFaqSection
-            items={faqItems.map(([question, answer]) => ({ question, answer }))}
+            items={faqItems}
             heading={
-              <>
-                <span>A few things</span>
-                <br />
-                <span>you might ask.</span>
-              </>
+              <span className="whitespace-pre-line">
+                <FormattedMessage {...messages.faqHeading} />
+              </span>
             }
-            subheading="Getting to know Content Studio."
+            subheading={<FormattedMessage {...messages.faqSubheading} />}
           />
         </div>
 
@@ -796,13 +867,11 @@ export function MultilingualContentStudioPage() {
           >
             <div className="flex flex-col justify-between gap-10 bg-[#172541]/45 p-8 text-[#f8f0f5] sm:p-12 lg:flex-row lg:items-center lg:p-16">
               <div>
-                <h2 className="font-heading text-4xl leading-tight tracking-tight sm:text-5xl">
-                  Your next story.
-                  <br />
-                  Ready for the world.
+                <h2 className="whitespace-pre-line font-heading text-4xl leading-tight tracking-tight sm:text-5xl">
+                  <FormattedMessage {...messages.ctaHeadline} />
                 </h2>
                 <p className="mt-5 text-lg text-[#e5edf9]">
-                  Bring your content and your team into one studio.
+                  <FormattedMessage {...messages.ctaBody} />
                 </p>
               </div>
               <div className="flex flex-col items-start gap-3 lg:items-center">
@@ -812,9 +881,12 @@ export function MultilingualContentStudioPage() {
                   nativeButton={false}
                   render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
                 >
-                  Request a Demo <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  <FormattedMessage {...messages.requestDemo} />{" "}
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
                 </Button>
-                <span className="text-xs text-[#e5edf9]">Build your multilingual workflow.</span>
+                <span className="text-xs text-[#e5edf9]">
+                  <FormattedMessage {...messages.ctaNote} />
+                </span>
               </div>
             </div>
           </MeshStage>
