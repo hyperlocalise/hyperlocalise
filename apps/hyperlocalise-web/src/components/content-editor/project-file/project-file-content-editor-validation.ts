@@ -53,6 +53,7 @@ export const CAT_SEGMENT_QA_MODES = [
   "not_localized",
   "whitespace_only",
   "same_as_source",
+  "escaped_char_mismatch",
   CAT_SEGMENT_SPELLING_MODE,
 ] as const;
 

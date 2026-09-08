@@ -66,6 +66,39 @@ func TestQAModesEdgeCases(t *testing.T) {
 			wantMsg: "Target value is empty.",
 		},
 		{
+			name: "escaped_char_mismatch with leftover english after tab",
+			req: Request{
+				SourceText: "Included",
+				TargetText: "Inclus\\tgranted",
+				SourcePath: "en.json",
+				Modes:      []string{QAModeEscapedChar},
+			},
+			wantIDs: []string{"format-special-char-mismatch", "qa-escaped-char-mismatch"},
+			wantMsg: "Target introduces escaped characters (\\t) that are not in the source.",
+		},
+		{
+			name: "escaped_char_mismatch with decoded tab",
+			req: Request{
+				SourceText: "Created job",
+				TargetText: "已创建工作\tjob",
+				SourcePath: "en.json",
+				Modes:      []string{QAModeEscapedChar},
+			},
+			wantIDs: []string{"format-parity", "qa-escaped-char-mismatch"},
+			wantMsg: "Target introduces escaped characters (\\t) that are not in the source.",
+		},
+		{
+			name: "escaped_char_mismatch with decoded NUL",
+			req: Request{
+				SourceText: "Included",
+				TargetText: "Inclus\u0000granted",
+				SourcePath: "en.json",
+				Modes:      []string{QAModeEscapedChar},
+			},
+			wantIDs: []string{"format-parity", "qa-escaped-char-mismatch"},
+			wantMsg: "Target introduces escaped characters (\\u0000) that are not in the source.",
+		},
+		{
 			name: "modes trimming and deduplication",
 			req: Request{
 				SourceText: "Hello",
@@ -84,9 +117,9 @@ func TestQAModesEdgeCases(t *testing.T) {
 			gotIDs := make([]string, 0, len(checks))
 			for _, c := range checks {
 				gotIDs = append(gotIDs, c.ID)
-				if tt.wantMsg != "" && c.ID == "qa-not-localized" {
+				if tt.wantMsg != "" && (c.ID == "qa-not-localized" || c.ID == "qa-escaped-char-mismatch") {
 					if c.Message != tt.wantMsg {
-						t.Errorf("qa-not-localized message = %q, want %q", c.Message, tt.wantMsg)
+						t.Errorf("%s message = %q, want %q", c.ID, c.Message, tt.wantMsg)
 					}
 				}
 			}

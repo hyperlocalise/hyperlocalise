@@ -73,6 +73,29 @@ describe("mapHlFindingToProviderFinding", () => {
     });
   });
 
+  it("maps escaped_char_mismatch with full confidence", () => {
+    const finding = mapHlFindingToProviderFinding(
+      {
+        type: "escaped_char_mismatch",
+        severity: "warning",
+        locale: "fr",
+        sourceFile: "content/en/strings.json",
+        targetFile: "content/fr/strings.json",
+        key: "greeting",
+        message: "Target introduces escaped characters (\\t) that are not in the source.",
+      },
+      manifest,
+      "en",
+    );
+
+    expect(finding).toMatchObject({
+      checkType: "escaped_char_mismatch",
+      severity: "warning",
+      confidence: 1,
+      suggestedFix: expect.stringContaining("escaped"),
+    });
+  });
+
   it("maps whitespace_only to whitespace_only_translation", () => {
     const finding = mapHlFindingToProviderFinding(
       {

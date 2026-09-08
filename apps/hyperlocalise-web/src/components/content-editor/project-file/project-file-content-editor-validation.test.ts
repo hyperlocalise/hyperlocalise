@@ -72,7 +72,13 @@ describe("fetchCatSegmentValidation", () => {
           sourcePath: "/messages/en.json",
           maxLength: 40,
           targetLocale: "fr-FR",
-          modes: ["not_localized", "whitespace_only", "same_as_source", "spelling"],
+          modes: [
+            "not_localized",
+            "whitespace_only",
+            "same_as_source",
+            "escaped_char_mismatch",
+            "spelling",
+          ],
         }),
       }),
     );
@@ -324,7 +330,7 @@ describe("fetchCatSegmentValidation", () => {
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
       targetLocale: "invalid_locale_format",
-      modes: ["not_localized", "whitespace_only", "same_as_source"],
+      modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch"],
     });
   });
 
@@ -352,7 +358,7 @@ describe("fetchCatSegmentValidation", () => {
       sourceText: "Hello",
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
-      modes: ["not_localized", "whitespace_only", "same_as_source"],
+      modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch"],
     });
   });
 
@@ -381,7 +387,13 @@ describe("fetchCatSegmentValidation", () => {
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
       targetLocale: "fr-FR",
-      modes: ["not_localized", "whitespace_only", "same_as_source", "spelling"],
+      modes: [
+        "not_localized",
+        "whitespace_only",
+        "same_as_source",
+        "escaped_char_mismatch",
+        "spelling",
+      ],
     });
   });
 
