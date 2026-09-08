@@ -42,6 +42,7 @@ import type {
   VisualCatalogType,
   VisualNodeConfig,
   VisualWorkflowDefinition,
+  VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
@@ -71,6 +72,7 @@ export function VisualWorkflowEditor({
   initialName,
   previewMode = false,
   playgroundMode = false,
+  sampleDraft,
   onSave,
   isSaving = false,
   organizationSlug,
@@ -88,6 +90,7 @@ export function VisualWorkflowEditor({
   initialName?: string;
   previewMode?: boolean;
   playgroundMode?: boolean;
+  sampleDraft?: VisualWorkflowEditorState;
   onSave?: (definition: VisualWorkflowDefinition) => void | Promise<void>;
   isSaving?: boolean;
   organizationSlug?: string;
@@ -474,9 +477,10 @@ export function VisualWorkflowEditor({
               onSelectionChange={onSelectionChange}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
-                setName(visualWorkflowDemoDraft.name);
-                setNodes(visualWorkflowDemoDraft.nodes);
-                setEdges(visualWorkflowDemoDraft.edges);
+                const draft = sampleDraft ?? visualWorkflowDemoDraft;
+                setName(draft.name);
+                setNodes(draft.nodes);
+                setEdges(draft.edges);
                 setSelectedNodeId(null);
                 setPanelMode("picker");
                 setAddFrom(null);
