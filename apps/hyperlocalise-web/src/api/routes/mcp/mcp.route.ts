@@ -120,6 +120,7 @@ import {
 } from "@/api/routes/public-files/public-files.schema";
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import { updateMcpTranslation } from "./mcp-update-translation";
 
@@ -2039,11 +2040,37 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         return mcpToolError("unsupported_file", "Source file format is not supported");
       }
 
-      const [project] = await db
-        .select()
-        .from(schema.projects)
-        .where(await ownedProjectWhere(apiAuth, projectId))
-        .limit(1);
+      const target = await resolveProjectResourceTarget(apiAuth, projectId);
+
+      if (target.kind === "provider_unavailable") {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      let resolvedProjectId = target.kind === "native" ? target.projectId : projectId;
+
+      if (target.kind === "provider") {
+        const ensuredProject = await ensureOrganizationProjectRecord({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId,
+          userId: apiAuth.user.localUserId,
+        });
+
+        if (isErr(ensuredProject)) {
+          return mcpToolError("project_not_found", "Project not found or inaccessible");
+        }
+
+        resolvedProjectId = ensuredProject.value;
+      }
+
+      const projectWhere =
+        target.kind === "provider"
+          ? and(
+              eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
+              eq(schema.projects.id, resolvedProjectId),
+            )
+          : await ownedProjectWhere(apiAuth, resolvedProjectId);
+
+      const [project] = await db.select().from(schema.projects).where(projectWhere).limit(1);
 
       if (!project) {
         return mcpToolError("project_not_found", "Project not found or inaccessible");
