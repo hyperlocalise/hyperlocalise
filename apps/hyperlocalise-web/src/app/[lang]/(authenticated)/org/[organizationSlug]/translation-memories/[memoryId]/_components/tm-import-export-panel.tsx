@@ -18,6 +18,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { MemoryImportResponse } from "@/api/routes/memory/memory.schema";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +41,8 @@ import { tmImportExportPanelMessages as messages } from "./tm-import-export-pane
 type PendingImport = {
   format: "csv" | "tmx";
   content: string;
+  sourceFilename: string;
+  sourceByteSize: number;
 };
 
 function reportCounts(report: MemoryImportResponse["report"]) {
@@ -92,15 +95,27 @@ export function TmImportExportPanel({
         ":memoryId"
       ].entries["import"].$post({
         param: { organizationSlug, memoryId },
-        json: { format, content, dryRun: true },
+        json: {
+          format,
+          content,
+          dryRun: true,
+          sourceFilename: file.name,
+          sourceByteSize: file.size,
+        },
       });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
       }
-      return { format, content, body: (await response.json()) as MemoryImportResponse };
+      return {
+        format,
+        content,
+        sourceFilename: file.name,
+        sourceByteSize: file.size,
+        body: (await response.json()) as MemoryImportResponse,
+      };
     },
-    onSuccess: ({ format, content, body }) => {
-      setPendingImport({ format, content });
+    onSuccess: ({ format, content, sourceFilename, sourceByteSize, body }) => {
+      setPendingImport({ format, content, sourceFilename, sourceByteSize });
       setPreview(body);
     },
     onError: (error) => toast.error(error.message),
@@ -112,7 +127,13 @@ export function TmImportExportPanel({
         ":memoryId"
       ].entries["import"].$post({
         param: { organizationSlug, memoryId },
-        json: { format: pending.format, content: pending.content, dryRun: false },
+        json: {
+          format: pending.format,
+          content: pending.content,
+          dryRun: false,
+          sourceFilename: pending.sourceFilename,
+          sourceByteSize: pending.sourceByteSize,
+        },
       });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
@@ -251,9 +272,20 @@ export function TmImportExportPanel({
           </DialogHeader>
           {result ? <ImportReportBody report={result} /> : null}
           <DialogFooter>
-            <Button type="button" onClick={() => setResult(null)}>
+            <Button type="button" variant="outline" onClick={() => setResult(null)}>
               <FormattedMessage {...messages.closeReport} />
             </Button>
+            {result?.importAttemptId ? (
+              <Button
+                render={
+                  <OrgNavLink
+                    href={`/org/${organizationSlug}/translation-memories/${memoryId}/imports/${result.importAttemptId}`}
+                  />
+                }
+              >
+                <FormattedMessage {...messages.viewReport} />
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -363,7 +395,7 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
           <ul className="max-h-40 overflow-auto rounded-md border border-border px-3 py-2 text-xs">
             {report.report.issues.map((issue, index) => (
               <li key={`${issue.code}-${issue.unitIndex ?? index}`} className="py-1">
-                {issue.unitIndex ? `#${issue.unitIndex} · ` : null}
+                {issue.unitIndex !== undefined ? `#${issue.unitIndex} · ` : null}
                 {issue.message}
               </li>
             ))}

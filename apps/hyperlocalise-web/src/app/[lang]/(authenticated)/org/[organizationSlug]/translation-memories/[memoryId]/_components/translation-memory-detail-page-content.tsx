@@ -46,6 +46,7 @@ import { apiClient } from "@/lib/api-client-instance";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
+import { TmImportHistory, tmImportAttemptsQueryKey } from "./tm-import-history";
 import { TmImportExportPanel } from "./tm-import-export-panel";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
@@ -129,6 +130,10 @@ export function TranslationMemoryDetailPageContent({
   const invalidateEntries = () =>
     queryClient.invalidateQueries({
       queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
+    });
+  const invalidateImports = () =>
+    queryClient.invalidateQueries({
+      queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
     });
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
@@ -285,12 +290,15 @@ export function TranslationMemoryDetailPageContent({
             <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
               <FormattedMessage {...messages.projectsToolbar} />
             </Button>
+            <TmImportHistory organizationSlug={organizationSlug} memoryId={memoryId} />
             <TmImportExportPanel
               organizationSlug={organizationSlug}
               memoryId={memoryId}
               localeCoverage={memory.localeCoverage}
               canEdit={canEdit}
-              onImported={invalidateEntries}
+              onImported={async () => {
+                await Promise.all([invalidateEntries(), invalidateImports()]);
+              }}
             />
             {canEdit ? (
               <Button type="button" size="sm" onClick={() => setAddEntryOpen(true)}>

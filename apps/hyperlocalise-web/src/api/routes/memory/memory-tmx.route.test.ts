@@ -110,6 +110,185 @@ describe("memory TMX import and export", () => {
       { headers },
     );
     expect(((await listed.json()) as { total: number }).total).toBe(0);
+
+    const history = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        query: { limit: "25" },
+      },
+      { headers },
+    );
+    expect(((await history.json()) as { total: number }).total).toBe(0);
+  });
+
+  it("persists a canonical real-import report for history, detail, and download", async () => {
+    const { identity, memory, organization, user } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const content = readTmxFixture("tmx-1.4-inline-codes.tmx");
+
+    const imported = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: {
+          format: "tmx",
+          content,
+          sourceFilename: "../safe-name.tmx",
+          sourceByteSize: Buffer.byteLength(content),
+        },
+      },
+      { headers },
+    );
+    expect(imported.status).toBe(201);
+    const importedBody = (await imported.json()) as {
+      importAttemptId: string;
+      importBatchId: string;
+      report: { totalRead: number; created: number; failed: number };
+    };
+    expect(importedBody.importAttemptId).toBe(importedBody.importBatchId);
+
+    const history = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        query: { limit: "25" },
+      },
+      { headers },
+    );
+    expect(history.status).toBe(200);
+    const historyBody = (await history.json()) as {
+      total: number;
+      memoryImportAttempts: Array<{
+        id: string;
+        sourceFilename: string;
+        sourceSha256: string;
+        status: string;
+        counts: { totalRead: number; created: number; failed: number };
+        retentionPolicy: string;
+      }>;
+    };
+    expect(historyBody.total).toBe(1);
+    expect(historyBody.memoryImportAttempts[0]).toMatchObject({
+      id: importedBody.importAttemptId,
+      sourceFilename: "safe-name.tmx",
+      status: "completed",
+      counts: { totalRead: 1, created: 1, failed: 0 },
+      retentionPolicy: "indefinite",
+    });
+    expect(historyBody.memoryImportAttempts[0]?.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ][":attemptId"].$get(
+      {
+        param: {
+          organizationSlug,
+          memoryId: memory.id,
+          attemptId: importedBody.importAttemptId,
+        },
+      },
+      { headers },
+    );
+    expect(detail.status).toBe(200);
+    await expect(detail.json()).resolves.toMatchObject({
+      memoryImportAttempt: {
+        importBatchId: importedBody.importBatchId,
+        counts: { totalRead: 1, created: 1, failed: 0 },
+        diagnosticsAvailability: "available",
+      },
+    });
+
+    const download = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ]["import-attempts"][":attemptId"].report.$get(
+      {
+        param: {
+          organizationSlug,
+          memoryId: memory.id,
+          attemptId: importedBody.importAttemptId,
+        },
+      },
+      { headers },
+    );
+    expect(download.status).toBe(200);
+    expect(download.headers.get("content-type")).toContain("application/json");
+    expect(download.headers.get("cache-control")).toBe("no-store");
+    expect(download.headers.get("x-content-type-options")).toBe("nosniff");
+    await expect(download.json()).resolves.toMatchObject({
+      memoryImportAttempt: { id: importedBody.importAttemptId },
+    });
+
+    const secondImport = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        json: { format: "tmx", content },
+      },
+      { headers },
+    );
+    const secondImportBody = (await secondImport.json()) as { importAttemptId: string };
+    const firstPage = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ]["import-attempts"].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        query: { limit: "1" },
+      },
+      { headers },
+    );
+    const firstPageBody = (await firstPage.json()) as {
+      memoryImportAttempts: Array<{ id: string }>;
+      nextCursor: string;
+      pagination: { hasMore: boolean };
+    };
+    expect(firstPageBody).toMatchObject({
+      memoryImportAttempts: [{ id: secondImportBody.importAttemptId }],
+      pagination: { hasMore: true },
+    });
+    const secondPage = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ]["import-attempts"].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        query: { limit: "1", cursor: firstPageBody.nextCursor },
+      },
+      { headers },
+    );
+    await expect(secondPage.json()).resolves.toMatchObject({
+      memoryImportAttempts: [{ id: importedBody.importAttemptId }],
+      pagination: { hasMore: false },
+    });
+
+    const [otherMemory] = await db
+      .insert(schema.memories)
+      .values({
+        organizationId: organization.id,
+        createdByUserId: user.id,
+        name: "Other memory",
+      })
+      .returning();
+    const inaccessible = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ]["import-attempts"][":attemptId"].$get(
+      {
+        param: {
+          organizationSlug,
+          memoryId: otherMemory.id,
+          attemptId: importedBody.importAttemptId,
+        },
+      },
+      { headers },
+    );
+    expect(inaccessible.status).toBe(404);
   });
 
   it("imports multilingual TMX, then re-imports the same tuids without duplicates", async () => {
@@ -399,6 +578,25 @@ describe("memory TMX import and export", () => {
     );
     expect(malformed.status).toBe(400);
     await expect(malformed.json()).resolves.toMatchObject({ error: "malformed_xml" });
+    const failedHistory = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ]["import-attempts"].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        query: { limit: "25" },
+      },
+      { headers },
+    );
+    await expect(failedHistory.json()).resolves.toMatchObject({
+      total: 1,
+      memoryImportAttempts: [
+        {
+          status: "failed",
+          failureCode: "malformed_xml",
+          counts: { created: 0, updated: 0, failed: 1 },
+        },
+      ],
+    });
 
     const units = Array.from({ length: 4 }, (_, index) => {
       return `<tu tuid="u${index}"><tuv xml:lang="en"><seg>S${index}</seg></tuv><tuv xml:lang="fr"><seg>T${index}</seg></tuv></tu>`;

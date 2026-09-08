@@ -61,6 +61,11 @@ export const tmImportExportPanelMessages = defineMessages({
     id: "kDbyaphKwz",
     description: "Button to close the translation memory import report",
   },
+  viewReport: {
+    defaultMessage: "View report",
+    id: "VZ72g8u57w",
+    description: "Button to open the durable translation memory import report",
+  },
   exportTmx: {
     defaultMessage: "Export",
     id: "wJpMrv20rr",

@@ -27,6 +27,10 @@ export const memoryEntryIdParamsSchema = memoryIdParamsSchema.extend({
   entryId: z.string().trim().min(1).max(128),
 });
 
+export const memoryImportAttemptParamsSchema = memoryIdParamsSchema.extend({
+  attemptId: z.string().uuid(),
+});
+
 export const memoryProjectParamsSchema = memoryIdParamsSchema.extend({
   projectId: projectIdSchema,
 });
@@ -142,6 +146,18 @@ export const importMemoryEntriesBodySchema = z.object({
   content: z.string().min(1).max(TMX_MAX_IMPORT_CONTENT_CHARS),
   dryRun: z.boolean().optional(),
   maxUnits: z.number().int().min(1).max(TMX_DEFAULT_MAX_UNITS).optional(),
+  sourceFilename: z.string().trim().min(1).max(255).optional(),
+  sourceByteSize: z
+    .number()
+    .int()
+    .min(0)
+    .max(TMX_MAX_IMPORT_CONTENT_CHARS * 4)
+    .optional(),
+});
+
+export const listMemoryImportAttemptsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().trim().min(1).max(2048).optional(),
 });
 
 export const exportMemoryEntriesQuerySchema = z.object({
@@ -329,13 +345,64 @@ export const memoryImportResponseSchema = z.object({
   imported: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
   importBatchId: z.string().uuid().nullable(),
+  importAttemptId: z.string().uuid().nullable(),
   dryRun: z.boolean(),
   preview: z.array(memoryImportPreviewEntrySchema),
   report: memoryImportReportSchema,
 });
 
+export const memoryImportAttemptStatusSchema = z.enum([
+  "running",
+  "completed",
+  "partially_successful",
+  "failed",
+]);
+
+export const memoryImportAttemptCountsSchema = memoryImportReportSchema.omit({
+  issues: true,
+  headerSrclang: true,
+  truncatedIssues: true,
+});
+
+export const memoryImportAttemptRecordSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  memoryId: z.string().uuid(),
+  createdByUserId: z.string().uuid().nullable(),
+  actorDisplayName: z.string().nullable(),
+  status: memoryImportAttemptStatusSchema,
+  importBatchId: z.string().uuid(),
+  format: z.enum(["csv", "tmx"]),
+  options: z.record(z.string(), z.unknown()),
+  sourceFilename: z.string().nullable(),
+  sourceByteSize: z.number().int().nonnegative().nullable(),
+  sourceSha256: z.string().length(64),
+  counts: memoryImportAttemptCountsSchema.nullable(),
+  headerSrclang: z.string().nullable(),
+  diagnosticsTruncated: z.boolean(),
+  diagnosticsAvailability: z.enum(["available", "expired"]),
+  diagnosticsExpiresAt: z.string().datetime().nullable(),
+  retentionPolicy: z.literal("indefinite"),
+  failureCode: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable(),
+});
+
+export const memoryImportAttemptsResponseSchema = z.object({
+  memoryImportAttempts: z.array(memoryImportAttemptRecordSchema),
+  nextCursor: z.string().nullable(),
+  total: z.number().int().nonnegative(),
+  pagination: memoryEntryPaginationSchema,
+});
+
+export const memoryImportAttemptResponseSchema = z.object({
+  memoryImportAttempt: memoryImportAttemptRecordSchema,
+  diagnostics: z.array(memoryImportIssueSchema),
+});
+
 export type MemoryIdParams = z.infer<typeof memoryIdParamsSchema>;
 export type MemoryEntryIdParams = z.infer<typeof memoryEntryIdParamsSchema>;
+export type MemoryImportAttemptParams = z.infer<typeof memoryImportAttemptParamsSchema>;
 export type MemoryProjectParams = z.infer<typeof memoryProjectParamsSchema>;
 export type ListMemoryQuery = z.infer<typeof listMemoryQuerySchema>;
 export type ListMemoryEntriesQuery = z.infer<typeof listMemoryEntriesQuerySchema>;
@@ -345,9 +412,13 @@ export type CreateMemoryEntryBody = z.infer<typeof createMemoryEntryBodySchema>;
 export type UpdateMemoryEntryBody = z.infer<typeof updateMemoryEntryBodySchema>;
 export type PromoteMemoryFromProjectBody = z.infer<typeof promoteMemoryFromProjectBodySchema>;
 export type ImportMemoryEntriesBody = z.infer<typeof importMemoryEntriesBodySchema>;
+export type ListMemoryImportAttemptsQuery = z.infer<typeof listMemoryImportAttemptsQuerySchema>;
 export type ExportMemoryEntriesQuery = z.infer<typeof exportMemoryEntriesQuerySchema>;
 export type MemoryImportReport = z.infer<typeof memoryImportReportSchema>;
 export type MemoryImportResponse = z.infer<typeof memoryImportResponseSchema>;
+export type MemoryImportAttemptRecord = z.infer<typeof memoryImportAttemptRecordSchema>;
+export type MemoryImportAttemptsResponse = z.infer<typeof memoryImportAttemptsResponseSchema>;
+export type MemoryImportAttemptResponse = z.infer<typeof memoryImportAttemptResponseSchema>;
 export type AttachMemoryProjectBody = z.infer<typeof attachMemoryProjectBodySchema>;
 export type MemoryRecord = z.infer<typeof memoryRecordSchema>;
 export type MemoryResponse = z.infer<typeof memoryResponseSchema>;
