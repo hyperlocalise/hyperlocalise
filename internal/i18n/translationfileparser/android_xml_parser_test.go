@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -245,6 +246,95 @@ func TestAndroidXMLResourcesParserRejectsInvalidPlurals(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `quantity="other"`) {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestAndroidXMLResourcesParserReportsPluralValidationLine(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		errContains string
+	}{
+		{
+			name: "empty plurals after preceding resources",
+			content: `<resources>
+  <string name="app_name">Hyperlocalise</string>
+  <plurals name="items">
+  </plurals>
+</resources>`,
+			errContains: `<plurals name="items"> at line 3 must contain at least one <item>`,
+		},
+		{
+			name: "missing other after preceding resources",
+			content: `<resources>
+  <string name="app_name">Hyperlocalise</string>
+  <plurals name="apples">
+    <item quantity="one">%d apple</item>
+    <item quantity="other">%d apples</item>
+  </plurals>
+  <plurals name="items">
+    <item quantity="one">%d item</item>
+  </plurals>
+</resources>`,
+			errContains: `<plurals name="items"> at line 7 must include an item with quantity="other"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (AndroidXMLResourcesParser{}).Parse([]byte(tt.content))
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.errContains)
+			}
+			if !strings.Contains(err.Error(), tt.errContains) {
+				t.Fatalf("unexpected error: %v\nwant substring: %q", err, tt.errContains)
+			}
+		})
+	}
+}
+
+func TestAndroidXMLResourcesParserParsesManyPlurals(t *testing.T) {
+	const pluralCount = 64
+	var b strings.Builder
+	b.WriteString("<resources>\n")
+	want := make(map[string]string, pluralCount*2)
+	for i := 0; i < pluralCount; i++ {
+		name := fmt.Sprintf("items_%d", i)
+		fmt.Fprintf(&b, "  <plurals name=%q>\n", name)
+		b.WriteString("    <item quantity=\"one\">%d item</item>\n")
+		b.WriteString("    <item quantity=\"other\">%d items</item>\n")
+		b.WriteString("  </plurals>\n")
+		want[name+".one"] = "%d item"
+		want[name+".other"] = "%d items"
+	}
+	b.WriteString("</resources>")
+
+	got, err := (AndroidXMLResourcesParser{}).Parse([]byte(b.String()))
+	if err != nil {
+		t.Fatalf("parse many plurals: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("parsed many plurals mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestLineNumberAtOffset(t *testing.T) {
+	text := "one\ntwo\nthree"
+	tests := []struct {
+		offset int
+		want   int
+	}{
+		{offset: 0, want: 1},
+		{offset: 3, want: 1},
+		{offset: 4, want: 2},
+		{offset: len(text), want: 3},
+		{offset: len(text) + 10, want: 3},
+	}
+
+	for _, tt := range tests {
+		if got := lineNumberAtOffset(text, tt.offset); got != tt.want {
+			t.Errorf("lineNumberAtOffset(%d) = %d, want %d", tt.offset, got, tt.want)
+		}
 	}
 }
 

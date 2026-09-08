@@ -46,6 +46,17 @@ func BenchmarkAndroidXMLMarshalWithMarkup(b *testing.B) {
 	}
 }
 
+func BenchmarkAndroidXMLParserPlurals(b *testing.B) {
+	content := generateLargeAndroidXMLWithPlurals(1000)
+	parser := AndroidXMLResourcesParser{}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _ = parser.Parse(content)
+	}
+}
+
 func generateLargeAndroidXML(n int) []byte {
 	var sb strings.Builder
 	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>
@@ -53,6 +64,21 @@ func generateLargeAndroidXML(n int) []byte {
 `)
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&sb, "  <string name=\"key_%d\">value %d</string>\n", i, i)
+	}
+	sb.WriteString("</resources>")
+	return []byte(sb.String())
+}
+
+func generateLargeAndroidXMLWithPlurals(n int) []byte {
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+`)
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&sb, "  <plurals name=\"items_%d\">\n", i)
+		sb.WriteString("    <item quantity=\"one\">%d item</item>\n")
+		sb.WriteString("    <item quantity=\"other\">%d items</item>\n")
+		sb.WriteString("  </plurals>\n")
 	}
 	sb.WriteString("</resources>")
 	return []byte(sb.String())

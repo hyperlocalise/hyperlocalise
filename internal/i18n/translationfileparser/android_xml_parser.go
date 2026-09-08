@@ -34,10 +34,10 @@ type androidResourceDocument struct {
 }
 
 type androidPluralState struct {
-	name      string
-	itemCount int
-	hasOther  bool
-	startLine int
+	name        string
+	itemCount   int
+	hasOther    bool
+	startOffset int
 }
 
 type androidValueCapture struct {
@@ -134,9 +134,6 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	var capture *androidValueCapture
 	seenKeys := make(map[string]struct{}, capacity)
 
-	currentLine := 1
-	lastOffset := 0
-
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -145,10 +142,6 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 			}
 			return androidResourceDocument{}, fmt.Errorf("xml decode: %w", err)
 		}
-
-		offset := int(decoder.InputOffset())
-		currentLine += strings.Count(text[lastOffset:offset], "\n")
-		lastOffset = offset
 
 		switch token := tok.(type) {
 		case xml.StartElement:
@@ -173,7 +166,8 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 
 			switch {
 			case depth == 1:
-				nextCapture, nextPlural, err := handleAndroidTopLevelStart(text, decoder, token, seenKeys, currentLine)
+				offset := int(decoder.InputOffset())
+				nextCapture, nextPlural, err := handleAndroidTopLevelStart(text, decoder, token, seenKeys, offset)
 				if err != nil {
 					return androidResourceDocument{}, err
 				}
@@ -184,7 +178,8 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 					plural = nextPlural
 				}
 			case depth == 2 && plural != nil:
-				nextCapture, err := handleAndroidPluralChildStart(text, decoder, token, plural, seenKeys, currentLine)
+				offset := int(decoder.InputOffset())
+				nextCapture, err := handleAndroidPluralChildStart(text, decoder, token, plural, seenKeys, offset)
 				if err != nil {
 					return androidResourceDocument{}, err
 				}
@@ -209,10 +204,10 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 
 			if capture == nil && depth == 2 && plural != nil && token.Name.Local == "plurals" {
 				if plural.itemCount == 0 {
-					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, plural.startLine)
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, lineNumberAtOffset(text, plural.startOffset))
 				}
 				if !plural.hasOther {
-					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, plural.startLine)
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, lineNumberAtOffset(text, plural.startOffset))
 				}
 				plural = nil
 			}
@@ -235,7 +230,16 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	return doc, nil
 }
 
-func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, *androidPluralState, error) {
+// lineNumberAtOffset counts newlines only when formatting an error. Valid files
+// never pay this cost, and invalid files pay it once per reported error.
+func lineNumberAtOffset(text string, offset int) int {
+	if offset > len(text) {
+		offset = len(text)
+	}
+	return 1 + strings.Count(text[:offset], "\n")
+}
+
+func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}, offset int) (*androidValueCapture, *androidPluralState, error) {
 	var name string
 	translatable := true
 	for _, attr := range token.Attr {
@@ -253,7 +257,7 @@ func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.Sta
 		return nil, nil, nil
 	}
 	if name == "" {
-		return nil, nil, fmt.Errorf("android resources: <%s> is missing required \"name\" attribute at line %d", token.Name.Local, currentLine)
+		return nil, nil, fmt.Errorf("android resources: <%s> is missing required \"name\" attribute at line %d", token.Name.Local, lineNumberAtOffset(text, offset))
 	}
 
 	switch token.Name.Local {
@@ -261,15 +265,15 @@ func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.Sta
 		capture, err := startAndroidValueCapture(text, decoder, token, name, seenKeys)
 		return capture, nil, err
 	case "plurals":
-		return nil, &androidPluralState{name: name, startLine: currentLine}, nil
+		return nil, &androidPluralState{name: name, startOffset: offset}, nil
 	default:
-		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, currentLine)
+		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, lineNumberAtOffset(text, offset))
 	}
 }
 
-func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, error) {
+func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}, offset int) (*androidValueCapture, error) {
 	if token.Name.Local != "item" {
-		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, currentLine)
+		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, lineNumberAtOffset(text, offset))
 	}
 
 	var quantity string
@@ -280,7 +284,7 @@ func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.
 		}
 	}
 	if quantity == "" {
-		return nil, fmt.Errorf("android resources: <item> inside <plurals name=%q> at line %d is missing required \"quantity\" attribute", plural.name, currentLine)
+		return nil, fmt.Errorf("android resources: <item> inside <plurals name=%q> at line %d is missing required \"quantity\" attribute", plural.name, lineNumberAtOffset(text, offset))
 	}
 
 	if !androidValidPluralQuantity(quantity) {
