@@ -41,6 +41,7 @@ describe("VisualWorkflowPlayground", () => {
 
     expect(markup).toContain("h-[min(36rem,70svh)]");
     expect(markup).toContain("min-h-[28rem]");
+    expect(markup).toContain("min-w-0");
     expect(markup).toContain('aria-hidden="true"');
   });
 
@@ -58,5 +59,6 @@ describe("VisualWorkflowPlayground", () => {
         "This is a playground. Add a step, edit a prompt, press test. Refresh the page and it resets. Nothing is saved.",
       ),
     ).toBeInTheDocument();
+    expect(document.body.innerHTML).toContain("min-w-0");
   });
 });

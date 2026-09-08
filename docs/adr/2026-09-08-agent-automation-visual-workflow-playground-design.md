@@ -29,6 +29,8 @@ Bottom CTA headline: **Set up the workflow. Watch the next campaign follow it.**
 
 Dynamically load the real `VisualWorkflowEditor` with `ssr: false`, `playgroundMode`, and no save handler. Visitors can add nodes, edit, connect, and run a simulated test. Refresh restores the seed graph. Nothing hits the backend.
 
+Below the `md` breakpoint, hide the 360px sidebar so the canvas keeps the full playground width. Open the picker or selected-node configuration as an overlay sheet inside the editor.
+
 Seed graph name: **Publish campaign pages**
 
 1. Source upload — Campaign brief uploaded

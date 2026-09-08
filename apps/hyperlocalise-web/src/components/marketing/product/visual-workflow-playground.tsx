@@ -23,7 +23,7 @@ export function VisualWorkflowPlaygroundLoadingShell() {
   return (
     <div
       aria-hidden
-      className="h-[min(36rem,70svh)] min-h-[28rem] overflow-hidden rounded-xl border border-border bg-muted/20"
+      className="h-[min(36rem,70svh)] min-h-[28rem] min-w-0 overflow-hidden rounded-xl border border-border bg-muted/20"
     />
   );
 }
@@ -54,7 +54,7 @@ export function VisualWorkflowPlayground() {
         </p>
       </div>
 
-      <div className="flex h-[min(36rem,70svh)] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
+      <div className="flex h-[min(36rem,70svh)] min-h-[28rem] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
         <VisualWorkflowEditor
           initialName={visualWorkflowCampaignPagesDraft.name}
           initialNodes={visualWorkflowCampaignPagesDraft.nodes}

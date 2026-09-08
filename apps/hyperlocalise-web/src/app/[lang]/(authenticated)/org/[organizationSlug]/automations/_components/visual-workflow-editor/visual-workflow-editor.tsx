@@ -58,6 +58,7 @@ import {
 } from "./visual-workflow-canvas-actions";
 import { VisualWorkflowChrome } from "./visual-workflow-chrome";
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
+import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
@@ -112,6 +113,7 @@ export function VisualWorkflowEditor({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [panelMode, setPanelMode] = useState<"picker" | "config">("picker");
   const [addFrom, setAddFrom] = useState<VisualWorkflowAddFrom | null>(null);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
@@ -144,12 +146,23 @@ export function VisualWorkflowEditor({
     if (nextId) {
       setPanelMode("config");
       setAddFrom(null);
+      setMobilePanelOpen(true);
+      return;
     }
+    setMobilePanelOpen(false);
+  }, []);
+
+  const closeMobilePanel = useCallback(() => {
+    setMobilePanelOpen(false);
+    setSelectedNodeId(null);
+    setPanelMode("picker");
+    setAddFrom(null);
   }, []);
 
   const openPicker = useCallback((from: VisualWorkflowAddFrom | null = null) => {
     setAddFrom(from);
     setPanelMode("picker");
+    setMobilePanelOpen(true);
     if (from) {
       setSelectedNodeId(null);
     }
@@ -197,6 +210,7 @@ export function VisualWorkflowEditor({
       setAddFrom(null);
       setSelectedNodeId(id);
       setPanelMode("config");
+      setMobilePanelOpen(true);
     },
     [addFrom, nodes],
   );
@@ -465,7 +479,7 @@ export function VisualWorkflowEditor({
           onSelectRun={setSelectedRunId}
         />
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1">
           <VisualWorkflowCanvasActionsProvider onAddFromNode={openPicker}>
             <VisualWorkflowCanvas
               nodes={nodes}
@@ -484,11 +498,16 @@ export function VisualWorkflowEditor({
                 setSelectedNodeId(null);
                 setPanelMode("picker");
                 setAddFrom(null);
+                setMobilePanelOpen(false);
               }}
               onTestWorkflow={onTestWorkflowClick}
             />
           </VisualWorkflowCanvasActionsProvider>
-          <aside className="flex w-[360px] shrink-0 flex-col border-l border-border bg-background">
+          <VisualWorkflowEditorPanel
+            open={mobilePanelOpen}
+            onClose={closeMobilePanel}
+            onOpenPicker={() => openPicker(null)}
+          >
             {showConfig && selectedNode ? (
               <VisualWorkflowConfigPanel
                 node={selectedNode}
@@ -518,7 +537,7 @@ export function VisualWorkflowEditor({
                 ) : null}
               </>
             )}
-          </aside>
+          </VisualWorkflowEditorPanel>
         </div>
       )}
     </div>
