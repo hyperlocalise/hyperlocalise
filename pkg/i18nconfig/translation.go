@@ -99,7 +99,7 @@ func (c I18NConfig) validateTranslation(groupSet map[string]struct{}) error {
 		return nil
 	}
 
-	if len(c.Translation.Rules) > 0 && len(c.LLM.Rules) > 0 {
+	if len(c.LLM.Rules) > 0 {
 		return fmt.Errorf("translation.rules: must not be combined with llm.rules; migrate llm.rules entries to translation.rules")
 	}
 

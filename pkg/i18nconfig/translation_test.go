@@ -157,6 +157,20 @@ func TestLoadTranslationRouting(t *testing.T) {
 			errContains: "translation.rules: must not be combined with llm.rules",
 		},
 		{
+			name: "translation default with only legacy llm rules is rejected",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {
+			    "profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}},
+			    "rules": [{"priority": 100, "group": "g", "profile": "default"}]
+			  },
+			  "translation": {"default": {"type": "llm", "profile": "default"}}
+			}`,
+			errContains: "translation.rules: must not be combined with llm.rules",
+		},
+		{
 			name: "mt profile google missing api key env",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
