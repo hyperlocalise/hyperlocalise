@@ -166,6 +166,26 @@ export const projectOpenJobCountResponseSchema = z.object({
   openJobCount: z.number().int(),
 });
 
+export const projectLocaleProgressCountsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  translated: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+});
+
+export const projectLocaleProgressRowSchema = z.object({
+  locale: z.string(),
+  translationProgress: z.number().min(0).max(100),
+  approvalProgress: z.number().min(0).max(100),
+  words: projectLocaleProgressCountsSchema,
+  phrases: projectLocaleProgressCountsSchema,
+  lastActivityAt: z.string().nullable(),
+});
+
+export const projectLocaleProgressResponseSchema = successEnvelopeSchema(
+  "locales",
+  z.array(projectLocaleProgressRowSchema),
+);
+
 export const projectsResponseSchema = z.object({
   projects: z.array(projectRecordSchema),
 });
@@ -828,6 +848,8 @@ export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
 export type ProjectRecord = z.infer<typeof projectRecordSchema>;
 export type ProjectResponse = z.infer<typeof projectResponseSchema>;
+export type ProjectLocaleProgressRow = z.infer<typeof projectLocaleProgressRowSchema>;
+export type ProjectLocaleProgressResponse = z.infer<typeof projectLocaleProgressResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;

@@ -87,6 +87,7 @@ import {
   getTmsProviderLiveCatSegmentTarget,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
+  getTmsProviderLiveProjectLocaleReadiness,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
@@ -94,6 +95,8 @@ import {
   setTmsProviderLiveCatStringsHidden,
   resolveTmsProviderLiveCatComment,
 } from "@/lib/providers/jobs/tms-provider-live";
+import { listNativeProjectLocaleProgress } from "@/lib/projects/locale-progress/native-project-locale-progress";
+import { normalizeProviderLocaleProgress } from "@/lib/projects/locale-progress/provider-locale-progress";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectContentEditorFile,
@@ -3755,6 +3758,72 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
       },
     )
+    .get("/:projectId/locale-progress", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "provider") {
+        try {
+          const [liveProject, localeReadiness] = await Promise.all([
+            getTmsProviderLiveProject(organizationId, target.externalProjectId, {
+              actorUserId: c.var.auth.user.localUserId,
+            }),
+            getTmsProviderLiveProjectLocaleReadiness(organizationId, target.externalProjectId, {
+              actorUserId: c.var.auth.user.localUserId,
+            }),
+          ]);
+
+          const materializedProject = liveProject
+            ? null
+            : await getOwnedProjectRecord(c.var.auth, params.projectId);
+          const targetLocales =
+            liveProject?.targetLocales ?? materializedProject?.targetLocales ?? [];
+
+          if (!liveProject && materializedProject?.source !== "external_tms") {
+            scheduleProjectNotFoundDiagnostics({
+              auth: c.var.auth,
+              projectId: params.projectId,
+              route: "project.locale_progress.provider",
+            });
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json(
+            {
+              locales: normalizeProviderLocaleProgress({
+                targetLocales,
+                readiness: localeReadiness,
+              }),
+            },
+            200,
+          );
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+      if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.locale_progress",
+        });
+        return projectNotFoundResponse(c);
+      }
+
+      const locales = await listNativeProjectLocaleProgress({
+        organizationId,
+        projectId: project.id,
+        targetLocales: project.targetLocales,
+      });
+      return c.json({ locales }, 200);
+    })
     .get("/:projectId/open-job-count", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
