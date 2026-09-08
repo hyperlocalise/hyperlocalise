@@ -129,7 +129,7 @@ Wir sind der Überzeugung, dass Wissen wiederverwendbar werden sollte.
 
 Ein Lokalisierungssystem sollte aus der Art und Weise lernen, wie ein Unternehmen kommuniziert. Es sollte sich merken, wie Begriffe produktübergreifend verwendet werden. Es sollte verstehen, wie Prüfer Entscheidungen treffen. Es sollte Muster im Marktfeedback erkennen. Es sollte Teams dabei helfen, die richtigen Regeln und den richtigen Kontext anzuwenden, ohne jedes Mal denselben manuellen Aufwand zu erfordern.
 
-Das ist gemeint mit [selbstentwickelnder Lokalisierungsintelligenz](/product/self-evolving-knowledge).
+Das ist gemeint mit [selbstentwickelnder Lokalisierungsintelligenz](/product/guidelines).
 
 Das System sollte mit jedem Projekt nützlicher werden. Es sollte wiederholte Fragen reduzieren, die Konsistenz verbessern und Teams im Laufe der Zeit dabei helfen, bessere Entscheidungen zu treffen. Je mehr ein Unternehmen lokalisiert, desto stärker sollte seine Lokalisierungsintelligenz werden.
 

@@ -15,6 +15,28 @@
 import { useEffect, useRef } from "react";
 import { useReducedMotion } from "motion/react";
 
+const GLYPHS = Array.from(
+  "AÁĂÅÆĐÉĘĞÍŁÑØŐŚŞÚÜÝŹaáăåæđéęğıłñøőśşúüýź" +
+    "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯабвгдежзийклмнопрстуфхцчшщыэюя" +
+    "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω" +
+    "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん" +
+    "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン" +
+    "文語世界本漢字翻訳市場品質本地化中日韓" +
+    "한글글자번역시장품질세계언어" +
+    "אבגדהוזחטיךכלםמןנסעףפץצקרשת" +
+    "ابتثجحخدذرزسشصضطظعغفقكلمنهوي" +
+    "अआइईउऊकखगघचजटडतथदधनपबभमयरलवशषसह" +
+    "กขคงจชซญดตถทนบปผพฟมยรลวสหอ" +
+    "აბგდევზთიკლმნოპრსტუფქღყშჩცძწჭხჯჰ" +
+    "ԱԲԳԴԵԶԷԹԺԻԼԽԾԿՀՁՂՃՄՅՆՇՈՉՊՋՌՍՎՏՐՑՒՓՔՕՖ",
+);
+
+function glyphFor(lat: number, lon: number) {
+  let hash = Math.imul(lat + 1, 2654435761);
+  hash = Math.imul(hash ^ Math.imul(lon + 1, 1597334677), 2246822519);
+  return GLYPHS[(hash >>> 0) % GLYPHS.length] ?? "文";
+}
+
 export function KnowledgeWaveGlobe() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -83,7 +105,6 @@ export function KnowledgeWaveGlobe() {
       Math.sin((x + z) * 0.8 + t * 0.6) * 0.7 +
       Math.cos(y * 0.5 - z * 0.9 + t * 0.4) * 0.5;
 
-    const CHARS = " .·:+*#%@";
     const LAT_STEPS = 36;
     const LON_STEPS = 72;
 
@@ -100,8 +121,8 @@ export function KnowledgeWaveGlobe() {
       const rotY = s * 0.18;
       const rotX = Math.sin(s * 0.07) * 0.25;
 
-      const cell = Math.max(8, Math.min(W, H) * 0.022);
-      ctx.font = `500 ${cell}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      const cell = Math.max(9, Math.min(W, H) * 0.02);
+      ctx.font = `500 ${cell}px ui-sans-serif, system-ui, "PingFang SC", "Hiragino Sans", "Apple SD Gothic Neo", "Noto Sans", sans-serif`;
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
 
@@ -179,8 +200,9 @@ export function KnowledgeWaveGlobe() {
 
           const w = noise3(x0 * 3, y0 * 3, z0 * 3, s * 0.4) + waveBoost * 0.18;
           const normalized = Math.max(0, Math.min(1, (w + 1.5) / 2.8));
-          const ch = CHARS[Math.floor(normalized * (CHARS.length - 1))];
-          if (ch === " ") continue;
+          if (normalized < 0.2) continue;
+
+          const ch = glyphFor(lat, lon);
 
           const depth = (z0 + 0.1) / 1.1;
           const strong = normalized > 0.5;

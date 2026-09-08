@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const knowledgeMockMessages = defineMessages({
   eyebrow: {
-    defaultMessage: "Self-evolving Knowledge",
-    id: "IyzX73LnS8",
+    defaultMessage: "Guidelines",
+    id: "MPOlaJ9dCq",
     description: "Knowledge mock UI eyebrow label",
   },
   headline: {

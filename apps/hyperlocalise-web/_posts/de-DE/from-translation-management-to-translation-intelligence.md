@@ -280,7 +280,7 @@ Von statischen linguistischen Ressourcen zu sich selbst weiterentwickelndem Wiss
 
 Von der Übersetzungsverwaltung zur Übersetzungsintelligenz.
 
-Hyperlocalise arbeitet auf diese Zukunft hin mit [KI-Agenten](/product/agents-automation), einer [CAT-Erfahrung der nächsten Generation](/product/next-gen-cat-tool) und einer [selbstlernenden Context-Engine](/product/self-evolving-knowledge), die globalen Teams dabei helfen soll, bessere Übersetzungen mit weniger manueller Recherche zu erstellen.
+Hyperlocalise arbeitet auf diese Zukunft hin mit [KI-Agenten](/product/agents-automation), einer [CAT-Erfahrung der nächsten Generation](/product/next-gen-cat-tool) und einer [selbstlernenden Context-Engine](/product/guidelines), die globalen Teams dabei helfen soll, bessere Übersetzungen mit weniger manueller Recherche zu erstellen.
 
 Die nächste Generation von Lokalisierungssoftware wird nicht einfach nur Übersetzungen verwalten.
 

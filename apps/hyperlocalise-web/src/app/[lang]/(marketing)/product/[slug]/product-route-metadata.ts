@@ -42,18 +42,18 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
           description: "Meta description for the multilingual Content Studio product page",
         }),
       };
-    case "self-evolving-knowledge":
+    case "guidelines":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
-          id: "Ov7k7O9mR3",
-          description: "Page title for the self-evolving knowledge product page",
+          defaultMessage: "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
+          id: "qqzc5HNRQF",
+          description: "Page title for the Guidelines product page",
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
-          id: "G1is+5n2E6",
-          description: "Meta description for the self-evolving knowledge product page",
+            "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
+          id: "wwKiGsumAM",
+          description: "Meta description for the Guidelines product page",
         }),
       };
     default:

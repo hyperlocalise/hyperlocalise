@@ -280,7 +280,7 @@ Từ các tài sản ngôn ngữ tĩnh đến tri thức tự tiến hóa.
 
 Từ quản lý dịch thuật đến trí tuệ dịch thuật.
 
-Hyperlocalise đang hướng tới tương lai này thông qua [các tác nhân AI](/product/agents-automation), một [trải nghiệm CAT thế hệ mới](/product/next-gen-cat-tool), và một [công cụ ngữ cảnh tự tiến hóa](/product/self-evolving-knowledge) được thiết kế để giúp các nhóm toàn cầu tạo ra bản dịch tốt hơn với ít công sức dò tìm thủ công hơn.
+Hyperlocalise đang hướng tới tương lai này thông qua [các tác nhân AI](/product/agents-automation), một [trải nghiệm CAT thế hệ mới](/product/next-gen-cat-tool), và một [công cụ ngữ cảnh tự tiến hóa](/product/guidelines) được thiết kế để giúp các nhóm toàn cầu tạo ra bản dịch tốt hơn với ít công sức dò tìm thủ công hơn.
 
 Phần mềm bản địa hóa thế hệ tiếp theo sẽ không chỉ đơn thuần quản lý việc dịch thuật.
 

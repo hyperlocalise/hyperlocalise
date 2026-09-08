@@ -129,7 +129,7 @@ Chúng tôi tin rằng kiến thức nên có thể được tái sử dụng.
 
 Một hệ thống bản địa hóa nên học từ cách một công ty giao tiếp. Nó nên ghi nhớ cách các thuật ngữ được sử dụng xuyên suốt các sản phẩm. Nó nên hiểu cách những người duyệt nội dung đưa ra quyết định. Nó nên nhận ra các mẫu trong phản hồi thị trường. Nó nên giúp các nhóm áp dụng đúng quy tắc và ngữ cảnh mà không cần thiết lập thủ công giống nhau mỗi lần.
 
-Đây là điều chúng tôi muốn nói bằng [trí tuệ bản địa hoá tự tiến hoá](/product/self-evolving-knowledge).
+Đây là điều chúng tôi muốn nói bằng [trí tuệ bản địa hoá tự tiến hoá](/product/guidelines).
 
 Hệ thống nên trở nên hữu ích hơn với mỗi dự án. Nó nên giảm bớt các câu hỏi lặp lại, cải thiện tính nhất quán và giúp các nhóm đưa ra quyết định tốt hơn theo thời gian. Càng một công ty bản địa hoá nhiều, trí tuệ bản địa hoá của công ty đó càng nên mạnh hơn.
 

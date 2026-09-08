@@ -14,10 +14,7 @@ import type { ProductMessageKey } from "./product-page-content.messages";
 
 export type { ProductMessageKey } from "./product-page-content.messages";
 
-export type ProductPageSlug =
-  | "agents-automation"
-  | "multilingual-content-studio"
-  | "self-evolving-knowledge";
+export type ProductPageSlug = "agents-automation" | "multilingual-content-studio" | "guidelines";
 
 export type ProductVisualKind = "automation" | "cat" | "knowledge";
 
@@ -93,7 +90,7 @@ export const productPages: ProductPageContent[] = [
     },
     related: [
       { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
-      { labelKey: "productNavSelfEvolvingKnowledge", href: "/product/self-evolving-knowledge" },
+      { labelKey: "productNavGuidelines", href: "/product/guidelines" },
     ],
   },
   {
@@ -136,46 +133,48 @@ export const productPages: ProductPageContent[] = [
     },
     related: [
       { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
-      { labelKey: "productNavSelfEvolvingKnowledge", href: "/product/self-evolving-knowledge" },
+      { labelKey: "productNavGuidelines", href: "/product/guidelines" },
     ],
   },
   {
-    slug: "self-evolving-knowledge",
+    slug: "guidelines",
     metadata: {
-      titleKey: "selfEvolvingKnowledgeMetadataTitle",
-      descriptionKey: "selfEvolvingKnowledgeMetadataDescription",
+      titleKey: "guidelinesMetadataTitle",
+      descriptionKey: "guidelinesMetadataDescription",
       keywords: [
-        "localisation knowledge",
-        "translation memory",
-        "localisation glossary",
-        "AI translation context",
+        "brand guidelines",
+        "Google Drive",
+        "Notion",
+        "SharePoint",
+        "compliance PDF",
+        "market compliance",
       ],
     },
     visualKind: "knowledge",
     hero: {
-      eyebrowKey: "selfEvolvingKnowledgeHeroEyebrow",
-      headlineKey: "selfEvolvingKnowledgeHeroHeadline",
-      subcopyKey: "selfEvolvingKnowledgeHeroSubcopy",
+      eyebrowKey: "guidelinesHeroEyebrow",
+      headlineKey: "guidelinesHeroHeadline",
+      subcopyKey: "guidelinesHeroSubcopy",
     },
-    detailsHeadlineKey: "selfEvolvingKnowledgeDetailsHeadline",
-    summaryKey: "selfEvolvingKnowledgeSummary",
+    detailsHeadlineKey: "guidelinesDetailsHeadline",
+    summaryKey: "guidelinesSummary",
     proofPoints: [
       {
-        titleKey: "selfEvolvingKnowledgeProof0Title",
-        bodyKey: "selfEvolvingKnowledgeProof0Body",
+        titleKey: "guidelinesProof0Title",
+        bodyKey: "guidelinesProof0Body",
       },
       {
-        titleKey: "selfEvolvingKnowledgeProof1Title",
-        bodyKey: "selfEvolvingKnowledgeProof1Body",
+        titleKey: "guidelinesProof1Title",
+        bodyKey: "guidelinesProof1Body",
       },
       {
-        titleKey: "selfEvolvingKnowledgeProof2Title",
-        bodyKey: "selfEvolvingKnowledgeProof2Body",
+        titleKey: "guidelinesProof2Title",
+        bodyKey: "guidelinesProof2Body",
       },
     ],
     cta: {
-      headlineKey: "selfEvolvingKnowledgeCtaHeadline",
-      descriptionKey: "selfEvolvingKnowledgeCtaDescription",
+      headlineKey: "guidelinesCtaHeadline",
+      descriptionKey: "guidelinesCtaDescription",
     },
     related: [
       { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },

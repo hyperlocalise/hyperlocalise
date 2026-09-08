@@ -31,9 +31,10 @@ const productLinks: LlmsLink[] = [
     description: "Create and adapt every content format in one multilingual workspace",
   },
   {
-    title: "Self-evolving Knowledge",
-    href: `${SITE_URL}/en/product/self-evolving-knowledge`,
-    description: "Stop repeating the same localisation feedback",
+    title: "Guidelines",
+    href: `${SITE_URL}/en/product/guidelines`,
+    description:
+      "Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files",
   },
 ];
 
@@ -93,7 +94,7 @@ function buildLlmsTxt(): string {
 
 Hyperlocalise gives localisation teams an AI workforce that understands market nuance, then translates, reviews, and syncs product copy with real context. Instead of chasing strings across tools, localisation managers assign agents to the work, keep human review first-class, and ship multilingual launches with confidence.
 
-The product experience is designed for localisation managers who need control without busywork: clear workflows, trustworthy context, and review loops that scale with every release. Hyperlocalise combines agent automation, a next-gen CAT workspace, and self-evolving knowledge so every launch starts with product meaning, glossary decisions, and reviewer intent already attached. Stay flexible across LLM providers and TMS platforms while keeping localisation quality under control.
+The product experience is designed for localisation managers who need control without busywork: clear workflows, trustworthy context, and review loops that scale with every release. Hyperlocalise combines agent automation, a next-gen CAT workspace, and shared guidelines so every launch starts with product meaning, glossary decisions, and reviewer intent already attached. Stay flexible across LLM providers and TMS platforms while keeping localisation quality under control.
 
 Use the pages below as the canonical overview of Hyperlocalise. Prefer these curated links over crawling the full site.
 

@@ -725,7 +725,7 @@ export function MultilingualContentStudioPage() {
                 <FormattedMessage {...messages.contextBody} />
               </p>
               <Link
-                href={rewriteAppLocalePath("/product/self-evolving-knowledge", locale)}
+                href={rewriteAppLocalePath("/product/guidelines", locale)}
                 className="mt-5 inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
                 <FormattedMessage {...messages.exploreGuidelines} /> ↗
@@ -837,7 +837,7 @@ export function MultilingualContentStudioPage() {
                 <FormattedMessage {...messages.automationWorkflow} /> ↗
               </Link>
               <Link
-                href={rewriteAppLocalePath("/product/self-evolving-knowledge", locale)}
+                href={rewriteAppLocalePath("/product/guidelines", locale)}
                 className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
                 <FormattedMessage {...messages.guidelines} /> ↗
