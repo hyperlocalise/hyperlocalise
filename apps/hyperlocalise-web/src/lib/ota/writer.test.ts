@@ -530,6 +530,77 @@ describe("otaDistributionWriter", () => {
     }
   });
 
+  it("rejects invalid formats and non-canonical locales", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "bad-format.json",
+    });
+
+    const invalidFormat = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Bad format",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "yaml" as "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(invalidFormat)).toBe(true);
+    if (isErr(invalidFormat)) {
+      expect(invalidFormat.error).toEqual({ code: "invalid_format" });
+    }
+
+    const invalidLocales = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Bad locales",
+      fileIds: [file.id],
+      locales: ["not a locale", "!!!"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isErr(invalidLocales)).toBe(true);
+    if (isErr(invalidLocales)) {
+      expect(invalidLocales.error).toEqual({
+        code: "invalid_locales",
+        locales: ["not a locale", "!!!"],
+      });
+    }
+  });
+
+  it("returns distribution_not_found for update, revoke, and release on missing ids", async () => {
+    const { user } = await fixture.createStoredProjectFixture();
+    const missingId = crypto.randomUUID();
+
+    const update = await otaDistributionWriter.update({
+      distributionId: missingId,
+      actorUserId: user.id,
+      name: "Ghost",
+    });
+    expect(isErr(update)).toBe(true);
+    if (isErr(update)) {
+      expect(update.error).toEqual({ code: "distribution_not_found" });
+    }
+
+    const revoke = await otaDistributionWriter.revoke({
+      distributionId: missingId,
+      actorUserId: user.id,
+    });
+    expect(isErr(revoke)).toBe(true);
+    if (isErr(revoke)) {
+      expect(revoke.error).toEqual({ code: "distribution_not_found" });
+    }
+
+    const release = await otaDistributionWriter.release({
+      distributionId: missingId,
+      actorUserId: user.id,
+    });
+    expect(isErr(release)).toBe(true);
+    if (isErr(release)) {
+      expect(release.error).toEqual({ code: "distribution_not_found" });
+    }
+  });
+
   it("returns hash_collision after repeated unique public-hash conflicts", async () => {
     const { user, project } = await fixture.createStoredProjectFixture();
     const file = await seedSourceFile({
