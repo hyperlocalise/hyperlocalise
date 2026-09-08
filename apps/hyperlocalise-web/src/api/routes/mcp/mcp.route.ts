@@ -78,7 +78,10 @@ import {
   IssueSheetService,
   type IssueSheetIssue,
 } from "@/lib/projects/issue-sheet/issue-sheet-service";
-import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import {
+  isWriteBackApproveAllowed,
+  isWriteBackTranslationAllowed,
+} from "@/api/auth/capability-guards";
 import {
   projectFileCatQueueSortSchema,
   projectFileCatTranslationBodySchema,
@@ -1835,6 +1838,10 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     async ({ projectId, translationKeyId, targetLocale, targetText, approve }) => {
       if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to update translations");
+      }
+
+      if (approve && !isWriteBackApproveAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to approve translations");
       }
 
       const target = await resolveProjectResourceTarget(apiAuth, projectId);

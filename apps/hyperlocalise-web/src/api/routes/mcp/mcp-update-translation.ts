@@ -28,6 +28,12 @@ export type McpUpdateTranslationDetail = {
   updatedAt: string;
 };
 
+type McpTranslationValidationIssue =
+  | ContentEditorMessageParityIssue
+  | {
+      kind: "empty-target";
+    };
+
 type McpUpdateTranslationResult =
   | {
       ok: true;
@@ -40,7 +46,7 @@ type McpUpdateTranslationResult =
   | {
       ok: false;
       error: "invalid_translation";
-      issues: ContentEditorMessageParityIssue[];
+      issues: McpTranslationValidationIssue[];
     };
 
 export async function updateMcpTranslation(input: {
@@ -77,6 +83,14 @@ export async function updateMcpTranslation(input: {
     return {
       ok: false,
       error: "translation_locked",
+    };
+  }
+
+  if (input.approve && !input.targetText.trim()) {
+    return {
+      ok: false,
+      error: "invalid_translation",
+      issues: [{ kind: "empty-target" }],
     };
   }
 
