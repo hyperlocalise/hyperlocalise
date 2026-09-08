@@ -14,13 +14,15 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Add01Icon, CubeIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, GridViewIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/primitives/cn";
+import { projectsTableMessages } from "./projects-table.messages";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
@@ -28,11 +30,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
-import {
-  PageHeader,
-  WorkspaceFilterField,
-  WorkspacePageShell,
-} from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-tms-live-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
@@ -44,12 +42,19 @@ import {
 } from "./project-form";
 import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
-import { PROJECTS_PAGE_SIZE, ProjectsTable } from "./projects-table";
+import {
+  PROJECTS_PAGE_SIZE,
+  ProjectsTable,
+  ProjectsTableHeader,
+  ProjectSourceMark,
+} from "./projects-table";
 import { projectsPageContentMessages } from "./projects-page-content.messages";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
   ["translation-projects", organizationSlug, "native"] as const;
+
+const EMPTY_PROJECTS: ProjectListRow[] = [];
 
 type ProjectSourceFilter = "all" | "tms" | "native";
 
@@ -91,7 +96,9 @@ function RecentProjectsStrip({
   organizationSlug,
   projects,
   onOpenProject,
+  allProjects,
 }: {
+  allProjects: ProjectListRow[];
   organizationSlug: string;
   projects: Array<{ id: string; name: string }>;
   onOpenProject: (projectId: string) => void;
@@ -101,7 +108,7 @@ function RecentProjectsStrip({
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-2.5">
       <TypographyP
         className="tracking-[0.08em]"
         size="xsmall"
@@ -124,8 +131,17 @@ function RecentProjectsStrip({
             }
             variant="outline"
             size="sm"
-            className="max-w-full"
+            className="max-w-full gap-2 rounded-lg bg-background"
           >
+            <ProjectSourceMark
+              compact
+              project={
+                allProjects.find((row) => row.id === project.id) ?? {
+                  source: "native",
+                  externalProviderKind: null,
+                }
+              }
+            />
             <span className="truncate">{project.name}</span>
           </Button>
         ))}
@@ -251,8 +267,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     },
   });
 
-  const nativeProjects = nativeProjectsQuery.data ?? [];
-  const tmsProjects = tmsProjectsQuery.data ?? [];
+  const nativeProjects = nativeProjectsQuery.data ?? EMPTY_PROJECTS;
+  const tmsProjects = tmsProjectsQuery.data ?? EMPTY_PROJECTS;
   const allProjects = useMemo(
     () => [...tmsProjects, ...nativeProjects],
     [nativeProjects, tmsProjects],
@@ -364,9 +380,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   }
 
   const pageDescription = hasTmsConnection
-    ? intl.formatMessage(projectsPageContentMessages.pageDescriptionWithTms, {
-        providerName: tmsProviderName,
-      })
+    ? intl.formatMessage(projectsPageContentMessages.pageDescriptionWithTms)
     : intl.formatMessage(projectsPageContentMessages.pageDescriptionWithoutTms);
 
   const createProjectAction =
@@ -375,7 +389,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         type="button"
         onClick={openCreateProjectDialog}
         variant="outline"
-        className="w-full sm:w-fit"
+        className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
@@ -385,7 +399,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       <Button
         type="button"
         onClick={openCreateProjectDialog}
-        className="w-full sm:w-fit"
+        className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
       >
         <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
@@ -394,51 +408,43 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     );
 
   const tmsSection = showTmsSection ? (
-    <section className="space-y-4">
-      <ProjectsSectionHeader
-        title={intl.formatMessage(projectsPageContentMessages.tmsProjectsTitle, {
-          providerName: tmsProviderName,
-        })}
-        description={intl.formatMessage(projectsPageContentMessages.tmsProjectsDescription)}
-      />
-      <ProjectsTable
-        projects={visibleTmsProjects}
-        projectsQuery={tmsProjectsQuery}
-        isSavingProject={isSavingProject}
-        isDeletingProject={deleteProjectMutation.isPending}
-        organizationSlug={organizationSlug}
-        variant="tms"
-        hasMore={hasMoreTmsProjects}
-        onLoadMore={loadMoreTmsProjects}
-        onOpenProject={handleOpenProject}
-      />
-    </section>
+    <ProjectsTable
+      grouped
+      groupLabel={tmsProviderName}
+      totalCount={filteredTmsProjects.length}
+      suppressEmpty={Boolean(searchQuery.trim())}
+      projects={visibleTmsProjects}
+      projectsQuery={tmsProjectsQuery}
+      isSavingProject={isSavingProject}
+      isDeletingProject={deleteProjectMutation.isPending}
+      organizationSlug={organizationSlug}
+      variant="tms"
+      hasMore={hasMoreTmsProjects}
+      onLoadMore={loadMoreTmsProjects}
+      onOpenProject={handleOpenProject}
+    />
   ) : null;
 
   const nativeSection = showNativeSection ? (
-    <section className="space-y-4">
-      <ProjectsSectionHeader
-        title={intl.formatMessage(projectsPageContentMessages.hyperlocaliseProjectsTitle)}
-        description={intl.formatMessage(
-          projectsPageContentMessages.hyperlocaliseProjectsDescription,
-        )}
-      />
-      <ProjectsTable
-        projects={visibleNativeProjects}
-        projectsQuery={nativeProjectsQuery}
-        isSavingProject={isSavingProject}
-        isDeletingProject={deleteProjectMutation.isPending}
-        organizationSlug={organizationSlug}
-        variant="native"
-        compactEmptyNative={compactNativeEmpty}
-        hasMore={hasMoreNativeProjects}
-        onLoadMore={loadMoreNativeProjects}
-        onEditProject={openEditProjectDialog}
-        onDeleteProject={setDeleteProject}
-        onCreateProject={openCreateProjectDialog}
-        onOpenProject={handleOpenProject}
-      />
-    </section>
+    <ProjectsTable
+      grouped
+      groupLabel={intl.formatMessage(projectsPageContentMessages.filterHyperlocalise)}
+      totalCount={filteredNativeProjects.length}
+      suppressEmpty={Boolean(searchQuery.trim())}
+      projects={visibleNativeProjects}
+      projectsQuery={nativeProjectsQuery}
+      isSavingProject={isSavingProject}
+      isDeletingProject={deleteProjectMutation.isPending}
+      organizationSlug={organizationSlug}
+      variant="native"
+      compactEmptyNative={compactNativeEmpty}
+      hasMore={hasMoreNativeProjects}
+      onLoadMore={loadMoreNativeProjects}
+      onEditProject={openEditProjectDialog}
+      onDeleteProject={setDeleteProject}
+      onCreateProject={openCreateProjectDialog}
+      onOpenProject={handleOpenProject}
+    />
   ) : null;
 
   const connectTmsSection =
@@ -462,40 +468,95 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     ) : null;
 
   return (
-    <WorkspacePageShell>
+    <WorkspacePageShell className="min-w-0 p-4 md:px-8 md:pt-6 md:pb-8 [&>section:first-child]:md:items-start">
       <PageHeader
-        icon={CubeIcon}
+        icon={GridViewIcon}
         label={intl.formatMessage(projectsPageContentMessages.pageLabel)}
         title={intl.formatMessage(projectsPageContentMessages.pageTitle)}
         description={pageDescription}
         actions={createProjectAction}
       />
 
-      {hasAnyProjects ? (
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <WorkspaceFilterField
-            label={intl.formatMessage(projectsPageContentMessages.searchLabel)}
-            className="w-full sm:max-w-xs"
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          {
+            label: projectsPageContentMessages.pageTitle,
+            value: allProjects.length,
+            ready:
+              nativeProjectsQuery.isSuccess &&
+              activeTmsProviderQuery.isSuccess &&
+              (!hasTmsConnection || tmsProjectsQuery.isSuccess),
+          },
+          {
+            label: projectsTableMessages.openJobsLabel,
+            value: allProjects.reduce((total, project) => total + project.openJobCount, 0),
+            ready:
+              nativeProjectsQuery.isSuccess &&
+              activeTmsProviderQuery.isSuccess &&
+              (!hasTmsConnection || tmsProjectsQuery.isSuccess),
+            accent: true,
+          },
+          {
+            label: projectsTableMessages.nativeSource,
+            value: nativeProjects.length,
+            ready: nativeProjectsQuery.isSuccess,
+          },
+          {
+            label: projectsPageContentMessages.tmsFallbackName,
+            value: tmsProjects.length,
+            ready:
+              activeTmsProviderQuery.isSuccess && (!hasTmsConnection || tmsProjectsQuery.isSuccess),
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label.id}
+            className="rounded-lg border border-border bg-background px-4 py-3"
           >
+            <dt className="text-[10px] leading-3 font-medium tracking-[0.08em] text-muted-foreground uppercase">
+              <FormattedMessage {...metric.label} />
+            </dt>
+            <dd
+              className={cn(
+                "mt-0.5 text-xl leading-6 font-medium tabular-nums",
+                metric.accent && "text-primary",
+              )}
+            >
+              {metric.ready ? intl.formatNumber(metric.value) : "—"}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {hasAnyProjects ? (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-90">
+            <HugeiconsIcon
+              icon={Search01Icon}
+              aria-hidden="true"
+              className="pointer-events-none absolute start-3 top-2.5 size-4 text-muted-foreground"
+            />
             <Input
+              aria-label={intl.formatMessage(projectsPageContentMessages.searchLabel)}
               placeholder={intl.formatMessage(projectsPageContentMessages.searchPlaceholder)}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
+              className="h-9 w-full rounded-lg ps-9"
             />
-          </WorkspaceFilterField>
+          </div>
           {hasTmsConnection ? (
             <Tabs
               value={sourceFilter}
               onValueChange={(value) => setSourceFilter(value as ProjectSourceFilter)}
             >
-              <TabsList>
-                <TabsTrigger value="all">
+              <TabsList className="max-w-full gap-1 rounded-lg p-1">
+                <TabsTrigger className="rounded-md px-3 data-active:border-border" value="all">
                   <FormattedMessage {...projectsPageContentMessages.filterAll} />
                 </TabsTrigger>
-                <TabsTrigger value="tms">{tmsProviderName}</TabsTrigger>
-                <TabsTrigger value="native">
+                <TabsTrigger className="rounded-md px-3 data-active:border-border" value="native">
                   <FormattedMessage {...projectsPageContentMessages.filterHyperlocalise} />
+                </TabsTrigger>
+                <TabsTrigger className="rounded-md px-3 data-active:border-border" value="tms">
+                  {tmsProviderName}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -507,11 +568,12 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         <RecentProjectsStrip
           organizationSlug={organizationSlug}
           projects={recentProjects}
+          allProjects={allProjects}
           onOpenProject={handleOpenProject}
         />
       ) : null}
 
-      {hasAnyProjects && !hasFilteredResults ? (
+      {hasAnyProjects && searchQuery.trim() && !hasFilteredResults && !nativeProjectsQuery.isLoading && !isTmsProjectsLoading ? (
         <div className="border-t border-border px-1 py-8 text-sm text-muted-foreground">
           <FormattedMessage
             {...projectsPageContentMessages.noSearchResults}
@@ -530,19 +592,17 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         </div>
       ) : null}
 
-      <div className="space-y-10">
-        {hasTmsConnection ? (
-          <>
-            {tmsSection}
-            {nativeSection}
-          </>
-        ) : (
-          <>
-            {nativeSection}
-            {connectTmsSection}
-          </>
-        )}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table
+          className="w-full min-w-180 table-fixed"
+          aria-label={intl.formatMessage(projectsPageContentMessages.pageTitle)}
+        >
+          <ProjectsTableHeader />
+          {nativeSection}
+          {tmsSection}
+        </table>
       </div>
+      {connectTmsSection}
 
       <ProjectDialog
         open={projectDialogMode !== null}

@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import {
-  ArrowRight01Icon,
   ArrowUpRight01Icon,
   Delete02Icon,
   Edit02Icon,
@@ -37,37 +36,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TypographyH3, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
-import { ProjectAvatar } from "./project-avatar";
 import { formatProjectLocaleRoute, type ProjectListRow } from "./project-list";
 import { projectsTableMessages } from "./projects-table.messages";
 
 export const PROJECTS_PAGE_SIZE = 12;
-
-function ProjectCardSkeleton() {
-  return (
-    <article className="rounded-lg border border-border bg-muted p-4">
-      <div className="flex items-start gap-3">
-        <Skeleton className="size-10 shrink-0 rounded-lg" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-4 w-48 max-w-full" />
-          <Skeleton className="h-3 w-full max-w-sm" />
-          <Skeleton className="h-3 w-32" />
-        </div>
-      </div>
-      <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-      </dl>
-    </article>
-  );
-}
 
 function NativeEmptyState({
   compact,
@@ -112,7 +90,7 @@ function NativeEmptyState({
   );
 }
 
-function ProjectCard({
+function ProjectRow({
   project,
   organizationSlug,
   isSavingProject,
@@ -142,44 +120,75 @@ function ProjectCard({
   const projectHref = `/org/${organizationSlug}/projects/${project.id}`;
 
   return (
-    <article className="group min-w-0 rounded-lg border border-border bg-muted p-4 transition-colors hover:border-beam-500/30 hover:bg-beam-500/5">
-      <div className="flex items-start justify-between gap-4">
-        <OrgNavLink
-          href={projectHref}
-          prefetch
-          onClick={() => onOpenProject?.(project.id)}
-          className="min-w-0 flex flex-1 items-start gap-3"
-        >
-          <ProjectAvatar project={project} />
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <TypographyH3 className="min-w-0" lineClamp={1} weight="medium" tone="content">
-                {project.name}
-              </TypographyH3>
-              {!project.isActive ? (
-                <Badge variant="outline" className="text-[10px]">
-                  <FormattedMessage {...projectsTableMessages.inactiveBadge} />
-                </Badge>
-              ) : null}
-            </div>
-            <TypographyP className="mt-1" lineClamp={1} size="xsmall" tone="subtle">
-              {providerName}
-            </TypographyP>
-            <TypographyP className="mt-1" lineClamp={2} size="xsmall" tone="subtle">
+    <tr className="group border-b border-border last:border-b-0 hover:bg-muted/50">
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProjectSourceMark project={project} />
+          <div className="min-w-0">
+            <OrgNavLink
+              href={projectHref}
+              prefetch
+              onClick={() => onOpenProject?.(project.id)}
+              className="block truncate text-sm font-medium text-foreground hover:underline"
+            >
+              {project.name}
+            </OrgNavLink>
+            <p className="mt-0.5 max-w-xl truncate text-xs text-muted-foreground">
               {project.descriptionValue ||
                 intl.formatMessage(projectsTableMessages.noDescriptionYet)}
-            </TypographyP>
+            </p>
           </div>
-        </OrgNavLink>
-
+          {!project.isActive ? (
+            <Badge variant="outline">
+              <FormattedMessage {...projectsTableMessages.inactiveBadge} />
+            </Badge>
+          ) : null}
+        </div>
+      </td>
+      <td className="px-2 py-3">
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2 py-0.5 text-xs",
+            isNativeProject
+              ? "bg-[#F0F4FF] text-[#4F6BED] dark:bg-blue-100 dark:text-blue-900"
+              : "bg-[#E8F4F8] text-muted-foreground dark:bg-muted",
+          )}
+        >
+          {isNativeProject ? intl.formatMessage(projectsTableMessages.nativeSource) : providerName}
+        </span>
+      </td>
+      <td className="px-2 py-3 text-right text-sm tabular-nums" title={localeRoute}>
+        {intl.formatNumber(project.targetLocales.length)}
+        <span className="sr-only">{localeRoute}</span>
+      </td>
+      <td className="px-2 py-3 text-right text-sm tabular-nums">
+        {project.openJobCount > 0 ? (
+          <OrgNavLink
+            href={`${projectHref}/jobs`}
+            prefetch
+            className="font-medium text-primary hover:underline"
+            aria-label={intl.formatMessage(projectsTableMessages.openJobsCount, {
+              count: project.openJobCount,
+            })}
+          >
+            {intl.formatNumber(project.openJobCount)}
+          </OrgNavLink>
+        ) : (
+          intl.formatNumber(0)
+        )}
+      </td>
+      <td className="whitespace-nowrap px-2 py-3 text-right text-sm text-muted-foreground">
+        {activityLabel}
+      </td>
+      <td className="px-2 py-3">
         <div className="flex shrink-0 items-center gap-1">
           {project.externalProjectUrl ? (
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    type="button"
-                    size="icon-sm"
+                    nativeButton={false}
+                    size="icon-xs"
                     variant="ghost"
                     render={
                       <a
@@ -212,7 +221,7 @@ function ProjectCard({
                 render={
                   <Button
                     type="button"
-                    size="icon-sm"
+                    size="icon-xs"
                     variant="ghost"
                     aria-label={intl.formatMessage(projectsTableMessages.actionsForProject, {
                       projectName: project.name,
@@ -251,51 +260,65 @@ function ProjectCard({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-          <HugeiconsIcon
-            icon={ArrowRight01Icon}
-            strokeWidth={1.8}
-            className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-          />
         </div>
-      </div>
+      </td>
+    </tr>
+  );
+}
 
-      <dl className="mt-5 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
-        <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">
-            <FormattedMessage {...projectsTableMessages.localesLabel} />
-          </dt>
-          <dd className="mt-1 truncate text-sm text-muted-foreground">{localeRoute}</dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">
-            <FormattedMessage {...projectsTableMessages.openJobsLabel} />
-          </dt>
-          <dd className="mt-1 truncate text-sm text-muted-foreground">
-            {project.openJobCount > 0 ? (
-              <OrgNavLink
-                href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
-                prefetch
-                className="text-subtle-foreground hover:text-foreground hover:underline"
-              >
-                {intl.formatMessage(projectsTableMessages.openJobsCount, {
-                  count: project.openJobCount,
-                })}
-              </OrgNavLink>
-            ) : (
-              <span>
-                <FormattedMessage {...projectsTableMessages.noOpenJobs} />
-              </span>
-            )}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-xs font-medium text-muted-foreground uppercase">
-            <FormattedMessage {...projectsTableMessages.updatedLabel} />
-          </dt>
-          <dd className="mt-1 truncate text-sm text-muted-foreground">{activityLabel}</dd>
-        </div>
-      </dl>
-    </article>
+export function ProjectSourceMark({
+  project,
+  compact = false,
+}: {
+  project: Pick<ProjectListRow, "source" | "externalProviderKind">;
+  compact?: boolean;
+}) {
+  const isNative = project.source === "native";
+  const label = isNative
+    ? "H"
+    : getTmsProviderBranding(project.externalProviderKind).name.slice(0, 1);
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center font-medium",
+        compact ? "size-5 rounded-sm text-[9px]" : "size-8 rounded-md text-[11px]",
+        isNative
+          ? "bg-[#F0F4FF] text-[#4F6BED] dark:bg-blue-100 dark:text-blue-900"
+          : "bg-[#E8F4F8] text-primary dark:bg-muted",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function ProjectsTableHeader() {
+  return (
+    <thead className="border-b border-border bg-muted text-xs font-medium text-muted-foreground">
+      <tr>
+        <th scope="col" className="px-4 py-2.5 text-left font-medium">
+          <FormattedMessage {...projectsTableMessages.projectLabel} />
+        </th>
+        <th scope="col" className="w-24 px-2 py-2.5 text-left font-medium">
+          <FormattedMessage {...projectsTableMessages.sourceLabel} />
+        </th>
+        <th scope="col" className="w-20 px-2 py-2.5 text-right font-medium">
+          <FormattedMessage {...projectsTableMessages.localesLabel} />
+        </th>
+        <th scope="col" className="w-22 px-2 py-2.5 text-right font-medium">
+          <FormattedMessage {...projectsTableMessages.openJobsLabel} />
+        </th>
+        <th scope="col" className="w-28 px-2 py-2.5 text-right font-medium">
+          <FormattedMessage {...projectsTableMessages.updatedLabel} />
+        </th>
+        <th scope="col" className="w-10">
+          <span className="sr-only">
+            <FormattedMessage {...projectsTableMessages.actionsLabel} />
+          </span>
+        </th>
+      </tr>
+    </thead>
   );
 }
 
@@ -307,6 +330,10 @@ export function ProjectsTable({
   organizationSlug,
   variant,
   compactEmptyNative = false,
+  groupLabel,
+  totalCount = projects.length,
+  grouped = false,
+  suppressEmpty = false,
   hasMore = false,
   onLoadMore,
   onEditProject,
@@ -321,6 +348,10 @@ export function ProjectsTable({
   organizationSlug: string;
   variant: "native" | "tms";
   compactEmptyNative?: boolean;
+  groupLabel?: string;
+  totalCount?: number;
+  grouped?: boolean;
+  suppressEmpty?: boolean;
   hasMore?: boolean;
   onLoadMore?: () => void;
   onEditProject?: (project: ProjectListRow) => void;
@@ -330,78 +361,88 @@ export function ProjectsTable({
 }) {
   const intl = useIntl();
 
-  return (
-    <section>
-      {projectsQuery.isLoading ? (
-        <div
-          className="grid gap-3 py-4 lg:grid-cols-2"
-          aria-busy="true"
-          aria-label={intl.formatMessage(projectsTableMessages.loadingProjects)}
-        >
-          {Array.from({ length: 4 }).map((_, index) => (
-            <ProjectCardSkeleton key={index} />
-          ))}
-        </div>
+  const rows = (
+    <tbody>
+      {groupLabel ? (
+        <tr className="border-b border-border bg-muted">
+          <th
+            colSpan={6}
+            scope="rowgroup"
+            className="px-4 py-2 text-left text-[10px] font-medium text-muted-foreground"
+          >
+            <span className="tracking-[0.08em] uppercase">{groupLabel}</span>
+            {projectsQuery.isSuccess ? (
+              <span className="ml-2 font-normal">
+                <FormattedMessage
+                  {...projectsTableMessages.projectCount}
+                  values={{ count: totalCount }}
+                />
+              </span>
+            ) : null}
+          </th>
+        </tr>
       ) : null}
+      {projectsQuery.isLoading
+        ? Array.from({ length: 3 }, (_, index) => (
+            <tr
+              key={index}
+              aria-busy="true"
+              aria-label={intl.formatMessage(projectsTableMessages.loadingProjects)}
+            >
+              <td colSpan={6} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-8 rounded-md" />
+                  <Skeleton className="h-8 w-1/3" />
+                  <Skeleton className="ml-auto h-4 w-1/4" />
+                </div>
+              </td>
+            </tr>
+          ))
+        : null}
       {projectsQuery.isError ? (
-        <div className={cn(variant === "tms" ? "py-4" : "py-8")}>
-          {variant === "tms" && isTmsUserConnectionRequiredError(projectsQuery.error) ? (
-            <TmsUserConnectionErrorPanel
-              organizationSlug={organizationSlug}
-              resource="projects"
-              error={projectsQuery.error}
-            />
-          ) : (
-            <>
-              <TypographyP className="text-flame-100" size="small" weight="medium">
-                <FormattedMessage {...projectsTableMessages.loadFailedTitle} />
-              </TypographyP>
-              <TypographyP className="mt-1" size="xsmall" tone="subtle">
-                {projectsQuery.error instanceof Error
-                  ? projectsQuery.error.message
-                  : intl.formatMessage(projectsTableMessages.loadFailedFallback)}
-              </TypographyP>
-            </>
-          )}
-        </div>
+        <tr>
+          <td colSpan={6} className="px-4 py-4">
+            {variant === "tms" && isTmsUserConnectionRequiredError(projectsQuery.error) ? (
+              <TmsUserConnectionErrorPanel
+                organizationSlug={organizationSlug}
+                resource="projects"
+                error={projectsQuery.error}
+              />
+            ) : (
+              <div role="alert">
+                <TypographyP className="text-destructive" size="small" weight="medium">
+                  <FormattedMessage {...projectsTableMessages.loadFailedTitle} />
+                </TypographyP>
+                <TypographyP className="mt-1" size="xsmall" tone="subtle">
+                  {projectsQuery.error.message ||
+                    intl.formatMessage(projectsTableMessages.loadFailedFallback)}
+                </TypographyP>
+              </div>
+            )}
+          </td>
+        </tr>
       ) : null}
-      {projectsQuery.isSuccess && projects.length === 0 ? (
-        variant === "native" ? (
-          <NativeEmptyState compact={compactEmptyNative} onCreateProject={onCreateProject} />
-        ) : (
-          <div className="max-w-xl space-y-3 py-4">
-            <TypographyP size="small" weight="medium" tone="content">
-              <FormattedMessage {...projectsTableMessages.emptyTmsTitle} />
-            </TypographyP>
-            <TypographyP className="leading-6" size="small" tone="subtle">
-              <FormattedMessage {...projectsTableMessages.emptyTmsDescription} />
-            </TypographyP>
-          </div>
-        )
+      {projectsQuery.isSuccess && projects.length === 0 && !suppressEmpty ? (
+        <tr>
+          <td colSpan={6} className="px-4 py-4">
+            {variant === "native" ? (
+              <NativeEmptyState compact={compactEmptyNative} onCreateProject={onCreateProject} />
+            ) : (
+              <div className="space-y-2">
+                <TypographyP size="small" weight="medium">
+                  <FormattedMessage {...projectsTableMessages.emptyTmsTitle} />
+                </TypographyP>
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...projectsTableMessages.emptyTmsDescription} />
+                </TypographyP>
+              </div>
+            )}
+          </td>
+        </tr>
       ) : null}
-      {projectsQuery.isSuccess && projects.length > 0 && variant === "tms" ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              organizationSlug={organizationSlug}
-              isSavingProject={isSavingProject}
-              isDeletingProject={isDeletingProject}
-              onDeleteProject={onDeleteProject}
-              onOpenProject={onOpenProject}
-            />
-          ))}
-        </div>
-      ) : null}
-      {projectsQuery.isSuccess &&
-      projects.length > 0 &&
-      variant === "native" &&
-      onEditProject &&
-      onDeleteProject ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {projects.map((project) => (
-            <ProjectCard
+      {projectsQuery.isSuccess
+        ? projects.map((project) => (
+            <ProjectRow
               key={project.id}
               project={project}
               organizationSlug={organizationSlug}
@@ -411,16 +452,27 @@ export function ProjectsTable({
               onDeleteProject={onDeleteProject}
               onOpenProject={onOpenProject}
             />
-          ))}
-        </div>
+          ))
+        : null}
+      {hasMore && projectsQuery.isSuccess && onLoadMore ? (
+        <tr>
+          <td colSpan={6} className="px-4 py-3 text-center">
+            <Button type="button" variant="outline" size="sm" onClick={onLoadMore}>
+              <FormattedMessage {...projectsTableMessages.loadMore} />
+            </Button>
+          </td>
+        </tr>
       ) : null}
-      {hasMore && projectsQuery.isSuccess && projects.length > 0 && onLoadMore ? (
-        <div className={cn("flex justify-center", variant === "tms" ? "pt-4" : "pt-6")}>
-          <Button type="button" variant="outline" onClick={onLoadMore} className="rounded-full">
-            <FormattedMessage {...projectsTableMessages.loadMore} />
-          </Button>
-        </div>
-      ) : null}
-    </section>
+    </tbody>
+  );
+  return grouped ? (
+    rows
+  ) : (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-180 table-fixed">
+        <ProjectsTableHeader />
+        {rows}
+      </table>
+    </div>
   );
 }

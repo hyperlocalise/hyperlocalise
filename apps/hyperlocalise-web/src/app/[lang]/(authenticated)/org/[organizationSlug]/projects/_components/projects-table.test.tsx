@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -76,7 +76,7 @@ function successQuery(): UseQueryResult<ProjectListRow[], Error> {
 }
 
 describe("ProjectsTable", () => {
-  it("shows source-to-target locales for native and external project cards", () => {
+  it("shows source badges and accessible locale routes for native and external rows", () => {
     renderWithIntl(
       <>
         <ProjectsTable
@@ -110,7 +110,7 @@ describe("ProjectsTable", () => {
       </>,
     );
 
-    expect(screen.getByText("Hyperlocalise")).toBeInTheDocument();
+    expect(screen.getByText("Native")).toBeInTheDocument();
     expect(screen.getByText("Crowdin")).toBeInTheDocument();
     expect(screen.getAllByText("en → vi")).toHaveLength(2);
   });
@@ -142,4 +142,19 @@ describe("ProjectsTable", () => {
 
     expect(onDeleteProject).toHaveBeenCalledWith(project);
   });
+  it("shows numeric counts with a working jobs link and loads more within its group", async () => {
+    const user = userEvent.setup();
+    const onLoadMore = vi.fn();
+    const onOpenProject = vi.fn();
+    renderWithIntl(<ProjectsTable projects={[createProject({openJobCount: 3, targetLocales: ["vi", "fr"]})]} projectsQuery={successQuery()} organizationSlug="acme" variant="native" isSavingProject={false} isDeletingProject={false} groupLabel="Hyperlocalise" totalCount={15} hasMore onLoadMore={onLoadMore} onOpenProject={onOpenProject} />);
+    expect(screen.getByText("15 projects")).toBeInTheDocument();
+    const row = screen.getByRole("link", {name: "Hyperlocalise Web"}).closest("tr")!;
+    expect(within(row).getByTitle("en → vi, fr")).toHaveTextContent("2");
+    expect(within(row).getByRole("link", {name: "3 jobs"})).toHaveAttribute("href", "/org/acme/projects/project_native/jobs");
+    await user.click(screen.getByRole("button", {name: "Load more"}));
+    expect(onLoadMore).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("link", {name: "Hyperlocalise Web"}));
+    expect(onOpenProject).toHaveBeenCalledWith("project_native");
+  });
+
 });
