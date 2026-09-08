@@ -107,6 +107,9 @@ func (c *AmazonClient) Translate(ctx context.Context, req Request) (Response, er
 
 	translations := make([]string, len(req.Sources))
 	for i, s := range req.Sources {
+		if err := ctx.Err(); err != nil {
+			return Response{}, err
+		}
 		translated, err := c.translateOne(ctx, sourceCode, targetCode, s)
 		if err != nil {
 			return Response{}, err
@@ -131,6 +134,10 @@ func (c *AmazonClient) translateOne(ctx context.Context, sourceCode, targetCode,
 }
 
 func (c *AmazonClient) request(ctx context.Context, body, out any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("mt: marshal amazon translate request: %w", err)
