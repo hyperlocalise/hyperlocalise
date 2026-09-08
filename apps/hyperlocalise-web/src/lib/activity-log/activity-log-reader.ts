@@ -18,6 +18,9 @@ import { z } from "zod";
 import { and, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
+
 import {
   IMPLEMENTED_ACTIVITY_EVENT_TYPES,
   type ImplementedActivityEventType,
@@ -37,7 +40,9 @@ export type ActivityLogQuery = {
   cursor?: string;
   eventTypes: ImplementedActivityEventType[];
   limit: number;
+  projectId?: string;
   range: ActivityLogRange;
+  sourcePath?: string;
 };
 
 export type ActivityLogActorView = {
@@ -80,6 +85,9 @@ export function payloadTargetDisplayName(payload: Record<string, unknown>): stri
   if (typeof payload.name === "string" && payload.name.trim()) {
     return payload.name;
   }
+  if (typeof payload.fileName === "string" && payload.fileName.trim()) {
+    return payload.fileName;
+  }
   if (typeof payload.integrationKind === "string" && payload.integrationKind.trim()) {
     return payload.integrationKind;
   }
@@ -101,7 +109,9 @@ function filterFingerprint(query: ActivityLogQuery): string {
       JSON.stringify({
         actor: query.actor ?? null,
         eventTypes: [...query.eventTypes].sort((left, right) => left.localeCompare(right)),
+        projectId: query.projectId ?? null,
         range: query.range,
+        sourcePath: query.sourcePath ?? null,
       }),
     )
     .digest("hex");
@@ -352,9 +362,20 @@ async function loadTargetViews(
       continue;
     }
 
+    const displayName = payloadTargetDisplayName(row.payload);
+    const projectId = typeof row.payload.projectId === "string" ? row.payload.projectId : null;
+    const sourcePath = typeof row.payload.sourcePath === "string" ? row.payload.sourcePath : null;
+    const canLinkFile =
+      (row.targetKind === "file" || row.targetKind === "string_segment") &&
+      Boolean(projectId) &&
+      Boolean(sourcePath) &&
+      !isContentEditorAllFilesSourcePath(sourcePath);
+
     views.set(key, {
-      displayName: payloadTargetDisplayName(row.payload),
-      href: null,
+      displayName,
+      href: canLinkFile
+        ? `/org/${organizationSlug}/projects/${encodeURIComponent(projectId!)}/files/content-editor?sourcePath=${encodeURIComponent(sourcePath!)}`
+        : null,
       id: row.targetId,
       kind: row.targetKind,
     });
@@ -396,6 +417,7 @@ export async function listActivityLogActors(input: {
 
 export async function listActivityLogEvents(input: {
   database?: DatabaseClient;
+  includeActors?: boolean;
   organizationId: string;
   organizationSlug: string;
   query: ActivityLogQuery;
@@ -423,6 +445,16 @@ export async function listActivityLogEvents(input: {
         )!,
       );
     }
+  }
+  if (input.query.projectId) {
+    conditions.push(
+      sql`${schema.organizationActivityEvents.payload}->>'projectId' = ${input.query.projectId}`,
+    );
+  }
+  if (input.query.sourcePath && !isContentEditorAllFilesSourcePath(input.query.sourcePath)) {
+    conditions.push(
+      sql`${schema.organizationActivityEvents.payload}->>'sourcePath' = ${normalizeSourcePath(input.query.sourcePath)}`,
+    );
   }
   if (cursor) {
     conditions.push(
@@ -459,10 +491,12 @@ export async function listActivityLogEvents(input: {
         desc(schema.organizationActivityEvents.id),
       )
       .limit(input.query.limit + 1),
-    listActivityLogActors({
-      database,
-      organizationId: input.organizationId,
-    }),
+    input.includeActors === false
+      ? Promise.resolve([])
+      : listActivityLogActors({
+          database,
+          organizationId: input.organizationId,
+        }),
   ]);
 
   const hasNextPage = rows.length > input.query.limit;

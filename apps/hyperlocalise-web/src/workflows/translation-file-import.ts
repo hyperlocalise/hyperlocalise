@@ -20,6 +20,7 @@ import {
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
 import {
+  enqueueFileTranslationsImportedActivityStep,
   extractTranslationImportEntriesStep,
   importTranslationsFromEntriesStep,
 } from "./steps/translation-file-import";
@@ -67,6 +68,15 @@ export async function translationFileImportWorkflow(event: TranslationFileImport
       targetLocale: event.targetLocale,
       entries: hlEntriesPayloadToStringMap(extractedEntries),
       actorUserId: event.actorUserId ?? null,
+    });
+
+    await enqueueFileTranslationsImportedActivityStep({
+      actorUserId: event.actorUserId ?? null,
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      sourcePath: event.sourcePath,
+      storedFileId: event.storedFileId,
+      targetLocale: event.targetLocale,
     });
 
     return {

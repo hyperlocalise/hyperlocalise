@@ -14,8 +14,22 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   externalTmsTranslationPushBodySchema,
+  projectFileCatActivityLogQuerySchema,
   projectFileCatMaxLengthBodySchema,
 } from "./project.schema";
+
+describe("projectFileCatActivityLogQuerySchema", () => {
+  it("requires a source path and defaults the page size", () => {
+    expect(projectFileCatActivityLogQuerySchema.parse({ sourcePath: "locales/en.json" })).toEqual({
+      limit: 50,
+      sourcePath: "locales/en.json",
+    });
+  });
+
+  it("rejects a missing source path", () => {
+    expect(projectFileCatActivityLogQuerySchema.safeParse({}).success).toBe(false);
+  });
+});
 
 describe("projectFileCatMaxLengthBodySchema", () => {
   it("accepts a positive maxLength", () => {

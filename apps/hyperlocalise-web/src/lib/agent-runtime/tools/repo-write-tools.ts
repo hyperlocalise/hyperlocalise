@@ -13,6 +13,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import {
+  enqueueFileUploadedActivity,
+  sessionActivityActor,
+} from "@/lib/activity-log/file-segment-events";
 import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { auditRepositoryMutation } from "@/lib/agent-runtime/tools/audit";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
@@ -385,7 +389,8 @@ export function createUploadSourcesTool(ctx: ToolContext) {
         return { success: false, error: gate.reason };
       }
 
-      if (!ctx.projectId) {
+      const projectId = ctx.projectId;
+      if (!projectId) {
         return {
           success: false,
           error: "No project is attached to this workflow. Upload requires a project.",
@@ -430,7 +435,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
             .transaction(async (tx) => {
               uploadedFile = await createStoredFile({
                 organizationId: ctx.organizationId,
-                projectId: ctx.projectId,
+                projectId,
                 createdByUserId: ctx.actor?.userId ?? null,
                 role: "source",
                 sourceKind: "repository_file",
@@ -471,6 +476,15 @@ export function createUploadSourcesTool(ctx: ToolContext) {
             fileId: storedFile.id,
             sourceFileVersionId: version.id,
           });
+
+          await enqueueFileUploadedActivity({
+            ...sessionActivityActor(ctx.localUserId),
+            organizationId: ctx.organizationId,
+            projectId,
+            sourcePath: normalizedPath,
+            storedFileId: storedFile.id,
+            versionId: version.id,
+          });
         }
 
         await logMutation(ctx, {
@@ -482,7 +496,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
         return {
           success: true,
           uploaded,
-          message: `Uploaded ${uploaded.length} source file(s) to project ${ctx.projectId}.`,
+          message: `Uploaded ${uploaded.length} source file(s) to project ${projectId}.`,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

@@ -22,6 +22,10 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 import type { ExternalTmsSourceFileUploadError } from "@/lib/providers/jobs/tms-provider-types";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  enqueueFileUploadedActivity,
+  uploadActivityActor,
+} from "@/lib/activity-log/file-segment-events";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
@@ -165,6 +169,15 @@ async function uploadNativeSourceFile(
     );
   });
 
+  await enqueueFileUploadedActivity({
+    ...uploadActivityActor(input),
+    organizationId: input.organizationId,
+    projectId: input.project.id,
+    sourcePath: input.sourcePath,
+    storedFileId: storedFile.id,
+    versionId: version.id,
+  });
+
   return {
     destination: "native",
     file: {
@@ -249,6 +262,14 @@ async function uploadExternalTmsSourceFile(
   if (isErr(providerResult)) {
     return providerResult;
   }
+
+  await enqueueFileUploadedActivity({
+    ...uploadActivityActor(input),
+    organizationId: input.organizationId,
+    projectId: input.project.id,
+    sourcePath: providerResult.value.sourcePath || input.sourcePath,
+    storedFileId: providerResult.value.externalResourceId,
+  });
 
   return ok({
     destination: "external_tms",

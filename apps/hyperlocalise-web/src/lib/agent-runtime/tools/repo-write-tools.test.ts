@@ -35,12 +35,26 @@ vi.mock("@/lib/agents/repository-write-gate", () => ({
   canPushToGitHubBranch: canPushToGitHubBranchMock,
 }));
 
-const { createStoredFileMock, createRepositorySourceFileVersionMock, deleteStoredObjectMock } =
-  vi.hoisted(() => ({
-    createStoredFileMock: vi.fn(),
-    createRepositorySourceFileVersionMock: vi.fn(),
-    deleteStoredObjectMock: vi.fn(),
-  }));
+const {
+  createStoredFileMock,
+  createRepositorySourceFileVersionMock,
+  deleteStoredObjectMock,
+  enqueueFileUploadedActivityMock,
+} = vi.hoisted(() => ({
+  createStoredFileMock: vi.fn(),
+  createRepositorySourceFileVersionMock: vi.fn(),
+  deleteStoredObjectMock: vi.fn(),
+  enqueueFileUploadedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueFileUploadedActivity: enqueueFileUploadedActivityMock,
+  sessionActivityActor: (userId: string | null | undefined) => ({
+    actorCredentialId: null,
+    actorKind: userId ? "user" : "system",
+    actorUserId: userId ?? null,
+  }),
+}));
 
 vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: vi.fn(() => ({
@@ -412,6 +426,7 @@ describe("createUploadSourcesTool", () => {
       storedFileId: input.storedFile.id,
       sourcePath: input.sourcePath,
     }));
+    enqueueFileUploadedActivityMock.mockResolvedValue(undefined);
   });
 
   it("denies upload when the write gate rejects it", async () => {
@@ -493,6 +508,18 @@ describe("createUploadSourcesTool", () => {
         sourcePath: "src/i18n/en.json",
         workflowRunId: "run_1",
         uploadSurface: "repository_agent",
+      }),
+    );
+    expect(enqueueFileUploadedActivityMock).toHaveBeenCalledTimes(2);
+    expect(enqueueFileUploadedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        actorUserId: "user_1",
+        organizationId: "org_1",
+        projectId: "proj_1",
+        sourcePath: "src/i18n/en.json",
+        storedFileId: "file_en.json",
+        versionId: "version_file_en.json",
       }),
     );
   });

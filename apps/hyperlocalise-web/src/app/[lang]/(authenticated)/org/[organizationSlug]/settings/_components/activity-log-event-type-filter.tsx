@@ -19,10 +19,12 @@ import {
   Building06Icon,
   Cancel01Icon,
   DatabaseIcon,
+  File01Icon,
   FilterIcon,
   FolderLibraryIcon,
   Key01Icon,
   PuzzleIcon,
+  TextFontIcon,
   UserGroup02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -115,6 +117,24 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     label: messages.automationEventGroup,
     eventTypes: ["automation_run_started", "automation_enabled", "automation_disabled"],
   },
+  {
+    icon: File01Icon,
+    label: messages.fileEventGroup,
+    eventTypes: ["file_uploaded", "file_translations_imported"],
+  },
+  {
+    icon: TextFontIcon,
+    label: messages.stringSegmentEventGroup,
+    eventTypes: [
+      "string_segment_approved",
+      "string_segment_status_changed",
+      "string_segment_hidden",
+      "string_segment_unhidden",
+      "string_segment_locked",
+      "string_segment_unlocked",
+      "string_segment_commented",
+    ],
+  },
 ];
 
 const eventTypeLabels = {
@@ -148,6 +168,15 @@ const eventTypeLabels = {
   automation_run_started: messages.automationRunStartedEventType,
   automation_enabled: messages.automationEnabledEventType,
   automation_disabled: messages.automationDisabledEventType,
+  file_uploaded: messages.fileUploadedEventType,
+  file_translations_imported: messages.fileTranslationsImportedEventType,
+  string_segment_approved: messages.stringSegmentApprovedEventType,
+  string_segment_status_changed: messages.stringSegmentStatusChangedEventType,
+  string_segment_hidden: messages.stringSegmentHiddenEventType,
+  string_segment_unhidden: messages.stringSegmentUnhiddenEventType,
+  string_segment_locked: messages.stringSegmentLockedEventType,
+  string_segment_unlocked: messages.stringSegmentUnlockedEventType,
+  string_segment_commented: messages.stringSegmentCommentedEventType,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
 export function ActivityLogEventTypeFilter({

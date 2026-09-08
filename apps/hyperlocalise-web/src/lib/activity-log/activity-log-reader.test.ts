@@ -49,6 +49,7 @@ describe("payloadTargetDisplayName", () => {
   it("uses provider and token identifiers when no name is stored", () => {
     expect(payloadTargetDisplayName({ integrationKind: "phrase" })).toBe("phrase");
     expect(payloadTargetDisplayName({ keyPrefix: "hl_AbCd" })).toBe("hl_AbCd");
+    expect(payloadTargetDisplayName({ fileName: "en.json" })).toBe("en.json");
     expect(payloadTargetDisplayName({ resourceId: "resource_123" })).toBeNull();
   });
 });
