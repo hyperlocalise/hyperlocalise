@@ -1,0 +1,100 @@
+---
+title: "lokalise"
+description: "Lokalise file workflow commands using project flags and API credentials."
+---
+
+## Usage
+
+```bash
+hyperlocalise lokalise upload sources --project-id <id> --source-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--skip-detect-lang-iso] [--dry-run]
+hyperlocalise lokalise upload translations [--config <path>] --project-id <id> --target-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--dry-run]
+hyperlocalise lokalise download sources --project-id <id> --source-locale <locale> [--format <format>] [--output <path>] [--all-platforms] [--force] [--dry-run]
+hyperlocalise lokalise download translations --project-id <id> --target-locale <locale> [--format <format>] [--output <path>] [--bundle-structure <pattern>] [--branch <name>] [--force] [--dry-run]
+hyperlocalise lokalise glossary download --project-id <id> [--language <locale>] [--output <path>] [--token-env <name>] [--api-base-url <url>]
+```
+
+These commands are flag-only. Hyperlocalise does not read a Lokalise YAML config in this version. You can pass `--config` to reuse `projectID` and token settings from an `i18n.yml` storage block.
+
+## What this command family does
+
+These commands talk to the Lokalise API v2 file and glossary endpoints.
+
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Lokalise adapter](/cli/storage/lokalise). Use this surface when you want flag-driven file upload and download against a Lokalise project.
+
+Use them for:
+
+- source-file upload (`upload sources`)
+- import of a pre-translated locale file (`upload translations`)
+- source download (`download sources`)
+- translation download (`download translations`)
+- glossary **download** (Hyperlocalise-shaped CSV)
+
+Official [lokalise2](https://github.com/lokalise/lokalise-cli-2-go) uses `file upload` / `file download` with `--lang-iso`. Hyperlocalise keeps the same command family shape as Crowdin, Phrase, and Smartling (`upload sources`, `download translations`).
+
+## Credentials
+
+Hyperlocalise reads `--token-env` (default `LOKALISE_API_TOKEN`).
+
+Do not put the API token in `i18n.yml`. Point `apiTokenEnv` at an environment variable instead.
+
+## Command notes
+
+`upload sources` requires `--project-id` (or `projectID` in `--config`), `--source-locale` (or `sourceLanguage` in `--config`), and at least one `--file`. `--dry-run` checks files and flags and does not need a token.
+
+`upload translations` requires `--target-locale` on every run. It does **not** take the locale from `sourceLanguage` or `targetLanguages` in `--config`. Config may still supply the project id and token. The locale comes from the flag, not the filename: uploading `en.json` as French uses `--target-locale fr`.
+
+Without `--replace-modified`, Lokalise **keeps** translations that already exist. The command then looks like a no-op for those keys. Dry-run and the success line print `existing_translations=kept` or `existing_translations=overwritten`. Pass `--replace-modified` when you intend to overwrite.
+
+Success means the import is **queued**, not that strings are already visible in Lokalise. The command prints a process id and stops. It does not wait for the background import to finish.
+
+Lokalise matches files by name. Use the same filename as the source file when you can. Language codes in the name (`en.json` / `fr.json`) are usually treated as one file. A totally different name can create a second file.
+
+`--file` can repeat for several files in that one locale. Use a separate invocation for each target locale.
+
+`download translations` can take more than one `--target-locale`. Use `%locale%` in `--output` when you download more than one locale to files.
+
+`glossary download` writes CSV to stdout unless you pass `--output`.
+
+## Crowdin and lokalise2 gap inventory
+
+| Crowdin / official lokalise2 | Hyperlocalise today |
+| --- | --- |
+| Crowdin `upload sources` / `upload translations` | `upload sources` / `upload translations` |
+| Crowdin `download sources` / `download translations` | `download sources` / `download translations` |
+| Crowdin `glossary download` | `glossary download` (Hyperlocalise CSV) |
+| Crowdin `init` / `crowdin.yml` / lokalise2 config file | Unsupported (flag-only) |
+| Crowdin `status`, branch, file list/delete, string list | Out of scope |
+| Crowdin `glossary upload` / `tm` list, download, upload | Out of scope (package has no TM export) |
+| Crowdin `auto-translate` / Lokalise tasks and jobs | Out of scope |
+| lokalise2 `file upload --lang-iso` | `upload sources` or `upload translations` (queued; no `--wait`) |
+| lokalise2 process wait / file list / key CRUD | Out of scope |
+
+## Examples
+
+Upload a source file, then a French translation that reuses the source filename:
+
+```bash
+export LOKALISE_API_TOKEN="your-lokalise-token"
+
+hyperlocalise lokalise upload sources \
+  --project-id your-project-id \
+  --source-locale en \
+  --file ./locales/en.json \
+  --dry-run
+
+hyperlocalise lokalise upload translations \
+  --project-id your-project-id \
+  --target-locale fr \
+  --file ./locales/en.json \
+  --replace-modified \
+  --dry-run
+```
+
+Download French translations:
+
+```bash
+hyperlocalise lokalise download translations \
+  --project-id your-project-id \
+  --target-locale fr \
+  --output ./locales/fr.json
+```

@@ -947,6 +947,193 @@ storage:
 	}
 }
 
+func TestLokaliseUploadTranslationsDryRunDoesNotRequireToken(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--project-id", "project-1", "--target-locale", "fr", "--file", filePath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise upload translations dry-run: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "dry-run action=lokalise-upload-translations") || !strings.Contains(got, "target_locale=fr") || !strings.Contains(got, "existing_translations=kept") {
+		t.Fatalf("unexpected output: %q", got)
+	}
+}
+
+func TestLokaliseUploadTranslationsRequiresTargetLocaleEvenWithConfig(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+	configPath := filepath.Join(dir, "i18n.yml")
+	if err := os.WriteFile(configPath, []byte(`
+locales:
+  source: en
+  targets:
+    - fr
+buckets:
+  ui:
+    files:
+      - from: content/en.json
+        to: dist/{{target}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: test
+storage:
+  adapter: lokalise
+  config:
+    projectID: project-from-config
+    apiTokenEnv: LOKALISE_TEST_TOKEN
+    sourceLanguage: en
+    targetLanguages: [fr, de]
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--config", configPath, "--file", filePath, "--dry-run"})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "lokalise upload translations: --target-locale is required") {
+		t.Fatalf("error = %v, want required --target-locale", err)
+	}
+}
+
+func TestLokaliseUploadTranslationsTokenErrorListsEnv(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "")
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--project-id", "project-1", "--target-locale", "fr", "--file", filePath})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "LOKALISE_API_TOKEN") {
+		t.Fatalf("error = %v, want token env hint", err)
+	}
+}
+
+func TestLokaliseUploadTranslationsRequiresFile(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "")
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--project-id", "project-1", "--target-locale", "fr"})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "lokalise upload translations: at least one --file is required") {
+		t.Fatalf("error = %v, want missing file", err)
+	}
+}
+
+func TestLokaliseUploadTranslationsUploadsWithTargetLocaleNotConfigSource(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+
+	configPath := filepath.Join(dir, "i18n.yml")
+	if err := os.WriteFile(configPath, []byte(`
+locales:
+  source: en
+  targets:
+    - de
+buckets:
+  ui:
+    files:
+      - from: content/en.json
+        to: dist/{{target}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: test
+storage:
+  adapter: lokalise
+  config:
+    projectID: project-from-config
+    apiTokenEnv: LOKALISE_TEST_TOKEN
+    sourceLanguage: en
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	oldFactory := newLokaliseTranslationUploader
+	defer func() {
+		newLokaliseTranslationUploader = oldFactory
+	}()
+	fake := &fakeLokaliseTranslationUploader{}
+	newLokaliseTranslationUploader = func(cfg lokalise.Config) (lokaliseTranslationUploader, error) {
+		if cfg.ProjectID != "project-from-config" || cfg.APIToken != "secret" {
+			t.Fatalf("config = %#v, want project/token from storage config", cfg)
+		}
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--config", configPath, "--target-locale", "fr", "--file", filePath, "--replace-modified"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise upload translations: %v", err)
+	}
+	if !strings.Contains(out.String(), "existing_translations=overwritten") {
+		t.Fatalf("missing overwrite note: %q", out.String())
+	}
+	if len(fake.inputs) != 1 {
+		t.Fatalf("inputs = %#v, want one upload", fake.inputs)
+	}
+	input := fake.inputs[0]
+	if input.TargetLocale != "fr" || input.ProjectID != "project-from-config" || input.FilePath != filePath {
+		t.Fatalf("input = %#v, want target locale fr from the flag", input)
+	}
+	if !input.ReplaceModified {
+		t.Fatalf("replace modified not passed through: %#v", input)
+	}
+}
+
+func TestLokaliseUploadTranslationsPreservesPartialProgressOnError(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseTranslationUploader
+	defer func() {
+		newLokaliseTranslationUploader = oldFactory
+	}()
+	newLokaliseTranslationUploader = func(lokalise.Config) (lokaliseTranslationUploader, error) {
+		return &fakeLokaliseTranslationUploader{err: errors.New("api failed")}, nil
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--project-id", "project-1", "--target-locale", "fr", "--file", filePath})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "lokalise upload translations") || !strings.Contains(err.Error(), "api failed") {
+		t.Fatalf("error = %v, want api failed", err)
+	}
+}
+
 func TestLokaliseUploadSourcesPreservesPartialProgressOnError(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "en.json")
@@ -1092,4 +1279,17 @@ func (f *fakeLokaliseSourceUploader) UploadSourceFile(_ context.Context, input l
 		return lokalise.SourceUploadResult{}, f.err
 	}
 	return lokalise.SourceUploadResult{ProcessID: "proc-1", Type: "file-import", Status: "queued"}, nil
+}
+
+type fakeLokaliseTranslationUploader struct {
+	inputs []lokalise.TranslationUploadInput
+	err    error
+}
+
+func (f *fakeLokaliseTranslationUploader) UploadTranslationFile(_ context.Context, input lokalise.TranslationUploadInput) (lokalise.TranslationUploadResult, error) {
+	f.inputs = append(f.inputs, input)
+	if f.err != nil {
+		return lokalise.TranslationUploadResult{}, f.err
+	}
+	return lokalise.TranslationUploadResult{ProcessID: "proc-1", Type: "file-import", Status: "queued"}, nil
 }
