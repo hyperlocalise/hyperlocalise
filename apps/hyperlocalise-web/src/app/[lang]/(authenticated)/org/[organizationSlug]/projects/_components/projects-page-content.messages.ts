@@ -81,9 +81,8 @@ export const projectsPageContentMessages = defineMessages({
     description: "Fallback label when no TMS provider name is available",
   },
   pageDescriptionWithTms: {
-    defaultMessage:
-      "Browse live {providerName} projects and manage Hyperlocalise workspace projects.",
-    id: "MOJri1ONT9",
+    defaultMessage: "Manage Hyperlocalise projects and browse live TMS-synced projects.",
+    id: "PKp1AQm4Ed",
     description: "Projects page description when a TMS provider is connected",
   },
   pageDescriptionWithoutTms: {
@@ -154,8 +153,8 @@ export const projectsPageContentMessages = defineMessages({
     description: "Label for the projects search field",
   },
   searchPlaceholder: {
-    defaultMessage: "Search by name...",
-    id: "nSqpG2XwMB",
+    defaultMessage: "Search projects…",
+    id: "OUDcVk0AHJ",
     description: "Placeholder for the projects search field",
   },
   filterAll: {
