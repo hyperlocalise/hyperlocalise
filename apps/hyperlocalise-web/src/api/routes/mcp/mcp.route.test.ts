@@ -55,6 +55,7 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -6572,6 +6573,554 @@ describe("mcpRoutes", () => {
           eq(schema.projectTranslations.projectId, stored.project.id),
           eq(schema.projectTranslations.translationKeyId, translationKey.id),
           eq(schema.projectTranslations.targetLocale, "fr-FR"),
+        ),
+      )
+      .limit(1);
+
+    expect(saved).toBeUndefined();
+  });
+
+  it("advertises upload_sources with bounded file inputs", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "upload_sources");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("source file");
+
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["projectId", "sourcePath"]),
+    );
+
+    // content/contentBase64 cannot both be globally required because
+    // the tool accepts exactly one of them.
+    expect(tool?.inputSchema?.required).not.toContain("content");
+    expect(tool?.inputSchema?.required).not.toContain("contentBase64");
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+      },
+      sourcePath: {
+        type: "string",
+        minLength: 1,
+        maxLength: 2048,
+      },
+      content: {
+        type: "string",
+      },
+      contentBase64: {
+        type: "string",
+      },
+      sourceLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32,
+      },
+      format: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      branch: {
+        type: "string",
+        minLength: 1,
+        maxLength: 256,
+      },
+      sourceHash: {
+        type: "string",
+        minLength: 1,
+        maxLength: 256,
+      },
+      commitSha: {
+        type: "string",
+        minLength: 1,
+        maxLength: 256,
+      },
+      workflowRunId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 256,
+      },
+    });
+  });
+
+  it.each([
+    {
+      label: "neither content field",
+      arguments: {},
+    },
+    {
+      label: "both content fields",
+      arguments: {
+        content: '{"hello":"Hello"}',
+        contentBase64: Buffer.from('{"hello":"Hello"}').toString("base64"),
+      },
+    },
+  ])("returns invalid_file_payload for $label", async ({ arguments: contentArguments }) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/en.json",
+                ...contentArguments,
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "invalid_file_payload",
+    });
+  });
+
+  it("uploads a UTF-8 source file to a native project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/en.json",
+                content: JSON.stringify({
+                  greeting: "Hello",
+                }),
+                sourceLocale: "en-AU",
+                branch: "main",
+                commitSha: "abc123",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}");
+
+    expect(output).toMatchObject({
+      file: {
+        id: expect.any(String),
+        sourceFileVersionId: expect.any(String),
+        filename: "en.json",
+        contentType: "application/json",
+        byteSize: expect.any(Number),
+        sha256: expect.any(String),
+        destination: "native",
+      },
+    });
+
+    const [storedFile] = await db
+      .select({
+        id: schema.storedFiles.id,
+        projectId: schema.storedFiles.projectId,
+        filename: schema.storedFiles.filename,
+        contentType: schema.storedFiles.contentType,
+        createdByUserId: schema.storedFiles.createdByUserId,
+      })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, output.file.id))
+      .limit(1);
+
+    expect(storedFile).toMatchObject({
+      projectId: stored.project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      createdByUserId: auth.user.localUserId,
+    });
+
+    const [sourceVersion] = await db
+      .select({
+        id: schema.repositorySourceFileVersions.id,
+        sourcePath: schema.repositorySourceFileVersions.sourcePath,
+        commitSha: schema.repositorySourceFileVersions.commitSha,
+        uploadSurface: schema.repositorySourceFileVersions.uploadSurface,
+        ingestState: schema.repositorySourceFileVersions.ingestState,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.id, output.file.sourceFileVersionId))
+      .limit(1);
+
+    expect(sourceVersion).toMatchObject({
+      id: output.file.sourceFileVersionId,
+      sourcePath: "locales/en.json",
+      commitSha: "abc123",
+      uploadSurface: "mcp",
+      ingestState: "pending",
+    });
+  });
+
+  it("uploads base64 source content to a native project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const fileContent = Buffer.from('{"greeting":"Hello"}');
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/base64.json",
+                contentBase64: fileContent.toString("base64"),
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      file: {
+        filename: "base64.json",
+        contentType: "application/json",
+        byteSize: fileContent.byteLength,
+        sha256: createHash("sha256").update(fileContent).digest("hex"),
+        destination: "native",
+      },
+    });
+  });
+
+  it("returns forbidden when a read-only member uploads a source file", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "member",
+    );
+
+    const headers = await authenticatedMcpHeaders(memberIdentity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/forbidden.json",
+                content: '{"hello":"Hello"}',
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "forbidden",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.projectId, stored.project.id))
+      .limit(1);
+
+    expect(saved).toBeUndefined();
+  });
+
+  it("returns project_not_found for a project from another organization", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: inaccessible.project.id,
+                sourcePath: "locales/isolation.json",
+                content: '{"hello":"Hello"}',
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.projectId, inaccessible.project.id))
+      .limit(1);
+
+    expect(saved).toBeUndefined();
+  });
+
+  it("rejects oversized source content before storage", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/oversized.json",
+                content: "x".repeat(maxPublicUploadBytes + 1),
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "invalid_file_payload",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(
+        and(
+          eq(schema.storedFiles.projectId, stored.project.id),
+          eq(schema.storedFiles.filename, "oversized.json"),
+        ),
+      )
+      .limit(1);
+
+    expect(saved).toBeUndefined();
+  }, 15_000);
+
+  it("returns invalid_file_payload for malformed base64 content", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/invalid-base64.json",
+                contentBase64: "this-is-not-valid-base64!",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "invalid_file_payload",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(
+        and(
+          eq(schema.storedFiles.projectId, stored.project.id),
+          eq(schema.storedFiles.filename, "invalid-base64.json"),
         ),
       )
       .limit(1);
