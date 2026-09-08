@@ -38,7 +38,7 @@ const COMPLIANCE_ITEM_COUNT = 3;
 
 type SceneId = "style-guides" | "market-knowledge" | "compliance";
 
-function StyleGuidePanel({ activeRuleIndex }: { activeRuleIndex: number }) {
+export function StyleGuidePanel({ activeRuleIndex }: { activeRuleIndex: number }) {
   const intl = useIntl();
   const rules = useMemo(
     () => [
@@ -145,7 +145,7 @@ function StyleGuidePanel({ activeRuleIndex }: { activeRuleIndex: number }) {
   );
 }
 
-function MarketKnowledgePanel({ activeMarketIndex }: { activeMarketIndex: number }) {
+export function MarketKnowledgePanel({ activeMarketIndex }: { activeMarketIndex: number }) {
   const intl = useIntl();
   const markets = useMemo(
     () => [
@@ -242,7 +242,7 @@ function MarketKnowledgePanel({ activeMarketIndex }: { activeMarketIndex: number
   );
 }
 
-function CompliancePanel({ checkedCount }: { checkedCount: number }) {
+export function CompliancePanel({ checkedCount }: { checkedCount: number }) {
   const intl = useIntl();
   const items = useMemo(
     () => [
@@ -352,6 +352,7 @@ export function GuidelineMockUI({
   variant = "full",
   aside,
   meshPosition = "left",
+  className,
 }: {
   priority?: boolean;
   pauseAutoplay?: boolean;
@@ -359,6 +360,7 @@ export function GuidelineMockUI({
   variant?: MarketingMockVariant;
   aside?: ReactNode;
   meshPosition?: MarketingMockMeshPosition;
+  className?: string;
 }) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
@@ -508,6 +510,7 @@ export function GuidelineMockUI({
       priority={priority}
       variant={variant}
       meshPosition={meshPosition}
+      className={className}
     />
   );
 }
