@@ -12,6 +12,7 @@
  */
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
+import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
 
 export const projectOverviewFixture: ProjectListRow = {
   id: "project_website",
@@ -59,6 +60,33 @@ export const projectOverviewMissingGuidanceFixture: ProjectListRow = {
   translationContextValue: "",
   openJobCount: 0,
 };
+
+export const projectOverviewLocaleProgressFixture: ProjectLocaleProgressRow[] = [
+  {
+    locale: "fr-FR",
+    translationProgress: 68,
+    approvalProgress: 24,
+    words: { total: 120, translated: 82, approved: 29 },
+    phrases: { total: 40, translated: 27, approved: 10 },
+    lastActivityAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    locale: "de-DE",
+    translationProgress: 12,
+    approvalProgress: 0,
+    words: { total: 120, translated: 14, approved: 0 },
+    phrases: { total: 40, translated: 5, approved: 0 },
+    lastActivityAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    locale: "es-ES",
+    translationProgress: 0,
+    approvalProgress: 0,
+    words: { total: 120, translated: 0, approved: 0 },
+    phrases: { total: 40, translated: 0, approved: 0 },
+    lastActivityAt: null,
+  },
+];
 
 export const projectOverviewJobsFixture: ApiJob[] = [
   {

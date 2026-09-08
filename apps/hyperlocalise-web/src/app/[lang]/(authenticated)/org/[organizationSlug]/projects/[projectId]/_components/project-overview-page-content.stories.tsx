@@ -17,6 +17,7 @@ import {
   projectOverviewCaughtUpFixture,
   projectOverviewFixture,
   projectOverviewJobsFixture,
+  projectOverviewLocaleProgressFixture,
   projectOverviewMissingGuidanceFixture,
   projectOverviewTmsFixture,
 } from "./project-overview.fixture";
@@ -37,6 +38,9 @@ const meta = {
     jobs: projectOverviewJobsFixture,
     isJobsLoading: false,
     isJobsError: false,
+    locales: projectOverviewLocaleProgressFixture,
+    isLocaleProgressLoading: false,
+    isLocaleProgressError: false,
   },
 } satisfies Meta<typeof ProjectOverviewPageContentView>;
 
@@ -63,6 +67,10 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Guidance")).toBeInTheDocument();
     await expect(canvas.getByText("Sync")).toBeInTheDocument();
+    await expect(canvas.getByText("Languages")).toBeInTheDocument();
+    await expect(canvas.getByText("French (France)")).toBeInTheDocument();
+    await expect(canvas.getByText("German (Germany)")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Search languages")).toBeInTheDocument();
     await expect(canvas.queryByText("Locale health")).toBeNull();
   },
 };
@@ -116,7 +124,9 @@ export const Loading: Story = {
     project: null,
     isProjectLoading: true,
     isJobsLoading: true,
+    isLocaleProgressLoading: true,
     jobs: [],
+    locales: [],
   },
   play: async ({ canvas }) => {
     await expect(canvas.queryByRole("button", { name: "Create job" })).toBeNull();

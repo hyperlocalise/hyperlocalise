@@ -34,6 +34,7 @@ import { Rows } from "@/components/ui/layout/rows";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -44,8 +45,10 @@ import {
   type ApiJob,
 } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
+import { ProjectLocaleProgressList } from "./project-locale-progress-list";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
+import { useProjectLocaleProgressQuery } from "./use-project-locale-progress";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {
   buildProjectOverviewTriageItems,
@@ -292,6 +295,9 @@ export type ProjectOverviewPageContentViewProps = {
   jobs: readonly ApiJob[];
   isJobsLoading: boolean;
   isJobsError: boolean;
+  locales: readonly ProjectLocaleProgressRow[];
+  isLocaleProgressLoading: boolean;
+  isLocaleProgressError: boolean;
   onCreateJob?: () => void;
 };
 
@@ -304,6 +310,9 @@ export function ProjectOverviewPageContentView({
   jobs,
   isJobsLoading,
   isJobsError,
+  locales,
+  isLocaleProgressLoading,
+  isLocaleProgressError,
   onCreateJob,
 }: ProjectOverviewPageContentViewProps) {
   const intl = useIntl();
@@ -422,125 +431,140 @@ export function ProjectOverviewPageContentView({
             ) : null}
           </Columns>
 
-          {isProjectLoading || isJobsLoading ? (
+          {isProjectLoading ? (
             <Skeleton className="min-h-56 w-full" />
           ) : project ? (
-            <Box paddingTop="1u">
-              <Columns spacing="4u" collapseBelow="large" alignY="start">
-                <Column width="fluid">
-                  <Rows spacing="0">
-                    <Box paddingBottom="1.5u">
-                      <Row spacing="0" align="spaceBetween" alignY="baseline">
-                        <ProjectOverviewSectionLabel>
-                          <FormattedMessage {...messages.todayTitle} />
-                        </ProjectOverviewSectionLabel>
-                        <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
-                          {triageItems.length}
-                        </span>
-                      </Row>
-                    </Box>
-                    <Separator className="bg-foreground" />
+            <Rows spacing="4u">
+              <ProjectLocaleProgressList
+                locales={locales}
+                isLoading={isLocaleProgressLoading}
+                isError={isLocaleProgressError}
+                settingsHref={settingsHref}
+                stringsHref={
+                  showViewStrings ? buildProjectPath(organizationSlug, projectId, "strings") : null
+                }
+              />
+              <Box paddingTop="1u">
+                <Columns spacing="4u" collapseBelow="large" alignY="start">
+                  <Column width="fluid">
+                    <Rows spacing="0">
+                      <Box paddingBottom="1.5u">
+                        <Row spacing="0" align="spaceBetween" alignY="baseline">
+                          <ProjectOverviewSectionLabel>
+                            <FormattedMessage {...messages.todayTitle} />
+                          </ProjectOverviewSectionLabel>
+                          <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
+                            {triageItems.length}
+                          </span>
+                        </Row>
+                      </Box>
+                      <Separator className="bg-foreground" />
 
-                    {triageItems.length > 0 ? (
-                      <>
-                        {triageItems.map((item) => {
-                          const copy = resolveTriageCopy(item, intl);
-                          const href =
-                            item.kind === "guidance"
-                              ? settingsHref
-                              : item.job
-                                ? buildProjectJobHref(organizationSlug, projectId, item.job.id)
-                                : jobsHref;
-
-                          return (
-                            <div key={item.id}>
-                              <ProjectOverviewTriageRow
-                                href={href}
-                                statusLabel={triageStatusLabel(item.kind, intl)}
-                                statusClassName={triageStatusClassName(item.kind)}
-                                title={copy.title}
-                                meta={copy.meta}
-                                cta={copy.cta}
-                              />
-                              <Separator />
-                            </div>
-                          );
-                        })}
-                        <Box paddingTop="2u">
-                          <Link
-                            href={jobsHref}
-                            className="inline-flex w-fit items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <FormattedMessage {...messages.viewAllJobs} />
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-4"
-                            />
-                          </Link>
+                      {isJobsLoading ? (
+                        <Box paddingTop="3u">
+                          <Skeleton className="h-24 w-full" />
                         </Box>
-                      </>
-                    ) : isJobsError ? (
-                      <Box paddingTop="3u">
-                        <Rows spacing="1u">
-                          <TypographyP weight="medium" tone="content">
-                            <FormattedMessage {...messages.jobsUnavailable} />
-                          </TypographyP>
-                          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-                            <FormattedMessage {...messages.jobsUnavailableDescription} />
-                          </TypographyP>
-                          <Button
-                            nativeButton={false}
-                            render={<Link href={jobsHref} />}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <FormattedMessage {...messages.viewJobs} />
-                          </Button>
-                        </Rows>
-                      </Box>
-                    ) : (
-                      <Box paddingTop="3u" paddingBottom="1u">
-                        <Rows spacing="1u">
-                          <TypographyP weight="medium" tone="content">
-                            <FormattedMessage {...messages.triageEmptyTitle} />
-                          </TypographyP>
-                          <TypographyP
-                            className="max-w-md leading-snug"
-                            wrapStyle="pretty"
-                            size="small"
-                            tone="subtle"
-                          >
-                            <FormattedMessage {...messages.triageEmptyDescription} />
-                          </TypographyP>
-                        </Rows>
-                      </Box>
-                    )}
-                  </Rows>
-                </Column>
+                      ) : triageItems.length > 0 ? (
+                        <>
+                          {triageItems.map((item) => {
+                            const copy = resolveTriageCopy(item, intl);
+                            const href =
+                              item.kind === "guidance"
+                                ? settingsHref
+                                : item.job
+                                  ? buildProjectJobHref(organizationSlug, projectId, item.job.id)
+                                  : jobsHref;
 
-                {showSidebar ? (
-                  <>
-                    <Column width="content">
-                      <div className="hidden self-stretch lg:block">
-                        <Separator orientation="vertical" />
-                      </div>
-                    </Column>
-                    <Column width="1/4">
-                      <Box paddingTop="0.5u">
-                        <ProjectOverviewSidebar
-                          project={project}
-                          isNative={isNative ?? false}
-                          hasTranslationGuidance={hasTranslationGuidance}
-                          localeRoute={localeRoute}
-                          settingsHref={settingsHref}
-                        />
-                      </Box>
-                    </Column>
-                  </>
-                ) : null}
-              </Columns>
-            </Box>
+                            return (
+                              <div key={item.id}>
+                                <ProjectOverviewTriageRow
+                                  href={href}
+                                  statusLabel={triageStatusLabel(item.kind, intl)}
+                                  statusClassName={triageStatusClassName(item.kind)}
+                                  title={copy.title}
+                                  meta={copy.meta}
+                                  cta={copy.cta}
+                                />
+                                <Separator />
+                              </div>
+                            );
+                          })}
+                          <Box paddingTop="2u">
+                            <Link
+                              href={jobsHref}
+                              className="inline-flex w-fit items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <FormattedMessage {...messages.viewAllJobs} />
+                              <HugeiconsIcon
+                                icon={ArrowRight01Icon}
+                                strokeWidth={1.8}
+                                className="size-4"
+                              />
+                            </Link>
+                          </Box>
+                        </>
+                      ) : isJobsError ? (
+                        <Box paddingTop="3u">
+                          <Rows spacing="1u">
+                            <TypographyP weight="medium" tone="content">
+                              <FormattedMessage {...messages.jobsUnavailable} />
+                            </TypographyP>
+                            <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+                              <FormattedMessage {...messages.jobsUnavailableDescription} />
+                            </TypographyP>
+                            <Button
+                              nativeButton={false}
+                              render={<Link href={jobsHref} />}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <FormattedMessage {...messages.viewJobs} />
+                            </Button>
+                          </Rows>
+                        </Box>
+                      ) : (
+                        <Box paddingTop="3u" paddingBottom="1u">
+                          <Rows spacing="1u">
+                            <TypographyP weight="medium" tone="content">
+                              <FormattedMessage {...messages.triageEmptyTitle} />
+                            </TypographyP>
+                            <TypographyP
+                              className="max-w-md leading-snug"
+                              wrapStyle="pretty"
+                              size="small"
+                              tone="subtle"
+                            >
+                              <FormattedMessage {...messages.triageEmptyDescription} />
+                            </TypographyP>
+                          </Rows>
+                        </Box>
+                      )}
+                    </Rows>
+                  </Column>
+
+                  {showSidebar ? (
+                    <>
+                      <Column width="content">
+                        <div className="hidden self-stretch lg:block">
+                          <Separator orientation="vertical" />
+                        </div>
+                      </Column>
+                      <Column width="1/4">
+                        <Box paddingTop="0.5u">
+                          <ProjectOverviewSidebar
+                            project={project}
+                            isNative={isNative ?? false}
+                            hasTranslationGuidance={hasTranslationGuidance}
+                            localeRoute={localeRoute}
+                            settingsHref={settingsHref}
+                          />
+                        </Box>
+                      </Column>
+                    </>
+                  ) : null}
+                </Columns>
+              </Box>
+            </Rows>
           ) : null}
         </Rows>
       </Box>
@@ -560,6 +584,9 @@ export function ProjectOverviewPageContent({
   const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
     enabled: projectQuery.isSuccess,
   });
+  const localeProgressQuery = useProjectLocaleProgressQuery(organizationSlug, projectId, {
+    enabled: projectQuery.isSuccess,
+  });
 
   const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
   const targetLocales = projectQuery.data?.targetLocales ?? [];
@@ -575,6 +602,9 @@ export function ProjectOverviewPageContent({
         jobs={jobsQuery.data ?? []}
         isJobsLoading={jobsQuery.isLoading}
         isJobsError={jobsQuery.isError}
+        locales={localeProgressQuery.data ?? []}
+        isLocaleProgressLoading={localeProgressQuery.isLoading}
+        isLocaleProgressError={localeProgressQuery.isError}
         onCreateJob={() => setCreateJobOpen(true)}
       />
       <CreateJobDialog

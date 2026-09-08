@@ -97,9 +97,51 @@ describe("PhraseApiClient", () => {
     const locales = await client.listLocales("proj-1");
 
     expect(locales).toEqual([
-      { id: "loc-en", name: "en", code: "en-US", default: true },
-      { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+      { id: "loc-en", name: "en", code: "en-US", default: true, statistics: null },
+      { id: "loc-fr", name: "fr", code: "fr-FR", default: false, statistics: null },
     ]);
+  });
+
+  it("loads locale statistics from the locale show endpoint", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          id: "loc-fr",
+          name: "fr",
+          code: "fr-FR",
+          default: false,
+          statistics: {
+            keys_total_count: 8,
+            keys_untranslated_count: 3,
+            words_total_count: 34,
+            translations_completed_count: 5,
+            translations_unverified_count: 1,
+            unverified_words_count: 4,
+            missing_words_count: 29,
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const locale = await client.getLocale("proj-1", "loc-fr");
+
+    expect(locale).toEqual({
+      id: "loc-fr",
+      name: "fr",
+      code: "fr-FR",
+      default: false,
+      statistics: {
+        keysTotalCount: 8,
+        keysUntranslatedCount: 3,
+        wordsTotalCount: 34,
+        translationsCompletedCount: 5,
+        translationsUnverifiedCount: 1,
+        unverifiedWordsCount: 4,
+        missingWordsCount: 29,
+      },
+    });
   });
 
   it("uses the US base URL when region is us", async () => {

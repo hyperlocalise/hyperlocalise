@@ -3344,6 +3344,34 @@ export async function getTmsProviderLiveProjectLocaleReadiness(
     }
   }
 
+  if (context.providerKind === "phrase") {
+    if (!externalProjectId.trim()) {
+      return null;
+    }
+
+    const client = new PhraseApiClient({
+      token: context.secretMaterial,
+      region: context.credential.region,
+      baseUrl: context.credential.baseUrl,
+    });
+
+    try {
+      return await phraseTmsProvider.loadProjectLocaleReadiness({
+        client,
+        projectId: externalProjectId,
+        languageId: options?.languageId,
+      });
+    } catch (error) {
+      if (error instanceof PhraseApiError && error.status === 401) {
+        throw new TmsProviderLiveError("phrase_auth_invalid", "Phrase credentials are invalid.");
+      }
+      if (error instanceof Error && error.message === "phrase_auth_invalid") {
+        throw new TmsProviderLiveError("phrase_auth_invalid", "Phrase credentials are invalid.");
+      }
+      throw error;
+    }
+  }
+
   if (context.providerKind !== "crowdin") {
     return null;
   }
