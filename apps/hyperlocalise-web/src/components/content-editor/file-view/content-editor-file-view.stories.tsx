@@ -101,9 +101,10 @@ async function expectDocumentFileViewChrome(canvas: ReturnType<typeof within>, f
   await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
   await expect(canvas.getByText(filename)).toBeInTheDocument();
   await expect(canvas.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument();
+  const compare = canvas.queryByRole("button", { name: "Compare original" });
+  if (compare) await userEvent.click(compare);
   await expect(canvas.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
-  await expect(canvas.getByRole("button", { name: /Generate|Regenerate/i })).toBeInTheDocument();
-  await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
+  await expect(canvas.getByRole("button", { name: "File actions" })).toBeInTheDocument();
 }
 
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
@@ -257,7 +258,7 @@ export const DocumentFile: Story = {
     await waitFor(() =>
       expect(canvas.getByRole("heading", { level: 1, name: "Bắt đầu" })).toBeInTheDocument(),
     );
-    await expect(canvas.getByText("Document properties")).toBeInTheDocument();
+    await userEvent.click(canvas.getAllByRole("button", { name: "Details" })[1]);
     const titleField = canvasElement.querySelector<HTMLInputElement>(
       "#content-editor-document-field-target-title",
     );
@@ -273,7 +274,11 @@ export const DocumentFileEmptyTarget: Story = {
     const canvas = within(canvasElement);
 
     await expectDocumentFileViewChrome(canvas, "content/intro.md");
-    await expect(canvas.getByRole("button", { name: /^Generate$/i })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "File actions" }));
+    await expect(
+      within(document.body).getByRole("menuitem", { name: /^Generate$/i }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await waitFor(() =>
       expect(
         canvas.getByRole("heading", { level: 1, name: "Getting started" }),
@@ -290,6 +295,7 @@ export const DocumentFileWithMdx: Story = {
     const canvas = within(canvasElement);
 
     await expectDocumentFileViewChrome(canvas, "content/guide.mdx");
+    await userEvent.click(await canvas.findByRole("button", { name: "Edit code" }));
     const editor = await canvas.findByLabelText("Translated document");
     await expect(editor).toHaveValue(expect.stringContaining('<Callout type="info">'));
     await expect(editor).toHaveValue(expect.stringContaining("<kbd>Esc</kbd>"));
@@ -329,5 +335,19 @@ export const DocumentAndImageQueue: Story = {
     await waitFor(() => expect(canvas.getByText("marketing/hero.png")).toBeInTheDocument());
     await expect(canvas.getByAltText("Source image")).toBeInTheDocument();
     await expect(canvas.queryByLabelText("Translated document")).not.toBeInTheDocument();
+  },
+};
+
+export const DocumentFileWithAi: Story = {
+  parameters: documentMswParameters,
+  args: {
+    ...fileViewArgs(createCatDocumentFileWorkspaceState()),
+    services: {
+      generateAiRecommendation: fn(async () => ({
+        aiSuggestion: "Chào mừng bạn đến với hướng dẫn sử dụng sản phẩm.",
+        aiReasoning:
+          "Adds ‘sử dụng’ for a more natural Vietnamese product-guide introduction. This is a Storybook fixture; the app uses the configured AI model.",
+      })),
+    },
   },
 };

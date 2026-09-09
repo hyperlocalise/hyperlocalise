@@ -21,7 +21,7 @@ import { contentEditorFileViewMessages } from "./content-editor-file-view.messag
 
 export function FileViewHeader({ children }: { children: ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center border-b border-border/50 bg-background/90 backdrop-blur-md">
+    <header className="flex min-h-12 shrink-0 items-center border-b border-border/50 bg-background py-2">
       <Box display="flex" alignItems="center" height="full" paddingX="2u" width="full">
         {children}
       </Box>

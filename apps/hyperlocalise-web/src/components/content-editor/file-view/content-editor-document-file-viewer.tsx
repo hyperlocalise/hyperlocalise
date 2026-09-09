@@ -14,7 +14,9 @@
  */
 import { ArrowDown01Icon, FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
+import { createPortal } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -27,9 +29,8 @@ import { FileViewPaneState } from "@/components/content-editor/file-view/content
 import { MarkdownEditor, MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Row } from "@/components/ui/layout/row";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/primitives/cn";
 
@@ -66,6 +67,9 @@ export function ContentEditorDocumentFileViewerPane({
   isBusy = false,
   onSave,
   footerActions,
+  saveActionsContainer,
+  onReviewBlockedChange,
+  selectionAi,
 }: {
   role: "source" | "target";
   src?: string | null;
@@ -76,6 +80,9 @@ export function ContentEditorDocumentFileViewerPane({
   isBusy?: boolean;
   onSave?: (file: File) => void | Promise<void>;
   footerActions?: ReactNode;
+  saveActionsContainer?: HTMLElement | null;
+  onReviewBlockedChange?: (blocked: boolean) => void;
+  selectionAi?: MarkdownSelectionAiConfig;
 }) {
   const intl = useIntl();
   const readOnly = role === "source" || !canEdit;
@@ -86,14 +93,15 @@ export function ContentEditorDocumentFileViewerPane({
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [frontmatterOpen, setFrontmatterOpen] = useState(true);
+  const [frontmatterOpen, setFrontmatterOpen] = useState(false);
+  const [codeMode, setCodeMode] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<{
     fields: ContentEditorDocumentFrontmatterField[];
     body: string;
     hasFrontmatter: boolean;
     rawFrontmatter: string;
   } | null>(null);
-  const editorBaselineSyncedRef = useRef(false);
 
   function currentDocumentText() {
     return joinContentEditorDocument({ fields, body, hasFrontmatter, rawFrontmatter });
@@ -106,25 +114,13 @@ export function ContentEditorDocumentFileViewerPane({
   const hasUnsavedChanges =
     savedSnapshot !== null && currentDocumentText() !== snapshotDocumentText(savedSnapshot);
 
-  function handleMarkdownBodyChange(next: string) {
-    setBody(next);
-    if (!editorBaselineSyncedRef.current) {
-      editorBaselineSyncedRef.current = true;
-      setSavedSnapshot({
-        fields,
-        body: next,
-        hasFrontmatter,
-        rawFrontmatter,
-      });
-    }
-  }
-
   useEffect(() => {
     let cancelled = false;
     setError(null);
+    setSaveError(false);
+    setCodeMode(false);
     setIsFetching(true);
     setSavedSnapshot(null);
-    editorBaselineSyncedRef.current = false;
     void (async () => {
       try {
         const primary = await loadDocumentText(src);
@@ -165,7 +161,6 @@ export function ContentEditorDocumentFileViewerPane({
           hasFrontmatter: split.hasFrontmatter,
           rawFrontmatter: split.rawFrontmatter,
         });
-        editorBaselineSyncedRef.current = isMdxDocumentFilename(filename);
       } catch {
         if (!cancelled) {
           setError(
@@ -183,7 +178,7 @@ export function ContentEditorDocumentFileViewerPane({
     return () => {
       cancelled = true;
     };
-  }, [intl, role, seedSrc, src]);
+  }, [intl, role, seedSrc, src, filename]);
 
   const emptyLabel =
     role === "source"
@@ -195,22 +190,78 @@ export function ContentEditorDocumentFileViewerPane({
       return;
     }
     setIsSaving(true);
+    setSaveError(false);
     try {
       const text = currentDocumentText();
       const file = new File([text], filename, { type: "text/markdown" });
       await onSave(file);
       setSavedSnapshot({ fields, body, hasFrontmatter, rawFrontmatter });
-      editorBaselineSyncedRef.current = true;
+    } catch {
+      setSaveError(true);
     } finally {
       setIsSaving(false);
     }
   }
 
   const showSpinner = isLoading || isFetching;
+  const reviewBlocked =
+    hasUnsavedChanges ||
+    Boolean(showSpinner) ||
+    Boolean(error) ||
+    isSaving ||
+    savedSnapshot === null;
+  useEffect(() => {
+    onReviewBlockedChange?.(reviewBlocked);
+  }, [onReviewBlockedChange, reviewBlocked]);
+  const saveActions =
+    !readOnly && onSave ? (
+      <div className="flex flex-wrap items-center gap-2">
+        {savedSnapshot && !error && !showSpinner ? (
+          <span role="status" className="hidden text-xs text-muted-foreground sm:inline">
+            <FormattedMessage
+              {...(isSaving
+                ? contentEditorFileViewMessages.documentSaving
+                : hasUnsavedChanges
+                  ? contentEditorFileViewMessages.documentUnsaved
+                  : contentEditorFileViewMessages.documentSaved)}
+            />
+          </span>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          disabled={
+            !hasUnsavedChanges || isBusy || isSaving || Boolean(showSpinner) || Boolean(error)
+          }
+          onClick={() => void handleSave()}
+        >
+          {isSaving ? (
+            <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
+          ) : (
+            <HugeiconsIcon icon={FloppyDiskIcon} data-icon="inline-start" aria-hidden />
+          )}
+          <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
+        </Button>
+      </div>
+    ) : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-8 md:px-10 md:py-10">
+    <div className="flex min-h-full min-w-0 flex-col">
+      {saveActionsContainer ? (
+        createPortal(saveActions, saveActionsContainer)
+      ) : saveActions ? (
+        <div className="flex justify-end border-b border-border px-4 py-2">{saveActions}</div>
+      ) : null}
+      {saveError ? (
+        <p role="alert" className="px-6 py-3 text-sm text-destructive">
+          <FormattedMessage {...contentEditorFileViewMessages.documentSaveFailed} />
+        </p>
+      ) : null}
+      {footerActions ? (
+        <div className="flex flex-wrap justify-end gap-2 px-4 py-2">{footerActions}</div>
+      ) : null}
+      <div className="flex min-w-0 flex-1 flex-col">
         {showSpinner ? (
           <div className="flex flex-1 items-center justify-center text-muted-foreground">
             <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" aria-hidden />
@@ -225,35 +276,33 @@ export function ContentEditorDocumentFileViewerPane({
               <Collapsible
                 open={frontmatterOpen}
                 onOpenChange={setFrontmatterOpen}
-                className="border-b border-border/60 pb-6"
+                className="border-b border-border/60 px-6 py-2"
               >
-                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-md py-1 text-start hover:text-foreground">
-                  <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    <FormattedMessage {...contentEditorFileViewMessages.documentFrontmatter} />
-                  </h4>
+                <CollapsibleTrigger render={<Button variant="ghost" size="sm" />} className="gap-2">
+                  <FormattedMessage {...contentEditorFileViewMessages.documentDetails} />
                   <HugeiconsIcon
                     icon={ArrowDown01Icon}
                     className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
+                      "size-4 shrink-0 text-muted-foreground",
                       frontmatterOpen && "rotate-180",
                     )}
                     aria-hidden
                   />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-3">
-                  <div className="grid gap-3">
+                  <FieldGroup className="gap-4 pb-4">
                     {fields.map((field, index) => (
-                      <div key={`${field.key}-${index}`} className="grid gap-1.5">
-                        <Label
+                      <Field key={`${field.key}-${index}`}>
+                        <FieldLabel
                           htmlFor={`content-editor-document-field-${role}-${field.key}`}
                           className="text-xs text-muted-foreground"
                         >
                           {field.key}
-                        </Label>
+                        </FieldLabel>
                         <Input
                           id={`content-editor-document-field-${role}-${field.key}`}
                           value={field.value}
-                          disabled={readOnly}
+                          disabled={readOnly || isBusy || isSaving}
                           onChange={(event) => {
                             const value = event.currentTarget.value;
                             setFields((current) =>
@@ -263,25 +312,36 @@ export function ContentEditorDocumentFileViewerPane({
                             );
                           }}
                         />
-                      </div>
+                      </Field>
                     ))}
-                  </div>
+                  </FieldGroup>
                 </CollapsibleContent>
               </Collapsible>
             ) : null}
 
             <div className="flex min-h-0 flex-1 flex-col gap-3">
-              {hasFrontmatter ? (
-                <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  <FormattedMessage {...contentEditorFileViewMessages.documentBody} />
-                </h4>
+              {!readOnly && isMdxDocumentFilename(filename) ? (
+                <div className="flex justify-end border-b border-border px-4 py-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={codeMode}
+                    onClick={() => setCodeMode((current) => !current)}
+                  >
+                    <FormattedMessage
+                      {...(codeMode
+                        ? contentEditorFileViewMessages.previewDocument
+                        : contentEditorFileViewMessages.editCode)}
+                    />
+                  </Button>
+                </div>
               ) : null}
-              {readOnly ? (
+              {readOnly || (isMdxDocumentFilename(filename) && !codeMode) ? (
                 <MarkdownPreview
                   value={body}
                   chrome="minimal"
-                  className="min-h-[16rem] flex-1"
-                  contentClassName="prose prose-sm max-w-none dark:prose-invert"
+                  className="min-h-[40rem] flex-1"
+                  contentClassName="px-6 py-10 text-base leading-7 text-foreground sm:px-12 sm:py-14 [&_h1]:text-3xl [&_h2]:mt-8 [&_p]:my-4"
                   emptyMessage={emptyLabel}
                 />
               ) : isMdxDocumentFilename(filename) ? (
@@ -293,46 +353,34 @@ export function ContentEditorDocumentFileViewerPane({
                   value={body}
                   onChange={(event) => setBody(event.currentTarget.value)}
                   aria-label={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
-                  className="min-h-[16rem] resize-y font-mono text-sm leading-relaxed"
+                  disabled={isBusy || isSaving}
+                  className="min-h-[40rem] resize-none rounded-none border-0 px-6 py-10 font-mono text-sm leading-relaxed shadow-none"
                 />
               ) : (
                 <MarkdownEditor
                   key={`${role}-${src ?? seedSrc ?? "missing"}-${filename}`}
                   value={body}
-                  onChange={handleMarkdownBodyChange}
+                  onInitialContent={(normalizedBody) => {
+                    setBody(normalizedBody);
+                    setSavedSnapshot({
+                      fields,
+                      body: normalizedBody,
+                      hasFrontmatter,
+                      rawFrontmatter,
+                    });
+                  }}
+                  onChange={setBody}
                   disabled={isBusy || isSaving}
                   ariaLabel={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
-                  className="min-h-[20rem] flex-1 border-0 bg-transparent shadow-none"
+                  selectionAi={selectionAi}
+                  chrome="document"
+                  className="flex-1"
                 />
               )}
             </div>
           </>
         )}
       </div>
-
-      {!readOnly && (footerActions || onSave) ? (
-        <div className="shrink-0 border-t border-border/60 px-6 py-3 md:px-10">
-          <Row spacing="1u" align="end" alignY="center">
-            {footerActions}
-            {onSave ? (
-              <Button
-                type="button"
-                variant="default"
-                size="xs"
-                disabled={!hasUnsavedChanges || isBusy || isSaving}
-                onClick={() => void handleSave()}
-              >
-                {isBusy || isSaving ? (
-                  <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
-                ) : (
-                  <HugeiconsIcon icon={FloppyDiskIcon} data-icon="inline-start" aria-hidden />
-                )}
-                <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
-              </Button>
-            ) : null}
-          </Row>
-        </div>
-      ) : null}
     </div>
   );
 }

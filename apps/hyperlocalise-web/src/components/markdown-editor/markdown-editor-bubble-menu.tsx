@@ -12,6 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useState } from "react";
+import { MarkdownSelectionAi } from "./markdown-selection-ai";
+import type { MarkdownSelectionAiConfig } from "./markdown-selection-ai.types";
 import type { Editor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
 import {
@@ -65,11 +68,14 @@ function BubbleMenuButton({
 export function MarkdownEditorBubbleMenu({
   editor,
   onLinkPromptOpenChange,
+  selectionAi,
 }: {
   editor: Editor;
+  selectionAi?: MarkdownSelectionAiConfig;
   onLinkPromptOpenChange?: (open: boolean) => void;
 }) {
   const intl = useIntl();
+  const [askOpen, setAskOpen] = useState(false);
   const linkPrompt = intl.formatMessage(markdownEditorMessages.linkPrompt);
 
   return (
@@ -78,13 +84,23 @@ export function MarkdownEditorBubbleMenu({
       options={{ placement: "top", offset: 8 }}
       shouldShow={({ editor: activeEditor, state }) => {
         const { empty } = state.selection;
-        return activeEditor.isEditable && !empty && !activeEditor.isActive("codeBlock");
+        return (
+          activeEditor.isEditable && (askOpen || (!empty && !activeEditor.isActive("codeBlock")))
+        );
       }}
     >
       <div
         data-markdown-bubble-menu=""
         className="flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-md"
       >
+        {selectionAi ? (
+          <MarkdownSelectionAi
+            editor={editor}
+            config={selectionAi}
+            open={askOpen}
+            onOpenChange={setAskOpen}
+          />
+        ) : null}
         <BubbleMenuButton
           active={editor.isActive("bold")}
           label={intl.formatMessage(markdownEditorMessages.bubbleBold)}
