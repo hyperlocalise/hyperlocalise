@@ -67,22 +67,22 @@ export const projectOverviewPageContentMessages = defineMessages({
   },
   statusRunning: {
     defaultMessage: "Running",
-    id: "82QjeMOgLE",
+    id: "RB1IMX1IND",
     description: "Status label for a running job on project overview",
   },
   statusQueued: {
     defaultMessage: "Queued",
-    id: "k8mP2nQxRt",
+    id: "LTsQcuBGvj",
     description: "Status label for a queued job on project overview",
   },
   statusSucceeded: {
     defaultMessage: "Succeeded",
-    id: "v7nQ3pRySu",
+    id: "CbiqfTdoAd",
     description: "Status label for a succeeded job on project overview",
   },
   statusCancelled: {
     defaultMessage: "Cancelled",
-    id: "w8oR4qSzTv",
+    id: "vT2hvp2ZbB",
     description: "Status label for a cancelled job on project overview",
   },
   statusGuidance: {
@@ -92,12 +92,12 @@ export const projectOverviewPageContentMessages = defineMessages({
   },
   triageEmptyTitle: {
     defaultMessage: "No jobs yet",
-    id: "TVxvj2B1bk",
+    id: "RvnnjnXuP8",
     description: "Title when the project overview has no recent jobs",
   },
   triageEmptyDescription: {
     defaultMessage: "Create a job to start translating, or open Files to review coverage.",
-    id: "85veKzf/Q7",
+    id: "p5wVg4GDmZ",
     description: "Description when the project overview has no recent jobs",
   },
   reviewCta: {
