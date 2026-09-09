@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createProjectVideoFrameTextRoutes } from "./project-video-frame-text.route";
 import { createProjectImageTextLayerRoutes } from "./project-image-text-layers.route";
 
 import { and, eq } from "drizzle-orm";
@@ -46,7 +47,8 @@ type CreateProjectAssetRoutesOptions = {
 
 export function createProjectAssetRoutes(options: CreateProjectAssetRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
-    .route("/", createProjectImageTextLayerRoutes(options))
+    .route("/:fileId/text-layers", createProjectImageTextLayerRoutes(options))
+    .route("/:fileId/frame-text", createProjectVideoFrameTextRoutes())
     .get("/:fileId", validateProjectAssetParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
