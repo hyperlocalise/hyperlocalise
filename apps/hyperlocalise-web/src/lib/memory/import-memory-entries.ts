@@ -74,9 +74,37 @@ function sourceKey(sourceLocale: string, targetLocale: string, sourceText: strin
   return `${sourceLocale}\u0000${targetLocale}\u0000${normalizeTranslationMemorySourceText(sourceText)}`;
 }
 
+function isLocaleIdentifier(value: string) {
+  const trimmed = value.trim();
+  if (!/^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    const language = new Intl.Locale(trimmed.replaceAll("_", "-")).language;
+    const languageName = new Intl.DisplayNames(["en"], { type: "language" }).of(language);
+    return Boolean(languageName && languageName.toLowerCase() !== language.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function isCrowdinCsvHeader(header: string[], rows: string[][]) {
+  return (
+    header.length >= 2 &&
+    header.every(isLocaleIdentifier) &&
+    rows.some((row) => row.length === header.length)
+  );
+}
+
 function parseCsvImport(content: string): ParsedMemoryImport {
   const rows = parseCsvRows(content);
   const [first, ...rest] = rows;
+  const firstRow = first?.map((cell, index) => (index === 0 ? cell.replace(/^\uFEFF/, "") : cell));
+  if (firstRow && isCrowdinCsvHeader(firstRow, rest)) {
+    return parseCrowdinCsvImport(firstRow, rest);
+  }
+
   const hasHeader = first?.some((cell) => /source|target|locale|text/i.test(cell)) ?? false;
   const dataRows = hasHeader ? rest : rows;
   const issues: TmxIssue[] = [];
@@ -114,6 +142,56 @@ function parseCsvImport(content: string): ParsedMemoryImport {
     candidates,
     issues,
     totalRead: dataRows.length,
+  };
+}
+
+function parseCrowdinCsvImport(header: string[], rows: string[][]): ParsedMemoryImport {
+  const [sourceLocale, ...targetLocales] = header.map((cell) => cell.trim());
+  const issues: TmxIssue[] = [];
+  const candidates: MemoryImportCandidate[] = [];
+
+  rows.forEach((row, index) => {
+    const unitIndex = index + 1;
+    const [sourceText, ...targetTexts] = row;
+    if (
+      row.length !== header.length ||
+      sourceText === undefined ||
+      sourceText.trim().length === 0
+    ) {
+      issues.push({
+        severity: "error",
+        code: "invalid_csv_row",
+        message: "Row is missing a source text or target text",
+        unitIndex,
+      });
+      return;
+    }
+
+    targetLocales.forEach((targetLocale, targetIndex) => {
+      const targetText = targetTexts[targetIndex];
+      if (targetText === undefined || targetText.trim().length === 0) {
+        return;
+      }
+
+      candidates.push({
+        sourceLocale,
+        targetLocale,
+        sourceText,
+        targetText,
+        matchScore: 100,
+        externalKey: null,
+        metadata: {},
+        unitIndex,
+        isVariant: false,
+      });
+    });
+  });
+
+  return {
+    format: "csv",
+    candidates,
+    issues,
+    totalRead: rows.length,
   };
 }
 
