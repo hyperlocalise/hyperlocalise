@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ContentEditorVideoWorkspace } from "./content-editor-video-workspace";
 import { imageViewerMessages } from "./content-editor-image-viewer.messages";
 import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
@@ -151,6 +152,7 @@ export function ContentEditorFileViewPanel({
   const documentTransition = { duration: reduceMotion ? 0 : 0.2, ease: "easeOut" as const };
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [imageLayersDirty, setImageLayersDirty] = useState(false);
+  const [videoDirty, setVideoDirty] = useState(false);
   const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
   const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
@@ -211,7 +213,7 @@ export function ContentEditorFileViewPanel({
 
   const targetFileActions = (
     <>
-      {onRegenerate && viewerId !== "image" ? (
+      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
         <Button
           type="button"
           variant="outline"
@@ -356,10 +358,10 @@ export function ContentEditorFileViewPanel({
                 />
                 <FormattedMessage
                   {...(sourcePaneVisible
-                    ? isDocumentViewer || viewerId === "image"
+                    ? isDocumentViewer || isMediaViewer
                       ? contentEditorFileViewMessages.closeComparison
                       : contentEditorFileViewMessages.hideSource
-                    : isDocumentViewer || viewerId === "image"
+                    : isDocumentViewer || isMediaViewer
                       ? contentEditorFileViewMessages.compareOriginal
                       : contentEditorFileViewMessages.showSource)}
                 />
@@ -414,7 +416,8 @@ export function ContentEditorFileViewPanel({
                   disabled={
                     !canTriggerApprove ||
                     (isDocumentViewer && documentReviewBlocked) ||
-                    (viewerId === "image" && imageLayersDirty)
+                    (viewerId === "image" && imageLayersDirty) ||
+                    (viewerId === "video" && videoDirty)
                   }
                   onClick={onApprove}
                 >
@@ -440,6 +443,21 @@ export function ContentEditorFileViewPanel({
           isLoading={isSegmentTargetLoading}
           actions={hasTargetFileActions ? targetFileActions : null}
           onDirtyChange={setImageLayersDirty}
+          onRegenerate={onRegenerate}
+        />
+      ) : viewerId === "video" ? (
+        <ContentEditorVideoWorkspace
+          key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
+          sourceSrc={sourceSrc}
+          targetSrc={targetSrc}
+          sourceLocale={segment.sourceLocale}
+          targetLocale={segment.targetLocale}
+          sourcePaneVisible={sourcePaneVisible}
+          canEdit={canEdit}
+          isBusy={isImageBusy}
+          isLoading={isSegmentTargetLoading}
+          actions={hasTargetFileActions ? targetFileActions : null}
+          onDirtyChange={setVideoDirty}
           onRegenerate={onRegenerate}
         />
       ) : isDocumentViewer ? (
@@ -561,13 +579,7 @@ export function ContentEditorFileViewPanel({
                       }
                       footer={hasTargetFileActions ? targetFileActions : undefined}
                     >
-                      {viewerId === "video" ? (
-                        <ContentEditorVideoFileViewerPane
-                          role="target"
-                          src={targetSrc}
-                          isLoading={isSegmentTargetLoading}
-                        />
-                      ) : officeKind ? (
+                      {officeKind ? (
                         <ContentEditorOfficeFileViewerPane
                           kind={officeKind}
                           role="target"
@@ -589,7 +601,7 @@ export function ContentEditorFileViewPanel({
           </FileViewWorkspaceContent>
         </FileViewWorkspace>
       )}
-      {onRegenerate && viewerId !== "image" ? (
+      {onRegenerate && viewerId !== "image" && viewerId !== "video" ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
           onOpenChange={setGenerateDialogOpen}

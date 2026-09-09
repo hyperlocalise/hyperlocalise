@@ -110,6 +110,15 @@ async function expectDocumentFileViewChrome(canvas: ReturnType<typeof within>, f
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
   await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
   await expect(canvas.getByText(filename)).toBeInTheDocument();
+  if (filename.endsWith(".mp4")) {
+    await expect(canvas.getByRole("heading", { name: "Refine translation" })).toBeInTheDocument();
+    await expect(canvas.getByRole("tab", { name: "Sound" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: /Generate new version|Generate translation/ }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
+    return;
+  }
   const isImage = filename.endsWith(".png");
   await expect(
     canvas.getByRole("heading", { name: isImage ? /Localised · vi/i : /Translated \(vi\)/i }),

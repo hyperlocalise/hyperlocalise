@@ -82,12 +82,12 @@ export function createProjectImageTextLayerRoutes(
   return new Hono<{
     Variables: AuthVariables & { imageFile: typeof schema.storedFiles.$inferSelect };
   }>()
-    .use("/:fileId/text-layers", loadImageTextLayerFile)
-    .get("/:fileId/text-layers", (c) => {
+    .use("/", loadImageTextLayerFile)
+    .get("/", (c) => {
       const file = c.var.imageFile;
       return c.json({ textLayers: readImageTextLayers(file.metadata, file.sha256) });
     })
-    .post("/:fileId/text-layers", async (c) => {
+    .post("/", async (c) => {
       if (
         !isAiActionAllowed(c.var.auth.membership.role) ||
         !isWriteBackTranslationAllowed(c.var.auth.membership.role)
@@ -162,7 +162,7 @@ export function createProjectImageTextLayerRoutes(
       return c.json({ textLayers });
     })
     .patch(
-      "/:fileId/text-layers",
+      "/",
       bodyLimit({
         maxSize: MAX_LAYER_BODY_BYTES,
         onError: (c) => payloadTooLargeResponse(c),
