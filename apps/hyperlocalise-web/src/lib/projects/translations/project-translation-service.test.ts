@@ -297,7 +297,11 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(
-      () => Promise.resolve([]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
     );
 
     const result = await loadProjectTranslationsAsPrefilledEntries({

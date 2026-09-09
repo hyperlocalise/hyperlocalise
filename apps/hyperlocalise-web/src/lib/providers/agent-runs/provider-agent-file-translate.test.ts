@@ -1004,11 +1004,7 @@ describe("translateProviderJobFiles", () => {
       return Buffer.from("{}", "utf8");
     });
     extractSandboxEntriesMock.mockImplementation(async (_sandboxId: string, path: string) => {
-      const fileId = path.includes("file-a")
-        ? "file-a"
-        : path.includes("file-b")
-          ? "file-b"
-          : null;
+      const fileId = path.includes("file-a") ? "file-a" : path.includes("file-b") ? "file-b" : null;
       if (fileId && path.includes("-fr")) {
         const count = (frenchExtractCountByFile.get(fileId) ?? 0) + 1;
         frenchExtractCountByFile.set(fileId, count);
@@ -1088,9 +1084,9 @@ describe("translateProviderJobFiles", () => {
         expect.objectContaining({ key: "save", to: "Sauver", fileId: "file-b" }),
       ]),
     );
-    expect(result.changedItems.some((item) => item.fileId === "file-a" && item.key === "save")).toBe(
-      false,
-    );
+    expect(
+      result.changedItems.some((item) => item.fileId === "file-a" && item.key === "save"),
+    ).toBe(false);
     expect(result.skippedExistingLocales).toBe(1);
   });
 
