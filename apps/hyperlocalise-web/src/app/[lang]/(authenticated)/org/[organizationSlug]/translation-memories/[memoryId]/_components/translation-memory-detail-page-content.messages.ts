@@ -100,6 +100,26 @@ export const translationMemoryDetailPageContentMessages = defineMessages({
     id: "p/sianUEpZ",
     description: "Back link from translation memory detail to the list page",
   },
+  moreActions: {
+    defaultMessage: "More translation memory actions",
+    id: "f/Vobm5joW",
+    description: "Accessible label for the translation memory actions menu",
+  },
+  importHistory: {
+    defaultMessage: "Import history",
+    id: "RWcC6K686A",
+    description: "Menu item that opens translation memory import history",
+  },
+  importAction: {
+    defaultMessage: "Import",
+    id: "5XGfxQ1JbC",
+    description: "Menu item that opens translation memory import",
+  },
+  exportAction: {
+    defaultMessage: "Export",
+    id: "Gk/3MqKNQh",
+    description: "Menu item that opens translation memory export",
+  },
   sourceWorkspace: {
     defaultMessage: "Workspace",
     id: "6qYMXPCPow",

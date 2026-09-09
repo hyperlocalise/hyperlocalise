@@ -12,9 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  Clock01Icon,
+  Download01Icon,
+  MoreHorizontalCircle01Icon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -32,6 +38,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -81,6 +93,9 @@ export function TranslationMemoryDetailPageContent({
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [addEntryOpen, setAddEntryOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [importHistoryOpen, setImportHistoryOpen] = useState(false);
+  const importActionRef = useRef<(() => void) | null>(null);
+  const exportActionRef = useRef<(() => void) | null>(null);
 
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
@@ -290,7 +305,42 @@ export function TranslationMemoryDetailPageContent({
             <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
               <FormattedMessage {...messages.projectsToolbar} />
             </Button>
-            <TmImportHistory organizationSlug={organizationSlug} memoryId={memoryId} />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label={intl.formatMessage(messages.moreActions)}
+                  />
+                }
+              >
+                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuItem onClick={() => setImportHistoryOpen(true)}>
+                  <HugeiconsIcon icon={Clock01Icon} className="size-4" strokeWidth={1.8} />
+                  <FormattedMessage {...messages.importHistory} />
+                </DropdownMenuItem>
+                {canEdit ? (
+                  <DropdownMenuItem onClick={() => importActionRef.current?.()}>
+                    <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                    <FormattedMessage {...messages.importAction} />
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={() => exportActionRef.current?.()}>
+                  <HugeiconsIcon icon={Download01Icon} className="size-4" strokeWidth={1.8} />
+                  <FormattedMessage {...messages.exportAction} />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <TmImportHistory
+              organizationSlug={organizationSlug}
+              memoryId={memoryId}
+              open={importHistoryOpen}
+              onOpenChange={setImportHistoryOpen}
+            />
             <TmImportExportPanel
               organizationSlug={organizationSlug}
               memoryId={memoryId}
@@ -298,6 +348,11 @@ export function TranslationMemoryDetailPageContent({
               canEdit={canEdit}
               onImported={async () => {
                 await Promise.all([invalidateEntries(), invalidateImports()]);
+              }}
+              renderActions={({ openImport, openExport }) => {
+                importActionRef.current = openImport;
+                exportActionRef.current = openExport;
+                return null;
               }}
             />
             {canEdit ? (

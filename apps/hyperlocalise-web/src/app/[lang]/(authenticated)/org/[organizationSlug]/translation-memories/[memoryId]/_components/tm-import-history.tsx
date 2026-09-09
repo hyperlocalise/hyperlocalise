@@ -82,15 +82,27 @@ function ImportStatusBadge({ status }: { status: MemoryImportAttemptRecord["stat
 export function TmImportHistory({
   organizationSlug,
   memoryId,
+  open,
+  onOpenChange,
 }: {
   organizationSlug: string;
   memoryId: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const intl = useIntl();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : internalOpen;
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
   const attemptsQuery = useInfiniteQuery({
     queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
-    enabled: open,
+    enabled: dialogOpen,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
@@ -124,10 +136,12 @@ export function TmImportHistory({
     [401, 403, 404].includes(attemptsQuery.error.status);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="outline" size="sm" />}>
-        <FormattedMessage {...messages.action} />
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {!isControlled ? (
+        <DialogTrigger render={<Button type="button" variant="outline" size="sm" />}>
+          <FormattedMessage {...messages.action} />
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
