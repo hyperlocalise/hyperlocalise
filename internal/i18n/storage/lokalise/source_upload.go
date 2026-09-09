@@ -60,18 +60,18 @@ type SourceUploadResult struct {
 type TranslationUploadResult = SourceUploadResult
 
 type lokaliseFileUploadRequest struct {
-	Data                string   `json:"data"`
-	Filename            string   `json:"filename"`
-	LangISO             string   `json:"lang_iso"`
-	Format              string   `json:"format,omitempty"`
-	Tags                []string `json:"tags,omitempty"`
+	Data     string   `json:"data"`
+	Filename string   `json:"filename"`
+	LangISO  string   `json:"lang_iso"`
+	Format   string   `json:"format,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
 	// Always send convert_placeholders. Lokalise defaults omitted values to true.
-	ConvertPlaceholders bool     `json:"convert_placeholders"`
-	ReplaceModified     bool     `json:"replace_modified,omitempty"`
-	DistinguishByFile   bool     `json:"distinguish_by_file,omitempty"`
-	ApplyTM             bool     `json:"apply_tm,omitempty"`
-	SkipDetectLangISO   bool     `json:"skip_detect_lang_iso,omitempty"`
-	Queue               bool     `json:"queue"`
+	ConvertPlaceholders bool `json:"convert_placeholders"`
+	ReplaceModified     bool `json:"replace_modified,omitempty"`
+	DistinguishByFile   bool `json:"distinguish_by_file,omitempty"`
+	ApplyTM             bool `json:"apply_tm,omitempty"`
+	SkipDetectLangISO   bool `json:"skip_detect_lang_iso,omitempty"`
+	Queue               bool `json:"queue"`
 }
 
 type lokaliseFileUploadResponse struct {
