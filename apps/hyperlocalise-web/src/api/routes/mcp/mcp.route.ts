@@ -123,8 +123,8 @@ import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-servic
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import { updateMcpTranslation } from "./mcp-update-translation";
-import { downloadPublicTranslationsQuerySchema } from "../public-translations/public-translations.schema";
 import { downloadMcpTranslations } from "./mcp-download-translations";
+import { mcpDownloadTranslationsInputSchema } from "./mcp-download-translations.schema";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -779,20 +779,6 @@ const mcpUploadSourcesInputSchema = z.object({
   commitSha: sourceUploadShape.commitSha.describe("Optional repository commit SHA."),
 
   workflowRunId: sourceUploadShape.workflowRunId.describe("Optional workflow run identifier."),
-});
-
-const sourceDownloadShape = downloadPublicTranslationsQuerySchema.shape;
-
-const mcpDownloadTranslationsInputSchema = z.object({
-  projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
-
-  sourcePath: sourceDownloadShape.sourcePath.describe(
-    "Repository-relative path of the source file.",
-  ),
-
-  locale: sourceDownloadShape.locale.describe(
-    "Target locale whose reconstructed translation file should be returned.",
-  ),
 });
 
 function decodeMcpBase64(value: string): Uint8Array | null {
