@@ -63,7 +63,9 @@ import {
   getSandboxTranslationEnv,
   isSandboxDisconnectError,
   isSandboxStreamClosedError,
+  isSandboxTimeoutError,
   isSandboxTransientNetworkError,
+  SandboxCommandTimeoutError,
   readTranslatedFile,
   runSandboxCommand,
   sandboxFileBucketName,
@@ -668,9 +670,19 @@ describe("crowdin sandbox file config", () => {
 
 describe("sandbox translation failure reasons", () => {
   it("maps command deadlines to a resumable timeout message", () => {
-    expect(userFacingFailureReason(new Error("sandbox_timeout: bash exceeded 270000ms"))).toBe(
+    expect(userFacingFailureReason(new SandboxCommandTimeoutError("bash", 270_000))).toBe(
       "the translation took too long to finish. Try the job again.",
     );
+  });
+
+  it("detects sandbox timeouts by class or code, not message text", () => {
+    expect(isSandboxTimeoutError(new SandboxCommandTimeoutError("bash", 270_000))).toBe(true);
+    expect(
+      isSandboxTimeoutError(
+        Object.assign(new Error("command exceeded deadline"), { code: "sandbox_timeout" }),
+      ),
+    ).toBe(true);
+    expect(isSandboxTimeoutError(new Error("sandbox_timeout: bash exceeded 270000ms"))).toBe(false);
   });
 
   it("preserves glossary validation diagnostics for persisted job failures", () => {

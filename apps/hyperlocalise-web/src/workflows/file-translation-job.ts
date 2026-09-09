@@ -41,6 +41,7 @@ import {
   localizeImageVariantForJobStep,
   localizeVideoVariantForJobStep,
   persistFileProjectTranslationsStep,
+  persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
   resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
@@ -234,6 +235,21 @@ function isSandboxDisconnectMessage(message: string): boolean {
   );
 }
 
+function isSandboxTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const err = error as { name?: unknown; code?: unknown };
+  return err.name === "SandboxCommandTimeoutError" || err.code === "sandbox_timeout";
+}
+
+function rematerializeSandboxTimeoutError(error: unknown): Error {
+  const rematerialized = new Error(error instanceof Error ? error.message : "sandbox_timeout");
+  rematerialized.name = "SandboxCommandTimeoutError";
+  (rematerialized as Error & { code: string }).code = "sandbox_timeout";
+  return rematerialized;
+}
+
 function userFacingFailureReason(
   error: unknown,
   detection?: {
@@ -271,7 +287,7 @@ function userFacingFailureReason(
     return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
 
-  if (message.includes("sandbox_timeout")) {
+  if (isSandboxTimeoutError(error)) {
     return "the translation took too long to finish. Try the job again.";
   }
 
@@ -453,6 +469,9 @@ async function runTranslationStep(
       throw new Error(
         `sandbox_disconnect: Sandbox stream was closed and is not accepting commands.`,
       );
+    }
+    if (isSandboxTimeoutError(error)) {
+      throw rematerializeSandboxTimeoutError(error);
     }
     throw error;
   }
@@ -1046,7 +1065,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         translation = await runOnce(force);
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
-        if (!isSandboxDisconnectMessage(message) && !message.includes("sandbox_timeout")) {
+        if (!isSandboxDisconnectMessage(message) && !isSandboxTimeoutError(error)) {
           throw error;
         }
 
@@ -1184,25 +1203,34 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           const deltaSource = Object.fromEntries(
             Object.keys(accepted).map((key) => [key, sourceEntries[key]!]),
           );
-          if (
-            repositorySourcePath &&
-            !isDocumentTranslationFileFormat(
-              parsedInput.fileFormat as SupportedTranslationFileFormat,
-            )
-          ) {
-            await persistFileProjectTranslationsStep({
-              organizationId,
+          if (repositorySourcePath) {
+            await persistFileTranslationMemoryEntriesStep({
               projectId: claim.job.projectId,
               jobId: claim.job.id,
-              sourcePath: repositorySourcePath,
               sourceLocale: parsedInput.sourceLocale,
               targetLocale,
+              sourcePath: repositorySourcePath,
+              sourceFileHash: sourceFile.sha256,
               sourceEntries: deltaSource,
               targetEntries: accepted,
             });
+            if (
+              !isDocumentTranslationFileFormat(
+                parsedInput.fileFormat as SupportedTranslationFileFormat,
+              )
+            ) {
+              await persistFileProjectTranslationsStep({
+                organizationId,
+                projectId: claim.job.projectId,
+                jobId: claim.job.id,
+                sourcePath: repositorySourcePath,
+                sourceLocale: parsedInput.sourceLocale,
+                targetLocale,
+                sourceEntries: deltaSource,
+                targetEntries: accepted,
+              });
+            }
           }
-          // Generated text remains needs_review in CAT. Approved-to-memory promotion
-          // owns TM writes, so generation cannot overwrite an approved memory.
           if (reportsEnabled)
             await captureFileCompletionsStep({
               organizationId,

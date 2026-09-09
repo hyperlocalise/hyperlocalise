@@ -53,6 +53,17 @@ export class SandboxCommandTimeoutError extends Error {
   }
 }
 
+export function isSandboxTimeoutError(error: unknown): boolean {
+  if (error instanceof SandboxCommandTimeoutError) {
+    return true;
+  }
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const err = error as { name?: unknown; code?: unknown };
+  return err.name === "SandboxCommandTimeoutError" || err.code === "sandbox_timeout";
+}
+
 export type ExtractSandboxEntriesResult =
   | { ok: true; entries: HlEntriesPayload }
   | { ok: false; exitCode: number; output: string };
@@ -219,7 +230,7 @@ export class SandboxErrorMapper {
       return "the translation environment disconnected mid-run. This is usually temporary — try again.";
     }
 
-    if (message.includes("sandbox_timeout")) {
+    if (isSandboxTimeoutError(error)) {
       return "the translation took too long to finish. Try the job again.";
     }
 
