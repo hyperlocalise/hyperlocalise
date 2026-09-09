@@ -32,18 +32,18 @@ function sharedMarksJson(editor: Editor, from: number, to: number): JSONContent[
     if (!node.isText) {
       return;
     }
-    shared = shared
-      ? shared.filter((mark) => mark.isInSet(node.marks))
-      : node.marks;
+    shared = shared ? shared.filter((mark) => mark.isInSet(node.marks)) : node.marks;
   });
   return shared ? marksToJson(shared) : undefined;
 }
 
 function suggestionInlineContent(suggestion: string, marks?: JSONContent["marks"]): JSONContent[] {
-  return suggestion.split("\n").flatMap((line, index) => [
-    ...(index ? [{ type: "hardBreak" }] : []),
-    ...(line ? [{ type: "text", text: line, ...(marks ? { marks } : {}) }] : []),
-  ]);
+  return suggestion
+    .split("\n")
+    .flatMap((line, index) => [
+      ...(index ? [{ type: "hardBreak" }] : []),
+      ...(line ? [{ type: "text", text: line, ...(marks ? { marks } : {}) }] : []),
+    ]);
 }
 
 function selectedTextblocks(editor: Editor, from: number, to: number) {

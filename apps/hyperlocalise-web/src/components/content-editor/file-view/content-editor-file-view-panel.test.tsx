@@ -206,6 +206,7 @@ describe("ContentEditorFileViewPanel", () => {
     );
 
     expect(screen.queryByRole("heading", { name: /Source \(en\)/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Compare original/i })).toBeInTheDocument();
   });
 
   it("toggles the source pane visibility", async () => {

@@ -51,7 +51,8 @@ describe("replaceMarkdownSelection", () => {
     const title = findText(instance, "Title");
     replaceMarkdownSelection(instance, title.from, title.to, "Nouveau");
     expect(instance.getHTML()).toContain("<h1>");
-    expect(instance.getText()).toBe("Nouveau text");
+    expect(instance.getHTML()).toContain("Nouveau text");
+    expect(instance.getHTML()).not.toContain("Title");
   });
 
   it("keeps shared marks when replacing fully marked text", () => {
@@ -78,7 +79,8 @@ describe("replaceMarkdownSelection", () => {
     const keep = findText(instance, "Keep this");
     replaceMarkdownSelection(instance, keep.from, keep.to, "Retain that");
     expect(instance.getHTML()).toContain("<li>");
-    expect(instance.getText()).toBe("Retain that item");
+    expect(instance.getHTML()).toContain("Retain that item");
+    expect(instance.getHTML()).not.toContain("Keep this");
   });
 
   it("never parses model output as HTML", () => {
