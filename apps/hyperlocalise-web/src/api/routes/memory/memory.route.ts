@@ -750,19 +750,6 @@ export function createMemoryRoutes() {
 
         const dryRun = payload.dryRun === true;
         const importBatchId = dryRun ? undefined : randomUUID();
-        if (importBatchId) {
-          await createMemoryImportAttempt({
-            id: importBatchId,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            memoryId: memory.id,
-            createdByUserId: c.var.auth.user.localUserId,
-            format: payload.format,
-            content: payload.content,
-            sourceFilename: payload.sourceFilename,
-            sourceByteSize: payload.sourceByteSize,
-            maxUnits: payload.maxUnits,
-          });
-        }
 
         const parsed = parseMemoryImportContent({
           format: payload.format,
@@ -788,42 +775,87 @@ export function createMemoryRoutes() {
               ],
               truncatedIssues: false,
             };
-            await finalizeMemoryImportAttempt({
-              attemptId: importBatchId,
-              status: "failed",
-              report: failedReport,
-              failureCode: parsed.error.code,
+            await db.transaction(async (tx) => {
+              await createMemoryImportAttempt({
+                id: importBatchId,
+                organizationId: c.var.auth.organization.localOrganizationId,
+                memoryId: memory.id,
+                createdByUserId: c.var.auth.user.localUserId,
+                format: payload.format,
+                content: payload.content,
+                sourceFilename: payload.sourceFilename,
+                sourceByteSize: payload.sourceByteSize,
+                maxUnits: payload.maxUnits,
+                client: tx,
+              });
+              await finalizeMemoryImportAttempt({
+                attemptId: importBatchId,
+                status: "failed",
+                report: failedReport,
+                failureCode: parsed.error.code,
+                client: tx,
+              });
             });
           }
           return tmxFatalResponse(c, parsed.error);
         }
 
         let applied: AppliedMemoryImport;
-        try {
+        if (dryRun) {
           applied = await applyMemoryImport({
             memory,
             parsed: parsed.value,
-            dryRun,
+            dryRun: true,
             createdByUserId: c.var.auth.user.localUserId,
-            importBatchId,
           });
-        } catch (error) {
-          if (importBatchId) {
-            await finalizeMemoryImportAttempt({
-              attemptId: importBatchId,
-              status: "failed",
-              failureCode: "unexpected_import_failure",
-            }).catch(() => undefined);
+        } else {
+          const attemptInput = {
+            id: importBatchId!,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            memoryId: memory.id,
+            createdByUserId: c.var.auth.user.localUserId,
+            format: payload.format,
+            content: payload.content,
+            sourceFilename: payload.sourceFilename,
+            sourceByteSize: payload.sourceByteSize,
+            maxUnits: payload.maxUnits,
+          };
+
+          try {
+            applied = await db.transaction(async (tx) => {
+              await createMemoryImportAttempt({ ...attemptInput, client: tx });
+              const result = await applyMemoryImport({
+                memory,
+                parsed: parsed.value,
+                createdByUserId: c.var.auth.user.localUserId,
+                importBatchId,
+                client: tx,
+              });
+              await finalizeMemoryImportAttempt({
+                attemptId: importBatchId!,
+                status: statusFromMemoryImportReport(result.report),
+                report: result.report,
+                client: tx,
+              });
+              return result;
+            });
+          } catch (error) {
+            await db
+              .transaction(async (tx) => {
+                await createMemoryImportAttempt({ ...attemptInput, client: tx });
+                await finalizeMemoryImportAttempt({
+                  attemptId: importBatchId!,
+                  status: "failed",
+                  failureCode: "unexpected_import_failure",
+                  client: tx,
+                });
+              })
+              .catch(() => undefined);
+            throw error;
           }
-          throw error;
         }
 
         if (!dryRun) {
-          await finalizeMemoryImportAttempt({
-            attemptId: importBatchId!,
-            status: statusFromMemoryImportReport(applied.report),
-            report: applied.report,
-          });
           await enqueueActivityLogEvent({
             actorCredentialId: null,
             actorKind: "user",

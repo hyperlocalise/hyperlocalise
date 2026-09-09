@@ -13,7 +13,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import {
   recordMemoryEntryCreatedEvents,
@@ -199,7 +199,11 @@ export function planImportActions(
   return planned;
 }
 
-async function loadExistingEntries(memoryId: string, candidates: MemoryImportCandidate[]) {
+async function loadExistingEntries(
+  memoryId: string,
+  candidates: MemoryImportCandidate[],
+  client: DatabaseClient,
+) {
   const existingByExternalKey = new Map<string, MemoryEntryRow>();
   const existingBySourceKey = new Map<string, MemoryEntryRow>();
   const externalKeys = [
@@ -214,7 +218,7 @@ async function loadExistingEntries(memoryId: string, candidates: MemoryImportCan
     chunk(externalKeys, TMX_LOOKUP_BATCH_SIZE),
     TMX_LOOKUP_CONCURRENCY,
     async (keys) => {
-      const rows = await db
+      const rows = await client
         .select()
         .from(schema.memoryEntries)
         .where(
@@ -250,7 +254,7 @@ async function loadExistingEntries(memoryId: string, candidates: MemoryImportCan
       if (sourceLocales.length === 0) {
         return;
       }
-      const rows = await db
+      const rows = await client
         .select()
         .from(schema.memoryEntries)
         .where(
@@ -315,10 +319,13 @@ export async function applyMemoryImport(input: {
   dryRun?: boolean;
   createdByUserId?: string;
   importBatchId?: string;
+  client?: DatabaseClient;
 }): Promise<AppliedMemoryImport> {
+  const client = input.client ?? db;
   const { existingByExternalKey, existingBySourceKey } = await loadExistingEntries(
     input.memory.id,
     input.parsed.candidates,
+    client,
   );
   const planned = planImportActions(
     input.parsed.candidates,
@@ -372,7 +379,7 @@ export async function applyMemoryImport(input: {
         importBatchId: input.importBatchId,
       }),
     );
-    const inserted = await db
+    const inserted = await client
       .insert(schema.memoryEntries)
       .values(values)
       .onConflictDoNothing()
@@ -380,6 +387,7 @@ export async function applyMemoryImport(input: {
     await recordMemoryEntryCreatedEvents({
       entries: inserted,
       actorUserId: input.createdByUserId,
+      client,
     });
     createdEntries.push(...inserted);
     const insertedKeys = new Set(
@@ -411,7 +419,7 @@ export async function applyMemoryImport(input: {
       }
       try {
         const nextReviewStatus = importedReviewStatus(item.candidate) ?? "approved";
-        const [existing] = await db
+        const [existing] = await client
           .select({
             id: schema.memoryEntries.id,
             version: schema.memoryEntries.version,
@@ -433,7 +441,7 @@ export async function applyMemoryImport(input: {
         const nextVersion = existing.version + 1;
         const now = new Date();
         const reviewStatusChanged = nextReviewStatus !== existing.reviewStatus;
-        const [row] = await db
+        const [row] = await client
           .update(schema.memoryEntries)
           .set({
             sourceLocale: item.candidate.sourceLocale,
@@ -490,6 +498,7 @@ export async function applyMemoryImport(input: {
               ...(row.externalKey ? { externalKey: row.externalKey } : {}),
             },
             occurredAt: now,
+            client,
           });
           if (reviewStatusChanged) {
             await recordMemoryEntryEvent({
@@ -505,6 +514,7 @@ export async function applyMemoryImport(input: {
                 ...(input.importBatchId ? { importBatchId: input.importBatchId } : {}),
               },
               occurredAt: new Date(now.getTime() + 1),
+              client,
             });
           }
         } else {

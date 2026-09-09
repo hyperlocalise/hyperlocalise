@@ -242,6 +242,7 @@ export function TmImportExportPanel({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) previewImport.mutate(file);
+                event.currentTarget.value = "";
               }}
             />
             <label

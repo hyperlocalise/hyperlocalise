@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 
 import { and, count, desc, eq, inArray, lt, or } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type {
   MemoryImportAttemptCounts,
   MemoryImportAttemptStatus,
@@ -22,6 +22,9 @@ import type {
 import type { MemoryImportReport, TmxIssue } from "@/lib/memory/tmx/tmx-types";
 
 const DIAGNOSTIC_INSERT_BATCH_SIZE = 200;
+const MAX_DIAGNOSTIC_CODE_LENGTH = 100;
+const MAX_DIAGNOSTIC_MESSAGE_LENGTH = 2_000;
+const MAX_DIAGNOSTIC_TUID_LENGTH = 255;
 
 export type MemoryImportAttemptCursor = {
   createdAt: Date;
@@ -57,8 +60,10 @@ export async function createMemoryImportAttempt(input: {
   sourceFilename?: string;
   sourceByteSize?: number;
   maxUnits?: number;
+  client?: DatabaseClient;
 }) {
-  const [attempt] = await db
+  const client = input.client ?? db;
+  const [attempt] = await client
     .insert(schema.memoryImportAttempts)
     .values({
       id: input.id,
@@ -101,15 +106,19 @@ export async function finalizeMemoryImportAttempt(input: {
   status: Exclude<MemoryImportAttemptStatus, "running">;
   report?: MemoryImportReport;
   failureCode?: string;
+  client?: DatabaseClient;
 }) {
-  return db.transaction(async (tx) => {
+  const client = input.client ?? db;
+  return client.transaction(async (tx) => {
     const [attempt] = await tx
       .update(schema.memoryImportAttempts)
       .set({
         status: input.status,
         counts: input.report ? countsFromReport(input.report) : null,
         headerSrclang: input.report?.headerSrclang ?? null,
-        diagnosticsTruncated: input.report?.truncatedIssues ?? false,
+        diagnosticsTruncated:
+          (input.report?.truncatedIssues ?? false) ||
+          (input.report?.issues.some((issue) => diagnosticIssueWasTruncated(issue)) ?? false),
         failureCode: input.failureCode ?? null,
         completedAt: new Date(),
       })
@@ -128,15 +137,28 @@ export async function finalizeMemoryImportAttempt(input: {
         diagnostics.slice(offset, offset + DIAGNOSTIC_INSERT_BATCH_SIZE).map((issue) => ({
           attemptId: input.attemptId,
           severity: issue.severity,
-          code: issue.code,
-          message: issue.message,
+          code: truncateDiagnosticValue(issue.code, MAX_DIAGNOSTIC_CODE_LENGTH),
+          message: truncateDiagnosticValue(issue.message, MAX_DIAGNOSTIC_MESSAGE_LENGTH),
           unitIndex: issue.unitIndex ?? null,
-          tuid: issue.tuid ?? null,
+          tuid: issue.tuid ? truncateDiagnosticValue(issue.tuid, MAX_DIAGNOSTIC_TUID_LENGTH) : null,
         })),
       );
     }
     return attempt;
   });
+}
+
+function truncateDiagnosticValue(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function diagnosticIssueWasTruncated(issue: TmxIssue) {
+  return (
+    issue.code.length > MAX_DIAGNOSTIC_CODE_LENGTH ||
+    issue.message.length > MAX_DIAGNOSTIC_MESSAGE_LENGTH ||
+    (issue.tuid?.length ?? 0) > MAX_DIAGNOSTIC_TUID_LENGTH
+  );
 }
 
 export async function listMemoryImportAttempts(input: {
