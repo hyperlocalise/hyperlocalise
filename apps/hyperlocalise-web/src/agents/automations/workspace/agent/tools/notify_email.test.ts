@@ -12,7 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { err, ok } from "@/lib/primitives/result/results";
+import { ok } from "@/lib/primitives/result/results";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,

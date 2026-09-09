@@ -106,7 +106,7 @@ export const EnvironmentVariablesTitle = ({
   const intl = useIntl();
 
   return (
-    <TypographyH3 {...props} weight="medium" size="small">
+    <TypographyH3 className={className} {...props} weight="medium" size="small">
       {children ?? intl.formatMessage(environmentVariablesMessages.title)}
     </TypographyH3>
   );

@@ -407,7 +407,7 @@ function TypographyBlockquote({
     <Text
       tagName={tagName}
       wrapStyle={wrapStyle}
-      className="mt-6 border-l-2 pl-6 italic"
+      className={cn("mt-6 border-l-2 pl-6 italic", className)}
       {...props}
     />
   );

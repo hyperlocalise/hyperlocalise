@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 
 import { RootHtml } from "@/components/root-layout/root-html";
