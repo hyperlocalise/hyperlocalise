@@ -15,7 +15,9 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { err, ok } from "@/lib/primitives/result/results";
 import type { ExternalTmsTaskContent } from "@/lib/providers/jobs/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
@@ -31,6 +33,9 @@ import { executeProviderAgentTranslation } from "./provider-agent-translate";
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
 const loadOrganizationTranslationGeneratorMock = vi.fn();
+const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+  ensureAiFeaturesAllowedMock: vi.fn(),
+}));
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
@@ -45,6 +50,14 @@ const providerContentPullerMocks = vi.hoisted(() => {
   );
 
   return { state, getProviderContentPullerMock };
+});
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
 });
 
 vi.mock("@/lib/providers/adapters/tms-provider-registry", async (importOriginal) => {
@@ -80,6 +93,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
@@ -91,6 +105,8 @@ afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
   loadOrganizationTranslationGeneratorMock.mockReset();
+  ensureAiFeaturesAllowedMock.mockReset();
+  ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     providerContentPullerMocks.state.actual,
   );
@@ -271,6 +287,48 @@ describe("executeProviderAgentTranslation", () => {
       ok: false,
       code: "missing_project_id",
     });
+  });
+
+  it("fails the agent run when AI features are not allowed without pulling content", async () => {
+    const project = await createExternalTmsProject();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-ai-denied",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: AI_FEATURES_REQUIRED_CODE,
+      message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: project.organizationId,
+    });
+    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
+    expect(loadOrganizationTranslationGeneratorMock).not.toHaveBeenCalled();
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+    expect(failed?.status).toBe("failed");
+    expect(failed?.outputSummary).toMatchObject({ code: AI_FEATURES_REQUIRED_CODE });
+    expect(failed?.warnings).toEqual([AI_FEATURES_REQUIRED_MESSAGE]);
   });
 
   it("fails the agent run when startAgentRun throws", async () => {

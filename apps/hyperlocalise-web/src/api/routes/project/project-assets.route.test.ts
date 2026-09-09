@@ -20,9 +20,10 @@ import type { AppType } from "@/api/typed-app";
 import { eq } from "drizzle-orm";
 import { extractImageText } from "@/lib/agents/image-text-extraction";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
+import { readBoundedResponseBody } from "@/lib/security/public-http-fetch";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -44,6 +45,13 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 vi.mock("@/lib/agents/image-text-extraction", () => ({ extractImageText: vi.fn() }));
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
+  return {
+    ...actual,
+    readBoundedResponseBody: vi.fn(actual.readBoundedResponseBody),
+  };
+});
 vi.mock("@/api/billing/ai-features-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/billing/ai-features-response")>()),
   rejectIfAiFeaturesUnavailable: vi.fn(async () => null),
@@ -226,5 +234,132 @@ describe("project image text layers", () => {
         })
       ).status,
     ).toBe(409);
+  });
+
+  it("rejects unsupported image types before extraction", async () => {
+    const fixture = await createStoredProjectFixture();
+    const file = await createStoredFile({
+      organizationId: fixture.organization.id,
+      projectId: fixture.project.id,
+      createdByUserId: fixture.user.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "hero.gif",
+      contentType: "image/gif",
+      content: Buffer.from("gif-bytes"),
+      adapter: fileStorageAdapter,
+    });
+    const headers = await authHeadersFor(fixture.identity);
+    const path = `/api/orgs/${fixture.identity.organization.slug}/projects/${fixture.project.id}/assets/${file.id}/text-layers`;
+
+    const response = await app.request(path, { method: "POST", headers });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "unsupported_image_type" });
+    expect(extractImageText).not.toHaveBeenCalled();
+  });
+
+  it("rejects images larger than the extraction size limit", async () => {
+    const { path, headers, file } = await imageFixture();
+    await db
+      .update(schema.storedFiles)
+      .set({ byteSize: 20 * 1024 * 1024 + 1 })
+      .where(eq(schema.storedFiles.id, file.id));
+
+    const response = await app.request(path, { method: "POST", headers });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "image_too_large" });
+    expect(extractImageText).not.toHaveBeenCalled();
+  });
+
+  it("rejects when image bytes cannot be read within the size bound", async () => {
+    const { path, headers } = await imageFixture();
+    vi.mocked(readBoundedResponseBody).mockRejectedValueOnce(new Error("too large"));
+
+    const response = await app.request(path, { method: "POST", headers });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "image_bytes_unavailable" });
+    expect(extractImageText).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when extraction fails", async () => {
+    const { path, headers } = await imageFixture();
+    vi.mocked(extractImageText).mockResolvedValue(err({ code: "image_text_extraction_failed" }));
+
+    const response = await app.request(path, { method: "POST", headers });
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "image_text_extraction_failed",
+    });
+  });
+
+  it("forbids members from extracting or saving text layers", async () => {
+    const fixture = await imageFixture();
+    vi.mocked(extractImageText).mockResolvedValue(ok(extractedRegions));
+    const extracted = await app.request(fixture.path, {
+      method: "POST",
+      headers: fixture.headers,
+    });
+    expect(extracted.status).toBe(200);
+    const { textLayers } = await extracted.json();
+
+    const member = projectFixture.createWorkosIdentityForOrganization(
+      fixture.identity.organization,
+      "member",
+    );
+    await authHeadersFor(member);
+    const memberUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
+    await db.insert(schema.teamMemberships).values({
+      teamId: fixture.project.teamId!,
+      userId: memberUserId,
+      role: "member",
+    });
+    const memberHeaders = await authHeadersFor(member);
+
+    expect((await app.request(fixture.path, { headers: memberHeaders })).status).toBe(200);
+
+    const patchResponse = await app.request(fixture.path, {
+      method: "PATCH",
+      headers: { ...memberHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify(textLayers),
+    });
+    expect(patchResponse.status).toBe(403);
+
+    await db
+      .update(schema.storedFiles)
+      .set({ metadata: { provenance: "keep-me" } })
+      .where(eq(schema.storedFiles.id, fixture.file.id));
+    const freshPost = await app.request(fixture.path, {
+      method: "POST",
+      headers: memberHeaders,
+    });
+    expect(freshPost.status).toBe(403);
+    expect(extractImageText).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns conflict when another writer persists layers during extraction", async () => {
+    const { path, headers, file } = await imageFixture();
+    const concurrentLayers = {
+      version: 1 as const,
+      sourceHash: file.sha256,
+      revision: "concurrent-revision",
+      extractedAt: new Date().toISOString(),
+      regions: extractedRegions,
+    };
+    vi.mocked(extractImageText).mockImplementation(async () => {
+      await db
+        .update(schema.storedFiles)
+        .set({
+          metadata: {
+            provenance: "keep-me",
+            imageTextLayers: concurrentLayers,
+          },
+        })
+        .where(eq(schema.storedFiles.id, file.id));
+      return ok(extractedRegions);
+    });
+
+    const response = await app.request(path, { method: "POST", headers });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "text_layers_conflict" });
   });
 });
