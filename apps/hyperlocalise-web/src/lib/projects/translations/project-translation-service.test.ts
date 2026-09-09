@@ -281,7 +281,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.translatedKeyCount).toBe(0);
   });
 
-  it("prefills hidden keys with existing translation or source and omits them from retryKeys", async () => {
+  it("prefills hidden keys with existing translation or source fallback on export", async () => {
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
     offsetMock.mockResolvedValueOnce([
       { id: "key_1", key: "debug.id", sourceText: "Internal id", isHidden: true },
@@ -314,13 +314,14 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
+      includeAllSourceKeys: true,
     });
 
     expect(result.prefilled).toEqual({
       "debug.id": "Id interne",
       "hidden.copy": "Do not translate",
+      greeting: "Hello",
     });
-    expect(result.retryKeys).toEqual([]);
     expect(result.loadedKeyCount).toBe(3);
     expect(result.translatedKeyCount).toBe(1);
   });

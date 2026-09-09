@@ -89,11 +89,29 @@ describe("mergeTranslationPrefills", () => {
         },
         projectPrefilled: {
           greeting: "Salut",
+          farewell: "Au revoir",
         },
       }),
     ).toEqual({
       greeting: "Salut",
       farewell: "Au revoir",
+    });
+  });
+
+  it("reuses TM for untranslated keys while project translations win on overlap", () => {
+    expect(
+      mergeTranslationPrefills({
+        tmPrefilled: {
+          workspace_knowledge: "Activer les connaissances",
+          brand: "Hyperlocalise",
+        },
+        projectPrefilled: {
+          brand: "Hyperlocalise",
+        },
+      }),
+    ).toEqual({
+      workspace_knowledge: "Activer les connaissances",
+      brand: "Hyperlocalise",
     });
   });
 

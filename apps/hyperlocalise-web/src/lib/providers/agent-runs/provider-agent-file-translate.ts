@@ -36,6 +36,8 @@ import {
   listGlossaryTermsForProject,
   FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
 } from "@/lib/glossary/query-glossary-terms";
+import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
+import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
@@ -101,7 +103,7 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
 function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return Boolean(translation?.text?.trim());
+  return !isUntranslatedTranslation({ targetText: translation?.text });
 }
 
 function unitsForFile(units: ExternalTmsTranslationUnit[], externalFileId: string) {
@@ -161,10 +163,10 @@ function buildPrefilledEntriesForLocale(input: {
   const prefilled: Record<string, string> = {};
   for (const unit of input.units) {
     const existing = existingTranslationForLocale(unit, input.targetLocale);
-    if (!existing?.text?.trim()) {
+    if (isUntranslatedTranslation({ targetText: existing?.text })) {
       continue;
     }
-    prefilled[unit.key] = existing.text;
+    prefilled[unit.key] = existing!.text;
   }
   return prefilled;
 }
@@ -705,7 +707,10 @@ export async function translateProviderJobFiles(input: {
                 sourceEntries: prepared.sourceEntries,
               });
             }
-            byLocale[targetLocale] = { ...tmPrefilled, ...existingPrefilled };
+            byLocale[targetLocale] = mergeTranslationPrefills({
+              tmPrefilled,
+              projectPrefilled: existingPrefilled,
+            });
           }
           filePrefills.push(byLocale);
         }
@@ -741,9 +746,17 @@ export async function translateProviderJobFiles(input: {
               if (!crowdinEntries.ok) {
                 continue;
               }
+              const unitsNeedingTranslation =
+                prepared.localesNeedingByLocale.get(targetLocale) ?? [];
+              const untranslatedKeys = new Set(unitsNeedingTranslation.map((unit) => unit.key));
+              const crowdinPrefill = Object.fromEntries(
+                Object.entries(hlEntriesPayloadToStringMap(crowdinEntries.entries)).filter(
+                  ([key]) => !untranslatedKeys.has(key),
+                ),
+              );
               // Existing/TM prefill wins over Crowdin prefill for the same key.
               filePrefills[index]![targetLocale] = {
-                ...hlEntriesPayloadToStringMap(crowdinEntries.entries),
+                ...crowdinPrefill,
                 ...filePrefills[index]![targetLocale],
               };
             }

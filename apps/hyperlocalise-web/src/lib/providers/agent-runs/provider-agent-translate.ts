@@ -40,6 +40,7 @@ import {
   summarizeProviderUnitFileIds,
   translateProviderJobFiles,
 } from "@/lib/providers/agent-runs/provider-agent-file-translate";
+import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
@@ -132,7 +133,7 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
 function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return Boolean(translation?.text?.trim());
+  return !isUntranslatedTranslation({ targetText: translation?.text });
 }
 
 function buildJobInputForUnit(input: {
