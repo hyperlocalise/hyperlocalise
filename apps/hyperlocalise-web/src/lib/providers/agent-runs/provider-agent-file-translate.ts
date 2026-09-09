@@ -38,7 +38,10 @@ import {
 } from "@/lib/glossary/query-glossary-terms";
 import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
-import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
+import {
+  type FileTranslationMemoryReuseResult,
+  reuseFileTranslationMemoryEntries,
+} from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
@@ -691,28 +694,32 @@ export async function translateProviderJobFiles(input: {
         });
 
         const filePrefills: Array<Record<string, Record<string, string>>> = [];
+        const tmReuseByFileIndex: Array<Record<string, FileTranslationMemoryReuseResult>> = [];
         for (const prepared of preparedFiles) {
           const byLocale: Record<string, Record<string, string>> = {};
+          const tmReuseByLocale: Record<string, FileTranslationMemoryReuseResult> = {};
           for (const targetLocale of localesToRun) {
             const existingPrefilled = buildPrefilledEntriesForLocale({
               units: prepared.fileUnits,
               targetLocale,
             });
-            let tmPrefilled: Record<string, string> = {};
+            let tmReuse: FileTranslationMemoryReuseResult = { prefilled: {}, matchesByKey: {} };
             if (prepared.sourceEntries) {
-              tmPrefilled = await reuseFileTranslationMemoryEntries({
+              tmReuse = await reuseFileTranslationMemoryEntries({
                 projectId: input.projectId,
                 sourceLocale,
                 targetLocale,
                 sourceEntries: prepared.sourceEntries,
               });
             }
+            tmReuseByLocale[targetLocale] = tmReuse;
             byLocale[targetLocale] = mergeTranslationPrefills({
-              tmPrefilled,
+              tmPrefilled: tmReuse.prefilled,
               projectPrefilled: existingPrefilled,
             });
           }
           filePrefills.push(byLocale);
+          tmReuseByFileIndex.push(tmReuseByLocale);
         }
 
         if (crowdinContext?.ok) {
@@ -804,11 +811,13 @@ export async function translateProviderJobFiles(input: {
             caseSensitive: term.caseSensitive ?? null,
           }));
 
-          for (const prepared of preparedFiles) {
+          for (let preparedIndex = 0; preparedIndex < preparedFiles.length; preparedIndex += 1) {
+            const prepared = preparedFiles[preparedIndex]!;
             for (const [
               targetLocale,
               localesNeedingTranslation,
             ] of prepared.localesNeedingByLocale) {
+              const tmReuse = tmReuseByFileIndex[preparedIndex]?.[targetLocale];
               const outputFilename = getOutputFilename(prepared.workFilename, targetLocale);
               try {
                 const translatedContent = await readTranslatedFile(sandboxId, outputFilename);
@@ -866,6 +875,14 @@ export async function translateProviderJobFiles(input: {
                       })),
                   });
 
+                  const tmPrefilledText = tmReuse?.prefilled[unit.key];
+                  const translationMemoryMatchesUsed =
+                    tmPrefilledText &&
+                    to === tmPrefilledText &&
+                    tmReuse.matchesByKey[unit.key]?.length
+                      ? tmReuse.matchesByKey[unit.key]
+                      : undefined;
+
                   changedItems.push(
                     serializeAgentRunProposalItem({
                       itemId: buildAgentRunProposalItemId({
@@ -882,6 +899,7 @@ export async function translateProviderJobFiles(input: {
                       changedFields: deriveChangedFields(from, to),
                       warnings: proposalWarnings,
                       fileId: unit.fileId ?? prepared.sourceFile.id,
+                      translationMemoryMatchesUsed,
                     }),
                   );
                 }

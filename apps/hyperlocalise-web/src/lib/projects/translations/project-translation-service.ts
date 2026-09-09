@@ -755,7 +755,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           if (canPrefill) {
             prefilled[key.key] = translation!.text;
             translatedKeyCount += 1;
-          } else if (input.includeAllSourceKeys) {
+          } else {
             prefilled[key.key] = key.sourceText;
           }
           continue;
