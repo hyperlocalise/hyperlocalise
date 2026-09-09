@@ -397,7 +397,7 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	return tokens, total
 }
 
-const tokenStackBufSize = 128
+const TOKEN_STACK_BUF_SIZE = 128
 
 func formatICUBlockToken(block icuparser.BlockSignature) string {
 	offsetStr := ""
@@ -415,8 +415,8 @@ func formatICUBlockToken(block icuparser.BlockSignature) string {
 		neededLen += len(opt)
 	}
 
-	if neededLen <= tokenStackBufSize {
-		var buf [tokenStackBufSize]byte
+	if neededLen <= TOKEN_STACK_BUF_SIZE {
+		var buf [TOKEN_STACK_BUF_SIZE]byte
 		n := copy(buf[0:], "icu-block:")
 		n += copy(buf[n:], block.Arg)
 		if offsetStr != "" {
@@ -482,8 +482,8 @@ func formatHTMLToken(raw string) string {
 		return "html:" + raw
 	}
 	n := 5 + len(raw)
-	if n <= tokenStackBufSize {
-		var buf [tokenStackBufSize]byte
+	if n <= TOKEN_STACK_BUF_SIZE {
+		var buf [TOKEN_STACK_BUF_SIZE]byte
 		copy(buf[0:], "html:")
 		for i := 0; i < len(raw); i++ {
 			c := raw[i]
