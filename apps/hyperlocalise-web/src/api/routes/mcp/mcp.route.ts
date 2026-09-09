@@ -126,6 +126,15 @@ import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats
 import { updateMcpTranslation } from "./mcp-update-translation";
 import { downloadMcpTranslations } from "./mcp-download-translations";
 import { mcpDownloadTranslationsInputSchema } from "./mcp-download-translations.schema";
+import { mcpRunWorkflowInputSchema } from "./mcp-run-workflow.schema";
+import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileForJobScope,
+} from "@/lib/file-storage/records";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { createTranslationJob } from "@/lib/agent-runtime/tools/translation-tools";
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -811,6 +820,18 @@ function mcpToolContext(apiAuth: ApiAuthContext): ToolContext {
     projectId: null,
     db,
   };
+}
+
+function mcpIdempotentJobId(organizationId: string, projectId: string, idempotencyKey: string) {
+  const digest = createHash("sha256")
+    .update(organizationId)
+    .update("\0")
+    .update(projectId)
+    .update("\0")
+    .update(idempotencyKey)
+    .digest("hex");
+
+  return `job_${digest}`;
 }
 
 function truncateMcpGlossaryDescription(description: string) {
@@ -1824,24 +1845,176 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of ["run_workflow"] as const) {
-    server.registerTool(
-      name,
-      {
-        description: `${name} is reserved for the MCP surface and will be wired to the workflow layer next.`,
-        inputSchema: z.object({}),
-      },
-      async () => ({
-        isError: true,
+  server.registerTool(
+    "run_workflow",
+    {
+      description:
+        "Create and enqueue a string or file translation job in an accessible Hyperlocalise project.",
+      inputSchema: mcpRunWorkflowInputSchema,
+    },
+    async (input) => {
+      if (!isJobCreateAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to create translation jobs");
+      }
+
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          source: schema.projects.source,
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, input.projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const localeValidation = validateJobLocalesAgainstProject(project, {
+        sourceLocale: input.sourceLocale,
+        targetLocales: input.targetLocales,
+      });
+
+      if (isErr(localeValidation)) {
+        return mcpToolError("invalid_job_payload", localeValidation.error.message, {
+          reason: localeValidation.error.code,
+        });
+      }
+
+      const aiFeatures = await ensureAiFeaturesAllowed({
+        organizationId: apiAuth.organization.localOrganizationId,
+      });
+
+      if (isErr(aiFeatures)) {
+        return mcpToolError(aiFeatures.error.code, aiFeatures.error.message);
+      }
+
+      let resolvedSourceFileId: string | undefined;
+
+      if (input.type === "file") {
+        if (input.sourceFileId) {
+          resolvedSourceFileId = input.sourceFileId;
+        } else if (input.sourcePath) {
+          const latestVersion = await getLatestRepositorySourceFileVersion({
+            organizationId: apiAuth.organization.localOrganizationId,
+            projectId: project.id,
+            sourcePath: input.sourcePath,
+          });
+
+          resolvedSourceFileId = latestVersion?.storedFileId;
+        }
+
+        if (!resolvedSourceFileId) {
+          return mcpToolError("file_not_found", "Source file not found or inaccessible");
+        }
+
+        const sourceFile = await getStoredFileForJobScope({
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId: project.id,
+          fileId: resolvedSourceFileId,
+        });
+
+        if (!sourceFile) {
+          return mcpToolError("file_not_found", "Source file not found or inaccessible");
+        }
+
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+
+        if (!inferredFileFormat) {
+          return mcpToolError(
+            "unsupported_source_file_format",
+            "Source file format is not supported for translation jobs",
+          );
+        }
+
+        if (inferredFileFormat !== input.fileFormat) {
+          return mcpToolError(
+            "source_file_format_mismatch",
+            "Source file format does not match the requested format",
+            {
+              expectedFileFormat: inferredFileFormat,
+            },
+          );
+        }
+      }
+
+      const jobResult = await createTranslationJob(
+        {
+          ...mcpToolContext(apiAuth),
+          projectId: project.id,
+        },
+        {
+          type: input.type,
+          sourceText: input.sourceText,
+          sourceFileId: resolvedSourceFileId,
+          fileFormat: input.fileFormat,
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          context: input.context,
+          metadata: input.metadata,
+          maxLength: input.maxLength,
+        },
+        {
+          jobId: input.idempotencyKey
+            ? mcpIdempotentJobId(
+                apiAuth.organization.localOrganizationId,
+                project.id,
+                input.idempotencyKey,
+              )
+            : undefined,
+          interactionId: null,
+        },
+      );
+
+      if (isErr(jobResult)) {
+        const jobError = jobResult.error;
+        const errorCode = jobError.code;
+
+        switch (errorCode) {
+          case "translation_job_permission_denied":
+          case "job_permission_denied":
+            return mcpToolError("forbidden", jobError.message);
+
+          case "translation_job_project_missing":
+          case "translation_job_project_inaccessible":
+            return mcpToolError("project_not_found", jobError.message);
+
+          case "translation_job_source_file_missing":
+            return mcpToolError("file_not_found", jobError.message);
+
+          case "translation_job_invalid_input":
+          case "translation_job_source_file_format_unsupported":
+            return mcpToolError("invalid_job_payload", jobError.message);
+
+          case "organization_job_budget_exceeded":
+          case "usage_event_reservation_failed":
+            return mcpToolError(errorCode, jobError.message);
+
+          case "translation_job_queue_unavailable":
+            return mcpToolError("job_queue_unavailable", jobError.message);
+
+          case "job_insert_failed":
+            return mcpToolError("job_create_failed", jobError.message);
+
+          case "job_idempotency_conflict":
+            return mcpToolError("idempotency_conflict", jobError.message);
+
+          default:
+            return assertNever(errorCode);
+        }
+      }
+      return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ error: "not_implemented", tool: name }, null, 2),
+            text: JSON.stringify(jobResult.value),
           },
         ],
-      }),
-    );
-  }
+      };
+    },
+  );
 
   server.registerTool(
     "get_translation",

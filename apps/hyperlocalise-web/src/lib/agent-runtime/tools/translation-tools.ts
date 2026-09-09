@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -91,10 +91,11 @@ const reviewJobQueue = createReviewJobEventQueue();
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
+  | { code: "job_idempotency_conflict"; message: string }
   | { code: "organization_job_budget_exceeded"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
-type CreateTranslationJobToolError =
+export type TranslationJobError =
   | { code: "translation_job_permission_denied"; message: string }
   | { code: "translation_job_project_missing"; message: string }
   | { code: "translation_job_project_inaccessible"; message: string }
@@ -102,9 +103,12 @@ type CreateTranslationJobToolError =
   | { code: "translation_job_source_file_missing"; message: string }
   | { code: "translation_job_source_file_format_unsupported"; message: string }
   | { code: "translation_job_queue_unavailable"; message: string }
-  | { code: "review_job_project_missing"; message: string }
-  | { code: "review_job_queue_unavailable"; message: string }
   | JobCreationError;
+
+export type CreateTranslationJobToolError =
+  | TranslationJobError
+  | { code: "review_job_project_missing"; message: string }
+  | { code: "review_job_queue_unavailable"; message: string };
 
 class JobCreationRollbackError extends Error {
   constructor(readonly jobError: JobCreationError) {
@@ -163,6 +167,7 @@ async function reserveQueuedJobUsage(input: {
   ctx: ToolContext;
   job: Pick<JobRecord, "id">;
   kind: JobKind;
+  interactionId?: string | null;
 }): Promise<Result<void, JobCreationError>> {
   const billing = queuedJobUsageBilling(input.kind);
   const usageEventResult = await reserveUsageEvent({
@@ -172,7 +177,10 @@ async function reserveQueuedJobUsage(input: {
     operationKey: `job:${input.job.id}:${billing.operationKeySuffix}`,
     source: billing.source,
     jobId: input.job.id,
-    interactionId: input.ctx.conversationId ?? undefined,
+    interactionId:
+      input.interactionId === undefined
+        ? input.ctx.conversationId
+        : (input.interactionId ?? undefined),
     quantity: 1,
   });
 
@@ -296,19 +304,21 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
 function queuedJobValues(
   ctx: ToolContext,
   input: {
+    jobId?: string;
     kind: JobKind;
     projectId?: string | null;
     inputPayload: unknown;
+    interactionId?: string | null;
   },
 ) {
   return {
-    id: createJobId(),
+    id: input.jobId ?? createJobId(),
     organizationId: ctx.organizationId,
     projectId: getJobProjectId(ctx, input.projectId),
     kind: input.kind,
     status: "queued" as const,
     inputPayload: input.inputPayload,
-    interactionId: ctx.conversationId,
+    interactionId: input.interactionId === undefined ? ctx.conversationId : input.interactionId,
     createdByUserId: ctx.localUserId,
   };
 }
@@ -402,21 +412,58 @@ const createTranslationJobInputSchema = z.object({
     .describe("Optional maximum string length for string jobs."),
 });
 
-type CreateTranslationJobInput = z.infer<typeof createTranslationJobInputSchema>;
+export type CreateTranslationJobInput = z.infer<typeof createTranslationJobInputSchema>;
+
+export type CreateTranslationJobError = TranslationJobError;
+
+export type CreateTranslationJobResult = {
+  jobId: string;
+  type: CreateTranslationJobInput["type"];
+  status: "queued" | "enqueued";
+  workflowRunIds: string[];
+};
+
+type CreateTranslationJobOptions = {
+  jobId?: string;
+  interactionId?: string | null;
+};
+
+type TranslationJobRecordResult = {
+  job: JobRecord;
+  created: boolean;
+};
 
 type PreparedTranslationJobInput = {
   sourceFileId?: string;
   inputPayload: unknown;
 };
 
-function translationJobInputError(message: string): CreateTranslationJobToolError {
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function translationJobInputError(message: string): TranslationJobError {
   return { code: "translation_job_invalid_input", message };
 }
 
 async function prepareTranslationJobInput(
   ctx: ToolContext,
   input: CreateTranslationJobInput,
-): Promise<Result<PreparedTranslationJobInput, CreateTranslationJobToolError>> {
+): Promise<Result<PreparedTranslationJobInput, TranslationJobError>> {
   if (!isJobCreateAllowed(ctx.membershipRole)) {
     return err({
       code: "translation_job_permission_denied",
@@ -518,9 +565,54 @@ async function createTranslationJobRecord(
   ctx: ToolContext,
   input: CreateTranslationJobInput,
   preparedInput: PreparedTranslationJobInput,
-): Promise<Result<JobRecord, JobCreationError>> {
+  options?: CreateTranslationJobOptions,
+): Promise<Result<TranslationJobRecordResult, JobCreationError>> {
   try {
-    const job = await ctx.db.transaction(async (tx) => {
+    const recordResult = await ctx.db.transaction(async (tx) => {
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(
+          queuedJobValues(ctx, {
+            jobId: options?.jobId,
+            kind: "translation",
+            inputPayload: preparedInput.inputPayload,
+            interactionId: options?.interactionId,
+          }),
+        )
+        .onConflictDoNothing({ target: schema.jobs.id })
+        .returning();
+
+      if (!createdJob) {
+        if (!options?.jobId) {
+          rollbackJobCreation(jobInsertFailedError());
+        }
+
+        const [existingJob] = await tx
+          .select()
+          .from(schema.jobs)
+          .where(
+            and(
+              eq(schema.jobs.id, options.jobId),
+              eq(schema.jobs.organizationId, ctx.organizationId),
+              eq(schema.jobs.kind, "translation"),
+            ),
+          )
+          .limit(1);
+
+        if (!existingJob) {
+          rollbackJobCreation(jobInsertFailedError());
+        }
+
+        if (canonicalJson(existingJob.inputPayload) !== canonicalJson(preparedInput.inputPayload)) {
+          rollbackJobCreation({
+            code: "job_idempotency_conflict",
+            message: "The idempotency key is already associated with a different job payload.",
+          });
+        }
+
+        return { job: existingJob, created: false };
+      }
+
       const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
       if (isErr(budgetResult)) {
         rollbackJobCreation(budgetResult.error);
@@ -535,20 +627,6 @@ async function createTranslationJobRecord(
           })
         : null;
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(
-          queuedJobValues(ctx, {
-            kind: "translation",
-            inputPayload: preparedInput.inputPayload,
-          }),
-        )
-        .returning();
-
-      if (!createdJob) {
-        rollbackJobCreation(jobInsertFailedError());
-      }
-
       await tx.insert(schema.translationJobDetails).values({
         jobId: createdJob.id,
         type: input.type,
@@ -560,26 +638,29 @@ async function createTranslationJobRecord(
         ctx,
         job: createdJob,
         kind: "translation",
+        interactionId: options?.interactionId,
       });
       if (isErr(usageResult)) {
         rollbackJobCreation(usageResult.error);
       }
 
-      return createdJob;
+      return { job: createdJob, created: true };
     });
 
-    await enqueueJobCreatedActivity({
-      actorCredentialId: null,
-      actorKind: "agent",
-      actorUserId: ctx.localUserId ?? null,
-      jobId: job.id,
-      kind: job.kind,
-      organizationId: job.organizationId,
-      projectId: job.projectId,
-      status: job.status,
-    });
+    if (recordResult.created) {
+      await enqueueJobCreatedActivity({
+        actorCredentialId: null,
+        actorKind: "agent",
+        actorUserId: ctx.localUserId ?? null,
+        jobId: recordResult.job.id,
+        kind: recordResult.job.kind,
+        organizationId: recordResult.job.organizationId,
+        projectId: recordResult.job.projectId,
+        status: recordResult.job.status,
+      });
+    }
 
-    return ok(job);
+    return ok(recordResult);
   } catch (error) {
     if (error instanceof JobCreationRollbackError) {
       return err(error.jobError);
@@ -592,7 +673,7 @@ async function enqueueTranslationJob(input: {
   ctx: ToolContext;
   job: JobRecord;
   type: CreateTranslationJobInput["type"];
-}): Promise<Result<{ workflowRunIds: string[] }, CreateTranslationJobToolError>> {
+}): Promise<Result<{ workflowRunIds: string[] }, TranslationJobError>> {
   const projectId = input.job.projectId ?? input.ctx.projectId;
   if (!projectId) {
     return err({
@@ -610,19 +691,39 @@ async function enqueueTranslationJob(input: {
       type: input.type,
     });
 
-    await input.ctx.db
+    const [claimedJob] = await input.ctx.db
       .update(schema.jobs)
       .set({ workflowRunId: result.ids[0] ?? null })
       .where(
         and(
           eq(schema.jobs.id, input.job.id),
           eq(schema.jobs.organizationId, input.ctx.organizationId),
+          eq(schema.jobs.status, "queued"),
+          isNull(schema.jobs.workflowRunId),
         ),
-      );
+      )
+      .returning({ workflowRunId: schema.jobs.workflowRunId });
 
-    return ok({ workflowRunIds: result.ids });
+    if (!claimedJob) {
+      const [ownedJob] = await input.ctx.db
+        .select({ workflowRunId: schema.jobs.workflowRunId })
+        .from(schema.jobs)
+        .where(
+          and(
+            eq(schema.jobs.id, input.job.id),
+            eq(schema.jobs.organizationId, input.ctx.organizationId),
+          ),
+        )
+        .limit(1);
+
+      return ok({ workflowRunIds: ownedJob?.workflowRunId ? [ownedJob.workflowRunId] : [] });
+    }
+
+    return ok({
+      workflowRunIds: claimedJob.workflowRunId ? [claimedJob.workflowRunId] : [],
+    });
   } catch (error) {
-    await input.ctx.db
+    const [failedJob] = await input.ctx.db
       .update(schema.jobs)
       .set({
         status: "failed",
@@ -632,8 +733,28 @@ async function enqueueTranslationJob(input: {
         and(
           eq(schema.jobs.id, input.job.id),
           eq(schema.jobs.organizationId, input.ctx.organizationId),
+          eq(schema.jobs.status, "queued"),
+          isNull(schema.jobs.workflowRunId),
         ),
-      );
+      )
+      .returning({ id: schema.jobs.id });
+
+    if (!failedJob) {
+      const [ownedJob] = await input.ctx.db
+        .select({ workflowRunId: schema.jobs.workflowRunId })
+        .from(schema.jobs)
+        .where(
+          and(
+            eq(schema.jobs.id, input.job.id),
+            eq(schema.jobs.organizationId, input.ctx.organizationId),
+          ),
+        )
+        .limit(1);
+
+      if (ownedJob?.workflowRunId) {
+        return ok({ workflowRunIds: [ownedJob.workflowRunId] });
+      }
+    }
 
     await enqueueJobFailedActivity({
       actorCredentialId: null,
@@ -673,12 +794,73 @@ async function enqueueTranslationJob(input: {
  *
  * Example usage: user says "Please translate these release notes into Japanese and Vietnamese."
  */
+export async function createTranslationJob(
+  ctx: ToolContext,
+  input: CreateTranslationJobInput,
+  options?: CreateTranslationJobOptions,
+): Promise<Result<CreateTranslationJobResult, CreateTranslationJobError>> {
+  const preparedInputResult = await prepareTranslationJobInput(ctx, input);
+
+  if (isErr(preparedInputResult)) {
+    return err(preparedInputResult.error);
+  }
+
+  const jobResult = await createTranslationJobRecord(
+    ctx,
+    input,
+    preparedInputResult.value,
+    options,
+  );
+
+  if (isErr(jobResult)) {
+    return err(jobResult.error);
+  }
+
+  const { job, created } = jobResult.value;
+
+  if (!created) {
+    if (job.status === "failed") {
+      return err({
+        code: "translation_job_queue_unavailable",
+        message: job.lastError ?? "Translation job queue unavailable.",
+      });
+    }
+
+    if (job.workflowRunId) {
+      return ok({
+        jobId: job.id,
+        type: input.type,
+        status: "enqueued",
+        workflowRunIds: [job.workflowRunId],
+      });
+    }
+  }
+
+  const enqueueResult = await enqueueTranslationJob({
+    ctx,
+    job,
+    type: input.type,
+  });
+
+  if (isErr(enqueueResult)) {
+    return err(enqueueResult.error);
+  }
+
+  return ok({
+    jobId: job.id,
+    type: input.type,
+    status: "enqueued",
+    workflowRunIds: enqueueResult.value.workflowRunIds,
+  });
+}
+
 export function createTranslationJobTool(ctx: ToolContext) {
   return tool({
     description: "Create a durable translation job (string or file) and enqueue it for execution.",
     inputSchema: createTranslationJobInputSchema,
     execute: async (input) => {
       const preparedInputResult = await prepareTranslationJobInput(ctx, input);
+
       if (isErr(preparedInputResult)) {
         return {
           success: false,
@@ -687,6 +869,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
       }
 
       const jobResult = await createTranslationJobRecord(ctx, input, preparedInputResult.value);
+
       if (isErr(jobResult)) {
         return {
           success: false,
@@ -694,8 +877,14 @@ export function createTranslationJobTool(ctx: ToolContext) {
         };
       }
 
-      const job = jobResult.value;
-      const enqueueResult = await enqueueTranslationJob({ ctx, job, type: input.type });
+      const job = jobResult.value.job;
+
+      const enqueueResult = await enqueueTranslationJob({
+        ctx,
+        job,
+        type: input.type,
+      });
+
       if (isErr(enqueueResult)) {
         return {
           success: false,

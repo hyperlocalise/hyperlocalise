@@ -16,7 +16,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { OAuthProtectedResourceMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -45,8 +45,12 @@ import { createProjectTestFixture } from "../project/project.fixture";
 import {
   insertCompletedPublicFileJob,
   insertPublicTranslationJob,
+  insertStoredSourceFile,
 } from "../public-jobs/public-jobs.fixture";
-import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import {
+  createRepositorySourceFileVersion,
+  ensureRepositorySourceFile,
+} from "@/lib/file-storage/records";
 import {
   setProjectTranslationKeysHidden,
   upsertProjectTranslationKeysFromEntries,
@@ -56,6 +60,7 @@ import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -84,6 +89,37 @@ vi.mock("@/api/auth/mcp-client-metadata", async (importOriginal) => {
   return {
     ...actual,
     resolveMcpClientMetadata: resolveMcpClientMetadataMock,
+  };
+});
+
+const { translationJobEnqueueMock } = vi.hoisted(() => ({
+  translationJobEnqueueMock: vi.fn(async () => ({
+    ids: ["workflow_run_mcp_string"],
+  })),
+}));
+
+vi.mock("@/lib/workflow/queues", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/workflow/queues")>();
+
+  return {
+    ...actual,
+    createTranslationJobEventQueue: () => ({
+      enqueue: translationJobEnqueueMock,
+    }),
+  };
+});
+
+const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+  ensureAiFeaturesAllowedMock:
+    vi.fn<typeof import("@/lib/billing/ai-features").ensureAiFeaturesAllowed>(),
+}));
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
   };
 });
 
@@ -176,6 +212,12 @@ function setMcpAuthEnabled(value: boolean) {
 describe("mcpRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    translationJobEnqueueMock.mockClear();
+    ensureAiFeaturesAllowedMock.mockReset();
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
   });
 
   afterEach(async () => {
@@ -7551,8 +7593,115 @@ describe("mcpRoutes", () => {
     expect(body.result?.content?.[0]?.text).toContain("locale");
   });
 
-  it("keeps run_workflow reserved", async () => {
+  it("advertises run_workflow with bounded string and file job inputs", async () => {
     const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "run_workflow");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("translation job");
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["type", "projectId", "sourceLocale", "targetLocales"]),
+    );
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      type: {
+        type: "string",
+        enum: ["string", "file"],
+      },
+      projectId: {
+        type: "string",
+      },
+      sourceText: {
+        type: "string",
+        minLength: 1,
+        maxLength: 100_000,
+      },
+      sourceFileId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+      sourcePath: {
+        type: "string",
+        minLength: 1,
+        maxLength: 2048,
+      },
+      fileFormat: {
+        type: "string",
+      },
+      sourceLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32,
+      },
+      targetLocales: {
+        type: "array",
+        minItems: 1,
+        maxItems: 20,
+        items: {
+          type: "string",
+          minLength: 1,
+          maxLength: 32,
+        },
+      },
+      context: {
+        type: "string",
+        maxLength: 20_000,
+      },
+      maxLength: {
+        type: "integer",
+        exclusiveMinimum: 0,
+        maximum: 100_000,
+      },
+      idempotencyKey: {
+        type: "string",
+      },
+    });
+  });
+
+  it("returns forbidden when a read-only member runs a workflow", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "member",
+    );
+
+    const headers = await authenticatedMcpHeaders(memberIdentity);
 
     const response = await mcpClient.mcp.$post(
       {},
@@ -7569,7 +7718,14 @@ describe("mcpRoutes", () => {
             method: "tools/call",
             params: {
               name: "run_workflow",
-              arguments: {},
+              arguments: {
+                type: "string",
+                projectId: stored.project.id,
+                sourceText: "Welcome",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+                idempotencyKey: "mcp-forbidden-string-job",
+              },
             },
           }),
         },
@@ -7586,10 +7742,961 @@ describe("mcpRoutes", () => {
     };
 
     expect(body.result?.isError).toBe(true);
-
     expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
-      error: "not_implemented",
-      tool: "run_workflow",
+      error: "forbidden",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("returns project_not_found when run_workflow targets another organization", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: inaccessible.project.id,
+                sourceText: "Welcome",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+                idempotencyKey: "mcp-cross-org-string-job",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, inaccessible.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("returns project_not_found when run_workflow targets a missing project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const missingProjectId = crypto.randomUUID();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: missingProjectId,
+                sourceText: "Welcome",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it.each([
+    {
+      name: "source locale does not match the project",
+      sourceLocale: "de-DE",
+      targetLocales: ["fr-FR"],
+    },
+    {
+      name: "target locale is not configured on the project",
+      sourceLocale: "en-US",
+      targetLocales: ["ja-JP"],
+    },
+  ])("returns invalid_job_payload when $name", async ({ sourceLocale, targetLocales }) => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: stored.project.id,
+                sourceText: "Welcome",
+                sourceLocale,
+                targetLocales,
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "invalid_job_payload",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("does not create or enqueue a workflow when AI features are unavailable", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    ensureAiFeaturesAllowedMock.mockResolvedValueOnce(
+      err({
+        code: "ai_features_required",
+        message: "AI features are not included in your current plan.",
+      }),
+    );
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: stored.project.id,
+                sourceText: "Welcome",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "ai_features_required",
+      message: "AI features are not included in your current plan.",
+    });
+
+    const createdJobs = await db
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id));
+
+    expect(createdJobs).toEqual([]);
+    expect(translationJobEnqueueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns file_not_found when a workflow source file does not exist", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "file",
+                projectId: stored.project.id,
+                sourceFileId: "file_missing",
+                fileFormat: "json",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "file_not_found",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("returns file_not_found when a workflow source path does not exist", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "file",
+                projectId: stored.project.id,
+                sourcePath: "locales/missing.json",
+                fileFormat: "json",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "file_not_found",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("returns source_file_format_mismatch when the requested format does not match the file", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "file",
+                projectId: stored.project.id,
+                sourceFileId: sourceFile.id,
+                fileFormat: "xliff",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "source_file_format_mismatch",
+      expectedFileFormat: "json",
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(createdJob).toBeUndefined();
+  });
+
+  it("creates and enqueues a string translation workflow", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    translationJobEnqueueMock.mockResolvedValueOnce({
+      ids: ["workflow_run_mcp_string"],
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: stored.project.id,
+                sourceText: "Welcome to Hyperlocalise",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR", "de-DE"],
+                context: "Homepage heading",
+                maxLength: 80,
+                metadata: {
+                  surface: "mcp",
+                },
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    if (body.result?.isError) {
+      throw new Error(`run_workflow failed: ${body.result.content?.[0]?.text ?? "unknown error"}`);
+    }
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}") as {
+      jobId?: string;
+      type?: string;
+      status?: string;
+      workflowRunIds?: string[];
+    };
+
+    expect(output).toMatchObject({
+      jobId: expect.stringMatching(/^job_/),
+      type: "string",
+      status: "enqueued",
+      workflowRunIds: ["workflow_run_mcp_string"],
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+        organizationId: schema.jobs.organizationId,
+        projectId: schema.jobs.projectId,
+        kind: schema.jobs.kind,
+        status: schema.jobs.status,
+        inputPayload: schema.jobs.inputPayload,
+        workflowRunId: schema.jobs.workflowRunId,
+        interactionId: schema.jobs.interactionId,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, output.jobId ?? ""))
+      .limit(1);
+
+    expect(createdJob).toMatchObject({
+      id: output.jobId,
+      organizationId: globalThis.__testApiAuthContext?.organization.localOrganizationId,
+      projectId: stored.project.id,
+      kind: "translation",
+      status: "queued",
+      workflowRunId: "workflow_run_mcp_string",
+      inputPayload: {
+        sourceText: "Welcome to Hyperlocalise",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+        context: "Homepage heading",
+        maxLength: 80,
+        metadata: {
+          surface: "mcp",
+        },
+      },
+      interactionId: null,
+    });
+
+    const [details] = await db
+      .select({
+        type: schema.translationJobDetails.type,
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+      })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, output.jobId ?? ""))
+      .limit(1);
+
+    expect(details).toEqual({
+      type: "string",
+      sourceFileVersionId: null,
+    });
+
+    expect(translationJobEnqueueMock).toHaveBeenCalledTimes(1);
+    expect(translationJobEnqueueMock).toHaveBeenCalledWith({
+      kind: "translation",
+      jobId: output.jobId,
+      projectId: stored.project.id,
+      type: "string",
+    });
+  });
+
+  it("does not create or enqueue a duplicate workflow for the same idempotency key", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    translationJobEnqueueMock.mockResolvedValue({
+      ids: ["workflow_run_mcp_idempotent"],
+    });
+
+    const requestBody = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "run_workflow",
+        arguments: {
+          type: "string",
+          projectId: stored.project.id,
+          sourceText: "Welcome",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+          idempotencyKey: "mcp-idempotent-string-job",
+        },
+      },
+    });
+
+    const responses = await Promise.all([
+      mcpClient.mcp.$post(
+        {},
+        {
+          headers: {
+            ...headers,
+            accept: "application/json, text/event-stream",
+            "content-type": "application/json",
+          },
+          init: { body: requestBody },
+        },
+      ),
+      mcpClient.mcp.$post(
+        {},
+        {
+          headers: {
+            ...headers,
+            accept: "application/json, text/event-stream",
+            "content-type": "application/json",
+          },
+          init: { body: requestBody },
+        },
+      ),
+    ]);
+
+    const bodies = await Promise.all(
+      responses.map(
+        async (response) =>
+          (await response.json()) as {
+            result?: {
+              isError?: boolean;
+              content?: Array<{ text?: string }>;
+            };
+          },
+      ),
+    );
+
+    for (const body of bodies) {
+      if (body.result?.isError) {
+        throw new Error(
+          `run_workflow failed: ${body.result.content?.[0]?.text ?? "unknown error"}`,
+        );
+      }
+    }
+
+    const outputs = bodies.map(
+      (body) =>
+        JSON.parse(body.result?.content?.[0]?.text ?? "{}") as {
+          jobId?: string;
+        },
+    );
+
+    expect(outputs[0]?.jobId).toMatch(/^job_/);
+    expect(outputs[1]?.jobId).toBe(outputs[0]?.jobId);
+
+    const createdJobs = await db
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id));
+
+    expect(createdJobs).toEqual([{ id: outputs[0]?.jobId }]);
+    expect(translationJobEnqueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates and enqueues a file translation workflow resolved by sourcePath", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const storedFile = await insertStoredSourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+    });
+
+    const sourceVersion = await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath: "locales/en/messages.json",
+      uploadedByUserId: auth.user.localUserId,
+      uploadSurface: "mcp_test",
+    });
+
+    translationJobEnqueueMock.mockResolvedValueOnce({
+      ids: ["workflow_run_mcp_file"],
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "file",
+                projectId: stored.project.id,
+                sourcePath: "locales/en/messages.json",
+                fileFormat: "json",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+                metadata: {
+                  surface: "mcp",
+                },
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    if (body.result?.isError) {
+      throw new Error(`run_workflow failed: ${body.result.content?.[0]?.text ?? "unknown error"}`);
+    }
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}") as {
+      jobId?: string;
+      type?: string;
+      status?: string;
+      workflowRunIds?: string[];
+    };
+
+    expect(output).toMatchObject({
+      jobId: expect.stringMatching(/^job_/),
+      type: "file",
+      status: "enqueued",
+      workflowRunIds: ["workflow_run_mcp_file"],
+    });
+
+    const [createdJob] = await db
+      .select({
+        id: schema.jobs.id,
+        organizationId: schema.jobs.organizationId,
+        projectId: schema.jobs.projectId,
+        kind: schema.jobs.kind,
+        status: schema.jobs.status,
+        inputPayload: schema.jobs.inputPayload,
+        workflowRunId: schema.jobs.workflowRunId,
+        interactionId: schema.jobs.interactionId,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, output.jobId ?? ""))
+      .limit(1);
+
+    expect(createdJob).toMatchObject({
+      id: output.jobId,
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      kind: "translation",
+      status: "queued",
+      workflowRunId: "workflow_run_mcp_file",
+      interactionId: null,
+      inputPayload: {
+        sourceFileId: storedFile.id,
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        metadata: {
+          surface: "mcp",
+        },
+      },
+    });
+
+    const [details] = await db
+      .select({
+        type: schema.translationJobDetails.type,
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+      })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, output.jobId ?? ""))
+      .limit(1);
+
+    expect(details).toEqual({
+      type: "file",
+      sourceFileVersionId: sourceVersion.id,
+    });
+
+    expect(translationJobEnqueueMock).toHaveBeenCalledTimes(1);
+    expect(translationJobEnqueueMock).toHaveBeenCalledWith({
+      kind: "translation",
+      jobId: output.jobId,
+      projectId: stored.project.id,
+      type: "file",
+    });
+  });
+
+  it("marks the job failed when run_workflow cannot enqueue it", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    translationJobEnqueueMock.mockRejectedValueOnce(new Error("workflow service unavailable"));
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {
+                type: "string",
+                projectId: stored.project.id,
+                sourceText: "Welcome",
+                sourceLocale: "en-US",
+                targetLocales: ["fr-FR"],
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "job_queue_unavailable",
+    });
+
+    const [failedJob] = await db
+      .select({
+        id: schema.jobs.id,
+        kind: schema.jobs.kind,
+        status: schema.jobs.status,
+        lastError: schema.jobs.lastError,
+        workflowRunId: schema.jobs.workflowRunId,
+      })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, stored.project.id))
+      .limit(1);
+
+    expect(failedJob).toMatchObject({
+      id: expect.stringMatching(/^job_/),
+      kind: "translation",
+      status: "failed",
+      lastError: "workflow service unavailable",
+      workflowRunId: null,
+    });
+
+    expect(translationJobEnqueueMock).toHaveBeenCalledTimes(1);
+    expect(translationJobEnqueueMock).toHaveBeenCalledWith({
+      kind: "translation",
+      jobId: failedJob?.id,
+      projectId: stored.project.id,
+      type: "string",
     });
   });
 
