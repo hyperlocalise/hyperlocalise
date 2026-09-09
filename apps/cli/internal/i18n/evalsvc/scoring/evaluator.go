@@ -216,20 +216,21 @@ func analyzeScoringText(text string) scoringTextAnalysis {
 }
 
 func analyzeTags(tags []string) tagAnalysis {
+	// BOLT OPTIMIZATION: Avoid strings.ToLower allocation when checking "ui" and "forbidden:".
 	out := tagAnalysis{}
 	for _, tag := range tags {
-		normalizedTag := strings.ToLower(strings.TrimSpace(tag))
-		if normalizedTag == "" {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" {
 			continue
 		}
-		if normalizedTag == "ui" {
+		if strings.EqualFold(trimmed, "ui") {
 			out.hasUI = true
 			continue
 		}
-		if strings.HasPrefix(normalizedTag, "forbidden:") {
-			term := strings.TrimSpace(strings.TrimPrefix(normalizedTag, "forbidden:"))
+		if len(trimmed) > 10 && strings.EqualFold(trimmed[:10], "forbidden:") {
+			term := strings.TrimSpace(trimmed[10:])
 			if term != "" {
-				out.forbiddenTerms = append(out.forbiddenTerms, term)
+				out.forbiddenTerms = append(out.forbiddenTerms, strings.ToLower(term))
 			}
 		}
 	}
@@ -396,25 +397,100 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	return tokens, total
 }
 
+func formatICUBlockToken(block icuparser.BlockSignature) string {
+	neededLen := 10 + len(block.Arg) + 1 + len(block.Type) + 1
+	if block.Offset != 0 {
+		neededLen += 9 + 10
+	}
+	for i, opt := range block.Options {
+		if i > 0 {
+			neededLen++
+		}
+		neededLen += len(opt)
+	}
+
+	if neededLen <= 128 {
+		var buf [128]byte
+		n := copy(buf[0:], "icu-block:")
+		n += copy(buf[n:], block.Arg)
+		if block.Offset != 0 {
+			n += copy(buf[n:], "(offset:")
+			n += copy(buf[n:], strconv.Itoa(block.Offset))
+			n += copy(buf[n:], ")")
+		}
+		buf[n] = ':'
+		n++
+		n += copy(buf[n:], block.Type)
+		buf[n] = ':'
+		n++
+		for i, opt := range block.Options {
+			if i > 0 {
+				buf[n] = ','
+				n++
+			}
+			n += copy(buf[n:], opt)
+		}
+		return string(buf[:n])
+	}
+
+	var b strings.Builder
+	b.Grow(neededLen)
+	b.WriteString("icu-block:")
+	b.WriteString(block.Arg)
+	if block.Offset != 0 {
+		b.WriteString("(offset:")
+		b.WriteString(strconv.Itoa(block.Offset))
+		b.WriteString(")")
+	}
+	b.WriteString(":")
+	b.WriteString(block.Type)
+	b.WriteString(":")
+	for i, opt := range block.Options {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(opt)
+	}
+	return b.String()
+}
+
 func formatHTMLToken(raw string) string {
-	hasUpperOrNonASCII := false
+	// BOLT OPTIMIZATION: Fast-path formatting for ASCII HTML tokens using a stack buffer
+	// [128]byte to eliminate strings.Builder heap slice allocations for common HTML tokens.
+	hasUpper := false
+	hasNonASCII := false
 	for i := 0; i < len(raw); i++ {
 		c := raw[i]
-		if c >= 0x80 || (c >= 'A' && c <= 'Z') {
-			hasUpperOrNonASCII = true
+		if c >= 0x80 {
+			hasNonASCII = true
 			break
 		}
-	}
-	if !hasUpperOrNonASCII {
-		return "html:" + raw
-	}
-	for i := 0; i < len(raw); i++ {
-		if raw[i] >= 0x80 {
-			return "html:" + strings.ToLower(raw)
+		if c >= 'A' && c <= 'Z' {
+			hasUpper = true
 		}
 	}
+	if hasNonASCII {
+		return "html:" + strings.ToLower(raw)
+	}
+	if !hasUpper {
+		return "html:" + raw
+	}
+	n := 5 + len(raw)
+	if n <= 128 {
+		var buf [128]byte
+		copy(buf[0:], "html:")
+		for i := 0; i < len(raw); i++ {
+			c := raw[i]
+			if c >= 'A' && c <= 'Z' {
+				buf[5+i] = c + 32
+			} else {
+				buf[5+i] = c
+			}
+		}
+		return string(buf[:n])
+	}
 	var b strings.Builder
-	b.Grow(5 + len(raw))
+	b.Grow(n)
 	b.WriteString("html:")
 	for i := 0; i < len(raw); i++ {
 		c := raw[i]
@@ -533,26 +609,9 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 			total++
 		}
 		for _, block := range inv.ICUBlocks {
-			// BOLT OPTIMIZATION: Replaced dynamic concatenation and Join with a single pre-allocated strings.Builder.
-			var b strings.Builder
-			b.Grow(32 + len(block.Arg) + len(block.Type))
-			b.WriteString("icu-block:")
-			b.WriteString(block.Arg)
-			if block.Offset != 0 {
-				b.WriteString("(offset:")
-				b.WriteString(strconv.Itoa(block.Offset))
-				b.WriteString(")")
-			}
-			b.WriteString(":")
-			b.WriteString(block.Type)
-			b.WriteString(":")
-			for i, opt := range block.Options {
-				if i > 0 {
-					b.WriteByte(',')
-				}
-				b.WriteString(opt)
-			}
-			tokens[b.String()]++
+			// BOLT OPTIMIZATION: Use stack-allocated buffer for block tokens up to 128 bytes
+			// to avoid strings.Builder heap allocations.
+			tokens[formatICUBlockToken(block)]++
 			total++
 		}
 	}
