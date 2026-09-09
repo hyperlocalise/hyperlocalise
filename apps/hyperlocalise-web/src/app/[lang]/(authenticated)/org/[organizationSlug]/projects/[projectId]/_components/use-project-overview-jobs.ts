@@ -45,6 +45,7 @@ export function useProjectOverviewJobsQuery(
         const jobs = await fetchTmsProjectJobs(
           organizationSlug,
           parsedProviderProject.externalProjectId,
+          { recent: true },
         );
         return selectRecentProjectJobs(jobs, PROJECT_OVERVIEW_JOBS_LIMIT) as ApiJob[];
       }

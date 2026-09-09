@@ -72,13 +72,16 @@ export async function fetchNativeProjectJobs(
 export async function fetchTmsProjectJobs(
   organizationSlug: string,
   externalProjectId: string,
-  options?: { mine?: boolean },
+  options?: { mine?: boolean; recent?: boolean },
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
     ":externalProjectId"
   ].jobs.$get({
     param: { organizationSlug, externalProjectId },
-    query: { mine: options?.mine ? "true" : "false" },
+    query: {
+      mine: options?.mine ? "true" : "false",
+      recent: options?.recent ? "true" : "false",
+    },
   });
 
   return readTmsProviderListResponse<ProjectJobRecord>(response, "jobs", "Failed to load TMS jobs");

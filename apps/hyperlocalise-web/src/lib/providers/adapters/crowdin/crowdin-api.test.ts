@@ -1230,6 +1230,19 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("supports ordering project tasks by updatedAt", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+      expect(requestUrl.pathname).toBe("/api/v2/projects/1/tasks");
+      expect(requestUrl.searchParams.get("orderBy")).toBe("updatedAt desc");
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listTasks(1, { orderBy: "updatedAt desc" });
+  });
+
   it("lists user tasks with live list defaults", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

@@ -179,7 +179,7 @@ async function fetchTmsWorkspaceJobs(
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
     param: { organizationSlug },
-    query: { mine: mine ? "true" : "false" },
+    query: { mine: mine ? "true" : "false", recent: "false" },
   });
 
   return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
@@ -195,7 +195,7 @@ async function fetchTmsProjectJobs(
     ":externalProjectId"
   ].jobs.$get({
     param: { organizationSlug, externalProjectId },
-    query: { mine: mine ? "true" : "false" },
+    query: { mine: mine ? "true" : "false", recent: "false" },
   });
 
   return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);

@@ -114,6 +114,7 @@ function asJobTaskFetcher(provider: TmsProvider): ExternalTmsJobTaskFetcher {
       enrichResources: input.enrichResources,
       includeLocaleProgress: input.includeLocaleProgress,
       fetchAllTasks: input.fetchAllTasks,
+      orderByRecentActivity: input.orderByRecentActivity,
     });
 }
 

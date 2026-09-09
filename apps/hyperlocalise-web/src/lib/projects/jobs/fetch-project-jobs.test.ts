@@ -159,7 +159,18 @@ describe("fetchProjectJobs", () => {
 
     expect(tmsJobsGetMock).toHaveBeenCalledWith({
       param: { organizationSlug: "acme", externalProjectId: "902807" },
-      query: { mine: "true" },
+      query: { mine: "true", recent: "false" },
+    });
+  });
+
+  it("requests recent TMS project jobs ordered by provider activity", async () => {
+    tmsJobsGetMock.mockResolvedValue(jsonResponse({ jobs: [] }));
+
+    await fetchTmsProjectJobs("acme", "902807", { recent: true });
+
+    expect(tmsJobsGetMock).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", externalProjectId: "902807" },
+      query: { mine: "false", recent: "true" },
     });
   });
 

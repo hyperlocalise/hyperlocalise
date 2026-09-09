@@ -297,6 +297,9 @@ export class LokaliseTmsProvider extends TmsProvider {
     return tasks.map((task) => {
       const completedAtMs = getLokaliseTaskCompletionMs(task);
 
+      const createdAt = task.createdAt?.trim() || null;
+      const completedAt = completedAtMs != null ? new Date(completedAtMs).toISOString() : null;
+
       return {
         externalJobId: String(task.taskId),
         externalTaskId: null,
@@ -306,7 +309,9 @@ export class LokaliseTmsProvider extends TmsProvider {
         targetLocales: collectLokaliseTaskTargetLocales(task),
         assignedUsers: collectLokaliseTaskAssignees(task),
         externalUrl: buildLokaliseTaskUrl(scope.externalProjectId, task.taskId),
-        completedAt: completedAtMs != null ? new Date(completedAtMs).toISOString() : null,
+        createdAt,
+        updatedAt: completedAt ?? createdAt,
+        completedAt,
         providerPayload: {
           taskType: task.taskType,
           description: task.description,

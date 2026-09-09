@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 export const PROJECT_OVERVIEW_JOBS_LIMIT = 5;
 
@@ -43,10 +44,8 @@ function projectOverviewJobKindFromStatus(status: ApiJob["status"]): ProjectOver
       return "succeeded";
     case "cancelled":
       return "cancelled";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
+    default:
+      return assertNever(status);
   }
 }
 

@@ -66,6 +66,10 @@ const mineQuerySchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((value) => value === "true"),
+  recent: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
 });
 
 const externalProjectIdQuerySchema = z.object({
@@ -316,6 +320,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
             mine: query.mine,
             assigneeCandidates,
             actorUserId: c.var.auth.user.localUserId,
+            orderByRecentActivity: query.recent,
           },
         );
         return c.json({ jobs }, 200);

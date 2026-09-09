@@ -714,13 +714,66 @@ function normalizeExternalTimestamp(value: Date | string | null | undefined): st
   return null;
 }
 
+const UNKNOWN_LIVE_JOB_ACTIVITY_AT = "1970-01-01T00:00:00.000Z";
+
+function readProviderPayloadTimestamp(
+  payload: Record<string, unknown> | undefined,
+  keys: readonly string[],
+): string | null {
+  if (!payload) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const normalized = normalizeExternalTimestamp(payload[key] as Date | string | null | undefined);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+function resolveLiveJobTimestamps(task: ExternalTmsJobTaskMetadata): {
+  createdAt: string;
+  updatedAt: string;
+} {
+  const updatedAt =
+    normalizeExternalTimestamp(task.updatedAt) ??
+    normalizeExternalTimestamp(task.completedAt) ??
+    readProviderPayloadTimestamp(task.providerPayload, [
+      "updatedAt",
+      "modifiedDate",
+      "dateModified",
+      "completedAt",
+    ]) ??
+    normalizeExternalTimestamp(task.createdAt) ??
+    readProviderPayloadTimestamp(task.providerPayload, [
+      "createdAt",
+      "createdDate",
+      "dateCreated",
+    ]) ??
+    UNKNOWN_LIVE_JOB_ACTIVITY_AT;
+
+  const createdAt =
+    normalizeExternalTimestamp(task.createdAt) ??
+    readProviderPayloadTimestamp(task.providerPayload, [
+      "createdAt",
+      "createdDate",
+      "dateCreated",
+    ]) ??
+    updatedAt;
+
+  return { createdAt, updatedAt };
+}
+
 function mapLiveJob(input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
   projectName: string;
   task: ExternalTmsJobTaskMetadata;
 }): TmsProviderLiveJob {
-  const timestamp = new Date().toISOString();
+  const { createdAt, updatedAt } = resolveLiveJobTimestamps(input.task);
   const status = mapProviderStatusToNormalized(input.providerKind, input.task.externalStatus);
   const targetLocales = input.task.targetLocales ?? [];
   const assignedUsers = input.task.assignedUsers ?? [];
@@ -746,8 +799,8 @@ function mapLiveJob(input: {
     kind: input.task.kind ?? "translation",
     type: null,
     status,
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    createdAt,
+    updatedAt,
     completedAt:
       status === "succeeded" || status === "failed"
         ? normalizeExternalTimestamp(input.task.completedAt)
@@ -1977,6 +2030,7 @@ export async function listTmsProviderLiveJobsForProject(
     projects?: ExternalTmsProjectMetadata[];
     actorUserId?: string | null;
     enrichResources?: boolean;
+    orderByRecentActivity?: boolean;
   },
 ): Promise<TmsProviderLiveJob[]> {
   const context =
@@ -2029,6 +2083,7 @@ export async function listTmsProviderLiveJobsForProject(
       project: liveProject,
       secretMaterial: context.secretMaterial,
       enrichResources: options?.enrichResources ?? false,
+      orderByRecentActivity: options?.orderByRecentActivity ?? false,
     });
   } catch (error) {
     rethrowProviderFetcherError(error);
@@ -3266,6 +3321,8 @@ function mapSmartlingJobToLiveTaskMetadata(input: {
     dueDate: input.job.dueDate ? new Date(input.job.dueDate) : null,
     targetLocales: input.job.targetLocaleIds,
     assignedUsers: [],
+    createdAt: input.job.createdDate?.trim() || null,
+    updatedAt: input.job.modifiedDate?.trim() || input.job.createdDate?.trim() || null,
     externalUrl: `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(input.projectDetails.accountUid)}/project/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.job.translationJobUid)}`,
     providerPayload: {
       description: input.job.description,

@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -94,10 +95,8 @@ function jobStatusLabel(kind: ProjectOverviewJobKind, intl: ReturnType<typeof us
       return intl.formatMessage(messages.statusCancelled);
     case "guidance":
       return intl.formatMessage(messages.statusGuidance);
-    default: {
-      const _exhaustive: never = kind;
-      return _exhaustive;
-    }
+    default:
+      return assertNever(kind);
   }
 }
 
@@ -116,10 +115,8 @@ function jobStatusClassName(kind: ProjectOverviewJobKind) {
       return "text-muted-foreground";
     case "guidance":
       return "text-muted-foreground";
-    default: {
-      const _exhaustive: never = kind;
-      return _exhaustive;
-    }
+    default:
+      return assertNever(kind);
   }
 }
 
