@@ -7,7 +7,7 @@ description: "Lokalise file workflow commands using project flags and API creden
 
 ```bash
 hyperlocalise lokalise upload sources --project-id <id> --source-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--skip-detect-lang-iso] [--dry-run]
-hyperlocalise lokalise upload translations [--config <path>] --project-id <id> --target-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--dry-run]
+hyperlocalise lokalise upload translations [--config <path>] [--project-id <id>] --target-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--dry-run]
 hyperlocalise lokalise download sources --project-id <id> --source-locale <locale> [--format <format>] [--output <path>] [--all-platforms] [--force] [--dry-run]
 hyperlocalise lokalise download translations --project-id <id> --target-locale <locale> [--format <format>] [--output <path>] [--bundle-structure <pattern>] [--branch <name>] [--force] [--dry-run]
 hyperlocalise lokalise glossary download --project-id <id> [--language <locale>] [--output <path>] [--token-env <name>] [--api-base-url <url>]

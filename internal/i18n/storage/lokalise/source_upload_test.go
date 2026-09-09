@@ -134,6 +134,9 @@ func TestUploadSourceFileOmitsEmptyTags(t *testing.T) {
 		if _, exists := body["tags"]; exists {
 			t.Fatalf("tags should be omitted when empty, got body: %#v", body)
 		}
+		if _, exists := body["convert_placeholders"]; exists {
+			t.Fatalf("convert_placeholders should be omitted for source uploads when unset, got body: %#v", body)
+		}
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(map[string]any{"process": map[string]any{"process_id": "proc-no-tags", "status": "queued"}})
 	})

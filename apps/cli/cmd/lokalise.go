@@ -837,7 +837,7 @@ func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTrans
 	}
 	processed := 0
 	for _, file := range files {
-		result, err := client.UploadTranslationFile(backgroundContext(), lokalise.TranslationUploadInput{
+		result, err := client.UploadTranslationFile(cmd.Context(), lokalise.TranslationUploadInput{
 			ProjectID:           cfg.ProjectID,
 			TargetLocale:        targetLocale,
 			FilePath:            file,

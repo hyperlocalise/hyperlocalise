@@ -65,13 +65,14 @@ type lokaliseFileUploadRequest struct {
 	LangISO  string   `json:"lang_iso"`
 	Format   string   `json:"format,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
-	// Always send convert_placeholders. Lokalise defaults omitted values to true.
-	ConvertPlaceholders bool `json:"convert_placeholders"`
-	ReplaceModified     bool `json:"replace_modified,omitempty"`
-	DistinguishByFile   bool `json:"distinguish_by_file,omitempty"`
-	ApplyTM             bool `json:"apply_tm,omitempty"`
-	SkipDetectLangISO   bool `json:"skip_detect_lang_iso,omitempty"`
-	Queue               bool `json:"queue"`
+	// Translation uploads always send this so Lokalise cannot default it to true.
+	// Source uploads omit false so existing --convert-placeholders-off behavior stays Lokalise's default.
+	ConvertPlaceholders *bool `json:"convert_placeholders,omitempty"`
+	ReplaceModified     bool  `json:"replace_modified,omitempty"`
+	DistinguishByFile   bool  `json:"distinguish_by_file,omitempty"`
+	ApplyTM             bool  `json:"apply_tm,omitempty"`
+	SkipDetectLangISO   bool  `json:"skip_detect_lang_iso,omitempty"`
+	Queue               bool  `json:"queue"`
 }
 
 type lokaliseFileUploadResponse struct {
@@ -181,7 +182,7 @@ func (c *HTTPClient) uploadLocalizationFile(ctx context.Context, in lokaliseFile
 		LangISO:             strings.TrimSpace(in.Locale),
 		Format:              format,
 		Tags:                normalizeLokaliseUploadTags(in.Tags),
-		ConvertPlaceholders: in.ConvertPlaceholders,
+		ConvertPlaceholders: lokaliseConvertPlaceholdersValue(kind, in.ConvertPlaceholders),
 		ReplaceModified:     in.ReplaceModified,
 		DistinguishByFile:   in.DistinguishByFile,
 		ApplyTM:             in.ApplyTM,
@@ -293,6 +294,14 @@ func resolveLokaliseUploadFormat(path, override, op string) (string, error) {
 		return "", fmt.Errorf("%s: could not determine file format for %q: no file extension and no format override provided", op, path)
 	}
 	return ext, nil
+}
+
+func lokaliseConvertPlaceholdersValue(kind string, convert bool) *bool {
+	if kind != "translation" && !convert {
+		return nil
+	}
+	value := convert
+	return &value
 }
 
 func lokaliseProjectPathSegment(projectID, branch string) string {
