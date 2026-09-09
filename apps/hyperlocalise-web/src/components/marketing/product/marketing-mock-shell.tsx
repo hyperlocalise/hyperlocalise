@@ -28,6 +28,7 @@ export function MarketingMockShell({
   priority = false,
   variant = "full",
   meshPosition = "left",
+  showMesh = true,
   className,
 }: {
   visual: ReactNode;
@@ -37,6 +38,7 @@ export function MarketingMockShell({
   priority?: boolean;
   variant?: MarketingMockVariant;
   meshPosition?: MarketingMockMeshPosition;
+  showMesh?: boolean;
   className?: string;
 }) {
   const showSidebar = variant === "full" && sidebar && !aside;
@@ -52,16 +54,20 @@ export function MarketingMockShell({
         meshOnRight && isSplit && "md:border-l md:border-border",
       )}
     >
-      <Image
-        src={meshSrc}
-        alt=""
-        aria-hidden
-        fill
-        priority={priority}
-        sizes={isSplit ? "(min-width: 768px) 36rem, 100vw" : "100vw"}
-        className="pointer-events-none object-cover object-center"
-      />
-      {isSplit ? (
+      {showMesh ? (
+        <Image
+          src={meshSrc}
+          alt=""
+          aria-hidden
+          fill
+          priority={priority}
+          sizes={isSplit ? "(min-width: 768px) 36rem, 100vw" : "100vw"}
+          className="pointer-events-none object-cover object-center"
+        />
+      ) : (
+        <div aria-hidden className="absolute inset-0 bg-muted/40" />
+      )}
+      {showMesh && isSplit ? (
         <div
           aria-hidden
           className={cn(

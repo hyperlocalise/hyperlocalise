@@ -31,6 +31,8 @@ import { MarketingMockUseCaseSelector } from "./marketing-mock-use-case-selector
 
 type SceneId = "flags" | "experiments" | "audiences";
 
+export type HyperlabSceneId = SceneId;
+
 const SCENE_HOLD_MS = 3200;
 const ROLLOUT_STEP_MS = 700;
 
@@ -64,7 +66,7 @@ function MockNav({ active }: { active: SceneId }) {
   );
 }
 
-function FlagsPanel() {
+export function HyperlabFlagsPanel() {
   const intl = useIntl();
 
   const flags = useMemo(
@@ -128,7 +130,7 @@ function FlagsPanel() {
   );
 }
 
-function ExperimentsPanel({ rolloutPercent }: { rolloutPercent: number }) {
+export function HyperlabExperimentsPanel({ rolloutPercent }: { rolloutPercent: number }) {
   const intl = useIntl();
 
   const variants = useMemo(
@@ -189,7 +191,7 @@ function ExperimentsPanel({ rolloutPercent }: { rolloutPercent: number }) {
   );
 }
 
-function AudiencesPanel({ showEvaluate }: { showEvaluate: boolean }) {
+export function HyperlabAudiencesPanel({ showEvaluate }: { showEvaluate: boolean }) {
   const intl = useIntl();
 
   return (
@@ -251,6 +253,8 @@ export function HyperlabMockUI({
   variant = "full",
   aside,
   meshPosition = "left",
+  showMesh = true,
+  className,
 }: {
   priority?: boolean;
   pauseAutoplay?: boolean;
@@ -258,6 +262,8 @@ export function HyperlabMockUI({
   variant?: MarketingMockVariant;
   aside?: ReactNode;
   meshPosition?: MarketingMockMeshPosition;
+  showMesh?: boolean;
+  className?: string;
 }) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
@@ -352,11 +358,13 @@ export function HyperlabMockUI({
         transition={{ duration: 0.32, ease: [0.19, 1, 0.22, 1] }}
         className="w-full"
       >
-        {activeScene === "flags" ? <FlagsPanel /> : null}
+        {activeScene === "flags" ? <HyperlabFlagsPanel /> : null}
         {activeScene === "experiments" ? (
-          <ExperimentsPanel rolloutPercent={rolloutPercent} />
+          <HyperlabExperimentsPanel rolloutPercent={rolloutPercent} />
         ) : null}
-        {activeScene === "audiences" ? <AudiencesPanel showEvaluate={showEvaluate} /> : null}
+        {activeScene === "audiences" ? (
+          <HyperlabAudiencesPanel showEvaluate={showEvaluate} />
+        ) : null}
       </motion.div>
     </AnimatePresence>
   );
@@ -396,6 +404,8 @@ export function HyperlabMockUI({
       priority={priority}
       variant={variant}
       meshPosition={meshPosition}
+      showMesh={showMesh}
+      className={className}
     />
   );
 }

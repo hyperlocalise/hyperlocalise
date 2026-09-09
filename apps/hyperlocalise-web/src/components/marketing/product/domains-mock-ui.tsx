@@ -30,7 +30,9 @@ import { MarketingMockUseCaseSelector } from "./marketing-mock-use-case-selector
 
 type AuditFocus = "localisation" | "seo" | "aeo";
 
-function DomainsAuditDashboard({ focus }: { focus: AuditFocus }) {
+export type DomainsAuditFocus = AuditFocus;
+
+export function DomainsAuditDashboard({ focus }: { focus: AuditFocus }) {
   const intl = useIntl();
 
   const dimensions = useMemo(
@@ -166,6 +168,8 @@ export function DomainsMockUI({
   variant = "full",
   aside,
   meshPosition = "left",
+  showMesh = true,
+  className,
 }: {
   priority?: boolean;
   pauseAutoplay?: boolean;
@@ -173,6 +177,8 @@ export function DomainsMockUI({
   variant?: MarketingMockVariant;
   aside?: ReactNode;
   meshPosition?: MarketingMockMeshPosition;
+  showMesh?: boolean;
+  className?: string;
 }) {
   const intl = useIntl();
 
@@ -241,6 +247,8 @@ export function DomainsMockUI({
       priority={priority}
       variant={variant}
       meshPosition={meshPosition}
+      showMesh={showMesh}
+      className={className}
     />
   );
 }

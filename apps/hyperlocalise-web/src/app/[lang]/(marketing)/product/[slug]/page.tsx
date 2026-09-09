@@ -15,7 +15,9 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { ProductPage } from "@/components/marketing/product/product-page";
+import { DomainsPage } from "@/components/marketing/product/domains-page";
 import { GuidelinesPage } from "@/components/marketing/product/guidelines-page";
+import { HyperlabPage } from "@/components/marketing/product/hyperlab-page";
 import { MultilingualContentStudioPage } from "@/components/marketing/product/multilingual-content-studio-page";
 import {
   productPagesBySlug,
@@ -105,6 +107,14 @@ async function ProductRouteContent({ params }: ProductRouteProps) {
 
   if (slug === "guidelines") {
     return <GuidelinesPage />;
+  }
+
+  if (slug === "domains") {
+    return <DomainsPage />;
+  }
+
+  if (slug === "hyperlab") {
+    return <HyperlabPage />;
   }
   const content = productPagesBySlug[slug as keyof typeof productPagesBySlug];
 

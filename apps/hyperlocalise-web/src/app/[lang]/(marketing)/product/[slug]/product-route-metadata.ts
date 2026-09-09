@@ -56,6 +56,34 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
           description: "Meta description for the Guidelines product page",
         }),
       };
+    case "domains":
+      return {
+        title: intl.formatMessage({
+          defaultMessage: "Publish Once. Get Found Everywhere. | Hyperlocalise",
+          id: "0wVg6cogQx",
+          description: "Page title for the Domains product page",
+        }),
+        description: intl.formatMessage({
+          defaultMessage:
+            "Publish multilingual pages, then check localisation, search, and AI answers so people can find them in every market.",
+          id: "HdHkhWUK6b",
+          description: "Meta description for the Domains product page",
+        }),
+      };
+    case "hyperlab":
+      return {
+        title: intl.formatMessage({
+          defaultMessage: "Try It in One Market. Keep What Works. | Hyperlocalise",
+          id: "t6xBRSvtG0",
+          description: "Page title for the Hyperlab product page",
+        }),
+        description: intl.formatMessage({
+          defaultMessage:
+            "Run market experiments and show different features by country. Hyperlab tells you what works, then you take that version everywhere.",
+          id: "EKVrW1yga/",
+          description: "Meta description for the Hyperlab product page",
+        }),
+      };
     default:
       return null;
   }

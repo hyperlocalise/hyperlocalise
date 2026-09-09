@@ -12,8 +12,30 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { productPagesBySlug } from "./product-page-content";
+import { productFooterLinks, productPagesBySlug, productSlugs } from "./product-page-content";
 import { productPageMessages } from "./product-page-content.messages";
+
+describe("product page content", () => {
+  it("includes a marketing page for every product pillar", () => {
+    expect(productSlugs).toEqual([
+      "agents-automation",
+      "multilingual-content-studio",
+      "domains",
+      "hyperlab",
+      "guidelines",
+    ]);
+  });
+
+  it("exposes footer links for Domains and Hyperlab", () => {
+    expect(productFooterLinks.map((link) => link.href)).toEqual([
+      "/product/agents-automation",
+      "/product/multilingual-content-studio",
+      "/product/domains",
+      "/product/hyperlab",
+      "/product/guidelines",
+    ]);
+  });
+});
 
 describe("agents automation product copy", () => {
   it("names the product as a workflow for multilingual content operations", () => {

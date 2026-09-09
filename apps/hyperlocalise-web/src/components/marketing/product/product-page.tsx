@@ -29,8 +29,10 @@ import type { ProductPageContent } from "./product-page-content";
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { AutomationHowItWorksIntegrations } from "./automation-how-it-works-integrations";
 import { AutomationsMockUI } from "./automations-mock-ui";
+import { DomainsMockUI } from "./domains-mock-ui";
 import { GlobeHeroVisual } from "./globe-hero-visual";
 import { GuidelineMockUI } from "./guideline-mock-ui";
+import { HyperlabMockUI } from "./hyperlab-mock-ui";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { KnowledgeHero } from "./knowledge-hero";
 import { KnowledgeMockUI } from "./knowledge-mock-ui";
@@ -144,6 +146,22 @@ function ProductShowcase({ content }: ProductPageProps) {
             <KnowledgeMockUI />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (content.visualKind === "domains") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <DomainsMockUI priority />
+      </div>
+    );
+  }
+
+  if (content.visualKind === "hyperlab") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <HyperlabMockUI priority />
       </div>
     );
   }
