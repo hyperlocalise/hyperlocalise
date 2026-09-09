@@ -37,7 +37,7 @@ export const navbarMessages = defineMessages({
   },
   navResourcesHeading: {
     defaultMessage: "Explore",
-    id: 'pgDkQXMb01',
+    id: "pgDkQXMb01",
     description: "Category heading above resource links in the marketing navbar mega-menu",
   },
   navLegalHeading: {
