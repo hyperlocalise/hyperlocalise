@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { imageViewerMessages } from "./content-editor-image-viewer.messages";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -41,20 +42,24 @@ export function ContentEditorFileGenerateDialog({
   viewerId,
   isSubmitting = false,
   onSubmit,
+  imageContext,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "generate" | "regenerate";
   viewerId: ContentEditorFileViewerId | null;
   isSubmitting?: boolean;
+  imageContext?: { targetLocale: string; layerCount: number; hasUnsavedLayers: boolean };
   onSubmit: (instructions: string) => void | Promise<void>;
 }) {
   const intl = useIntl();
+  const [failed, setFailed] = useState(false);
   const [instructions, setInstructions] = useState("");
 
   useEffect(() => {
     if (!open) {
       setInstructions("");
+      setFailed(false);
     }
   }, [open]);
 
@@ -68,35 +73,74 @@ export function ContentEditorFileGenerateDialog({
       : contentEditorFileViewMessages.regenerate;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!isSubmitting) onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            <FormattedMessage {...titleMessage} />
+            <FormattedMessage
+              {...(imageContext
+                ? mode === "generate"
+                  ? imageViewerMessages.localise
+                  : imageViewerMessages.regenerate
+                : titleMessage)}
+            />
           </DialogTitle>
           <DialogDescription>
-            <FormattedMessage {...contentEditorFileViewMessages.generateDialogDescription} />
+            {imageContext ? (
+              <FormattedMessage
+                {...imageViewerMessages.generateDescription}
+                values={{ locale: imageContext.targetLocale }}
+              />
+            ) : (
+              <FormattedMessage {...contentEditorFileViewMessages.generateDialogDescription} />
+            )}
           </DialogDescription>
         </DialogHeader>
+        {imageContext ? (
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              {...(imageContext.layerCount
+                ? imageViewerMessages.layerContext
+                : imageViewerMessages.noLayerContext)}
+              values={{ count: imageContext.layerCount }}
+            />
+          </p>
+        ) : null}
         <div className="space-y-2">
           <label
             htmlFor="content-editor-file-generate-instructions"
             className="text-sm font-medium text-foreground"
           >
-            <FormattedMessage {...contentEditorFileViewMessages.generatePromptLabel} />
+            <FormattedMessage
+              {...(imageContext
+                ? imageViewerMessages.additionalInstructions
+                : contentEditorFileViewMessages.generatePromptLabel)}
+            />
           </label>
           <Textarea
             id="content-editor-file-generate-instructions"
             value={instructions}
             onChange={(event) => setInstructions(event.currentTarget.value)}
             placeholder={intl.formatMessage(
-              contentEditorFileGeneratePromptPlaceholderMessage(viewerId),
+              imageContext
+                ? imageViewerMessages.additionalPlaceholder
+                : contentEditorFileGeneratePromptPlaceholderMessage(viewerId),
             )}
             rows={5}
             disabled={isSubmitting}
             className="resize-y"
           />
         </div>
+        {failed ? (
+          <p role="alert" className="text-sm text-destructive">
+            <FormattedMessage {...imageViewerMessages.generationError} />
+          </p>
+        ) : null}
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             type="button"
@@ -109,10 +153,29 @@ export function ContentEditorFileGenerateDialog({
           <Button
             type="button"
             disabled={isSubmitting}
-            onClick={() => void onSubmit(instructions.trim())}
+            onClick={async () => {
+              setFailed(false);
+              try {
+                await onSubmit(instructions.trim());
+              } catch {
+                setFailed(true);
+              }
+            }}
           >
             {isSubmitting ? <Spinner className="size-4" /> : null}
-            <FormattedMessage {...submitMessage} />
+            <FormattedMessage
+              {...(imageContext
+                ? isSubmitting
+                  ? imageViewerMessages.localising
+                  : imageContext.hasUnsavedLayers
+                    ? mode === "generate"
+                      ? imageViewerMessages.saveLocalise
+                      : imageViewerMessages.saveRegenerate
+                    : mode === "generate"
+                      ? imageViewerMessages.localise
+                      : imageViewerMessages.regenerate
+                : submitMessage)}
+            />
           </Button>
         </DialogFooter>
       </DialogContent>

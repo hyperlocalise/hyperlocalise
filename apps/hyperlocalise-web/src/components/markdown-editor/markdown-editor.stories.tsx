@@ -52,7 +52,7 @@ function MarkdownEditorHost({
   onChange = fn(),
 }: {
   initialValue: string;
-  chrome?: "default" | "minimal";
+  chrome?: "default" | "minimal" | "document";
   compact?: boolean;
   imageUpload?: { organizationSlug: string; projectId?: string | null } | null;
   onChange?: (value: string) => void;

@@ -138,6 +138,7 @@ Translate this paragraph.
       </ContentEditorTestProviders>,
     );
 
+    await user.click(await screen.findByRole("button", { name: "Details" }));
     const titleField = await screen.findByLabelText("title");
     const saveButton = screen.getByRole("button", { name: /save edits/i });
     expect(saveButton).toBeDisabled();
@@ -179,6 +180,7 @@ Translate this paragraph.
       </ContentEditorTestProviders>,
     );
 
+    await user.click(await screen.findByRole("button", { name: "Edit code" }));
     const editor = await screen.findByLabelText("Translated document");
     const saveButton = screen.getByRole("button", { name: /save edits/i });
     expect(editor).toHaveValue(mdxBody);
@@ -225,14 +227,53 @@ description: Intro
       </ContentEditorTestProviders>,
     );
 
+    await user.click(await screen.findByRole("button", { name: "Details" }));
     const titleField = await screen.findByLabelText("title");
     expect(titleField).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: /Document properties/i }));
-    expect(titleField).not.toBeVisible();
+    await user.click(screen.getByRole("button", { name: /^Details$/i }));
+    expect(screen.queryByLabelText("title")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Document properties/i }));
+    await user.click(screen.getByRole("button", { name: /^Details$/i }));
     expect(screen.getByLabelText("title")).toBeVisible();
+  });
+
+  it("tracks the first body edit and keeps edits after a failed save", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("# Guide\n\nOriginal paragraph.\n")),
+    );
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("upload_failed"))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorDocumentFileViewerPane
+          role="target"
+          src="https://example.com/guide.md"
+          filename="guide.md"
+          onSave={onSave}
+        />
+      </ContentEditorTestProviders>,
+    );
+    const editor = await screen.findByLabelText("Translated document");
+    const save = screen.getByRole("button", { name: /save edits/i });
+    await waitFor(() => expect(save).toBeDisabled());
+    await user.click(editor);
+    await user.keyboard("!");
+    expect(save).toBeEnabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Unsaved changes");
+    await user.click(save);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your edits are still here");
+    expect(save).toBeEnabled();
+    await user.click(save);
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(screen.getByRole("status")).toHaveTextContent("Saved");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const saved = await (onSave.mock.calls[1][0] as File).text();
+    expect(saved).toContain("!");
   });
 
   it("renders read-only panes as a formatted preview instead of raw markup", async () => {

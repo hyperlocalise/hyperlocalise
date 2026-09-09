@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { generateImageMock, getManagedImageModelMock } = vi.hoisted(() => ({
   generateImageMock: vi.fn(),
-  getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2"),
+  getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
 }));
 
 vi.mock("ai", async () => {
@@ -53,7 +53,7 @@ describe("image generation", () => {
     expect(getManagedImageModelMock).toHaveBeenCalledOnce();
     expect(generateImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "openai/gpt-image-2",
+        model: "openai/gpt-image-2.5-flare",
         prompt: {
           images: [Buffer.from("source")],
           text: "Localize this screenshot into Japanese",

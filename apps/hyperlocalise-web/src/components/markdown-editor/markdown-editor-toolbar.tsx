@@ -12,6 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ReactNode } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  TextBoldIcon,
+  TextItalicIcon,
+  LeftToRightListBulletIcon,
+  LeftToRightListNumberIcon,
+  LeftToRightBlockQuoteIcon,
+  SourceCodeIcon,
+  Image01Icon,
+} from "@hugeicons/core-free-icons";
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useIntl } from "react-intl";
@@ -47,7 +58,7 @@ function MarkdownToolbarButton({
   disabled = false,
   onClick,
 }: {
-  label: string;
+  label: ReactNode;
   title: string;
   pressed?: boolean;
   disabled?: boolean;
@@ -95,12 +106,14 @@ async function insertImageViaToolbar(
 export function MarkdownEditorToolbar({
   editor,
   disabled,
+  document = false,
   imageUpload = null,
   uploadImageFiles = null,
   isUploadingImage = false,
 }: {
   editor: Editor;
   disabled: boolean;
+  document?: boolean;
   imageUpload?: MarkdownEditorImageUploadConfig | null;
   uploadImageFiles?: MarkdownEditorUploadImageFiles | null;
   isUploadingImage?: boolean;
@@ -124,17 +137,32 @@ export function MarkdownEditorToolbar({
   return (
     <div
       data-markdown-toolbar=""
-      className="flex flex-wrap items-center gap-1 border-b border-border bg-muted px-2 py-1.5"
+      className={cn(
+        "flex flex-wrap items-center gap-1 border-b border-border bg-muted px-2 py-1.5",
+        document && "sticky top-0 z-10 justify-center bg-background py-2",
+      )}
     >
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.boldLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={TextBoldIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.boldLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.boldTitle)}
         pressed={activeMarks.bold}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleBold().run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.italicLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={TextItalicIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.italicLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.italicTitle)}
         pressed={activeMarks.italic}
         disabled={isDisabled}
@@ -155,35 +183,65 @@ export function MarkdownEditorToolbar({
         onClick={() => markdownCommandChain(editor).toggleHeading({ level: 3 }).run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.bulletListLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={LeftToRightListBulletIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.bulletListLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.bulletListTitle)}
         pressed={activeMarks.bulletList}
         disabled={isDisabled}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.orderedListLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={LeftToRightListNumberIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.orderedListLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.orderedListTitle)}
         pressed={activeMarks.orderedList}
         disabled={isDisabled}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.blockquoteLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={LeftToRightBlockQuoteIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.blockquoteLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.blockquoteTitle)}
         pressed={activeMarks.blockquote}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleBlockquote().run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.codeLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={SourceCodeIcon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.codeLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.codeTitle)}
         pressed={activeMarks.code}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleCode().run()}
       />
       <MarkdownToolbarButton
-        label={intl.formatMessage(markdownEditorMessages.imageLabel)}
+        label={
+          document ? (
+            <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
+          ) : (
+            intl.formatMessage(markdownEditorMessages.imageLabel)
+          )
+        }
         title={intl.formatMessage(markdownEditorMessages.imageTitle)}
         disabled={isDisabled || isUploadingImage}
         onClick={() => {

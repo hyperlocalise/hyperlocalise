@@ -17,6 +17,56 @@ import { defineMessages } from "react-intl";
 import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 
 export const contentEditorFileViewMessages = defineMessages({
+  documentDetails: {
+    defaultMessage: "Details",
+    id: "DuOVHqu/z3",
+    description: "Toggle document metadata",
+  },
+  compareOriginal: {
+    defaultMessage: "Compare original",
+    id: "PDhvQYumrb",
+    description: "Show original document alongside translation",
+  },
+  closeComparison: {
+    defaultMessage: "Close comparison",
+    id: "kF7pSDBwvM",
+    description: "Hide original document",
+  },
+  editCode: {
+    defaultMessage: "Edit code",
+    id: "AR/dTo8a7G",
+    description: "Open lossless MDX code editor",
+  },
+  previewDocument: {
+    defaultMessage: "Preview",
+    id: "NWFVWNQUvP",
+    description: "Show formatted MDX preview",
+  },
+  documentSaved: {
+    defaultMessage: "Saved",
+    id: "gUKW7EFmrx",
+    description: "Document save status",
+  },
+  documentUnsaved: {
+    defaultMessage: "Unsaved changes",
+    id: "rGLAOwkIrN",
+    description: "Document has unsaved edits",
+  },
+  documentSaving: {
+    defaultMessage: "Saving…",
+    id: "hPWS0NM0rZ",
+    description: "Document save in progress",
+  },
+  documentSaveFailed: {
+    defaultMessage: "Could not save. Your edits are still here. Try again.",
+    id: "8phtSbJ8pM",
+    description: "Document save failure",
+  },
+  documentActions: {
+    defaultMessage: "File actions",
+    id: "zJSyjlltSO",
+    description: "Supplementary document actions menu",
+  },
   sourceHeading: {
     defaultMessage: "Source ({locale})",
     id: "LZCFkSSHP6",

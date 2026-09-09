@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createProjectImageTextLayerRoutes } from "./project-image-text-layers.route";
+
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
@@ -43,10 +45,9 @@ type CreateProjectAssetRoutesOptions = {
 };
 
 export function createProjectAssetRoutes(options: CreateProjectAssetRoutesOptions = {}) {
-  return new Hono<{ Variables: AuthVariables }>().get(
-    "/:fileId",
-    validateProjectAssetParams,
-    async (c) => {
+  return new Hono<{ Variables: AuthVariables }>()
+    .route("/", createProjectImageTextLayerRoutes(options))
+    .get("/:fileId", validateProjectAssetParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
 
@@ -106,6 +107,5 @@ export function createProjectAssetRoutes(options: CreateProjectAssetRoutesOption
       c.header("Cache-Control", "private, max-age=60");
 
       return c.body(storedObject.body);
-    },
-  );
+    });
 }

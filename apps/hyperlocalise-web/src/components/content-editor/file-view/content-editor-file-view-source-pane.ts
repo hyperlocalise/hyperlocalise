@@ -17,12 +17,12 @@ import {
 
 export const CAT_FILE_VIEW_SOURCE_PANE_STORAGE_KEY = "content-editor-file-view:source-pane:v1";
 
-export function readCatFileViewSourcePaneVisible() {
+export function readCatFileViewSourcePaneVisible(defaultVisible = true) {
   const stored = readBrowserLocalStorageItem(CAT_FILE_VIEW_SOURCE_PANE_STORAGE_KEY);
   if (stored === "false") {
     return false;
   }
-  return true;
+  return stored === "true" ? true : defaultVisible;
 }
 
 export function writeCatFileViewSourcePaneVisible(visible: boolean) {
