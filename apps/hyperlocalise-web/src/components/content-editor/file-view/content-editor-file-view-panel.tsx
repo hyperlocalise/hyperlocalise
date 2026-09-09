@@ -12,6 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { imageViewerMessages } from "./content-editor-image-viewer.messages";
+import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
+
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -147,6 +150,7 @@ export function ContentEditorFileViewPanel({
   const reduceMotion = useReducedMotion();
   const documentTransition = { duration: reduceMotion ? 0 : 0.2, ease: "easeOut" as const };
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [imageLayersDirty, setImageLayersDirty] = useState(false);
   const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
   const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
@@ -207,12 +211,12 @@ export function ContentEditorFileViewPanel({
 
   const targetFileActions = (
     <>
-      {onRegenerate ? (
+      {onRegenerate && viewerId !== "image" ? (
         <Button
           type="button"
           variant="outline"
           size="xs"
-          disabled={!canEdit || isImageBusy}
+          disabled={!canEdit || isImageBusy || imageLayersDirty}
           onClick={() => setGenerateDialogOpen(true)}
         >
           {isImageBusy ? (
@@ -237,7 +241,11 @@ export function ContentEditorFileViewPanel({
             onClick={() => uploadInputRef.current?.click()}
           >
             <HugeiconsIcon icon={Upload01Icon} data-icon="inline-start" aria-hidden />
-            <FormattedMessage {...contentEditorFileViewMessages.uploadFile} />
+            <FormattedMessage
+              {...(viewerId === "image"
+                ? imageViewerMessages.upload
+                : contentEditorFileViewMessages.uploadFile)}
+            />
           </Button>
           <input
             ref={uploadInputRef}
@@ -348,10 +356,10 @@ export function ContentEditorFileViewPanel({
                 />
                 <FormattedMessage
                   {...(sourcePaneVisible
-                    ? isDocumentViewer
+                    ? isDocumentViewer || viewerId === "image"
                       ? contentEditorFileViewMessages.closeComparison
                       : contentEditorFileViewMessages.hideSource
-                    : isDocumentViewer
+                    : isDocumentViewer || viewerId === "image"
                       ? contentEditorFileViewMessages.compareOriginal
                       : contentEditorFileViewMessages.showSource)}
                 />
@@ -403,7 +411,11 @@ export function ContentEditorFileViewPanel({
                 <Button
                   variant="default"
                   size="xs"
-                  disabled={!canTriggerApprove || (isDocumentViewer && documentReviewBlocked)}
+                  disabled={
+                    !canTriggerApprove ||
+                    (isDocumentViewer && documentReviewBlocked) ||
+                    (viewerId === "image" && imageLayersDirty)
+                  }
                   onClick={onApprove}
                 >
                   {isApproving ? <Spinner className="size-3 text-primary-foreground" /> : null}
@@ -415,7 +427,22 @@ export function ContentEditorFileViewPanel({
         </div>
       </FileViewHeader>
 
-      {isDocumentViewer ? (
+      {viewerId === "image" ? (
+        <ContentEditorImageWorkspace
+          key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
+          sourceSrc={sourceSrc}
+          targetSrc={targetSrc}
+          sourceLocale={segment.sourceLocale}
+          targetLocale={segment.targetLocale}
+          sourcePaneVisible={sourcePaneVisible}
+          canEdit={canEdit}
+          isBusy={isImageBusy}
+          isLoading={isSegmentTargetLoading}
+          actions={hasTargetFileActions ? targetFileActions : null}
+          onDirtyChange={setImageLayersDirty}
+          onRegenerate={onRegenerate}
+        />
+      ) : isDocumentViewer ? (
         <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30 p-3 sm:p-6 lg:p-8">
           <div
             className={cn(
@@ -534,13 +561,7 @@ export function ContentEditorFileViewPanel({
                       }
                       footer={hasTargetFileActions ? targetFileActions : undefined}
                     >
-                      {viewerId === "image" ? (
-                        <ContentEditorImageFileViewerPane
-                          role="target"
-                          src={targetSrc}
-                          isLoading={isSegmentTargetLoading}
-                        />
-                      ) : viewerId === "video" ? (
+                      {viewerId === "video" ? (
                         <ContentEditorVideoFileViewerPane
                           role="target"
                           src={targetSrc}
@@ -568,7 +589,7 @@ export function ContentEditorFileViewPanel({
           </FileViewWorkspaceContent>
         </FileViewWorkspace>
       )}
-      {onRegenerate ? (
+      {onRegenerate && viewerId !== "image" ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
           onOpenChange={setGenerateDialogOpen}
