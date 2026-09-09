@@ -190,6 +190,59 @@ describe("memoryRoutes", () => {
     ]);
   });
 
+  it("imports Crowdin's locale-header CSV export", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.import.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          format: "csv",
+          content: ["en,vi", 'Discount,"Khuyến mãi hl"', '"Cancellation Reason","Lý do huỷ"'].join(
+            "\n",
+          ),
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      imported: number;
+      skipped: number;
+      memoryEntries: Array<{
+        sourceLocale: string;
+        targetLocale: string;
+        sourceText: string;
+        targetText: string;
+        matchScore: number;
+      }>;
+    };
+    expect(body).toMatchObject({ imported: 2, skipped: 0 });
+    expect(body.memoryEntries).toEqual([
+      expect.objectContaining({
+        sourceLocale: "en",
+        targetLocale: "vi",
+        sourceText: "Discount",
+        targetText: "Khuyến mãi hl",
+        matchScore: 100,
+      }),
+      expect.objectContaining({
+        sourceLocale: "en",
+        targetLocale: "vi",
+        sourceText: "Cancellation Reason",
+        targetText: "Lý do huỷ",
+        matchScore: 100,
+      }),
+    ]);
+  });
+
   it("emits product usage analytics when creating a translation memory", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
