@@ -13,7 +13,11 @@
  * Version 2.0 or later.
  */
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
+import { Upload01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -40,6 +44,8 @@ import { tmImportExportPanelMessages as messages } from "./tm-import-export-pane
 type PendingImport = {
   format: "csv" | "tmx";
   content: string;
+  sourceFilename: string;
+  sourceByteSize: number;
 };
 
 function reportCounts(report: MemoryImportResponse["report"]) {
@@ -60,18 +66,21 @@ export function TmImportExportPanel({
   localeCoverage,
   canEdit,
   onImported,
+  renderActions,
 }: {
   organizationSlug: string;
   memoryId: string;
   localeCoverage: string[];
   canEdit: boolean;
   onImported: () => Promise<void> | void;
+  renderActions?: (actions: { openImport: () => void; openExport: () => void }) => ReactNode;
 }) {
   const intl = useIntl();
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [preview, setPreview] = useState<MemoryImportResponse | null>(null);
-  const [result, setResult] = useState<MemoryImportResponse | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportSourceLocale, setExportSourceLocale] = useState(localeCoverage[0] ?? "en-US");
   const [exportTargetLocale, setExportTargetLocale] = useState(localeCoverage[1] ?? "fr-FR");
@@ -92,16 +101,29 @@ export function TmImportExportPanel({
         ":memoryId"
       ].entries["import"].$post({
         param: { organizationSlug, memoryId },
-        json: { format, content, dryRun: true },
+        json: {
+          format,
+          content,
+          dryRun: true,
+          sourceFilename: file.name,
+          sourceByteSize: file.size,
+        },
       });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
       }
-      return { format, content, body: (await response.json()) as MemoryImportResponse };
+      return {
+        format,
+        content,
+        sourceFilename: file.name,
+        sourceByteSize: file.size,
+        body: (await response.json()) as MemoryImportResponse,
+      };
     },
-    onSuccess: ({ format, content, body }) => {
-      setPendingImport({ format, content });
+    onSuccess: ({ format, content, sourceFilename, sourceByteSize, body }) => {
+      setPendingImport({ format, content, sourceFilename, sourceByteSize });
       setPreview(body);
+      setImportOpen(false);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -112,24 +134,30 @@ export function TmImportExportPanel({
         ":memoryId"
       ].entries["import"].$post({
         param: { organizationSlug, memoryId },
-        json: { format: pending.format, content: pending.content, dryRun: false },
+        json: {
+          format: pending.format,
+          content: pending.content,
+          dryRun: false,
+          sourceFilename: pending.sourceFilename,
+          sourceByteSize: pending.sourceByteSize,
+        },
       });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
       }
       return (await response.json()) as MemoryImportResponse;
     },
-    onSuccess: async (body) => {
+    onSuccess: (body) => {
       setPreview(null);
       setPendingImport(null);
-      setResult(body);
-      await onImported();
-      toast.success(
-        intl.formatMessage(messages.entriesImported, {
-          created: body.report.created + body.report.variantCreated,
-          updated: body.report.updated,
-        }),
-      );
+      void onImported();
+      if (body.importAttemptId) {
+        router.push(
+          `/org/${organizationSlug}/translation-memories/${memoryId}/imports/${body.importAttemptId}`,
+        );
+      } else {
+        toast.error(intl.formatMessage(messages.importFailed));
+      }
     },
     onError: (error) => toast.error(error.message),
   });
@@ -169,34 +197,79 @@ export function TmImportExportPanel({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {canEdit ? (
-        <>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.tmx,text/csv,application/xml,text/xml"
-            aria-label={intl.formatMessage(messages.importLabel)}
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) previewImport.mutate(file);
-              event.currentTarget.value = "";
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={previewImport.isPending}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FormattedMessage {...messages.import} />
-          </Button>
-        </>
+      {renderActions ? (
+        renderActions({
+          openImport: () => setImportOpen(true),
+          openExport: () => setExportOpen(true),
+        })
+      ) : canEdit ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={previewImport.isPending}
+          onClick={() => setImportOpen(true)}
+        >
+          <FormattedMessage {...messages.import} />
+        </Button>
       ) : null}
-      <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-        <FormattedMessage {...messages.exportTmx} />
-      </Button>
+
+      <Dialog
+        open={canEdit && importOpen}
+        onOpenChange={(open) => {
+          if (previewImport.isPending) return;
+          setImportOpen(open);
+          if (!open && fileInputRef.current) fileInputRef.current.value = "";
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...messages.importDialogTitle} />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage {...messages.importDialogDescription} />
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <input
+              ref={fileInputRef}
+              id="translation-memory-file-import"
+              type="file"
+              accept=".csv,.tmx,text/csv,application/xml,text/xml"
+              className="sr-only"
+              aria-label={intl.formatMessage(messages.importLabel)}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) previewImport.mutate(file);
+                event.currentTarget.value = "";
+              }}
+            />
+            <label
+              htmlFor="translation-memory-file-import"
+              className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8 text-center transition-colors hover:bg-muted/40 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
+              aria-busy={previewImport.isPending}
+            >
+              {previewImport.isPending ? (
+                <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              ) : (
+                <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+              )}
+              <span className="text-sm font-medium text-foreground">
+                <FormattedMessage {...messages.selectImportFile} />
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.importFormats} />
+              </span>
+            </label>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {!renderActions ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+          <FormattedMessage {...messages.exportTmx} />
+        </Button>
+      ) : null}
 
       <Dialog
         open={preview !== null}
@@ -234,25 +307,6 @@ export function TmImportExportPanel({
               onClick={() => pendingImport && confirmImport.mutate(pendingImport)}
             >
               <FormattedMessage {...messages.confirmImport} />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={result !== null} onOpenChange={(open) => !open && setResult(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...messages.resultTitle} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage {...messages.resultDescription} />
-            </DialogDescription>
-          </DialogHeader>
-          {result ? <ImportReportBody report={result} /> : null}
-          <DialogFooter>
-            <Button type="button" onClick={() => setResult(null)}>
-              <FormattedMessage {...messages.closeReport} />
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -363,7 +417,7 @@ function ImportReportBody({ report }: { report: MemoryImportResponse }) {
           <ul className="max-h-40 overflow-auto rounded-md border border-border px-3 py-2 text-xs">
             {report.report.issues.map((issue, index) => (
               <li key={`${issue.code}-${issue.unitIndex ?? index}`} className="py-1">
-                {issue.unitIndex ? `#${issue.unitIndex} · ` : null}
+                {issue.unitIndex !== undefined ? `#${issue.unitIndex} · ` : null}
                 {issue.message}
               </li>
             ))}

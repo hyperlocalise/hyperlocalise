@@ -25,26 +25,36 @@ export const tmImportExportPanelMessages = defineMessages({
     id: "B1NsXVl3wA",
     description: "Accessible label for the hidden translation memory import file input",
   },
+  importDialogTitle: {
+    defaultMessage: "Import translation memory",
+    id: "mkH7b+PHw3",
+    description: "Title for the translation memory file picker dialog",
+  },
+  importDialogDescription: {
+    defaultMessage: "Upload a CSV or TMX file to preview entries before importing them.",
+    id: "zjaWdYv0nT",
+    description: "Description for the translation memory file picker dialog",
+  },
+  selectImportFile: {
+    defaultMessage: "Choose a CSV or TMX file",
+    id: "5g8T9JckU6",
+    description: "Prompt inside the translation memory file upload area",
+  },
+  importFormats: {
+    defaultMessage: "CSV or TMX · preview before saving",
+    id: "G8JuD34Z/q",
+    description: "Accepted translation memory import formats",
+  },
   previewTitle: {
     defaultMessage: "Import preview",
     id: "xdbeUj+7xL",
     description: "Title for the translation memory import preview dialog",
-  },
-  resultTitle: {
-    defaultMessage: "Import report",
-    id: "bD0gNEH+3/",
-    description: "Title for the translation memory import result dialog",
   },
   previewDescription: {
     defaultMessage:
       "Review totals and warnings before writing entries. Nothing has been saved yet.",
     id: "EzYVHD/5u/",
     description: "Description for the translation memory import preview dialog",
-  },
-  resultDescription: {
-    defaultMessage: "The import finished. Use these totals to confirm what changed.",
-    id: "B9P8UkNbTI",
-    description: "Description for the translation memory import result dialog",
   },
   confirmImport: {
     defaultMessage: "Import entries",
@@ -55,11 +65,6 @@ export const tmImportExportPanelMessages = defineMessages({
     defaultMessage: "Cancel",
     id: "07zZke+A8Q",
     description: "Button to close the translation memory import preview without writing",
-  },
-  closeReport: {
-    defaultMessage: "Close",
-    id: "kDbyaphKwz",
-    description: "Button to close the translation memory import report",
   },
   exportTmx: {
     defaultMessage: "Export",
@@ -157,10 +162,5 @@ export const tmImportExportPanelMessages = defineMessages({
     defaultMessage: "Unable to export TMX",
     id: "AzlAJgQRne",
     description: "Fallback error when translation memory TMX export fails",
-  },
-  entriesImported: {
-    defaultMessage: "Imported {created, number} new and {updated, number} updated entries",
-    id: "kZql9qccYD",
-    description: "Toast after a translation memory import completes",
   },
 });

@@ -395,6 +395,88 @@ export const memories = pgTable(
   ],
 );
 
+export type MemoryImportAttemptStatus = "running" | "completed" | "partially_successful" | "failed";
+
+export type MemoryImportAttemptCounts = {
+  totalRead: number;
+  created: number;
+  updated: number;
+  variantCreated: number;
+  skipped: number;
+  warned: number;
+  failed: number;
+};
+
+/**
+ * Append-only identity and canonical summary for a real translation-memory import.
+ * Only the running attempt may be finalized, and only once.
+ */
+export const memoryImportAttempts = pgTable(
+  "memory_import_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    memoryId: uuid("memory_id")
+      .notNull()
+      .references(() => memories.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").$type<MemoryImportAttemptStatus>().notNull().default("running"),
+    format: text("format").$type<"csv" | "tmx">().notNull(),
+    options: jsonb("options")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    sourceFilename: text("source_filename"),
+    sourceByteSize: integer("source_byte_size"),
+    sourceSha256: text("source_sha256").notNull(),
+    counts: jsonb("counts").$type<MemoryImportAttemptCounts>(),
+    headerSrclang: text("header_srclang"),
+    diagnosticsTruncated: boolean("diagnostics_truncated").notNull().default(false),
+    diagnosticsAvailability: text("diagnostics_availability")
+      .$type<"available" | "expired">()
+      .notNull()
+      .default("available"),
+    diagnosticsExpiresAt: timestamp("diagnostics_expires_at", { withTimezone: true }),
+    failureCode: text("failure_code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_memory_import_attempts_memory_created_at_id").on(
+      table.memoryId,
+      table.createdAt,
+      table.id,
+    ),
+    index("idx_memory_import_attempts_org_created_at").on(table.organizationId, table.createdAt),
+  ],
+);
+
+/**
+ * Bounded, content-safe unit or row diagnostics belonging to an import attempt.
+ */
+export const memoryImportAttemptDiagnostics = pgTable(
+  "memory_import_attempt_diagnostics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => memoryImportAttempts.id, { onDelete: "cascade" }),
+    severity: text("severity").$type<"warning" | "error">().notNull(),
+    code: text("code").notNull(),
+    message: text("message").notNull(),
+    unitIndex: integer("unit_index"),
+    tuid: text("tuid"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_memory_import_attempt_diagnostics_attempt").on(table.attemptId, table.createdAt),
+  ],
+);
+
 /**
  * Stores aligned source and target text examples inside a translation memory. Entries include normalized source text for dedupe and a full-text search vector for retrieval.
  */
