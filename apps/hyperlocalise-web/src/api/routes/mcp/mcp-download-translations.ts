@@ -16,6 +16,7 @@ import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 
 export type McpDownloadTranslationsDetail = {
   filename: string;
@@ -65,6 +66,14 @@ export async function downloadMcpTranslations(input: {
     return {
       ok: false,
       error: "source_file_not_found",
+    };
+  }
+
+  const sourceFormat = inferSupportedTranslationFileFormat(input.sourcePath);
+  if (sourceFormat !== "json" && sourceFormat !== "jsonc" && sourceFormat !== "arb") {
+    return {
+      ok: false,
+      error: "unsupported_binary_download",
     };
   }
 

@@ -7508,4 +7508,146 @@ describe("mcpRoutes", () => {
       error: "translations_not_found",
     });
   });
+
+  it("rejects download_translations when locale is missing", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/en.json",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toContain("locale");
+  });
+
+  it("keeps run_workflow reserved", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "run_workflow",
+              arguments: {},
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "not_implemented",
+      tool: "run_workflow",
+    });
+  });
+
+  it("rejects source formats without a supported UTF-8 reconstruction", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const sourcePath = "locales/messages.po";
+
+    await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath,
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath,
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "unsupported_binary_download",
+    });
+  });
 });

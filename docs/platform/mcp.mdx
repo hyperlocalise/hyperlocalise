@@ -67,7 +67,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 
 `upload_sources` uploads one source file using the same native or external TMS path as `POST /v1/files`. Provide exactly one of `content` or `contentBase64`. Native uploads are queued for background ingestion so their keys become available to `list_translations`. The maximum payload size is 25 MiB. This tool does not create a translation job; use `run_workflow` for that.
 
-`download_translations` reconstructs a target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and UTF-8 `content`. Keys without a target translation use their source text as a fallback. Binary and image downloads are not supported.
+`download_translations` reconstructs a JSON-compatible target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and UTF-8 `content`. Keys without a target translation use their source text as a fallback. Formats without a supported UTF-8 reconstruction path return `unsupported_binary_download` instead of JSON content with an incorrect extension.
 
 Optional filters match the Content Editor queue:
 
