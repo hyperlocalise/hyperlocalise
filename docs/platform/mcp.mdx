@@ -57,6 +57,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `get_glossary_entries` | Concept-linked terms for a `glossaryId` (`limit`, default 50, max 100)                                                                                                  |
 | `query_glossary`       | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
 | `upload_sources`       | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
+| `download_translations` | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                         |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -65,6 +66,8 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 `get_translation` is the detail view for a translation returned by `list_translations`. Pass the row's `id` as `translationKeyId` together with its `projectId` and `targetLocale`. The tool returns source and target text, locales, status, context, maximum length, and linked Board issue identifiers. A key without a target translation is returned with `targetText` and `status` set to `null`.
 
 `upload_sources` uploads one source file using the same native or external TMS path as `POST /v1/files`. Provide exactly one of `content` or `contentBase64`. Native uploads are queued for background ingestion so their keys become available to `list_translations`. The maximum payload size is 25 MiB. This tool does not create a translation job; use `run_workflow` for that.
+
+`download_translations` reconstructs a JSON-compatible target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and UTF-8 `content`. Keys without a target translation use their source text as a fallback. Formats without a supported UTF-8 reconstruction path return `unsupported_binary_download` instead of JSON content with an incorrect extension.
 
 Optional filters match the Content Editor queue:
 
@@ -139,10 +142,9 @@ Missing or inaccessible jobs, including jobs from another organization, return `
 
 These tools are advertised but return `not_implemented` today:
 
-- `download_translations`
 - `run_workflow`
 
-Use the [public API](/platform/api) or [CLI](/platform/cli) for file upload, download, and job orchestration until these tools are wired.
+Use the [public API](/platform/api) or [CLI](/platform/cli) for job orchestration until this tool is wired.
 
 ## Outbound MCP in automations
 
@@ -180,6 +182,10 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `invalid_file_payload`                         | Upload content is missing, malformed, oversized, or contains conflicting input fields                                  |
 | `unsupported_file`                             | The uploaded source path uses an unsupported translation file format                                                   |
 | `source_upload_failed`                         | The native or external TMS source upload failed                                                                        |
+| `source_file_not_found`                        | The requested source path does not exist in the accessible project                                                     |
+| `translations_not_found`                       | The source file has no translation keys available to reconstruct                                                       |
+| `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                        |
+| `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                 |
 
 ## Next
 
