@@ -7,9 +7,9 @@ import (
 )
 
 type criterionNode struct {
-	Type     string          `json:"type"`
-	Name     string          `json:"name"`
-	Match    string          `json:"match"`
+	Type  string `json:"type"`
+	Name  string `json:"name"`
+	Match string `json:"match"`
 	// Value uses `any` instead of `json.RawMessage` so primitive values (strings, numbers, slices)
 	// are decoded in a single pass during tree unmarshaling, eliminating secondary json.Unmarshal
 	// calls during evaluation.
