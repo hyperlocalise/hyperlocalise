@@ -10,12 +10,16 @@ type criterionNode struct {
 	Type     string          `json:"type"`
 	Name     string          `json:"name"`
 	Match    string          `json:"match"`
-	Value    json.RawMessage `json:"value"`
+	// Value uses `any` instead of `json.RawMessage` so primitive values (strings, numbers, slices)
+	// are decoded in a single pass during tree unmarshaling, eliminating secondary json.Unmarshal
+	// calls during evaluation.
+	Value    any             `json:"value"`
 	Children []criterionNode `json:"children"`
 }
 
 func evaluateCriterion(raw json.RawMessage, attributes map[string]any) (bool, error) {
-	if len(raw) == 0 || string(raw) == "null" {
+	// Guard against empty or "null" JSON without allocating string copies for non-null inputs.
+	if len(raw) == 0 || (len(raw) == 4 && string(raw) == "null") {
 		return true, nil
 	}
 	var node criterionNode
@@ -73,10 +77,10 @@ func evalAttribute(node criterionNode, attributes map[string]any) (bool, error) 
 	case "is_not_null":
 		return exists && value != nil, nil
 	case "exact":
-		return exists && valuesEqual(value, decodeValue(node.Value)), nil
+		return exists && valuesEqual(value, node.Value), nil
 	case "gt", "gte", "lt", "lte":
 		left, leftOK := asFloat(value)
-		right, rightOK := asFloat(decodeValue(node.Value))
+		right, rightOK := asFloat(node.Value)
 		if !leftOK || !rightOK {
 			return false, nil
 		}
@@ -91,19 +95,25 @@ func evalAttribute(node criterionNode, attributes map[string]any) (bool, error) 
 			return left <= right, nil
 		}
 	case "in":
-		return containsAny(asStringSlice(decodeValue(node.Value)), fmt.Sprint(value)), nil
+		var needleStr string
+		if str, ok := value.(string); ok {
+			needleStr = str
+		} else {
+			needleStr = fmt.Sprint(value)
+		}
+		return containsAny(asStringSlice(node.Value), needleStr), nil
 	case "contains_substring":
 		haystack, ok := value.(string)
-		needle, needleOK := decodeValue(node.Value).(string)
+		needle, needleOK := node.Value.(string)
 		return ok && needleOK && strings.Contains(haystack, needle), nil
 	case "contains_any":
-		return intersects(asStringSlice(value), asStringSlice(decodeValue(node.Value))), nil
+		return intersects(asStringSlice(value), asStringSlice(node.Value)), nil
 	case "contains_substring_any":
 		haystack, ok := value.(string)
 		if !ok {
 			return false, nil
 		}
-		for _, needle := range asStringSlice(decodeValue(node.Value)) {
+		for _, needle := range asStringSlice(node.Value) {
 			if strings.Contains(haystack, needle) {
 				return true, nil
 			}
@@ -112,17 +122,6 @@ func evalAttribute(node criterionNode, attributes map[string]any) (bool, error) 
 	default:
 		return false, fmt.Errorf("unknown match %q", node.Match)
 	}
-}
-
-func decodeValue(raw json.RawMessage) any {
-	if len(raw) == 0 {
-		return nil
-	}
-	var value any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return nil
-	}
-	return value
 }
 
 func valuesEqual(left, right any) bool {
@@ -172,7 +171,12 @@ func asStringSlice(value any) []string {
 	case []any:
 		out := make([]string, 0, len(typed))
 		for _, item := range typed {
-			out = append(out, fmt.Sprint(item))
+			// Prefer direct string assertion to avoid fmt.Sprint allocations for string items.
+			if str, ok := item.(string); ok {
+				out = append(out, str)
+			} else {
+				out = append(out, fmt.Sprint(item))
+			}
 		}
 		return out
 	case string:
@@ -194,6 +198,20 @@ func containsAny(haystack []string, needle string) bool {
 }
 
 func intersects(left, right []string) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return false
+	}
+	// Small slice fast path: avoid map allocation for small sets.
+	if len(left)*len(right) <= 16 {
+		for _, x := range left {
+			for _, y := range right {
+				if x == y {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	set := make(map[string]struct{}, len(left))
 	for _, item := range left {
 		set[item] = struct{}{}
