@@ -91,6 +91,7 @@ const reviewJobQueue = createReviewJobEventQueue();
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
+  | { code: "job_idempotency_conflict"; message: string }
   | { code: "organization_job_budget_exceeded"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
@@ -437,6 +438,24 @@ type PreparedTranslationJobInput = {
   inputPayload: unknown;
 };
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "undefined";
+}
+
 function translationJobInputError(message: string): TranslationJobError {
   return { code: "translation_job_invalid_input", message };
 }
@@ -582,6 +601,13 @@ async function createTranslationJobRecord(
 
         if (!existingJob) {
           rollbackJobCreation(jobInsertFailedError());
+        }
+
+        if (canonicalJson(existingJob.inputPayload) !== canonicalJson(preparedInput.inputPayload)) {
+          rollbackJobCreation({
+            code: "job_idempotency_conflict",
+            message: "The idempotency key is already associated with a different job payload.",
+          });
         }
 
         return { job: existingJob, created: false };
@@ -760,12 +786,14 @@ export async function createTranslationJob(
       });
     }
 
-    return ok({
-      jobId: job.id,
-      type: input.type,
-      status: job.workflowRunId ? "enqueued" : "queued",
-      workflowRunIds: job.workflowRunId ? [job.workflowRunId] : [],
-    });
+    if (job.workflowRunId) {
+      return ok({
+        jobId: job.id,
+        type: input.type,
+        status: "enqueued",
+        workflowRunIds: [job.workflowRunId],
+      });
+    }
   }
 
   const enqueueResult = await enqueueTranslationJob({

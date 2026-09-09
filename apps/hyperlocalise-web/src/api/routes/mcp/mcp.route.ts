@@ -1998,6 +1998,9 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           case "job_insert_failed":
             return mcpToolError("job_create_failed", jobError.message);
 
+          case "job_idempotency_conflict":
+            return mcpToolError("idempotency_conflict", jobError.message);
+
           default:
             return assertNever(errorCode);
         }

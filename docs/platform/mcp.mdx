@@ -129,7 +129,7 @@ Native pairs come from concept-linked terms. Leftover `source_term` / `target_te
 
 The response contains `jobId`, `type`, `status` (`queued` or `enqueued`), and `workflowRunIds` when the queue provides them. Poll `get_job` with the returned `jobId` for completion. For file jobs, use `list_files` to discover a source id or path first.
 
-Pass an optional `idempotencyKey` when a client may retry the same request. Reusing the key for the same organization and project returns the existing job instead of creating or enqueueing another one.
+Pass an optional `idempotencyKey` when a client may retry the same request. Reusing the key for the same organization, project, and payload returns the existing job instead of creating another one. Reusing it with a different payload returns `idempotency_conflict`. If a prior attempt committed the job but stopped before submitting it to the workflow queue, a retry submits that queued job.
 
 Creating jobs requires the same job-creation permission and AI feature availability as Cloud Jobs. Project and file lookups are scoped to the authenticated organization and project. Locale mismatches return `invalid_job_payload`; missing files return `file_not_found`. Usage or organization budget failures retain their existing billing error codes. Queue failures return `job_queue_unavailable`.
 
@@ -176,6 +176,7 @@ Token lifetime defaults to 60 minutes with a 30-day refresh window. Operators ca
 | `invalid_job_payload`                          | Source or target locales do not match the project, or the translation job input is invalid                            |
 | `file_not_found`                               | The requested source file does not exist in the accessible project                                                     |
 | `job_queue_unavailable`                        | The translation job was created but could not be submitted to the workflow queue                                       |
+| `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                  |
 | `ai_features_required`                         | AI translation features are not available for the organization                                                        |
 | `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                |
 | `project_not_found`                            | Wrong `projectId` or missing project access on `list_files`, `list_translations`, `get_project_status`, or `list_jobs` |
