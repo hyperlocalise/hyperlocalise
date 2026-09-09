@@ -16,9 +16,9 @@ tags:
   - translation review
 ---
 
-A GitHub localization workflow should do more than copy locale files around. It should catch changed strings in a pull request, give reviewers a clear translation handoff, keep release notes in sync, and prevent a release from shipping with stale content.
+This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
 
-This tutorial builds that workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. By the end, a product change will move through four visible stages:
+By the end, your workflow will cover four stages:
 
 1. An engineer changes an English UI string and its release notes.
 2. GitHub checks the pull request for localisation problems.
