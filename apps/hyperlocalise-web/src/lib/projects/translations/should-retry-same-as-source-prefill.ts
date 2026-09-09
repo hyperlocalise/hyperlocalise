@@ -44,6 +44,7 @@ export function shouldRetrySameAsSourcePrefill(input: {
   return countSourceWords(sourceText) >= MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE_RETRY;
 }
 
+/** Project translations win; TM fills untranslated keys when a reusable match exists. */
 export function mergeTranslationPrefills(input: {
   tmPrefilled: Record<string, string>;
   projectPrefilled: Record<string, string>;

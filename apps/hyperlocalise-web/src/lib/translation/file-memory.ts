@@ -19,8 +19,23 @@ import {
   listAttachedProjectMemoryIds,
 } from "@/lib/memory/ensure-default-native-project-memory";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
+import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
+import {
+  normalizeSyncedDatabaseTranslationMemoryMatch,
+  toAgentRunTranslationMemoryMatchUsage,
+} from "@/lib/providers/contracts/translation-memory-match";
 import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+
+export type FileTranslationMemoryReuseResult = {
+  prefilled: Record<string, string>;
+  matchesByKey: Record<string, AgentRunTranslationMemoryMatchUsage[]>;
+};
+
+const emptyFileTranslationMemoryReuseResult = (): FileTranslationMemoryReuseResult => ({
+  prefilled: {},
+  matchesByKey: {},
+});
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -58,24 +73,34 @@ export class FileTranslationMemoryStore {
       }))
       .filter((unit) => unit.sourceText.trim().length > 0);
     if (units.length === 0) {
-      return {} as Record<string, string>;
+      return emptyFileTranslationMemoryReuseResult();
     }
 
     const memoryIds = await listAttachedProjectMemoryIds(input.projectId);
     if (memoryIds.length === 0) {
-      return {} as Record<string, string>;
+      return emptyFileTranslationMemoryReuseResult();
     }
 
     const normalizedSourceTexts = [...new Set(units.map((unit) => unit.normalizedSourceText))];
     const rows = await db
       .select({
+        id: schema.memoryEntries.id,
         memoryId: schema.memoryEntries.memoryId,
+        sourceText: schema.memoryEntries.sourceText,
         normalizedSourceText: schema.memoryEntries.normalizedSourceText,
+        sourceLocale: schema.memoryEntries.sourceLocale,
         targetLocale: schema.memoryEntries.targetLocale,
         targetText: schema.memoryEntries.targetText,
+        provenance: schema.memoryEntries.provenance,
+        matchScore: schema.memoryEntries.matchScore,
+        externalKey: schema.memoryEntries.externalKey,
         metadata: schema.memoryEntries.metadata,
+        memoryName: schema.memories.name,
+        externalProviderKind: schema.memories.externalProviderKind,
+        externalMemoryId: schema.memories.externalMemoryId,
       })
       .from(schema.memoryEntries)
+      .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
       .where(
         and(
           eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
@@ -86,7 +111,7 @@ export class FileTranslationMemoryStore {
         ),
       );
 
-    const reusableByUnit = new Map<string, string>();
+    const reusableByUnit = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       const metadata = row.metadata as {
         segmentKey?: string;
@@ -103,14 +128,15 @@ export class FileTranslationMemoryStore {
           sourceTextHash: metadata.sourceTextHash,
           targetLocale: row.targetLocale,
         }),
-        row.targetText,
+        row,
       );
     }
 
-    const reusable: Record<string, string> = {};
+    const prefilled: Record<string, string> = {};
+    const matchesByKey: Record<string, AgentRunTranslationMemoryMatchUsage[]> = {};
     for (const unit of units) {
       for (const memoryId of memoryIds) {
-        const targetText = reusableByUnit.get(
+        const row = reusableByUnit.get(
           fileMemoryReuseKey({
             memoryId,
             normalizedSourceText: unit.normalizedSourceText,
@@ -119,14 +145,35 @@ export class FileTranslationMemoryStore {
             targetLocale: input.targetLocale,
           }),
         );
-        if (targetText) {
-          reusable[unit.key] = targetText;
-          break;
+        if (!row) {
+          continue;
         }
+
+        prefilled[unit.key] = row.targetText;
+        matchesByKey[unit.key] = [
+          toAgentRunTranslationMemoryMatchUsage(
+            normalizeSyncedDatabaseTranslationMemoryMatch({
+              id: row.id,
+              memoryId: row.memoryId,
+              memoryName: row.memoryName,
+              sourceText: row.sourceText,
+              targetText: row.targetText,
+              sourceLocale: row.sourceLocale,
+              targetLocale: row.targetLocale,
+              matchScore: row.matchScore,
+              provenance: row.provenance,
+              rank: 1,
+              providerKind: row.externalProviderKind,
+              externalResourceId: row.externalMemoryId,
+              externalSegmentId: row.externalKey,
+            }),
+          ),
+        ];
+        break;
       }
     }
 
-    return reusable;
+    return { prefilled, matchesByKey };
   }
 
   async persistEntries(input: {

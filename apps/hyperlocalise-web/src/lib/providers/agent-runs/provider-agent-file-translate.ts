@@ -36,7 +36,12 @@ import {
   listGlossaryTermsForProject,
   FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
 } from "@/lib/glossary/query-glossary-terms";
-import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-memory";
+import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
+import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
+import {
+  type FileTranslationMemoryReuseResult,
+  reuseFileTranslationMemoryEntries,
+} from "@/lib/translation/file-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { createLogger } from "@/lib/log";
@@ -101,7 +106,7 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
 function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return Boolean(translation?.text?.trim());
+  return !isUntranslatedTranslation({ targetText: translation?.text });
 }
 
 function unitsForFile(units: ExternalTmsTranslationUnit[], externalFileId: string) {
@@ -161,10 +166,10 @@ function buildPrefilledEntriesForLocale(input: {
   const prefilled: Record<string, string> = {};
   for (const unit of input.units) {
     const existing = existingTranslationForLocale(unit, input.targetLocale);
-    if (!existing?.text?.trim()) {
+    if (isUntranslatedTranslation({ targetText: existing?.text })) {
       continue;
     }
-    prefilled[unit.key] = existing.text;
+    prefilled[unit.key] = existing!.text;
   }
   return prefilled;
 }
@@ -689,25 +694,32 @@ export async function translateProviderJobFiles(input: {
         });
 
         const filePrefills: Array<Record<string, Record<string, string>>> = [];
+        const tmReuseByFileIndex: Array<Record<string, FileTranslationMemoryReuseResult>> = [];
         for (const prepared of preparedFiles) {
           const byLocale: Record<string, Record<string, string>> = {};
+          const tmReuseByLocale: Record<string, FileTranslationMemoryReuseResult> = {};
           for (const targetLocale of localesToRun) {
             const existingPrefilled = buildPrefilledEntriesForLocale({
               units: prepared.fileUnits,
               targetLocale,
             });
-            let tmPrefilled: Record<string, string> = {};
+            let tmReuse: FileTranslationMemoryReuseResult = { prefilled: {}, matchesByKey: {} };
             if (prepared.sourceEntries) {
-              tmPrefilled = await reuseFileTranslationMemoryEntries({
+              tmReuse = await reuseFileTranslationMemoryEntries({
                 projectId: input.projectId,
                 sourceLocale,
                 targetLocale,
                 sourceEntries: prepared.sourceEntries,
               });
             }
-            byLocale[targetLocale] = { ...tmPrefilled, ...existingPrefilled };
+            tmReuseByLocale[targetLocale] = tmReuse;
+            byLocale[targetLocale] = mergeTranslationPrefills({
+              tmPrefilled: tmReuse.prefilled,
+              projectPrefilled: existingPrefilled,
+            });
           }
           filePrefills.push(byLocale);
+          tmReuseByFileIndex.push(tmReuseByLocale);
         }
 
         if (crowdinContext?.ok) {
@@ -741,9 +753,17 @@ export async function translateProviderJobFiles(input: {
               if (!crowdinEntries.ok) {
                 continue;
               }
+              const unitsNeedingTranslation =
+                prepared.localesNeedingByLocale.get(targetLocale) ?? [];
+              const untranslatedKeys = new Set(unitsNeedingTranslation.map((unit) => unit.key));
+              const crowdinPrefill = Object.fromEntries(
+                Object.entries(hlEntriesPayloadToStringMap(crowdinEntries.entries)).filter(
+                  ([key]) => !untranslatedKeys.has(key),
+                ),
+              );
               // Existing/TM prefill wins over Crowdin prefill for the same key.
               filePrefills[index]![targetLocale] = {
-                ...hlEntriesPayloadToStringMap(crowdinEntries.entries),
+                ...crowdinPrefill,
                 ...filePrefills[index]![targetLocale],
               };
             }
@@ -791,11 +811,13 @@ export async function translateProviderJobFiles(input: {
             caseSensitive: term.caseSensitive ?? null,
           }));
 
-          for (const prepared of preparedFiles) {
+          for (let preparedIndex = 0; preparedIndex < preparedFiles.length; preparedIndex += 1) {
+            const prepared = preparedFiles[preparedIndex]!;
             for (const [
               targetLocale,
               localesNeedingTranslation,
             ] of prepared.localesNeedingByLocale) {
+              const tmReuse = tmReuseByFileIndex[preparedIndex]?.[targetLocale];
               const outputFilename = getOutputFilename(prepared.workFilename, targetLocale);
               try {
                 const translatedContent = await readTranslatedFile(sandboxId, outputFilename);
@@ -853,6 +875,14 @@ export async function translateProviderJobFiles(input: {
                       })),
                   });
 
+                  const tmPrefilledText = tmReuse?.prefilled[unit.key];
+                  const translationMemoryMatchesUsed =
+                    tmPrefilledText &&
+                    to === tmPrefilledText &&
+                    tmReuse.matchesByKey[unit.key]?.length
+                      ? tmReuse.matchesByKey[unit.key]
+                      : undefined;
+
                   changedItems.push(
                     serializeAgentRunProposalItem({
                       itemId: buildAgentRunProposalItemId({
@@ -869,6 +899,7 @@ export async function translateProviderJobFiles(input: {
                       changedFields: deriveChangedFields(from, to),
                       warnings: proposalWarnings,
                       fileId: unit.fileId ?? prepared.sourceFile.id,
+                      translationMemoryMatchesUsed,
                     }),
                   );
                 }

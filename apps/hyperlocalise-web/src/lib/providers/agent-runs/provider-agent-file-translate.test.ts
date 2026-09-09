@@ -347,7 +347,7 @@ describe("translateProviderJobFiles", () => {
       filename: "messages.json",
       fileFormat: "json",
     });
-    reuseFileTranslationMemoryEntriesMock.mockResolvedValue({});
+    reuseFileTranslationMemoryEntriesMock.mockResolvedValue({ prefilled: {}, matchesByKey: {} });
     createTranslationSandboxMock.mockResolvedValue({ sandboxId: "sandbox_shared" });
     prepareSandboxMock.mockResolvedValue(undefined);
     stopTranslationSandboxMock.mockResolvedValue(undefined);
@@ -821,6 +821,273 @@ describe("translateProviderJobFiles", () => {
         expect.stringContaining("File translation failed for a.json (fr)"),
       ]),
     );
+  });
+
+  it("carries translation memory provenance into file proposals", async () => {
+    reuseFileTranslationMemoryEntriesMock.mockResolvedValue({
+      prefilled: { hello: "Bonjour" },
+      matchesByKey: {
+        hello: [
+          {
+            memoryId: "memory_1",
+            memoryName: "Project TM",
+            sourceText: "Hello",
+            targetText: "Bonjour",
+            targetLocale: "fr",
+            matchScore: 100,
+            matchSource: "synced_database",
+            providerKind: null,
+            resourceId: "memory_1",
+            externalResourceId: null,
+          },
+        ],
+      },
+    });
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("file-1") && path.includes("-fr")) {
+        return Buffer.from('{"hello":"Bonjour"}', "utf8");
+      }
+      if (path.includes("file-1")) {
+        return Buffer.from('{"hello":"Hello"}', "utf8");
+      }
+      return Buffer.from("{}", "utf8");
+    });
+    extractSandboxEntriesMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("file-1") && path.includes("-fr")) {
+        return { ok: true, entries: { hello: "Bonjour" } };
+      }
+      if (path.includes("file-1")) {
+        return { ok: true, entries: { hello: "Hello" } };
+      }
+      return { ok: true, entries: {} };
+    });
+
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "file-1",
+          displayName: "a.json",
+          sourcePath: "locales/a.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(result.changedItems).toEqual([
+      expect.objectContaining({
+        key: "hello",
+        to: "Bonjour",
+        translationMemoryMatchesUsed: [
+          expect.objectContaining({
+            memoryId: "memory_1",
+            memoryName: "Project TM",
+            matchSource: "synced_database",
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  it("filters untranslated units from crowdin prefill while keeping translated exports", async () => {
+    downloadCrowdinTranslationsInSandboxMock.mockResolvedValue({ ok: true });
+    let mixedFrenchExtractCount = 0;
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("file-mixed") && path.includes("-fr")) {
+        return Buffer.from('{"hello":"Bonjour","pending":"En attente"}', "utf8");
+      }
+      if (path.includes("file-mixed")) {
+        return Buffer.from('{"hello":"Hello","pending":"Pending"}', "utf8");
+      }
+      return Buffer.from("{}", "utf8");
+    });
+    extractSandboxEntriesMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("file-mixed") && path.includes("-fr")) {
+        mixedFrenchExtractCount += 1;
+        if (mixedFrenchExtractCount === 1) {
+          return {
+            ok: true,
+            entries: { hello: "Bonjour (crowdin)", pending: "En attente (crowdin)" },
+          };
+        }
+        return { ok: true, entries: { hello: "Bonjour", pending: "En attente" } };
+      }
+      if (path.includes("file-mixed")) {
+        return { ok: true, entries: { hello: "Hello", pending: "Pending" } };
+      }
+      return { ok: true, entries: {} };
+    });
+
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "file-mixed",
+          displayName: "messages.json",
+          sourcePath: "locales/messages.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-mixed",
+            translations: [{ locale: "fr", text: "Bonjour" }],
+          },
+          {
+            externalStringId: "2",
+            key: "pending",
+            sourceText: "Pending",
+            fileId: "file-mixed",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(downloadCrowdinTranslationsInSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLocale: "fr", mergeApproved: true }),
+    );
+    const prefillWrite = writeFileToSandboxMock.mock.calls.find(
+      ([, path]) => path === "/tmp/prefilled-by-locale.json",
+    );
+    expect(prefillWrite).toBeDefined();
+    expect(JSON.parse(prefillWrite![2].toString("utf8"))).toEqual({
+      fr: { hello: "Bonjour" },
+    });
+    expect(result.changedItems).toEqual([
+      expect.objectContaining({ key: "pending", to: "En attente", fileId: "file-mixed" }),
+    ]);
+    expect(result.changedItems.some((item) => item.key === "hello")).toBe(false);
+  });
+
+  it("does not crowdin-prefill shared keys for files that still need translation", async () => {
+    downloadCrowdinTranslationsInSandboxMock.mockResolvedValue({ ok: true });
+    const frenchExtractCountByFile = new Map<string, number>();
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("-fr")) {
+        if (path.includes("file-a")) {
+          return Buffer.from('{"save":"Enregistrer","greeting":"Salut"}', "utf8");
+        }
+        if (path.includes("file-b")) {
+          return Buffer.from('{"save":"Sauver"}', "utf8");
+        }
+      }
+      if (path.includes("file-a")) {
+        return Buffer.from('{"save":"Save","greeting":"Hello"}', "utf8");
+      }
+      if (path.includes("file-b")) {
+        return Buffer.from('{"save":"Save"}', "utf8");
+      }
+      return Buffer.from("{}", "utf8");
+    });
+    extractSandboxEntriesMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      const fileId = path.includes("file-a") ? "file-a" : path.includes("file-b") ? "file-b" : null;
+      if (fileId && path.includes("-fr")) {
+        const count = (frenchExtractCountByFile.get(fileId) ?? 0) + 1;
+        frenchExtractCountByFile.set(fileId, count);
+        if (count === 1) {
+          return {
+            ok: true,
+            entries: { save: "Enregistrer (crowdin)", greeting: "Salut (crowdin)" },
+          };
+        }
+        if (fileId === "file-a") {
+          return { ok: true, entries: { save: "Enregistrer", greeting: "Salut" } };
+        }
+        return { ok: true, entries: { save: "Sauver" } };
+      }
+      if (path.includes("file-a")) {
+        return { ok: true, entries: { save: "Save", greeting: "Hello" } };
+      }
+      if (path.includes("file-b")) {
+        return { ok: true, entries: { save: "Save" } };
+      }
+      return { ok: true, entries: {} };
+    });
+
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "file-a",
+          displayName: "a.json",
+          sourcePath: "locales/a.json",
+        },
+        {
+          id: "file-b",
+          displayName: "b.json",
+          sourcePath: "locales/b.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "save",
+            sourceText: "Save",
+            fileId: "file-a",
+            translations: [{ locale: "fr", text: "Enregistrer" }],
+          },
+          {
+            externalStringId: "2",
+            key: "greeting",
+            sourceText: "Hello",
+            fileId: "file-a",
+            translations: [],
+          },
+          {
+            externalStringId: "3",
+            key: "save",
+            sourceText: "Save",
+            fileId: "file-b",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    const prefillWrite = writeFileToSandboxMock.mock.calls.find(
+      ([, path]) => path === "/tmp/prefilled-by-locale.json",
+    );
+    expect(prefillWrite).toBeUndefined();
+    expect(result.changedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "greeting", to: "Salut", fileId: "file-a" }),
+        expect.objectContaining({ key: "save", to: "Sauver", fileId: "file-b" }),
+      ]),
+    );
+    expect(
+      result.changedItems.some((item) => item.fileId === "file-a" && item.key === "save"),
+    ).toBe(false);
+    expect(result.skippedExistingLocales).toBe(1);
   });
 
   it("continues the batch when one sandbox source download fails", async () => {

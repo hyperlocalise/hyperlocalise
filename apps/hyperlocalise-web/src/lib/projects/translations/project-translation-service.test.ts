@@ -281,7 +281,45 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.translatedKeyCount).toBe(0);
   });
 
-  it("prefills hidden keys with existing translation or source and omits them from retryKeys", async () => {
+  it("prefills hidden keys with source text for file translation jobs", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "hidden.copy", sourceText: "Do not translate", isHidden: true },
+      { id: "key_2", key: "greeting", sourceText: "Hello", isHidden: false },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({
+      "hidden.copy": "Do not translate",
+    });
+    expect(result.retryKeys).toEqual([]);
+    expect(result.translatedKeyCount).toBe(0);
+    expect(result.loadedKeyCount).toBe(2);
+  });
+
+  it("prefills hidden keys with existing translation or source fallback on export", async () => {
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
     offsetMock.mockResolvedValueOnce([
       { id: "key_1", key: "debug.id", sourceText: "Internal id", isHidden: true },
@@ -314,13 +352,14 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
+      includeAllSourceKeys: true,
     });
 
     expect(result.prefilled).toEqual({
       "debug.id": "Id interne",
       "hidden.copy": "Do not translate",
+      greeting: "Hello",
     });
-    expect(result.retryKeys).toEqual([]);
     expect(result.loadedKeyCount).toBe(3);
     expect(result.translatedKeyCount).toBe(1);
   });

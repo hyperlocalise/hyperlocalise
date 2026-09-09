@@ -23,6 +23,7 @@ import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecy
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
+import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 type ProjectKeysScopeInput = {
@@ -745,11 +746,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
       for (const key of keys) {
         const translation = translationByKeyId.get(key.id);
-        const hasValidTranslation =
-          Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+        const canPrefill = shouldPrefillTranslation({
+          targetText: translation?.text,
+          status: translation?.status,
+        });
 
         if (key.isHidden) {
-          if (hasValidTranslation) {
+          if (canPrefill) {
             prefilled[key.key] = translation!.text;
             translatedKeyCount += 1;
           } else {
@@ -758,10 +761,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
           continue;
         }
 
-        // Leave multi-word needs-review copies out of prefill so a later
-        // translate-with-agent run can try them again. Single-word copies stay.
         const retrySameAsSource =
-          hasValidTranslation &&
+          canPrefill &&
           shouldRetrySameAsSourcePrefill({
             sourceText: key.sourceText,
             targetText: translation!.text,
@@ -772,7 +773,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           retryKeys.push(key.key);
         }
 
-        if (hasValidTranslation && !retrySameAsSource) {
+        if (canPrefill && !retrySameAsSource) {
           prefilled[key.key] = translation!.text;
           translatedKeyCount += 1;
           continue;

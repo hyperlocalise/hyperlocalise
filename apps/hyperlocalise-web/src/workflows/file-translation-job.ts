@@ -887,12 +887,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocale,
           sourceEntries,
         });
-        tmPrefilled = await reuseFileTranslationMemoryEntriesStep({
+        const tmReuse = await reuseFileTranslationMemoryEntriesStep({
           projectId: claim.job.projectId,
           sourceLocale: parsedInput.sourceLocale,
           targetLocale,
           sourceEntries,
         });
+        tmPrefilled = tmReuse.prefilled;
         if (Object.keys(tmPrefilled).length > 0) {
           console.info("[file-translation-workflow] matched reusable translation memory entries", {
             jobId: claim.job.id,

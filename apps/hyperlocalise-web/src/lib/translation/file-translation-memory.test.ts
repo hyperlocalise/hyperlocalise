@@ -23,7 +23,16 @@ type UpsertedMemoryEntry = {
 };
 
 type ReusableMemoryEntryRow = {
+  id: string;
   memoryId: string;
+  sourceText: string;
+  sourceLocale: string;
+  provenance: string;
+  matchScore: number;
+  externalKey: string | null;
+  memoryName: string;
+  externalProviderKind: string | null;
+  externalMemoryId: string | null;
   metadata?: {
     segmentKey: string;
     sourceTextHash: string;
@@ -53,10 +62,33 @@ const {
   }));
   const insertMock = vi.fn(() => ({ values: valuesMock }));
   const whereMock = vi.fn(async (): Promise<ReusableMemoryEntryRow[]> => [
-    { memoryId: "memory_1" },
-    { memoryId: "memory_2" },
+    {
+      id: "entry_1",
+      memoryId: "memory_1",
+      sourceText: "Hello",
+      sourceLocale: "en",
+      provenance: "file_job",
+      matchScore: 100,
+      externalKey: "job:fr:first",
+      memoryName: "Project TM",
+      externalProviderKind: null,
+      externalMemoryId: null,
+    },
+    {
+      id: "entry_2",
+      memoryId: "memory_2",
+      sourceText: "Hello",
+      sourceLocale: "en",
+      provenance: "file_job",
+      matchScore: 100,
+      externalKey: "job:de:first",
+      memoryName: "Secondary TM",
+      externalProviderKind: null,
+      externalMemoryId: null,
+    },
   ]);
-  const fromMock = vi.fn(() => ({ where: whereMock }));
+  const innerJoinMock = vi.fn(() => ({ where: whereMock }));
+  const fromMock = vi.fn(() => ({ innerJoin: innerJoinMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
   const listHiddenKeysMock = vi.fn(async () => [] as string[]);
   const ensureDefaultMemoryIdsMock = vi.fn(async () => [] as string[]);
@@ -102,6 +134,8 @@ vi.mock("@/lib/database/client", () => ({
   schema: {
     memoryEntries: {
       externalKey: "externalKey",
+      id: "id",
+      matchScore: "matchScore",
       memoryId: "memoryId",
       metadata: "metadata",
       normalizedSourceText: "normalizedSourceText",
@@ -111,6 +145,12 @@ vi.mock("@/lib/database/client", () => ({
       sourceText: "sourceText",
       targetLocale: "targetLocale",
       targetText: "targetText",
+    },
+    memories: {
+      externalMemoryId: "externalMemoryId",
+      externalProviderKind: "externalProviderKind",
+      id: "id",
+      name: "name",
     },
     projectMemories: {
       memoryId: "memoryId",
@@ -315,7 +355,16 @@ describe("reuseFileTranslationMemoryEntries", () => {
   it("reuses only rows that match the target locale, segment key, and source hash", async () => {
     whereMock.mockResolvedValueOnce([
       {
+        id: "entry_1",
         memoryId: "memory_1",
+        sourceText: "Hello",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:fr:first",
+        memoryName: "Project TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
         metadata: {
           segmentKey: "first",
           sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
@@ -325,7 +374,16 @@ describe("reuseFileTranslationMemoryEntries", () => {
         targetText: "Bonjour",
       },
       {
+        id: "entry_2",
         memoryId: "memory_2",
+        sourceText: "Hello",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:de:first",
+        memoryName: "Secondary TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
         metadata: {
           segmentKey: "first",
           sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
@@ -343,6 +401,17 @@ describe("reuseFileTranslationMemoryEntries", () => {
       targetLocale: "fr",
     });
 
-    expect(result).toEqual({ first: "Bonjour" });
+    expect(result.prefilled).toEqual({ first: "Bonjour" });
+    expect(result.matchesByKey.first).toEqual([
+      expect.objectContaining({
+        memoryId: "memory_1",
+        memoryName: "Project TM",
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        targetLocale: "fr",
+        matchSource: "synced_database",
+        resourceId: "memory_1",
+      }),
+    ]);
   });
 });
