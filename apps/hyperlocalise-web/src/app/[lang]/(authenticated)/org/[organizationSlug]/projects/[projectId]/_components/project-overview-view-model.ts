@@ -12,80 +12,68 @@
  */
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
 
-export const PROJECT_OVERVIEW_TRIAGE_LIMIT = 5;
+export const PROJECT_OVERVIEW_JOBS_LIMIT = 5;
 
-export type ProjectOverviewTriageKind = "review" | "failed" | "guidance" | "job";
+export type ProjectOverviewJobKind =
+  | "review"
+  | "failed"
+  | "running"
+  | "queued"
+  | "succeeded"
+  | "cancelled"
+  | "guidance";
 
-export type ProjectOverviewTriageItem = {
+export type ProjectOverviewJobItem = {
   id: string;
-  kind: ProjectOverviewTriageKind;
+  kind: ProjectOverviewJobKind;
   job?: ApiJob;
 };
 
-function triageRank(kind: ProjectOverviewTriageKind) {
-  switch (kind) {
-    case "review":
-      return 0;
+function projectOverviewJobKindFromStatus(status: ApiJob["status"]): ProjectOverviewJobKind {
+  switch (status) {
+    case "waiting_for_review":
+      return "review";
     case "failed":
-      return 1;
-    case "guidance":
-      return 2;
-    case "job":
-      return 3;
+      return "failed";
+    case "running":
+      return "running";
+    case "queued":
+      return "queued";
+    case "succeeded":
+      return "succeeded";
+    case "cancelled":
+      return "cancelled";
     default: {
-      const _exhaustive: never = kind;
+      const _exhaustive: never = status;
       return _exhaustive;
     }
   }
 }
 
-export function buildProjectOverviewTriageItems(input: {
+export function buildProjectOverviewJobItems(input: {
   jobs: readonly ApiJob[];
   isNative: boolean;
   hasTranslationGuidance: boolean;
   limit?: number;
-}): ProjectOverviewTriageItem[] {
-  const limit = input.limit ?? PROJECT_OVERVIEW_TRIAGE_LIMIT;
-  const items: ProjectOverviewTriageItem[] = [];
-
-  const reviewJobs = input.jobs.filter((job) => job.status === "waiting_for_review");
-  const failedJobs = input.jobs.filter((job) => job.status === "failed");
-  const otherJobs = input.jobs.filter((job) => job.status === "queued" || job.status === "running");
-
-  for (const job of reviewJobs) {
-    items.push({
-      id: `review:${job.id}`,
-      kind: "review",
+}): ProjectOverviewJobItem[] {
+  const limit = input.limit ?? PROJECT_OVERVIEW_JOBS_LIMIT;
+  const items: ProjectOverviewJobItem[] = input.jobs
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, limit)
+    .map((job) => ({
+      id: `job:${job.id}`,
+      kind: projectOverviewJobKindFromStatus(job.status),
       job,
-    });
-  }
+    }));
 
-  for (const job of failedJobs) {
-    items.push({
-      id: `failed:${job.id}`,
-      kind: "failed",
-      job,
-    });
-  }
-
-  if (input.isNative && !input.hasTranslationGuidance) {
+  if (input.isNative && !input.hasTranslationGuidance && items.length < limit) {
     items.push({
       id: "guidance:missing",
       kind: "guidance",
     });
   }
 
-  for (const job of otherJobs) {
-    items.push({
-      id: `job:${job.id}`,
-      kind: "job",
-      job,
-    });
-  }
-
-  return items
-    .toSorted((left, right) => triageRank(left.kind) - triageRank(right.kind))
-    .slice(0, limit);
+  return items;
 }
 
 export function formatProjectLocaleRoute(
@@ -102,6 +90,6 @@ export function formatProjectLocaleRoute(
   return `${source} → ${preview}${suffix}`;
 }
 
-export function projectOverviewMeshTone(triageCount: number): "action" | "calm" {
-  return triageCount > 0 ? "action" : "calm";
+export function projectOverviewMeshTone(jobCount: number): "action" | "calm" {
+  return jobCount > 0 ? "action" : "calm";
 }

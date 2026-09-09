@@ -118,3 +118,13 @@ export function selectOverviewTriageProjectJobs<T extends ProjectJobRecord>(
     })
     .slice(0, limit);
 }
+
+/** Keeps the most recently updated jobs for project Overview. */
+export function selectRecentProjectJobs<T extends ProjectJobRecord>(
+  jobs: readonly T[],
+  limit: number,
+): T[] {
+  return jobs
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, limit);
+}

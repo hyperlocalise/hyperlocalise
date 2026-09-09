@@ -68,7 +68,22 @@ export const projectOverviewPageContentMessages = defineMessages({
   statusRunning: {
     defaultMessage: "Running",
     id: "82QjeMOgLE",
-    description: "Status label for a queued or running job on project overview",
+    description: "Status label for a running job on project overview",
+  },
+  statusQueued: {
+    defaultMessage: "Queued",
+    id: "k8mP2nQxRt",
+    description: "Status label for a queued job on project overview",
+  },
+  statusSucceeded: {
+    defaultMessage: "Succeeded",
+    id: "v7nQ3pRySu",
+    description: "Status label for a succeeded job on project overview",
+  },
+  statusCancelled: {
+    defaultMessage: "Cancelled",
+    id: "w8oR4qSzTv",
+    description: "Status label for a cancelled job on project overview",
   },
   statusGuidance: {
     defaultMessage: "Guidance",
@@ -76,14 +91,14 @@ export const projectOverviewPageContentMessages = defineMessages({
     description: "Status label when translation guidance is missing on project overview",
   },
   triageEmptyTitle: {
-    defaultMessage: "No reviews waiting",
+    defaultMessage: "No jobs yet",
     id: "TVxvj2B1bk",
-    description: "Title when the triage band has no urgent items",
+    description: "Title when the project overview has no recent jobs",
   },
   triageEmptyDescription: {
-    defaultMessage: "Open Files for coverage, or create a job when you are ready.",
+    defaultMessage: "Create a job to start translating, or open Files to review coverage.",
     id: "85veKzf/Q7",
-    description: "Description when the triage band has no urgent items",
+    description: "Description when the project overview has no recent jobs",
   },
   reviewCta: {
     defaultMessage: "Review",
