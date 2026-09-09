@@ -38,8 +38,8 @@ export const aiEnginePageContentMessages = defineMessages({
   },
   agentSectionDescription: {
     defaultMessage:
-      "Ask, Translation, and Coding use the workspace default model today. Per-capability overrides are coming soon.",
-    id: "vSisR0WmWz",
+      "Ask, Translation, and Coding use the workspace default model today. Text to speech, Transcribe, Image generation, and Video generation use included models. Per-capability overrides are coming soon.",
+    id: "xHmiZAvHuU",
     description: "Description under the Hyperlocalise Agent section heading",
   },
   agentAutomationsNote: {
@@ -126,6 +126,47 @@ export const aiEnginePageContentMessages = defineMessages({
       "Repository agent, GitHub automations, patches, and sandboxed code changes for localization fixes.",
     id: "CIjzfipJPL",
     description: "Hyperlocalise Agent Coding capability description",
+  },
+  capabilityTtsName: {
+    defaultMessage: "Text to speech",
+    id: "mgiYpfU9jm",
+    description: "Hyperlocalise Agent text to speech capability name",
+  },
+  capabilityTtsDescription: {
+    defaultMessage: "Spoken audio for localized voiceovers, previews, and agent replies.",
+    id: "JWYwsX1bkl",
+    description: "Hyperlocalise Agent text to speech capability description",
+  },
+  capabilityTranscribeName: {
+    defaultMessage: "Transcribe",
+    id: "qjx6F4ATvy",
+    description: "Hyperlocalise Agent transcribe capability name",
+  },
+  capabilityTranscribeDescription: {
+    defaultMessage: "Speech-to-text for uploaded audio, meetings, and voice notes.",
+    id: "S8o/G+WkMb",
+    description: "Hyperlocalise Agent transcribe capability description",
+  },
+  capabilityImageName: {
+    defaultMessage: "Image generation",
+    id: "zNmLFPYZSE",
+    description: "Hyperlocalise Agent image generation capability name",
+  },
+  capabilityImageDescription: {
+    defaultMessage: "Localized image generation and regeneration for campaign assets.",
+    id: "SP5RujLemP",
+    description: "Hyperlocalise Agent image generation capability description",
+  },
+  capabilityVideoName: {
+    defaultMessage: "Video generation",
+    id: "9hH0faxMuJ",
+    description: "Hyperlocalise Agent video generation capability name",
+  },
+  capabilityVideoDescription: {
+    defaultMessage:
+      "Localized video generation and regeneration for on-screen text and spoken audio.",
+    id: "ia5z3O+Lwm",
+    description: "Hyperlocalise Agent video generation capability description",
   },
   noAccess: {
     defaultMessage: "You do not have permission to manage AI providers in this workspace.",

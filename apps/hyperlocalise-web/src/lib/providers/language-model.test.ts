@@ -33,9 +33,13 @@ import {
   getAgentProviderOptions,
   getManagedImageModel,
   getManagedLanguageModel,
+  getManagedTranscribeModel,
+  getManagedTtsModel,
   getManagedVideoModel,
   hyperlocaliseImageModelId,
   hyperlocaliseManagedGatewayModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseTtsModelId,
   hyperlocaliseVideoModelId,
   resolveProviderLanguageModel,
 } from "./language-model";
@@ -45,9 +49,13 @@ describe("managed language model", () => {
     expect(getManagedLanguageModel()).toBe(hyperlocaliseManagedGatewayModelId);
     expect(getManagedImageModel()).toBe(hyperlocaliseImageModelId);
     expect(getManagedVideoModel()).toBe(hyperlocaliseVideoModelId);
+    expect(getManagedTtsModel()).toBe(hyperlocaliseTtsModelId);
+    expect(getManagedTranscribeModel()).toBe(hyperlocaliseTranscribeModelId);
     expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-5.6-luna");
     expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2.5-flare");
     expect(hyperlocaliseVideoModelId).toBe("bytedance/seedance-2.5");
+    expect(hyperlocaliseTtsModelId).toBe("fish-audio/s2.1-pro");
+    expect(hyperlocaliseTranscribeModelId).toBe("google/gemini-3.5-transcribe");
     expect(createOpenAIMock).not.toHaveBeenCalled();
     expect(createAnthropicMock).not.toHaveBeenCalled();
   });
