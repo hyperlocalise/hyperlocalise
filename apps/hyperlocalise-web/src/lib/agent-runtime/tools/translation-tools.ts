@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -691,19 +691,39 @@ async function enqueueTranslationJob(input: {
       type: input.type,
     });
 
-    await input.ctx.db
+    const [claimedJob] = await input.ctx.db
       .update(schema.jobs)
       .set({ workflowRunId: result.ids[0] ?? null })
       .where(
         and(
           eq(schema.jobs.id, input.job.id),
           eq(schema.jobs.organizationId, input.ctx.organizationId),
+          eq(schema.jobs.status, "queued"),
+          isNull(schema.jobs.workflowRunId),
         ),
-      );
+      )
+      .returning({ workflowRunId: schema.jobs.workflowRunId });
 
-    return ok({ workflowRunIds: result.ids });
+    if (!claimedJob) {
+      const [ownedJob] = await input.ctx.db
+        .select({ workflowRunId: schema.jobs.workflowRunId })
+        .from(schema.jobs)
+        .where(
+          and(
+            eq(schema.jobs.id, input.job.id),
+            eq(schema.jobs.organizationId, input.ctx.organizationId),
+          ),
+        )
+        .limit(1);
+
+      return ok({ workflowRunIds: ownedJob?.workflowRunId ? [ownedJob.workflowRunId] : [] });
+    }
+
+    return ok({
+      workflowRunIds: claimedJob.workflowRunId ? [claimedJob.workflowRunId] : [],
+    });
   } catch (error) {
-    await input.ctx.db
+    const [failedJob] = await input.ctx.db
       .update(schema.jobs)
       .set({
         status: "failed",
@@ -713,8 +733,28 @@ async function enqueueTranslationJob(input: {
         and(
           eq(schema.jobs.id, input.job.id),
           eq(schema.jobs.organizationId, input.ctx.organizationId),
+          eq(schema.jobs.status, "queued"),
+          isNull(schema.jobs.workflowRunId),
         ),
-      );
+      )
+      .returning({ id: schema.jobs.id });
+
+    if (!failedJob) {
+      const [ownedJob] = await input.ctx.db
+        .select({ workflowRunId: schema.jobs.workflowRunId })
+        .from(schema.jobs)
+        .where(
+          and(
+            eq(schema.jobs.id, input.job.id),
+            eq(schema.jobs.organizationId, input.ctx.organizationId),
+          ),
+        )
+        .limit(1);
+
+      if (ownedJob?.workflowRunId) {
+        return ok({ workflowRunIds: [ownedJob.workflowRunId] });
+      }
+    }
 
     await enqueueJobFailedActivity({
       actorCredentialId: null,
