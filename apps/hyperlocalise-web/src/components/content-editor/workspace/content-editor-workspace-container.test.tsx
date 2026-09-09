@@ -225,13 +225,13 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
     );
-    expect(screen.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Original · en-US/i })).toBeInTheDocument();
     expect(screen.getByText("marketing/hero.png")).toBeInTheDocument();
-    expect(screen.getByAltText("Translated image")).toBeInTheDocument();
-    expect(screen.getByAltText("Source image")).toBeInTheDocument();
-    expect(screen.getByText("Upload translated file")).toBeInTheDocument();
+    expect(screen.getByAltText("Localised image")).toBeInTheDocument();
+    expect(screen.getByAltText("Original image")).toBeInTheDocument();
+    expect(screen.getByText("Upload localised image")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
   });
 
@@ -273,7 +273,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
     );
 
     expect(screen.queryByRole("button", { name: "Filter queue" })).not.toBeInTheDocument();

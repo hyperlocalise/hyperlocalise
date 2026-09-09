@@ -21,6 +21,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { Markdown } from "@tiptap/markdown";
+import type { MarkdownSelectionAiConfig } from "./markdown-selection-ai.types";
 import type { Editor, Extensions } from "@tiptap/core";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -197,6 +198,8 @@ export function MarkdownEditor({
   id,
   value,
   onChange,
+  onInitialContent,
+  selectionAi,
   onBlur,
   disabled = false,
   className,
@@ -211,13 +214,16 @@ export function MarkdownEditor({
   id?: string;
   value: string;
   onChange: (value: string) => void;
+  /** Reports normalized content on creation so consumers can establish a clean save baseline. */
+  onInitialContent?: (value: string) => void;
+  selectionAi?: MarkdownSelectionAiConfig;
   onBlur?: () => void;
   disabled?: boolean;
   className?: string;
   placeholder?: string;
   ariaLabel?: string;
   /** Minimal inline chrome omits the bordered shell; toolbar still shows when editable. */
-  chrome?: "default" | "minimal";
+  chrome?: "default" | "minimal" | "document";
   /** Shorter min-height for single-line composers (e.g. comment reply footer). */
   compact?: boolean;
   mentionConfig?: MarkdownMentionConfig | null;
@@ -270,11 +276,14 @@ export function MarkdownEditor({
   );
   const resolvedAriaLabel =
     ariaLabel ?? intl.formatMessage(markdownEditorMessages.taskDescriptionAria);
+  const isDocument = chrome === "document";
   const isMinimal = chrome === "minimal";
   const minimalMinHeightClassName = compact ? "min-h-6" : "min-h-[3rem]";
   const editorContentClassName = cn(
     isMinimal ? markdownEditorMinimalContentClassName : markdownEditorContentClassName,
     isMinimal ? minimalMinHeightClassName : "min-h-[8rem]",
+    isDocument &&
+      "px-6 py-10 text-base leading-7 text-foreground sm:px-12 sm:py-14 [&_h1]:text-3xl [&_h2]:mt-8 [&_p]:my-4",
   );
 
   const scheduleBlurCommit = useCallback((hasEditorFocus: () => boolean) => {
@@ -359,6 +368,9 @@ export function MarkdownEditor({
     contentType: "markdown",
     editable: !disabled,
     immediatelyRender: false,
+    onCreate: ({ editor: activeEditor }) => {
+      onInitialContent?.(activeEditor.getMarkdown());
+    },
     onUpdate: ({ editor: activeEditor }) => {
       onChange(activeEditor.getMarkdown());
     },
@@ -546,18 +558,21 @@ export function MarkdownEditor({
       aria-busy={isUploadingImage || undefined}
       className={cn(
         "relative",
-        isMinimal
-          ? compact
-            ? "[&_.tiptap]:min-h-6"
-            : "[&_.tiptap]:min-h-[3rem]"
-          : "rounded-lg border border-border bg-muted [&_.tiptap]:min-h-[8rem]",
+        isDocument
+          ? "bg-card [&_.tiptap]:min-h-[40rem]"
+          : isMinimal
+            ? compact
+              ? "[&_.tiptap]:min-h-6"
+              : "[&_.tiptap]:min-h-[3rem]"
+            : "rounded-lg border border-border bg-muted [&_.tiptap]:min-h-[8rem]",
         markdownPlaceholderStyles,
         disabled && "opacity-60",
         className,
       )}
     >
-      {!disabled && !isMinimal ? (
+      {(!disabled || isDocument) && !isMinimal ? (
         <MarkdownEditorToolbar
+          document={isDocument}
           editor={editor}
           disabled={disabled}
           imageUpload={imageUpload}
@@ -568,9 +583,11 @@ export function MarkdownEditor({
       <EditorContent
         editor={editor}
         className={cn(
-          isMinimal
-            ? minimalMinHeightClassName
-            : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
+          isDocument
+            ? "min-h-[40rem]"
+            : isMinimal
+              ? minimalMinHeightClassName
+              : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
         )}
       />
       {isUploadingImage ? (
@@ -588,6 +605,7 @@ export function MarkdownEditor({
       {!disabled ? (
         <MarkdownEditorBubbleMenu
           editor={editor}
+          selectionAi={selectionAi}
           onLinkPromptOpenChange={(open) => {
             linkPromptOpenRef.current = open;
           }}

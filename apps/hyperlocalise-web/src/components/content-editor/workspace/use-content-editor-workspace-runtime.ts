@@ -328,6 +328,7 @@ export function useContentEditorWorkspaceRuntime({
       editing,
       review,
       services: {
+        generateAiRecommendation,
         validateFormat,
         runQaChecks,
       },

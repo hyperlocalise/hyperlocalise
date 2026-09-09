@@ -26,6 +26,7 @@ describe("content-editor-file-view-source-pane", () => {
     });
 
     expect(readCatFileViewSourcePaneVisible()).toBe(true);
+    expect(readCatFileViewSourcePaneVisible(false)).toBe(false);
 
     writeCatFileViewSourcePaneVisible(false);
     expect(setItem).toHaveBeenCalledWith("content-editor-file-view:source-pane:v1", "false");
