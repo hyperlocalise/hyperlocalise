@@ -842,6 +842,18 @@ export function MultilingualContentStudioPage() {
               >
                 <FormattedMessage {...messages.guidelines} /> ↗
               </Link>
+              <Link
+                href={rewriteAppLocalePath("/product/domains", locale)}
+                className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                <FormattedMessage {...messages.domains} /> ↗
+              </Link>
+              <Link
+                href={rewriteAppLocalePath("/product/hyperlab", locale)}
+                className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                <FormattedMessage {...messages.hyperlab} /> ↗
+              </Link>
             </div>
           </div>
         </section>

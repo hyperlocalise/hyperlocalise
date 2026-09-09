@@ -83,8 +83,8 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Hyperlab provides A/B testing for your CMS and distribution, so your team can compare content variants and learn what performs.",
-        id: "3vl9Ga2VYG",
+          "Hyperlab lets you run market experiments and show different features by country, so you learn what works before every market sees it.",
+        id: "URyMqNCJY6",
         description: "Homepage FAQ answer about platform topic 5",
       }),
     },

@@ -32,7 +32,7 @@ export const PRODUCTS = [
   },
   {
     id: "automation",
-    href: "#explore",
+    href: "/product/agents-automation",
     title: m.automationCardTitle,
     short: m.automationShort,
     body: m.automationBody,
@@ -40,7 +40,7 @@ export const PRODUCTS = [
   },
   {
     id: "domains",
-    href: "#explore",
+    href: "/product/domains",
     title: m.domainsCardTitle,
     short: m.domainsShort,
     body: m.domainsBody,
@@ -48,7 +48,7 @@ export const PRODUCTS = [
   },
   {
     id: "hyperlab",
-    href: "#explore",
+    href: "/product/hyperlab",
     title: m.hyperlabCardTitle,
     short: m.hyperlabShort,
     body: m.hyperlabBody,

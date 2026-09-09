@@ -404,6 +404,16 @@ export const multilingualContentStudioPageMessages = defineMessages({
     id: "BJpPKh03Ub",
     description: "Link from Content Studio to the Guidelines product page",
   },
+  domains: {
+    defaultMessage: "Domains",
+    id: "J8xBi9C1wa",
+    description: "Link from Content Studio to the Domains product page",
+  },
+  hyperlab: {
+    defaultMessage: "Hyperlab",
+    id: "sDAG01MYru",
+    description: "Link from Content Studio to the Hyperlab product page",
+  },
   faqHeading: {
     defaultMessage: "A few things\nyou might ask.",
     id: "pS4CYtUU3j",

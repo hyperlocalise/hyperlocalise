@@ -38,12 +38,12 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(
       canvas.getByRole("heading", {
-        name: "Flags, experiments, and live evaluation in one workspace",
+        name: "Market experiments and market features in one workspace",
       }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Feature flags" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "A/B experiments" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Audience targeting" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Market features" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Market experiments" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "One market first" })).toBeInTheDocument();
     await expect(canvas.getByText("checkout-cta")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Request a Demo" })).toBeInTheDocument();
   },

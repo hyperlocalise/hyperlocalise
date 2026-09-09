@@ -14,9 +14,14 @@ import type { ProductMessageKey } from "./product-page-content.messages";
 
 export type { ProductMessageKey } from "./product-page-content.messages";
 
-export type ProductPageSlug = "agents-automation" | "multilingual-content-studio" | "guidelines";
+export type ProductPageSlug =
+  | "agents-automation"
+  | "multilingual-content-studio"
+  | "domains"
+  | "hyperlab"
+  | "guidelines";
 
-export type ProductVisualKind = "automation" | "cat" | "knowledge";
+export type ProductVisualKind = "automation" | "cat" | "domains" | "hyperlab" | "knowledge";
 
 export type ProductPageLink = {
   labelKey: ProductMessageKey;
@@ -90,7 +95,7 @@ export const productPages: ProductPageContent[] = [
     },
     related: [
       { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
-      { labelKey: "productNavGuidelines", href: "/product/guidelines" },
+      { labelKey: "productNavDomains", href: "/product/domains" },
     ],
   },
   {
@@ -133,6 +138,94 @@ export const productPages: ProductPageContent[] = [
     },
     related: [
       { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
+      { labelKey: "productNavDomains", href: "/product/domains" },
+    ],
+  },
+  {
+    slug: "domains",
+    metadata: {
+      titleKey: "domainsMetadataTitle",
+      descriptionKey: "domainsMetadataDescription",
+      keywords: [
+        "multilingual CMS",
+        "localisation audit",
+        "multilingual SEO",
+        "answer engine optimisation",
+        "AEO",
+      ],
+    },
+    visualKind: "domains",
+    hero: {
+      eyebrowKey: "domainsHeroEyebrow",
+      headlineKey: "domainsHeroHeadline",
+      subcopyKey: "domainsHeroSubcopy",
+    },
+    detailsHeadlineKey: "domainsDetailsHeadline",
+    summaryKey: "domainsSummary",
+    proofPoints: [
+      {
+        titleKey: "domainsProof0Title",
+        bodyKey: "domainsProof0Body",
+      },
+      {
+        titleKey: "domainsProof1Title",
+        bodyKey: "domainsProof1Body",
+      },
+      {
+        titleKey: "domainsProof2Title",
+        bodyKey: "domainsProof2Body",
+      },
+    ],
+    cta: {
+      headlineKey: "domainsCtaHeadline",
+      descriptionKey: "domainsCtaDescription",
+    },
+    related: [
+      { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
+      { labelKey: "productNavHyperlab", href: "/product/hyperlab" },
+    ],
+  },
+  {
+    slug: "hyperlab",
+    metadata: {
+      titleKey: "hyperlabMetadataTitle",
+      descriptionKey: "hyperlabMetadataDescription",
+      keywords: [
+        "market experiments",
+        "market-specific features",
+        "multilingual experiments",
+        "A/B testing by country",
+        "OpenFeature",
+      ],
+    },
+    visualKind: "hyperlab",
+    hero: {
+      eyebrowKey: "hyperlabHeroEyebrow",
+      headlineKey: "hyperlabHeroHeadline",
+      subcopyKey: "hyperlabHeroSubcopy",
+    },
+    detailsHeadlineKey: "hyperlabDetailsHeadline",
+    summaryKey: "hyperlabSummary",
+    proofPoints: [
+      {
+        titleKey: "hyperlabProof0Title",
+        bodyKey: "hyperlabProof0Body",
+      },
+      {
+        titleKey: "hyperlabProof1Title",
+        bodyKey: "hyperlabProof1Body",
+      },
+      {
+        titleKey: "hyperlabProof2Title",
+        bodyKey: "hyperlabProof2Body",
+      },
+    ],
+    cta: {
+      headlineKey: "hyperlabCtaHeadline",
+      descriptionKey: "hyperlabCtaDescription",
+    },
+    related: [
+      { labelKey: "productNavDomains", href: "/product/domains" },
       { labelKey: "productNavGuidelines", href: "/product/guidelines" },
     ],
   },
@@ -177,8 +270,8 @@ export const productPages: ProductPageContent[] = [
       descriptionKey: "guidelinesCtaDescription",
     },
     related: [
-      { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
       { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
+      { labelKey: "productNavHyperlab", href: "/product/hyperlab" },
     ],
   },
 ];

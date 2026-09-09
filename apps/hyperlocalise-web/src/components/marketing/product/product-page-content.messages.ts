@@ -60,6 +60,16 @@ export const productPageMessages = defineMessages({
     id: "gtD9AzyGIn",
     description: "Navigation label for the Guidelines product page",
   },
+  productNavDomains: {
+    defaultMessage: "Domains",
+    id: "7xOUFwYHfE",
+    description: "Navigation label for the Domains product page",
+  },
+  productNavHyperlab: {
+    defaultMessage: "Hyperlab",
+    id: "wCH+Hr/sNP",
+    description: "Navigation label for the Hyperlab product page",
+  },
   visualAutomationLaunchRequest: {
     defaultMessage: "Launch request",
     id: "SmCgybn22Q",
@@ -481,6 +491,166 @@ export const productPageMessages = defineMessages({
       "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
     id: "cqdHse07GI",
     description: "Bottom CTA description for the Guidelines product page",
+  },
+  domainsMetadataTitle: {
+    defaultMessage: "Publish Once. Get Found Everywhere. | Hyperlocalise",
+    id: "0wVg6cogQx",
+    description: "Page title for the Domains product page",
+  },
+  domainsMetadataDescription: {
+    defaultMessage:
+      "Publish multilingual pages, then check localisation, search, and AI answers so people can find them in every market.",
+    id: "HdHkhWUK6b",
+    description: "Meta description for the Domains product page",
+  },
+  domainsHeroEyebrow: {
+    defaultMessage: "Domains",
+    id: "q82hDvskBV",
+    description: "Hero eyebrow for the Domains product page",
+  },
+  domainsHeroHeadline: {
+    defaultMessage: "Publish once. Get found everywhere.",
+    id: "G3hsgHI8K5",
+    description: "Hero headline for the Domains product page",
+  },
+  domainsHeroSubcopy: {
+    defaultMessage:
+      "Put your pages live in every language. Domains watches search and AI answers, then shows you what to fix.",
+    id: "rOi9K00n5n",
+    description: "Hero subcopy for the Domains product page",
+  },
+  domainsDetailsHeadline: {
+    defaultMessage: "A live site is not enough if nobody can find it.",
+    id: "nbCxIw5Qbn",
+    description: "Details section headline for the Domains product page",
+  },
+  domainsSummary: {
+    defaultMessage:
+      "Domains hosts your multilingual pages and checks that each language, search snippet, and AI answer points to the right place.",
+    id: "fQnyk9TobX",
+    description: "Details section summary for the Domains product page",
+  },
+  domainsProof0Title: {
+    defaultMessage: "Every language has a page",
+    id: "BQNqLf7i/j",
+    description: "Proof point 1 title for the Domains product page",
+  },
+  domainsProof0Body: {
+    defaultMessage:
+      "Missing locales and broken language links show up before a customer hits a 404.",
+    id: "WpiT19K1oY",
+    description: "Proof point 1 body for the Domains product page",
+  },
+  domainsProof1Title: {
+    defaultMessage: "Search can read it",
+    id: "fxy2Q92Fyj",
+    description: "Proof point 2 title for the Domains product page",
+  },
+  domainsProof1Body: {
+    defaultMessage:
+      "Titles, descriptions, and indexability are checked per market, not only in English.",
+    id: "PDu1wBKWkk",
+    description: "Proof point 2 body for the Domains product page",
+  },
+  domainsProof2Title: {
+    defaultMessage: "AI can answer with it",
+    id: "FBbrFMvQnh",
+    description: "Proof point 3 title for the Domains product page",
+  },
+  domainsProof2Body: {
+    defaultMessage:
+      "FAQ and structured answers help AI search tools cite your page instead of a competitor.",
+    id: "PrUPxIA6cW",
+    description: "Proof point 3 body for the Domains product page",
+  },
+  domainsCtaHeadline: {
+    defaultMessage: "Your site. Ready for every market.",
+    id: "c5du4mwELJ",
+    description: "Bottom CTA headline for the Domains product page",
+  },
+  domainsCtaDescription: {
+    defaultMessage: "Publish the pages you already have, then fix what search and AI still miss.",
+    id: "O/p1Cca1WB",
+    description: "Bottom CTA description for the Domains product page",
+  },
+  hyperlabMetadataTitle: {
+    defaultMessage: "Try It in One Market. Keep What Works. | Hyperlocalise",
+    id: "t6xBRSvtG0",
+    description: "Page title for the Hyperlab product page",
+  },
+  hyperlabMetadataDescription: {
+    defaultMessage:
+      "Run market experiments and show different features by country. Hyperlab tells you what works, then you take that version everywhere.",
+    id: "EKVrW1yga/",
+    description: "Meta description for the Hyperlab product page",
+  },
+  hyperlabHeroEyebrow: {
+    defaultMessage: "Hyperlab",
+    id: "CDwxGsD+Cm",
+    description: "Hero eyebrow for the Hyperlab product page",
+  },
+  hyperlabHeroHeadline: {
+    defaultMessage: "Try it in one market. Keep what works.",
+    id: "AzSxI6EMSh",
+    description: "Hero headline for the Hyperlab product page",
+  },
+  hyperlabHeroSubcopy: {
+    defaultMessage:
+      "Give Japan a different headline, checkout, or feature. Hyperlab shows if people there like it. Then you can take that version everywhere.",
+    id: "K0+M6xQCc2",
+    description: "Hero subcopy for the Hyperlab product page",
+  },
+  hyperlabDetailsHeadline: {
+    defaultMessage: "Guessing is expensive. A small market test is not.",
+    id: "lzHNFV9Hx6",
+    description: "Details section headline for the Hyperlab product page",
+  },
+  hyperlabSummary: {
+    defaultMessage:
+      "Show a different feature in one country, test it against the original, and roll it out when that market likes it.",
+    id: "3uyKWUL6tX",
+    description: "Details section summary for the Hyperlab product page",
+  },
+  hyperlabProof0Title: {
+    defaultMessage: "Different by market",
+    id: "9tycO/UT27",
+    description: "Proof point 1 title for the Hyperlab product page",
+  },
+  hyperlabProof0Body: {
+    defaultMessage: "Japan can see a new checkout while France stays on the original.",
+    id: "qeiT6t1lgh",
+    description: "Proof point 1 body for the Hyperlab product page",
+  },
+  hyperlabProof1Title: {
+    defaultMessage: "Test in one country",
+    id: "DbMjwmxUeT",
+    description: "Proof point 2 title for the Hyperlab product page",
+  },
+  hyperlabProof1Body: {
+    defaultMessage:
+      "Show Germany a new headline. Keep the rest of the world on the current one. Ship the version people actually use.",
+    id: "UIHEuHtLtb",
+    description: "Proof point 2 body for the Hyperlab product page",
+  },
+  hyperlabProof2Title: {
+    defaultMessage: "Then take it further",
+    id: "/kd5MBjE0F",
+    description: "Proof point 3 title for the Hyperlab product page",
+  },
+  hyperlabProof2Body: {
+    defaultMessage: "Start with one market. Roll out when you like the result.",
+    id: "xaFOQHPZeN",
+    description: "Proof point 3 body for the Hyperlab product page",
+  },
+  hyperlabCtaHeadline: {
+    defaultMessage: "Stop guessing what each market wants.",
+    id: "g4pR2Tnesp",
+    description: "Bottom CTA headline for the Hyperlab product page",
+  },
+  hyperlabCtaDescription: {
+    defaultMessage: "Try the next checkout in Japan before every other market sees it.",
+    id: "YUiLI6Ae69",
+    description: "Bottom CTA description for the Hyperlab product page",
   },
 });
 

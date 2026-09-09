@@ -21,8 +21,8 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI eyebrow label",
   },
   headline: {
-    defaultMessage: "Flags, experiments, and live evaluation in one workspace",
-    id: "gwEqR0+wNr",
+    defaultMessage: "Market experiments and market features in one workspace",
+    id: "P5eAlY/2+j",
     description: "Hyperlab mock UI section heading",
   },
   requestDemo: {
@@ -32,33 +32,33 @@ export const hyperlabMockMessages = defineMessages({
   },
 
   useCaseFlagsTitle: {
-    defaultMessage: "Feature flags",
-    id: "m17mlZ3/Yb",
+    defaultMessage: "Market features",
+    id: "bFtb6TziqW",
     description: "Hyperlab mock UI flags use case title",
   },
   useCaseFlagsDescription: {
-    defaultMessage: "Experiment and config flags scoped to your workspace",
-    id: "Lnk8DKi9bA",
+    defaultMessage: "A different checkout, price, or flow in Japan than in France",
+    id: "RepySojGxT",
     description: "Hyperlab mock UI flags use case description",
   },
   useCaseExperimentsTitle: {
-    defaultMessage: "A/B experiments",
-    id: "Jg5QWOEhGR",
+    defaultMessage: "Market experiments",
+    id: "bVFugH0E33",
     description: "Hyperlab mock UI experiments use case title",
   },
   useCaseExperimentsDescription: {
-    defaultMessage: "Split traffic, set rollout %, and activate when ready",
-    id: "JoFuLmCZ9Z",
+    defaultMessage: "Test in one country, then roll the winner to the rest",
+    id: "SoBpyZvv53",
     description: "Hyperlab mock UI experiments use case description",
   },
   useCaseAudiencesTitle: {
-    defaultMessage: "Audience targeting",
-    id: "t7vmy3s2y1",
+    defaultMessage: "One market first",
+    id: "ui5MGrW8sq",
     description: "Hyperlab mock UI audiences use case title",
   },
   useCaseAudiencesDescription: {
-    defaultMessage: "Attribute rules evaluated live on every request",
-    id: "bBNT4RDo7G",
+    defaultMessage: "Show the change only to visitors in France, Germany, or Japan",
+    id: "p82IGMKijr",
     description: "Hyperlab mock UI audiences use case description",
   },
 
@@ -94,8 +94,8 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI flags panel title",
   },
   flagsPanelSubtitle: {
-    defaultMessage: "3 flags · 2 experiment, 1 config",
-    id: "PNw9tng+1C",
+    defaultMessage: "3 features · Japan, France, Germany",
+    id: "dUEmby2xEU",
     description: "Hyperlab mock UI flags panel subtitle",
   },
   flagCheckoutCta: {
@@ -130,8 +130,8 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI experiments panel title",
   },
   experimentsPanelSubtitle: {
-    defaultMessage: "checkout-cta-test · A/B · Active",
-    id: "bLqYNXsXHH",
+    defaultMessage: "checkout-cta-jp · Japan A/B · Active",
+    id: "D+amXRmj7m",
     description: "Hyperlab mock UI experiments panel subtitle",
   },
   statusActive: {
@@ -161,18 +161,18 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI audiences panel title",
   },
   audiencesPanelSubtitle: {
-    defaultMessage: "Pro users · 1 rule",
-    id: "75wQzkw69+",
+    defaultMessage: "Japan · 1 rule",
+    id: "NTrz53RFvO",
     description: "Hyperlab mock UI audiences panel subtitle",
   },
   audienceProUsers: {
-    defaultMessage: "Pro users",
-    id: "GMgwhbm+0k",
+    defaultMessage: "Japan",
+    id: "kiy9KSpjzE",
     description: "Hyperlab mock UI audience name",
   },
   criterionAttribute: {
-    defaultMessage: "plan",
-    id: "x1FhjXZK5S",
+    defaultMessage: "market",
+    id: "ms5PNFzyT0",
     description: "Hyperlab mock UI criterion attribute",
   },
   criterionMatch: {
@@ -181,8 +181,8 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI criterion match operator",
   },
   criterionValue: {
-    defaultMessage: "pro",
-    id: "cVva7Hlu9m",
+    defaultMessage: "jp",
+    id: "FgAI7cwA3S",
     description: "Hyperlab mock UI criterion value",
   },
   evaluateTitle: {

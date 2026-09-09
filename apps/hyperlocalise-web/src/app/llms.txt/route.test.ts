@@ -52,6 +52,12 @@ describe("llms.txt route", () => {
     expect(body).toContain(
       "[Guidelines](https://www.hyperlocalise.com/en/product/guidelines): Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files.",
     );
+    expect(body).toContain(
+      "[Domains](https://www.hyperlocalise.com/en/product/domains): Publish once. Get found everywhere.",
+    );
+    expect(body).toContain(
+      "[Hyperlab](https://www.hyperlocalise.com/en/product/hyperlab): Try it in one market. Keep what works.",
+    );
     expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
     expect(body).toContain("https://hyperlocalise.dev");
     expect(body).toContain("## Agents");

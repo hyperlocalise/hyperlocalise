@@ -36,6 +36,16 @@ const productLinks: LlmsLink[] = [
     description:
       "Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files",
   },
+  {
+    title: "Domains",
+    href: `${SITE_URL}/en/product/domains`,
+    description: "Publish once. Get found everywhere",
+  },
+  {
+    title: "Hyperlab",
+    href: `${SITE_URL}/en/product/hyperlab`,
+    description: "Try it in one market. Keep what works",
+  },
 ];
 
 const useCaseLinks: LlmsLink[] = [

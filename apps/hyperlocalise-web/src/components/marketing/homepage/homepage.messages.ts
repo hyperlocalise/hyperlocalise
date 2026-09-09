@@ -140,8 +140,8 @@ export const homepageMessages = defineMessages({
   },
   hyperlabBody: {
     defaultMessage:
-      "A/B test content across your CMS and distribution to learn what works for your audience.",
-    id: "hkGU6Oegi5",
+      "Run market experiments and ship different features by country, then take the winner everywhere.",
+    id: "QFVMAeajBY",
     description: "Marketing homepage hyperlabBody",
   },
   guidelinesBody: {
