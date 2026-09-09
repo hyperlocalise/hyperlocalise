@@ -36,8 +36,8 @@ export const navbarMessages = defineMessages({
     description: "Category heading above use-case links in the marketing navbar mega-menu",
   },
   navResourcesHeading: {
-    defaultMessage: "Resources",
-    id: "xEVW32kNCM",
+    defaultMessage: "Explore",
+    id: 'pgDkQXMb01',
     description: "Category heading above resource links in the marketing navbar mega-menu",
   },
   navLegalHeading: {
@@ -79,16 +79,6 @@ export const navbarMessages = defineMessages({
     defaultMessage: "Documentation",
     id: "zuCO/3GiEh",
     description: "Marketing navbar link to product documentation",
-  },
-  navCliDocs: {
-    defaultMessage: "CLI docs",
-    id: "PACHUU2LVi",
-    description: "Marketing navbar link to CLI documentation",
-  },
-  navGitHubAction: {
-    defaultMessage: "GitHub Action",
-    id: "siHRtHWO8x",
-    description: "Marketing navbar link to the Hyperlocalise GitHub Action",
   },
   navGitHub: {
     defaultMessage: "GitHub",

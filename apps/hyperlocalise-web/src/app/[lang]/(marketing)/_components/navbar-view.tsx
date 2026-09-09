@@ -32,10 +32,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  cliDocsUrl,
   contactUrl,
   docsUrl,
-  githubActionUrl,
   githubRepoUrl,
   trustCenterUrl,
 } from "@/components/marketing/marketing-page-content";
@@ -115,12 +113,10 @@ const companyPageLink: NavLink = {
 
 const resourceLinks: NavLink[] = [
   { href: docsUrl, kind: "navbar", labelKey: "navDocumentation", external: true },
-  { href: cliDocsUrl, kind: "navbar", labelKey: "navCliDocs", external: true },
-  { href: "/localisation-audit", kind: "navbar", labelKey: "navLocalisationAudit" },
-  { href: "/integrations", kind: "navbar", labelKey: "navIntegrations" },
   { href: "/blog", kind: "navbar", labelKey: "navBlog" },
+  { href: "/integrations", kind: "navbar", labelKey: "navIntegrations" },
+  { href: "/localisation-audit", kind: "navbar", labelKey: "navLocalisationAudit" },
   { href: "/startups", kind: "navbar", labelKey: "navStartups" },
-  { href: githubActionUrl, kind: "navbar", labelKey: "navGitHubAction", external: true },
   { href: githubRepoUrl, kind: "navbar", labelKey: "navGitHub", external: true },
 ];
 
