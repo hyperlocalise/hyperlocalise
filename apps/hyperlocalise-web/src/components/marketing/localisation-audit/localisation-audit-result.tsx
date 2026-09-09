@@ -18,13 +18,20 @@ import {
   Share08Icon,
   Tick02Icon,
   Shield01Icon,
+  BookOpen01Icon,
+  CodeIcon,
+  PaintBoardIcon,
+  AiTranslateIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
-import { MeshStage, SAGE_MESH_GRADIENT_SRC } from "@/components/marketing/hero-frame-mesh-stage";
+import {
+  MeshStage,
+  LAVENDER_MESH_GRADIENT_SRC,
+} from "@/components/marketing/hero-frame-mesh-stage";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import {
   Accordion,
@@ -73,6 +80,7 @@ import {
   interpretScoreCtaBand,
 } from "./localisation-audit-page-content";
 import { animate, useInView, useReducedMotion } from "motion/react";
+import Image from "next/image";
 
 type AuditPayload = {
   id: string;
@@ -285,7 +293,7 @@ function CriterionAccordionItem({
           <CriterionStatusIcon status={criterion.status} />
           <span className="min-w-0">
             <span className="block text-sm leading-snug font-medium">{criterion.title}</span>
-            <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            <span className="mt-1 flex flex-wrap items-center gap-2">
               {criterion.status !== "na" && criterion.score != null ? (
                 <span className={cn("text-xs tabular-nums", auditToneTextClass(tone))}>
                   {criterion.score}
@@ -335,12 +343,12 @@ function FindingAccordionItem({
 
   return (
     <AccordionItem className="not-last:border-b" value={finding.id}>
-      <AccordionTrigger className="gap-3 px-1 py-5 hover:no-underline">
+      <AccordionTrigger className="gap-2 px-1 py-3 hover:no-underline">
         <span className="flex min-w-0 flex-1 items-start gap-3">
           <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", dotClass)} />
           <span className="min-w-0 flex-1">
             <span className="block text-sm leading-snug font-semibold">{finding.title}</span>
-            <span className="mt-2 flex items-center justify-between gap-3">
+            <span className="mt-2 flex items-center justify-between gap-2">
               <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-normal capitalize text-muted-foreground">
                 {finding.category}
               </span>
@@ -424,18 +432,15 @@ function AuditCriteriaList({
   copy,
   domainKey,
   unlocked,
-  openItems,
-  onOpenChange,
 }: {
   credits: LocalisationAuditCreditResult[];
   findings: LocalisationAuditFinding[];
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
   domainKey: string;
   unlocked: boolean;
-  openItems: string[];
-  onOpenChange: (value: string[]) => void;
 }) {
   const [showAllFailed, setShowAllFailed] = useState(false);
+  const failedSectionRef = useRef<HTMLDivElement>(null);
   const { passed, failed, notApplicable } = groupLocalisationAuditCriteria(
     buildLocalisationAuditCriteria(credits, findings),
   );
@@ -451,11 +456,7 @@ function AuditCriteriaList({
 
   return (
     <div>
-<<<<<<< HEAD
-      <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-=======
-      <p className="mt-1 text-xs text-muted-foreground">
->>>>>>> 4f7ad7d5 (refactor(localisation-audit): restructure result page into card grid)
+      <p className="mt-2 text-xs text-muted-foreground">
         {copy.criteriaSummary({
           passed: passed.length,
           failed: failed.length,
@@ -464,15 +465,11 @@ function AuditCriteriaList({
       </p>
 
       {failed.length > 0 ? (
-        <div className="mt-4">
+        <div className="mt-4" ref={failedSectionRef}>
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             {copy.criteriaNeedsAttentionHeading({ count: failed.length })}
           </p>
-          <Accordion
-            className={cn(FLUSH_ACCORDION, "mt-1")}
-            value={openItems}
-            onValueChange={onOpenChange}
-          >
+          <Accordion className={cn(FLUSH_ACCORDION, "mt-2")}>
             {visibleFailed.map((criterion) => (
               <CriterionAccordionItem
                 key={criterion.id}
@@ -487,10 +484,26 @@ function AuditCriteriaList({
           {hasMore ? (
             <button
               type="button"
-              onClick={() => setShowAllFailed((value) => !value)}
+              onClick={() => {
+                const collapsing = showAllFailed;
+                setShowAllFailed((value) => !value);
+
+                if (collapsing) {
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      failedSectionRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    });
+                  });
+                }
+              }}
               className="mt-2 flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showAllFailed ? copy.criteriaCollapsePassed : copy.criteriaExpandPassed}
+              {showAllFailed
+                ? copy.criteriaShowFewerFailed
+                : copy.criteriaShowAllFailed({ count: failed.length })}
               <HugeiconsIcon
                 icon={ArrowDown01Icon}
                 className={cn("size-3.5 transition-transform", showAllFailed && "rotate-180")}
@@ -673,14 +686,14 @@ function MeshWash({ children, className }: { children: ReactNode; className?: st
   return (
     <section className={cn("px-5 pt-10 pb-16 sm:px-8 sm:pt-14 lg:px-10", className)}>
       <MeshStage
-        meshSrc={SAGE_MESH_GRADIENT_SRC}
-        contentClassName="p-0"
+        meshSrc={LAVENDER_MESH_GRADIENT_SRC}
+        contentClassName="p-0 sm:p-0 lg:p-0 xl:p-0 h-full"
         priority
-        className="[&>div]:rounded-md [&>div]:sm:rounded-lg"
+        className="h-full [&>div]:h-full [&>div>div]:h-full [&>div>div>div]:h-full [&_img]:brightness-[0.35] [&>div]:rounded-lg [&>div]:sm:rounded-lg [&>div]:shadow-none"
       >
-        <div className="relative">
+        <div className="relative h-full">
           <div
-            className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/60"
+            className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/20 to-black/45"
             aria-hidden
           />
           <div className="relative px-6 py-10 text-white sm:px-8 sm:py-12 lg:px-10">{children}</div>
@@ -714,9 +727,6 @@ export function LocalisationAuditResult({
   const [rerunPending, setRerunPending] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
-  const [openCriteria, setOpenCriteria] = useState<string[]>([]);
-  const [openFindings, setOpenFindings] = useState<string[]>([]);
-  const anyOpen = openCriteria.length > 0 || openFindings.length > 0;
   const teaserTracked = useRef(false);
 
   useEffect(() => {
@@ -826,9 +836,7 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.staleTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
-          {copy.staleBody}
-        </TypographyP>
+        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">{copy.staleBody}</TypographyP>
         <p className="mt-6 text-sm text-white/65">{audit.domainKey}</p>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
@@ -848,7 +856,7 @@ export function LocalisationAuditResult({
       <>
         <MeshWash>
           <TypographyH1 className="border-none text-white">{copy.runningTitle}</TypographyH1>
-          <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
+          <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
             {copy.runningBody}
           </TypographyP>
           <p className="mt-2 text-sm text-white/65">{copy.expectedDuration}</p>
@@ -857,10 +865,8 @@ export function LocalisationAuditResult({
         <section className="px-5 pb-20 sm:px-8 lg:px-10">
           <AuditProgressTrack activeIndex={activeIndex} copy={copy} />
           <div className="mt-12 max-w-md">
-            <TypographyH2 className="pb-0" size="xlarge">
-              {copy.emailWhenReadyHeading}
-            </TypographyH2>
-            <TypographyP className="mt-3" tone="subtle">
+            <TypographyH2 className="pb-0 text-xl">{copy.emailWhenReadyHeading}</TypographyH2>
+            <TypographyP className="mt-3 text-muted-foreground">
               {copy.emailWhenReadyBody}
             </TypographyP>
             <form onSubmit={requestReportEmail} className="mt-6 space-y-4">
@@ -894,7 +900,7 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.failedTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
+        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
           {copy.failedBody}
         </TypographyP>
         <TypographyP className="mt-2 max-w-2xl text-white/70">
@@ -916,7 +922,7 @@ export function LocalisationAuditResult({
     return (
       <MeshWash>
         <TypographyH1 className="border-none text-white">{copy.blockedTitle}</TypographyH1>
-        <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
+        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
           {copy.blockedBody}
         </TypographyP>
         <TypographyP className="mt-2 max-w-2xl text-white/70">{copy.blockedGuidance}</TypographyP>
@@ -993,24 +999,36 @@ export function LocalisationAuditResult({
   return (
     <div className={outerPadding}>
       {dimensionScores ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           {(
             [
-              { label: copy.dimensionTechnical, score: dimensionScores.technical },
-              { label: copy.dimensionLinguistic, score: dimensionScores.linguistic },
-              { label: copy.dimensionContextual, score: dimensionScores.contextual },
-              { label: copy.dimensionVisual, score: dimensionScores.visual },
+              {
+                label: copy.dimensionTechnical,
+                score: dimensionScores.technical,
+                icon: CodeIcon,
+                bg: "bg-audit-card-a/70 dark:bg-audit-card-a",
+              },
+              {
+                label: copy.dimensionLinguistic,
+                score: dimensionScores.linguistic,
+                icon: AiTranslateIcon,
+                bg: "bg-audit-card-b/70 dark:bg-audit-card-b",
+              },
+              {
+                label: copy.dimensionContextual,
+                score: dimensionScores.contextual,
+                icon: BookOpen01Icon,
+                bg: "bg-audit-card-a/70 dark:bg-audit-card-a",
+              },
+              {
+                label: copy.dimensionVisual,
+                score: dimensionScores.visual,
+                icon: PaintBoardIcon,
+                bg: "bg-audit-card-b/70 dark:bg-audit-card-b",
+              },
             ] as const
           ).map((dimension) => {
             const tone = scoreTone(dimension.score);
-            const numberClass =
-              tone === "safe"
-                ? "text-grove-700 dark:text-grove-400"
-                : tone === "watch"
-                  ? "text-warning-foreground"
-                  : tone === "risk"
-                    ? "text-destructive"
-                    : "text-muted-foreground";
             const statusLabel =
               tone === "safe"
                 ? copy.scoreRatingGood
@@ -1022,147 +1040,187 @@ export function LocalisationAuditResult({
             return (
               <div
                 key={dimension.label}
-                className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] text-center"
+                className={cn(
+                  "rounded-lg p-5 text-gray-1000 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]",
+                  dimension.bg,
+                )}
               >
-                <p className="text-xs font-medium text-muted-foreground uppercase">
-                  {dimension.label}
-                </p>
-                <p
-                  className={cn(
-                    "mt-2 font-serif text-4xl tracking-tight tabular-nums",
-                    numberClass,
-                  )}
-                >
-                  {dimension.score == null ? "—" : <CountUp value={dimension.score} />}
-                </p>
-                <p className={cn("mt-1 text-xs font-medium", numberClass)}>{statusLabel}</p>
+                <div className="flex items-center gap-2">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-white text-neutral-900 dark:bg-white dark:text-neutral-900">
+                    <HugeiconsIcon icon={dimension.icon} className="size-4" aria-hidden />
+                  </span>
+                  <p className="text-xs font-medium text-neutral-600 dark:text-neutral-600">
+                    {dimension.label}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
+                  <span
+                    className={cn(
+                      "font-serif text-4xl tracking-tight tabular-nums",
+                      tone === "safe"
+                        ? "text-[#107d32]"
+                        : tone === "watch"
+                          ? "text-[#aa4d00]"
+                          : tone === "risk"
+                            ? "text-[#ea001d]"
+                            : "text-[#6b7280]",
+                    )}
+                  >
+                    {dimension.score == null ? "—" : <CountUp value={dimension.score} />}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-300 dark:bg-white dark:text-neutral-700">
+                    {statusLabel}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
       ) : null}
 
-      {/* ── Row 2: hero + compare + detected locales ────────────────────── */}
-      <div className={cn("mt-3 grid gap-3 lg:grid-cols-[1fr_400px]", anyOpen && "items-start")}>
-        <div className="overflow-hidden rounded-sm">
-          <MeshStage
-            meshSrc={SAGE_MESH_GRADIENT_SRC}
-            contentClassName="p-0"
+      <div className={cn("mt-6 grid gap-6 lg:grid-cols-[1fr_450px] ")}>
+        <div className="relative h-full overflow-hidden rounded-lg p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+          <Image
+            src={LAVENDER_MESH_GRADIENT_SRC}
+            alt=""
+            aria-hidden
+            fill
             priority
-            className="[&>div]:rounded-lg [&>div]:sm:rounded-lg"
-          >
-            <div className="relative">
-              <div
-                className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/60"
-                aria-hidden
-              />
-              <div className="relative px-6 py-6 text-white">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <p className="text-xs font-medium tracking-[0.18em] text-white/70 uppercase">
-                    {copy.companyReportEyebrow}
-                  </p>
-                  {isWorkspace ? null : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-                      onClick={copyShareLink}
-                    >
-                      <HugeiconsIcon icon={Share08Icon} className="size-3.5" aria-hidden />
-                      {copy.shareCopyLink}
-                    </Button>
-                  )}
-                </div>
+            sizes="(min-width: 1024px) 60vw, 100vw"
+            className="object-cover object-center brightness-[1.0]"
+          />
+          <div
+            className="absolute inset-0 bg-[url('/images/world-map.jpg')] opacity-70 bg-cover bg-center mix-blend-multiply"
+            aria-hidden
+          />
+          <div className="relative h-full overflow-hidden rounded-lg bg-black/75 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+            <div className="px-6 py-6 text-white">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <p className="text-xs font-medium tracking-[0.18em] text-white/70 uppercase">
+                  {copy.companyReportEyebrow}
+                </p>
+                {isWorkspace ? null : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                    onClick={copyShareLink}
+                  >
+                    <HugeiconsIcon icon={Share08Icon} className="size-3.5" aria-hidden />
+                    {copy.shareCopyLink}
+                  </Button>
+                )}
+              </div>
 
-                <div className="mt-4 flex items-start gap-3">
-                  <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="font-serif text-xl tracking-tight text-white sm:text-2xl">
-                        {displayName}
-                      </h1>
-                      {companyProfile?.industry ? (
-                        <Badge
-                          variant="outline"
-                          className="border-white/25 bg-white/10 text-white capitalize"
-                        >
-                          {companyProfile.industry}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-sm text-white/60">{audit.domainKey}</p>
-                    {companyProfile?.productSummary ? (
-                      <p className="mt-2 text-sm text-white/80">
-                        <span className="text-white/50">{copy.companyProductLabel}: </span>
-                        {companyProfile.productSummary}
-                      </p>
-                    ) : null}
-                    {companyProfile?.brandVoice ? (
-                      <p className="mt-1 text-sm text-white/70">
-                        <span className="text-white/50">{copy.companyBrandVoiceLabel}: </span>
-                        {companyProfile.brandVoice}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-4 border-t border-white/15 pt-4">
-                  <p className="text-xs tracking-widest text-white/60 uppercase">
-                    {copy.scoreLabel}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap items-end gap-3">
-                    <p className="font-serif text-7xl tracking-tight text-white tabular-nums">
-                      {score ?? "—"}
-                      <span className="text-xl text-white/50">{copy.scoreOutOf}</span>
-                    </p>
-                    {ratingLabel ? (
+              <div className="mt-6 flex items-start gap-6">
+                <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="font-serif text-xl tracking-tight text-white sm:text-2xl">
+                      {displayName}
+                    </h1>
+                    {companyProfile?.industry ? (
                       <Badge
                         variant="outline"
-                        className="mb-1 border-white/25 bg-white/10 text-white capitalize"
+                        className="border-white/25 bg-white/10 text-white capitalize"
                       >
-                        {ratingLabel}
+                        {companyProfile.industry}
                       </Badge>
                     ) : null}
                   </div>
-
-                  {score != null ? (
-                    <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
-                      <div
-                        className={cn("h-full rounded-full", scoreBarClass)}
-                        style={{ width: `${score}%` }}
-                      />
-                    </div>
+                  <p className="mt-0.5 text-sm text-white/60">{audit.domainKey}</p>
+                  {companyProfile?.productSummary ? (
+                    <p className="mt-2 text-sm text-white/80">
+                      <span className="text-white/50">{copy.companyProductLabel}: </span>
+                      {companyProfile.productSummary}
+                    </p>
                   ) : null}
-
-                  <TypographyP className="mt-2.5 max-w-xl text-sm text-white/75">
-                    {interpretation}
-                  </TypographyP>
-
-                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/55">
-                    {freshness ? (
-                      <span>
-                        {copy.freshnessLabel}: {new Date(freshness).toLocaleDateString()}
-                      </span>
-                    ) : null}
-                    <span>
-                      {copy.scopeLabel}: {copy.scopeBody}
-                    </span>
-                  </div>
-
-                  {shareMessage ? (
-                    <p className="mt-2.5 text-sm text-white/70">{shareMessage}</p>
+                  {companyProfile?.brandVoice ? (
+                    <p className="mt-1 text-sm text-white/70">
+                      <span className="text-white/50">{copy.companyBrandVoiceLabel}: </span>
+                      {companyProfile.brandVoice}
+                    </p>
                   ) : null}
                 </div>
               </div>
+
+              <div className="mt-4 border-t border-white/15 pt-4">
+                <p className="text-xs tracking-widest text-white/60 uppercase">{copy.scoreLabel}</p>
+                <div className="mt-1.5 flex flex-wrap items-end gap-3">
+                  <p
+                    className={cn(
+                      "font-serif text-7xl tracking-tight tabular-nums",
+                      scoreTone(score) === "safe"
+                        ? "text-[#107d32]"
+                        : scoreTone(score) === "watch"
+                          ? "text-[#aa4d00]"
+                          : scoreTone(score) === "risk"
+                            ? "text-[#ea001d]"
+                            : "text-[#6b7280]",
+                    )}
+                  >
+                    {score ?? "—"}
+                    <span className="text-xl text-white/50">{copy.scoreOutOf}</span>
+                  </p>
+                  {ratingLabel ? (
+                    <Badge
+                      variant="outline"
+                      className="mb-1 border-white/25 bg-white/10 text-white capitalize"
+                    >
+                      {ratingLabel}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                {score != null ? (
+                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
+                    <div
+                      className={cn("h-full rounded-full", scoreBarClass)}
+                      style={{ width: `${score}%` }}
+                    />
+                  </div>
+                ) : null}
+
+                <TypographyP className="mt-2.5 max-w-xl text-sm text-white/75">
+                  {interpretation}
+                </TypographyP>
+
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/55">
+                  {freshness ? (
+                    <span>
+                      {copy.freshnessLabel}: {new Date(freshness).toLocaleDateString()}
+                    </span>
+                  ) : null}
+                  <span>
+                    {copy.scopeLabel}: {copy.scopeBody}
+                  </span>
+                </div>
+
+                {shareMessage ? (
+                  <p className="mt-2.5 text-sm text-white/70">{shareMessage}</p>
+                ) : null}
+
+                <p className="mt-3 text-xs text-white/55">
+                  {copy.sampledPages({
+                    count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
+                  })}{" "}
+                  <Link
+                    href={getLocalisationAuditGuideHref(locale)}
+                    className="font-medium text-white underline-offset-4 hover:underline"
+                  >
+                    {copy.methodologyLink}
+                  </Link>
+                </p>
+              </div>
             </div>
-          </MeshStage>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-6">
           {standing && !isWorkspace ? (
-            <div className="rounded-sm border-[0.5px] border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] flex-1">
-              <h2 className="font-semibold font-serif">{copy.standingHeading}</h2>
+            <div className="rounded-sm border-[0.5px] border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] flex-1">
+              <h2 className="font-semibold font-serif text-xl">{copy.standingHeading}</h2>
               <dl className="mt-8 space-y-8">
                 <div className="flex items-baseline justify-between gap-2">
                   <dt className="text-sm text-muted-foreground">{copy.standingHeading}</dt>
@@ -1185,7 +1243,7 @@ export function LocalisationAuditResult({
                   </div>
                 ) : null}
               </dl>
-              <div className="mt-8 border-t border-border pt-4">
+              <div className="mt-8 border-t border-border pt-6">
                 <Link
                   href={`/${locale}/localisation-audit`}
                   className="text-sm text-primary underline-offset-4 hover:underline"
@@ -1195,46 +1253,10 @@ export function LocalisationAuditResult({
               </div>
             </div>
           ) : null}
-<<<<<<< HEAD
-          <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
-            {interpretation}
-          </TypographyP>
-          {dimensionScores ? (
-            <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionTechnical}
-                  score={dimensionScores.technical}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionLinguistic}
-                  score={dimensionScores.linguistic}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionContextual}
-                  score={dimensionScores.contextual}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionVisual}
-                  score={dimensionScores.visual}
-                  onMesh
-                />
-              </li>
-            </ul>
-=======
 
           {detectedLocales.length > 0 ? (
-            <div className="rounded-lg border-[0.5px] border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-              <h2 className="font-semibold font-serif">{copy.localesHeading}</h2>
+            <div className="rounded-lg border-[0.5px] border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+              <h2 className="font-semibold font-serif text-xl">{copy.localesHeading}</h2>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {detectedLocales.map((localeSignal) => (
                   <span
@@ -1247,82 +1269,27 @@ export function LocalisationAuditResult({
                 ))}
               </div>
             </div>
->>>>>>> 4f7ad7d5 (refactor(localisation-audit): restructure result page into card grid)
           ) : null}
         </div>
       </div>
 
-      <div className={cn("mt-3 grid gap-3 lg:grid-cols-[1fr_400px]", anyOpen && "items-start")}>
-        {credits.length > 0 ? (
-          <div className="rounded-lg border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-            <h2 className="font-semibold font-serif">{copy.creditsHeading}</h2>
-            <AuditCriteriaList
-              credits={credits}
-              findings={criteriaFindings}
+      <div className="mt-6 rounded-lg border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+        <h2 className="font-serif font-semibold text-xl">{copy.fixFirstHeading}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{copy.fixFirstSubheading}</p>
+        <Accordion className={cn(FLUSH_ACCORDION, "mt-1")}>
+          {fixFirst.map((finding) => (
+            <FindingAccordionItem
+              key={finding.id}
+              finding={finding}
               copy={copy}
               domainKey={audit.domainKey}
-              unlocked
-              openItems={openCriteria}
-              onOpenChange={setOpenCriteria}
             />
-          </div>
-        ) : null}
-
-        <div className="rounded-lg border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-          <h2 className="font-semibold font-serif">{copy.fixFirstHeading}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{copy.fixFirstSubheading}</p>
-          <Accordion
-            className={cn(FLUSH_ACCORDION, "mt-4")}
-            value={openFindings}
-            onValueChange={setOpenFindings}
-          >
-            {fixFirst.map((finding) => (
-              <FindingAccordionItem
-                key={finding.id}
-                finding={finding}
-                copy={copy}
-                domainKey={audit.domainKey}
-              />
-            ))}
-          </Accordion>
-        </div>
-<<<<<<< HEAD
-      </MeshWash>
-
-      {standing && !isWorkspace ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
-            {copy.standingRank({ rank: standing.rank, total: standing.total })}
-          </TypographyP>
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            <span>{copy.standingPercentile({ percentile: standing.percentile })}</span>
-            {standing.averageScore != null ? (
-              <span>{copy.standingAverage({ average: standing.averageScore })}</span>
-            ) : null}
-          </div>
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/${locale}/localisation-audit`} />}
-            >
-              {copy.standingCta}
-            </Button>
-          </div>
-        </section>
-      ) : null}
-
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
-        <div className="mt-8">
-          <FindingList findings={fixFirst} copy={copy} domainKey={audit.domainKey} />
-        </div>
-      </section>
-
+          ))}
+        </Accordion>
+      </div>
       {credits.length > 0 ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
+        <div className="mt-6 rounded-lg border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+          <h2 className="font-serif font-semibold text-xl">{copy.creditsHeading}</h2>
           <AuditCriteriaList
             credits={credits}
             findings={criteriaFindings}
@@ -1330,34 +1297,12 @@ export function LocalisationAuditResult({
             domainKey={audit.domainKey}
             unlocked
           />
-        </section>
+        </div>
       ) : null}
 
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
-        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          {detectedLocales.map((localeSignal) => (
-            <span key={`${localeSignal.locale}-${localeSignal.source}`}>
-              {localeSignal.locale}{" "}
-              <span className="text-muted-foreground/70">({localeSignal.source})</span>
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.fullFindingsHeading}</TypographyH2>
-        <div className="mt-8">
-          <FindingList findings={allFindings} copy={copy} domainKey={audit.domainKey} />
-        </div>
-      </section>
-=======
-      </div>
->>>>>>> 4f7ad7d5 (refactor(localisation-audit): restructure result page into card grid)
-
       {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
-        <div className="mt-3 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-          <h2 className="font-semibold font-serif">{copy.linguisticHeading}</h2>
+        <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+          <h2 className="font-semibold font-serif text-xl">{copy.linguisticHeading}</h2>
           <div className="mt-4 grid gap-6 sm:grid-cols-2">
             {report.linguisticNotes.map((note) => (
               <div key={note.locale}>
@@ -1383,10 +1328,10 @@ export function LocalisationAuditResult({
       ) : null}
 
       {report?.pages && report.pages.length > 0 ? (
-        <div className="mt-3 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] ">
+        <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] ">
           <Collapsible>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-semibold font-serif">{copy.pagesHeading}</h2>
+              <h2 className="font-semibold font-serif text-xl">{copy.pagesHeading}</h2>
               <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
                 {copy.pagesHeading}
                 <HugeiconsIcon
@@ -1422,56 +1367,11 @@ export function LocalisationAuditResult({
       ) : null}
 
       {isWorkspace ? null : (
-<<<<<<< HEAD
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.unlockHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-            {copy.unlockBody}
-          </TypographyP>
-          <form onSubmit={requestReportEmail} className="mt-8 max-w-md space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
-              <Input
-                id="localisation-audit-email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder={copy.emailPlaceholder}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            {deliveryMessage ? (
-              <p className="text-sm text-muted-foreground">{deliveryMessage}</p>
-            ) : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? copy.unlocking : copy.unlockSubmit}
-            </Button>
-          </form>
-        </section>
-      )}
-
-      {isWorkspace ? null : (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-            {ctaBody}
-          </TypographyP>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {audit.rerunnable ? (
-              <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
-                {rerunPending ? copy.rerunning : copy.rerun}
-              </Button>
-            ) : null}
-            {showSignInCtas ? (
-              audit.claimed ? (
-=======
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 pb-16">
-          <div className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-            <h2 className="font-semibold font-serif">{copy.unlockHeading}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{copy.unlockBody}</p>
-            <form onSubmit={requestReportEmail} className="mt-4 space-y-3">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 pb-16">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+            <h2 className="font-semibold font-serif text-xl">{copy.unlockHeading}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{copy.unlockBody}</p>
+            <form onSubmit={requestReportEmail} className="mt-5 space-y-3">
               <div className="flex flex-col gap-3 md:flex-row">
                 <Input
                   id="localisation-audit-email"
@@ -1494,10 +1394,10 @@ export function LocalisationAuditResult({
             </form>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-            <h2 className="font-semibold font-serif">{copy.reauditHeading}</h2>
+          <div className="rounded-xl border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+            <h2 className="font-semibold font-serif text-xl">{copy.reauditHeading}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{ctaBody}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2">
               {audit.rerunnable ? (
                 <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
                   {rerunPending ? copy.rerunning : copy.rerun}
@@ -1531,7 +1431,6 @@ export function LocalisationAuditResult({
                 )
               ) : null}
               {showSignInCtas ? (
->>>>>>> 4f7ad7d5 (refactor(localisation-audit): restructure result page into card grid)
                 <Button
                   variant="outline"
                   nativeButton={false}

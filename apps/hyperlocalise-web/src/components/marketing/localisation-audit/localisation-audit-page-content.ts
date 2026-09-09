@@ -758,6 +758,20 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "pw9PHi/ZLr",
       description: "Control to collapse not-applicable localisation audit criteria",
     }),
+    criteriaShowAllFailed: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Show all {count} issues",
+          id: "2+PbV9bo++",
+          description: "Control to expand the full list of failed localisation audit criteria",
+        },
+        values,
+      ),
+    criteriaShowFewerFailed: intl.formatMessage({
+      defaultMessage: "Show fewer",
+      id: "vmpsiqnJs+",
+      description: "Control to collapse the full list of failed localisation audit criteria",
+    }),
     linguisticHeading: intl.formatMessage({
       defaultMessage: "Linguistic notes",
       id: "tP1cicvIzZ",

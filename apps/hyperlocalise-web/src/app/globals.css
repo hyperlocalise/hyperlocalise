@@ -131,6 +131,9 @@
   --color-dew-500: #62a8ff;
   --color-dew-100: #9cc7ff;
 
+  --color-audit-card-a: var(--ds-audit-card-a);
+  --color-audit-card-b: var(--ds-audit-card-b);
+
   /* Harbour primitives — theme-stable brand neutrals */
   --color-ink: #020305;
   --color-navy: #283a51;
@@ -355,6 +358,8 @@ html {
   --ds-pink-900: #c41562;
   --ds-pink-1000: #460523;
   --ds-error-text: #ff676d;
+  --ds-audit-card-a: #edeefc;
+  --ds-audit-card-b: #e6f1fd;
 
   --background: var(--ds-background-100);
   --foreground: var(--ds-gray-1000);
@@ -492,6 +497,8 @@ html {
   --ds-pink-900: #ff4d8d;
   --ds-pink-1000: #ffe9f4;
   --ds-error-text: #ff565f;
+  --ds-audit-card-a: #edeefc;
+  --ds-audit-card-b: #e6f1fd;
 
   --background: var(--ds-background-100);
   --foreground: var(--ds-gray-1000);
