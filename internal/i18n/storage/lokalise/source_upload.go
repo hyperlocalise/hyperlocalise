@@ -34,6 +34,20 @@ type SourceUploadInput struct {
 	SkipDetectLangISO   bool
 }
 
+// TranslationUploadInput describes one Lokalise translation file import.
+type TranslationUploadInput struct {
+	ProjectID           string
+	TargetLocale        string
+	FilePath            string
+	FileFormat          string
+	Branch              string
+	Tags                []string
+	ConvertPlaceholders bool
+	ReplaceModified     bool
+	DistinguishByFile   bool
+	ApplyTM             bool
+}
+
 // SourceUploadResult is the normalized subset of Lokalise's queued import response.
 type SourceUploadResult struct {
 	ProcessID string
@@ -42,18 +56,23 @@ type SourceUploadResult struct {
 	Message   string
 }
 
+// TranslationUploadResult is the queued import process for a translation file.
+type TranslationUploadResult = SourceUploadResult
+
 type lokaliseFileUploadRequest struct {
-	Data                string   `json:"data"`
-	Filename            string   `json:"filename"`
-	LangISO             string   `json:"lang_iso"`
-	Format              string   `json:"format,omitempty"`
-	Tags                []string `json:"tags,omitempty"`
-	ConvertPlaceholders bool     `json:"convert_placeholders,omitempty"`
-	ReplaceModified     bool     `json:"replace_modified,omitempty"`
-	DistinguishByFile   bool     `json:"distinguish_by_file,omitempty"`
-	ApplyTM             bool     `json:"apply_tm,omitempty"`
-	SkipDetectLangISO   bool     `json:"skip_detect_lang_iso,omitempty"`
-	Queue               bool     `json:"queue"`
+	Data     string   `json:"data"`
+	Filename string   `json:"filename"`
+	LangISO  string   `json:"lang_iso"`
+	Format   string   `json:"format,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	// Translation uploads always send this so Lokalise cannot default it to true.
+	// Source uploads omit false so existing --convert-placeholders-off behavior stays Lokalise's default.
+	ConvertPlaceholders *bool `json:"convert_placeholders,omitempty"`
+	ReplaceModified     bool  `json:"replace_modified,omitempty"`
+	DistinguishByFile   bool  `json:"distinguish_by_file,omitempty"`
+	ApplyTM             bool  `json:"apply_tm,omitempty"`
+	SkipDetectLangISO   bool  `json:"skip_detect_lang_iso,omitempty"`
+	Queue               bool  `json:"queue"`
 }
 
 type lokaliseFileUploadResponse struct {
@@ -65,53 +84,105 @@ type lokaliseFileUploadResponse struct {
 	} `json:"process"`
 }
 
+type lokaliseFileUploadInput struct {
+	ProjectID           string
+	Locale              string
+	FilePath            string
+	FileFormat          string
+	Branch              string
+	Tags                []string
+	ConvertPlaceholders bool
+	ReplaceModified     bool
+	DistinguishByFile   bool
+	ApplyTM             bool
+	SkipDetectLangISO   bool
+}
+
 // UploadSourceFile imports a source file into Lokalise and returns the queued import process.
 func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput) (SourceUploadResult, error) {
+	return c.uploadLocalizationFile(ctx, lokaliseFileUploadInput{
+		ProjectID:           in.ProjectID,
+		Locale:              in.SourceLocale,
+		FilePath:            in.FilePath,
+		FileFormat:          in.FileFormat,
+		Branch:              in.Branch,
+		Tags:                in.Tags,
+		ConvertPlaceholders: in.ConvertPlaceholders,
+		ReplaceModified:     in.ReplaceModified,
+		DistinguishByFile:   in.DistinguishByFile,
+		ApplyTM:             in.ApplyTM,
+		SkipDetectLangISO:   in.SkipDetectLangISO,
+	}, "source")
+}
+
+// UploadTranslationFile imports a translation file into Lokalise and returns the queued import process.
+// It always skips filename language detection so --target-locale wins over names like en.json.
+func (c *HTTPClient) UploadTranslationFile(ctx context.Context, in TranslationUploadInput) (TranslationUploadResult, error) {
+	return c.uploadLocalizationFile(ctx, lokaliseFileUploadInput{
+		ProjectID:           in.ProjectID,
+		Locale:              in.TargetLocale,
+		FilePath:            in.FilePath,
+		FileFormat:          in.FileFormat,
+		Branch:              in.Branch,
+		Tags:                in.Tags,
+		ConvertPlaceholders: in.ConvertPlaceholders,
+		ReplaceModified:     in.ReplaceModified,
+		DistinguishByFile:   in.DistinguishByFile,
+		ApplyTM:             in.ApplyTM,
+		SkipDetectLangISO:   true,
+	}, "translation")
+}
+
+func (c *HTTPClient) uploadLocalizationFile(ctx context.Context, in lokaliseFileUploadInput, kind string) (SourceUploadResult, error) {
+	op := "lokalise " + kind + " upload"
 	if c == nil || c.httpClient == nil {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: client is nil")
+		return SourceUploadResult{}, fmt.Errorf("%s: client is nil", op)
 	}
 	if strings.TrimSpace(in.ProjectID) == "" {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: project id is required")
+		return SourceUploadResult{}, fmt.Errorf("%s: project id is required", op)
 	}
-	if strings.TrimSpace(in.SourceLocale) == "" {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source locale is required")
+	if strings.TrimSpace(in.Locale) == "" {
+		if kind == "translation" {
+			return SourceUploadResult{}, fmt.Errorf("%s: target locale is required", op)
+		}
+		return SourceUploadResult{}, fmt.Errorf("%s: source locale is required", op)
 	}
 	if strings.TrimSpace(in.FilePath) == "" {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: file path is required")
+		return SourceUploadResult{}, fmt.Errorf("%s: file path is required", op)
 	}
-	format, err := resolveLokaliseUploadFormat(in.FilePath, in.FileFormat)
+	format, err := resolveLokaliseUploadFormat(in.FilePath, in.FileFormat, op)
 	if err != nil {
 		return SourceUploadResult{}, err
 	}
 
 	file, statErr := os.Open(in.FilePath)
 	if statErr != nil {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: open source file %q: %w", in.FilePath, statErr)
+		return SourceUploadResult{}, fmt.Errorf("%s: open file %q: %w", op, in.FilePath, statErr)
 	}
 	defer func() {
 		_ = file.Close()
 	}()
 	info, statErr := file.Stat()
 	if statErr != nil {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: stat source file %q: %w", in.FilePath, statErr)
+		return SourceUploadResult{}, fmt.Errorf("%s: stat file %q: %w", op, in.FilePath, statErr)
 	}
 	if info.Size() > maxLokaliseUploadFileBytes {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
+		return SourceUploadResult{}, fmt.Errorf("%s: file %q exceeds maximum upload size (%d bytes)", op, in.FilePath, maxLokaliseUploadFileBytes)
 	}
 	content, err := io.ReadAll(io.LimitReader(file, maxLokaliseUploadFileBytes+1))
 	if err != nil {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: read source file %q: %w", in.FilePath, err)
+		return SourceUploadResult{}, fmt.Errorf("%s: read file %q: %w", op, in.FilePath, err)
 	}
 	if len(content) > maxLokaliseUploadFileBytes {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
+		return SourceUploadResult{}, fmt.Errorf("%s: file %q exceeds maximum upload size (%d bytes)", op, in.FilePath, maxLokaliseUploadFileBytes)
 	}
 	req := lokaliseFileUploadRequest{
 		Data:                base64.StdEncoding.EncodeToString(content),
 		Filename:            filepath.Base(in.FilePath),
-		LangISO:             strings.TrimSpace(in.SourceLocale),
+		LangISO:             strings.TrimSpace(in.Locale),
 		Format:              format,
 		Tags:                normalizeLokaliseUploadTags(in.Tags),
-		ConvertPlaceholders: in.ConvertPlaceholders,
+		ConvertPlaceholders: lokaliseConvertPlaceholdersValue(kind, in.ConvertPlaceholders),
 		ReplaceModified:     in.ReplaceModified,
 		DistinguishByFile:   in.DistinguishByFile,
 		ApplyTM:             in.ApplyTM,
@@ -123,13 +194,13 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	path := fmt.Sprintf("/projects/%s/files/upload", lokaliseProjectPathSegment(in.ProjectID, in.Branch))
 	meta, err := c.doLokaliseUploadJSON(ctx, http.MethodPost, path, req, &out)
 	if err != nil {
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: %w", in.FilePath, err)
+		return SourceUploadResult{}, fmt.Errorf("%s %q: %w", op, in.FilePath, err)
 	}
 	if strings.TrimSpace(out.Process.ID) == "" {
 		if meta.StatusCode == http.StatusFound {
-			return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: 302 queued response missing process id%s", in.FilePath, lokaliseUploadLocationSuffix(meta.Location))
+			return SourceUploadResult{}, fmt.Errorf("%s %q: 302 queued response missing process id%s", op, in.FilePath, lokaliseUploadLocationSuffix(meta.Location))
 		}
-		return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: response missing process id", in.FilePath)
+		return SourceUploadResult{}, fmt.Errorf("%s %q: response missing process id", op, in.FilePath)
 	}
 	return SourceUploadResult{
 		ProcessID: strings.TrimSpace(out.Process.ID),
@@ -214,15 +285,23 @@ func lokaliseUploadHTTPClient(client *http.Client) *http.Client {
 	return &cloned
 }
 
-func resolveLokaliseUploadFormat(path, override string) (string, error) {
+func resolveLokaliseUploadFormat(path, override, op string) (string, error) {
 	if trimmed := strings.TrimSpace(override); trimmed != "" {
 		return strings.TrimPrefix(strings.ToLower(trimmed), "."), nil
 	}
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
 	if ext == "" {
-		return "", fmt.Errorf("lokalise source upload: could not determine file format for %q: no file extension and no format override provided", path)
+		return "", fmt.Errorf("%s: could not determine file format for %q: no file extension and no format override provided", op, path)
 	}
 	return ext, nil
+}
+
+func lokaliseConvertPlaceholdersValue(kind string, convert bool) *bool {
+	if kind != "translation" && !convert {
+		return nil
+	}
+	value := convert
+	return &value
 }
 
 func lokaliseProjectPathSegment(projectID, branch string) string {

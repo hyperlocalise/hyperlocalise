@@ -81,6 +81,24 @@ type lokaliseUploadSourcesOptions struct {
 	dryRun              bool
 }
 
+type lokaliseUploadTranslationsOptions struct {
+	configPath          string
+	projectID           string
+	targetLocale        string
+	files               []string
+	format              string
+	branch              string
+	tags                []string
+	tokenEnv            string
+	apiBaseURL          string
+	timeoutSeconds      int
+	convertPlaceholders bool
+	replaceModified     bool
+	distinguishByFile   bool
+	applyTM             bool
+	dryRun              bool
+}
+
 type lokaliseGlossaryCSVWriter interface {
 	WriteGlossaryCSV(context.Context, lokalise.GlossaryDownloadInput, io.Writer) (lokalise.GlossaryDownloadResult, error)
 }
@@ -97,6 +115,10 @@ type lokaliseSourceUploader interface {
 	UploadSourceFile(context.Context, lokalise.SourceUploadInput) (lokalise.SourceUploadResult, error)
 }
 
+type lokaliseTranslationUploader interface {
+	UploadTranslationFile(context.Context, lokalise.TranslationUploadInput) (lokalise.TranslationUploadResult, error)
+}
+
 var newLokaliseGlossaryCSVWriter = func(cfg lokalise.Config) (lokaliseGlossaryCSVWriter, error) {
 	return lokalise.NewHTTPClient(cfg)
 }
@@ -110,6 +132,10 @@ var newLokaliseSourceDownloader = func(cfg lokalise.Config) (lokaliseSourceDownl
 }
 
 var newLokaliseSourceUploader = func(cfg lokalise.Config) (lokaliseSourceUploader, error) {
+	return lokalise.NewHTTPClient(cfg)
+}
+
+var newLokaliseTranslationUploader = func(cfg lokalise.Config) (lokaliseTranslationUploader, error) {
 	return lokalise.NewHTTPClient(cfg)
 }
 
@@ -599,6 +625,7 @@ func newLokaliseUploadCmd() *cobra.Command {
 		Short: "upload files to Lokalise",
 	}
 	cmd.AddCommand(newLokaliseUploadSourcesCmd())
+	cmd.AddCommand(newLokaliseUploadTranslationsCmd())
 	return cmd
 }
 
@@ -630,6 +657,37 @@ func newLokaliseUploadSourcesCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.distinguishByFile, "distinguish-by-file", false, "allow same key names in different filenames")
 	cmd.Flags().BoolVar(&o.applyTM, "apply-tm", false, "apply 100% translation memory matches during import")
 	cmd.Flags().BoolVar(&o.skipDetectLangISO, "skip-detect-lang-iso", false, "skip automatic language detection by filename")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
+	return cmd
+}
+
+func newLokaliseUploadTranslationsCmd() *cobra.Command {
+	o := lokaliseUploadTranslationsOptions{
+		tokenEnv:       defaultLokaliseAPITokenEnv,
+		timeoutSeconds: 30,
+	}
+	cmd := &cobra.Command{
+		Use:          "translations",
+		Short:        "upload translation files to Lokalise",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executeLokaliseUploadTranslations(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config with storage.adapter=lokalise")
+	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Lokalise project identifier")
+	cmd.Flags().StringVar(&o.targetLocale, "target-locale", "", "target locale ISO in the uploaded file")
+	cmd.Flags().StringArrayVarP(&o.files, "file", "f", nil, "translation file path(s) to upload")
+	cmd.Flags().StringVar(&o.format, "format", "", "Lokalise file format; defaults to each file extension")
+	cmd.Flags().StringVar(&o.branch, "branch", "", "Lokalise branch name")
+	cmd.Flags().StringSliceVar(&o.tags, "tag", nil, "tag(s) to assign to uploaded keys")
+	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Lokalise API token")
+	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Lokalise API base URL")
+	cmd.Flags().IntVar(&o.timeoutSeconds, "timeout-seconds", o.timeoutSeconds, "Lokalise API timeout in seconds")
+	cmd.Flags().BoolVar(&o.convertPlaceholders, "convert-placeholders", false, "convert placeholders to Lokalise universal placeholders")
+	cmd.Flags().BoolVar(&o.replaceModified, "replace-modified", false, "replace translations modified in the uploaded file")
+	cmd.Flags().BoolVar(&o.distinguishByFile, "distinguish-by-file", false, "allow same key names in different filenames")
+	cmd.Flags().BoolVar(&o.applyTM, "apply-tm", false, "apply 100% translation memory matches during import")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
 	return cmd
 }
@@ -754,6 +812,62 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 	return err
 }
 
+func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTranslationsOptions) error {
+	files, err := validateLokaliseUploadFiles(o.files, o.format, "lokalise upload translations")
+	if err != nil {
+		return err
+	}
+	cfg, targetLocale, err := resolveLokaliseUploadTranslationsConfig(cmd, o, !o.dryRun)
+	if err != nil {
+		return err
+	}
+	modified := lokaliseModifiedTranslationsLabel(o.replaceModified)
+	if o.dryRun {
+		format := strings.TrimSpace(o.format)
+		if format == "" {
+			format = "auto"
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=lokalise-upload-translations project_id=%s target_locale=%s format=%s files=%d modified_translations=%s\n", cfg.ProjectID, targetLocale, format, len(files), modified)
+		return err
+	}
+
+	client, err := newLokaliseTranslationUploader(cfg)
+	if err != nil {
+		return err
+	}
+	processed := 0
+	for _, file := range files {
+		result, err := client.UploadTranslationFile(cmd.Context(), lokalise.TranslationUploadInput{
+			ProjectID:           cfg.ProjectID,
+			TargetLocale:        targetLocale,
+			FilePath:            file,
+			FileFormat:          strings.TrimSpace(o.format),
+			Branch:              strings.TrimSpace(o.branch),
+			Tags:                o.tags,
+			ConvertPlaceholders: o.convertPlaceholders,
+			ReplaceModified:     o.replaceModified,
+			DistinguishByFile:   o.distinguishByFile,
+			ApplyTM:             o.applyTM,
+		})
+		if err != nil {
+			return fmt.Errorf("lokalise upload translations: %w", err)
+		}
+		processed++
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s modified_translations=%s\n", file, result.ProcessID, result.Status, result.Type, modified); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-translations processed=%d modified_translations=%s\n", processed, modified)
+	return err
+}
+
+func lokaliseModifiedTranslationsLabel(replaceModified bool) string {
+	if replaceModified {
+		return "replaced"
+	}
+	return "preserved"
+}
+
 func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSourcesOptions, requireAuth bool) (lokalise.Config, string, error) {
 	cfg := lokalise.Config{}
 	if strings.TrimSpace(o.configPath) != "" {
@@ -809,7 +923,64 @@ func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSour
 	return cfg, strings.TrimSpace(cfg.SourceLanguage), nil
 }
 
+func resolveLokaliseUploadTranslationsConfig(cmd *cobra.Command, o lokaliseUploadTranslationsOptions, requireAuth bool) (lokalise.Config, string, error) {
+	cfg := lokalise.Config{}
+	if strings.TrimSpace(o.configPath) != "" {
+		loaded, err := i18nconfig.LoadForCLI(o.configPath)
+		if err != nil {
+			return lokalise.Config{}, "", err
+		}
+		if loaded.Storage == nil {
+			return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: --config must include storage.adapter=lokalise")
+		}
+		if !strings.EqualFold(strings.TrimSpace(loaded.Storage.Adapter), lokalise.AdapterName) {
+			return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: --config storage.adapter must be %q", lokalise.AdapterName)
+		}
+		decoded, err := lokalise.DecodeConfig(loaded.Storage.Config)
+		if err != nil {
+			return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: %w", err)
+		}
+		cfg = decoded
+	}
+
+	if lokaliseFlagChanged(cmd, "project-id") || strings.TrimSpace(cfg.ProjectID) == "" {
+		cfg.ProjectID = strings.TrimSpace(o.projectID)
+	}
+	if lokaliseFlagChanged(cmd, "token-env") || strings.TrimSpace(cfg.APITokenEnv) == "" {
+		cfg.APITokenEnv = strings.TrimSpace(o.tokenEnv)
+	}
+	if lokaliseFlagChanged(cmd, "api-base-url") || strings.TrimSpace(cfg.APIBaseURL) == "" {
+		cfg.APIBaseURL = strings.TrimSpace(o.apiBaseURL)
+	}
+	if lokaliseFlagChanged(cmd, "timeout-seconds") || cfg.TimeoutSeconds <= 0 {
+		cfg.TimeoutSeconds = o.timeoutSeconds
+	}
+
+	targetLocale := strings.TrimSpace(o.targetLocale)
+	if strings.TrimSpace(cfg.ProjectID) == "" {
+		return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: --project-id is required (or projectID in --config)")
+	}
+	if targetLocale == "" {
+		return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: --target-locale is required")
+	}
+	if requireAuth {
+		resolved, err := lokalise.ResolveConfig(cfg)
+		if err != nil {
+			return lokalise.Config{}, "", fmt.Errorf("lokalise upload translations: %w", err)
+		}
+		return resolved, targetLocale, nil
+	}
+	if strings.TrimSpace(cfg.APITokenEnv) == "" {
+		cfg.APITokenEnv = defaultLokaliseAPITokenEnv
+	}
+	return cfg, targetLocale, nil
+}
+
 func validateLokaliseSourceFiles(paths []string, format string) ([]string, error) {
+	return validateLokaliseUploadFiles(paths, format, "lokalise upload sources")
+}
+
+func validateLokaliseUploadFiles(paths []string, format, op string) ([]string, error) {
 	files := make([]string, 0, len(paths))
 	for _, path := range paths {
 		trimmed := strings.TrimSpace(path)
@@ -818,18 +989,18 @@ func validateLokaliseSourceFiles(paths []string, format string) ([]string, error
 		}
 		info, err := os.Stat(trimmed)
 		if err != nil {
-			return nil, fmt.Errorf("lokalise upload sources: stat source file %q: %w", trimmed, err)
+			return nil, fmt.Errorf("%s: stat file %q: %w", op, trimmed, err)
 		}
 		if info.IsDir() {
-			return nil, fmt.Errorf("lokalise upload sources: source file %q is a directory", trimmed)
+			return nil, fmt.Errorf("%s: file %q is a directory", op, trimmed)
 		}
 		if strings.TrimSpace(format) == "" && strings.TrimPrefix(filepath.Ext(trimmed), ".") == "" {
-			return nil, fmt.Errorf("lokalise upload sources: could not determine file format for %q; use --format", trimmed)
+			return nil, fmt.Errorf("%s: could not determine file format for %q; use --format", op, trimmed)
 		}
 		files = append(files, trimmed)
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("lokalise upload sources: at least one --file is required")
+		return nil, fmt.Errorf("%s: at least one --file is required", op)
 	}
 	return files, nil
 }

@@ -134,6 +134,9 @@ func TestUploadSourceFileOmitsEmptyTags(t *testing.T) {
 		if _, exists := body["tags"]; exists {
 			t.Fatalf("tags should be omitted when empty, got body: %#v", body)
 		}
+		if _, exists := body["convert_placeholders"]; exists {
+			t.Fatalf("convert_placeholders should be omitted for source uploads when unset, got body: %#v", body)
+		}
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(map[string]any{"process": map[string]any{"process_id": "proc-no-tags", "status": "queued"}})
 	})
@@ -251,6 +254,81 @@ func TestUploadSourceFileRejectsLargeFile(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "exceeds maximum upload size") {
 		t.Fatalf("error = %v, want maximum upload size error", err)
+	}
+}
+
+func TestUploadTranslationFilePostsTargetLocaleAndSkipsFilenameDetection(t *testing.T) {
+	client, mux, teardown := newLokaliseUploadClientForTest(t)
+	defer teardown()
+
+	filePath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+
+	mux.HandleFunc("/api2/projects/project-1/files/upload", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["filename"] != "en.json" || body["lang_iso"] != "fr" || body["format"] != "json" {
+			t.Fatalf("unexpected body identity fields: %#v", body)
+		}
+		if body["skip_detect_lang_iso"] != true {
+			t.Fatalf("skip_detect_lang_iso = %#v, want true so filename en.json cannot override fr", body["skip_detect_lang_iso"])
+		}
+		if body["convert_placeholders"] != false {
+			t.Fatalf("convert_placeholders = %#v, want false so Lokalise does not default to converting placeholders", body["convert_placeholders"])
+		}
+		if body["replace_modified"] != true {
+			t.Fatalf("replace_modified = %#v, want true", body["replace_modified"])
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"process": map[string]any{
+				"process_id": "proc-tr",
+				"type":       "file-import",
+				"status":     "queued",
+			},
+		})
+	})
+
+	result, err := client.UploadTranslationFile(context.Background(), TranslationUploadInput{
+		ProjectID:       "project-1",
+		TargetLocale:    "fr",
+		FilePath:        filePath,
+		ReplaceModified: true,
+	})
+	if err != nil {
+		t.Fatalf("upload translation file: %v", err)
+	}
+	if result.ProcessID != "proc-tr" || result.Status != "queued" {
+		t.Fatalf("result = %#v, want queued proc-tr", result)
+	}
+}
+
+func TestUploadTranslationFileRequiresTargetLocale(t *testing.T) {
+	client, mux, teardown := newLokaliseUploadClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api2/projects/", func(http.ResponseWriter, *http.Request) {
+		t.Fatal("upload endpoint should not be called without a target locale")
+	})
+
+	filePath := filepath.Join(t.TempDir(), "fr.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Bonjour"}`), 0o644); err != nil {
+		t.Fatalf("write translation file: %v", err)
+	}
+
+	_, err := client.UploadTranslationFile(context.Background(), TranslationUploadInput{
+		ProjectID: "project-1",
+		FilePath:  filePath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "target locale is required") {
+		t.Fatalf("error = %v, want target locale required", err)
 	}
 }
 
