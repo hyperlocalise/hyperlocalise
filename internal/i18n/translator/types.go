@@ -20,7 +20,7 @@ const (
 	ProviderAIGateway   = "ai_gateway"
 )
 
-const OpenAIImageModel = "gpt-image-2-2026-04-21"
+const OpenAIImageModel = "gpt-image-2.5-flare-2026-09-08"
 
 type Request struct {
 	Source         string

@@ -18,7 +18,7 @@ import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type { LlmProvider } from "@/lib/database/types";
 
 export const hyperlocaliseManagedGatewayModelId = `openai/${hyperlocaliseAgentModelId}`;
-export const hyperlocaliseImageModelId = "openai/gpt-image-2";
+export const hyperlocaliseImageModelId = "openai/gpt-image-2.5-flare";
 export const hyperlocaliseVideoModelId = "bytedance/seedance-2.5";
 
 export type AgentLanguageModelSource = LlmProvider | "gateway";
