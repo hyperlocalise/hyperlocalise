@@ -1236,10 +1236,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     // A recreated sandbox may have lost outputs for locales completed earlier.
     // Reassemble them from validated prefills without asking AI to translate again.
     if (!batchSucceeded) {
-      const successfulLocales = parsedInput.targetLocales.filter((locale) => !failedLocales.includes(locale));
+      const successfulLocales = parsedInput.targetLocales.filter(
+        (locale) => !failedLocales.includes(locale),
+      );
       if (successfulLocales.length > 0) {
         const assembled = await runHlForLocales(successfulLocales, 2, { force: true });
-        if (!assembled.ok || assembled.deferredByLimit !== 0) throw new Error("translation output assembly failed");
+        if (!assembled.ok || assembled.deferredByLimit !== 0)
+          throw new Error("translation output assembly failed");
       }
     }
 
