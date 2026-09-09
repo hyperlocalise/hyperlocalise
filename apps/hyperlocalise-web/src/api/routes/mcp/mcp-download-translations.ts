@@ -33,12 +33,12 @@ export type McpDownloadTranslationsResult =
     }
   | {
       ok: false;
-      error:
-        | "source_file_not_found"
-        | "translations_not_found"
-        | "source_file_too_large"
-        | "unsupported_binary_download";
-      maxKeyCount?: number;
+      error: "source_file_not_found" | "translations_not_found" | "unsupported_binary_download";
+    }
+  | {
+      ok: false;
+      error: "source_file_too_large";
+      maxKeyCount: number;
     };
 
 /** Builds the target filename used by the public translation download endpoint. */

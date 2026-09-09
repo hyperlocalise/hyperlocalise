@@ -68,6 +68,7 @@ import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveMcpClientMetadata } from "@/api/auth/mcp-client-metadata";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   issueSheetCreateIssueBodySchema,
@@ -2162,7 +2163,9 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       });
 
       if (!result.ok) {
-        switch (result.error) {
+        const downloadError = result.error;
+
+        switch (downloadError) {
           case "source_file_not_found":
             return mcpToolError("source_file_not_found", "Source file not found");
 
@@ -2183,6 +2186,9 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
               "unsupported_binary_download",
               "The reconstructed translation file is not supported as UTF-8 text",
             );
+
+          default:
+            return assertNever(downloadError);
         }
       }
 
