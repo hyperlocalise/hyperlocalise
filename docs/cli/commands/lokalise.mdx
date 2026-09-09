@@ -27,7 +27,7 @@ Use them for:
 - import of a pre-translated locale file (`upload translations`)
 - source download (`download sources`)
 - translation download (`download translations`)
-- glossary **download** (Hyperlocalise-shaped CSV)
+- glossary download (Hyperlocalise-shaped CSV)
 
 Official [lokalise2](https://github.com/lokalise/lokalise-cli-2-go) uses `file upload` / `file download` with `--lang-iso`. Hyperlocalise keeps the same command family shape as Crowdin, Phrase, and Smartling (`upload sources`, `download translations`).
 
@@ -41,11 +41,11 @@ Do not put the API token in `i18n.yml`. Point `apiTokenEnv` at an environment va
 
 `upload sources` requires `--project-id` (or `projectID` in `--config`), `--source-locale` (or `sourceLanguage` in `--config`), and at least one `--file`. `--dry-run` checks files and flags and does not need a token.
 
-`upload translations` requires `--target-locale` on every run. It does **not** take the locale from `sourceLanguage` or `targetLanguages` in `--config`. Config may still supply the project id and token. The locale comes from the flag, not the filename: uploading `en.json` as French uses `--target-locale fr`.
+`upload translations` requires `--target-locale` on every run. It does not take the locale from `sourceLanguage` or `targetLanguages` in `--config`. Config may still supply the project id and token. The locale comes from the flag, not the filename: uploading `en.json` as French uses `--target-locale fr`.
 
 `--replace-modified` maps to Lokalise `replace_modified`. Off (the default) preserves translations Lokalise treats as modified. On replaces those modified translations from the uploaded file. It is not a guarantee that every existing key stays unchanged. Dry-run and the success line print `modified_translations=preserved` or `modified_translations=replaced`.
 
-Success means the import is **queued**, not that strings are already visible in Lokalise. The command prints a process id and stops. It does not wait for the background import to finish.
+Success means the import is queued, not that strings are already visible in Lokalise. The command prints a process id and stops. It does not wait for the background import to finish.
 
 Lokalise matches files by name. Use the same filename as the source file when you can. Language codes in the name (`en.json` / `fr.json`) are usually treated as one file. A totally different name can create a second file.
 
