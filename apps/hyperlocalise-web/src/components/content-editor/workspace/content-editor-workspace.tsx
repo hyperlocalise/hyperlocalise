@@ -31,6 +31,7 @@ import type { ContentEditorWorkspaceViewProps } from "@/components/content-edito
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 import { resolveCatFileViewCapabilities } from "./content-editor-file-view-capabilities";
+import { loadOriginalDocumentContext } from "./content-editor-original-document-context";
 import { ContentEditorPanelErrorBoundary } from "./content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
 import { contentEditorWorkspaceViewMessages } from "./content-editor-workspace.messages";
@@ -467,15 +468,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
                   sourceLocale: editorSegment.sourceLocale,
                   targetLocale: editorSegment.targetLocale,
                   request: async (input) => {
-                    const sourceUrl = editorSegment.sourceAssetUrl;
-                    let originalContext =
-                      "Original document unavailable. Do not claim to verify the translation against it.";
-                    if (sourceUrl) {
-                      const response = await fetch(sourceUrl);
-                      if (!response.ok) throw new Error("source_document_unavailable");
-                      const originalText = await response.text();
-                      originalContext = `Original document in ${editorSegment.sourceLocale} (reference only, may be truncated):\n${originalText.slice(0, 15_000)}`;
-                    }
+                    const originalContext = await loadOriginalDocumentContext(
+                      editorSegment.sourceAssetUrl,
+                      editorSegment.sourceLocale,
+                    );
                     const result = await dependencies.services!.generateAiRecommendation!(
                       {
                         ...editorSegment,

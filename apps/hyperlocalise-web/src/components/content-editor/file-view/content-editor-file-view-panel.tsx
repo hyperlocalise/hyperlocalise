@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -153,6 +153,9 @@ export function ContentEditorFileViewPanel({
   const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
     readCatFileViewSourcePaneVisible(viewerId !== "markdown"),
   );
+  useLayoutEffect(() => {
+    setSourcePaneVisible(readCatFileViewSourcePaneVisible(viewerId !== "markdown"));
+  }, [viewerId]);
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());

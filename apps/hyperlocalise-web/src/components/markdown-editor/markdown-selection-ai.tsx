@@ -22,6 +22,7 @@ import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { replaceMarkdownSelection } from "./markdown-selection-ai-replace";
 import { markdownSelectionAiMessages as messages } from "./markdown-selection-ai.messages";
 import type {
   MarkdownSelectionAiConfig,
@@ -147,13 +148,8 @@ export function MarkdownSelectionAi({
       setError(intl.formatMessage(messages.stale));
       return;
     }
-    // Insert text nodes, never parse model output as HTML or executable markup.
-    const lines = result.suggestion.split("\n");
-    const content = lines.flatMap((line, index) => [
-      ...(index ? [{ type: "hardBreak" }] : []),
-      ...(line ? [{ type: "text", text: line }] : []),
-    ]);
-    editor.chain().focus().insertContentAt({ from: snapshot.from, to: snapshot.to }, content).run();
+    // Replace selected wording as text nodes so model output is never parsed as HTML.
+    replaceMarkdownSelection(editor, snapshot.from, snapshot.to, result.suggestion);
     changeOpen(false);
   }
 
@@ -208,7 +204,7 @@ export function MarkdownSelectionAi({
             </div>
             {pending ? (
               <div role="status" className="flex items-center gap-2 py-4 text-muted-foreground">
-                <Spinner />
+                <Spinner aria-hidden role="presentation" />
                 {intl.formatMessage(messages.working)}
               </div>
             ) : result ? (

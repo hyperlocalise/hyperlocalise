@@ -182,6 +182,32 @@ describe("ContentEditorFileViewPanel", () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
+  it("closes comparison when entering a markdown viewer without a saved preference", () => {
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("# Guide\n\nParagraph.\n")),
+    );
+    const { rerender } = render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel segment={imageSegment()} viewerId="image" filename="hero.png" />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(screen.getByRole("heading", { name: /Source \(en\)/i })).toBeInTheDocument();
+
+    rerender(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "guide.md" })}
+          viewerId="markdown"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(screen.queryByRole("heading", { name: /Source \(en\)/i })).not.toBeInTheDocument();
+  });
+
   it("toggles the source pane visibility", async () => {
     const user = userEvent.setup();
 
