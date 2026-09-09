@@ -691,7 +691,9 @@ export function ProjectFileContentEditorWorkspace({
       intelligence?: ContentEditorSegmentIntelligence,
     ) => {
       const concordancePayload =
-        intelligence != null
+        intelligence &&
+        (intelligence.glossaryTerms.length > 0 ||
+          (intelligence.translationMemoryMatches?.length ?? 0) > 0)
           ? mapCatConcordanceForAiRecommendation(
               {
                 glossaryTerms: intelligence.glossaryTerms ?? [],
