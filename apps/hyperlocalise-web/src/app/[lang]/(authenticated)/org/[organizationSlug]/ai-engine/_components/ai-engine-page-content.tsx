@@ -63,7 +63,12 @@ import {
   type ModelProviderCardConfig,
 } from "../../integrations/_components/model-provider-card";
 
-import { agentCapabilityIds } from "./ai-engine-agent-capabilities";
+import {
+  agentCapabilityIds,
+  getAgentCapabilityModelSource,
+  getIncludedAgentCapabilityModel,
+  isIncludedAgentCapabilityId,
+} from "./ai-engine-agent-capabilities";
 import { AiEngineAgentCapabilityRow } from "./ai-engine-agent-capability-row";
 import { AiEngineCurrentSetupPanel } from "./ai-engine-current-setup-panel";
 import { aiEnginePageContentMessages } from "./ai-engine-page-content.messages";
@@ -112,6 +117,37 @@ const byokProviderMeta = [
   logo: string;
   icon?: SimpleIcon;
 }[];
+
+const capabilityCopyById = {
+  ask: {
+    name: aiEnginePageContentMessages.capabilityAskName,
+    description: aiEnginePageContentMessages.capabilityAskDescription,
+  },
+  translation: {
+    name: aiEnginePageContentMessages.capabilityTranslationName,
+    description: aiEnginePageContentMessages.capabilityTranslationDescription,
+  },
+  coding: {
+    name: aiEnginePageContentMessages.capabilityCodingName,
+    description: aiEnginePageContentMessages.capabilityCodingDescription,
+  },
+  tts: {
+    name: aiEnginePageContentMessages.capabilityTtsName,
+    description: aiEnginePageContentMessages.capabilityTtsDescription,
+  },
+  transcribe: {
+    name: aiEnginePageContentMessages.capabilityTranscribeName,
+    description: aiEnginePageContentMessages.capabilityTranscribeDescription,
+  },
+  image: {
+    name: aiEnginePageContentMessages.capabilityImageName,
+    description: aiEnginePageContentMessages.capabilityImageDescription,
+  },
+  video: {
+    name: aiEnginePageContentMessages.capabilityVideoName,
+    description: aiEnginePageContentMessages.capabilityVideoDescription,
+  },
+} as const;
 
 function useProviderCredentials(organizationSlug: string) {
   return useQuery({
@@ -263,27 +299,17 @@ export function AiEnginePageContent({
   const agentCapabilities = useMemo(
     () =>
       agentCapabilityIds.map((capabilityId) => {
-        const copyById = {
-          ask: {
-            name: aiEnginePageContentMessages.capabilityAskName,
-            description: aiEnginePageContentMessages.capabilityAskDescription,
-          },
-          translation: {
-            name: aiEnginePageContentMessages.capabilityTranslationName,
-            description: aiEnginePageContentMessages.capabilityTranslationDescription,
-          },
-          coding: {
-            name: aiEnginePageContentMessages.capabilityCodingName,
-            description: aiEnginePageContentMessages.capabilityCodingDescription,
-          },
-        } as const;
-
-        const copy = copyById[capabilityId];
+        const copy = capabilityCopyById[capabilityId];
+        const modelSource = getAgentCapabilityModelSource(capabilityId);
 
         return {
           id: capabilityId,
           name: intl.formatMessage(copy.name),
           description: intl.formatMessage(copy.description),
+          modelSource,
+          includedModel: isIncludedAgentCapabilityId(capabilityId)
+            ? getIncludedAgentCapabilityModel(capabilityId)
+            : undefined,
         };
       }),
     [intl],
@@ -439,7 +465,8 @@ export function AiEnginePageContent({
                     key={capability.id}
                     name={capability.name}
                     description={capability.description}
-                    effectiveModel={workspaceDefaultModel}
+                    effectiveModel={capability.includedModel ?? workspaceDefaultModel}
+                    modelSource={capability.modelSource}
                     isLast={index === agentCapabilities.length - 1}
                   />
                 ))}

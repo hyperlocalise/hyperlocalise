@@ -16,10 +16,21 @@ import type { LanguageModel } from "ai";
 
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type { LlmProvider } from "@/lib/database/types";
+import {
+  hyperlocaliseImageModelId,
+  hyperlocaliseTtsModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseVideoModelId,
+} from "@/lib/providers/managed-model-ids";
+
+export {
+  hyperlocaliseImageModelId,
+  hyperlocaliseTtsModelId,
+  hyperlocaliseTranscribeModelId,
+  hyperlocaliseVideoModelId,
+};
 
 export const hyperlocaliseManagedGatewayModelId = `openai/${hyperlocaliseAgentModelId}`;
-export const hyperlocaliseImageModelId = "openai/gpt-image-2.5-flare";
-export const hyperlocaliseVideoModelId = "bytedance/seedance-2.5";
 
 export type AgentLanguageModelSource = LlmProvider | "gateway";
 
@@ -45,6 +56,14 @@ export function getManagedImageModel() {
 
 export function getManagedVideoModel() {
   return hyperlocaliseVideoModelId;
+}
+
+export function getManagedTtsModel() {
+  return hyperlocaliseTtsModelId;
+}
+
+export function getManagedTranscribeModel() {
+  return hyperlocaliseTranscribeModelId;
 }
 
 export function resolveProviderLanguageModel(input: {

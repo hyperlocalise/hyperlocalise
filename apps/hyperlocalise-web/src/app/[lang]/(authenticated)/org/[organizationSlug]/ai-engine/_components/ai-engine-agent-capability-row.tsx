@@ -17,12 +17,14 @@ import { FormattedMessage } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
 
+import type { AgentCapabilityModelSource } from "./ai-engine-agent-capabilities";
 import { aiEnginePageContentMessages } from "./ai-engine-page-content.messages";
 
 type AiEngineAgentCapabilityRowProps = {
   name: string;
   description: string;
   effectiveModel: string;
+  modelSource?: AgentCapabilityModelSource;
   isLast?: boolean;
 };
 
@@ -30,6 +32,7 @@ export function AiEngineAgentCapabilityRow({
   name,
   description,
   effectiveModel,
+  modelSource = "workspace-default",
   isLast = false,
 }: AiEngineAgentCapabilityRowProps) {
   return (
@@ -47,7 +50,11 @@ export function AiEngineAgentCapabilityRow({
       <div className="flex shrink-0 flex-col items-start gap-2 sm:min-w-[14rem] sm:items-end">
         <p className="font-mono text-sm text-foreground">{effectiveModel}</p>
         <Badge variant="outline" className="text-[10px]">
-          <FormattedMessage {...aiEnginePageContentMessages.workspaceDefaultBadge} />
+          <FormattedMessage
+            {...(modelSource === "included"
+              ? aiEnginePageContentMessages.includedBadge
+              : aiEnginePageContentMessages.workspaceDefaultBadge)}
+          />
         </Badge>
       </div>
     </div>
