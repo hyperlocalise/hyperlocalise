@@ -139,7 +139,12 @@ export const SchemaDisplayDescription = ({
   const { description } = useContext(SchemaDisplayContext);
 
   return (
-    <TypographyP className="border-b px-4 py-3" {...props} tone="subtle" size="small">
+    <TypographyP
+      className={cn("border-b px-4 py-3", className)}
+      {...props}
+      tone="subtle"
+      size="small"
+    >
       {children ?? description}
     </TypographyP>
   );

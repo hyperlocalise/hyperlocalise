@@ -53,9 +53,9 @@ export const Default: Story = {
     await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
     await expect(canvas.getByText("Today")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
     await expect(canvas.getByText("Review")).toBeInTheDocument();
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
-    await expect(canvas.getByText("Running")).toBeInTheDocument();
     await expect(
       canvas.getByText((content) => content.includes("fr-FR") && content.includes("Otto")),
     ).toBeInTheDocument();
@@ -81,9 +81,9 @@ export const CaughtUp: Story = {
     jobs: [],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No reviews waiting")).toBeInTheDocument();
+    await expect(canvas.getByText("No jobs yet")).toBeInTheDocument();
     await expect(
-      canvas.getByText("Open Files for coverage, or create a job when you are ready."),
+      canvas.getByText("Create a job to start translating, or open Files to review coverage."),
     ).toBeInTheDocument();
     await expect(canvas.getByText("0")).toBeInTheDocument();
   },

@@ -55,6 +55,7 @@ export type TmsProviderProjectScope = TmsProviderContext & {
   enrichResources?: boolean;
   includeLocaleProgress?: boolean;
   fetchAllTasks?: boolean;
+  orderByRecentActivity?: boolean;
   signal?: AbortSignal;
 };
 

@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -51,10 +52,10 @@ import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
 import { useProjectLocaleProgressQuery } from "./use-project-locale-progress";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {
-  buildProjectOverviewTriageItems,
+  buildProjectOverviewJobItems,
   formatProjectLocaleRoute,
-  type ProjectOverviewTriageItem,
-  type ProjectOverviewTriageKind,
+  type ProjectOverviewJobItem,
+  type ProjectOverviewJobKind,
 } from "./project-overview-view-model";
 
 function buildProjectJobHref(organizationSlug: string, projectId: string, jobId: string) {
@@ -78,48 +79,58 @@ function resolveTriageJobMeta(
   return taskDetailSummary(job, intl);
 }
 
-function triageStatusLabel(kind: ProjectOverviewTriageKind, intl: ReturnType<typeof useIntl>) {
+function jobStatusLabel(kind: ProjectOverviewJobKind, intl: ReturnType<typeof useIntl>) {
   switch (kind) {
     case "review":
       return intl.formatMessage(messages.statusReview);
     case "failed":
       return intl.formatMessage(messages.statusFailed);
-    case "job":
+    case "running":
       return intl.formatMessage(messages.statusRunning);
+    case "queued":
+      return intl.formatMessage(messages.statusQueued);
+    case "succeeded":
+      return intl.formatMessage(messages.statusSucceeded);
+    case "cancelled":
+      return intl.formatMessage(messages.statusCancelled);
     case "guidance":
       return intl.formatMessage(messages.statusGuidance);
-    default: {
-      const _exhaustive: never = kind;
-      return _exhaustive;
-    }
+    default:
+      return assertNever(kind);
   }
 }
 
-function triageStatusClassName(kind: ProjectOverviewTriageKind) {
+function jobStatusClassName(kind: ProjectOverviewJobKind) {
   switch (kind) {
     case "review":
       return "text-amber-900";
     case "failed":
       return "text-red-800";
-    case "job":
+    case "running":
+    case "queued":
       return "text-primary";
+    case "succeeded":
+      return "text-emerald-800";
+    case "cancelled":
+      return "text-muted-foreground";
     case "guidance":
       return "text-muted-foreground";
-    default: {
-      const _exhaustive: never = kind;
-      return _exhaustive;
-    }
+    default:
+      return assertNever(kind);
   }
 }
 
-function resolveTriageCopy(
-  item: ProjectOverviewTriageItem,
+function resolveJobRowCopy(
+  item: ProjectOverviewJobItem,
   intl: ReturnType<typeof useIntl>,
 ): { title: string; meta: string | null; cta: string } {
   switch (item.kind) {
     case "review":
     case "failed":
-    case "job":
+    case "running":
+    case "queued":
+    case "succeeded":
+    case "cancelled":
       return {
         title: getJobName(item.job!, intl),
         meta: resolveTriageJobMeta(item.job, intl),
@@ -322,8 +333,8 @@ export function ProjectOverviewPageContentView({
     parseProviderProjectId(projectId)?.providerKind,
   );
 
-  const triageItems = project
-    ? buildProjectOverviewTriageItems({
+  const recentJobItems = project
+    ? buildProjectOverviewJobItems({
         jobs,
         isNative: isNative ?? false,
         hasTranslationGuidance,
@@ -454,7 +465,7 @@ export function ProjectOverviewPageContentView({
                             <FormattedMessage {...messages.todayTitle} />
                           </ProjectOverviewSectionLabel>
                           <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
-                            {triageItems.length}
+                            {recentJobItems.length}
                           </span>
                         </Row>
                       </Box>
@@ -464,10 +475,10 @@ export function ProjectOverviewPageContentView({
                         <Box paddingTop="3u">
                           <Skeleton className="h-24 w-full" />
                         </Box>
-                      ) : triageItems.length > 0 ? (
+                      ) : recentJobItems.length > 0 ? (
                         <>
-                          {triageItems.map((item) => {
-                            const copy = resolveTriageCopy(item, intl);
+                          {recentJobItems.map((item) => {
+                            const copy = resolveJobRowCopy(item, intl);
                             const href =
                               item.kind === "guidance"
                                 ? settingsHref
@@ -479,8 +490,8 @@ export function ProjectOverviewPageContentView({
                               <div key={item.id}>
                                 <ProjectOverviewTriageRow
                                   href={href}
-                                  statusLabel={triageStatusLabel(item.kind, intl)}
-                                  statusClassName={triageStatusClassName(item.kind)}
+                                  statusLabel={jobStatusLabel(item.kind, intl)}
+                                  statusClassName={jobStatusClassName(item.kind)}
                                   title={copy.title}
                                   meta={copy.meta}
                                   cta={copy.cta}

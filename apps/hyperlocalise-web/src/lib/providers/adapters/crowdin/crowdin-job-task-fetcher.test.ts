@@ -45,6 +45,8 @@ describe("fetchCrowdinJobTasks", () => {
                   fileIds: [101],
                   assignees: [{ id: 1, username: "translator1" }],
                   deadline: "2026-06-01T00:00:00Z",
+                  createdAt: "2026-05-20T10:00:00Z",
+                  updatedAt: "2026-05-21T12:00:00Z",
                   webUrl: "https://crowdin.com/project/1/tasks/2001",
                 },
               },
@@ -96,6 +98,8 @@ describe("fetchCrowdinJobTasks", () => {
       targetLocales: ["fr"],
       assignedUsers: ["translator1"],
       kind: "translation",
+      createdAt: "2026-05-20T10:00:00Z",
+      updatedAt: "2026-05-21T12:00:00Z",
     });
     expect(result[0]?.providerPayload).toMatchObject({
       localeReadiness: {
@@ -155,6 +159,54 @@ describe("fetchCrowdinJobTasks", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.providerPayload).toMatchObject({
       localeReadiness: null,
+    });
+  });
+
+  it("orders Crowdin tasks by updatedAt when recent activity is requested", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/tasks?")) {
+        expect(path).toContain("orderBy=updatedAt%20desc");
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 2001,
+                  projectId: 1,
+                  type: 0,
+                  status: "in_progress",
+                  title: "French translations",
+                  description: "Translate homepage",
+                  languageId: "fr",
+                  fileIds: [101],
+                  assignees: [],
+                  deadline: null,
+                  createdAt: "2026-01-01T00:00:00Z",
+                  updatedAt: "2026-02-01T00:00:00Z",
+                  webUrl: "https://crowdin.com/project/1/tasks/2001",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await crowdinTmsProvider.fetchJobTasks({
+      organizationId: "org-1",
+      projectId: "project-1",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+      orderByRecentActivity: true,
     });
   });
 

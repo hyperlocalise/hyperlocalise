@@ -597,6 +597,8 @@ export class PhraseTmsProvider extends TmsProvider {
           jobPart.owner?.email?.trim(),
         ].filter((value): value is string => Boolean(value));
 
+        const createdAt = jobPart.dateCreated?.trim() || null;
+
         return {
           externalJobId,
           externalTaskId: jobPart.uid,
@@ -605,6 +607,8 @@ export class PhraseTmsProvider extends TmsProvider {
           dueDate: jobPart.dateDue ? new Date(jobPart.dateDue) : null,
           targetLocales: targetLocale ? [targetLocale] : [],
           assignedUsers,
+          createdAt,
+          updatedAt: createdAt,
           externalUrl: this.buildPhraseTmsJobUrl(
             client.resolvedBaseUrl,
             tmsProjectUid,

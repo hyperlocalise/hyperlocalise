@@ -187,7 +187,7 @@ export const PackageInfoDescription = ({
   children,
   ...props
 }: PackageInfoDescriptionProps) => (
-  <TypographyP className="mt-2" {...props} tone="subtle" size="small">
+  <TypographyP className={cn("mt-2", className)} {...props} tone="subtle" size="small">
     {children}
   </TypographyP>
 );

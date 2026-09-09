@@ -179,6 +179,7 @@ export const CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT = 500;
 
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
+export const CROWDIN_RECENT_TASK_LIST_ORDER_BY = "updatedAt desc";
 export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
 export const CROWDIN_GLOSSARY_LIST_LIMIT = 25;
 export const CROWDIN_GLOSSARY_LIST_ORDER_BY = "createdAt desc,name";
@@ -331,6 +332,10 @@ export interface CrowdinTask {
   assignees: Array<{ id: number; username: string }> | null;
   deadline: string | null;
   webUrl: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  startedAt?: string | null;
+  resolvedAt?: string | null;
 }
 
 export interface CrowdinLanguageProgress {

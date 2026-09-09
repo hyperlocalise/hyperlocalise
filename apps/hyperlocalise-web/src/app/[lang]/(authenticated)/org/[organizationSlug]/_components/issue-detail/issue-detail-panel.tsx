@@ -167,7 +167,7 @@ function ReadOnlyValue({
   className?: string;
 }) {
   return (
-    <TypographyP className="leading-5" size="small" tone="content">
+    <TypographyP className={cn("leading-5", className)} size="small" tone="content">
       {value?.trim() ? value : empty}
     </TypographyP>
   );

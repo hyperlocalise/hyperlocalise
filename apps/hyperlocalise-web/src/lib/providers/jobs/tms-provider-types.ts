@@ -120,6 +120,8 @@ export type ExternalTmsJobTaskMetadata = {
   dueDate?: Date | string | null;
   targetLocales?: string[];
   assignedUsers?: string[];
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
   completedAt?: Date | string | null;
   externalUrl?: string | null;
   providerPayload?: Record<string, unknown>;
@@ -203,6 +205,7 @@ export type ExternalTmsJobTaskFetcher = (input: {
   enrichResources?: boolean;
   includeLocaleProgress?: boolean;
   fetchAllTasks?: boolean;
+  orderByRecentActivity?: boolean;
 }) => Promise<ExternalTmsJobTaskMetadata[]>;
 
 export type ExternalTmsGlossaryTermMetadata = {

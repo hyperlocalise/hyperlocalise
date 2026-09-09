@@ -72,13 +72,16 @@ export async function fetchNativeProjectJobs(
 export async function fetchTmsProjectJobs(
   organizationSlug: string,
   externalProjectId: string,
-  options?: { mine?: boolean },
+  options?: { mine?: boolean; recent?: boolean },
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
     ":externalProjectId"
   ].jobs.$get({
     param: { organizationSlug, externalProjectId },
-    query: { mine: options?.mine ? "true" : "false" },
+    query: {
+      mine: options?.mine ? "true" : "false",
+      recent: options?.recent ? "true" : "false",
+    },
   });
 
   return readTmsProviderListResponse<ProjectJobRecord>(response, "jobs", "Failed to load TMS jobs");
@@ -116,5 +119,15 @@ export function selectOverviewTriageProjectJobs<T extends ProjectJobRecord>(
 
       return right.updatedAt.localeCompare(left.updatedAt);
     })
+    .slice(0, limit);
+}
+
+/** Keeps the most recently updated jobs for project Overview. */
+export function selectRecentProjectJobs<T extends ProjectJobRecord>(
+  jobs: readonly T[],
+  limit: number,
+): T[] {
+  return jobs
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, limit);
 }

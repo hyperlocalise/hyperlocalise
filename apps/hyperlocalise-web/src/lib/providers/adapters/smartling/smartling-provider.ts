@@ -583,6 +583,9 @@ export class SmartlingTmsProvider extends TmsProvider {
             ));
         }
 
+        const createdAt = job.createdDate?.trim() || null;
+        const updatedAt = job.modifiedDate?.trim() || createdAt;
+
         return {
           externalJobId: job.translationJobUid,
           externalTaskId: null,
@@ -591,6 +594,8 @@ export class SmartlingTmsProvider extends TmsProvider {
           dueDate: job.dueDate ? new Date(job.dueDate) : null,
           targetLocales: job.targetLocaleIds,
           assignedUsers: [],
+          createdAt,
+          updatedAt,
           externalUrl: buildSmartlingJobUrl(
             accountUid,
             scope.externalProjectId,

@@ -52,6 +52,7 @@ import {
   filterOpenProjectJobs,
   filterOverviewTriageProjectJobs,
   selectOverviewTriageProjectJobs,
+  selectRecentProjectJobs,
 } from "./fetch-project-jobs";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -158,7 +159,18 @@ describe("fetchProjectJobs", () => {
 
     expect(tmsJobsGetMock).toHaveBeenCalledWith({
       param: { organizationSlug: "acme", externalProjectId: "902807" },
-      query: { mine: "true" },
+      query: { mine: "true", recent: "false" },
+    });
+  });
+
+  it("requests recent TMS project jobs ordered by provider activity", async () => {
+    tmsJobsGetMock.mockResolvedValue(jsonResponse({ jobs: [] }));
+
+    await fetchTmsProjectJobs("acme", "902807", { recent: true });
+
+    expect(tmsJobsGetMock).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", externalProjectId: "902807" },
+      query: { mine: "false", recent: "true" },
     });
   });
 
@@ -246,6 +258,19 @@ describe("fetchProjectJobs", () => {
     expect(selectOverviewTriageProjectJobs(jobs, 5, nowMs).map((job) => job.id)).toEqual([
       "recent-review",
       "recent-queued",
+    ]);
+  });
+
+  it("keeps the most recently updated jobs for project overview", () => {
+    const jobs = [
+      { id: "older-failed", status: "failed", updatedAt: "2026-07-01T00:00:00.000Z" },
+      { id: "newer-succeeded", status: "succeeded", updatedAt: "2026-07-02T00:00:10.000Z" },
+      { id: "middle-running", status: "running", updatedAt: "2026-07-02T00:00:05.000Z" },
+    ];
+
+    expect(selectRecentProjectJobs(jobs, 2).map((job) => job.id)).toEqual([
+      "newer-succeeded",
+      "middle-running",
     ]);
   });
 });

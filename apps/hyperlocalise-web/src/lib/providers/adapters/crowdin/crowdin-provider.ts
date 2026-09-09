@@ -33,6 +33,7 @@ import {
 } from "@/lib/providers/adapters/source-file-upload-shared";
 import {
   CROWDIN_GLOSSARY_LIST_LIMIT,
+  CROWDIN_RECENT_TASK_LIST_ORDER_BY,
   CrowdinApiClient,
   CrowdinApiError,
   escapeCrowdinCroqlString,
@@ -606,6 +607,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     try {
       tasks = await client.listTasks(projectId, {
         fetchAll: scope.fetchAllTasks ?? false,
+        orderBy: scope.orderByRecentActivity ? CROWDIN_RECENT_TASK_LIST_ORDER_BY : undefined,
       });
     } catch (error) {
       this.rethrowAuthError(error);
@@ -2160,6 +2162,10 @@ export class CrowdinTmsProvider extends TmsProvider {
     const primaryLanguageId = this.extractTaskPrimaryLanguageId(task);
     const localeReadinessKey = primaryLanguageId ?? targetLocales[0] ?? null;
 
+    const createdAt = task.createdAt?.trim() || null;
+    const updatedAt =
+      task.updatedAt?.trim() || task.resolvedAt?.trim() || task.startedAt?.trim() || createdAt;
+
     return {
       externalJobId: String(task.id),
       externalTaskId: null,
@@ -2171,6 +2177,9 @@ export class CrowdinTmsProvider extends TmsProvider {
         task.assignees?.map((assignee) =>
           assignee.username ? assignee.username : String(assignee.id),
         ) ?? [],
+      createdAt,
+      updatedAt,
+      completedAt: task.resolvedAt?.trim() ? task.resolvedAt : null,
       externalUrl: task.webUrl,
       providerPayload: {
         projectId: task.projectId,

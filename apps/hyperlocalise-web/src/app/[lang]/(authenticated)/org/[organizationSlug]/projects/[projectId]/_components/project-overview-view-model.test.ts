@@ -14,7 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
 import {
-  buildProjectOverviewTriageItems,
+  buildProjectOverviewJobItems,
   formatProjectLocaleRoute,
   projectOverviewMeshTone,
 } from "./project-overview-view-model";
@@ -51,25 +51,53 @@ function job(partial: Partial<ApiJob> & Pick<ApiJob, "id" | "status">): ApiJob {
   };
 }
 
-describe("buildProjectOverviewTriageItems", () => {
-  it("orders review, failed, missing guidance, then other jobs", () => {
-    const items = buildProjectOverviewTriageItems({
+describe("buildProjectOverviewJobItems", () => {
+  it("orders jobs by most recently updated", () => {
+    const items = buildProjectOverviewJobItems({
       jobs: [
-        job({ id: "running", status: "running" }),
-        job({ id: "failed", status: "failed" }),
-        job({ id: "review", status: "waiting_for_review" }),
+        job({
+          id: "running",
+          status: "running",
+          updatedAt: "2026-07-02T00:00:08.000Z",
+        }),
+        job({
+          id: "failed",
+          status: "failed",
+          updatedAt: "2026-07-02T00:00:10.000Z",
+        }),
+        job({
+          id: "review",
+          status: "waiting_for_review",
+          updatedAt: "2026-07-02T00:00:09.000Z",
+        }),
+        job({
+          id: "succeeded",
+          status: "succeeded",
+          updatedAt: "2026-07-02T00:00:11.000Z",
+        }),
       ],
       isNative: true,
-      hasTranslationGuidance: false,
+      hasTranslationGuidance: true,
       limit: 10,
     });
 
-    expect(items.map((item) => item.kind)).toEqual(["review", "failed", "guidance", "job"]);
+    expect(items.map((item) => item.job?.id)).toEqual(["succeeded", "failed", "review", "running"]);
+  });
+
+  it("appends missing guidance when there is room under the cap", () => {
+    const items = buildProjectOverviewJobItems({
+      jobs: [job({ id: "failed", status: "failed" })],
+      isNative: true,
+      hasTranslationGuidance: false,
+      limit: 5,
+    });
+
+    expect(items.map((item) => item.kind)).toEqual(["failed", "guidance"]);
   });
 
   it("omits guidance when set or when the project is not native", () => {
     expect(
-      buildProjectOverviewTriageItems({
+      buildProjectOverviewJobItems({
         jobs: [],
         isNative: true,
         hasTranslationGuidance: true,
@@ -77,7 +105,7 @@ describe("buildProjectOverviewTriageItems", () => {
     ).toEqual([]);
 
     expect(
-      buildProjectOverviewTriageItems({
+      buildProjectOverviewJobItems({
         jobs: [],
         isNative: false,
         hasTranslationGuidance: false,
@@ -85,67 +113,19 @@ describe("buildProjectOverviewTriageItems", () => {
     ).toEqual([]);
   });
 
-  it("does not include file-based triage items", () => {
-    const items = buildProjectOverviewTriageItems({
-      jobs: [job({ id: "review", status: "waiting_for_review" })],
-      isNative: true,
-      hasTranslationGuidance: true,
-    });
-
-    expect(items.every((item) => item.kind !== ("file" as string))).toBe(true);
-  });
-
-  it("keeps older review jobs ahead of newer in-progress work when capping", () => {
-    const items = buildProjectOverviewTriageItems({
+  it("caps the number of recent jobs shown", () => {
+    const items = buildProjectOverviewJobItems({
       jobs: [
-        job({
-          id: "running-new",
-          status: "running",
-          updatedAt: "2026-07-02T00:00:10.000Z",
-        }),
-        job({
-          id: "queued-new",
-          status: "queued",
-          updatedAt: "2026-07-02T00:00:09.000Z",
-        }),
-        job({
-          id: "running-2",
-          status: "running",
-          updatedAt: "2026-07-02T00:00:08.000Z",
-        }),
-        job({
-          id: "queued-2",
-          status: "queued",
-          updatedAt: "2026-07-02T00:00:07.000Z",
-        }),
-        job({
-          id: "running-3",
-          status: "running",
-          updatedAt: "2026-07-02T00:00:06.000Z",
-        }),
-        job({
-          id: "review-old",
-          status: "waiting_for_review",
-          updatedAt: "2026-07-01T00:00:00.000Z",
-        }),
-        job({
-          id: "failed-old",
-          status: "failed",
-          updatedAt: "2026-07-01T00:00:01.000Z",
-        }),
+        job({ id: "job-1", status: "running", updatedAt: "2026-07-02T00:00:10.000Z" }),
+        job({ id: "job-2", status: "queued", updatedAt: "2026-07-02T00:00:09.000Z" }),
+        job({ id: "job-3", status: "failed", updatedAt: "2026-07-02T00:00:08.000Z" }),
       ],
       isNative: true,
       hasTranslationGuidance: true,
-      limit: 5,
+      limit: 2,
     });
 
-    expect(items.map((item) => item.job?.id)).toEqual([
-      "review-old",
-      "failed-old",
-      "running-new",
-      "queued-new",
-      "running-2",
-    ]);
+    expect(items.map((item) => item.job?.id)).toEqual(["job-1", "job-2"]);
   });
 });
 
@@ -157,7 +137,7 @@ describe("formatProjectLocaleRoute", () => {
 });
 
 describe("projectOverviewMeshTone", () => {
-  it("uses action tone when triage items exist", () => {
+  it("uses action tone when recent jobs exist", () => {
     expect(projectOverviewMeshTone(2)).toBe("action");
     expect(projectOverviewMeshTone(0)).toBe("calm");
   });
