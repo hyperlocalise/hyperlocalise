@@ -41,22 +41,6 @@ function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
 }
 
-function fileMemoryReuseKey(input: {
-  memoryId: string;
-  normalizedSourceText: string;
-  segmentKey: string;
-  sourceTextHash: string;
-  targetLocale: string;
-}) {
-  return [
-    input.memoryId,
-    input.normalizedSourceText,
-    input.segmentKey,
-    input.sourceTextHash,
-    input.targetLocale,
-  ].join("\0");
-}
-
 export class FileTranslationMemoryStore {
   async reuseEntries(input: {
     projectId: string;
@@ -69,7 +53,6 @@ export class FileTranslationMemoryStore {
         key,
         sourceText,
         normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
-        sourceTextHash: sourceTextHash(sourceText),
       }))
       .filter((unit) => unit.sourceText.trim().length > 0);
     if (units.length === 0) {
@@ -82,69 +65,77 @@ export class FileTranslationMemoryStore {
     }
 
     const normalizedSourceTexts = [...new Set(units.map((unit) => unit.normalizedSourceText))];
-    const rows = await db
-      .select({
-        id: schema.memoryEntries.id,
-        memoryId: schema.memoryEntries.memoryId,
-        sourceText: schema.memoryEntries.sourceText,
-        normalizedSourceText: schema.memoryEntries.normalizedSourceText,
-        sourceLocale: schema.memoryEntries.sourceLocale,
-        targetLocale: schema.memoryEntries.targetLocale,
-        targetText: schema.memoryEntries.targetText,
-        provenance: schema.memoryEntries.provenance,
-        matchScore: schema.memoryEntries.matchScore,
-        externalKey: schema.memoryEntries.externalKey,
-        metadata: schema.memoryEntries.metadata,
-        memoryName: schema.memories.name,
-        externalProviderKind: schema.memories.externalProviderKind,
-        externalMemoryId: schema.memories.externalMemoryId,
-      })
-      .from(schema.memoryEntries)
-      .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
-      .where(
-        and(
-          eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-          eq(schema.memoryEntries.targetLocale, input.targetLocale),
-          eq(schema.memoryEntries.reviewStatus, "approved"),
-          inArray(schema.memoryEntries.memoryId, memoryIds),
-          inArray(schema.memoryEntries.normalizedSourceText, normalizedSourceTexts),
-        ),
-      );
+    const rows: Array<{
+      id: string;
+      memoryId: string;
+      sourceText: string;
+      normalizedSourceText: string;
+      sourceLocale: string;
+      targetLocale: string;
+      targetText: string;
+      provenance: string;
+      matchScore: number;
+      externalKey: string | null;
+      metadata: Record<string, unknown>;
+      memoryName: string;
+      externalProviderKind: typeof schema.memories.$inferSelect.externalProviderKind;
+      externalMemoryId: string | null;
+    }> = [];
+    const MEMORY_LOOKUP_BATCH_SIZE = 500;
+    for (
+      let offset = 0;
+      offset < normalizedSourceTexts.length;
+      offset += MEMORY_LOOKUP_BATCH_SIZE
+    ) {
+      const batch = await db
+        .select({
+          id: schema.memoryEntries.id,
+          memoryId: schema.memoryEntries.memoryId,
+          sourceText: schema.memoryEntries.sourceText,
+          normalizedSourceText: schema.memoryEntries.normalizedSourceText,
+          sourceLocale: schema.memoryEntries.sourceLocale,
+          targetLocale: schema.memoryEntries.targetLocale,
+          targetText: schema.memoryEntries.targetText,
+          provenance: schema.memoryEntries.provenance,
+          matchScore: schema.memoryEntries.matchScore,
+          externalKey: schema.memoryEntries.externalKey,
+          metadata: schema.memoryEntries.metadata,
+          memoryName: schema.memories.name,
+          externalProviderKind: schema.memories.externalProviderKind,
+          externalMemoryId: schema.memories.externalMemoryId,
+        })
+        .from(schema.memoryEntries)
+        .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
+        .where(
+          and(
+            eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+            eq(schema.memoryEntries.targetLocale, input.targetLocale),
+            eq(schema.memoryEntries.reviewStatus, "approved"),
+            inArray(schema.memoryEntries.memoryId, memoryIds),
+            inArray(
+              schema.memoryEntries.normalizedSourceText,
+              normalizedSourceTexts.slice(offset, offset + MEMORY_LOOKUP_BATCH_SIZE),
+            ),
+          ),
+        );
 
+      rows.push(...batch);
+    }
+
+    // Exact approved text remains reusable when a key was renamed or the TM
+    // came from an import without file-job metadata. Keep raw source equality
+    // so normalization cannot erase placeholder/case differences.
     const reusableByUnit = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
-      const metadata = row.metadata as {
-        segmentKey?: string;
-        sourceTextHash?: string;
-      } | null;
-      if (!metadata?.segmentKey || !metadata.sourceTextHash || !row.targetText?.trim()) {
-        continue;
-      }
-      reusableByUnit.set(
-        fileMemoryReuseKey({
-          memoryId: row.memoryId,
-          normalizedSourceText: row.normalizedSourceText,
-          segmentKey: metadata.segmentKey,
-          sourceTextHash: metadata.sourceTextHash,
-          targetLocale: row.targetLocale,
-        }),
-        row,
-      );
+      if (!row.targetText?.trim()) continue;
+      reusableByUnit.set([row.memoryId, row.sourceText, row.targetLocale].join("\0"), row);
     }
 
     const prefilled: Record<string, string> = {};
     const matchesByKey: Record<string, AgentRunTranslationMemoryMatchUsage[]> = {};
     for (const unit of units) {
       for (const memoryId of memoryIds) {
-        const row = reusableByUnit.get(
-          fileMemoryReuseKey({
-            memoryId,
-            normalizedSourceText: unit.normalizedSourceText,
-            segmentKey: unit.key,
-            sourceTextHash: unit.sourceTextHash,
-            targetLocale: input.targetLocale,
-          }),
-        );
+        const row = reusableByUnit.get([memoryId, unit.sourceText, input.targetLocale].join("\0"));
         if (!row) {
           continue;
         }

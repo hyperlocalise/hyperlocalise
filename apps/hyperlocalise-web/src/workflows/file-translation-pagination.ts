@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 export const FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION = 100;
-export const FILE_TRANSLATION_MIN_PAGES = 5_000;
+export const FILE_TRANSLATION_MIN_PAGES = 2;
 export const FILE_TRANSLATION_TIME_PER_KEY_LOCALE_MS = 3_000;
 export const FILE_TRANSLATION_SANDBOX_OVERHEAD_MS = 2 * 60 * 1_000;
 export const FILE_TRANSLATION_MIN_SANDBOX_TIMEOUT_MS = 10 * 60 * 1_000;
@@ -22,10 +22,10 @@ export function countPendingFileTranslations(
   targetLocales: string[],
   prefilledByLocale: Record<string, Record<string, string>>,
 ): number {
-  const sourceKeys = Object.keys(sourceEntries);
+  const sourceKeys = Object.keys(sourceEntries).filter((key) => sourceEntries[key]?.trim());
   return targetLocales.reduce((total, locale) => {
     const prefilled = prefilledByLocale[locale] ?? {};
-    const pendingForLocale = sourceKeys.filter((key) => !(key in prefilled)).length;
+    const pendingForLocale = sourceKeys.filter((key) => !prefilled[key]?.trim()).length;
     return total + pendingForLocale;
   }, 0);
 }
@@ -46,7 +46,7 @@ export function calculateFileTranslationMaxPages(pendingTranslationCount: number
   const normalizedPendingCount = Math.max(0, Math.floor(pendingTranslationCount));
   return Math.max(
     FILE_TRANSLATION_MIN_PAGES,
-    Math.ceil(normalizedPendingCount / FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION),
+    Math.ceil(normalizedPendingCount / FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION) + 1,
   );
 }
 
