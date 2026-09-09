@@ -46,7 +46,7 @@ describe("managed language model", () => {
     expect(getManagedImageModel()).toBe(hyperlocaliseImageModelId);
     expect(getManagedVideoModel()).toBe(hyperlocaliseVideoModelId);
     expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-5.6-luna");
-    expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2");
+    expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2.5-flare");
     expect(hyperlocaliseVideoModelId).toBe("bytedance/seedance-2.5");
     expect(createOpenAIMock).not.toHaveBeenCalled();
     expect(createAnthropicMock).not.toHaveBeenCalled();
