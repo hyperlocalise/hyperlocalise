@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
@@ -7126,5 +7126,386 @@ describe("mcpRoutes", () => {
       .limit(1);
 
     expect(saved).toBeUndefined();
+  });
+
+  it("advertises download_translations with bounded file inputs", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "download_translations");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("translation");
+
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining(["projectId", "sourcePath", "locale"]),
+    );
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      projectId: {
+        type: "string",
+      },
+      sourcePath: {
+        type: "string",
+        minLength: 1,
+        maxLength: 2048,
+      },
+      locale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 32,
+      },
+    });
+  });
+
+  it("downloads a reconstructed translation file with source fallbacks", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const sourcePath = "locales/en.json";
+
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "greeting",
+          text: "Hello",
+          context: null,
+        },
+        {
+          key: "farewell",
+          text: "Goodbye",
+          context: null,
+        },
+      ],
+    });
+
+    const [greetingKey] = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+          eq(schema.projectTranslationKeys.key, "greeting"),
+        ),
+      )
+      .limit(1);
+
+    if (!greetingKey) {
+      throw new Error("expected greeting translation key fixture");
+    }
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      translationKeyId: greetingKey.id,
+      targetLocale: "fr-FR",
+      text: "Bonjour",
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath,
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).not.toBe(true);
+
+    const output = JSON.parse(body.result?.content?.[0]?.text ?? "{}") as {
+      filename?: string;
+      contentType?: string;
+      locale?: string;
+      sourcePath?: string;
+      content?: string;
+    };
+
+    expect(output).toMatchObject({
+      filename: "en-fr-FR.json",
+      contentType: "application/json; charset=utf-8",
+      locale: "fr-FR",
+      sourcePath,
+    });
+
+    expect(JSON.parse(output.content ?? "{}")).toEqual({
+      greeting: "Bonjour",
+      farewell: "Goodbye",
+    });
+  });
+
+  it("returns project_not_found for a cross-organization download", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: inaccessible.project.id,
+                sourcePath: "locales/en.json",
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it("returns project_not_found when downloading from a missing project", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: randomUUID(),
+                sourcePath: "locales/en.json",
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it("returns source_file_not_found for an unknown source path", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/missing.json",
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "source_file_not_found",
+    });
+  });
+
+  it("returns translations_not_found when the source file has no translation keys", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const sourcePath = "locales/empty.json";
+
+    await ensureRepositorySourceFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: stored.project.id,
+      sourcePath,
+    });
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "download_translations",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath,
+                locale: "fr-FR",
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "translations_not_found",
+    });
   });
 });

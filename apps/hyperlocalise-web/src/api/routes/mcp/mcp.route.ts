@@ -123,6 +123,8 @@ import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-servic
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import { updateMcpTranslation } from "./mcp-update-translation";
+import { downloadPublicTranslationsQuerySchema } from "../public-translations/public-translations.schema";
+import { downloadMcpTranslations } from "./mcp-download-translations";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -777,6 +779,20 @@ const mcpUploadSourcesInputSchema = z.object({
   commitSha: sourceUploadShape.commitSha.describe("Optional repository commit SHA."),
 
   workflowRunId: sourceUploadShape.workflowRunId.describe("Optional workflow run identifier."),
+});
+
+const sourceDownloadShape = downloadPublicTranslationsQuerySchema.shape;
+
+const mcpDownloadTranslationsInputSchema = z.object({
+  projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
+
+  sourcePath: sourceDownloadShape.sourcePath.describe(
+    "Repository-relative path of the source file.",
+  ),
+
+  locale: sourceDownloadShape.locale.describe(
+    "Target locale whose reconstructed translation file should be returned.",
+  ),
 });
 
 function decodeMcpBase64(value: string): Uint8Array | null {
@@ -1821,7 +1837,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
-  for (const name of ["download_translations", "run_workflow"] as const) {
+  for (const name of ["run_workflow"] as const) {
     server.registerTool(
       name,
       {
@@ -2126,6 +2142,69 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
                 destination: result.value.destination,
               },
             }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "download_translations",
+    {
+      description:
+        "Download a reconstructed UTF-8 target translation file from an accessible Hyperlocalise project.",
+      inputSchema: mcpDownloadTranslationsInputSchema,
+    },
+    async ({ projectId, sourcePath, locale }) => {
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(apiAuth, projectId))
+        .limit(1);
+
+      if (!project) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      const result = await downloadMcpTranslations({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: project.id,
+        sourcePath,
+        locale,
+      });
+
+      if (!result.ok) {
+        switch (result.error) {
+          case "source_file_not_found":
+            return mcpToolError("source_file_not_found", "Source file not found");
+
+          case "translations_not_found":
+            return mcpToolError(
+              "translations_not_found",
+              "No translations are available for this source file and locale",
+            );
+
+          case "source_file_too_large":
+            return mcpToolError(
+              "source_file_too_large",
+              `Translation export exceeds the ${result.maxKeyCount} key limit`,
+            );
+
+          case "unsupported_binary_download":
+            return mcpToolError(
+              "unsupported_binary_download",
+              "The reconstructed translation file is not supported as UTF-8 text",
+            );
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.value),
           },
         ],
       };
