@@ -665,7 +665,7 @@ function CompanyMark({
   const showLogo = Boolean(profile?.logoUrl) && !logoFailed;
 
   return (
-    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-sm">
+    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/20 bg-primary/10 backdrop-blur-sm">
       {showLogo ? (
         <img
           src={profile!.logoUrl!}
@@ -674,7 +674,7 @@ function CompanyMark({
           onError={() => setLogoFailed(true)}
         />
       ) : (
-        <span className="font-serif text-2xl tracking-tight text-white">
+        <span className="font-serif text-2xl tracking-tight text-primary">
           {companyMonogram(profile?.name, domainKey)}
         </span>
       )}
@@ -1006,25 +1006,25 @@ export function LocalisationAuditResult({
                 label: copy.dimensionTechnical,
                 score: dimensionScores.technical,
                 icon: CodeIcon,
-                bg: "bg-audit-card-a/70 dark:bg-audit-card-a",
+                bg: "bg-audit-card-a/60 dark:bg-audit-card-a",
               },
               {
                 label: copy.dimensionLinguistic,
                 score: dimensionScores.linguistic,
                 icon: AiTranslateIcon,
-                bg: "bg-audit-card-b/70 dark:bg-audit-card-b",
+                bg: "bg-audit-card-b/60 dark:bg-audit-card-b",
               },
               {
                 label: copy.dimensionContextual,
                 score: dimensionScores.contextual,
                 icon: BookOpen01Icon,
-                bg: "bg-audit-card-a/70 dark:bg-audit-card-a",
+                bg: "bg-audit-card-a/60 dark:bg-audit-card-a",
               },
               {
                 label: copy.dimensionVisual,
                 score: dimensionScores.visual,
                 icon: PaintBoardIcon,
-                bg: "bg-audit-card-b/70 dark:bg-audit-card-b",
+                bg: "bg-audit-card-b/60 dark:bg-audit-card-b",
               },
             ] as const
           ).map((dimension) => {
@@ -1087,16 +1087,16 @@ export function LocalisationAuditResult({
             fill
             priority
             sizes="(min-width: 1024px) 60vw, 100vw"
-            className="object-cover object-center brightness-[1.0]"
+            className="object-cover object-center"
           />
           <div
-            className="absolute inset-0 bg-[url('/images/world-map.jpg')] opacity-70 bg-cover bg-center mix-blend-multiply"
+            className="absolute inset-0 bg-[url('/images/world-map.jpg')] bg-cover bg-center mix-blend-multiply"
             aria-hidden
           />
-          <div className="relative h-full overflow-hidden rounded-lg bg-black/75 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
-            <div className="px-6 py-6 text-white">
+          <div className="relative h-full overflow-hidden rounded-lg bg-white/95 shadow-2xl shadow-[#172541]/20">
+            <div className="px-6 py-6 text-black">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <p className="text-xs font-medium tracking-[0.18em] text-white/70 uppercase">
+                <p className="text-xs font-medium tracking-[0.18em] text-primary uppercase">
                   {copy.companyReportEyebrow}
                 </p>
                 {isWorkspace ? null : (
@@ -1104,7 +1104,7 @@ export function LocalisationAuditResult({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                    className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                     onClick={copyShareLink}
                   >
                     <HugeiconsIcon icon={Share08Icon} className="size-3.5" aria-hidden />
@@ -1117,36 +1117,36 @@ export function LocalisationAuditResult({
                 <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="font-serif text-xl tracking-tight text-white sm:text-2xl">
+                    <h1 className="font-serif text-xl tracking-tight text-black sm:text-2xl">
                       {displayName}
                     </h1>
                     {companyProfile?.industry ? (
                       <Badge
                         variant="outline"
-                        className="border-white/25 bg-white/10 text-white capitalize"
+                        className="border-primary/25 bg-primary/10 text-primary capitalize"
                       >
                         {companyProfile.industry}
                       </Badge>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-sm text-white/60">{audit.domainKey}</p>
+                  <p className="mt-0.5 text-sm text-black/60">{audit.domainKey}</p>
                   {companyProfile?.productSummary ? (
-                    <p className="mt-2 text-sm text-white/80">
-                      <span className="text-white/50">{copy.companyProductLabel}: </span>
+                    <p className="mt-2 text-sm text-black/80">
+                      <span className="text-black/50">{copy.companyProductLabel}: </span>
                       {companyProfile.productSummary}
                     </p>
                   ) : null}
                   {companyProfile?.brandVoice ? (
-                    <p className="mt-1 text-sm text-white/70">
-                      <span className="text-white/50">{copy.companyBrandVoiceLabel}: </span>
+                    <p className="mt-1 text-sm text-black/70">
+                      <span className="text-black/50">{copy.companyBrandVoiceLabel}: </span>
                       {companyProfile.brandVoice}
                     </p>
                   ) : null}
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-white/15 pt-4">
-                <p className="text-xs tracking-widest text-white/60 uppercase">{copy.scoreLabel}</p>
+              <div className="mt-4 border-t border-black/10 pt-4">
+                <p className="text-xs tracking-widest text-primary uppercase">{copy.scoreLabel}</p>
                 <div className="mt-1.5 flex flex-wrap items-end gap-3">
                   <p
                     className={cn(
@@ -1161,12 +1161,21 @@ export function LocalisationAuditResult({
                     )}
                   >
                     {score ?? "—"}
-                    <span className="text-xl text-white/50">{copy.scoreOutOf}</span>
+                    <span className="text-xl text-black/50">{copy.scoreOutOf}</span>
                   </p>
                   {ratingLabel ? (
                     <Badge
                       variant="outline"
-                      className="mb-1 border-white/25 bg-white/10 text-white capitalize"
+                      className={cn(
+                        "mb-1 capitalize",
+                        scoreTone(score) === "safe"
+                          ? "border-[#107d32]/25 bg-[#107d32]/10 text-[#107d32]"
+                          : scoreTone(score) === "watch"
+                            ? "border-[#aa4d00]/25 bg-[#aa4d00]/10 text-[#aa4d00]"
+                            : scoreTone(score) === "risk"
+                              ? "border-[#ea001d]/25 bg-[#ea001d]/10 text-[#ea001d]"
+                              : "border-[#6b7280]/25 bg-[#6b7280]/10 text-[#6b7280]",
+                      )}
                     >
                       {ratingLabel}
                     </Badge>
@@ -1174,7 +1183,7 @@ export function LocalisationAuditResult({
                 </div>
 
                 {score != null ? (
-                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
+                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-black/20">
                     <div
                       className={cn("h-full rounded-full", scoreBarClass)}
                       style={{ width: `${score}%` }}
@@ -1182,11 +1191,11 @@ export function LocalisationAuditResult({
                   </div>
                 ) : null}
 
-                <TypographyP className="mt-2.5 max-w-xl text-sm text-white/75">
+                <TypographyP className="mt-2.5 max-w-xl text-sm text-black/75">
                   {interpretation}
                 </TypographyP>
 
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/55">
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-black/55">
                   {freshness ? (
                     <span>
                       {copy.freshnessLabel}: {new Date(freshness).toLocaleDateString()}
@@ -1198,16 +1207,16 @@ export function LocalisationAuditResult({
                 </div>
 
                 {shareMessage ? (
-                  <p className="mt-2.5 text-sm text-white/70">{shareMessage}</p>
+                  <p className="mt-2.5 text-sm text-black/70">{shareMessage}</p>
                 ) : null}
 
-                <p className="mt-3 text-xs text-white/55">
+                <p className="mt-3 text-xs text-black/55">
                   {copy.sampledPages({
                     count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
                   })}{" "}
                   <Link
                     href={getLocalisationAuditGuideHref(locale)}
-                    className="font-medium text-white underline-offset-4 hover:underline"
+                    className="font-medium text-black underline-offset-4 hover:underline"
                   >
                     {copy.methodologyLink}
                   </Link>
