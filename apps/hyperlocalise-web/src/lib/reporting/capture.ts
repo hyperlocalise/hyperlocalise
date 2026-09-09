@@ -27,6 +27,15 @@ export async function reportingStart(database: DatabaseClient = db) {
   return rollout.startedAt;
 }
 
+export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
+  try {
+    const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
+    return await resolveWorkspaceReportsFlag({ organizationId });
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveReportingRate(
   input: {
     organizationId: string;
@@ -182,6 +191,9 @@ async function writeReportingAnalysis(input: {
   step?: "translation" | "review";
   billable?: boolean;
 }) {
+  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+    return;
+  }
   await reportingStart();
   if (input.jobId) {
     const [job] = await db
@@ -309,6 +321,9 @@ async function writeReportingCompletions(
   },
   database: DatabaseClient,
 ) {
+  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+    return;
+  }
   const step = input.step ?? "translation";
   const analyses = await database
     .select()
@@ -408,6 +423,15 @@ async function writeJobStatus(input: {
   operationKey: string;
   durationMs?: number;
 }) {
+  const [ownedJob] = await db
+    .select({ organizationId: schema.jobs.organizationId })
+    .from(schema.jobs)
+    .where(eq(schema.jobs.id, input.jobId))
+    .limit(1);
+  if (!ownedJob || !(await isWorkspaceReportsCaptureEnabled(ownedJob.organizationId))) {
+    return;
+  }
+
   await reportingStart();
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
   const [job] = await db

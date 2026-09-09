@@ -13,7 +13,7 @@
 import { getUsage } from "tokenlens";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
-import { reportingStart } from "./capture";
+import { isWorkspaceReportsCaptureEnabled, reportingStart } from "./capture";
 
 export const AI_PRICING_VERSION = "tokenlens-1.3.1-v1";
 export type AiReportingUsage = {
@@ -36,6 +36,9 @@ export async function captureAiUsage(
   },
 ) {
   try {
+    if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+      return;
+    }
     await reportingStart();
     if (input.jobId) {
       const [external] = await db

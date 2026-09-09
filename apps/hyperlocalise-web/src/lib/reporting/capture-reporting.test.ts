@@ -32,6 +32,16 @@ import {
   sourceSimilarity,
 } from "./capture";
 
+const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
+  };
+});
+
 const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";
 
@@ -40,6 +50,8 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  resolveWorkspaceReportsFlagMock.mockReset();
+  resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -305,6 +317,25 @@ describe("reporting capture", () => {
         sourceText: "Hello brave world",
       }),
     ).toBeGreaterThan(50);
+  });
+
+  it("skips analysis capture when workspace reports is disabled", async () => {
+    resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+
+    const rows = await db
+      .select({ id: schema.reportingAnalyses.id })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(rows).toHaveLength(0);
   });
 
   it("keeps analysis capture from failing the caller", async () => {

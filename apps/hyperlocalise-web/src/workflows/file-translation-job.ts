@@ -43,6 +43,7 @@ import {
   persistFileProjectTranslationsStep,
   persistDocumentVariantBytesStep,
   persistFileTranslationMemoryEntriesStep,
+  resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
@@ -875,18 +876,23 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const sourceText = sourceContent.toString("utf8");
     const outputPattern = getSandboxOutputFilenamePattern(sourceFile.filename);
     const prefilledByLocale: Record<string, Record<string, string>> = {};
+    const reportsEnabled = sourceEntries
+      ? await resolveWorkspaceReportsFlagStep(organizationId)
+      : false;
 
     for (const targetLocale of parsedInput.targetLocales) {
       let tmPrefilled: Record<string, string> = {};
       if (sourceEntries) {
-        await captureFileAnalysisStep({
-          organizationId,
-          projectId: claim.job.projectId,
-          jobId: claim.job.id,
-          sourceLocale: parsedInput.sourceLocale,
-          targetLocale,
-          sourceEntries,
-        });
+        if (reportsEnabled) {
+          await captureFileAnalysisStep({
+            organizationId,
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourceEntries,
+          });
+        }
         const tmReuse = await reuseFileTranslationMemoryEntriesStep({
           projectId: claim.job.projectId,
           sourceLocale: parsedInput.sourceLocale,
@@ -1013,13 +1019,15 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
             sourcePath: inputFilename,
           });
-          await captureFileCompletionsStep({
-            organizationId,
-            jobId: claim.job.id,
-            targetLocale,
-            sourceEntries,
-            targetEntries,
-          });
+          if (reportsEnabled) {
+            await captureFileCompletionsStep({
+              organizationId,
+              jobId: claim.job.id,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
           if (!repositorySourcePath) continue;
           await persistFileTranslationMemoryEntriesStep({
             projectId: claim.job.projectId,
@@ -1524,13 +1532,15 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           const targetEntries = await extractEntriesStep(sandboxId, outputFilename, {
             sourcePath: inputFilename,
           });
-          await captureFileCompletionsStep({
-            organizationId,
-            jobId: claim.job.id,
-            targetLocale,
-            sourceEntries,
-            targetEntries,
-          });
+          if (reportsEnabled) {
+            await captureFileCompletionsStep({
+              organizationId,
+              jobId: claim.job.id,
+              targetLocale,
+              sourceEntries,
+              targetEntries,
+            });
+          }
           if (repositorySourcePath) {
             await persistFileTranslationMemoryEntriesStep({
               projectId: claim.job.projectId,

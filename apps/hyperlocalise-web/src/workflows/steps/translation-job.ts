@@ -728,6 +728,12 @@ export async function localizeVideoVariantForJobStep(input: {
   };
 }
 
+export async function resolveWorkspaceReportsFlagStep(organizationId: string) {
+  "use step";
+  const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
+  return resolveWorkspaceReportsFlag({ organizationId });
+}
+
 export async function captureFileAnalysisStep(input: {
   organizationId: string;
   projectId: string;
