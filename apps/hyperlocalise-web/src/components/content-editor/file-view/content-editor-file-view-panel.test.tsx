@@ -12,6 +12,7 @@
  */
 // @vitest-environment happy-dom
 
+import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -21,6 +22,12 @@ import type { ContentEditorSegment } from "@/components/content-editor/shared/ty
 
 import { ContentEditorFileViewPanel } from "./content-editor-file-view-panel";
 import { writeCatFileViewSourcePaneVisible } from "./content-editor-file-view-source-pane";
+
+// Presence animation is checked in the browser; these tests verify panel state.
+vi.mock("motion/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("motion/react")>()),
+  AnimatePresence: ({ children }: { children: ReactNode }) => children,
+}));
 
 function imageSegment(overrides: Partial<ContentEditorSegment> = {}): ContentEditorSegment {
   return {
@@ -90,19 +97,21 @@ describe("ContentEditorFileViewPanel", () => {
       </ContentEditorTestProviders>,
     );
 
-    expect(screen.getByRole("heading", { name: /Translated \(de\)/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Source \(en\)/i })).toBeInTheDocument();
-    expect(screen.getByAltText("Translated image")).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /Localised · de/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByAltText("Localised image")).toHaveAttribute(
       "src",
       "https://example.com/target.png",
     );
-    expect(screen.getByAltText("Source image")).toHaveAttribute(
+    expect(screen.getByAltText("Original image")).toHaveAttribute(
       "src",
       "https://example.com/source.png",
     );
 
-    const sourceHeading = screen.getByRole("heading", { name: /Source \(en\)/i });
-    const translatedHeading = screen.getByRole("heading", { name: /Translated \(de\)/i });
+    const sourceHeading = screen.getByRole("heading", { name: /(?:Source \(en\)|Original · en)/i });
+    const translatedHeading = screen.getByRole("heading", { name: /Localised · de/i });
     expect(
       sourceHeading.compareDocumentPosition(translatedHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -194,7 +203,9 @@ describe("ContentEditorFileViewPanel", () => {
       </ContentEditorTestProviders>,
     );
 
-    expect(screen.getByRole("heading", { name: /Source \(en\)/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+    ).toBeInTheDocument();
 
     rerender(
       <ContentEditorTestProviders>
@@ -205,7 +216,9 @@ describe("ContentEditorFileViewPanel", () => {
       </ContentEditorTestProviders>,
     );
 
-    expect(screen.queryByRole("heading", { name: /Source \(en\)/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Compare original/i })).toBeInTheDocument();
   });
 
@@ -218,16 +231,24 @@ describe("ContentEditorFileViewPanel", () => {
       </ContentEditorTestProviders>,
     );
 
-    expect(screen.getByRole("heading", { name: /Source \(en\)/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+    ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Hide source/i }));
-    expect(screen.queryByRole("heading", { name: /Source \(en\)/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Show source/i })).toHaveAttribute(
+    await user.click(screen.getByRole("button", { name: /Close comparison/i }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /Compare original/i })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
 
-    await user.click(screen.getByRole("button", { name: /Show source/i }));
-    expect(screen.getByRole("heading", { name: /Source \(en\)/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Compare original/i }));
+    expect(
+      screen.getByRole("heading", { name: /(?:Source \(en\)|Original · en)/i }),
+    ).toBeInTheDocument();
   });
 });

@@ -110,10 +110,21 @@ async function expectDocumentFileViewChrome(canvas: ReturnType<typeof within>, f
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
   await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
   await expect(canvas.getByText(filename)).toBeInTheDocument();
-  await expect(canvas.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument();
-  await expect(canvas.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
-  await expect(canvas.getByRole("button", { name: /Generate|Regenerate/i })).toBeInTheDocument();
-  await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
+  const isImage = filename.endsWith(".png");
+  await expect(
+    canvas.getByRole("heading", { name: isImage ? /Localised · vi/i : /Translated \(vi\)/i }),
+  ).toBeInTheDocument();
+  const compare = canvas.queryByRole("button", { name: "Compare original" });
+  if (compare) await userEvent.click(compare);
+  await expect(
+    canvas.getByRole("heading", { name: isImage ? /Original · en-US/i : /Source \(en-US\)/i }),
+  ).toBeInTheDocument();
+  await expect(
+    canvas.getByRole("button", { name: /Generate|Regenerate|Localise image/i }),
+  ).toBeInTheDocument();
+  await expect(
+    canvas.getByText(isImage ? "Upload localised image" : "Upload translated file"),
+  ).toBeInTheDocument();
 }
 
 async function switchToComfortable(canvas: ReturnType<typeof within>) {
@@ -127,11 +138,11 @@ export const ImageFile: Story = {
     const canvas = within(canvasElement);
 
     await expectFileViewChrome(canvas, "marketing/hero.png");
-    await expect(canvas.getByAltText("Translated image")).toHaveAttribute(
+    await expect(canvas.getByAltText("Localised image")).toHaveAttribute(
       "src",
       CAT_STORY_IMAGE_TARGET_URL,
     );
-    await expect(canvas.getByAltText("Source image")).toHaveAttribute(
+    await expect(canvas.getByAltText("Original image")).toHaveAttribute(
       "src",
       CAT_STORY_IMAGE_SOURCE_URL,
     );
@@ -145,8 +156,8 @@ export const ImageFileEmptyTarget: Story = {
     const canvas = within(canvasElement);
 
     await expectFileViewChrome(canvas, "marketing/hero.png");
-    await expect(canvas.getByText("No translated file yet")).toBeInTheDocument();
-    await expect(canvas.getByAltText("Source image")).toHaveAttribute(
+    await expect(canvas.getByText("No localised image yet")).toBeInTheDocument();
+    await expect(canvas.getByAltText("Original image")).toHaveAttribute(
       "src",
       CAT_STORY_IMAGE_SOURCE_URL,
     );

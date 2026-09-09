@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { imageTextLayerPrompt, readImageTextLayers } from "./image-text-layers";
+
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
@@ -171,12 +173,20 @@ export async function updateImageVariantStatus(input: {
 async function loadSourceImageBytes(input: {
   organizationId: string;
   storedFileId: string;
-}): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
+  targetLocale: string;
+}): Promise<
+  Result<
+    { content: Buffer; contentType: string; filename: string; layerContext: string | null },
+    ImageVariantError
+  >
+> {
   const [file] = await db
     .select({
       id: schema.storedFiles.id,
       contentType: schema.storedFiles.contentType,
       filename: schema.storedFiles.filename,
+      metadata: schema.storedFiles.metadata,
+      sha256: schema.storedFiles.sha256,
     })
     .from(schema.storedFiles)
     .where(
@@ -200,6 +210,10 @@ async function loadSourceImageBytes(input: {
       content: stored.content,
       contentType: file.contentType,
       filename: file.filename,
+      layerContext: imageTextLayerPrompt(
+        readImageTextLayers(file.metadata, file.sha256),
+        input.targetLocale,
+      ),
     });
   } catch {
     return err({ code: "source_bytes_missing" });
@@ -278,11 +292,17 @@ export async function localizeAndStoreImageVariant(input: {
     return err({ code: "approved_locked" });
   }
 
-  let sourceBytes: { content: Buffer; contentType: string; filename: string };
+  let sourceBytes: {
+    content: Buffer;
+    contentType: string;
+    filename: string;
+    layerContext?: string | null;
+  };
   if (input.sourceStoredFileId) {
     const loaded = await loadSourceImageBytes({
       organizationId: input.organizationId,
       storedFileId: input.sourceStoredFileId,
+      targetLocale: input.targetLocale,
     });
     if (!loaded.ok) {
       return loaded;
@@ -308,6 +328,7 @@ export async function localizeAndStoreImageVariant(input: {
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     instructions: input.instructions,
+    contextLines: [sourceBytes.layerContext],
   });
 
   let localized: { image: Buffer; mimeType: string };
