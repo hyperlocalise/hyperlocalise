@@ -27,13 +27,14 @@ describe("file translation pagination", () => {
     expect(FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION).toBe(100);
   });
 
-  it("preserves capacity for 500,000 translations after shrinking pages", () => {
-    expect(FILE_TRANSLATION_MIN_PAGES).toBe(5_000);
-    expect(calculateFileTranslationMaxPages(500_000)).toBe(5_000);
+  it("budgets pages from the workload with one recovery page", () => {
+    expect(FILE_TRANSLATION_MIN_PAGES).toBe(2);
+    expect(calculateFileTranslationMaxPages(1)).toBe(2);
+    expect(calculateFileTranslationMaxPages(500_000)).toBe(5_001);
   });
 
   it("expands the page ceiling for larger known workloads", () => {
-    expect(calculateFileTranslationMaxPages(500_001)).toBe(5_001);
+    expect(calculateFileTranslationMaxPages(500_001)).toBe(5_002);
   });
 
   it("keeps the ten-minute minimum for small workloads", () => {

@@ -15,12 +15,22 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { captureJobStatus } from "@/lib/reporting/capture";
 import { completeReviewJob } from "@/lib/translation/review-job-queued-function";
+
+const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
+  };
+});
 
 const projectFixture = createProjectTestFixture();
 
@@ -29,6 +39,8 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  resolveWorkspaceReportsFlagMock.mockReset();
+  resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 

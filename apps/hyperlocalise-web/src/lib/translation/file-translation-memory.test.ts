@@ -352,7 +352,7 @@ describe("reuseFileTranslationMemoryEntries", () => {
     );
   });
 
-  it("reuses only rows that match the target locale, segment key, and source hash", async () => {
+  it("reuses exact approved text across keys while keeping locales isolated", async () => {
     whereMock.mockResolvedValueOnce([
       {
         id: "entry_1",
@@ -401,7 +401,7 @@ describe("reuseFileTranslationMemoryEntries", () => {
       targetLocale: "fr",
     });
 
-    expect(result.prefilled).toEqual({ first: "Bonjour" });
+    expect(result.prefilled).toEqual({ first: "Bonjour", second: "Bonjour" });
     expect(result.matchesByKey.first).toEqual([
       expect.objectContaining({
         memoryId: "memory_1",

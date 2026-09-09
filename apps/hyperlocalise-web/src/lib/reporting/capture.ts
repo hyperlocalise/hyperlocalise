@@ -19,12 +19,24 @@ import { buildReportingMemoryMatchTsQuery } from "@/lib/translation/translation-
 import { countSourceWords, matchBucket, WORD_COUNT_VERSION } from "./word-analysis";
 import { wordCost } from "./money";
 
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 const MEMORY_MATCH_CANDIDATE_LIMIT = 32;
+const REPORTING_BATCH_SIZE = 500;
+const REPORTING_MATCH_CONCURRENCY = 4;
 
 export async function reportingStart(database: DatabaseClient = db) {
   await database.insert(schema.reportingRollout).values({ id: 1 }).onConflictDoNothing();
   const [rollout] = await database.select().from(schema.reportingRollout).limit(1);
   return rollout.startedAt;
+}
+
+export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
+  try {
+    const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
+    return await resolveWorkspaceReportsFlag({ organizationId });
+  } catch {
+    return false;
+  }
 }
 
 export async function resolveReportingRate(
@@ -114,22 +126,25 @@ export async function bestReportingMatchScore(input: {
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
+  skipExact?: boolean;
 }): Promise<number> {
   if (!input.memoryIds.length) return 0;
   const normalized = normalizeTranslationMemorySourceText(input.sourceText);
-  const [exact] = await db
-    .select({ id: schema.memoryEntries.id })
-    .from(schema.memoryEntries)
-    .where(
-      and(
-        inArray(schema.memoryEntries.memoryId, input.memoryIds),
-        eq(schema.memoryEntries.normalizedSourceText, normalized),
-        eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-        eq(schema.memoryEntries.targetLocale, input.targetLocale),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-      ),
-    )
-    .limit(1);
+  const [exact] = input.skipExact
+    ? []
+    : await db
+        .select({ id: schema.memoryEntries.id })
+        .from(schema.memoryEntries)
+        .where(
+          and(
+            inArray(schema.memoryEntries.memoryId, input.memoryIds),
+            eq(schema.memoryEntries.normalizedSourceText, normalized),
+            eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+            eq(schema.memoryEntries.targetLocale, input.targetLocale),
+            eq(schema.memoryEntries.reviewStatus, "approved"),
+          ),
+        )
+        .limit(1);
   if (exact) return 100;
   const tsQuery = buildReportingMemoryMatchTsQuery(input.sourceText);
   if (!tsQuery) return 0;
@@ -182,6 +197,9 @@ async function writeReportingAnalysis(input: {
   step?: "translation" | "review";
   billable?: boolean;
 }) {
+  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+    return;
+  }
   await reportingStart();
   if (input.jobId) {
     const [job] = await db
@@ -208,23 +226,72 @@ async function writeReportingAnalysis(input: {
   }
   const uniqueTexts = [...new Set(Object.values(input.sourceEntries))];
   const scores = new Map<string, number | null>();
-  if (memoryIds)
-    for (const sourceText of uniqueTexts)
-      try {
-        scores.set(
-          sourceText,
-          await bestReportingMatchScore({
-            memoryIds,
-            sourceLocale: input.sourceLocale,
-            targetLocale: input.targetLocale,
-            sourceText,
-          }),
-        );
-      } catch (error) {
-        console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId, error });
-        scores.set(sourceText, null);
+  if (memoryIds) {
+    const attachedMemoryIds = memoryIds;
+    for (let offset = 0; offset < uniqueTexts.length; offset += REPORTING_BATCH_SIZE) {
+      const texts = uniqueTexts.slice(offset, offset + REPORTING_BATCH_SIZE);
+      const exactTexts = new Set<string>();
+      if (attachedMemoryIds.length > 0) {
+        const exactRows = await db
+          .select({ text: schema.memoryEntries.normalizedSourceText })
+          .from(schema.memoryEntries)
+          .where(
+            and(
+              inArray(schema.memoryEntries.memoryId, attachedMemoryIds),
+              eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+              eq(schema.memoryEntries.targetLocale, input.targetLocale),
+              eq(schema.memoryEntries.reviewStatus, "approved"),
+              inArray(
+                schema.memoryEntries.normalizedSourceText,
+                texts.map(normalizeTranslationMemorySourceText),
+              ),
+            ),
+          );
+        for (const row of exactRows) exactTexts.add(row.text);
       }
+      await mapWithConcurrency(texts, REPORTING_MATCH_CONCURRENCY, async (sourceText) => {
+        try {
+          scores.set(
+            sourceText,
+            exactTexts.has(normalizeTranslationMemorySourceText(sourceText))
+              ? 100
+              : await bestReportingMatchScore({
+                  memoryIds: attachedMemoryIds,
+                  sourceLocale: input.sourceLocale,
+                  targetLocale: input.targetLocale,
+                  sourceText,
+                  skipExact: true,
+                }),
+          );
+        } catch {
+          scores.set(sourceText, null);
+        }
+      });
+    }
+  }
   const seen = new Set<string>();
+  const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
+    const normalized = sourceText.normalize("NFC").trim();
+    const repetition = seen.has(normalized);
+    seen.add(normalized);
+    const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
+    return {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId: input.jobId ?? null,
+      step,
+      segmentId,
+      sourceRevision: createHash("sha256").update(sourceText).digest("hex"),
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      words: countSourceWords(sourceText, input.sourceLocale),
+      billable: input.billable ?? false,
+      matchScore: score,
+      bucket: matchBucket(score, repetition),
+      algorithmVersion: WORD_COUNT_VERSION,
+      rateId: rate?.id,
+    };
+  });
   await db.transaction(async (tx) => {
     if (input.jobId)
       await tx
@@ -232,39 +299,28 @@ async function writeReportingAnalysis(input: {
         .from(schema.jobs)
         .where(eq(schema.jobs.id, input.jobId))
         .for("update");
-    for (const [segmentId, sourceText] of Object.entries(input.sourceEntries)) {
-      const normalized = sourceText.normalize("NFC").trim();
-      const repetition = seen.has(normalized);
-      seen.add(normalized);
-      const score = memoryIds ? (scores.get(sourceText) ?? 0) : null;
-      const identity = and(
-        input.jobId
-          ? eq(schema.reportingAnalyses.jobId, input.jobId)
-          : isNull(schema.reportingAnalyses.jobId),
-        eq(schema.reportingAnalyses.organizationId, input.organizationId),
-        eq(schema.reportingAnalyses.segmentId, segmentId),
-        eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
-        eq(schema.reportingAnalyses.step, step),
-      );
-      await tx.update(schema.reportingAnalyses).set({ isCurrent: false }).where(identity);
+    for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
+      const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
+      await tx
+        .update(schema.reportingAnalyses)
+        .set({ isCurrent: false })
+        .where(
+          and(
+            input.jobId
+              ? eq(schema.reportingAnalyses.jobId, input.jobId)
+              : isNull(schema.reportingAnalyses.jobId),
+            eq(schema.reportingAnalyses.organizationId, input.organizationId),
+            inArray(
+              schema.reportingAnalyses.segmentId,
+              batch.map((row) => row.segmentId),
+            ),
+            eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
+            eq(schema.reportingAnalyses.step, step),
+          ),
+        );
       await tx
         .insert(schema.reportingAnalyses)
-        .values({
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          jobId: input.jobId ?? null,
-          step,
-          segmentId,
-          sourceRevision: createHash("sha256").update(sourceText).digest("hex"),
-          sourceLocale: input.sourceLocale,
-          targetLocale: input.targetLocale,
-          words: countSourceWords(sourceText, input.sourceLocale),
-          billable: input.billable ?? false,
-          matchScore: score,
-          bucket: matchBucket(score, repetition),
-          algorithmVersion: WORD_COUNT_VERSION,
-          rateId: rate?.id,
-        })
+        .values(batch)
         .onConflictDoUpdate({
           target: [
             schema.reportingAnalyses.organizationId,
@@ -309,7 +365,12 @@ async function writeReportingCompletions(
   },
   database: DatabaseClient,
 ) {
+  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+    return;
+  }
   const step = input.step ?? "translation";
+  const segmentIds = Object.keys(input.sourceEntries);
+  if (segmentIds.length === 0) return;
   const analyses = await database
     .select()
     .from(schema.reportingAnalyses)
@@ -322,8 +383,36 @@ async function writeReportingCompletions(
         eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
         eq(schema.reportingAnalyses.step, step),
         eq(schema.reportingAnalyses.isCurrent, true),
+        inArray(schema.reportingAnalyses.segmentId, segmentIds),
       ),
     );
+  if (input.provenance === "automated") {
+    const rows = analyses
+      .filter((analysis) => {
+        const source = input.sourceEntries[analysis.segmentId];
+        return (
+          source !== undefined &&
+          createHash("sha256").update(source).digest("hex") === analysis.sourceRevision
+        );
+      })
+      .map((analysis) => ({
+        organizationId: input.organizationId,
+        projectId: analysis.projectId,
+        jobId: input.jobId ?? null,
+        operationKey: `completion:${analysis.id}:${step}`,
+        kind: "completion" as const,
+        step,
+        targetLocale: input.targetLocale,
+        analysisId: analysis.id,
+      }));
+    for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
+      await database
+        .insert(schema.reportingActivity)
+        .values(rows.slice(offset, offset + REPORTING_BATCH_SIZE))
+        .onConflictDoNothing();
+    }
+    return;
+  }
   for (const analysis of analyses) {
     const source = input.sourceEntries[analysis.segmentId];
     if (
@@ -408,6 +497,15 @@ async function writeJobStatus(input: {
   operationKey: string;
   durationMs?: number;
 }) {
+  const [ownedJob] = await db
+    .select({ organizationId: schema.jobs.organizationId })
+    .from(schema.jobs)
+    .where(eq(schema.jobs.id, input.jobId))
+    .limit(1);
+  if (!ownedJob || !(await isWorkspaceReportsCaptureEnabled(ownedJob.organizationId))) {
+    return;
+  }
+
   await reportingStart();
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
   const [job] = await db
