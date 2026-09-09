@@ -44,10 +44,12 @@ export function ImageCanvas({
   onRevealChange: (value: number) => void;
 }) {
   const intl = useIntl();
-  const [failed, setFailed] = useState(false);
+  const [sourceFailed, setSourceFailed] = useState(false);
+  const [comparisonFailed, setComparisonFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [sourceRatio, setSourceRatio] = useState(0);
   const [comparisonRatio, setComparisonRatio] = useState(0);
+  const failed = sourceFailed || comparisonFailed;
   const mismatched = Boolean(
     sourceRatio && comparisonRatio && Math.abs(sourceRatio - comparisonRatio) > 0.01,
   );
@@ -58,13 +60,13 @@ export function ImageCanvas({
           {intl.formatMessage(messages.imageError)}
         </p>
       ) : null}
-      {!loaded && !failed ? (
+      {!loaded && !sourceFailed ? (
         <div className="flex min-h-56 items-center justify-center">
           <Spinner />
         </div>
       ) : null}
       <div
-        className={cn("relative mx-auto", (!loaded || failed) && "hidden")}
+        className={cn("relative mx-auto", (!loaded || sourceFailed) && "hidden")}
         style={{ width: `${zoom}%` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- Authenticated project asset. */}
@@ -76,9 +78,9 @@ export function ImageCanvas({
             setLoaded(true);
             setSourceRatio(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight);
           }}
-          onError={() => setFailed(true)}
+          onError={() => setSourceFailed(true)}
         />
-        {compareSrc ? (
+        {compareSrc && !comparisonFailed ? (
           <>
             <div
               className="pointer-events-none absolute inset-0 bg-muted"
@@ -89,7 +91,7 @@ export function ImageCanvas({
                 src={compareSrc}
                 alt=""
                 className="h-full w-full object-contain"
-                onError={() => setFailed(true)}
+                onError={() => setComparisonFailed(true)}
                 onLoad={(event) =>
                   setComparisonRatio(
                     event.currentTarget.naturalWidth / event.currentTarget.naturalHeight,

@@ -79,6 +79,31 @@ describe("image workspace", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+  it("retries failed extraction directly", async () => {
+    let extractionAttempts = 0;
+    const fetchMock = vi.fn(async (_url, options) => {
+      if (options?.method === "POST") {
+        extractionAttempts += 1;
+        return extractionAttempts === 1
+          ? Response.json({ error: "unavailable" }, { status: 503 })
+          : Response.json({ textLayers: initialLayers });
+      }
+      return Response.json({ textLayers: null });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    show();
+
+    await user.click(await screen.findByRole("button", { name: "Extract text" }));
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await screen.findByLabelText("Source text");
+    expect(extractionAttempts).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
+    expect(fetchMock.mock.calls[2]?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
+  });
   it("saves edited wording before regeneration and preserves the target locale", async () => {
     let savedBody: ImageTextLayers | undefined;
     const steps: string[] = [];
@@ -146,5 +171,23 @@ describe("image workspace", () => {
     expect(divider).toHaveValue("51");
     await user.keyboard("{Home}");
     expect(divider).toHaveValue("0");
+  });
+  it("keeps the original visible when the comparison image fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ textLayers: null })),
+    );
+    const user = userEvent.setup();
+    const { container } = show();
+    await user.click(await screen.findByRole("button", { name: "Overlay comparison" }));
+
+    const images = container.querySelectorAll("img");
+    expect(images).toHaveLength(2);
+    fireEvent.load(images[0]);
+    fireEvent.error(images[1]);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(images[0].closest("div.relative")).not.toHaveClass("hidden");
+    expect(container.querySelector('[role="slider"]')).not.toBeInTheDocument();
   });
 });

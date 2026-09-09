@@ -12,13 +12,19 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import { bodyLimit } from "hono/body-limit";
 import { canAccessStoredFile } from "@/api/auth/team-access";
 import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import type { AuthVariables } from "@/api/auth/workos";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
-import { badRequestResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  payloadTooLargeResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
 import { db, schema } from "@/lib/database/client";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
@@ -39,40 +45,44 @@ import {
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_LAYER_BODY_BYTES = 2 * 1024 * 1024;
 
+const loadImageTextLayerFile = createMiddleware<{
+  Variables: AuthVariables & { imageFile: typeof schema.storedFiles.$inferSelect };
+}>(async (c, next) => {
+  const parsed = projectImageTextLayersParamsSchema.safeParse(c.req.param());
+  if (!parsed.success) return fileNotFoundResponse(c);
+  const params = parsed.data;
+  if (!(await getOwnedProject(c.var.auth, params.projectId))) return projectNotFoundResponse(c);
+  const [file] = await db
+    .select()
+    .from(schema.storedFiles)
+    .where(
+      and(
+        eq(schema.storedFiles.id, params.fileId),
+        eq(schema.storedFiles.organizationId, c.var.auth.organization.localOrganizationId),
+        eq(schema.storedFiles.projectId, params.projectId),
+      ),
+    )
+    .limit(1);
+  if (!file || !(await canAccessStoredFile(c.var.auth, file))) return fileNotFoundResponse(c);
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.contentType)) {
+    return badRequestResponse(
+      c,
+      "unsupported_image_type",
+      "Text extraction supports PNG, JPEG, and WebP images.",
+    );
+  }
+  c.set("imageFile", file);
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+
 export function createProjectImageTextLayerRoutes(
   options: { fileStorageAdapter?: FileStorageAdapter } = {},
 ) {
   return new Hono<{
     Variables: AuthVariables & { imageFile: typeof schema.storedFiles.$inferSelect };
   }>()
-    .use("/:fileId/text-layers", async (c, next) => {
-      const parsed = projectImageTextLayersParamsSchema.safeParse(c.req.param());
-      if (!parsed.success) return fileNotFoundResponse(c);
-      const params = parsed.data;
-      if (!(await getOwnedProject(c.var.auth, params.projectId))) return projectNotFoundResponse(c);
-      const [file] = await db
-        .select()
-        .from(schema.storedFiles)
-        .where(
-          and(
-            eq(schema.storedFiles.id, params.fileId),
-            eq(schema.storedFiles.organizationId, c.var.auth.organization.localOrganizationId),
-            eq(schema.storedFiles.projectId, params.projectId),
-          ),
-        )
-        .limit(1);
-      if (!file || !(await canAccessStoredFile(c.var.auth, file))) return fileNotFoundResponse(c);
-      if (!["image/png", "image/jpeg", "image/webp"].includes(file.contentType)) {
-        return badRequestResponse(
-          c,
-          "unsupported_image_type",
-          "Text extraction supports PNG, JPEG, and WebP images.",
-        );
-      }
-      c.set("imageFile", file);
-      c.header("Cache-Control", "private, no-store");
-      await next();
-    })
+    .use("/:fileId/text-layers", loadImageTextLayerFile)
     .get("/:fileId/text-layers", (c) => {
       const file = c.var.imageFile;
       return c.json({ textLayers: readImageTextLayers(file.metadata, file.sha256) });
@@ -117,9 +127,10 @@ export function createProjectImageTextLayerRoutes(
         signal: c.req.raw.signal,
       });
       if (!extracted.ok)
-        return c.json(
-          { error: extracted.error.code, message: "Could not extract text. Please try again." },
-          502,
+        return serviceUnavailableResponse(
+          c,
+          extracted.error.code,
+          "Could not extract text. Please try again.",
         );
       const textLayers: ImageTextLayers = {
         version: 1,
@@ -143,12 +154,10 @@ export function createProjectImageTextLayerRoutes(
         )
         .returning({ id: schema.storedFiles.id });
       if (!updated)
-        return c.json(
-          {
-            error: "text_layers_conflict",
-            message: "Text layers changed. Reload before trying again.",
-          },
-          409,
+        return conflictResponse(
+          c,
+          "text_layers_conflict",
+          "Text layers changed. Reload before trying again.",
         );
       return c.json({ textLayers });
     })
@@ -156,7 +165,7 @@ export function createProjectImageTextLayerRoutes(
       "/:fileId/text-layers",
       bodyLimit({
         maxSize: MAX_LAYER_BODY_BYTES,
-        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+        onError: (c) => payloadTooLargeResponse(c),
       }),
       validator("json", (value, c) => {
         const parsed = updateProjectImageTextLayersSchema.safeParse(value);
@@ -169,12 +178,10 @@ export function createProjectImageTextLayerRoutes(
         const input = c.req.valid("json");
         const existing = readImageTextLayers(file.metadata, file.sha256);
         if (!existing || input.sourceHash !== file.sha256 || input.revision !== existing.revision)
-          return c.json(
-            {
-              error: "text_layers_conflict",
-              message: "The source or its text layers changed. Reload before saving.",
-            },
-            409,
+          return conflictResponse(
+            c,
+            "text_layers_conflict",
+            "The source or its text layers changed. Reload before saving.",
           );
         const textLayers = {
           ...input,
@@ -196,12 +203,10 @@ export function createProjectImageTextLayerRoutes(
           )
           .returning({ id: schema.storedFiles.id });
         if (!updated)
-          return c.json(
-            {
-              error: "text_layers_conflict",
-              message: "Text layers changed. Reload before saving.",
-            },
-            409,
+          return conflictResponse(
+            c,
+            "text_layers_conflict",
+            "Text layers changed. Reload before saving.",
           );
         return c.json({ textLayers });
       },

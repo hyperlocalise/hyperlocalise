@@ -535,7 +535,8 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                     variant="outline"
                     disabled={busy}
                     onClick={() => {
-                      if (conflict || !layers) setReload((value) => value + 1);
+                      if (conflict) setReload((value) => value + 1);
+                      else if (!layers) void persist("POST");
                       else void persist("PATCH");
                     }}
                   >
