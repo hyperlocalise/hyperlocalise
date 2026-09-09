@@ -195,25 +195,25 @@ This check is the first review gate, not the language review. It catches reposit
 Add a second job to the same `localise.yml` workflow:
 
 ```yaml
-  push-sources:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: localisation
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
+push-sources:
+  if: github.event_name == 'push'
+  runs-on: ubuntu-latest
+  environment: localisation
+  permissions:
+    contents: read
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Install Hyperlocalise
-        uses: hyperlocalise/hyperlocalise/install@v1
-        with:
-          version: config
+    - name: Install Hyperlocalise
+      uses: hyperlocalise/hyperlocalise/install@v1
+      with:
+        version: config
 
-      - name: Push source content
-        run: hl sync push
-        env:
-          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
-          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+    - name: Push source content
+      run: hl sync push
+      env:
+        HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+        HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
 This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
@@ -237,13 +237,13 @@ Once the source sync completes, review the new content in Hyperlocalise. The UI 
 
 For this example, a reviewer should check more than literal accuracy:
 
-| Content | Review question |
-| --- | --- |
-| `filters.save` | Is this clearly an action, rather than a saved state? |
-| `filters.saved` | Does the term match navigation and settings copy? |
-| Description | Does it fit the UI and preserve “workspace” terminology? |
-| Release title | Does it use the same name as the product feature? |
-| Release bullets | Are commands, menu names, and user outcomes consistent? |
+| Content         | Review question                                          |
+| --------------- | -------------------------------------------------------- |
+| `filters.save`  | Is this clearly an action, rather than a saved state?    |
+| `filters.saved` | Does the term match navigation and settings copy?        |
+| Description     | Does it fit the UI and preserve “workspace” terminology? |
+| Release title   | Does it use the same name as the product feature?        |
+| Release bullets | Are commands, menu names, and user outcomes consistent?  |
 
 Attach product context or screenshots when a short string is ambiguous. A translator who only sees “Save filter” cannot know whether it labels a button, a toast, or a page heading. That context is where the platform complements the CLI: Git moves files, while Hyperlocalise carries the knowledge needed to make a sound language decision.
 
@@ -254,39 +254,39 @@ Resolve review comments and approve the translations according to your project w
 Add a third job to `localise.yml`:
 
 ```yaml
-  pull-translations:
-    if: github.event_name == 'workflow_dispatch' && inputs.pull_translations
-    runs-on: ubuntu-latest
-    environment: localisation
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
+pull-translations:
+  if: github.event_name == 'workflow_dispatch' && inputs.pull_translations
+  runs-on: ubuntu-latest
+  environment: localisation
+  permissions:
+    contents: write
+    pull-requests: write
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Install Hyperlocalise
-        uses: hyperlocalise/hyperlocalise/install@v1
-        with:
-          version: config
+    - name: Install Hyperlocalise
+      uses: hyperlocalise/hyperlocalise/install@v1
+      with:
+        version: config
 
-      - name: Pull reviewed translations
-        run: hl sync pull
-        env:
-          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
-          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+    - name: Pull reviewed translations
+      run: hl sync pull
+      env:
+        HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+        HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 
-      - name: Create translation pull request
-        uses: peter-evans/create-pull-request@v8
-        with:
-          branch: hyperlocalise/reviewed-translations
-          delete-branch: true
-          commit-message: "chore(i18n): sync reviewed translations"
-          title: "chore(i18n): sync reviewed translations"
-          body: |
-            Pulls the latest reviewed product strings and release notes from
-            Hyperlocalise. Check terminology, placeholders, links, and locale
-            coverage before merging.
-          labels: localization
+    - name: Create translation pull request
+      uses: peter-evans/create-pull-request@v8
+      with:
+        branch: hyperlocalise/reviewed-translations
+        delete-branch: true
+        commit-message: "chore(i18n): sync reviewed translations"
+        title: "chore(i18n): sync reviewed translations"
+        body: |
+          Pulls the latest reviewed product strings and release notes from
+          Hyperlocalise. Check terminology, placeholders, links, and locale
+          coverage before merging.
+        labels: localization
 ```
 
 Run this job from the **Actions** tab after review. `hl sync pull` writes target content to the paths in `i18n.yml`, producing files such as:
