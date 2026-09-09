@@ -397,10 +397,16 @@ func tagTokenCounts(s string) (map[string]int, int) {
 	return tokens, total
 }
 
+const tokenStackBufSize = 128
+
 func formatICUBlockToken(block icuparser.BlockSignature) string {
-	neededLen := 10 + len(block.Arg) + 1 + len(block.Type) + 1
+	offsetStr := ""
 	if block.Offset != 0 {
-		neededLen += 9 + 10
+		offsetStr = strconv.Itoa(block.Offset)
+	}
+	neededLen := len("icu-block:") + len(block.Arg) + 1 + len(block.Type) + 1
+	if offsetStr != "" {
+		neededLen += len("(offset:") + len(offsetStr) + 1
 	}
 	for i, opt := range block.Options {
 		if i > 0 {
@@ -409,13 +415,13 @@ func formatICUBlockToken(block icuparser.BlockSignature) string {
 		neededLen += len(opt)
 	}
 
-	if neededLen <= 128 {
-		var buf [128]byte
+	if neededLen <= tokenStackBufSize {
+		var buf [tokenStackBufSize]byte
 		n := copy(buf[0:], "icu-block:")
 		n += copy(buf[n:], block.Arg)
-		if block.Offset != 0 {
+		if offsetStr != "" {
 			n += copy(buf[n:], "(offset:")
-			n += copy(buf[n:], strconv.Itoa(block.Offset))
+			n += copy(buf[n:], offsetStr)
 			n += copy(buf[n:], ")")
 		}
 		buf[n] = ':'
@@ -437,9 +443,9 @@ func formatICUBlockToken(block icuparser.BlockSignature) string {
 	b.Grow(neededLen)
 	b.WriteString("icu-block:")
 	b.WriteString(block.Arg)
-	if block.Offset != 0 {
+	if offsetStr != "" {
 		b.WriteString("(offset:")
-		b.WriteString(strconv.Itoa(block.Offset))
+		b.WriteString(offsetStr)
 		b.WriteString(")")
 	}
 	b.WriteString(":")
@@ -476,8 +482,8 @@ func formatHTMLToken(raw string) string {
 		return "html:" + raw
 	}
 	n := 5 + len(raw)
-	if n <= 128 {
-		var buf [128]byte
+	if n <= tokenStackBufSize {
+		var buf [tokenStackBufSize]byte
 		copy(buf[0:], "html:")
 		for i := 0; i < len(raw); i++ {
 			c := raw[i]
