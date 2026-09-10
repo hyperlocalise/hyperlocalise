@@ -26,11 +26,19 @@ import {
   ContentEditorPageBody,
 } from "@/components/content-editor/files/content-editor-files-sidebar";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
-import { writeCatWorkspaceViewMode } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
+import type { ContentEditorWorkspaceState } from "@/components/content-editor/shared/types";
+import {
+  writeCatWorkspaceViewMode,
+  type ContentEditorWorkspaceViewMode,
+} from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import { Button } from "@/components/ui/button";
 
-import type { ContentEditorPageShellWorkspaceEntry } from "./content-editor-page-shell.fixture";
 import { ContentEditorWorkspaceContainer } from "./content-editor-workspace-container";
+
+type ContentEditorPageShellWorkspaceEntry = {
+  state: ContentEditorWorkspaceState;
+  initialViewMode: ContentEditorWorkspaceViewMode;
+};
 
 type ContentEditorPageShellStoryViewProps = {
   files: ProjectFileRecord[];

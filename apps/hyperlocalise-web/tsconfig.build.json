@@ -1,4 +1,16 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "src/e2e", "src/api/typed-app.ts", "**/*.test.ts", "**/*.fixture.ts"]
+  "exclude": [
+    "node_modules",
+    "src/e2e",
+    "src/api/typed-app.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.fixture.ts",
+    "**/*-msw-handlers.ts",
+    "**/*.stories.ts",
+    "**/*.stories.tsx",
+    "**/*.story-view.ts",
+    "**/*.story-view.tsx"
+  ]
 }
