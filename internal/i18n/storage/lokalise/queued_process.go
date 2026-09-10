@@ -127,6 +127,9 @@ func queuedProcessOutcome(result SourceUploadResult) (bool, error) {
 		return true, nil
 	}
 	if isQueuedProcessFailedStatus(result.Status) {
+		if message := strings.TrimSpace(result.Message); message != "" {
+			return true, fmt.Errorf("lokalise upload %s failed: status=%s: %s", result.ProcessID, result.Status, message)
+		}
 		return true, fmt.Errorf("lokalise upload %s failed: status=%s", result.ProcessID, result.Status)
 	}
 	if isQueuedProcessInProgressStatus(result.Status) {

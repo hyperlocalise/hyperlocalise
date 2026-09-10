@@ -98,8 +98,8 @@ func TestWaitForQueuedProcessFailsOnFailedStatus(t *testing.T) {
 		ProjectID: "proj-1",
 		ProcessID: "proc-1",
 	})
-	if err == nil || !strings.Contains(err.Error(), "status=failed") {
-		t.Fatalf("error = %v, want failed", err)
+	if err == nil || !strings.Contains(err.Error(), "status=failed") || !strings.Contains(err.Error(), "import failed") {
+		t.Fatalf("error = %v, want failed status and Lokalise message", err)
 	}
 	if result.ProcessID != "proc-1" {
 		t.Fatalf("result = %#v, want process id kept", result)
