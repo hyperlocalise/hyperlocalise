@@ -33,17 +33,17 @@ export const domainsPageContentMessages = defineMessages({
   },
   loading: {
     defaultMessage: "Loading domains…",
-    id: "k4mP9sQw2R",
+    id: "uSp36HVYw0",
     description: "Loading state for the workspace domains list",
   },
   emptyTitle: {
     defaultMessage: "No linked domains yet",
-    id: "n8vL2tYc5H",
+    id: "/ga0PCFNu5",
     description: "Empty state title when the workspace has no claimed domains",
   },
   emptyDescription: {
     defaultMessage: "Claim a domain from a localisation audit to start keyword research.",
-    id: "p3rW7xUa1K",
+    id: "8wa1gB5MCA",
     description: "Empty state description when the workspace has no claimed domains",
   },
   linkDomain: {
