@@ -565,6 +565,35 @@ describe("workspace automation view model", () => {
     expect(validateWorkspaceAutomationFormState(form).ahrefs).toBeUndefined();
   });
 
+  it("requires Zernio connection IDs when that tool is enabled", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      zernioEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      zernioConnectionId: "Choose a Zernio connection.",
+    });
+  });
+
+  it("maps Zernio connection into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Launch ads",
+      instructions: "Create a paused Meta ad from localized copy.",
+      zernioEnabled: true,
+      zernioConnectionId: "22222222-2222-4222-8222-222222222222",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig).toEqual({
+      zernio: {
+        enabled: true,
+        connectionId: "22222222-2222-4222-8222-222222222222",
+      },
+    });
+  });
+
   it("maps Semrush and Ahrefs API errors onto tool fields", () => {
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_connection_required")).toEqual({
       semrushConnectionId: "Choose a Semrush connection.",
@@ -576,6 +605,16 @@ describe("workspace automation view model", () => {
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_not_connected")).toEqual({
       semrushConnectionId:
         "Enable the selected Semrush connection in Integrations before using it.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("zernio_connection_required")).toEqual({
+      zernioConnectionId: "Choose a Zernio connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("zernio_connection_not_found")).toEqual({
+      zernioConnectionId:
+        "The selected Zernio connection was not found. Choose another connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("zernio_not_connected")).toEqual({
+      zernioConnectionId: "Enable the selected Zernio connection in Integrations before using it.",
     });
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_not_connected")).toEqual({
       ahrefs: "Connect Ahrefs in Integrations before using it.",

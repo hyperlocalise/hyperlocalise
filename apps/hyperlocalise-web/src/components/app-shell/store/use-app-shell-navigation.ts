@@ -66,5 +66,13 @@ export function useAppShellNavigationCustom({
     return () => {
       store.navigation.clearCustomMode();
     };
-  }, [store, groupsSignature, organizationSlug, projectId, projectName, linkedDomainId, domainName]);
+  }, [
+    store,
+    groupsSignature,
+    organizationSlug,
+    projectId,
+    projectName,
+    linkedDomainId,
+    domainName,
+  ]);
 }

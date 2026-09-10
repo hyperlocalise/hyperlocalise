@@ -87,8 +87,6 @@ export function HyperlabKeysPage({
 
   return (
     <HyperlabPageShell
-      organizationSlug={organizationSlug}
-      section="keys"
       title={intl.formatMessage(messages.keysTitle)}
       description={intl.formatMessage(messages.keysDescription)}
       actions={createAction}

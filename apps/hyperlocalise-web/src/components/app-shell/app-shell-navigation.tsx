@@ -18,7 +18,7 @@ import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -51,10 +51,12 @@ import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import {
   buildDomainNavigationItems,
+  buildHyperlabNavigationItems,
   buildOrganizationPath,
   buildProjectNavigationItems,
   isNavigationItemActive,
   parseDomainRoute,
+  parseHyperlabRoute,
   parseProjectRoute,
   type NavigationGroup,
   type NavigationItem,
@@ -74,6 +76,7 @@ export const AppShellNavigation = observer(function AppShellNavigation({
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
   const domainRoute = parseDomainRoute(pathname);
+  const hyperlabRoute = parseHyperlabRoute(pathname);
 
   if (store.navigation.mode === "custom" && store.navigation.customState) {
     const customState = store.navigation.customState;
@@ -129,6 +132,13 @@ export const AppShellNavigation = observer(function AppShellNavigation({
         pathname={pathname}
       />
     );
+  }
+
+  if (
+    hyperlabRoute?.organizationSlug === organizationSlug &&
+    store.workspaceFeatureFlags.hyperlab
+  ) {
+    return <HyperlabNavigation organizationSlug={organizationSlug} pathname={pathname} />;
   }
 
   return (
@@ -385,6 +395,53 @@ function ResourceScopedNavigation({
           />
         </LabeledNavigationSection>
       ) : null}
+    </div>
+  );
+}
+
+function HyperlabNavigation({
+  organizationSlug,
+  pathname,
+}: {
+  organizationSlug: string;
+  pathname: string;
+}) {
+  const intl = useIntl();
+  const items = buildHyperlabNavigationItems(organizationSlug, intl);
+  const workspaceHref = buildOrganizationPath(organizationSlug, "dashboard");
+  const workspaceLabel = intl.formatMessage(appShellNavigationMessages.workspace);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<OrgNavLink href={workspaceHref} />}
+                tooltip={workspaceLabel}
+                className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.workspace} />
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup className="gap-1 p-0">
+        <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
+          <FormattedMessage {...appShellNavigationMessages.hyperlabSection} />
+        </SidebarGroupLabel>
+        <NavigationGroupItems
+          group={{ items }}
+          pathname={pathname}
+          organizationSlug={organizationSlug}
+        />
+      </SidebarGroup>
     </div>
   );
 }

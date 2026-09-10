@@ -27,7 +27,7 @@ export const domainResearchShellMessages = defineMessages({
   },
   localeScope: {
     defaultMessage: "Applies to every research view.",
-    id: "yWOL2/uNay",
+    id: "3bYYLdUKAu",
     description: "Research locale scope help",
   },
   localeEmptyTitle: {

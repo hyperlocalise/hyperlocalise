@@ -170,10 +170,27 @@ describe("Agent Tools RBAC", () => {
               })),
             })),
           })),
+          select: vi.fn(() => ({
+            from: vi.fn(() => ({
+              where: vi.fn(() => {
+                const rows = [{ workflowRunId: null }];
+                const limitResult = Promise.resolve(rows);
+                return {
+                  limit: vi.fn(() =>
+                    Object.assign(limitResult, {
+                      for: vi.fn(async () => rows),
+                    }),
+                  ),
+                };
+              }),
+            })),
+          })),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
-                returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+                returning: vi.fn(() => [
+                  { id: "mutated_123", status: "queued", workflowRunId: "run_translation_1" },
+                ]),
               })),
             })),
           })),

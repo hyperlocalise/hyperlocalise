@@ -69,6 +69,10 @@ func (c *DeepLClient) Translate(ctx context.Context, req Request) (Response, err
 
 	translations := make([]string, 0, len(req.Sources))
 	for start := 0; start < len(req.Sources); start += deeplMaxTextsPerRequest {
+		if err := ctx.Err(); err != nil {
+			return Response{}, err
+		}
+
 		end := start + deeplMaxTextsPerRequest
 		if end > len(req.Sources) {
 			end = len(req.Sources)
@@ -113,6 +117,10 @@ func (c *DeepLClient) translateChunk(ctx context.Context, sourceLang, targetLang
 }
 
 func (c *DeepLClient) request(ctx context.Context, method, requestURL string, form url.Values, out any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	httpReq, err := http.NewRequestWithContext(ctx, method, requestURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("mt: build deepl translate request: %w", err)

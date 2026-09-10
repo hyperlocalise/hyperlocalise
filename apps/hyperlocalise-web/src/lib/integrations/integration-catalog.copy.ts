@@ -582,6 +582,53 @@ export const integrationCatalogCopy = {
       description: "Semrush integration marketing page meta description",
     },
   },
+  zernio: {
+    name: {
+      defaultMessage: "Zernio",
+      id: "intZernioName",
+      description: "Zernio integration name",
+    },
+    tagline: {
+      defaultMessage: "Create paid ads from localized copy across Meta, Google, TikTok, and more.",
+      id: "intZernioTagline",
+      description: "Zernio integration short description",
+    },
+    overview: [
+      {
+        defaultMessage:
+          "Zernio connections let Hyperlocalise automations and agents create paid ads after translation, using one API for Meta, Google Ads, TikTok, LinkedIn, Pinterest, X, and OpenAI Ads.",
+        id: "intZernioOverview0",
+        description: "Zernio integration marketing overview paragraph",
+      },
+      {
+        defaultMessage:
+          "Store an API key in Integrations, then add the Zernio tool on an automation or call zernio_* tools from the hosted MCP server.",
+        id: "intZernioOverview1",
+        description: "Zernio integration marketing overview paragraph",
+      },
+    ],
+    productName: {
+      defaultMessage: "Zernio",
+      id: "intZernioProductName",
+      description: "Zernio integration product name on marketing detail page",
+    },
+    productDescription: {
+      defaultMessage: "Cross-platform ads creation for localized campaigns.",
+      id: "intZernioProductDescription",
+      description: "Zernio integration product description on marketing detail page",
+    },
+    metadataTitle: {
+      defaultMessage: "Zernio integration | Hyperlocalise",
+      id: "intZernioMetaTitle",
+      description: "Zernio integration marketing page meta title",
+    },
+    metadataDescription: {
+      defaultMessage:
+        "Connect Zernio to Hyperlocalise to create localized ads across Meta, Google, TikTok, LinkedIn, and more.",
+      id: "intZernioMetaDescription",
+      description: "Zernio integration marketing page meta description",
+    },
+  },
   hyperlab: {
     name: {
       defaultMessage: "Hyperlab",
