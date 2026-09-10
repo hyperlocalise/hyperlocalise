@@ -178,6 +178,7 @@ export function compileWorkflowIssues(
               kind: "reference",
               nodeId: match[1]!,
               path: match[2]!.trim().split("."),
+              optional: true,
             })
           )
             add("invalid_binding", node.id);

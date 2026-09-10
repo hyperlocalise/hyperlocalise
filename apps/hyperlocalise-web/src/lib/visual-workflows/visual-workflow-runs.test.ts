@@ -20,7 +20,6 @@ import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { createDefaultConfig } from "./catalog/node-catalog";
 import type { VisualWorkflowDefinition } from "./schema/types";
 import {
   createVisualWorkflowRun,
@@ -46,6 +45,25 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
+function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name,
+    nodes: [
+      {
+        id: "t",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+    ],
+    edges: [],
+    editor: { positions: { t: { x: 0, y: 0 } } },
+  };
+}
+
 async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
   const identity = fixture.createWorkosIdentityWithRole("admin");
   const { user, organization } = await syncWorkosIdentity(db, identity);
@@ -53,7 +71,7 @@ async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
     organizationId: organization.id,
     authorUserId: user.id,
     name: "Run coverage",
-    definition: input?.definition,
+    definition: input?.definition ?? scheduledWorkflowDefinition(),
   });
   if (isErr(created)) {
     throw new Error(`failed to create visual workflow: ${created.error.code}`);
@@ -191,19 +209,7 @@ describe("visual workflow runs", () => {
   });
 
   it("claims queued runs once, executes trigger graphs, and returns already_finished", async () => {
-    const definition: VisualWorkflowDefinition = {
-      schemaVersion: 2,
-      name: "Trigger only",
-      nodes: [
-        {
-          id: "t",
-          type: "trigger.manual",
-          config: createDefaultConfig("trigger.manual"),
-        },
-      ],
-      edges: [],
-      editor: { positions: {} },
-    };
+    const definition = scheduledWorkflowDefinition("Trigger only");
     const { organizationId, workflow } = await seedWorkflow({ definition });
     const run = await createVisualWorkflowRun({
       organizationId,

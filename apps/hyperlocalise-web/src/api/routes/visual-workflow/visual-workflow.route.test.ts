@@ -244,7 +244,6 @@ describe("visual workflow routes", () => {
         param: { organizationSlug },
         json: {
           name: "Delete then revive",
-          status: "active",
           definition: scheduledDefinition,
         },
       },
@@ -254,8 +253,23 @@ describe("visual workflow routes", () => {
     const created = (await createdResponse.json()) as {
       visualWorkflow: { id: string; status: string; triggerFingerprint: string | null };
     };
-    expect(created.visualWorkflow.status).toBe("active");
-    expect(created.visualWorkflow.triggerFingerprint).toBeTruthy();
+    expect(created.visualWorkflow.status).toBe("draft");
+
+    const publishedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].publish.$post(
+      {
+        param: { organizationSlug, visualWorkflowId: created.visualWorkflow.id },
+        json: { expectedRevision: 1 },
+      },
+      { headers },
+    );
+    expect(publishedResponse.status).toBe(200);
+    const published = (await publishedResponse.json()) as {
+      visualWorkflow: { status: string; triggerFingerprint: string | null };
+    };
+    expect(published.visualWorkflow.status).toBe("active");
+    expect(published.visualWorkflow.triggerFingerprint).toBeTruthy();
 
     const deletedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
       ":visualWorkflowId"
@@ -328,7 +342,25 @@ describe("visual workflow routes", () => {
     const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
       {
         param: { organizationSlug },
-        json: { name: "Manual run workflow" },
+        json: {
+          name: "Manual run workflow",
+          definition: {
+            schemaVersion: 2,
+            name: "Manual run workflow",
+            nodes: [
+              {
+                id: "t1",
+                type: "trigger.scheduled",
+                config: {
+                  kind: "trigger.scheduled",
+                  schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+                },
+              },
+            ],
+            edges: [],
+            editor: { positions: { t1: { x: 0, y: 0 } } },
+          },
+        },
       },
       { headers },
     );

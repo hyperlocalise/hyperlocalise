@@ -327,6 +327,10 @@ describe("visual workflow node execution edges", () => {
 });
 
 describe("visual workflow interpreter", () => {
+  beforeEach(() => {
+    withPublicHttpFetchMock.mockReset();
+  });
+
   it("walks trigger and if nodes without following the false branch", async () => {
     const definition: VisualWorkflowDefinition = {
       schemaVersion: 2,
@@ -626,7 +630,7 @@ describe("visual workflow interpreter", () => {
           config: {
             kind: "action.http",
             method: "GET",
-            url: "",
+            url: "https://example.com/continue-on-error",
             onError: "continue",
           },
         },
@@ -638,6 +642,8 @@ describe("visual workflow interpreter", () => {
       ],
       editor: { positions: {} },
     };
+
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
 
     const started: string[] = [];
     const result = await runVisualWorkflowInterpreter({
@@ -666,7 +672,7 @@ describe("visual workflow interpreter", () => {
           config: {
             kind: "action.http",
             method: "GET",
-            url: "",
+            url: "https://example.com/error-branch",
             onError: "branch",
           },
         },
@@ -680,6 +686,8 @@ describe("visual workflow interpreter", () => {
       ],
       editor: { positions: {} },
     };
+
+    withPublicHttpFetchMock.mockRejectedValue(new Error("upstream unavailable"));
 
     const started: string[] = [];
     const result = await runVisualWorkflowInterpreter({
