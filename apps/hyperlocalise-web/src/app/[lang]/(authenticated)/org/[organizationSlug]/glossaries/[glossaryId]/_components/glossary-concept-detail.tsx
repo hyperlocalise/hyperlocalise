@@ -80,11 +80,7 @@ import {
   statusPickerItemClass,
   statusPickerTriggerClass,
 } from "@/components/glossary/glossary-term-property-pickers";
-import {
-  ApiResponseError,
-  readApiError,
-  readApiResponseError,
-} from "@/lib/api-error";
+import { ApiResponseError, readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
@@ -329,10 +325,7 @@ export function GlossaryConceptDetail({
         param: { organizationSlug, glossaryId, conceptId },
       });
       if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(messages.loadConceptsFailed),
-        );
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadConceptsFailed));
       }
       return (await response.json()).concept as GlossaryConceptRecord;
     },
@@ -636,8 +629,7 @@ export function GlossaryConceptDetail({
     conceptQuery.error instanceof ApiResponseError && conceptQuery.error.status === 404;
   if (
     !glossary ||
-    (!isCreatingConcept &&
-      (conceptNotFound || (conceptQuery.isSuccess && !selectedConcept)))
+    (!isCreatingConcept && (conceptNotFound || (conceptQuery.isSuccess && !selectedConcept)))
   ) {
     return (
       <TypographyP className="py-8" size="small" tone="subtle">
