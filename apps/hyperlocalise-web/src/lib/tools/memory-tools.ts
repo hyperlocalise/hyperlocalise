@@ -405,7 +405,10 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "memories:write")) {
+      const isReviewOnly = Object.keys(input).every(
+        (key) => key === "entryId" || key === "reviewStatus",
+      );
+      if (!isReviewOnly && !hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -441,9 +444,6 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         return { success: false, error: `Entry ${entryId} not found.` };
       }
 
-      const isReviewOnly = Object.keys(input).every(
-        (key) => key === "entryId" || key === "reviewStatus",
-      );
       const access = toolMemoryActionAllowed(
         ctx,
         entryWithMemory.memory,

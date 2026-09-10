@@ -183,7 +183,7 @@ function externalCapabilities(
   const readable = roleAllows(auth, "memories:read");
   const providerKind = resource.externalProviderKind;
   const supportsSearch =
-    resource.resourceKind === "synced" &&
+    (resource.resourceKind === "synced" || resource.resourceKind === "live_provider") &&
     resource.capabilityMode !== "reference_only" &&
     providerKind != null &&
     providerSupportsTranslationMemoryMatch(providerKind);
@@ -198,7 +198,11 @@ function externalCapabilities(
     edit: readable ? decision(false, "read_only") : decision(false, "unauthorized"),
     review: readable ? decision(false, "read_only") : decision(false, "unauthorized"),
     import: readable ? decision(false, "read_only") : decision(false, "unauthorized"),
-    export: readable ? decision(true) : decision(false, "unauthorized"),
+    export: !readable
+      ? decision(false, "unauthorized")
+      : resource.persistedMemory
+        ? decision(true)
+        : decision(false, "unsupported"),
     bulk_mutation: readable ? decision(false, "read_only") : decision(false, "unauthorized"),
     archive: readable ? decision(false, "read_only") : decision(false, "unauthorized"),
     restore: readable ? decision(false, "read_only") : decision(false, "unauthorized"),

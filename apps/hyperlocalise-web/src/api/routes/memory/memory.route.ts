@@ -48,9 +48,11 @@ import { toMemoryRecord, toVirtualMemoryRecord } from "@/lib/memory/memory-recor
 import {
   capabilityDeniedReason,
   isMemoryCapabilityAllowed,
+  memoryCapabilitiesForPersistedMemory,
   resolveMemoryCapabilities,
   type MemoryCapabilityAction,
 } from "@/lib/memory/memory-capabilities";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type { MemoryImportReport } from "@/lib/memory/tmx/tmx-types";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
@@ -538,13 +540,11 @@ export function createMemoryRoutes() {
     .get("/", validateListMemoryQuery, async (c) => {
       const query = c.req.valid("query");
       const { memories, total } = await memoryStore.list(c.var.auth, query);
-      const records = await Promise.all(
-        memories.map(async (memory) => {
-          const resolved = await resolveMemoryCapabilities(c.var.auth, memory.id);
-          return resolved.kind === "resolved"
-            ? toMemoryRecord(memory, resolved.value.capabilities)
-            : toMemoryRecord(memory);
-        }),
+      const records = await mapWithConcurrency(memories, 10, async (memory) =>
+        toMemoryRecord(
+          memory,
+          memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
+        ),
       );
       return c.json({ memories: records, total }, 200);
     })
