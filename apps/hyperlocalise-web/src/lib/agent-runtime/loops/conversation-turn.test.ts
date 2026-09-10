@@ -254,6 +254,7 @@ describe("conversation gitlab repository sandbox reuse", () => {
     repositorySandboxSession: {
       sandboxId: "sandbox_gitlab_stored",
       repositoryContextKey,
+      credentialOwnerWorkosUserId: "user_workos",
       createdAt: "2026-07-01T12:00:00.000Z",
       lastUsedAt: "2026-07-01T12:00:00.000Z",
     },
@@ -275,6 +276,10 @@ describe("conversation gitlab repository sandbox reuse", () => {
       localUserId: "user_123",
     });
 
+    expect(resolveGitLabPipesWorkosUserIdMock).toHaveBeenCalledWith({
+      workosUserId: undefined,
+      localUserId: "user_123",
+    });
     expect(isRepositorySandboxAvailableMock).toHaveBeenCalledWith("sandbox_gitlab_stored");
     expect(createGitlabRepositorySandboxMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -304,6 +309,77 @@ describe("conversation gitlab repository sandbox reuse", () => {
     });
     expect(result).toMatchObject({
       sandboxId: "sandbox_gitlab_new",
+      sandboxCreated: true,
+      staleSandboxId: "sandbox_gitlab_stored",
+      updatedSession: {
+        repositorySandboxSession: {
+          sandboxId: "sandbox_gitlab_new",
+          repositoryContextKey,
+          credentialOwnerWorkosUserId: "user_workos",
+        },
+      },
+    });
+  });
+
+  it("creates a gitlab sandbox when the stored credential owner differs", async () => {
+    createGitlabRepositorySandboxMock.mockResolvedValueOnce("sandbox_gitlab_other_owner");
+
+    const result = await getOrCreateConversationGitlabRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      gitlabContext,
+      repositorySession: {
+        ...repositorySession,
+        repositorySandboxSession: {
+          ...repositorySession.repositorySandboxSession,
+          credentialOwnerWorkosUserId: "user_other",
+        },
+      },
+      organizationId: "org_123",
+      localUserId: "user_123",
+    });
+
+    expect(isRepositorySandboxAvailableMock).not.toHaveBeenCalled();
+    expect(createGitlabRepositorySandboxMock).toHaveBeenCalledWith({
+      localOrganizationId: "org_123",
+      workosUserId: "user_workos",
+      gitlabContext,
+    });
+    expect(result).toMatchObject({
+      sandboxId: "sandbox_gitlab_other_owner",
+      sandboxCreated: true,
+      staleSandboxId: "sandbox_gitlab_stored",
+    });
+  });
+
+  it("creates a gitlab sandbox when the stored credential owner is missing", async () => {
+    createGitlabRepositorySandboxMock.mockResolvedValueOnce("sandbox_gitlab_legacy");
+
+    const result = await getOrCreateConversationGitlabRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      gitlabContext,
+      repositorySession: {
+        ...repositorySession,
+        repositorySandboxSession: {
+          sandboxId: "sandbox_gitlab_stored",
+          repositoryContextKey,
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:00:00.000Z",
+        },
+      },
+      organizationId: "org_123",
+      localUserId: "user_123",
+    });
+
+    expect(isRepositorySandboxAvailableMock).not.toHaveBeenCalled();
+    expect(createGitlabRepositorySandboxMock).toHaveBeenCalledWith({
+      localOrganizationId: "org_123",
+      workosUserId: "user_workos",
+      gitlabContext,
+    });
+    expect(result).toMatchObject({
+      sandboxId: "sandbox_gitlab_legacy",
       sandboxCreated: true,
       staleSandboxId: "sandbox_gitlab_stored",
     });

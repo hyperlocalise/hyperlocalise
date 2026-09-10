@@ -25,6 +25,7 @@ export type ConversationRepositorySandboxSession = {
   repositoryContextKey: string;
   createdAt: string;
   lastUsedAt: string;
+  credentialOwnerWorkosUserId?: string;
 };
 
 export type ConversationRepositorySession = {

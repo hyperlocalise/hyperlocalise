@@ -31,6 +31,7 @@ export type SlackRepositorySandboxSession = {
   repositoryContextKey: string;
   createdAt: string;
   lastUsedAt: string;
+  credentialOwnerWorkosUserId?: string;
 };
 
 export type SlackImageLocalizationOutput = {

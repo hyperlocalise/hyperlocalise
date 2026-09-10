@@ -441,14 +441,23 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     conversationId: input.conversationId,
     surface: input.surface,
   });
+  const workosUserId = await resolveGitLabPipesWorkosUserId({
+    workosUserId: input.workosUserId,
+    localUserId: input.localUserId,
+  });
+  if (!workosUserId) {
+    throw new Error("gitlab_not_connected");
+  }
+
   const repositoryContextKey = getGitlabRepositoryContextKey(input.gitlabContext);
   const sandboxSession = input.repositorySession?.repositorySandboxSession;
   const now = new Date().toISOString();
+  const canReuseStoredSandbox =
+    sandboxSession != null &&
+    sandboxSession.repositoryContextKey === repositoryContextKey &&
+    sandboxSession.credentialOwnerWorkosUserId === workosUserId;
 
-  if (
-    sandboxSession?.repositoryContextKey === repositoryContextKey &&
-    (await isRepositorySandboxAvailable(sandboxSession.sandboxId))
-  ) {
+  if (canReuseStoredSandbox && (await isRepositorySandboxAvailable(sandboxSession.sandboxId))) {
     log.info(
       { sandboxId: sandboxSession.sandboxId },
       "reusing stored gitlab repository sandbox for conversation agent",
@@ -469,19 +478,14 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     };
   }
 
-  const workosUserId = await resolveGitLabPipesWorkosUserId({
-    workosUserId: input.workosUserId,
-    localUserId: input.localUserId,
-  });
-  if (!workosUserId) {
-    throw new Error("gitlab_not_connected");
-  }
-
   log.info(
     {
       projectId: input.gitlabContext.projectId,
-      branch: input.gitlabContext.branch ?? null,
-      commitSha: input.gitlabContext.commitSha ?? null,
+      revisionKind: input.gitlabContext.commitSha
+        ? "commit"
+        : input.gitlabContext.branch
+          ? "branch"
+          : "head",
     },
     "creating gitlab repository sandbox for conversation agent",
   );
@@ -499,6 +503,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
+      credentialOwnerWorkosUserId: workosUserId,
       createdAt: now,
       lastUsedAt: now,
     },

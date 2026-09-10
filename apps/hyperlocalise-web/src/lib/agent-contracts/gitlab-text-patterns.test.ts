@@ -27,6 +27,31 @@ describe("gitlab text patterns", () => {
     ).toEqual(["acme/platform/web"]);
   });
 
+  it("stops project URL capture at the GitLab /-/ boundary", () => {
+    expect(
+      extractGitLabProjectPathReferences(
+        [
+          "https://gitlab.com/acme/web/-/tree/main",
+          "https://gitlab.com/acme/web/-/blob/main/README.md",
+          "https://gitlab.com/acme/web/-/issues/12",
+          "https://gitlab.com/acme/web/-/commits/main",
+        ].join(" "),
+      ),
+    ).toEqual(["acme/web"]);
+  });
+
+  it("extracts nested group project paths from tree URLs", () => {
+    expect(
+      extractGitLabProjectPathReferences("See https://gitlab.com/acme/platform/web/-/tree/main"),
+    ).toEqual(["acme/platform/web"]);
+  });
+
+  it("keeps hyphenated project names while stopping at /-/", () => {
+    expect(
+      extractGitLabProjectPathReferences("https://gitlab.com/acme/my-web/-/tree/feature-login"),
+    ).toEqual(["acme/my-web"]);
+  });
+
   it("extracts merge request URLs including nested groups", () => {
     expect(
       extractGitLabMergeRequestReferences(

@@ -20,11 +20,15 @@ export type GitLabMergeRequestReference = GitLabProjectReference & {
   mergeRequestIid: number;
 };
 
-export const gitlabMergeRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com\/((?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+)\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
+const gitlabPathWithNamespacePatternSource = String.raw`(?:(?!-\/)[A-Za-z0-9_.-]+\/)+(?!-\/)[A-Za-z0-9_.-]+`;
+
+export const gitlabMergeRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com\/(${gitlabPathWithNamespacePatternSource})\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
 
 const gitlabMergeRequestUrlPattern = new RegExp(gitlabMergeRequestUrlPatternSource, "gi");
-const gitlabProjectUrlPattern =
-  /https?:\/\/(?:www\.)?gitlab\.com\/((?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+)(?=\/-\/|[/?#\s>|)\].,;:!?]|$)/gi;
+const gitlabProjectUrlPattern = new RegExp(
+  String.raw`https?:\/\/(?:www\.)?gitlab\.com\/(${gitlabPathWithNamespacePatternSource})(?=\/-\/|[/?#\s>|)\].,;:!?]|$)`,
+  "gi",
+);
 
 function trimTrailingPunctuation(value: string) {
   return value.replace(/[.,;:!?]+$/g, "");

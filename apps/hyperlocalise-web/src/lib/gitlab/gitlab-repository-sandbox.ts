@@ -23,6 +23,18 @@ import { loadGitLabPipesAccessToken } from "./pipes";
 
 const logger = createLogger("gitlab-repository-sandbox");
 
+function gitlabRepositorySandboxRevisionKind(
+  context: RepositoryAgentGitLabContext,
+): "commit" | "branch" | "head" {
+  if (context.commitSha) {
+    return "commit";
+  }
+  if (context.branch) {
+    return "branch";
+  }
+  return "head";
+}
+
 export async function createGitlabRepositorySandbox(input: {
   localOrganizationId: string;
   workosUserId: string;
@@ -31,8 +43,7 @@ export async function createGitlabRepositorySandbox(input: {
 }): Promise<string> {
   const log = logger.child({
     projectId: input.gitlabContext.projectId,
-    branch: input.gitlabContext.branch ?? null,
-    commitSha: input.gitlabContext.commitSha ?? null,
+    revisionKind: gitlabRepositorySandboxRevisionKind(input.gitlabContext),
   });
   log.info("vending gitlab pipes access token for repository sandbox");
 
@@ -46,7 +57,7 @@ export async function createGitlabRepositorySandbox(input: {
   }
 
   const revision = input.gitlabContext.commitSha ?? input.gitlabContext.branch ?? "HEAD";
-  log.info({ revision }, "creating vercel repository sandbox from gitlab git source");
+  log.info("creating vercel repository sandbox from gitlab git source");
 
   try {
     const workspace = await createVercelSandboxWorkspace({
