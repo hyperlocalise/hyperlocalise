@@ -186,30 +186,26 @@ describe("zernio client", () => {
 
     expect(isOk(first)).toBe(true);
     expect(isOk(second)).toBe(true);
-    const firstKey = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    const secondKey = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(firstKey["Idempotency-Key"]).toMatch(
+    const [, firstInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [, secondInit] = fetchMock.mock.calls[1] as [URL, RequestInit];
+    const firstKey = (firstInit.headers as Record<string, string>)["Idempotency-Key"];
+    const secondKey = (secondInit.headers as Record<string, string>)["Idempotency-Key"];
+    expect(firstKey).toMatch(
       /^zernio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
-    expect(secondKey["Idempotency-Key"]).toMatch(
+    expect(secondKey).toMatch(
       /^zernio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
-    expect(firstKey["Idempotency-Key"]).not.toBe(secondKey["Idempotency-Key"]);
+    expect(firstKey).not.toBe(secondKey);
   });
 
   it("retries a timed-out create once with the same idempotency key", async () => {
     vi.stubGlobal("fetch", fetchMock);
     const abortError = new Error("aborted");
     abortError.name = "AbortError";
-    fetchMock.mockRejectedValueOnce(abortError).mockResolvedValueOnce(
-      jsonResponse({ ad: { _id: "ad_1" } }, 201),
-    );
+    fetchMock
+      .mockRejectedValueOnce(abortError)
+      .mockResolvedValueOnce(jsonResponse({ ad: { _id: "ad_1" } }, 201));
 
     const result = await createZernioAd({
       apiKey: "sk_live_test",
@@ -223,15 +219,11 @@ describe("zernio client", () => {
 
     expect(isOk(result)).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const firstKey = ((fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >)["Idempotency-Key"];
-    const secondKey = ((fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >)["Idempotency-Key"];
-    expect(firstKey).toBe(secondKey);
+    const [, firstInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [, secondInit] = fetchMock.mock.calls[1] as [URL, RequestInit];
+    expect((firstInit.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      (secondInit.headers as Record<string, string>)["Idempotency-Key"],
+    );
   });
 
   it("does not retry a timed-out create when the caller supplied a signal", async () => {
