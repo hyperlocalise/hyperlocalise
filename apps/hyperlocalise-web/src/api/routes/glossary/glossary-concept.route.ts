@@ -901,6 +901,7 @@ export function createGlossaryConceptRoutes(
                       term.gender !== undefined ? (term.gender ?? undefined) : existing?.gender,
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
+                    forbidden: term.forbidden ?? existing?.forbidden ?? false,
                   };
                 }),
         } satisfies GlossaryConcept;
@@ -1032,6 +1033,7 @@ export function createGlossaryConceptRoutes(
             gender: payload.gender ?? existing.gender ?? "",
             url: payload.url ?? existing.url ?? "",
             lemma: payload.lemma ?? existing.lemma ?? "",
+            forbidden: payload.forbidden ?? existing.forbidden ?? false,
           });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);

@@ -60,6 +60,7 @@ import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
+import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -199,6 +200,75 @@ async function authenticatedMcpHeaders(identity = fixture.createWorkosIdentity()
   return {
     ...headers,
     authorization: `Bearer ${accessToken}`,
+  };
+}
+
+async function callMcpTool(
+  headers: Record<string, string>,
+  name: string,
+  arguments_: Record<string, unknown>,
+) {
+  return mcpClient.mcp.$post(
+    {},
+    {
+      headers: {
+        ...headers,
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      init: {
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name,
+            arguments: arguments_,
+          },
+        }),
+      },
+    },
+  );
+}
+
+async function callCreateGlossaryConcept(
+  headers: Record<string, string>,
+  arguments_: {
+    glossaryId: string;
+    sourceLocale?: string;
+    sourceTerm?: string;
+    targetLocale?: string;
+    targetTerm?: string;
+    description?: string;
+    partOfSpeech?: string;
+    forbidden?: boolean;
+  },
+) {
+  return callMcpTool(headers, "create_glossary_concept", {
+    sourceLocale: "en-US",
+    sourceTerm: "workspace",
+    targetLocale: "vi-VN",
+    targetTerm: "không gian làm việc",
+    ...arguments_,
+  });
+}
+
+async function readMcpToolResult(response: Response) {
+  expect(response.status).toBe(200);
+
+  const body = (await response.json()) as {
+    result?: {
+      isError?: boolean;
+      content?: Array<{ text?: string }>;
+    };
+  };
+
+  const text = body.result?.content?.[0]?.text;
+  expect(text).toBeDefined();
+
+  return {
+    isError: body.result?.isError === true,
+    output: JSON.parse(text ?? "{}") as Record<string, unknown>,
   };
 }
 
@@ -8756,5 +8826,554 @@ describe("mcpRoutes", () => {
     expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
       error: "unsupported_binary_download",
     });
+  });
+
+  it("advertises create_glossary_concept with bounded inputs", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            required?: string[];
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "create_glossary_concept");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("glossary");
+
+    expect(tool?.inputSchema?.required).toEqual(
+      expect.arrayContaining([
+        "glossaryId",
+        "sourceLocale",
+        "sourceTerm",
+        "targetLocale",
+        "targetTerm",
+      ]),
+    );
+
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      glossaryId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+      },
+      sourceLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 50,
+      },
+      sourceTerm: {
+        type: "string",
+        minLength: 1,
+        maxLength: 1_000,
+      },
+      targetLocale: {
+        type: "string",
+        minLength: 1,
+        maxLength: 50,
+      },
+      targetTerm: {
+        type: "string",
+        minLength: 1,
+        maxLength: 1_000,
+      },
+      description: {
+        type: "string",
+        maxLength: 10_000,
+      },
+      partOfSpeech: {
+        type: "string",
+        enum: expect.arrayContaining(["noun", "verb", "adjective", "other"]),
+      },
+      forbidden: {
+        type: "boolean",
+        default: false,
+      },
+    });
+  });
+
+  it("returns forbidden when a non-admin creates a glossary concept", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "member",
+    );
+
+    const headers = await authenticatedMcpHeaders(memberIdentity);
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: "glossary_inaccessible",
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "forbidden",
+      });
+
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("returns glossary_not_found when creating a concept in a missing glossary", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: randomUUID(),
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "glossary_not_found",
+      });
+
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("returns glossary_not_found for a malformed glossary ID", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: "missing_glossary",
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "glossary_not_found",
+      });
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("does not create a concept in another organization's glossary", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const [foreignGlossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: inaccessible.organization.id,
+        createdByUserId: inaccessible.user.id,
+        name: "Foreign glossary",
+        sourceLocale: "en-US",
+        source: "native",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: foreignGlossary.id,
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "glossary_not_found",
+      });
+
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("returns glossary_read_only for a provider-synced glossary", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [providerGlossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Provider glossary",
+        sourceLocale: "en-US",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalResourceType: "glossary",
+        externalGlossaryId: "crowdin-glossary-1",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: providerGlossary.id,
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "glossary_read_only",
+      });
+
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("rejects a source locale that differs from the glossary source locale", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Source locale validation",
+        sourceLocale: "en-US",
+        source: "native",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept");
+
+    try {
+      const result = await readMcpToolResult(
+        await callCreateGlossaryConcept(headers, {
+          glossaryId: glossary.id,
+          sourceLocale: "fr-FR",
+        }),
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.output).toMatchObject({
+        error: "invalid_glossary_payload",
+        expectedSourceLocale: "en-US",
+      });
+      expect(createConceptSpy).not.toHaveBeenCalled();
+    } finally {
+      createConceptSpy.mockRestore();
+    }
+  });
+
+  it("creates concept-linked source and target terms in a native glossary", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Product terminology",
+        description: "Canonical product terminology",
+        sourceLocale: "en-US",
+        source: "native",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const result = await readMcpToolResult(
+      await callCreateGlossaryConcept(headers, {
+        glossaryId: glossary.id,
+        sourceLocale: "en-US",
+        sourceTerm: "workspace",
+        targetLocale: "vi-VN",
+        targetTerm: "khu vực làm việc",
+        description: "A shared area containing projects and members.",
+        partOfSpeech: "noun",
+        forbidden: true,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+
+    expect(result.output).toMatchObject({
+      conceptId: expect.any(String),
+      sourceTermId: expect.any(String),
+      targetTermId: expect.any(String),
+    });
+
+    const conceptId = String(result.output.conceptId);
+    const sourceTermId = String(result.output.sourceTermId);
+    const targetTermId = String(result.output.targetTermId);
+
+    expect(sourceTermId).not.toBe(targetTermId);
+
+    const [concept] = await db
+      .select({
+        id: schema.glossaryConcepts.id,
+        glossaryId: schema.glossaryConcepts.glossaryId,
+        primaryTerm: schema.glossaryConcepts.primaryTerm,
+        definition: schema.glossaryConcepts.definition,
+      })
+      .from(schema.glossaryConcepts)
+      .where(eq(schema.glossaryConcepts.id, conceptId))
+      .limit(1);
+
+    expect(concept).toEqual({
+      id: conceptId,
+      glossaryId: glossary.id,
+      primaryTerm: "workspace",
+      definition: "A shared area containing projects and members.",
+    });
+
+    const terms = await db
+      .select({
+        id: schema.glossaryTerms.id,
+        glossaryId: schema.glossaryTerms.glossaryId,
+        conceptId: schema.glossaryTerms.conceptId,
+        locale: schema.glossaryTerms.locale,
+        term: schema.glossaryTerms.term,
+        partOfSpeech: schema.glossaryTerms.partOfSpeech,
+        status: schema.glossaryTerms.status,
+        forbidden: schema.glossaryTerms.forbidden,
+      })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.conceptId, conceptId));
+
+    expect(terms).toHaveLength(2);
+
+    const source = terms.find(({ id }) => id === sourceTermId);
+    const target = terms.find(({ id }) => id === targetTermId);
+
+    expect(source).toMatchObject({
+      glossaryId: glossary.id,
+      conceptId,
+      locale: "en-US",
+      term: "workspace",
+      partOfSpeech: "noun",
+      status: "preferred",
+      forbidden: false,
+    });
+
+    expect(target).toMatchObject({
+      glossaryId: glossary.id,
+      conceptId,
+      locale: "vi-VN",
+      term: "khu vực làm việc",
+      partOfSpeech: "noun",
+      status: "not_recommended",
+      forbidden: true,
+    });
+  });
+
+  it("rejects duplicate glossary concept terms without creating partial records", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Duplicate terminology test",
+        sourceLocale: "en-US",
+        source: "native",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const request = {
+      glossaryId: glossary.id,
+      sourceLocale: "en-US",
+      sourceTerm: "workspace",
+      targetLocale: "vi-VN",
+      targetTerm: "không gian làm việc",
+      partOfSpeech: "noun",
+    };
+
+    const first = await readMcpToolResult(await callCreateGlossaryConcept(headers, request));
+
+    expect(first.isError).toBe(false);
+
+    const duplicate = await readMcpToolResult(await callCreateGlossaryConcept(headers, request));
+
+    expect(duplicate.isError).toBe(true);
+    expect(duplicate.output).toMatchObject({
+      error: "duplicate_glossary_concept_term",
+    });
+
+    const concepts = await db
+      .select({ id: schema.glossaryConcepts.id })
+      .from(schema.glossaryConcepts)
+      .where(eq(schema.glossaryConcepts.glossaryId, glossary.id));
+
+    expect(concepts).toHaveLength(1);
+
+    const terms = await db
+      .select({
+        id: schema.glossaryTerms.id,
+        conceptId: schema.glossaryTerms.conceptId,
+        locale: schema.glossaryTerms.locale,
+        term: schema.glossaryTerms.term,
+      })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+
+    expect(terms).toHaveLength(2);
+    expect(new Set(terms.map(({ conceptId }) => conceptId))).toEqual(new Set([concepts[0]?.id]));
+  });
+
+  it("exposes a created concept through glossary read tools", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: "Vietnamese product terminology",
+        sourceLocale: "en-US",
+        source: "native",
+      })
+      .returning({ id: schema.glossaries.id });
+
+    const created = await readMcpToolResult(
+      await callCreateGlossaryConcept(headers, {
+        glossaryId: glossary.id,
+        sourceLocale: "en-US",
+        sourceTerm: "workspace",
+        targetLocale: "vi-VN",
+        targetTerm: "không gian làm việc",
+        description: "A shared area containing projects and members.",
+        partOfSpeech: "noun",
+        forbidden: true,
+      }),
+    );
+
+    expect(created.isError).toBe(false);
+
+    const conceptId = String(created.output.conceptId);
+    const sourceTermId = String(created.output.sourceTermId);
+    const targetTermId = String(created.output.targetTermId);
+
+    const entries = await readMcpToolResult(
+      await callMcpTool(headers, "get_glossary_entries", {
+        glossaryId: glossary.id,
+        limit: 50,
+      }),
+    );
+
+    expect(entries.isError).toBe(false);
+    expect(entries.output.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: sourceTermId,
+          conceptId,
+          locale: "en-US",
+          term: "workspace",
+          partOfSpeech: "noun",
+          forbidden: false,
+        }),
+        expect.objectContaining({
+          id: targetTermId,
+          conceptId,
+          locale: "vi-VN",
+          term: "không gian làm việc",
+          partOfSpeech: "noun",
+          status: "not_recommended",
+          forbidden: true,
+        }),
+      ]),
+    );
+
+    const query = await readMcpToolResult(
+      await callMcpTool(headers, "query_glossary", {
+        glossaryId: glossary.id,
+        sourceText: "Create a new workspace",
+        sourceLocale: "en-US",
+        targetLocale: "vi-VN",
+        limit: 10,
+      }),
+    );
+
+    expect(query.isError).toBe(false);
+    expect(query.output.terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          glossaryId: glossary.id,
+          conceptId,
+          sourceTerm: "workspace",
+          targetTerm: "không gian làm việc",
+          forbidden: true,
+          status: "not_recommended",
+          partOfSpeech: "noun",
+        }),
+      ]),
+    );
   });
 });

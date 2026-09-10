@@ -135,6 +135,10 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import { createTranslationJob } from "@/lib/agent-runtime/tools/translation-tools";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { getOwnedGlossary, isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
+import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { mcpCreateGlossaryConceptInputSchema } from "./mcp-create-glossary-concept.schema";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -1842,6 +1846,136 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           },
         ],
       };
+    },
+  );
+
+  server.registerTool(
+    "create_glossary_concept",
+    {
+      description: "Create a source and target terminology concept in a native glossary.",
+      inputSchema: mcpCreateGlossaryConceptInputSchema,
+    },
+    async ({
+      glossaryId,
+      sourceLocale,
+      sourceTerm,
+      targetLocale,
+      targetTerm,
+      description,
+      partOfSpeech,
+      forbidden,
+    }) => {
+      if (!isGlossaryManageAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to manage glossaries");
+      }
+
+      if (!isQueryableNativeGlossaryId(glossaryId)) {
+        return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+      }
+
+      const glossary = await getOwnedGlossary(apiAuth, glossaryId);
+
+      if (!glossary) {
+        return mcpToolError("glossary_not_found", "Glossary not found or inaccessible");
+      }
+
+      if (glossary.source !== "native") {
+        return mcpToolError("glossary_read_only", "Provider-synced glossaries are read-only");
+      }
+
+      if (sourceLocale !== glossary.sourceLocale) {
+        return mcpToolError(
+          "invalid_glossary_payload",
+          "Source locale must match the glossary source locale",
+          {
+            expectedSourceLocale: glossary.sourceLocale,
+          },
+        );
+      }
+
+      const product = getGlossaryProduct({
+        auth: apiAuth,
+        glossary,
+        actorUserId: apiAuth.user.localUserId,
+      });
+
+      if (!product) {
+        return mcpToolError("glossary_read_only", "Provider-synced glossaries are read-only");
+      }
+
+      try {
+        const created = await product.createConcept({
+          primaryTerm: sourceTerm,
+          sourceLocale,
+          definition: description,
+          terms: [
+            {
+              locale: sourceLocale,
+              term: sourceTerm,
+              partOfSpeech,
+              status: "preferred",
+            },
+            {
+              locale: targetLocale,
+              term: targetTerm,
+              partOfSpeech,
+              status: forbidden ? "not_recommended" : "preferred",
+              forbidden,
+            },
+          ],
+        });
+
+        if (!created) {
+          return mcpToolError(
+            "duplicate_glossary_concept_term",
+            "A glossary concept with one of these terms already exists",
+          );
+        }
+
+        const conceptId = created.externalKey ?? String(created.conceptId ?? "");
+
+        const source = created.terms.find(
+          (term) =>
+            term.locale === sourceLocale &&
+            term.text.toLocaleLowerCase() === sourceTerm.toLocaleLowerCase(),
+        );
+
+        const target = created.terms.find(
+          (term) =>
+            term.locale === targetLocale &&
+            term.text.toLocaleLowerCase() === targetTerm.toLocaleLowerCase(),
+        );
+
+        if (!conceptId || source?.id == null || target?.id == null) {
+          throw new Error("Created glossary concept did not return its linked term IDs");
+        }
+
+        serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
+          status: "created",
+          source: "mcp_glossary_concept",
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                conceptId,
+                sourceTermId: String(source.id),
+                targetTermId: String(target.id),
+              }),
+            },
+          ],
+        };
+      } catch (error) {
+        if (error instanceof GlossaryValidationError) {
+          return mcpToolError("invalid_glossary_payload", error.message, {
+            reason: error.code,
+          });
+        }
+
+        throw error;
+      }
     },
   );
 
