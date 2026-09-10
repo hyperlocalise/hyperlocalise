@@ -13,12 +13,15 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { TypographyP } from "@/components/ui/typography";
 import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
@@ -26,22 +29,131 @@ import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatSignedDelta } from "./domain-research-format";
 import { DomainResearchTextareaDialog } from "./domain-research-textarea-dialog";
 import { domainRanksViewMessages as messages } from "./domain-ranks-view.messages";
+import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
 
 const RANK_GRID =
   "grid grid-cols-[minmax(12rem,1.2fr)_repeat(2,minmax(4rem,0.4fr))_minmax(10rem,1fr)_minmax(4.5rem,0.45fr)] items-center gap-3 px-3 py-2.5";
 
-export function DomainRanksView({ linkedDomainId }: { linkedDomainId: string }) {
+function parseKeywordLines(value: string) {
+  const unique = new Map<string, string>();
+  for (const line of value.split(/\n/)) {
+    const keyword = line.trim();
+    if (!keyword) {
+      continue;
+    }
+    unique.set(keyword.toLowerCase(), keyword);
+  }
+  return [...unique.values()].slice(0, 20).map((keyword) => ({ keyword }));
+}
+
+export function DomainRanksView({
+  linkedDomainId,
+  organizationSlug,
+}: {
+  linkedDomainId: string;
+  organizationSlug?: string;
+}) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const queryClient = useQueryClient();
+  const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
+  const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
   const [addOpen, setAddOpen] = useState(false);
+  const [addPending, setAddPending] = useState(false);
+  const [refreshPending, setRefreshPending] = useState(false);
+
+  if (liveResearch.live && liveResearch.isPending) {
+    return (
+      <TypographyP size="small" tone="subtle">
+        <FormattedMessage {...messages.loading} />
+      </TypographyP>
+    );
+  }
 
   if (!catalog) {
     return null;
   }
 
+  const marketId = catalog.domain.market.id;
+
+  async function addKeywords(value: string) {
+    const keywords = parseKeywordLines(value);
+    if (keywords.length === 0) {
+      return false;
+    }
+    if (!organizationSlug || !liveResearch.live) {
+      toast.success(intl.formatMessage(messages.addSuccess));
+      return true;
+    }
+    setAddPending(true);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ marketId, keywords }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        toast.error(body.message || intl.formatMessage(messages.addError));
+        return false;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+      toast.success(intl.formatMessage(messages.addSuccess));
+      return true;
+    } finally {
+      setAddPending(false);
+    }
+  }
+
+  async function refreshRanks() {
+    if (!organizationSlug || !liveResearch.live) {
+      return;
+    }
+    setRefreshPending(true);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks/refresh`,
+        { method: "POST" },
+      );
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        toast.error(body.message || intl.formatMessage(messages.refreshError));
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+      toast.success(intl.formatMessage(messages.refreshSuccess));
+    } finally {
+      setRefreshPending(false);
+    }
+  }
+
   return (
     <div className="grid gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        {liveResearch.live ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={refreshPending || catalog.ranks.length === 0}
+            onClick={() => {
+              void refreshRanks();
+            }}
+          >
+            {refreshPending ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <HugeiconsIcon icon={ReloadIcon} strokeWidth={1.8} />
+            )}
+            <FormattedMessage {...messages.refreshCta} />
+          </Button>
+        ) : null}
         <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
           <FormattedMessage {...messages.addCta} />
@@ -124,8 +236,9 @@ export function DomainRanksView({ linkedDomainId }: { linkedDomainId: string }) 
         label={intl.formatMessage(messages.addLabel)}
         placeholder={intl.formatMessage(messages.addPlaceholder)}
         submitLabel={intl.formatMessage(messages.addSubmit)}
+        pending={addPending}
         onOpenChange={setAddOpen}
-        onSubmit={() => toast.success(intl.formatMessage(messages.addSuccess))}
+        onSubmit={addKeywords}
       />
     </div>
   );

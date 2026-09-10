@@ -18,10 +18,12 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TypographyP } from "@/components/ui/typography";
 import type { DomainResearchNavId, DomainResearchSurface } from "@/lib/domains/research-prototype";
 import {
   getResearchPrototypeDomain,
   isDomainResearchSurface,
+  isLiveDomainResearchId,
 } from "@/lib/domains/research-prototype";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
@@ -33,6 +35,7 @@ import { DomainStatusBadge } from "./domain-status-badge";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
 import { domainResearchShellMessages as messages } from "./domain-research-shell.messages";
 import { DomainVerifyDialog } from "./domain-verify-dialog";
+import { useLiveDomainResearch } from "./use-live-domain-research";
 
 import styles from "./domain-header.module.css";
 
@@ -57,8 +60,33 @@ export function DomainResearchShell({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const domain = getResearchPrototypeDomain(linkedDomainId);
+  const prototypeDomain = getResearchPrototypeDomain(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(
+    isLiveDomainResearchId(linkedDomainId) ? organizationSlug : undefined,
+    linkedDomainId,
+  );
+  const domain = prototypeDomain ?? liveResearch.data?.catalog.domain ?? null;
   const [verifyOpen, setVerifyOpen] = useState(false);
+
+  if (!prototypeDomain && liveResearch.isPending) {
+    return (
+      <WorkspacePageShell>
+        <TypographyP size="small" tone="subtle">
+          <FormattedMessage {...messages.loading} />
+        </TypographyP>
+      </WorkspacePageShell>
+    );
+  }
+
+  if (!prototypeDomain && liveResearch.isError) {
+    return (
+      <WorkspacePageShell>
+        <TypographyP size="small" tone="subtle">
+          <FormattedMessage {...messages.loadError} />
+        </TypographyP>
+      </WorkspacePageShell>
+    );
+  }
 
   if (!domain) {
     return (

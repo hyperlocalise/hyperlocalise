@@ -26,7 +26,10 @@ export default async function DomainRanksPage({
       linkedDomainId={linkedDomainId}
       surface="ranks"
     >
-      <DomainRanksView linkedDomainId={linkedDomainId} />
+      <DomainRanksView
+        linkedDomainId={linkedDomainId}
+        organizationSlug={organizationSlug}
+      />
     </DomainResearchShell>
   );
 }

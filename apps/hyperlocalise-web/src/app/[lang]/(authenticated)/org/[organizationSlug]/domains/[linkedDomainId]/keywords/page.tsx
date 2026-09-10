@@ -26,7 +26,10 @@ export default async function DomainKeywordsPage({
       linkedDomainId={linkedDomainId}
       surface="keywords"
     >
-      <DomainKeywordsView linkedDomainId={linkedDomainId} />
+      <DomainKeywordsView
+        linkedDomainId={linkedDomainId}
+        organizationSlug={organizationSlug}
+      />
     </DomainResearchShell>
   );
 }

@@ -27,9 +27,13 @@ function DomainResearchPage({
 }) {
   const organizationSlug = "domains-preview";
   const views = {
-    overview: <DomainOverviewView linkedDomainId={linkedDomainId} />,
-    keywords: <DomainKeywordsView linkedDomainId={linkedDomainId} />,
-    ranks: <DomainRanksView linkedDomainId={linkedDomainId} />,
+    overview: (
+      <DomainOverviewView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
+    ),
+    keywords: (
+      <DomainKeywordsView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
+    ),
+    ranks: <DomainRanksView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />,
     brand: <DomainBrandView linkedDomainId={linkedDomainId} />,
     prompts: <DomainPromptsView linkedDomainId={linkedDomainId} />,
   };

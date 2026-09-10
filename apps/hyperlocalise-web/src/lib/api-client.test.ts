@@ -41,6 +41,7 @@ describe("createApiClient", () => {
     expect(typeof org["contentful-connections"].$get).toBe("function");
     expect(typeof org["mcp-server-connections"].$get).toBe("function");
     expect(typeof org["linked-domains"].$get).toBe("function");
+    expect(typeof org["linked-domains"][":linkedDomainId"].research.$get).toBe("function");
     expect(typeof org["semrush-connections"].$get).toBe("function");
     expect(typeof org["ahrefs-connections"].$get).toBe("function");
     expect(typeof org.pipes[":provider"].$get).toBe("function");

@@ -1,6 +1,6 @@
 # go-svc
 
-Go container service for CPU-heavy work that runs beside the Next.js app on Vercel. Today it powers CAT segment validation (format, length, and Hunspell spelling checks). Future Domains SEO features will call DataForSEO through `internal/dataforseo` and Google Search Console through `internal/gsc`.
+Go container service for CPU-heavy work that runs beside the Next.js app on Vercel. Today it powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains research through DataForSEO (`internal/dataforseo`). Google Search Console will call `internal/gsc`.
 
 Public routes are served at `/api/go-svc/...` in production (Vercel rewrite) and at `/v1/...` or `/ofrep/...` when called directly via the `GO_SVC_URL` binding.
 
@@ -30,9 +30,9 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
 | `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required to serve Hyperlab OFREP evaluate routes. |
 
-### DataForSEO (upcoming SEO features)
+### DataForSEO (Domains research)
 
-Used by `internal/dataforseo` for keyword research, domain overview, rank tracking, and AI visibility. Not required for the current segment-validation API.
+Used by `internal/dataforseo` for keyword research, live SERPs, and rank tracking. Required for `/v1/domains/research/*`. Not required for segment validation.
 
 | Variable | Description |
 |----------|-------------|
@@ -118,6 +118,10 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie | Validate a CAT segment (format, length, spelling) |
+| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie | Expand a seed keyword + market through DataForSEO Labs |
+| `POST` | `/v1/domains/research/serp` | WorkOS session cookie | Fetch a live organic SERP snapshot |
+| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie | Live rank check for one keyword against a hostname |
+| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie | Live rank check for up to 20 keywords |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 

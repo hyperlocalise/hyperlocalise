@@ -15,12 +15,18 @@
 import { useMemo, useState } from "react";
 import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
-import { listResearchPrototypeDomains } from "@/lib/domains/research-prototype";
+import {
+  linkedDomainToResearchDomain,
+  listResearchPrototypeDomains,
+  type DomainResearchDomain,
+} from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -37,7 +43,28 @@ const LIST_GRID_CLASS =
 
 export function DomainsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
-  const domains = useMemo(() => listResearchPrototypeDomains(), []);
+  const prototypeDomains = useMemo(() => listResearchPrototypeDomains(), []);
+  const linkedDomainsQuery = useQuery({
+    queryKey: ["linked-domains", organizationSlug],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        linkedDomains?: LinkedDomainPublic[];
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(body.message || body.error || intl.formatMessage(messages.loadError));
+      }
+      return (body.linkedDomains ?? []).map((domain) => linkedDomainToResearchDomain(domain));
+    },
+  });
+  const domains: DomainResearchDomain[] =
+    linkedDomainsQuery.data && linkedDomainsQuery.data.length > 0
+      ? linkedDomainsQuery.data
+      : prototypeDomains;
   const [linkOpen, setLinkOpen] = useState(false);
   const [verifyDomainKey, setVerifyDomainKey] = useState<string | null>(null);
 

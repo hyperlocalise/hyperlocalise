@@ -21,15 +21,24 @@ import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { domainOverviewViewMessages as messages } from "./domain-overview-view.messages";
+import { useLiveDomainResearch } from "./use-live-domain-research";
 
 const KEYWORD_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(3,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 const PAGE_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(2,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 
-export function DomainOverviewTables({ linkedDomainId }: { linkedDomainId: string }) {
+export function DomainOverviewTables({
+  linkedDomainId,
+  organizationSlug,
+}: {
+  linkedDomainId: string;
+  organizationSlug?: string;
+}) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
+  const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
   const [tab, setTab] = useState<"keywords" | "pages">("keywords");
 
   if (!catalog) {

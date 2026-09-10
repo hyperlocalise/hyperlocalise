@@ -8,16 +8,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
+	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 )
 
 const (
 	serverReadHeaderTimeout = 5 * time.Second
-	serverReadTimeout       = 15 * time.Second
-	serverWriteTimeout      = 15 * time.Second
+	serverReadTimeout       = 75 * time.Second
+	serverWriteTimeout      = 75 * time.Second
 	serverIdleTimeout       = 60 * time.Second
 	serverShutdownTimeout   = 10 * time.Second
 
@@ -68,6 +70,15 @@ func main() {
 
 	h := newHandler()
 	h.spellChecker = spellChecker
+
+	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
+		client, err := dataforseo.NewClient(dataforseo.Config{APIKey: apiKey})
+		if err != nil {
+			log.Printf("configure dataforseo: %v", err)
+		} else {
+			h.research = newDataForSEOResearch(client)
+		}
+	}
 
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)

@@ -15,6 +15,7 @@
 import { useMemo, useState } from "react";
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -28,32 +29,172 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import { getResearchPrototypeCatalog, type KeywordIdea, type SerpResult } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatKeywordIntent } from "./domain-research-format";
 import { domainKeywordsViewMessages as messages } from "./domain-keywords-view.messages";
 import { DomainSeedKeywordsDialog } from "./domain-seed-keywords-dialog";
+import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
 
 const KEYWORD_GRID =
   "grid grid-cols-[auto_minmax(12rem,1.4fr)_repeat(3,minmax(4.5rem,0.55fr))_minmax(6rem,0.7fr)_auto] items-center gap-3 px-3 py-2.5";
 
-export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string }) {
+export function DomainKeywordsView({
+  linkedDomainId,
+  organizationSlug,
+}: {
+  linkedDomainId: string;
+  organizationSlug?: string;
+}) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const queryClient = useQueryClient();
+  const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
+  const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
   const [seedOpen, setSeedOpen] = useState(false);
+  const [seedPending, setSeedPending] = useState(false);
+  const [persistPending, setPersistPending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
+  const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
+  const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
+  const [serpPending, setSerpPending] = useState(false);
+  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
+  const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
 
-  const keywords = catalog?.keywords ?? [];
+  const keywords = ideas ?? catalog?.keywords ?? [];
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const serpKeyword = keywords.find((keyword) => keyword.id === serpKeywordId) ?? null;
-  const serpResults = serpKeyword ? (catalog?.serpByKeywordId[serpKeyword.id] ?? []) : [];
+  const serpResults =
+    liveSerpResults ??
+    (serpKeyword ? (catalog?.serpByKeywordId[serpKeyword.id] ?? []) : []);
+
+  if (liveResearch.live && liveResearch.isPending) {
+    return (
+      <TypographyP size="small" tone="subtle">
+        <FormattedMessage {...messages.loading} />
+      </TypographyP>
+    );
+  }
 
   if (!catalog) {
     return null;
+  }
+
+  const selectedKeywords = keywords.filter((keyword) => selectedSet.has(keyword.id));
+  const marketId = expandedMarketId ?? catalog.domain.market.id;
+
+  async function expandIdeas(input: { keyword: string; marketId: string }) {
+    if (!organizationSlug || !liveResearch.live) {
+      toast.success(intl.formatMessage(messages.seedSuccess));
+      return true;
+    }
+    setSeedPending(true);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/expand`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seedKeyword: input.keyword, marketId: input.marketId }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        ideas?: KeywordIdea[];
+        message?: string;
+      };
+      if (!response.ok || !body.ideas) {
+        toast.error(body.message || intl.formatMessage(messages.seedError));
+        return false;
+      }
+      setIdeas(body.ideas);
+      setSelectedIds([]);
+      setExpandedMarketId(input.marketId);
+      setSeedKeyword(input.keyword);
+      toast.success(intl.formatMessage(messages.seedSuccess));
+      return true;
+    } finally {
+      setSeedPending(false);
+    }
+  }
+
+  async function persistSelected(path: "save" | "ranks") {
+    if (!organizationSlug || !liveResearch.live) {
+      toast.success(
+        intl.formatMessage(path === "save" ? messages.saved : messages.sentToRanks),
+      );
+      setSelectedIds([]);
+      return;
+    }
+    setPersistPending(true);
+    const endpoint =
+      path === "save"
+        ? `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/save`
+        : `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId,
+          seedKeyword,
+          keywords: selectedKeywords,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        toast.error(
+          body.message ||
+            intl.formatMessage(path === "save" ? messages.saveError : messages.ranksError),
+        );
+        return;
+      }
+      setSelectedIds([]);
+      setIdeas(null);
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+      toast.success(intl.formatMessage(path === "save" ? messages.saved : messages.sentToRanks));
+    } finally {
+      setPersistPending(false);
+    }
+  }
+
+  async function inspectSerp(keyword: KeywordIdea) {
+    setSerpKeywordId(keyword.id);
+    setLiveSerpResults(null);
+    if (!organizationSlug || !liveResearch.live) {
+      return;
+    }
+    setSerpPending(true);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/serp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword: keyword.keyword, marketId }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        results?: SerpResult[];
+        message?: string;
+      };
+      if (!response.ok || !body.results) {
+        toast.error(body.message || intl.formatMessage(messages.serpError));
+        return;
+      }
+      setLiveSerpResults(body.results);
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+    } finally {
+      setSerpPending(false);
+    }
   }
 
   function toggleKeyword(id: string, checked: boolean) {
@@ -124,7 +265,9 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
                 <button
                   type="button"
                   className="min-w-0 truncate text-start font-medium text-foreground underline-offset-4 hover:underline"
-                  onClick={() => setSerpKeywordId(keyword.id)}
+                  onClick={() => {
+                    void inspectSerp(keyword);
+                  }}
                 >
                   {keyword.keyword}
                 </button>
@@ -141,7 +284,13 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
                   })}
                 </span>
                 <Badge variant="outline">{formatKeywordIntent(intl, keyword.intent)}</Badge>
-                <Button size="sm" variant="ghost" onClick={() => setSerpKeywordId(keyword.id)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void inspectSerp(keyword);
+                  }}
+                >
                   <FormattedMessage {...messages.inspectSerp} />
                 </Button>
               </div>
@@ -159,18 +308,18 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
             <Button
               size="sm"
               variant="outline"
+              disabled={persistPending}
               onClick={() => {
-                toast.success(intl.formatMessage(messages.saved));
-                setSelectedIds([]);
+                void persistSelected("save");
               }}
             >
               <FormattedMessage {...messages.save} />
             </Button>
             <Button
               size="sm"
+              disabled={persistPending}
               onClick={() => {
-                toast.success(intl.formatMessage(messages.sentToRanks));
-                setSelectedIds([]);
+                void persistSelected("ranks");
               }}
             >
               <FormattedMessage {...messages.sendToRanks} />
@@ -183,7 +332,9 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
         open={seedOpen}
         defaultKeyword={keywords[0]?.keyword ?? "traduction automatique"}
         defaultMarketId={catalog.domain.market.id}
+        pending={seedPending}
         onOpenChange={setSeedOpen}
+        onExpand={expandIdeas}
       />
 
       <Sheet
@@ -191,6 +342,7 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
         onOpenChange={(open) => {
           if (!open) {
             setSerpKeywordId(null);
+            setLiveSerpResults(null);
           }
         }}
       >
@@ -210,7 +362,12 @@ export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string 
             </SheetDescription>
           </SheetHeader>
           <div className="grid gap-3 overflow-y-auto px-6 pb-6">
-            {serpResults.length === 0 ? (
+            {serpPending ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Spinner className="size-3.5" />
+                <FormattedMessage {...messages.serpLoading} />
+              </div>
+            ) : serpResults.length === 0 ? (
               <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.serpEmpty} />
               </TypographyP>

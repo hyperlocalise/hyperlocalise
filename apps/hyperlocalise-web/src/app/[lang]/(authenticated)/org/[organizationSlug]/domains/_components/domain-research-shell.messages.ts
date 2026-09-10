@@ -50,4 +50,14 @@ export const domainResearchShellMessages = defineMessages({
     id: "szhXuo8hoK",
     description: "Section label above a domain research heading",
   },
+  loading: {
+    defaultMessage: "Loading domain research…",
+    id: "dR7mLiveLd",
+    description: "Loading state for a live linked domain research page",
+  },
+  loadError: {
+    defaultMessage: "Could not load domain research.",
+    id: "dR7mLiveEr",
+    description: "Error state when live domain research fails to load",
+  },
 });

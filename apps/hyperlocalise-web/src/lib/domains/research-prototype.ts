@@ -36,6 +36,7 @@ export type DomainResearchMarket = {
   location: string;
   language: string;
   label: string;
+  locationCode: number;
 };
 
 export type DomainResearchDomain = {
@@ -121,10 +122,10 @@ export type DomainResearchCatalog = {
 };
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
-  { id: "france-fr", location: "France", language: "fr", label: "France · fr" },
-  { id: "germany-de", location: "Germany", language: "de", label: "Germany · de" },
-  { id: "japan-ja", location: "Japan", language: "ja", label: "Japan · ja" },
-  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnam · vi" },
+  { id: "france-fr", location: "France", language: "fr", label: "France · fr", locationCode: 2250 },
+  { id: "germany-de", location: "Germany", language: "de", label: "Germany · de", locationCode: 2276 },
+  { id: "japan-ja", location: "Japan", language: "ja", label: "Japan · ja", locationCode: 2392 },
+  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnam · vi", locationCode: 2704 },
 ];
 
 const FRANCE_FR = DOMAIN_RESEARCH_MARKETS[0]!;
@@ -730,6 +731,39 @@ export function getResearchPrototypeCatalog(linkedDomainId: string): DomainResea
 
 export function isResearchPrototypeDomain(linkedDomainId: string): boolean {
   return RESEARCH_PROTOTYPE_BY_ID.has(linkedDomainId);
+}
+
+export function getResearchMarket(marketId: string): DomainResearchMarket | undefined {
+  return DOMAIN_RESEARCH_MARKETS.find((market) => market.id === marketId);
+}
+
+export function isLiveDomainResearchId(linkedDomainId: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    linkedDomainId,
+  );
+}
+
+export function linkedDomainToResearchDomain(input: {
+  id: string;
+  domainKey: string;
+  sourceUrl: string;
+  status: string;
+  auditScore: number | null;
+}): DomainResearchDomain {
+  return {
+    id: input.id,
+    domainKey: input.domainKey,
+    sourceUrl: input.sourceUrl,
+    market: DOMAIN_RESEARCH_MARKETS[0]!,
+    status: input.status === "verified" ? "verified" : "pending_verification",
+    keywordCount: 0,
+    keywordCountLabel: "—",
+    traffic: 0,
+    trafficLabel: "—",
+    score: input.auditScore,
+    trackedCount: 0,
+    aiMentions: 0,
+  };
 }
 
 export const DOMAIN_RESEARCH_VERIFY_RECORD = {

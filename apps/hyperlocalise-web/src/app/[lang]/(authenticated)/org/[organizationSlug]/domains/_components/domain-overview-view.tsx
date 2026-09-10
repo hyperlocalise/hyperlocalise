@@ -1,4 +1,5 @@
 "use client";
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,15 +13,30 @@
  * Version 2.0 or later.
  */
 import { FormattedMessage, useIntl } from "react-intl";
+
+import { TypographyP } from "@/components/ui/typography";
 import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
 import { getDomainMetricHistory } from "@/lib/domains/research-metric-history";
+
 import { DomainMetricCard } from "./domain-metric-card";
 import { DomainOverviewTables } from "./domain-overview-tables";
 import { domainMetricMessages as messages } from "./domain-metric.messages";
+import { useLiveDomainResearch } from "./use-live-domain-research";
 
-export function DomainOverviewView({ linkedDomainId }: { linkedDomainId: string }) {
+export function DomainOverviewView({
+  linkedDomainId,
+  organizationSlug,
+}: {
+  linkedDomainId: string;
+  organizationSlug?: string;
+}) {
   const intl = useIntl();
-  const domain = getResearchPrototypeDomain(linkedDomainId);
+  const prototypeDomain = getResearchPrototypeDomain(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
+  const domain = liveResearch.data?.catalog.domain ?? prototypeDomain;
+  if (liveResearch.live && liveResearch.isPending) {
+    return null;
+  }
   if (!domain) return null;
   const history = getDomainMetricHistory(linkedDomainId);
   const metrics = [
@@ -57,10 +73,10 @@ export function DomainOverviewView({ linkedDomainId }: { linkedDomainId: string 
           />
         ))}
       </section>
-      <p className="text-sm text-muted-foreground">
-        <FormattedMessage {...messages.sampleData} />
-      </p>
-      <DomainOverviewTables linkedDomainId={linkedDomainId} />
+      <TypographyP size="small" tone="subtle">
+        <FormattedMessage {...(liveResearch.live ? messages.liveData : messages.sampleData)} />
+      </TypographyP>
+      <DomainOverviewTables linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
     </div>
   );
 }

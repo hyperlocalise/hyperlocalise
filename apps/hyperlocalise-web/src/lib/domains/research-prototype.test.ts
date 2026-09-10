@@ -14,10 +14,13 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   DOMAIN_RESEARCH_SURFACES,
+  getResearchMarket,
   getResearchPrototypeCatalog,
   getResearchPrototypeDomain,
   isDomainResearchSurface,
+  isLiveDomainResearchId,
   isResearchPrototypeDomain,
+  linkedDomainToResearchDomain,
   listResearchPrototypeDomains,
 } from "./research-prototype";
 
@@ -55,5 +58,28 @@ describe("research prototype catalog", () => {
     expect(DOMAIN_RESEARCH_SURFACES).toContain("prompts");
     expect(isDomainResearchSurface("keywords")).toBe(true);
     expect(isDomainResearchSurface("audit")).toBe(false);
+  });
+
+  it("maps markets to DataForSEO location codes", () => {
+    expect(getResearchMarket("france-fr")?.locationCode).toBe(2250);
+    expect(isLiveDomainResearchId("11111111-1111-4111-8111-111111111111")).toBe(true);
+    expect(isLiveDomainResearchId("hyperlocalise-com")).toBe(false);
+  });
+
+  it("maps a claimed domain onto the research list shape", () => {
+    expect(
+      linkedDomainToResearchDomain({
+        id: "11111111-1111-4111-8111-111111111111",
+        domainKey: "example.fr",
+        sourceUrl: "https://example.fr/",
+        status: "verified",
+        auditScore: 72,
+      }),
+    ).toMatchObject({
+      domainKey: "example.fr",
+      status: "verified",
+      score: 72,
+      market: { id: "france-fr", locationCode: 2250 },
+    });
   });
 });
