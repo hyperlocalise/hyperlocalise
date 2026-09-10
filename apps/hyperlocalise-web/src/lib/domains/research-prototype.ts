@@ -42,6 +42,7 @@ export type DomainResearchMarket = {
 export type DomainResearchDomain = {
   id: string;
   domainKey: string;
+  domainSlug?: string;
   sourceUrl: string;
   locales: DomainResearchMarket[];
   status: DomainResearchStatus;
@@ -867,6 +868,7 @@ export function isLiveDomainResearchId(linkedDomainId: string): boolean {
 export function linkedDomainToResearchDomain(input: {
   id: string;
   domainKey: string;
+  domainSlug?: string;
   sourceUrl: string;
   status: string;
   auditScore: number | null;
@@ -874,6 +876,7 @@ export function linkedDomainToResearchDomain(input: {
   return {
     id: input.id,
     domainKey: input.domainKey,
+    domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
     locales: DOMAIN_RESEARCH_MARKETS,
     status: input.status === "verified" ? "verified" : "pending_verification",

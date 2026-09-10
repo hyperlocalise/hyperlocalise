@@ -14,6 +14,7 @@
  */
 import { FormattedMessage, useIntl } from "react-intl";
 import { useDomainResearchCatalog } from "./domain-research-context";
+import { useDomainResearchPreview } from "./domain-research-preview";
 import { TypographyP } from "@/components/ui/typography";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { getDomainMetricHistory } from "@/lib/domains/research-metric-history";
@@ -30,9 +31,10 @@ export function DomainOverviewView({
   organizationSlug?: string;
 }) {
   const intl = useIntl();
+  const preview = useDomainResearchPreview();
   const domain = useDomainResearchCatalog(linkedDomainId)?.domain;
   if (!domain) return null;
-  const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
+  const live = !preview && Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   const history = getDomainMetricHistory(linkedDomainId);
   const metrics = [
     {

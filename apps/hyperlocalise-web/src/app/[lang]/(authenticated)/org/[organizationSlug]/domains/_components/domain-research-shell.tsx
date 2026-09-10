@@ -18,7 +18,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { useSearchParams } from "next/navigation";
 import { DomainResearchContext } from "./domain-research-context";
-import { useDomainPrototype } from "./use-domain-prototype";
+import { useDomainResearchPreview } from "./domain-research-preview";
 import { DomainLinkDialog } from "./domain-link-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
@@ -38,12 +38,12 @@ import {
   getResearchPrototypeCatalog,
   resolveDomainLocale,
   isDomainResearchSurface,
-  isLiveDomainResearchId,
 } from "@/lib/domains/research-prototype";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 
 import { DomainResearchEmpty, DomainResearchMissingDomain } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
@@ -93,9 +93,11 @@ export function DomainResearchShell({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const live = isLiveDomainResearchId(linkedDomainId);
-  const liveResearch = useLiveDomainResearch(live ? organizationSlug : undefined, linkedDomainId);
-  const { domains, saveDomain } = useDomainPrototype(organizationSlug);
+  const preview = useDomainResearchPreview();
+  const liveResearch = useLiveDomainResearch(
+    preview ? undefined : organizationSlug,
+    linkedDomainId,
+  );
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const requestedLocaleId = searchParams.get("locale");
@@ -103,8 +105,8 @@ export function DomainResearchShell({
   const [editOpen, setEditOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
 
-  const prototypeDomain = domains.find((item) => item.id === linkedDomainId);
-  const domain = live ? (liveResearch.data?.catalog.domain ?? null) : (prototypeDomain ?? null);
+  const previewDomain = preview?.domains.find((item) => item.id === linkedDomainId) ?? null;
+  const domain = previewDomain ?? liveResearch.data?.catalog.domain ?? null;
   const locale = domain ? resolveDomainLocale(domain, requestedLocaleId) : null;
   const localeId = locale?.id;
 
@@ -117,7 +119,7 @@ export function DomainResearchShell({
     // while the URL is still stale.
   }, [linkedDomainId, localeId, organizationSlug, requestedLocaleId, search, surface]);
 
-  if (live && liveResearch.isPending) {
+  if (!preview && liveResearch.live && liveResearch.isPending) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -127,7 +129,7 @@ export function DomainResearchShell({
     );
   }
 
-  if (live && liveResearch.isError) {
+  if (!preview && liveResearch.live && liveResearch.isError) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -146,12 +148,15 @@ export function DomainResearchShell({
   }
 
   const liveCatalog = liveResearch.data?.catalog;
-  const catalog = live
-    ? liveCatalog
+  const catalog = preview
+    ? getResearchPrototypeCatalog(linkedDomainId, locale.id)
+    : liveCatalog
       ? filterCatalogForLocale(liveCatalog, locale.id)
-      : null
-    : getResearchPrototypeCatalog(linkedDomainId, locale.id);
+      : null;
   const activeLocaleId = locale.id;
+  const verifyHref = domain.domainSlug
+    ? `/org/${organizationSlug}/link-domain/${domain.domainSlug}`
+    : null;
 
   function researchHref(nextLocaleId: string, nextSurface = surface) {
     return hrefForLocale({
@@ -190,9 +195,15 @@ export function DomainResearchShell({
             <>
               <DomainStatusBadge status={domain.status} />
               {isPending ? (
-                <Button size="sm" onClick={() => setVerifyOpen(true)}>
-                  <FormattedMessage {...sharedMessages.verifyCta} />
-                </Button>
+                verifyHref ? (
+                  <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
+                    <FormattedMessage {...sharedMessages.verifyCta} />
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => setVerifyOpen(true)}>
+                    <FormattedMessage {...sharedMessages.verifyCta} />
+                  </Button>
+                )
               ) : null}
             </>
           }
@@ -225,11 +236,11 @@ export function DomainResearchShell({
             </SelectContent>
           </Select>
         </Field>
-        {live ? null : (
+        {preview ? (
           <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
             <FormattedMessage {...messages.editLocales} />
           </Button>
-        )}
+        ) : null}
         <p className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.localeScope} />
         </p>
@@ -250,9 +261,15 @@ export function DomainResearchShell({
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}
           action={
-            <Button size="sm" onClick={() => setVerifyOpen(true)}>
-              <FormattedMessage {...sharedMessages.verifyCta} />
-            </Button>
+            verifyHref ? (
+              <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
+                <FormattedMessage {...sharedMessages.verifyCta} />
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setVerifyOpen(true)}>
+                <FormattedMessage {...sharedMessages.verifyCta} />
+              </Button>
+            )
           }
         />
       ) : catalog ? (
@@ -269,26 +286,30 @@ export function DomainResearchShell({
             />
           }
           action={
-            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-              <FormattedMessage {...messages.editLocales} />
-            </Button>
+            preview ? (
+              <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                <FormattedMessage {...messages.editLocales} />
+              </Button>
+            ) : undefined
           }
         />
       )}
-      {live ? null : (
+      {preview ? (
         <DomainLinkDialog
           open={editOpen}
           onOpenChange={setEditOpen}
           domain={domain}
-          onSave={saveDomain}
+          onSave={preview.saveDomain}
         />
-      )}
+      ) : null}
 
-      <DomainVerifyDialog
-        open={verifyOpen}
-        domainKey={domain.domainKey}
-        onOpenChange={setVerifyOpen}
-      />
+      {preview ? (
+        <DomainVerifyDialog
+          open={verifyOpen}
+          domainKey={domain.domainKey}
+          onOpenChange={setVerifyOpen}
+        />
+      ) : null}
     </WorkspacePageShell>
   );
 }

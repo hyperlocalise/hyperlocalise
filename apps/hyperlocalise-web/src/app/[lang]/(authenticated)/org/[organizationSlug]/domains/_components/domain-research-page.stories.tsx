@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { DomainResearchShell } from "./domain-research-shell";
+import { DomainResearchPreviewProvider } from "./domain-research-preview";
 import type { DomainResearchNavId } from "@/lib/domains/research-prototype";
 import { DomainOverviewView } from "./domain-overview-view";
 import { DomainKeywordsView } from "./domain-keywords-view";
@@ -38,13 +39,15 @@ function DomainResearchPage({
     prompts: <DomainPromptsView linkedDomainId={linkedDomainId} />,
   };
   return (
-    <DomainResearchShell
-      organizationSlug={organizationSlug}
-      linkedDomainId={linkedDomainId}
-      surface={surface}
-    >
-      {views[surface]}
-    </DomainResearchShell>
+    <DomainResearchPreviewProvider organizationSlug={organizationSlug}>
+      <DomainResearchShell
+        organizationSlug={organizationSlug}
+        linkedDomainId={linkedDomainId}
+        surface={surface}
+      >
+        {views[surface]}
+      </DomainResearchShell>
+    </DomainResearchPreviewProvider>
   );
 }
 const meta = {

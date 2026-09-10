@@ -11,7 +11,12 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { http, HttpResponse } from "msw";
 import { DomainsPageContent } from "./domains-page-content";
+import { DomainResearchPreviewProvider } from "./domain-research-preview";
+
+const ORGANIZATION_SLUG = "domains-preview";
+
 const meta = {
   title: "App/Domains/Page",
   component: DomainsPageContent,
@@ -19,8 +24,29 @@ const meta = {
     layout: "fullscreen",
     nextjs: { appDirectory: true, navigation: { pathname: "/en/org/domains-preview/domains" } },
   },
-  args: { organizationSlug: "domains-preview" },
+  args: { organizationSlug: ORGANIZATION_SLUG },
 } satisfies Meta<typeof DomainsPageContent>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const Populated: Story = {};
+
+export const Populated: Story = {
+  decorators: [
+    (Story) => (
+      <DomainResearchPreviewProvider organizationSlug={ORGANIZATION_SLUG}>
+        <Story />
+      </DomainResearchPreviewProvider>
+    ),
+  ],
+};
+
+export const Empty: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("*/api/orgs/:organizationSlug/linked-domains", () =>
+          HttpResponse.json({ linkedDomains: [] }),
+        ),
+      ],
+    },
+  },
+};

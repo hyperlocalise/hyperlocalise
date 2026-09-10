@@ -73,12 +73,14 @@ describe("research prototype catalog", () => {
       linkedDomainToResearchDomain({
         id: "11111111-1111-4111-8111-111111111111",
         domainKey: "example.fr",
+        domainSlug: "example-fr",
         sourceUrl: "https://example.fr/",
         status: "verified",
         auditScore: 72,
       }),
     ).toMatchObject({
       domainKey: "example.fr",
+      domainSlug: "example-fr",
       status: "verified",
       score: 72,
       locales: expect.arrayContaining([

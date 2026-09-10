@@ -12,13 +12,14 @@
  */
 
 // @vitest-environment happy-dom
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   getResearchPrototypeDomain,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
+import { DomainResearchPreviewProvider } from "./domain-research-preview";
 import { DomainResearchShell } from "./domain-research-shell";
 
 const mocks = vi.hoisted(() => ({
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(mocks.search),
+  usePathname: () => "/en/org/acme/domains/hyperlocalise-com",
 }));
 
 vi.mock("@/lib/navigation/use-org-router", () => ({
@@ -66,13 +68,15 @@ describe("domain research locale URL", () => {
     mocks.domains = [{ ...domain, locales: domain.locales.slice(1) }];
     render(
       <IntlProvider locale="en">
-        <DomainResearchShell
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-          surface="overview"
-        >
-          research
-        </DomainResearchShell>
+        <DomainResearchPreviewProvider organizationSlug="acme">
+          <DomainResearchShell
+            organizationSlug="acme"
+            linkedDomainId="hyperlocalise-com"
+            surface="overview"
+          >
+            research
+          </DomainResearchShell>
+        </DomainResearchPreviewProvider>
       </IntlProvider>,
     );
     expect(mocks.replace).toHaveBeenCalledWith(
@@ -84,6 +88,23 @@ describe("domain research locale URL", () => {
   it("keeps a supported locale in the URL", () => {
     render(
       <IntlProvider locale="en">
+        <DomainResearchPreviewProvider organizationSlug="acme">
+          <DomainResearchShell
+            organizationSlug="acme"
+            linkedDomainId="hyperlocalise-com"
+            surface="overview"
+          >
+            research
+          </DomainResearchShell>
+        </DomainResearchPreviewProvider>
+      </IntlProvider>,
+    );
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to prototype catalogs on the live page", () => {
+    render(
+      <IntlProvider locale="en">
         <DomainResearchShell
           organizationSlug="acme"
           linkedDomainId="hyperlocalise-com"
@@ -93,6 +114,7 @@ describe("domain research locale URL", () => {
         </DomainResearchShell>
       </IntlProvider>,
     );
-    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
+    expect(screen.getByText("Domain not found")).toBeInTheDocument();
   });
 });
