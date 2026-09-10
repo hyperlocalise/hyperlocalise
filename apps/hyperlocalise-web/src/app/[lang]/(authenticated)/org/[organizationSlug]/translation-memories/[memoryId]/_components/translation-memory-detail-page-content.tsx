@@ -81,11 +81,10 @@ const emptyEntryForm: EntryForm = {
 export function TranslationMemoryDetailPageContent({
   organizationSlug,
   memoryId,
-  canManageMemories,
 }: {
   organizationSlug: string;
   memoryId: string;
-  canManageMemories: boolean;
+  canManageMemories?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -237,8 +236,9 @@ export function TranslationMemoryDetailPageContent({
   });
 
   const memory = memoryQuery.data;
-  const isNative = memory?.source === "native";
-  const canEdit = canManageMemories && isNative && memory?.capabilityMode !== "reference_only";
+  const canEdit = memory?.capabilities?.edit.allowed ?? false;
+  const canReview = memory?.capabilities?.review.allowed ?? false;
+  const canManageMemoryEntries = canEdit || canReview;
   const attachedProjectIds = useMemo(
     () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
     [attachedProjectsQuery.data],
@@ -297,7 +297,7 @@ export function TranslationMemoryDetailPageContent({
         memoryId={memoryId}
         localeCoverage={memory.localeCoverage}
         canEdit={canEdit}
-        canManageMemories={canManageMemories}
+        canManageMemories={canManageMemoryEntries}
         isDeleting={deleteEntry.isPending}
         onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
         toolbarActions={

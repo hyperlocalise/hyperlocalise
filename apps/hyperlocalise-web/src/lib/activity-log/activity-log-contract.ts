@@ -56,6 +56,7 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "translation_memory_exported",
   "translation_memory_project_attached",
   "translation_memory_project_detached",
+  "translation_memory_action_rejected",
 ] as const;
 export type V1ActivityEventType = (typeof V1_ACTIVITY_EVENT_TYPES)[number];
 
@@ -211,6 +212,11 @@ export type ActivityPayloadByEventType = {
   translation_memory_exported: ImportExportPayload;
   translation_memory_project_attached: AttachmentPayload;
   translation_memory_project_detached: AttachmentPayload;
+  translation_memory_action_rejected: {
+    action: string;
+    reason: string;
+    resourceId: string;
+  };
   job_created: {
     jobId: string;
     kind: string;
@@ -288,6 +294,7 @@ export type ActivityTargetKindByEventType = {
   translation_memory_exported: "translation_memory";
   translation_memory_project_attached: "project";
   translation_memory_project_detached: "project";
+  translation_memory_action_rejected: "translation_memory";
   job_created: "job";
   job_cancelled: "job";
   job_failed: "job";

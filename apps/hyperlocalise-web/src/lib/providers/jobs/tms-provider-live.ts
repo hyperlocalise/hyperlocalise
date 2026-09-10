@@ -321,6 +321,7 @@ export type TmsProviderLiveTranslationMemory = {
   externalUrl: string | null;
   externalProjectId: string;
   projectName: string | null;
+  capabilities?: import("@/lib/memory/memory-capabilities").MemoryCapabilities;
 };
 
 type ActiveTmsProviderContext = {

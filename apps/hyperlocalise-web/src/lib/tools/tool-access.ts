@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 export {
-  apiAuthContextFromToolContext,
   toolAccessibleJobsWhere,
   toolAccessibleProjectsWhere,
   toolCanAccessGlossary,

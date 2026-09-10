@@ -50,6 +50,8 @@ const REVIEW_CAPABILITIES: OrganizationCapability[] = [
   "agent_write:approve",
 ];
 
+const MEMORY_REVIEW_CAPABILITIES: OrganizationCapability[] = ["memories:review"];
+
 const OPERATOR_CAPABILITIES: OrganizationCapability[] = [
   "workspace:update",
   "members:invite",
@@ -105,6 +107,7 @@ describe("organization capability policy", () => {
         ...CONTRIBUTOR_CAPABILITIES,
         ...WRITE_BACK_TRANSLATION_CAPABILITIES,
         ...REVIEW_CAPABILITIES,
+        ...MEMORY_REVIEW_CAPABILITIES,
         ...OPERATOR_CAPABILITIES,
         ...ADMIN_ONLY_CAPABILITIES,
       ].sort(),
@@ -137,6 +140,7 @@ describe("organization capability policy", () => {
         ...MEMBER_READ_CAPABILITIES,
         ...CONTRIBUTOR_CAPABILITIES,
         ...REVIEW_CAPABILITIES,
+        ...MEMORY_REVIEW_CAPABILITIES,
         ...OPERATOR_CAPABILITIES,
       ]) {
         expect(hasCapability("localization_manager", capability)).toBe(true);
@@ -165,6 +169,9 @@ describe("organization capability policy", () => {
       for (const capability of REVIEW_CAPABILITIES) {
         expect(hasCapability("developer", capability)).toBe(false);
       }
+      for (const capability of MEMORY_REVIEW_CAPABILITIES) {
+        expect(hasCapability("developer", capability)).toBe(false);
+      }
 
       for (const capability of SENSITIVE_ADMIN_CAPABILITIES) {
         expect(hasCapability("developer", capability)).toBe(false);
@@ -182,6 +189,9 @@ describe("organization capability policy", () => {
   describe("reviewer role", () => {
     it("grants review and write-back approval but not org administration", () => {
       for (const capability of REVIEW_CAPABILITIES) {
+        expect(hasCapability("reviewer", capability)).toBe(true);
+      }
+      for (const capability of MEMORY_REVIEW_CAPABILITIES) {
         expect(hasCapability("reviewer", capability)).toBe(true);
       }
 
@@ -205,6 +215,9 @@ describe("organization capability policy", () => {
       }
 
       for (const capability of REVIEW_CAPABILITIES) {
+        expect(hasCapability("translator", capability)).toBe(false);
+      }
+      for (const capability of MEMORY_REVIEW_CAPABILITIES) {
         expect(hasCapability("translator", capability)).toBe(false);
       }
 

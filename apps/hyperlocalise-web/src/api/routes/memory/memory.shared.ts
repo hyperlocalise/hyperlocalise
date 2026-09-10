@@ -14,6 +14,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { validationErrorResponse } from "@/api/errors";
 import {
+  apiErrorResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   type JsonContext,
@@ -22,6 +23,7 @@ import { canAccessMemory } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
+import type { MemoryCapabilityReason } from "@/lib/memory/memory-capabilities";
 
 export function invalidMemoryPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_memory_payload", "Invalid translation memory payload");
@@ -56,6 +58,22 @@ export function memoryEntryReadOnlyResponse(
   }
 
   return externalTmsMemoryImmutableResponse(c);
+}
+
+export function memoryCapabilityDeniedResponse(
+  c: { json: JsonContext["json"] },
+  action: string,
+  reason: MemoryCapabilityReason,
+) {
+  const messages: Record<MemoryCapabilityReason, string> = {
+    unauthorized: "You do not have permission to perform this translation memory action",
+    unsupported: "This translation memory does not support this action",
+    read_only: "This translation memory is read-only",
+    archived: "This translation memory is archived",
+    unavailable: "This translation memory is temporarily unavailable",
+  };
+
+  return apiErrorResponse(c, 403, `memory_action_${reason}`, messages[reason], { action });
 }
 
 export function isMemoryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {

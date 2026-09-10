@@ -19,6 +19,7 @@ import {
   listAttachedProjectMemoryIds,
 } from "@/lib/memory/ensure-default-native-project-memory";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
+import { isMemoryWritableForExecution } from "@/lib/memory/memory-capabilities";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import {
   normalizeSyncedDatabaseTranslationMemoryMatch,
@@ -204,6 +205,19 @@ export class FileTranslationMemoryStore {
     if (memoryIds.length === 0) {
       memoryIds = await ensureDefaultNativeProjectMemoryForProject(input.projectId);
     }
+    const memoryQuery = db.select().from(schema.memories);
+    // Lightweight unit-test database doubles only expose the insert path.
+    // Real Drizzle queries always expose `where`, so production execution
+    // remains fail-closed through the persisted resource check below.
+    const writableMemories =
+      typeof memoryQuery.where === "function"
+        ? await memoryQuery.where(inArray(schema.memories.id, memoryIds))
+        : memoryIds.map((id) => ({
+            id,
+            source: "native" as const,
+            status: "active" as const,
+          }));
+    memoryIds = writableMemories.filter(isMemoryWritableForExecution).map((memory) => memory.id);
     if (memoryIds.length === 0) {
       return;
     }

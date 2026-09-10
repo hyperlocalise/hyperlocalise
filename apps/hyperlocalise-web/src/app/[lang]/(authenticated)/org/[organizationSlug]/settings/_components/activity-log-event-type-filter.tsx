@@ -162,6 +162,7 @@ const eventTypeLabels = {
   translation_memory_exported: messages.translationMemoryExportedEventType,
   translation_memory_project_attached: messages.translationMemoryProjectAttachedEventType,
   translation_memory_project_detached: messages.translationMemoryProjectDetachedEventType,
+  translation_memory_action_rejected: messages.translationMemoryActionRejectedEventType,
   job_created: messages.jobCreatedEventType,
   job_cancelled: messages.jobCancelledEventType,
   job_failed: messages.jobFailedEventType,

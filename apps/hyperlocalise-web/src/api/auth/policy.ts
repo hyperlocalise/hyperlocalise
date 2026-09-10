@@ -41,6 +41,8 @@ const REVIEW_CAPABILITIES = [
   "agent_write:approve",
 ] as const;
 
+const MEMORY_REVIEW_CAPABILITIES = ["memories:review"] as const;
+
 /** Technical contributors: projects, sync jobs, integrations visibility; no review or org admin. */
 const DEVELOPER_CAPABILITIES = [
   ...MEMBER_READ_CAPABILITIES,
@@ -57,6 +59,7 @@ const LOCALIZATION_MANAGER_CAPABILITIES = [
   ...JOB_CONTRIBUTOR_CAPABILITIES,
   ...WRITE_BACK_TRANSLATION_CAPABILITIES,
   ...REVIEW_CAPABILITIES,
+  ...MEMORY_REVIEW_CAPABILITIES,
   "workspace:update",
   "members:invite",
   "teams:write",
@@ -98,7 +101,10 @@ const REVIEWER_CAPABILITIES = new Set<OrganizationCapability>([
   ...JOB_CONTRIBUTOR_CAPABILITIES,
   ...WRITE_BACK_TRANSLATION_CAPABILITIES,
   ...REVIEW_CAPABILITIES,
+  ...MEMORY_REVIEW_CAPABILITIES,
 ]);
+
+const TRANSLATOR_CAPABILITY_SET = new Set<OrganizationCapability>(TRANSLATOR_CAPABILITIES);
 
 const LOCALIZATION_MANAGER_CAPABILITY_SET = new Set<OrganizationCapability>(
   LOCALIZATION_MANAGER_CAPABILITIES,
@@ -111,7 +117,7 @@ const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<Organiza
   localization_manager: LOCALIZATION_MANAGER_CAPABILITY_SET,
   developer: DEVELOPER_CAPABILITY_SET,
   reviewer: REVIEWER_CAPABILITIES,
-  translator: TRANSLATOR_CAPABILITIES,
+  translator: TRANSLATOR_CAPABILITY_SET,
   member: MEMBER_CAPABILITIES,
 };
 

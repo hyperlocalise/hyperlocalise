@@ -69,6 +69,7 @@ const eventActions = {
   translation_memory_exported: messages.translationMemoryExportedAction,
   translation_memory_project_attached: messages.translationMemoryProjectAttachedAction,
   translation_memory_project_detached: messages.translationMemoryProjectDetachedAction,
+  translation_memory_action_rejected: messages.translationMemoryActionRejectedAction,
   job_created: messages.jobCreatedAction,
   job_cancelled: messages.jobCancelledAction,
   job_failed: messages.jobFailedAction,
