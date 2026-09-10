@@ -41,6 +41,7 @@ import {
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
+import type { ChatRepository } from "../../_components/chat-repository";
 import { RepositorySelector } from "../../_components/repository-selector";
 import { ProjectSelector } from "../../_components/project-selector";
 import {
@@ -49,7 +50,12 @@ import {
   type ChatProjectOption,
 } from "../../_components/project-selector-model";
 import { useTmsLiveProjects } from "../../_hooks/use-tms-live-projects";
-import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
+import {
+  createInboxApi,
+  type ChatComposerSendOptions,
+  type InboxApi,
+  type InboxChatRepository,
+} from "./inbox-api";
 import { replyComposerMessages } from "./reply-composer.messages";
 
 const inboxApi = createInboxApi(apiClient);
@@ -77,16 +83,12 @@ type ReplyComposerViewProps = {
   lockedProjectId?: string | null;
   lockedProjectName?: string | null;
   onDraftChange?: (draft: string) => void;
-  onSend: (
-    text: string,
-    files: File[],
-    options?: { projectId?: string; repositoryFullName?: string },
-  ) => void | Promise<void>;
+  onSend: (text: string, files: File[], options?: ChatComposerSendOptions) => void | Promise<void>;
   placeholder?: string;
   projects: ChatProjectOption[];
   projectsIsError: boolean;
   projectsIsLoading: boolean;
-  repositories: InboxGithubRepository[];
+  repositories: InboxChatRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
 };
@@ -110,7 +112,7 @@ export function ReplyComposerView({
 }: ReplyComposerViewProps) {
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
-  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
+  const [selectedRepositoryKey, setSelectedRepositoryKey] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const promptInputController = usePromptInputController();
   // Stable across keystrokes; the controller object itself is recreated whenever
@@ -129,12 +131,12 @@ export function ReplyComposerView({
 
   useEffect(() => {
     if (
-      selectedRepositoryFullName &&
-      !repositories.some((repository) => repository.fullName === selectedRepositoryFullName)
+      selectedRepositoryKey &&
+      !repositories.some((repository) => repository.selectionKey === selectedRepositoryKey)
     ) {
-      setSelectedRepositoryFullName("");
+      setSelectedRepositoryKey("");
     }
-  }, [repositories, selectedRepositoryFullName]);
+  }, [repositories, selectedRepositoryKey]);
 
   useEffect(() => {
     if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
@@ -142,8 +144,9 @@ export function ReplyComposerView({
     }
   }, [projects, selectedProjectId]);
 
-  const resolvedRepositoryFullName =
-    selectedRepositoryFullName || (repositories.length === 1 ? repositories[0]?.fullName : "");
+  const resolvedRepository: ChatRepository | undefined =
+    repositories.find((repository) => repository.selectionKey === selectedRepositoryKey) ??
+    (repositories.length === 1 ? repositories[0] : undefined);
   const resolvedProjectId = resolveChatProjectSelection({
     projects,
     selectedProjectId,
@@ -168,7 +171,8 @@ export function ReplyComposerView({
 
     await onSend(trimmedText, fileObjects, {
       projectId: resolvedProjectId || undefined,
-      repositoryFullName: resolvedRepositoryFullName || undefined,
+      repositoryFullName: resolvedRepository?.fullName,
+      repositoryProvider: resolvedRepository?.provider,
     });
     setReplyText("");
     onDraftChange?.("");
@@ -244,8 +248,10 @@ export function ReplyComposerView({
                 repositories={repositories}
                 repositoriesIsError={repositoriesIsError}
                 repositoriesIsLoading={repositoriesIsLoading}
-                selectedRepositoryFullName={resolvedRepositoryFullName}
-                onSelectRepository={setSelectedRepositoryFullName}
+                selectedRepositoryKey={resolvedRepository?.selectionKey ?? ""}
+                onSelectRepository={(repository) =>
+                  setSelectedRepositoryKey(repository.selectionKey)
+                }
                 triggerStyle="prompt-input"
               />
               <PromptInputSubmit
@@ -289,8 +295,8 @@ export const ReplyComposer = memo(function ReplyComposer({
   ...viewProps
 }: ReplyComposerProps) {
   const repositoriesQuery = useQuery({
-    queryKey: ["github-repositories", organizationSlug],
-    queryFn: () => injectedInboxApi.listGithubRepositories(organizationSlug),
+    queryKey: ["chat-repositories", organizationSlug],
+    queryFn: () => injectedInboxApi.listChatRepositories(organizationSlug),
   });
   const nativeProjectsQuery = useQuery({
     queryKey: ["chat-composer-projects", organizationSlug, "native"],

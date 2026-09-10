@@ -17,17 +17,17 @@ import { defineMessages } from "react-intl";
 export const repositorySelectorMessages = defineMessages({
   reposUnavailable: {
     defaultMessage: "Repos unavailable",
-    id: "Ped2s5KX7Z",
-    description: "Repository selector label when GitHub repositories failed to load",
+    id: "JekhZbjY8c",
+    description: "Repository selector label when repositories failed to load",
   },
-  noGithubRepos: {
-    defaultMessage: "No GitHub repos",
-    id: "fuMDhQC4xa",
-    description: "Repository selector label when the account has no GitHub repositories",
+  noRepos: {
+    defaultMessage: "No repos",
+    id: "iFmiFrAfXR",
+    description: "Repository selector label when the account has no GitHub or GitLab repositories",
   },
-  githubRepoPlaceholder: {
-    defaultMessage: "GitHub repo",
-    id: "g1Tiy1/MKw",
+  repoPlaceholder: {
+    defaultMessage: "Repository",
+    id: "3nJQ/U/1eb",
     description: "Repository selector placeholder when no repository is selected yet",
   },
 });

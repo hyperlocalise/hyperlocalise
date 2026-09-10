@@ -18,10 +18,13 @@ export const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),
 });
 
+export const repositoryProviderSchema = z.enum(["github", "gitlab"]);
+
 export const createConversationRequestSchema = z.object({
   text: z.string().trim().max(10000).default(""),
   projectId: optionalProjectIdSchema,
   repositoryFullName: z.string().trim().min(1).max(255).optional(),
+  repositoryProvider: repositoryProviderSchema.optional(),
 });
 
 export const listConversationsQuerySchema = z.object({

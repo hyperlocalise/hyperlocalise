@@ -86,6 +86,7 @@ function createOrgSlugClient(origin: string) {
       "agent-slack",
       "slack-connect",
       "github-installation",
+      "gitlab",
     ]),
     ...pickClientPaths(workspace, [
       "teams",

@@ -29,6 +29,7 @@ import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
 import { ConversationMessageList } from "./conversation-message-list";
 import { conversationPanelMessages } from "./conversation-panel.messages";
+import type { ChatComposerSendOptions } from "./inbox-api";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import {
   formatRelativeTime,
@@ -99,7 +100,7 @@ export function ConversationPanel({
   onSendMessage: (
     text: string,
     files: File[],
-    options?: { projectId?: string; repositoryFullName?: string },
+    options?: ChatComposerSendOptions,
   ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;

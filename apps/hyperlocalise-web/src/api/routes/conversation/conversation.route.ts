@@ -31,13 +31,16 @@ import {
   toStoredTranslationFileRef,
 } from "@/lib/conversations/stored-file-context";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
+  getGitlabRepositoryContextKey,
   getRepositoryContextKey,
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
 } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
+import { resolveGitLabProjectContext } from "@/lib/gitlab/repository-context";
 import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
@@ -172,13 +175,19 @@ function normalizeRepositoryFullName(value: string | undefined): string | undefi
 async function seedConversationRepositorySession(input: {
   conversationId: string;
   organizationId: string;
-  repositoryGitHubContext: RepositoryAgentGitHubContext;
+  repositoryGitHubContext?: RepositoryAgentGitHubContext;
+  repositoryGitLabContext?: RepositoryAgentGitLabContext;
 }) {
-  const repositoryContextKey = getRepositoryContextKey(input.repositoryGitHubContext);
+  const repositoryContextKey = input.repositoryGitHubContext
+    ? getRepositoryContextKey(input.repositoryGitHubContext)
+    : input.repositoryGitLabContext
+      ? getGitlabRepositoryContextKey(input.repositoryGitLabContext)
+      : null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const current = await getWebConversationRepositorySession(input.conversationId);
     const repositorySandboxSession =
+      repositoryContextKey &&
       current?.session.repositorySandboxSession?.repositoryContextKey === repositoryContextKey
         ? current.session.repositorySandboxSession
         : undefined;
@@ -189,6 +198,7 @@ async function seedConversationRepositorySession(input: {
       session: {
         ...current?.session,
         repositoryGitHubContext: input.repositoryGitHubContext,
+        repositoryGitLabContext: input.repositoryGitLabContext,
         ...(repositorySandboxSession ? { repositorySandboxSession } : {}),
       },
     });
@@ -215,6 +225,74 @@ async function resolveSelectedRepositoryGitHubContext(input: {
   });
 
   return resolution.status === "resolved" ? resolution.context : null;
+}
+
+async function resolveSelectedChatRepositoryContext(input: {
+  organizationId: string;
+  workosUserId: string;
+  repositoryFullName?: string;
+  repositoryProvider?: "github" | "gitlab";
+}): Promise<
+  | { status: "none" }
+  | { status: "github"; context: RepositoryAgentGitHubContext }
+  | { status: "gitlab"; context: RepositoryAgentGitLabContext }
+  | {
+      status: "unavailable";
+      error: "github_repository_not_available" | "gitlab_project_not_available";
+    }
+> {
+  if (!input.repositoryFullName) {
+    return { status: "none" };
+  }
+
+  if (input.repositoryProvider !== "gitlab") {
+    const githubContext = await resolveSelectedRepositoryGitHubContext({
+      organizationId: input.organizationId,
+      repositoryFullName: input.repositoryFullName,
+    });
+    if (githubContext) {
+      return { status: "github", context: githubContext };
+    }
+    if (input.repositoryProvider === "github") {
+      return { status: "unavailable", error: "github_repository_not_available" };
+    }
+  }
+
+  const gitlabContext = await resolveGitLabProjectContext({
+    localOrganizationId: input.organizationId,
+    workosUserId: input.workosUserId,
+    pathWithNamespace: input.repositoryFullName,
+  });
+  if (gitlabContext) {
+    return { status: "gitlab", context: gitlabContext };
+  }
+
+  return {
+    status: "unavailable",
+    error:
+      input.repositoryProvider === "gitlab"
+        ? "gitlab_project_not_available"
+        : "github_repository_not_available",
+  };
+}
+
+function selectedRepositoryUnavailableResponse(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: "github_repository_not_available" | "gitlab_project_not_available",
+) {
+  if (error === "gitlab_project_not_available") {
+    return badRequestResponse(
+      c,
+      "gitlab_project_not_available",
+      "Selected GitLab project is not available with the connected GitLab account.",
+    );
+  }
+
+  return badRequestResponse(
+    c,
+    "github_repository_not_available",
+    "Selected GitHub repository is not enabled for this workspace.",
+  );
 }
 
 const validateConversationParams = validator("param", (value, c) => {
@@ -367,6 +445,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         text: asString(body.text),
         projectId: asString(body.projectId),
         repositoryFullName: asString(body.repositoryFullName),
+        repositoryProvider: asString(body.repositoryProvider),
       });
 
       if (!parsed.success) {
@@ -412,16 +491,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       }
 
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
-      const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+      const selectedRepository = await resolveSelectedChatRepositoryContext({
         organizationId: orgId,
+        workosUserId: c.var.auth.user.workosUserId,
         repositoryFullName: parsed.data.repositoryFullName,
+        repositoryProvider: parsed.data.repositoryProvider,
       });
-      if (parsed.data.repositoryFullName && !repositoryGitHubContext) {
-        return badRequestResponse(
-          c,
-          "github_repository_not_available",
-          "Selected GitHub repository is not enabled for this workspace.",
-        );
+      if (selectedRepository.status === "unavailable") {
+        return selectedRepositoryUnavailableResponse(c, selectedRepository.error);
       }
 
       const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
@@ -477,11 +554,17 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         });
         conversation = createdConversation;
 
-        if (repositoryGitHubContext) {
+        if (selectedRepository.status === "github") {
           await seedConversationRepositorySession({
             conversationId: createdConversation.id,
             organizationId: orgId,
-            repositoryGitHubContext,
+            repositoryGitHubContext: selectedRepository.context,
+          });
+        } else if (selectedRepository.status === "gitlab") {
+          await seedConversationRepositorySession({
+            conversationId: createdConversation.id,
+            organizationId: orgId,
+            repositoryGitLabContext: selectedRepository.context,
           });
         }
 
@@ -590,6 +673,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const requestedProjectId =
           typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
         const repositoryFullName = normalizeRepositoryFullName(asString(body.repositoryFullName));
+        const repositoryProviderParse = createConversationRequestSchema
+          .pick({ repositoryProvider: true })
+          .safeParse({ repositoryProvider: asString(body.repositoryProvider) });
+        const repositoryProvider = repositoryProviderParse.success
+          ? repositoryProviderParse.data.repositoryProvider
+          : undefined;
 
         if (!text.trim() && files.length === 0) {
           return invalidMessagePayloadResponse(c);
@@ -611,16 +700,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           return c.json({ error: "conversation_not_replyable" }, 400);
         }
 
-        const repositoryGitHubContext = await resolveSelectedRepositoryGitHubContext({
+        const selectedRepository = await resolveSelectedChatRepositoryContext({
           organizationId: orgId,
+          workosUserId: c.var.auth.user.workosUserId,
           repositoryFullName,
+          repositoryProvider,
         });
-        if (repositoryFullName && !repositoryGitHubContext) {
-          return badRequestResponse(
-            c,
-            "github_repository_not_available",
-            "Selected GitHub repository is not enabled for this workspace.",
-          );
+        if (selectedRepository.status === "unavailable") {
+          return selectedRepositoryUnavailableResponse(c, selectedRepository.error);
         }
 
         if (requestedProjectId && requestedProjectId !== conversation.projectId) {
@@ -688,11 +775,17 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           translationFileRefs,
         );
 
-        if (repositoryGitHubContext) {
+        if (selectedRepository.status === "github") {
           await seedConversationRepositorySession({
             conversationId,
             organizationId: orgId,
-            repositoryGitHubContext,
+            repositoryGitHubContext: selectedRepository.context,
+          });
+        } else if (selectedRepository.status === "gitlab") {
+          await seedConversationRepositorySession({
+            conversationId,
+            organizationId: orgId,
+            repositoryGitLabContext: selectedRepository.context,
           });
         }
 

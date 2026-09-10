@@ -43,6 +43,9 @@ const { createInteractionMock } = vi.hoisted(() => ({
 const { createWebChatAgentUIStreamResponseMock } = vi.hoisted(() => ({
   createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("stream-ok", { status: 200 })),
 }));
+const { resolveGitLabProjectContextMock } = vi.hoisted(() => ({
+  resolveGitLabProjectContextMock: vi.fn(),
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -71,6 +74,10 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
 
 vi.mock("@/agents/hyperlocalise/agent/channels/web", () => ({
   createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
+}));
+
+vi.mock("@/lib/gitlab/repository-context", () => ({
+  resolveGitLabProjectContext: resolveGitLabProjectContextMock,
 }));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
@@ -124,6 +131,7 @@ afterEach(async () => {
   createWebChatAgentUIStreamResponseMock.mockReturnValue(
     new Response("stream-ok", { status: 200 }),
   );
+  resolveGitLabProjectContextMock.mockResolvedValue(null);
   await cleanup();
 });
 
@@ -353,6 +361,42 @@ describe("conversation creation", () => {
       resolved: true,
       installationId: Number(repository.githubInstallationId),
       repositoryFullName: repository.fullName,
+      branch: "main",
+    });
+  });
+
+  it("seeds selected GitLab project context when creating a chat UI conversation", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    resolveGitLabProjectContextMock.mockResolvedValue({
+      resolved: true,
+      provider: "gitlab",
+      projectId: 11,
+      repositoryFullName: "acme/platform/web",
+      httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
+      branch: "main",
+    });
+    const formData = new FormData();
+    formData.set("text", "Review the GitLab localization setup");
+    formData.set("repositoryFullName", "acme/platform/web");
+    formData.set("repositoryProvider", "gitlab");
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      conversation: { id: string };
+    };
+    const session = await getWebConversationRepositorySession(body.conversation.id);
+    expect(session?.session.repositoryGitLabContext).toMatchObject({
+      resolved: true,
+      provider: "gitlab",
+      projectId: 11,
+      repositoryFullName: "acme/platform/web",
       branch: "main",
     });
   });

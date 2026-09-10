@@ -29,10 +29,12 @@ describe("pipes providers", () => {
     expect(pipesProvidersForCategory("cms")).toEqual(expect.arrayContaining(["sanity", "webflow"]));
     expect(pipesProvidersForCategory("guidelines")).toEqual(["notion"]);
     expect(pipesProvidersForCategory("collaboration")).toEqual(["atlassian"]);
+    expect(pipesProvidersForCategory("source-control")).toEqual(["gitlab"]);
   });
 
   it("keeps the exposed slug list stable", () => {
     expect(PIPES_PROVIDER_SLUGS).toContain("atlassian");
+    expect(PIPES_PROVIDER_SLUGS).toContain("gitlab");
     expect(PIPES_PROVIDER_SLUGS).toContain("sanity");
     expect(PIPES_PROVIDER_SLUGS).toContain("webflow");
   });

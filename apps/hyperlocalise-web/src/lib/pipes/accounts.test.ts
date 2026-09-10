@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   getWorkosServerClient: vi.fn(),
   getUserConnectedAccount: vi.fn(),
   createDataIntegrationCredential: vi.fn(),
+  getAccessToken: vi.fn(),
   organizationSelect: vi.fn(),
 }));
 
@@ -42,7 +43,7 @@ vi.mock("@/lib/database/client", () => ({
   },
 }));
 
-import { getPipesAccountStatus, loadPipesApiKey } from "./accounts";
+import { getPipesAccountStatus, loadPipesAccessToken, loadPipesApiKey } from "./accounts";
 
 describe("pipes accounts", () => {
   beforeEach(() => {
@@ -52,6 +53,7 @@ describe("pipes accounts", () => {
       pipes: {
         getUserConnectedAccount: mocks.getUserConnectedAccount,
         createDataIntegrationCredential: mocks.createDataIntegrationCredential,
+        getAccessToken: mocks.getAccessToken,
       },
     });
   });
@@ -174,5 +176,48 @@ describe("pipes accounts", () => {
       throw new Error("expected err result");
     }
     expect(result.error.code).toBe("pipes_not_connected");
+  });
+
+  it("vends an OAuth access token from Pipes", async () => {
+    mocks.getAccessToken.mockResolvedValue({
+      active: true,
+      accessToken: { accessToken: " glpat-oauth-token " },
+    });
+
+    const result = await loadPipesAccessToken({
+      provider: "gitlab",
+      localOrganizationId: "org-local",
+      workosUserId: "user_workos",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      throw new Error("expected ok result");
+    }
+    expect(result.value).toBe("glpat-oauth-token");
+    expect(mocks.getAccessToken).toHaveBeenCalledWith({
+      provider: "gitlab",
+      userId: "user_workos",
+      organizationId: "org_workos",
+    });
+  });
+
+  it("maps a stale OAuth installation to pipes_needs_reauthorization", async () => {
+    mocks.getAccessToken.mockResolvedValue({
+      active: false,
+      error: "needs_reauthorization",
+    });
+
+    const result = await loadPipesAccessToken({
+      provider: "gitlab",
+      localOrganizationId: "org-local",
+      workosUserId: "user_workos",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      throw new Error("expected err result");
+    }
+    expect(result.error.code).toBe("pipes_needs_reauthorization");
   });
 });

@@ -53,7 +53,7 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
-    await expect(canvas.getByText("GitHub repo")).toBeInTheDocument();
+    await expect(canvas.getByText("Repository")).toBeInTheDocument();
   },
 };
 

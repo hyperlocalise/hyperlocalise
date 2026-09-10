@@ -842,6 +842,7 @@ export function IntegrationsPageContent({
               <SourceControlIntegrationsSection
                 organizationSlug={organizationSlug}
                 userCanManage={userCanManageAgents}
+                userIsAdmin={userIsAdmin}
               />
             </IntegrationCategorySection>
           ) : null}

@@ -92,7 +92,7 @@ describe("ReplyComposerView toolbar", () => {
     expect(screen.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send reply" })).toHaveTextContent("Send");
     expect(screen.getByRole("button", { name: "Add photos and files" })).toBeInTheDocument();
-    expect(screen.getByText("GitHub repo")).toBeInTheDocument();
+    expect(screen.getByText("Repository")).toBeInTheDocument();
     expect(screen.getByText("Hyperlocalise Website Localisation")).toBeInTheDocument();
   });
 });
