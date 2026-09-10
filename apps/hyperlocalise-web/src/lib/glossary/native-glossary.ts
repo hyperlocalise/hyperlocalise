@@ -784,7 +784,7 @@ export class NativeGlossary extends Glossary {
           url: term.url ?? null,
           lemma: term.lemma ?? null,
           status: term.status ?? "draft",
-          forbidden: term.forbidden ?? false,
+          forbidden: term.forbidden ?? existing?.forbidden ?? false,
         };
         if (existing) {
           retainedIds.add(existing.id);
@@ -1157,7 +1157,9 @@ export class NativeGlossary extends Glossary {
         url: normalizedInput.url ?? null,
         lemma: normalizedInput.lemma ?? null,
         status: normalizedInput.status ?? "draft",
-        forbidden: normalizedInput.forbidden ?? false,
+        ...(normalizedInput.forbidden === undefined
+          ? {}
+          : { forbidden: normalizedInput.forbidden }),
       })
       .where(
         and(
