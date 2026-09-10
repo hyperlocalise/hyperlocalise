@@ -133,16 +133,6 @@ type TermDraft = {
 
 type CreatingTermDraft = TermDraft & { id: string; locale: string };
 
-type GlossaryHistoryEvent = {
-  id: string;
-  eventType: string;
-  actorKind: string;
-  actorUserId: string | null;
-  changedFields: string[];
-  changes: Array<{ field: string; before: unknown; after: unknown }>;
-  occurredAt: string;
-};
-
 const emptyConceptDraft: ConceptDraft = {
   primaryTerm: "",
   subject: "",
@@ -401,8 +391,6 @@ export function GlossaryDetailPageContent({
   const [conceptSearch, setConceptSearch] = useState("");
   const [conceptReviewStatus, setConceptReviewStatus] = useState("");
   const [includeArchivedConcepts, setIncludeArchivedConcepts] = useState(false);
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyEventType, setHistoryEventType] = useState("");
   const [conceptPageCursor, setConceptPageCursor] = useState<string | undefined>();
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
@@ -487,37 +475,6 @@ export function GlossaryDetailPageContent({
           await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
         );
       return (await response.json()) as { concept: GlossaryConceptRecord };
-    },
-  });
-  const historyQuery = useQuery({
-    queryKey: [
-      "glossary-history",
-      organizationSlug,
-      glossaryId,
-      selectedConceptId,
-      historySearch,
-      historyEventType,
-    ],
-    enabled: Boolean(
-      isConceptGlossary && isNative && selectedConceptId && selectedConceptId !== "new",
-    ),
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts.history.$get({
-        param: { organizationSlug, glossaryId },
-        query: {
-          conceptId: selectedConceptId!,
-          search: historySearch || undefined,
-          eventType: historyEventType || undefined,
-          limit: "100",
-        },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
-        );
-      return (await response.json()).events as GlossaryHistoryEvent[];
     },
   });
   const conceptPageQuery = useQuery({
@@ -726,9 +683,6 @@ export function GlossaryDetailPageContent({
       }),
       queryClient.invalidateQueries({
         queryKey: ["glossary-concept", organizationSlug, glossaryId],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ["glossary-history", organizationSlug, glossaryId],
       }),
     ]);
   const invalidateProjects = () =>
@@ -1278,17 +1232,26 @@ export function GlossaryDetailPageContent({
             <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
               {glossary.description || intl.formatMessage(messages.descriptionFallback)}
             </TypographyP>
-            {canManage && isNative ? (
-              <div className="flex justify-end">
+            {isNative ? (
+              <div className="flex justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setDeleteGlossaryDialogOpen(true)}
-                  disabled={deleteGlossary.isPending}
+                  render={<Link href={`${glossaryHref}/history`} />}
                 >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
-                  <FormattedMessage {...messages.deleteGlossary} />
+                  <FormattedMessage {...messages.glossaryHistory} />
                 </Button>
+                {canManage ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeleteGlossaryDialogOpen(true)}
+                    disabled={deleteGlossary.isPending}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+                    <FormattedMessage {...messages.deleteGlossary} />
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </section>
@@ -2718,95 +2681,6 @@ export function GlossaryDetailPageContent({
                   </div>
                 </div>
               </div>
-              {!isCreatingConcept ? (
-                <details className="rounded-lg border border-border">
-                  <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-                    <FormattedMessage {...messages.historyTitle} />
-                  </summary>
-                  <div className="border-t border-border p-4">
-                    <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-                      <Input
-                        value={historySearch}
-                        onChange={(event) => setHistorySearch(event.target.value)}
-                        placeholder={intl.formatMessage(messages.historySearchPlaceholder)}
-                        className="sm:max-w-sm"
-                      />
-                      <Select
-                        value={historyEventType || "all"}
-                        onValueChange={(value) =>
-                          setHistoryEventType(value === "all" ? "" : (value ?? ""))
-                        }
-                      >
-                        <SelectTrigger className="sm:w-44">
-                          <SelectValue>
-                            {historyEventType || intl.formatMessage(messages.historyAllEvents)}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            <FormattedMessage {...messages.historyAllEvents} />
-                          </SelectItem>
-                          <SelectItem value="created">created</SelectItem>
-                          <SelectItem value="updated">updated</SelectItem>
-                          <SelectItem value="deleted">deleted</SelectItem>
-                          <SelectItem value="imported">imported</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {historyQuery.isLoading || historyQuery.isFetching ? (
-                      <Skeleton className="h-4 w-48" />
-                    ) : historyQuery.data?.length ? (
-                      <ol className="grid gap-4">
-                        {historyQuery.data.map((event) => (
-                          <li key={event.id} className="grid gap-1 text-sm">
-                            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                              <span className="font-medium capitalize">{event.eventType}</span>
-                              <span className="text-xs text-muted-foreground">
-                                <FormattedMessage
-                                  {...messages.historyBy}
-                                  values={{
-                                    event: event.actorKind,
-                                    actor: event.actorUserId ?? "system",
-                                    date: formatDate(event.occurredAt),
-                                  }}
-                                />
-                              </span>
-                            </div>
-                            {event.changedFields.length ? (
-                              <span className="text-xs text-muted-foreground">
-                                <FormattedMessage
-                                  {...messages.historyChangedFields}
-                                  values={{ fields: event.changedFields.join(", ") }}
-                                />
-                              </span>
-                            ) : null}
-                            {event.changes.length ? (
-                              <div className="grid gap-1 rounded-md bg-muted/40 p-2 font-mono text-xs">
-                                {event.changes.map((change) => (
-                                  <div
-                                    key={change.field}
-                                    className="grid gap-1 sm:grid-cols-[8rem_1fr]"
-                                  >
-                                    <span className="font-semibold">{change.field}</span>
-                                    <span className="break-words text-muted-foreground">
-                                      {JSON.stringify(change.before)} →{" "}
-                                      {JSON.stringify(change.after)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <TypographyP size="small" tone="subtle">
-                        <FormattedMessage {...messages.historyEmpty} />
-                      </TypographyP>
-                    )}
-                  </div>
-                </details>
-              ) : null}
               {canContribute ? (
                 <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                   <Button

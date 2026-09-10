@@ -682,4 +682,19 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "7SltjgHpss",
     description: "Option to show all glossary history event types",
   },
+  glossaryHistory: {
+    defaultMessage: "View history",
+    id: "DzmZ+KrwIu",
+    description: "Link to the glossary history page",
+  },
+  historyPageDescription: {
+    defaultMessage: "Review changes across concepts and terms in this glossary.",
+    id: "xtBvg84UIb",
+    description: "Description for the glossary history page",
+  },
+  backToGlossaryDetail: {
+    defaultMessage: "Back to glossary",
+    id: "u1EPydncVp",
+    description: "Link back to glossary detail from history",
+  },
 });
