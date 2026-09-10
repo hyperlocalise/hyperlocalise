@@ -346,7 +346,7 @@ function catalogFor(
 ): DomainResearchCatalog {
   return {
     domain,
-    market: domain.locales[0]!,
+    market: extras?.market ?? domain.locales[0]!,
     keywords: [],
     ranks: [],
     overviewKeywords: [],
@@ -365,138 +365,170 @@ function catalogFor(
   };
 }
 
+const HYPERLOCALISE_DOMAIN: DomainResearchDomain = {
+  id: "hyperlocalise-com",
+  domainKey: "hyperlocalise.com",
+  sourceUrl: "https://hyperlocalise.com",
+  locales: [FRANCE_FR, GERMANY_DE, VIETNAM_VI],
+  status: "verified",
+  keywordCount: 12400,
+  keywordCountLabel: "12.4k",
+  traffic: 84000,
+  trafficLabel: "84k",
+  score: 82,
+  trackedCount: 48,
+  aiMentions: 36,
+};
+
 const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
-  catalogFor(
-    {
-      id: "hyperlocalise-com",
-      domainKey: "hyperlocalise.com",
-      sourceUrl: "https://hyperlocalise.com",
-      locales: [FRANCE_FR, GERMANY_DE, VIETNAM_VI],
-      status: "verified",
-      keywordCount: 12400,
-      keywordCountLabel: "12.4k",
-      traffic: 84000,
-      trafficLabel: "84k",
-      score: 82,
-      trackedCount: 48,
-      aiMentions: 36,
-    },
-    {
-      keywords: HYPERLOCALISE_KEYWORDS,
-      ranks: [
-        {
-          id: "rank-traduction-automatique",
-          keyword: "traduction automatique",
-          position: 22,
-          previousPosition: 25,
-          url: "https://hyperlocalise.com/fr",
-          volume: 8100,
-        },
-        {
-          id: "rank-logiciel-de-traduction",
-          keyword: "logiciel de traduction",
-          position: 8,
-          previousPosition: 9,
-          url: "https://hyperlocalise.com/fr/product",
-          volume: 5400,
-        },
-        {
-          id: "rank-traduction-ia",
-          keyword: "traduction IA",
-          position: 14,
-          previousPosition: 11,
-          url: "https://hyperlocalise.com/fr/blog/traduction-ia",
-          volume: 4400,
-        },
-        {
-          id: "rank-tms-traduction",
-          keyword: "TMS traduction",
-          position: 6,
-          previousPosition: 6,
-          url: "https://hyperlocalise.com/fr/product",
-          volume: 720,
-        },
-      ],
-      overviewKeywords: [
-        {
-          id: "ov-kw-1",
-          keyword: "traduction automatique",
-          position: 22,
-          volume: 8100,
-          traffic: 420,
-        },
-        {
-          id: "ov-kw-2",
-          keyword: "logiciel de traduction",
-          position: 8,
-          volume: 5400,
-          traffic: 980,
-        },
-        {
-          id: "ov-kw-3",
-          keyword: "traduction IA",
-          position: 14,
-          volume: 4400,
-          traffic: 610,
-        },
-        {
-          id: "ov-kw-4",
-          keyword: "TMS traduction",
-          position: 6,
-          volume: 720,
-          traffic: 210,
-        },
-      ],
-      overviewPages: [
-        { id: "ov-pg-1", path: "/fr", keywords: 86, traffic: 12400 },
-        { id: "ov-pg-2", path: "/fr/product", keywords: 41, traffic: 8600 },
-        { id: "ov-pg-3", path: "/fr/pricing", keywords: 18, traffic: 2100 },
-        { id: "ov-pg-4", path: "/fr/blog/traduction-ia", keywords: 12, traffic: 940 },
-      ],
-      competitors: [
-        { id: "comp-phrase", name: "Phrase", mentions: 18, sentiment: "mixed" },
-        { id: "comp-crowdin", name: "Crowdin", mentions: 14, sentiment: "positive" },
-        { id: "comp-lokalise", name: "Lokalise", mentions: 11, sentiment: "mixed" },
-        { id: "comp-smartling", name: "Smartling", mentions: 9, sentiment: "positive" },
-        { id: "comp-deepl", name: "DeepL", mentions: 22, sentiment: "positive" },
-      ],
-      engineMentions: {
-        chatgpt: 42,
-        claude: 38,
-        gemini: 12,
-        perplexity: 29,
+  catalogFor(HYPERLOCALISE_DOMAIN, {
+    keywords: HYPERLOCALISE_KEYWORDS,
+    ranks: [
+      {
+        id: "rank-traduction-automatique",
+        keyword: "traduction automatique",
+        position: 22,
+        previousPosition: 25,
+        url: "https://hyperlocalise.com/fr",
+        volume: 8100,
       },
-      prompt: "meilleur outil de localisation pour une équipe produit",
-      promptResults: [
-        {
-          engine: "chatgpt",
-          mentioned: true,
-          excerpt:
-            "Hyperlocalise appears among tools for product teams that need research and translation in one workspace.",
-        },
-        {
-          engine: "claude",
-          mentioned: true,
-          excerpt:
-            "For French-market localisation, Hyperlocalise is listed next to Crowdin and Phrase for product orgs.",
-        },
-        {
-          engine: "gemini",
-          mentioned: false,
-          excerpt: "Answers focus on Phrase, Crowdin, and Smartling. Hyperlocalise is not named.",
-        },
-        {
-          engine: "perplexity",
-          mentioned: true,
-          excerpt:
-            "Cites Hyperlocalise for domain-scoped keyword research tied to a market and language.",
-        },
-      ],
-      serpByKeywordId: {
-        "kw-traduction-automatique": HYPERLOCALISE_SERP,
+      {
+        id: "rank-logiciel-de-traduction",
+        keyword: "logiciel de traduction",
+        position: 8,
+        previousPosition: 9,
+        url: "https://hyperlocalise.com/fr/product",
+        volume: 5400,
       },
+      {
+        id: "rank-traduction-ia",
+        keyword: "traduction IA",
+        position: 14,
+        previousPosition: 11,
+        url: "https://hyperlocalise.com/fr/blog/traduction-ia",
+        volume: 4400,
+      },
+      {
+        id: "rank-tms-traduction",
+        keyword: "TMS traduction",
+        position: 6,
+        previousPosition: 6,
+        url: "https://hyperlocalise.com/fr/product",
+        volume: 720,
+      },
+    ],
+    overviewKeywords: [
+      {
+        id: "ov-kw-1",
+        keyword: "traduction automatique",
+        position: 22,
+        volume: 8100,
+        traffic: 420,
+      },
+      {
+        id: "ov-kw-2",
+        keyword: "logiciel de traduction",
+        position: 8,
+        volume: 5400,
+        traffic: 980,
+      },
+      {
+        id: "ov-kw-3",
+        keyword: "traduction IA",
+        position: 14,
+        volume: 4400,
+        traffic: 610,
+      },
+      {
+        id: "ov-kw-4",
+        keyword: "TMS traduction",
+        position: 6,
+        volume: 720,
+        traffic: 210,
+      },
+    ],
+    overviewPages: [
+      { id: "ov-pg-1", path: "/fr", keywords: 86, traffic: 12400 },
+      { id: "ov-pg-2", path: "/fr/product", keywords: 41, traffic: 8600 },
+      { id: "ov-pg-3", path: "/fr/pricing", keywords: 18, traffic: 2100 },
+      { id: "ov-pg-4", path: "/fr/blog/traduction-ia", keywords: 12, traffic: 940 },
+    ],
+    competitors: [
+      { id: "comp-phrase", name: "Phrase", mentions: 18, sentiment: "mixed" },
+      { id: "comp-crowdin", name: "Crowdin", mentions: 14, sentiment: "positive" },
+      { id: "comp-lokalise", name: "Lokalise", mentions: 11, sentiment: "mixed" },
+      { id: "comp-smartling", name: "Smartling", mentions: 9, sentiment: "positive" },
+      { id: "comp-deepl", name: "DeepL", mentions: 22, sentiment: "positive" },
+    ],
+    engineMentions: {
+      chatgpt: 42,
+      claude: 38,
+      gemini: 12,
+      perplexity: 29,
     },
-  ),
+    prompt: "meilleur outil de localisation pour une équipe produit",
+    promptResults: [
+      {
+        engine: "chatgpt",
+        mentioned: true,
+        excerpt:
+          "Hyperlocalise appears among tools for product teams that need research and translation in one workspace.",
+      },
+      {
+        engine: "claude",
+        mentioned: true,
+        excerpt:
+          "For French-market localisation, Hyperlocalise is listed next to Crowdin and Phrase for product orgs.",
+      },
+      {
+        engine: "gemini",
+        mentioned: false,
+        excerpt: "Answers focus on Phrase, Crowdin, and Smartling. Hyperlocalise is not named.",
+      },
+      {
+        engine: "perplexity",
+        mentioned: true,
+        excerpt:
+          "Cites Hyperlocalise for domain-scoped keyword research tied to a market and language.",
+      },
+    ],
+    serpByKeywordId: {
+      "kw-traduction-automatique": HYPERLOCALISE_SERP,
+    },
+  }),
+  catalogFor(HYPERLOCALISE_DOMAIN, {
+    market: VIETNAM_VI,
+    keywords: [
+      {
+        id: "kw-dich-tu-dong",
+        keyword: "dịch tự động",
+        volume: 2400,
+        kd: 28,
+        cpc: 0.6,
+        intent: "commercial",
+      },
+    ],
+    ranks: [
+      {
+        id: "rank-dich-tu-dong",
+        keyword: "dịch tự động",
+        position: 11,
+        previousPosition: 14,
+        url: "https://hyperlocalise.com/vi",
+        volume: 2400,
+      },
+    ],
+    overviewKeywords: [
+      {
+        id: "ov-vi-1",
+        keyword: "dịch tự động",
+        position: 11,
+        volume: 2400,
+        traffic: 180,
+      },
+    ],
+    overviewPages: [{ id: "ov-vi-home", path: "/vi", keywords: 22, traffic: 1600 }],
+  }),
   catalogFor(
     {
       id: "acme-fr",
@@ -727,28 +759,40 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
   }),
 ];
 
-const RESEARCH_PROTOTYPE_BY_ID = new Map(
-  RESEARCH_PROTOTYPE_CATALOG.map((entry) => [entry.domain.id, entry]),
-);
+const RESEARCH_PROTOTYPE_DOMAINS = new Map<string, DomainResearchDomain>();
+const RESEARCH_PROTOTYPE_CATALOGS = new Map<string, Map<string, DomainResearchCatalog>>();
+
+for (const catalog of RESEARCH_PROTOTYPE_CATALOG) {
+  if (!RESEARCH_PROTOTYPE_DOMAINS.has(catalog.domain.id)) {
+    RESEARCH_PROTOTYPE_DOMAINS.set(catalog.domain.id, catalog.domain);
+  }
+  const catalogsByLocale =
+    RESEARCH_PROTOTYPE_CATALOGS.get(catalog.domain.id) ?? new Map<string, DomainResearchCatalog>();
+  catalogsByLocale.set(catalog.market.id, catalog);
+  RESEARCH_PROTOTYPE_CATALOGS.set(catalog.domain.id, catalogsByLocale);
+}
 
 export function isDomainResearchSurface(value: string): value is DomainResearchSurface {
   return (DOMAIN_RESEARCH_SURFACES as readonly string[]).includes(value);
 }
 
 export function listResearchPrototypeDomains(): DomainResearchDomain[] {
-  return RESEARCH_PROTOTYPE_CATALOG.map((entry) => entry.domain);
+  return [...RESEARCH_PROTOTYPE_DOMAINS.values()];
 }
 
 export function getResearchPrototypeDomain(linkedDomainId: string): DomainResearchDomain | null {
-  return RESEARCH_PROTOTYPE_BY_ID.get(linkedDomainId)?.domain ?? null;
+  return RESEARCH_PROTOTYPE_DOMAINS.get(linkedDomainId) ?? null;
 }
 
 export function getResearchPrototypeCatalog(
   linkedDomainId: string,
   localeId?: string,
 ): DomainResearchCatalog | null {
-  const catalog = RESEARCH_PROTOTYPE_BY_ID.get(linkedDomainId);
-  return catalog && (!localeId || catalog.market.id === localeId) ? catalog : null;
+  const catalogsByLocale = RESEARCH_PROTOTYPE_CATALOGS.get(linkedDomainId);
+  if (!catalogsByLocale) return null;
+  if (localeId) return catalogsByLocale.get(localeId) ?? null;
+  const domain = RESEARCH_PROTOTYPE_DOMAINS.get(linkedDomainId);
+  return domain ? (catalogsByLocale.get(domain.locales[0]!.id) ?? null) : null;
 }
 
 export function resolveDomainLocale(domain: DomainResearchDomain, localeId: string | null) {
@@ -756,7 +800,7 @@ export function resolveDomainLocale(domain: DomainResearchDomain, localeId: stri
 }
 
 export function isResearchPrototypeDomain(linkedDomainId: string): boolean {
-  return RESEARCH_PROTOTYPE_BY_ID.has(linkedDomainId);
+  return RESEARCH_PROTOTYPE_DOMAINS.has(linkedDomainId);
 }
 
 export const DOMAIN_RESEARCH_VERIFY_RECORD = {

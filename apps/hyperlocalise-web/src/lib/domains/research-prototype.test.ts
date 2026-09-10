@@ -67,6 +67,15 @@ describe("domain research locales", () => {
     expect(getResearchPrototypeCatalog("hyperlocalise-com", "germany-de")).toBeNull();
     expect(getResearchPrototypeCatalog("missing", "france-fr")).toBeNull();
   });
+  it("keeps a second locale's catalog without replacing the first", () => {
+    const french = getResearchPrototypeCatalog("hyperlocalise-com", "france-fr");
+    const vietnamese = getResearchPrototypeCatalog("hyperlocalise-com", "vietnam-vi");
+    expect(french?.keywords[0]?.keyword).toBe("traduction automatique");
+    expect(vietnamese?.keywords[0]?.keyword).toBe("dịch tự động");
+    expect(
+      listResearchPrototypeDomains().filter((domain) => domain.id === "hyperlocalise-com"),
+    ).toHaveLength(1);
+  });
   it("resolves only supported locales, including after removing the active locale", () => {
     const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
     expect(resolveDomainLocale(domain, "germany-de").id).toBe("germany-de");

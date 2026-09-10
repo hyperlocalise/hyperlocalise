@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { Globe02Icon } from "@hugeicons/core-free-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -58,6 +58,24 @@ const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navOverview
   { id: "prompts", message: messages.navPrompts },
 ];
 
+function hrefForLocale({
+  organizationSlug,
+  linkedDomainId,
+  surface,
+  search,
+  localeId,
+}: {
+  organizationSlug: string;
+  linkedDomainId: string;
+  surface?: DomainResearchNavId;
+  search: string;
+  localeId: string;
+}) {
+  const params = new URLSearchParams(search);
+  params.set("locale", localeId);
+  return `${buildDomainPath(organizationSlug, linkedDomainId, surface)}?${params}`;
+}
+
 export function DomainResearchShell({
   organizationSlug,
   linkedDomainId,
@@ -74,11 +92,24 @@ export function DomainResearchShell({
   const { domains, saveDomain } = useDomainPrototype(organizationSlug);
   const domain = domains.find((item) => item.id === linkedDomainId);
   const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  const requestedLocaleId = searchParams.get("locale");
+  const locale = domain ? resolveDomainLocale(domain, requestedLocaleId) : null;
+  const localeId = locale?.id;
   const localeSelectId = useId();
   const [editOpen, setEditOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
 
-  if (!domain) {
+  useEffect(() => {
+    if (!localeId || requestedLocaleId === localeId) return;
+    router.replace(hrefForLocale({ organizationSlug, linkedDomainId, surface, search, localeId }), {
+      scroll: false,
+    });
+    // useOrgRouter() returns a new object each render; depending on it recanonicalizes forever
+    // while the URL is still stale.
+  }, [linkedDomainId, localeId, organizationSlug, requestedLocaleId, search, surface]);
+
+  if (!domain || !locale) {
     return (
       <WorkspacePageShell>
         <DomainResearchMissingDomain organizationSlug={organizationSlug} />
@@ -86,24 +117,28 @@ export function DomainResearchShell({
     );
   }
 
-  const locale = resolveDomainLocale(domain, searchParams.get("locale"));
   const catalog = getResearchPrototypeCatalog(linkedDomainId, locale.id);
+  const activeLocaleId = locale.id;
 
-  function changeLocale(localeId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("locale", localeId);
-    router.replace(`${buildDomainPath(organizationSlug, linkedDomainId, surface)}?${params}`, {
-      scroll: false,
+  function researchHref(nextLocaleId: string, nextSurface = surface) {
+    return hrefForLocale({
+      organizationSlug,
+      linkedDomainId,
+      surface: nextSurface,
+      search,
+      localeId: nextLocaleId,
     });
+  }
+
+  function changeLocale(nextLocaleId: string) {
+    router.replace(researchHref(nextLocaleId), { scroll: false });
   }
 
   function handleSurfaceChange(next: string) {
     const nextSurface: DomainResearchSurface | undefined = isDomainResearchSurface(next)
       ? next
       : undefined;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("locale", locale.id);
-    router.push(`${buildDomainPath(organizationSlug, linkedDomainId, nextSurface)}?${params}`);
+    router.push(researchHref(activeLocaleId, nextSurface));
   }
 
   const isPending = domain.status !== "verified";
