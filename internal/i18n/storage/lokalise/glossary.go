@@ -72,8 +72,9 @@ type glossaryTermTranslation struct {
 }
 
 type projectLanguage struct {
-	LanguageID  int64  `json:"lang_id"`
-	LanguageISO string `json:"lang_iso"`
+	LanguageID   int64  `json:"lang_id"`
+	LanguageISO  string `json:"lang_iso"`
+	LanguageName string `json:"lang_name"`
 }
 
 type glossaryTermsResponse struct {
@@ -194,41 +195,15 @@ func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID string) ([
 func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID string) (map[int64]string, error) {
 	// Some glossary translation payloads only contain lang_id. This lookup turns
 	// those IDs into stable locale strings for Lokalise's language columns.
+	languages, err := c.ListProjectLanguages(ctx, LocaleListInput{ProjectID: projectID})
+	if err != nil {
+		return nil, err
+	}
 	out := map[int64]string{}
-	page := 1
-	for {
-		if page > lokaliseMaxLanguagePages {
-			return nil, fmt.Errorf("lokalise project languages pagination exceeded %d pages", lokaliseMaxLanguagePages)
+	for _, lang := range languages {
+		if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
+			out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
 		}
-		endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/languages")
-		if err != nil {
-			return nil, fmt.Errorf("build project languages URL: %w", err)
-		}
-		q := endpoint.Query()
-		q.Set("limit", fmt.Sprintf("%d", glossaryLanguagePageLimit))
-		q.Set("page", fmt.Sprintf("%d", page))
-		endpoint.RawQuery = q.Encode()
-
-		var resp projectLanguagesResponse
-		if _, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), &resp); err != nil {
-			return nil, fmt.Errorf("list lokalise project languages: %w", err)
-		}
-		languages := resp.Languages
-		if len(languages) == 0 && len(resp.Items) > 0 {
-			languages = resp.Items
-		}
-		if len(languages) == 0 && len(resp.Data) > 0 {
-			languages = resp.Data
-		}
-		for _, lang := range languages {
-			if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
-				out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
-			}
-		}
-		if len(languages) == 0 || len(languages) < glossaryLanguagePageLimit {
-			break
-		}
-		page++
 	}
 	return out, nil
 }

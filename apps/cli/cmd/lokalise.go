@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lokalise"
@@ -79,6 +80,8 @@ type lokaliseUploadSourcesOptions struct {
 	applyTM             bool
 	skipDetectLangISO   bool
 	dryRun              bool
+	poll                bool
+	pollTimeout         time.Duration
 }
 
 type lokaliseUploadTranslationsOptions struct {
@@ -97,6 +100,8 @@ type lokaliseUploadTranslationsOptions struct {
 	distinguishByFile   bool
 	applyTM             bool
 	dryRun              bool
+	poll                bool
+	pollTimeout         time.Duration
 }
 
 type lokaliseGlossaryCSVWriter interface {
@@ -113,10 +118,12 @@ type lokaliseSourceDownloader interface {
 
 type lokaliseSourceUploader interface {
 	UploadSourceFile(context.Context, lokalise.SourceUploadInput) (lokalise.SourceUploadResult, error)
+	WaitForQueuedProcess(context.Context, lokalise.QueuedProcessWaitInput) (lokalise.SourceUploadResult, error)
 }
 
 type lokaliseTranslationUploader interface {
 	UploadTranslationFile(context.Context, lokalise.TranslationUploadInput) (lokalise.TranslationUploadResult, error)
+	WaitForQueuedProcess(context.Context, lokalise.QueuedProcessWaitInput) (lokalise.SourceUploadResult, error)
 }
 
 var newLokaliseGlossaryCSVWriter = func(cfg lokalise.Config) (lokaliseGlossaryCSVWriter, error) {
@@ -145,7 +152,9 @@ func newLokaliseCmd() *cobra.Command {
 		Short: "Lokalise workflow commands",
 	}
 	cmd.AddCommand(newLokaliseDownloadCmd())
+	cmd.AddCommand(newLokaliseFilesCmd())
 	cmd.AddCommand(newLokaliseGlossaryCmd())
+	cmd.AddCommand(newLokaliseLocalesCmd())
 	cmd.AddCommand(newLokaliseUploadCmd())
 	return cmd
 }
@@ -633,6 +642,7 @@ func newLokaliseUploadSourcesCmd() *cobra.Command {
 	o := lokaliseUploadSourcesOptions{
 		tokenEnv:       defaultLokaliseAPITokenEnv,
 		timeoutSeconds: 30,
+		pollTimeout:    30 * time.Second,
 	}
 	cmd := &cobra.Command{
 		Use:          "sources",
@@ -658,6 +668,8 @@ func newLokaliseUploadSourcesCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.applyTM, "apply-tm", false, "apply 100% translation memory matches during import")
 	cmd.Flags().BoolVar(&o.skipDetectLangISO, "skip-detect-lang-iso", false, "skip automatic language detection by filename")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
+	cmd.Flags().BoolVar(&o.poll, "poll", false, "wait until the queued Lokalise import finishes")
+	cmd.Flags().DurationVar(&o.pollTimeout, "poll-timeout", o.pollTimeout, "maximum time to wait when --poll is set (lokalise2 default 30s; CI should pass a longer duration)")
 	return cmd
 }
 
@@ -665,6 +677,7 @@ func newLokaliseUploadTranslationsCmd() *cobra.Command {
 	o := lokaliseUploadTranslationsOptions{
 		tokenEnv:       defaultLokaliseAPITokenEnv,
 		timeoutSeconds: 30,
+		pollTimeout:    30 * time.Second,
 	}
 	cmd := &cobra.Command{
 		Use:          "translations",
@@ -689,6 +702,8 @@ func newLokaliseUploadTranslationsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.distinguishByFile, "distinguish-by-file", false, "allow same key names in different filenames")
 	cmd.Flags().BoolVar(&o.applyTM, "apply-tm", false, "apply 100% translation memory matches during import")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
+	cmd.Flags().BoolVar(&o.poll, "poll", false, "wait until the queued Lokalise import finishes")
+	cmd.Flags().DurationVar(&o.pollTimeout, "poll-timeout", o.pollTimeout, "maximum time to wait when --poll is set (lokalise2 default 30s; CI should pass a longer duration)")
 	return cmd
 }
 
@@ -786,8 +801,9 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 		return err
 	}
 	processed := 0
+	ctx := lokaliseCommandContext(cmd)
 	for _, file := range files {
-		result, err := client.UploadSourceFile(backgroundContext(), lokalise.SourceUploadInput{
+		result, err := client.UploadSourceFile(ctx, lokalise.SourceUploadInput{
 			ProjectID:           cfg.ProjectID,
 			SourceLocale:        sourceLocale,
 			FilePath:            file,
@@ -806,6 +822,15 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 		processed++
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s\n", file, result.ProcessID, result.Status, result.Type); err != nil {
 			return err
+		}
+		result, err = waitForLokaliseUploadIfRequested(cmd, client, cfg.ProjectID, strings.TrimSpace(o.branch), result, o.poll, o.pollTimeout, o.dryRun, "lokalise upload sources")
+		if err != nil {
+			return err
+		}
+		if o.poll && !o.dryRun {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s\n", file, result.ProcessID, result.Status, result.Type); err != nil {
+				return err
+			}
 		}
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-sources processed=%d\n", processed)
@@ -836,8 +861,9 @@ func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTrans
 		return err
 	}
 	processed := 0
+	ctx := lokaliseCommandContext(cmd)
 	for _, file := range files {
-		result, err := client.UploadTranslationFile(cmd.Context(), lokalise.TranslationUploadInput{
+		result, err := client.UploadTranslationFile(ctx, lokalise.TranslationUploadInput{
 			ProjectID:           cfg.ProjectID,
 			TargetLocale:        targetLocale,
 			FilePath:            file,
@@ -856,9 +882,58 @@ func executeLokaliseUploadTranslations(cmd *cobra.Command, o lokaliseUploadTrans
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s modified_translations=%s\n", file, result.ProcessID, result.Status, result.Type, modified); err != nil {
 			return err
 		}
+		result, err = waitForLokaliseUploadIfRequested(cmd, client, cfg.ProjectID, strings.TrimSpace(o.branch), result, o.poll, o.pollTimeout, o.dryRun, "lokalise upload translations")
+		if err != nil {
+			return err
+		}
+		if o.poll && !o.dryRun {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s process_id=%s status=%s type=%s modified_translations=%s\n", file, result.ProcessID, result.Status, result.Type, modified); err != nil {
+				return err
+			}
+		}
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-translations processed=%d modified_translations=%s\n", processed, modified)
 	return err
+}
+
+func lokaliseCommandContext(cmd *cobra.Command) context.Context {
+	if cmd != nil && cmd.Context() != nil {
+		return cmd.Context()
+	}
+	return backgroundContext()
+}
+
+type lokaliseQueuedProcessWaiter interface {
+	WaitForQueuedProcess(context.Context, lokalise.QueuedProcessWaitInput) (lokalise.SourceUploadResult, error)
+}
+
+func waitForLokaliseUploadIfRequested(cmd *cobra.Command, client lokaliseQueuedProcessWaiter, projectID, branch string, result lokalise.SourceUploadResult, poll bool, pollTimeout time.Duration, dryRun bool, action string) (lokalise.SourceUploadResult, error) {
+	if !poll || dryRun {
+		return result, nil
+	}
+	if pollTimeout <= 0 {
+		return result, fmt.Errorf("%s: --poll-timeout must be greater than 0", action)
+	}
+	ctx, cancel := context.WithTimeout(lokaliseCommandContext(cmd), pollTimeout)
+	defer cancel()
+	waited, err := client.WaitForQueuedProcess(ctx, lokalise.QueuedProcessWaitInput{
+		ProjectID: projectID,
+		ProcessID: result.ProcessID,
+		Branch:    branch,
+	})
+	if strings.TrimSpace(waited.ProcessID) == "" {
+		waited.ProcessID = result.ProcessID
+		if waited.Status == "" {
+			waited.Status = result.Status
+		}
+		if waited.Type == "" {
+			waited.Type = result.Type
+		}
+	}
+	if err != nil {
+		return waited, fmt.Errorf("%s: %w", action, err)
+	}
+	return waited, nil
 }
 
 func lokaliseModifiedTranslationsLabel(replaceModified bool) string {
