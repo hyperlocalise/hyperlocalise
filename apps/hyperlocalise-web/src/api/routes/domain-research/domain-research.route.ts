@@ -84,7 +84,7 @@ export function createDomainResearchRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", requireWorkspaceDomainsFeature)
-    .get("/:linkedDomainId/research", validateLinkedDomainParams, async (c) => {
+    .get("/", validateLinkedDomainParams, async (c) => {
       if (!canReadLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
@@ -104,7 +104,7 @@ export function createDomainResearchRoutes() {
       );
     })
     .post(
-      "/:linkedDomainId/research/keywords/expand",
+      "/keywords/expand",
       validateLinkedDomainParams,
       validator("json", (value, c) => {
         const parsed = expandDomainResearchBodySchema.safeParse(value);
@@ -141,7 +141,7 @@ export function createDomainResearchRoutes() {
       },
     )
     .post(
-      "/:linkedDomainId/research/keywords/save",
+      "/keywords/save",
       validateLinkedDomainParams,
       validator("json", (value, c) => {
         const parsed = saveDomainResearchKeywordsBodySchema.safeParse(value);
@@ -177,7 +177,7 @@ export function createDomainResearchRoutes() {
       },
     )
     .post(
-      "/:linkedDomainId/research/serp",
+      "/serp",
       validateLinkedDomainParams,
       validator("json", (value, c) => {
         const parsed = inspectDomainResearchSerpBodySchema.safeParse(value);
@@ -214,7 +214,7 @@ export function createDomainResearchRoutes() {
       },
     )
     .post(
-      "/:linkedDomainId/research/ranks",
+      "/ranks",
       validateLinkedDomainParams,
       validator("json", (value, c) => {
         const parsed = trackDomainResearchKeywordsBodySchema.safeParse(value);
@@ -250,7 +250,7 @@ export function createDomainResearchRoutes() {
         return c.json({ ranks: result.value.ranks }, 200);
       },
     )
-    .post("/:linkedDomainId/research/ranks/refresh", validateLinkedDomainParams, async (c) => {
+    .post("/ranks/refresh", validateLinkedDomainParams, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
