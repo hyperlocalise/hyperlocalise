@@ -15,7 +15,11 @@ import "dotenv/config";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -31,6 +35,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+}));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -434,7 +442,7 @@ describe("memory entry detail", () => {
     );
     expect(patchResponse.status).toBe(403);
     await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "external_tms_memory_immutable",
+      error: "memory_action_read_only",
     });
   });
 
