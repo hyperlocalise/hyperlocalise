@@ -326,15 +326,16 @@ func TestDeepLClientTranslateContextCanceledBetweenChunks(t *testing.T) {
 		texts := r.PostForm["text"]
 		require.Len(t, texts, 50)
 
-		body := deeplSuccessBody(t, texts, "-out")
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
+		_, _ = w.Write(deeplSuccessBody(t, texts, "-out"))
+	})
 
+	base := client.httpClient.Transport
+	require.NotNil(t, base)
+	client.httpClient.Transport = deeplRoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		resp, err := base.RoundTrip(req)
 		cancel()
+		return resp, err
 	})
 
 	_, err := client.Translate(ctx, Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
