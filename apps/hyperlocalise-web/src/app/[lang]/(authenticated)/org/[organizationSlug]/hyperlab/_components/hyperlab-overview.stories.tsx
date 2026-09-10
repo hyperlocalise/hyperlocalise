@@ -77,6 +77,7 @@ export const LoadError: Story = {
     await expect(
       await canvas.findByText("We could not load this page. Try again."),
     ).toBeInTheDocument();
+    await expect(await canvas.findAllByText("Could not load")).toHaveLength(3);
     await expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   },
 };

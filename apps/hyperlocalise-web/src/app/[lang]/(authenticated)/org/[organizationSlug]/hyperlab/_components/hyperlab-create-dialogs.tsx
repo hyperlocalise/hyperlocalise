@@ -57,9 +57,9 @@ import {
 } from "./hyperlab-api";
 import {
   addMonthsIsoDate,
+  inspectWallTime,
   timezoneSelectItems,
   todayIsoDate,
-  wallTimeToIso,
 } from "./hyperlab-schedule";
 
 function CreateDialogTrigger({ children }: { children: ReactNode }) {
@@ -92,31 +92,29 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
     { value: "ab", label: intl.formatMessage(messages.experimentKindAb) },
   ];
 
+  const startWall = inspectWallTime(startDate, startTime, zone);
+  const endWall = inspectWallTime(endDate, endTime, zone);
+  const scheduleReady = Boolean(startWall.iso && endWall.iso);
+
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!startWall.iso || !endWall.iso) {
+        throw new Error(intl.formatMessage(messages.scheduleNonexistent));
+      }
       const response = await client.experiments.$post({
         param: { organizationSlug },
         json: {
           name,
           kind,
           timezone: zone,
-          startAt: wallTimeToIso(startDate, startTime, zone),
-          endAt: wallTimeToIso(endDate, endTime, zone),
+          startAt: startWall.iso,
+          endAt: endWall.iso,
         },
       });
       const body = await readHyperlabJson<{ experiment: HyperlabExperiment }>(
         response,
         intl.formatMessage(messages.loadError),
       );
-      const variantResponse = await client.experiments[":experimentId"].variants.$post({
-        param: { organizationSlug, experimentId: body.experiment.id },
-        json: {
-          key: "control",
-          isControl: true,
-          rolloutPercentage: kind === "toggle" ? 10000 : 5000,
-        },
-      });
-      await readHyperlabJson(variantResponse, intl.formatMessage(messages.loadError));
       return body.experiment;
     },
     onSuccess: async (experiment) => {
@@ -228,6 +226,16 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     onChange={(event) => setStartTime(event.target.value)}
                     required
                   />
+                  {startWall.status === "nonexistent" || startWall.status === "invalid" ? (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.scheduleNonexistent} />
+                    </FieldDescription>
+                  ) : null}
+                  {startWall.status === "ambiguous" ? (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.scheduleAmbiguous} />
+                    </FieldDescription>
+                  ) : null}
                 </Field>
               </Column>
               <Column width="1/3">
@@ -287,12 +295,25 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     onChange={(event) => setEndTime(event.target.value)}
                     required
                   />
+                  {endWall.status === "nonexistent" || endWall.status === "invalid" ? (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.scheduleNonexistent} />
+                    </FieldDescription>
+                  ) : null}
+                  {endWall.status === "ambiguous" ? (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.scheduleAmbiguous} />
+                    </FieldDescription>
+                  ) : null}
                 </Field>
               </Column>
             </Columns>
           </FieldGroup>
           <DialogFooter>
-            <Button type="submit" disabled={!name.trim() || createMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={!name.trim() || !scheduleReady || createMutation.isPending}
+            >
               {createMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
               <FormattedMessage
                 {...(createMutation.isPending ? messages.creating : messages.createExperiment)}

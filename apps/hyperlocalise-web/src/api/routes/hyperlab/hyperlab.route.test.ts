@@ -187,15 +187,16 @@ describe("hyperlabRoutes", () => {
     expect(created.status).toBe(201);
     const createdBody = (await created.json()) as { experiment: { id: string } };
 
-    const control = await hyperlab().experiments[":experimentId"].variants.$post(
-      {
-        param: { organizationSlug: slug, experimentId: createdBody.experiment.id },
-        json: { key: "control", isControl: true, rolloutPercentage: 5000 },
-      },
+    const initial = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId: createdBody.experiment.id } },
       { headers },
     );
-    expect(control.status).toBe(201);
-    const controlBody = (await control.json()) as { variant: { id: string } };
+    expect(initial.status).toBe(200);
+    const initialBody = (await initial.json()) as {
+      variants: Array<{ id: string; key: string; rolloutPercentage: number }>;
+    };
+    const control = initialBody.variants.find((variant) => variant.key === "control");
+    expect(control?.rolloutPercentage).toBe(5000);
 
     const treatment = await hyperlab().experiments[":experimentId"].variants.$post(
       {
@@ -208,7 +209,7 @@ describe("hyperlabRoutes", () => {
 
     const updated = await hyperlab().variants[":variantId"].$put(
       {
-        param: { organizationSlug: slug, variantId: controlBody.variant.id },
+        param: { organizationSlug: slug, variantId: control?.id ?? "" },
         json: { rolloutPercentage: 2500 },
       },
       { headers },
@@ -246,5 +247,177 @@ describe("hyperlabRoutes", () => {
       end: 9999,
       id: expect.any(String),
     });
+  });
+
+  it("creates an experiment with a control variant in one request", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+
+    const created = await hyperlab().experiments.$post(
+      { param: { organizationSlug: slug }, json: { name: "Homepage hero", kind: "toggle" } },
+      { headers },
+    );
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as { experiment: { id: string } };
+
+    const detail = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId: createdBody.experiment.id } },
+      { headers },
+    );
+    const detailBody = (await detail.json()) as {
+      variants: Array<{ key: string; isControl: boolean; rolloutPercentage: number }>;
+    };
+    expect(detailBody.variants).toEqual([
+      expect.objectContaining({ key: "control", isControl: true, rolloutPercentage: 10000 }),
+    ]);
+  });
+
+  it("updates every variant rollout in one request and rejects totals other than 100%", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+
+    const created = await hyperlab().experiments.$post(
+      { param: { organizationSlug: slug }, json: { name: "Pricing table", kind: "ab" } },
+      { headers },
+    );
+    const createdBody = (await created.json()) as { experiment: { id: string } };
+    const experimentId = createdBody.experiment.id;
+
+    const treatment = await hyperlab().experiments[":experimentId"].variants.$post(
+      {
+        param: { organizationSlug: slug, experimentId },
+        json: { key: "treatment", rolloutPercentage: 5000 },
+      },
+      { headers },
+    );
+    expect(treatment.status).toBe(201);
+
+    const listed = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId } },
+      { headers },
+    );
+    const listedBody = (await listed.json()) as {
+      variants: Array<{ id: string; key: string }>;
+    };
+    const control = listedBody.variants.find((variant) => variant.key === "control");
+    const treatmentVariant = listedBody.variants.find((variant) => variant.key === "treatment");
+
+    const rejected = await hyperlab().experiments[":experimentId"].rollouts.$put(
+      {
+        param: { organizationSlug: slug, experimentId },
+        json: {
+          rollouts: [
+            { variantId: control?.id ?? "", rolloutPercentage: 2500 },
+            { variantId: treatmentVariant?.id ?? "", rolloutPercentage: 2500 },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(rejected.status).toBe(400);
+
+    const saved = await hyperlab().experiments[":experimentId"].rollouts.$put(
+      {
+        param: { organizationSlug: slug, experimentId },
+        json: {
+          rollouts: [
+            { variantId: control?.id ?? "", rolloutPercentage: 2500 },
+            { variantId: treatmentVariant?.id ?? "", rolloutPercentage: 7500 },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(saved.status).toBe(200);
+
+    const detail = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId } },
+      { headers },
+    );
+    const detailBody = (await detail.json()) as {
+      variants: Array<{ id: string; key: string; rolloutPercentage: number }>;
+      allocations: Array<{ variantId: string; start: number; end: number }>;
+    };
+    expect(detailBody.variants.find((variant) => variant.key === "control")?.rolloutPercentage).toBe(
+      2500,
+    );
+    expect(
+      detailBody.variants.find((variant) => variant.key === "treatment")?.rolloutPercentage,
+    ).toBe(7500);
+    const allocationsByVariant = new Map(
+      detailBody.allocations.map((allocation) => [allocation.variantId, allocation]),
+    );
+    expect(allocationsByVariant.get(control?.id ?? "")).toEqual({
+      variantId: control?.id,
+      start: 0,
+      end: 2499,
+      id: expect.any(String),
+    });
+    expect(allocationsByVariant.get(treatmentVariant?.id ?? "")).toEqual({
+      variantId: treatmentVariant?.id,
+      start: 2500,
+      end: 9999,
+      id: expect.any(String),
+    });
+  });
+
+  it("rebalances existing variants when a new variant is created with sibling rollouts", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+
+    const created = await hyperlab().experiments.$post(
+      { param: { organizationSlug: slug }, json: { name: "Onboarding", kind: "ab" } },
+      { headers },
+    );
+    const createdBody = (await created.json()) as { experiment: { id: string } };
+    const experimentId = createdBody.experiment.id;
+
+    await hyperlab().experiments[":experimentId"].variants.$post(
+      {
+        param: { organizationSlug: slug, experimentId },
+        json: { key: "treatment", rolloutPercentage: 5000 },
+      },
+      { headers },
+    );
+
+    const listed = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId } },
+      { headers },
+    );
+    const listedBody = (await listed.json()) as {
+      variants: Array<{ id: string; key: string }>;
+    };
+
+    const added = await hyperlab().experiments[":experimentId"].variants.$post(
+      {
+        param: { organizationSlug: slug, experimentId },
+        json: {
+          key: "holdout",
+          rolloutPercentage: 3334,
+          siblingRollouts: listedBody.variants.map((variant) => ({
+            variantId: variant.id,
+            rolloutPercentage: 3333,
+          })),
+        },
+      },
+      { headers },
+    );
+    expect(added.status).toBe(201);
+
+    const detail = await hyperlab().experiments[":experimentId"].$get(
+      { param: { organizationSlug: slug, experimentId } },
+      { headers },
+    );
+    const detailBody = (await detail.json()) as {
+      variants: Array<{ key: string; rolloutPercentage: number }>;
+    };
+    const percentages = detailBody.variants
+      .map((variant) => variant.rolloutPercentage)
+      .toSorted((left, right) => left - right);
+    expect(percentages).toEqual([3333, 3333, 3334]);
+    expect(percentages.reduce((sum, value) => sum + value, 0)).toBe(10000);
   });
 });

@@ -14,6 +14,8 @@ import { expect, test } from "vite-plus/test";
 
 import {
   addMonthsIsoDate,
+  equalVariantRollouts,
+  inspectWallTime,
   isoToWallTime,
   percentToRollout,
   rolloutToPercent,
@@ -45,4 +47,29 @@ test("converts rollout scale to percent", () => {
 test("keeps a timezone that is not in the common list", () => {
   const items = timezoneSelectItems("Asia/Ho_Chi_Minh");
   expect(items[0]).toEqual({ value: "Asia/Ho_Chi_Minh", label: "Asia/Ho Chi Minh" });
+});
+
+test("rejects a spring-forward gap", () => {
+  expect(inspectWallTime("2026-03-08", "02:30", "America/Los_Angeles")).toEqual({
+    status: "nonexistent",
+    iso: null,
+  });
+  expect(() => wallTimeToIso("2026-03-08", "02:30", "America/Los_Angeles")).toThrow(
+    /does not exist/,
+  );
+});
+
+test("uses the earlier occurrence for an ambiguous fall-back time", () => {
+  const result = inspectWallTime("2026-11-01", "01:30", "America/Los_Angeles");
+  expect(result.status).toBe("ambiguous");
+  expect(result.iso).toBe("2026-11-01T08:30:00.000Z");
+  expect(isoToWallTime(result.iso ?? "", "America/Los_Angeles")).toEqual({
+    date: "2026-11-01",
+    time: "01:30",
+  });
+});
+
+test("splits traffic evenly across versions", () => {
+  expect(equalVariantRollouts(2)).toEqual([5000, 5000]);
+  expect(equalVariantRollouts(3)).toEqual([3333, 3333, 3334]);
 });

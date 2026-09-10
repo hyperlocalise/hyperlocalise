@@ -35,6 +35,7 @@ import {
 } from "./hyperlab-api";
 import {
   criterionToRuleGroup,
+  emptyRuleGroup,
   ruleGroupToCriterion,
   type HyperlabRuleGroup,
 } from "./hyperlab-criterion";
@@ -56,7 +57,7 @@ export function HyperlabAudienceDetail({
   const client = hyperlabClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [group, setGroup] = useState<HyperlabRuleGroup>({ type: "or", rules: [] });
+  const [group, setGroup] = useState<HyperlabRuleGroup>(emptyRuleGroup);
   const [baseline, setBaseline] = useState("");
 
   const detailQuery = useQuery({

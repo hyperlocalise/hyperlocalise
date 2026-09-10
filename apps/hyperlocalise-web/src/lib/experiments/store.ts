@@ -12,7 +12,7 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { calculateAllocationRanges } from "./allocations";
@@ -53,8 +53,42 @@ export async function getExperimentFlagConfig(flagId: string) {
   return config ?? null;
 }
 
-export async function recomputeExperimentAllocations(experimentId: string) {
-  const [experiment] = await db
+async function replaceExperimentAllocations(
+  executor: DatabaseClient,
+  variants: Array<{ id: string }>,
+  ranges: ReturnType<typeof calculateAllocationRanges>,
+) {
+  for (const variant of variants) {
+    await executor
+      .delete(schema.experimentAllocations)
+      .where(eq(schema.experimentAllocations.variantId, variant.id));
+  }
+
+  const rows = variants.flatMap((variant, index) => {
+    const range = ranges[index];
+    if (!range) {
+      return [];
+    }
+    return [
+      {
+        variantId: variant.id,
+        start: range.start,
+        end: range.end,
+      },
+    ];
+  });
+
+  if (rows.length > 0) {
+    await executor.insert(schema.experimentAllocations).values(rows);
+  }
+}
+
+export async function recomputeExperimentAllocations(
+  experimentId: string,
+  executor?: DatabaseClient,
+) {
+  const client = executor ?? db;
+  const [experiment] = await client
     .select({
       id: schema.experiments.id,
       rolloutPercentage: schema.experiments.rolloutPercentage,
@@ -67,7 +101,7 @@ export async function recomputeExperimentAllocations(experimentId: string) {
     return;
   }
 
-  const variants = await db
+  const variants = await client
     .select({
       id: schema.experimentVariants.id,
       rolloutPercentage: schema.experimentVariants.rolloutPercentage,
@@ -81,30 +115,13 @@ export async function recomputeExperimentAllocations(experimentId: string) {
     variants.map((variant) => variant.rolloutPercentage),
   );
 
+  if (executor) {
+    await replaceExperimentAllocations(executor, variants, ranges);
+    return;
+  }
+
   await db.transaction(async (tx) => {
-    for (const variant of variants) {
-      await tx
-        .delete(schema.experimentAllocations)
-        .where(eq(schema.experimentAllocations.variantId, variant.id));
-    }
-
-    const rows = variants.flatMap((variant, index) => {
-      const range = ranges[index];
-      if (!range) {
-        return [];
-      }
-      return [
-        {
-          variantId: variant.id,
-          start: range.start,
-          end: range.end,
-        },
-      ];
-    });
-
-    if (rows.length > 0) {
-      await tx.insert(schema.experimentAllocations).values(rows);
-    }
+    await replaceExperimentAllocations(tx, variants, ranges);
   });
 }
 

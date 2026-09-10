@@ -68,15 +68,73 @@ function offsetMinutesForInstant(instant: Date, timeZone: string): number {
   return parseGmtOffsetMinutes(name);
 }
 
-export function wallTimeToIso(date: string, time: string, timeZone: string): string {
+export type WallTimeStatus = "ok" | "ambiguous" | "nonexistent" | "invalid";
+
+export type WallTimeResult = {
+  status: WallTimeStatus;
+  iso: string | null;
+};
+
+function wallTimeInstants(date: string, time: string, timeZone: string): Date[] {
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
-  let utcMs = Date.UTC(year, month - 1, day, hour, minute, 0);
-  for (let index = 0; index < 2; index += 1) {
-    const offsetMin = offsetMinutesForInstant(new Date(utcMs), timeZone);
-    utcMs = Date.UTC(year, month - 1, day, hour, minute, 0) - offsetMin * 60_000;
+  if (![year, month, day, hour, minute].every((value) => Number.isFinite(value))) {
+    return [];
   }
-  return new Date(utcMs).toISOString();
+  const wallTime = `${pad(hour)}:${pad(minute)}`;
+  const offsets = new Set<number>();
+  for (const probeHour of [0, 3, 6, 9, 12, 15, 18, 21]) {
+    offsets.add(
+      offsetMinutesForInstant(new Date(Date.UTC(year, month - 1, day, probeHour, 0, 0)), timeZone),
+    );
+  }
+  const instants: Date[] = [];
+  const seen = new Set<number>();
+  for (const offsetMin of offsets) {
+    const utcMs = Date.UTC(year, month - 1, day, hour, minute, 0) - offsetMin * 60_000;
+    if (seen.has(utcMs)) {
+      continue;
+    }
+    const wall = isoToWallTime(new Date(utcMs).toISOString(), timeZone);
+    if (wall.date === date && wall.time === wallTime) {
+      seen.add(utcMs);
+      instants.push(new Date(utcMs));
+    }
+  }
+  return instants.sort((left, right) => left.getTime() - right.getTime());
+}
+
+export function inspectWallTime(date: string, time: string, timeZone: string): WallTimeResult {
+  if (!date || !time || !timeZone) {
+    return { status: "invalid", iso: null };
+  }
+  const instants = wallTimeInstants(date, time, timeZone);
+  if (instants.length === 0) {
+    return { status: "nonexistent", iso: null };
+  }
+  return {
+    status: instants.length > 1 ? "ambiguous" : "ok",
+    iso: instants[0].toISOString(),
+  };
+}
+
+export function wallTimeToIso(date: string, time: string, timeZone: string): string {
+  const result = inspectWallTime(date, time, timeZone);
+  if (!result.iso) {
+    throw new Error("That local time does not exist in the selected timezone");
+  }
+  return result.iso;
+}
+
+export function equalVariantRollouts(count: number): number[] {
+  if (count <= 0) {
+    return [];
+  }
+  const base = Math.floor(10000 / count);
+  const remainder = 10000 % count;
+  return Array.from({ length: count }, (_, index) =>
+    index === count - 1 ? base + remainder : base,
+  );
 }
 
 export function isoToWallTime(iso: string, timeZone: string): { date: string; time: string } {

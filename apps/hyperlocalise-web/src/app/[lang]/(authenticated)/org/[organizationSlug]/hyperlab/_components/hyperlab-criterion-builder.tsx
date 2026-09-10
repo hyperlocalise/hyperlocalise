@@ -40,6 +40,7 @@ import {
   emptyAttributeRule,
   HYPERLAB_ATTRIBUTE_PRESETS,
   HYPERLAB_MATCH_OPTIONS,
+  summarizeCriterion,
   type HyperlabRuleGroup,
 } from "./hyperlab-criterion";
 
@@ -256,6 +257,14 @@ export function HyperlabCriterionBuilder({
           })}
         </Rows>
       )}
+      {group.nested.length > 0 ? (
+        <Rows spacing="1u">
+          <TypographyP size="small" tone="subtle">
+            <FormattedMessage {...messages.nestedRulesHint} />
+          </TypographyP>
+          <TypographyP size="small">{summarizeCriterion({ type: group.type, children: group.nested })}</TypographyP>
+        </Rows>
+      ) : null}
     </Rows>
   );
 }

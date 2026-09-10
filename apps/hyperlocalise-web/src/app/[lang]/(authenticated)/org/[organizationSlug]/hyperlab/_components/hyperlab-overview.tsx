@@ -37,8 +37,18 @@ import {
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { HyperlabLoadError } from "./hyperlab-ui";
 
-function countLabel(intl: ReturnType<typeof useIntl>, count: number | undefined) {
-  if (!count) {
+function countLabel(
+  intl: ReturnType<typeof useIntl>,
+  query: { isError: boolean; isPending: boolean; data?: unknown[] },
+) {
+  if (query.isError) {
+    return intl.formatMessage(messages.homeFailedCount);
+  }
+  if (query.isPending) {
+    return intl.formatMessage(messages.loading);
+  }
+  const count = query.data?.length ?? 0;
+  if (count === 0) {
     return intl.formatMessage(messages.homeEmptyCount);
   }
   return intl.formatMessage(messages.homeCount, { count });
@@ -99,19 +109,19 @@ OpenFeature.setProvider(
       href: `/org/${organizationSlug}/hyperlab/experiments`,
       title: messages.homeExperimentsTitle,
       body: messages.homeExperimentsBody,
-      count: experimentsQuery.data?.length,
+      query: experimentsQuery,
     },
     {
       href: `/org/${organizationSlug}/hyperlab/audiences`,
       title: messages.homeAudiencesTitle,
       body: messages.homeAudiencesBody,
-      count: audiencesQuery.data?.length,
+      query: audiencesQuery,
     },
     {
       href: `/org/${organizationSlug}/hyperlab/flags`,
       title: messages.homeFlagsTitle,
       body: messages.homeFlagsBody,
-      count: flagsQuery.data?.length,
+      query: flagsQuery,
     },
     {
       href: `/org/${organizationSlug}/hyperlab/keys`,
@@ -128,10 +138,20 @@ OpenFeature.setProvider(
       description={intl.formatMessage(messages.overviewDescription)}
     >
       <Rows spacing="3u">
-        {experimentsQuery.isError ? (
+        {experimentsQuery.isError || audiencesQuery.isError || flagsQuery.isError ? (
           <HyperlabLoadError
-            error={experimentsQuery.error}
-            onRetry={() => void experimentsQuery.refetch()}
+            error={experimentsQuery.error ?? audiencesQuery.error ?? flagsQuery.error}
+            onRetry={() => {
+              if (experimentsQuery.isError) {
+                void experimentsQuery.refetch();
+              }
+              if (audiencesQuery.isError) {
+                void audiencesQuery.refetch();
+              }
+              if (flagsQuery.isError) {
+                void flagsQuery.refetch();
+              }
+            }}
           />
         ) : null}
         <Columns spacing="2u" collapseBelow="large">
@@ -147,9 +167,9 @@ OpenFeature.setProvider(
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between gap-3">
-                  {"count" in card ? (
+                  {"query" in card ? (
                     <TypographyP size="small" tone="subtle">
-                      {countLabel(intl, card.count)}
+                      {countLabel(intl, card.query)}
                     </TypographyP>
                   ) : (
                     <span />

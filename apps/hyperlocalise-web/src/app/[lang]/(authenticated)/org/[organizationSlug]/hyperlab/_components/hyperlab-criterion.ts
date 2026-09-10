@@ -46,7 +46,12 @@ export const HYPERLAB_MATCH_OPTIONS: Array<{
 export type HyperlabRuleGroup = {
   type: "and" | "or";
   rules: ExperimentCriterionAttributeNode[];
+  nested: ExperimentCriterionNode[];
 };
+
+export function emptyRuleGroup(): HyperlabRuleGroup {
+  return { type: "or", rules: [], nested: [] };
+}
 
 export function emptyAttributeRule(): ExperimentCriterionAttributeNode {
   return {
@@ -59,11 +64,11 @@ export function emptyAttributeRule(): ExperimentCriterionAttributeNode {
 
 export function criterionToRuleGroup(criterion: unknown): HyperlabRuleGroup {
   if (!criterion || typeof criterion !== "object") {
-    return { type: "or", rules: [] };
+    return emptyRuleGroup();
   }
   const node = criterion as ExperimentCriterionNode;
   if (node.type === "attribute") {
-    return { type: "or", rules: [node] };
+    return { type: "or", rules: [node], nested: [] };
   }
   if (node.type === "and" || node.type === "or") {
     return {
@@ -71,22 +76,25 @@ export function criterionToRuleGroup(criterion: unknown): HyperlabRuleGroup {
       rules: node.children.filter(
         (child): child is ExperimentCriterionAttributeNode => child.type === "attribute",
       ),
+      nested: node.children.filter((child) => child.type !== "attribute"),
     };
   }
-  return { type: "or", rules: [] };
+  return { type: "or", rules: [], nested: [node] };
 }
 
 export function ruleGroupToCriterion(group: HyperlabRuleGroup): ExperimentCriterionNode | null {
   const rules = group.rules
     .map(normalizeAttributeRule)
     .filter((rule): rule is ExperimentCriterionAttributeNode => rule !== null);
-  if (rules.length === 0) {
+  const nested = group.nested ?? [];
+  const children: ExperimentCriterionNode[] = [...rules, ...nested];
+  if (children.length === 0) {
     return null;
   }
-  if (rules.length === 1) {
-    return rules[0];
+  if (children.length === 1) {
+    return children[0];
   }
-  return { type: group.type, children: rules };
+  return { type: group.type, children };
 }
 
 function normalizeAttributeRule(
@@ -132,19 +140,33 @@ export function attributeValueToInput(rule: ExperimentCriterionAttributeNode): s
 }
 
 export function summarizeCriterion(criterion: unknown): string {
-  const group = criterionToRuleGroup(criterion);
-  if (group.rules.length === 0) {
+  if (!criterion || typeof criterion !== "object") {
     return "";
   }
-  const joiner = group.type === "and" ? " and " : " or ";
-  return group.rules
-    .map((rule) => {
-      const preset = HYPERLAB_ATTRIBUTE_PRESETS.find((item) => item.name === rule.name);
-      const name = preset?.label ?? rule.name;
-      const match =
-        HYPERLAB_MATCH_OPTIONS.find((item) => item.value === rule.match)?.label ?? rule.match;
-      const value = attributeValueToInput(rule);
-      return value ? `${name} ${match} ${value}` : `${name} ${match}`;
-    })
+  return summarizeCriterionNode(criterion as ExperimentCriterionNode);
+}
+
+function summarizeCriterionNode(node: ExperimentCriterionNode): string {
+  if (node.type === "attribute") {
+    const preset = HYPERLAB_ATTRIBUTE_PRESETS.find((item) => item.name === node.name);
+    const name = preset?.label ?? node.name;
+    const match =
+      HYPERLAB_MATCH_OPTIONS.find((item) => item.value === node.match)?.label ?? node.match;
+    const value = attributeValueToInput(node);
+    return value ? `${name} ${match} ${value}` : `${name} ${match}`;
+  }
+  const parts = node.children.map(summarizeCriterionNode).filter(Boolean);
+  if (parts.length === 0) {
+    return "";
+  }
+  if (node.type === "not") {
+    return parts.length === 1 ? `not ${parts[0]}` : `not (${parts.join(" and ")})`;
+  }
+  const joiner = node.type === "and" ? " and " : " or ";
+  if (parts.length === 1) {
+    return parts[0];
+  }
+  return parts
+    .map((part) => (part.includes(" and ") || part.includes(" or ") ? `(${part})` : part))
     .join(joiner);
 }

@@ -84,10 +84,11 @@ import { HyperlabAudienceSelector } from "./hyperlab-audience-selector";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { HyperlabRolloutControl } from "./hyperlab-rollout-control";
 import {
+  equalVariantRollouts,
+  inspectWallTime,
   isoToWallTime,
   rolloutToPercent,
   timezoneSelectItems,
-  wallTimeToIso,
 } from "./hyperlab-schedule";
 import { HyperlabStatusBadge } from "./hyperlab-status-badge";
 import { HyperlabLoadError } from "./hyperlab-ui";
@@ -226,16 +227,22 @@ export function HyperlabExperimentDetail({
     (variant) => variantSplits[variant.id] !== variant.rolloutPercentage,
   );
   const splitTotal = variants.reduce((sum, variant) => sum + (variantSplits[variant.id] ?? 0), 0);
+  const startWall = inspectWallTime(startDate, startTime, timezone);
+  const endWall = inspectWallTime(endDate, endTime, timezone);
+  const scheduleReady = Boolean(startWall.iso && endWall.iso);
 
   const saveDetails = useMutation({
     mutationFn: async () => {
+      if (!startWall.iso || !endWall.iso) {
+        throw new Error(intl.formatMessage(messages.scheduleNonexistent));
+      }
       const response = await client.experiments[":experimentId"].$put({
         param: { organizationSlug, experimentId },
         json: {
           name,
           timezone,
-          startAt: wallTimeToIso(startDate, startTime, timezone),
-          endAt: wallTimeToIso(endDate, endTime, timezone),
+          startAt: startWall.iso,
+          endAt: endWall.iso,
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
@@ -271,16 +278,19 @@ export function HyperlabExperimentDetail({
 
   const saveSplits = useMutation({
     mutationFn: async () => {
-      await Promise.all(
-        variants.map((variant) =>
-          client.variants[":variantId"]
-            .$put({
-              param: { organizationSlug, variantId: variant.id },
-              json: { rolloutPercentage: variantSplits[variant.id] ?? variant.rolloutPercentage },
-            })
-            .then((response) => readHyperlabJson(response, intl.formatMessage(messages.loadError))),
-        ),
-      );
+      if (splitTotal !== 10000) {
+        throw new Error(intl.formatMessage(messages.variantSplitWarning));
+      }
+      const response = await client.experiments[":experimentId"].rollouts.$put({
+        param: { organizationSlug, experimentId },
+        json: {
+          rollouts: variants.map((variant) => ({
+            variantId: variant.id,
+            rolloutPercentage: variantSplits[variant.id] ?? variant.rolloutPercentage,
+          })),
+        },
+      });
+      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.saveSuccess));
@@ -323,12 +333,17 @@ export function HyperlabExperimentDetail({
 
   const addVariant = useMutation({
     mutationFn: async () => {
+      const shares = equalVariantRollouts(variants.length + 1);
       const response = await client.experiments[":experimentId"].variants.$post({
         param: { organizationSlug, experimentId },
         json: {
           key: variantKey,
           isControl: variants.length === 0,
-          rolloutPercentage: variants.length === 0 ? 10000 : 5000,
+          rolloutPercentage: shares[shares.length - 1] ?? 10000,
+          siblingRollouts: variants.map((variant, index) => ({
+            variantId: variant.id,
+            rolloutPercentage: shares[index] ?? 0,
+          })),
         },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
@@ -507,6 +522,16 @@ export function HyperlabExperimentDetail({
                           onChange={(event) => setStartTime(event.target.value)}
                           disabled={!canWrite}
                         />
+                        {startWall.status === "nonexistent" || startWall.status === "invalid" ? (
+                          <FieldDescription>
+                            <FormattedMessage {...messages.scheduleNonexistent} />
+                          </FieldDescription>
+                        ) : null}
+                        {startWall.status === "ambiguous" ? (
+                          <FieldDescription>
+                            <FormattedMessage {...messages.scheduleAmbiguous} />
+                          </FieldDescription>
+                        ) : null}
                       </Field>
                     </Column>
                     <Column width="1/3">
@@ -567,6 +592,16 @@ export function HyperlabExperimentDetail({
                           onChange={(event) => setEndTime(event.target.value)}
                           disabled={!canWrite}
                         />
+                        {endWall.status === "nonexistent" || endWall.status === "invalid" ? (
+                          <FieldDescription>
+                            <FormattedMessage {...messages.scheduleNonexistent} />
+                          </FieldDescription>
+                        ) : null}
+                        {endWall.status === "ambiguous" ? (
+                          <FieldDescription>
+                            <FormattedMessage {...messages.scheduleAmbiguous} />
+                          </FieldDescription>
+                        ) : null}
                       </Field>
                     </Column>
                   </Columns>
@@ -577,7 +612,7 @@ export function HyperlabExperimentDetail({
                   <Button
                     type="button"
                     onClick={() => saveDetails.mutate()}
-                    disabled={saveDetails.isPending || !detailsDirty}
+                    disabled={saveDetails.isPending || !detailsDirty || !scheduleReady}
                   >
                     {saveDetails.isPending ? <Spinner data-icon="inline-start" /> : null}
                     <FormattedMessage
@@ -681,7 +716,7 @@ export function HyperlabExperimentDetail({
                     <Button
                       type="button"
                       onClick={() => saveSplits.mutate()}
-                      disabled={saveSplits.isPending || !splitDirty}
+                      disabled={saveSplits.isPending || !splitDirty || splitTotal !== 10000}
                     >
                       {saveSplits.isPending ? <Spinner data-icon="inline-start" /> : null}
                       <FormattedMessage
