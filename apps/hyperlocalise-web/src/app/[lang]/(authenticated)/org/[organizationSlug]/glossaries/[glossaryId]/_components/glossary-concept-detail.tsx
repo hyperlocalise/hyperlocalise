@@ -80,7 +80,11 @@ import {
   statusPickerItemClass,
   statusPickerTriggerClass,
 } from "@/components/glossary/glossary-term-property-pickers";
-import { readApiError } from "@/lib/api-error";
+import {
+  ApiResponseError,
+  readApiError,
+  readApiResponseError,
+} from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
@@ -324,10 +328,12 @@ export function GlossaryConceptDetail({
       ].concepts[":conceptId"].$get({
         param: { organizationSlug, glossaryId, conceptId },
       });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
+      if (!response.ok) {
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(messages.loadConceptsFailed),
         );
+      }
       return (await response.json()).concept as GlossaryConceptRecord;
     },
   });
@@ -626,10 +632,23 @@ export function GlossaryConceptDetail({
 
   if (glossaryQuery.isLoading || (!isCreatingConcept && conceptQuery.isLoading))
     return <ConceptDetailSkeleton />;
-  if (!glossary || (!isCreatingConcept && conceptQuery.isSuccess && !selectedConcept)) {
+  const conceptNotFound =
+    conceptQuery.error instanceof ApiResponseError && conceptQuery.error.status === 404;
+  if (
+    !glossary ||
+    (!isCreatingConcept &&
+      (conceptNotFound || (conceptQuery.isSuccess && !selectedConcept)))
+  ) {
     return (
       <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.notFound} />
+      </TypographyP>
+    );
+  }
+  if (!isCreatingConcept && conceptQuery.isError) {
+    return (
+      <TypographyP className="py-8" size="small" tone="subtle">
+        {conceptQuery.error.message}
       </TypographyP>
     );
   }
