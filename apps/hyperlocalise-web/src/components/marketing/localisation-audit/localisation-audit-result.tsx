@@ -120,6 +120,8 @@ const FLUSH_ACCORDION = "rounded-none border-0";
 
 const COMPACT_TRIGGER = "gap-3 px-1 py-2.5 hover:no-underline";
 
+const CARD = "rounded-xl border border-border bg-card p-6 shadow-sm";
+
 function auditToneTextClass(tone: LocalisationAuditTone) {
   switch (tone) {
     case "safe":
@@ -945,6 +947,7 @@ export function LocalisationAuditResult({
   const teaser = audit.teaser;
   const report = audit.report;
   const score = audit.score ?? teaser?.score ?? report?.score ?? null;
+  const tone = scoreTone(score);
   const rating = interpretScore(score);
   const band = interpretScoreCtaBand(rating);
   const interpretation =
@@ -1068,7 +1071,7 @@ export function LocalisationAuditResult({
                   >
                     {dimension.score == null ? "—" : <CountUp value={dimension.score} />}
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-300 dark:bg-white dark:text-neutral-700">
+                  <span className="inline-flex items-center rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700">
                     {statusLabel}
                   </span>
                 </div>
@@ -1168,13 +1171,13 @@ export function LocalisationAuditResult({
                       variant="outline"
                       className={cn(
                         "mb-1 capitalize",
-                        scoreTone(score) === "safe"
+                        tone === "safe"
                           ? "border-[#107d32]/25 bg-[#107d32]/10 text-[#107d32]"
-                          : scoreTone(score) === "watch"
+                          : tone === "watch"
                             ? "border-[#aa4d00]/25 bg-[#aa4d00]/10 text-[#aa4d00]"
-                            : scoreTone(score) === "risk"
+                            : tone === "risk"
                               ? "border-[#ea001d]/25 bg-[#ea001d]/10 text-[#ea001d]"
-                              : "border-[#6b7280]/25 bg-[#6b7280]/10 text-[#6b7280]",
+                              : "border-border bg-muted text-muted-foreground",
                       )}
                     >
                       {ratingLabel}
@@ -1183,7 +1186,7 @@ export function LocalisationAuditResult({
                 </div>
 
                 {score != null ? (
-                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-black/20">
+                  <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-black/10">
                     <div
                       className={cn("h-full rounded-full", scoreBarClass)}
                       style={{ width: `${score}%` }}
@@ -1228,7 +1231,7 @@ export function LocalisationAuditResult({
 
         <div className="flex flex-col gap-6">
           {standing && !isWorkspace ? (
-            <div className="rounded-sm border-[0.5px] border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] flex-1">
+            <div className={cn(CARD, "flex-1")}>
               <h2 className="font-semibold font-serif text-xl">{copy.standingHeading}</h2>
               <dl className="mt-8 space-y-8">
                 <div className="flex items-baseline justify-between gap-2">
@@ -1264,7 +1267,7 @@ export function LocalisationAuditResult({
           ) : null}
 
           {detectedLocales.length > 0 ? (
-            <div className="rounded-lg border-[0.5px] border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+            <div className={CARD}>
               <h2 className="font-semibold font-serif text-xl">{copy.localesHeading}</h2>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {detectedLocales.map((localeSignal) => (
@@ -1282,7 +1285,7 @@ export function LocalisationAuditResult({
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+      <div className={cn("mt-6", CARD)}>
         <h2 className="font-serif font-semibold text-xl">{copy.fixFirstHeading}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{copy.fixFirstSubheading}</p>
         <Accordion className={cn(FLUSH_ACCORDION, "mt-1")}>
@@ -1297,7 +1300,7 @@ export function LocalisationAuditResult({
         </Accordion>
       </div>
       {credits.length > 0 ? (
-        <div className="mt-6 rounded-lg border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+        <div className={cn("mt-6", CARD)}>
           <h2 className="font-serif font-semibold text-xl">{copy.creditsHeading}</h2>
           <AuditCriteriaList
             credits={credits}
@@ -1310,7 +1313,7 @@ export function LocalisationAuditResult({
       ) : null}
 
       {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+        <div className={cn("mt-6", CARD)}>
           <h2 className="font-semibold font-serif text-xl">{copy.linguisticHeading}</h2>
           <div className="mt-4 grid gap-6 sm:grid-cols-2">
             {report.linguisticNotes.map((note) => (
@@ -1325,7 +1328,7 @@ export function LocalisationAuditResult({
                       key={`${note.locale}-${sample.text}`}
                       className="border-l-2 border-border pl-3"
                     >
-                      <p className="text-sm italic">“{sample.text}”</p>
+                      <p className="text-sm italic">"{sample.text}"</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{sample.note}</p>
                     </li>
                   ))}
@@ -1337,7 +1340,7 @@ export function LocalisationAuditResult({
       ) : null}
 
       {report?.pages && report.pages.length > 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.0784)] ">
+        <div className={cn("mt-6", CARD)}>
           <Collapsible>
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-semibold font-serif text-xl">{copy.pagesHeading}</h2>
@@ -1377,7 +1380,7 @@ export function LocalisationAuditResult({
 
       {isWorkspace ? null : (
         <div className="mt-6 grid gap-6 sm:grid-cols-2 pb-16">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+          <div className={CARD}>
             <h2 className="font-semibold font-serif text-xl">{copy.unlockHeading}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{copy.unlockBody}</p>
             <form onSubmit={requestReportEmail} className="mt-5 space-y-3">
@@ -1403,7 +1406,7 @@ export function LocalisationAuditResult({
             </form>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.0784)]">
+          <div className={CARD}>
             <h2 className="font-semibold font-serif text-xl">{copy.reauditHeading}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{ctaBody}</p>
             <div className="mt-6 flex flex-wrap gap-2">
