@@ -44,7 +44,7 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: "Market features" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Market experiments" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "One market first" })).toBeInTheDocument();
-    await expect(canvas.getByText("checkout-cta")).toBeInTheDocument();
+    await expect(canvas.getByText("Japan checkout button")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Request a Demo" })).toBeInTheDocument();
   },
 };
@@ -52,8 +52,8 @@ export const Default: Story = {
 export const Embedded: Story = {
   render: () => <HyperlabMockShowcase variant="embedded" />,
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("checkout-cta")).toBeInTheDocument();
-    await expect(canvas.getByText("theme.palette")).toBeInTheDocument();
+    await expect(canvas.getByText("Japan checkout button")).toBeInTheDocument();
+    await expect(canvas.getByText("Homepage theme")).toBeInTheDocument();
     await expect(canvas.queryByRole("link", { name: "Request a Demo" })).not.toBeInTheDocument();
   },
 };

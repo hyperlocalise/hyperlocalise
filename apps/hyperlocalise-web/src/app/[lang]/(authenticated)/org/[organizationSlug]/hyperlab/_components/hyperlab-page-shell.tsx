@@ -14,10 +14,11 @@
  */
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { FlaskConicalIcon } from "@hugeicons/core-free-icons";
-import { FormattedMessage } from "react-intl";
+import { ArrowLeft01Icon, FlaskConicalIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
-import { Box } from "@/components/ui/layout/box";
+import { Button } from "@/components/ui/button";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -25,15 +26,15 @@ import { cn } from "@/lib/primitives/cn";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 
-type HyperlabSection = "overview" | "flags" | "experiments" | "audiences" | "keys";
+type HyperlabSection = "overview" | "experiments" | "audiences" | "flags" | "keys";
 
-const SECTION_HREF: Record<HyperlabSection, string> = {
-  overview: "",
-  flags: "/flags",
-  experiments: "/experiments",
-  audiences: "/audiences",
-  keys: "/keys",
-};
+const SECTIONS: Array<{ id: HyperlabSection; href: string; message: typeof messages.navHome }> = [
+  { id: "overview", href: "", message: messages.navHome },
+  { id: "experiments", href: "/experiments", message: messages.navExperiments },
+  { id: "audiences", href: "/audiences", message: messages.navAudiences },
+  { id: "flags", href: "/flags", message: messages.navFlags },
+  { id: "keys", href: "/keys", message: messages.navKeys },
+];
 
 export function HyperlabPageShell({
   organizationSlug,
@@ -41,6 +42,7 @@ export function HyperlabPageShell({
   title,
   description,
   actions,
+  backHref,
   children,
 }: {
   organizationSlug: string;
@@ -48,53 +50,57 @@ export function HyperlabPageShell({
   title: string;
   description: string;
   actions?: ReactNode;
+  backHref?: string;
   children: ReactNode;
 }) {
+  const intl = useIntl();
   const base = `/org/${organizationSlug}/hyperlab`;
 
   return (
     <WorkspacePageShell>
       <Rows spacing="3u">
+        {backHref ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-fit px-0"
+            nativeButton={false}
+            render={<Link href={backHref} />}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} data-icon="inline-start" />
+            <FormattedMessage {...messages.backToList} />
+          </Button>
+        ) : null}
         <PageHeader
           icon={FlaskConicalIcon}
-          label="Workspace"
+          label={intl.formatMessage(messages.workspaceLabel)}
           title={title}
           description={description}
           actions={actions}
         />
-        <Box border="standard" borderRadius="standard" paddingX="1u">
-          <nav aria-label="Hyperlab">
-            <Row spacing="0.5u" alignY="center">
-              {(
-                [
-                  ["overview", messages.navOverview],
-                  ["flags", messages.navFlags],
-                  ["experiments", messages.navExperiments],
-                  ["audiences", messages.navAudiences],
-                  ["keys", messages.navKeys],
-                ] as const
-              ).map(([id, message]) => {
-                const href = `${base}${SECTION_HREF[id]}`;
-                const active = section === id;
-                return (
-                  <Link
-                    key={id}
-                    href={href}
-                    className={cn(
-                      "px-3 py-2 text-sm",
-                      active
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <FormattedMessage {...message} />
-                  </Link>
-                );
-              })}
-            </Row>
-          </nav>
-        </Box>
+        <nav aria-label="Hyperlab" className="border-b border-border">
+          <Row spacing="0.5u" alignY="center">
+            {SECTIONS.map((item) => {
+              const href = `${base}${item.href}`;
+              const active = section === item.id;
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  className={cn(
+                    "relative px-3 py-2 text-sm",
+                    active
+                      ? "font-medium text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <FormattedMessage {...item.message} />
+                </Link>
+              );
+            })}
+          </Row>
+        </nav>
         {children}
       </Rows>
     </WorkspacePageShell>

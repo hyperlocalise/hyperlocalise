@@ -63,8 +63,8 @@ export const hyperlabMockMessages = defineMessages({
   },
 
   navOverview: {
-    defaultMessage: "Overview",
-    id: "spEEMpmq/e",
+    defaultMessage: "Home",
+    id: "+NYs5YKkI7",
     description: "Hyperlab mock UI nav tab",
   },
   navFlags: {
@@ -83,8 +83,8 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI nav tab",
   },
   navKeys: {
-    defaultMessage: "Keys",
-    id: "0tIFgw5ysH",
+    defaultMessage: "API keys",
+    id: "PB1K/gpBSz",
     description: "Hyperlab mock UI nav tab",
   },
 
@@ -94,33 +94,33 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI flags panel title",
   },
   flagsPanelSubtitle: {
-    defaultMessage: "3 features · Japan, France, Germany",
-    id: "dUEmby2xEU",
+    defaultMessage: "3 site changes · Japan, France, Germany",
+    id: "TwLvVpDCfR",
     description: "Hyperlab mock UI flags panel subtitle",
   },
   flagCheckoutCta: {
-    defaultMessage: "checkout-cta",
-    id: "V/sRu8J8dR",
-    description: "Hyperlab mock UI sample flag key",
+    defaultMessage: "Japan checkout button",
+    id: "s//TJj0Gwv",
+    description: "Hyperlab mock UI sample flag name",
   },
   flagThemePalette: {
-    defaultMessage: "theme.palette",
-    id: "JM0AnSPCmK",
-    description: "Hyperlab mock UI sample flag key",
+    defaultMessage: "Homepage theme",
+    id: "yWOE0mLWj6",
+    description: "Hyperlab mock UI sample flag name",
   },
   flagOnboardingFlow: {
-    defaultMessage: "onboarding.flow",
-    id: "a4wQu11D5D",
-    description: "Hyperlab mock UI sample flag key",
+    defaultMessage: "Welcome flow",
+    id: "NJos6EHpe9",
+    description: "Hyperlab mock UI sample flag name",
   },
   kindExperiment: {
-    defaultMessage: "Experiment",
-    id: "QT9sZSgQql",
+    defaultMessage: "Used in a test",
+    id: "319r5R8fnf",
     description: "Hyperlab mock UI flag kind badge",
   },
   kindConfig: {
-    defaultMessage: "Config",
-    id: "QZTQDCT8kY",
+    defaultMessage: "Always on",
+    id: "PKG4uTSj5H",
     description: "Hyperlab mock UI flag kind badge",
   },
 
@@ -130,28 +130,28 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI experiments panel title",
   },
   experimentsPanelSubtitle: {
-    defaultMessage: "checkout-cta-jp · Japan A/B · Active",
-    id: "D+amXRmj7m",
+    defaultMessage: "Japan checkout headline · A/B · On",
+    id: "uNsh7K2ojK",
     description: "Hyperlab mock UI experiments panel subtitle",
   },
   statusActive: {
-    defaultMessage: "Active",
-    id: "lIN1Ui+fCv",
+    defaultMessage: "On",
+    id: "Ce2REB8MXc",
     description: "Hyperlab mock UI experiment status badge",
   },
   variantControl: {
-    defaultMessage: "control",
-    id: "EoS+At6qci",
+    defaultMessage: "Original",
+    id: "uky6XW4pIX",
     description: "Hyperlab mock UI experiment variant label",
   },
   variantTreatment: {
-    defaultMessage: "treatment",
-    id: "jQ86ApxA97",
+    defaultMessage: "New headline",
+    id: "H0xjCkZBLy",
     description: "Hyperlab mock UI experiment variant label",
   },
   rolloutLabel: {
-    defaultMessage: "Rollout",
-    id: "V5bvOi6wCN",
+    defaultMessage: "How traffic is split",
+    id: "UtP8mQ6w9v",
     description: "Hyperlab mock UI rollout section label",
   },
 
@@ -166,43 +166,33 @@ export const hyperlabMockMessages = defineMessages({
     description: "Hyperlab mock UI audiences panel subtitle",
   },
   audienceProUsers: {
-    defaultMessage: "Japan",
-    id: "kiy9KSpjzE",
+    defaultMessage: "Visitors in Japan",
+    id: "HDKKnoWhN2",
     description: "Hyperlab mock UI audience name",
   },
   criterionAttribute: {
-    defaultMessage: "market",
-    id: "ms5PNFzyT0",
+    defaultMessage: "Country",
+    id: "Kl9ZXq58t7",
     description: "Hyperlab mock UI criterion attribute",
   },
   criterionMatch: {
-    defaultMessage: "exact",
-    id: "Jr30TY5iBo",
+    defaultMessage: "is",
+    id: "vtUkybE5qg",
     description: "Hyperlab mock UI criterion match operator",
   },
   criterionValue: {
-    defaultMessage: "jp",
-    id: "FgAI7cwA3S",
+    defaultMessage: "Japan",
+    id: "LZxIZH8h0g",
     description: "Hyperlab mock UI criterion value",
   },
   evaluateTitle: {
-    defaultMessage: "OFREP evaluate",
-    id: "UEAwre36YT",
-    description: "Hyperlab mock UI evaluate response section title",
+    defaultMessage: "What they will see",
+    id: "m2dlmQn3d/",
+    description: "Hyperlab mock UI evaluate result heading",
   },
-  evaluateEnabled: {
-    defaultMessage: '"enabled": true',
-    id: "ezlEf15Nuz",
-    description: "Hyperlab mock UI evaluate response field",
-  },
-  evaluateVariant: {
-    defaultMessage: '"variant": "treatment"',
-    id: "aTqbNUoZhT",
-    description: "Hyperlab mock UI evaluate response field",
-  },
-  evaluateReason: {
-    defaultMessage: '"reason": "TARGETING_MATCH"',
-    id: "aAxceYKye/",
-    description: "Hyperlab mock UI evaluate response field",
+  evaluateResult: {
+    defaultMessage: "This visitor in Japan gets the new checkout.",
+    id: "dsmpLS7FwA",
+    description: "Hyperlab mock UI evaluate result for a matching visitor",
   },
 });

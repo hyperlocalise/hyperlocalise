@@ -12,25 +12,32 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
-import { Row } from "@/components/ui/layout/row";
-import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
-import { hyperlabClient, readHyperlabJson, type HyperlabExperiment } from "./hyperlab-api";
+import {
+  hyperlabClient,
+  hyperlabQueryKeys,
+  readHyperlabJson,
+  type HyperlabExperiment,
+} from "./hyperlab-api";
+import { HyperlabCreateExperimentDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
+import { formatScheduleRange } from "./hyperlab-schedule";
+import { HyperlabStatusBadge } from "./hyperlab-status-badge";
+import {
+  HyperlabEmptyState,
+  HyperlabLoadError,
+  HyperlabLoadingRows,
+  HyperlabTable,
+  HyperlabTableCell,
+  HyperlabTableRow,
+} from "./hyperlab-ui";
 
 export function HyperlabExperimentsPage({
   organizationSlug,
@@ -40,13 +47,9 @@ export function HyperlabExperimentsPage({
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<"toggle" | "ab">("toggle");
   const client = hyperlabClient();
-
   const experimentsQuery = useQuery({
-    queryKey: ["hyperlab-experiments", organizationSlug],
+    queryKey: hyperlabQueryKeys.experiments(organizationSlug),
     queryFn: async () => {
       const response = await client.experiments.$get({ param: { organizationSlug } });
       const body = await readHyperlabJson<{ experiments: HyperlabExperiment[] }>(
@@ -56,22 +59,10 @@ export function HyperlabExperimentsPage({
       return body.experiments;
     },
   });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const response = await client.experiments.$post({
-        param: { organizationSlug },
-        json: { name, kind },
-      });
-      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
-    },
-    onSuccess: async () => {
-      setName("");
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-experiments", organizationSlug] });
-    },
-  });
-
   const experiments = experimentsQuery.data ?? [];
+  const createAction = canWrite ? (
+    <HyperlabCreateExperimentDialog organizationSlug={organizationSlug} />
+  ) : null;
 
   return (
     <HyperlabPageShell
@@ -79,98 +70,78 @@ export function HyperlabExperimentsPage({
       section="experiments"
       title={intl.formatMessage(messages.experimentsTitle)}
       description={intl.formatMessage(messages.experimentsDescription)}
+      actions={createAction}
     >
-      <Rows spacing="2u">
-        {canWrite ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              createMutation.mutate();
-            }}
-          >
-            <Columns spacing="1.5u" alignY="end" collapseBelow="small">
-              <Column width="fluid">
-                <Field>
-                  <FieldLabel htmlFor="hyperlab-experiment-name">
-                    <FormattedMessage {...messages.experimentNameLabel} />
-                  </FieldLabel>
-                  <Input
-                    id="hyperlab-experiment-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                  />
-                </Field>
-              </Column>
-              <Column width="content">
-                <Field>
-                  <FieldLabel htmlFor="hyperlab-experiment-kind">
-                    <FormattedMessage {...messages.experimentKindLabel} />
-                  </FieldLabel>
-                  <select
-                    id="hyperlab-experiment-kind"
-                    className="h-9 rounded-md border border-border bg-transparent px-3 text-sm"
-                    value={kind}
-                    onChange={(event) => setKind(event.target.value as "toggle" | "ab")}
-                  >
-                    <option value="toggle">
-                      {intl.formatMessage(messages.experimentKindToggle)}
-                    </option>
-                    <option value="ab">{intl.formatMessage(messages.experimentKindAb)}</option>
-                  </select>
-                </Field>
-              </Column>
-              <Column width="content">
-                <Button type="submit" disabled={!name || createMutation.isPending}>
-                  <FormattedMessage {...messages.createExperiment} />
+      {experimentsQuery.isError ? (
+        <HyperlabLoadError
+          error={experimentsQuery.error}
+          onRetry={() => void experimentsQuery.refetch()}
+        />
+      ) : null}
+      {experimentsQuery.isLoading ? <HyperlabLoadingRows /> : null}
+      {!experimentsQuery.isLoading && experiments.length === 0 ? (
+        <HyperlabEmptyState
+          title={<FormattedMessage {...messages.experimentsEmptyTitle} />}
+          description={<FormattedMessage {...messages.experimentsEmpty} />}
+          action={createAction}
+        />
+      ) : null}
+      {experiments.length > 0 ? (
+        <HyperlabTable
+          headers={[
+            intl.formatMessage(messages.experimentNameLabel),
+            intl.formatMessage(messages.experimentStatusLabel),
+            intl.formatMessage(messages.experimentKindLabel),
+            intl.formatMessage(messages.scheduleColumn),
+            "",
+          ]}
+        >
+          {experiments.map((experiment) => (
+            <HyperlabTableRow key={experiment.id}>
+              <HyperlabTableCell>
+                <Link
+                  href={`/org/${organizationSlug}/hyperlab/experiments/${experiment.id}`}
+                  className="font-medium underline-offset-4 hover:underline"
+                >
+                  {experiment.name}
+                </Link>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <HyperlabStatusBadge status={experiment.status} endAt={experiment.endAt} />
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <TypographyP size="small" tone="subtle">
+                  {experiment.kind === "toggle"
+                    ? intl.formatMessage(messages.experimentKindToggle)
+                    : intl.formatMessage(messages.experimentKindAb)}
+                </TypographyP>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <TypographyP size="small" tone="subtle">
+                  {formatScheduleRange(
+                    experiment.startAt,
+                    experiment.endAt,
+                    experiment.timezone || "UTC",
+                    intl.locale,
+                  )}
+                </TypographyP>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/org/${organizationSlug}/hyperlab/experiments/${experiment.id}`} />
+                  }
+                >
+                  <FormattedMessage {...messages.view} />
                 </Button>
-              </Column>
-            </Columns>
-          </form>
-        ) : null}
-
-        {experimentsQuery.isError ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="critical">
-            {experimentsQuery.error instanceof Error
-              ? experimentsQuery.error.message
-              : intl.formatMessage(messages.loadError)}
-          </TypographyP>
-        ) : null}
-        {experimentsQuery.isLoading ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
-        ) : null}
-        {!experimentsQuery.isLoading && experiments.length === 0 ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.experimentsEmpty} />
-          </TypographyP>
-        ) : null}
-        {experiments.length > 0 ? (
-          <Box border="standard" borderRadius="standard">
-            <Rows spacing="0">
-              {experiments.map((experiment) => (
-                <Box key={experiment.id} paddingX="2u" paddingY="1.5u">
-                  <Rows spacing="1u">
-                    <Link
-                      href={`/org/${organizationSlug}/hyperlab/experiments/${experiment.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
-                    >
-                      {experiment.name}
-                    </Link>
-                    <Row spacing="1u" alignY="center">
-                      <Badge variant="outline">{experiment.status}</Badge>
-                      <TypographyP size="small" tone="subtle">
-                        {experiment.kind}
-                      </TypographyP>
-                    </Row>
-                  </Rows>
-                </Box>
-              ))}
-            </Rows>
-          </Box>
-        ) : null}
-      </Rows>
+              </HyperlabTableCell>
+            </HyperlabTableRow>
+          ))}
+        </HyperlabTable>
+      ) : null}
     </HyperlabPageShell>
   );
 }

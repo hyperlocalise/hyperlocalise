@@ -52,6 +52,7 @@ import {
   updateExperimentBodySchema,
   updateFlagBodySchema,
   updateVariantBodySchema,
+  updateVariantRolloutsBodySchema,
   upsertFlagConfigBodySchema,
   variantIdParamsSchema,
 } from "./hyperlab.schema";
@@ -371,20 +372,30 @@ export function createHyperlabRoutes() {
         if (endAt <= startAt) {
           return badRequestResponse(c, "invalid_experiment_window", "endAt must be after startAt");
         }
-        const [experiment] = await db
-          .insert(schema.experiments)
-          .values({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            name: body.name,
-            kind: body.kind,
-            audienceId: body.audienceId ?? null,
-            rolloutPercentage: body.rolloutPercentage ?? 10000,
-            seed: generateExperimentSeed(),
-            startAt,
-            endAt,
-            timezone: body.timezone ?? "UTC",
-          })
-          .returning();
+        const experiment = await db.transaction(async (tx) => {
+          const [created] = await tx
+            .insert(schema.experiments)
+            .values({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              name: body.name,
+              kind: body.kind,
+              audienceId: body.audienceId ?? null,
+              rolloutPercentage: body.rolloutPercentage ?? 10000,
+              seed: generateExperimentSeed(),
+              startAt,
+              endAt,
+              timezone: body.timezone ?? "UTC",
+            })
+            .returning();
+          await tx.insert(schema.experimentVariants).values({
+            experimentId: created.id,
+            key: "control",
+            isControl: true,
+            rolloutPercentage: body.kind === "toggle" ? 10000 : 5000,
+          });
+          await recomputeExperimentAllocations(created.id, tx);
+          return created;
+        });
         return c.json({ experiment: serializeExperiment(experiment) }, 201);
       },
     )
@@ -535,22 +546,126 @@ export function createHyperlabRoutes() {
         if (isErr(audience)) {
           return notFoundResponse(c, "audience_not_found");
         }
+        const existing = await db
+          .select({ id: schema.experimentVariants.id })
+          .from(schema.experimentVariants)
+          .where(eq(schema.experimentVariants.experimentId, experiment.id));
+        if (body.siblingRollouts) {
+          const siblingIds = new Set(body.siblingRollouts.map((item) => item.variantId));
+          if (
+            siblingIds.size !== body.siblingRollouts.length ||
+            existing.length !== siblingIds.size ||
+            existing.some((variant) => !siblingIds.has(variant.id))
+          ) {
+            return badRequestResponse(
+              c,
+              "invalid_variant_rollouts",
+              "Sibling rollouts must include every existing variant once",
+            );
+          }
+          const total =
+            (body.rolloutPercentage ?? 0) +
+            body.siblingRollouts.reduce((sum, item) => sum + item.rolloutPercentage, 0);
+          if (total !== 10000) {
+            return badRequestResponse(
+              c,
+              "invalid_variant_rollouts",
+              "Variant rollouts must add up to 100%",
+            );
+          }
+        }
         try {
-          const [variant] = await db
-            .insert(schema.experimentVariants)
-            .values({
-              experimentId: experiment.id,
-              key: body.key,
-              audienceId: body.audienceId ?? null,
-              rolloutPercentage: body.rolloutPercentage ?? 10000,
-              isControl: body.isControl ?? false,
-            })
-            .returning();
-          await recomputeExperimentAllocations(experiment.id);
+          const variant = await db.transaction(async (tx) => {
+            const [created] = await tx
+              .insert(schema.experimentVariants)
+              .values({
+                experimentId: experiment.id,
+                key: body.key,
+                audienceId: body.audienceId ?? null,
+                rolloutPercentage: body.rolloutPercentage ?? 10000,
+                isControl: body.isControl ?? false,
+              })
+              .returning();
+            if (body.siblingRollouts) {
+              for (const sibling of body.siblingRollouts) {
+                await tx
+                  .update(schema.experimentVariants)
+                  .set({ rolloutPercentage: sibling.rolloutPercentage })
+                  .where(eq(schema.experimentVariants.id, sibling.variantId));
+              }
+            }
+            await recomputeExperimentAllocations(experiment.id, tx);
+            return created;
+          });
           return c.json({ variant: serializeVariant(variant) }, 201);
         } catch {
           return conflictResponse(c, "variant_key_taken", "A variant with this key already exists");
         }
+      },
+    )
+    .put(
+      "/experiments/:experimentId/rollouts",
+      validateParams(experimentIdParamsSchema),
+      validateJson(updateVariantRolloutsBodySchema, "invalid_variant_rollouts_payload"),
+      async (c) => {
+        if (!canWrite(c.var.auth.membership.role)) {
+          return forbiddenResponse(c, "forbidden", "Missing experiments:write");
+        }
+        const { experimentId } = c.req.valid("param");
+        const [experiment] = await db
+          .select({ id: schema.experiments.id })
+          .from(schema.experiments)
+          .where(
+            and(
+              eq(schema.experiments.id, experimentId),
+              eq(schema.experiments.organizationId, c.var.auth.organization.localOrganizationId),
+            ),
+          )
+          .limit(1);
+        if (!experiment) {
+          return notFoundResponse(c, "experiment_not_found");
+        }
+        const body = c.req.valid("json");
+        const variants = await db
+          .select({ id: schema.experimentVariants.id })
+          .from(schema.experimentVariants)
+          .where(eq(schema.experimentVariants.experimentId, experiment.id));
+        const rolloutIds = new Set(body.rollouts.map((item) => item.variantId));
+        const total = body.rollouts.reduce((sum, item) => sum + item.rolloutPercentage, 0);
+        if (
+          rolloutIds.size !== body.rollouts.length ||
+          variants.length !== rolloutIds.size ||
+          variants.some((variant) => !rolloutIds.has(variant.id))
+        ) {
+          return badRequestResponse(
+            c,
+            "invalid_variant_rollouts",
+            "Rollouts must include every variant once",
+          );
+        }
+        if (total !== 10000) {
+          return badRequestResponse(
+            c,
+            "invalid_variant_rollouts",
+            "Variant rollouts must add up to 100%",
+          );
+        }
+        const updated = await db.transaction(async (tx) => {
+          const rows: Array<typeof schema.experimentVariants.$inferSelect> = [];
+          for (const rollout of body.rollouts) {
+            const [variant] = await tx
+              .update(schema.experimentVariants)
+              .set({ rolloutPercentage: rollout.rolloutPercentage })
+              .where(eq(schema.experimentVariants.id, rollout.variantId))
+              .returning();
+            if (variant) {
+              rows.push(variant);
+            }
+          }
+          await recomputeExperimentAllocations(experiment.id, tx);
+          return rows;
+        });
+        return c.json({ variants: updated.map(serializeVariant) }, 200);
       },
     )
     .put(

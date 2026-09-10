@@ -92,17 +92,27 @@ export const updateExperimentBodySchema = z.object({
   timezone: z.string().trim().min(1).max(64).optional(),
 });
 
+export const variantRolloutSchema = z.object({
+  variantId: z.string().uuid(),
+  rolloutPercentage: z.number().int().min(0).max(10000),
+});
+
 export const createVariantBodySchema = z.object({
   key: experimentFlagKeySchema,
   audienceId: z.string().uuid().nullable().optional(),
   rolloutPercentage: z.number().int().min(0).max(10000).optional(),
   isControl: z.boolean().optional(),
+  siblingRollouts: z.array(variantRolloutSchema).optional(),
 });
 
 export const updateVariantBodySchema = z.object({
   audienceId: z.string().uuid().nullable().optional(),
   rolloutPercentage: z.number().int().min(0).max(10000).optional(),
   isControl: z.boolean().optional(),
+});
+
+export const updateVariantRolloutsBodySchema = z.object({
+  rollouts: z.array(variantRolloutSchema).min(1),
 });
 
 export const createAssignmentBodySchema = z.object({
