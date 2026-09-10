@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import { useDomainResearchCatalog } from "./domain-research-context";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatBrandEngine } from "./domain-research-format";
@@ -32,7 +32,7 @@ import { domainPromptsViewMessages as messages } from "./domain-prompts-view.mes
 export function DomainPromptsView({ linkedDomainId }: { linkedDomainId: string }) {
   const intl = useIntl();
   const promptId = useId();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const catalog = useDomainResearchCatalog(linkedDomainId);
   const [prompt, setPrompt] = useState(catalog?.prompt ?? "");
 
   if (!catalog) {

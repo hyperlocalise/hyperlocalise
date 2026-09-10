@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import type { BrandEngine, BrandSentiment } from "@/lib/domains/research-prototype";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -48,7 +48,7 @@ function sentimentMessage(sentiment: BrandSentiment) {
 
 export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const catalog = useDomainResearchCatalog(linkedDomainId);
   const [addOpen, setAddOpen] = useState(false);
 
   if (!catalog) {

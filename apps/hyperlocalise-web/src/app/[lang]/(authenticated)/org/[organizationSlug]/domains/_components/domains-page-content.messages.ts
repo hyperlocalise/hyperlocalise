@@ -15,10 +15,15 @@
 import { defineMessages } from "react-intl";
 
 export const domainsPageContentMessages = defineMessages({
+  editLocales: {
+    defaultMessage: "Edit locales",
+    id: "icuWnstCMG",
+    description: "Edit locales for a domain in the list",
+  },
   pageDescription: {
     defaultMessage:
-      "Linked domains and the markets you research them in. Open a site to run keywords, ranks, and AI brand lookup.",
-    id: "qmpjf3XZ1L",
+      "Manage each domain and its locales. Open a domain to explore research by locale.",
+    id: "2NdI8ju66r",
     description: "Domains workspace page description",
   },
   loadError: {
@@ -36,9 +41,9 @@ export const domainsPageContentMessages = defineMessages({
     id: "//lV7u3bI3",
     description: "Domains list column for hostname",
   },
-  columnMarket: {
-    defaultMessage: "Market",
-    id: "q4dfro4K/5",
+  columnLocales: {
+    defaultMessage: "Locales",
+    id: "pUz7QP2QGI",
     description: "Domains list column for market",
   },
   columnKeywords: {

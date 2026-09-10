@@ -12,7 +12,7 @@
  * Version 2.0 or later.
  */
 import { FormattedMessage, useIntl } from "react-intl";
-import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { getDomainMetricHistory } from "@/lib/domains/research-metric-history";
 import { DomainMetricCard } from "./domain-metric-card";
 import { DomainOverviewTables } from "./domain-overview-tables";
@@ -20,7 +20,7 @@ import { domainMetricMessages as messages } from "./domain-metric.messages";
 
 export function DomainOverviewView({ linkedDomainId }: { linkedDomainId: string }) {
   const intl = useIntl();
-  const domain = getResearchPrototypeDomain(linkedDomainId);
+  const domain = useDomainResearchCatalog(linkedDomainId)?.domain;
   if (!domain) return null;
   const history = getDomainMetricHistory(linkedDomainId);
   const metrics = [

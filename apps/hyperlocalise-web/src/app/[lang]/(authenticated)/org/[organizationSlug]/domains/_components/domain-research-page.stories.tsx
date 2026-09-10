@@ -82,3 +82,7 @@ export const JapaneseMarket: Story = { args: { surface: "keywords", linkedDomain
 export const MissingHistory: Story = {
   args: { surface: "overview", linkedDomainId: "docs-acme-com" },
 };
+
+export const LocaleWithoutResearch: Story = {
+    parameters: { nextjs: { navigation: { pathname: "/en/org/domains-preview/domains/hyperlocalise-com/overview", query: { locale: "germany-de" } } } },
+};

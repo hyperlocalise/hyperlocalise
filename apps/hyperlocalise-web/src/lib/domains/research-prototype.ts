@@ -42,7 +42,7 @@ export type DomainResearchDomain = {
   id: string;
   domainKey: string;
   sourceUrl: string;
-  market: DomainResearchMarket;
+  locales: DomainResearchMarket[];
   status: DomainResearchStatus;
   keywordCount: number;
   keywordCountLabel: string;
@@ -111,6 +111,7 @@ export type SerpResult = {
 
 export type DomainResearchCatalog = {
   domain: DomainResearchDomain;
+  market: DomainResearchMarket;
   keywords: KeywordIdea[];
   ranks: RankRow[];
   overviewKeywords: OverviewKeywordRow[];
@@ -123,10 +124,10 @@ export type DomainResearchCatalog = {
 };
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
-  { id: "france-fr", location: "France", language: "fr", label: "France · fr" },
-  { id: "germany-de", location: "Germany", language: "de", label: "Germany · de" },
-  { id: "japan-ja", location: "Japan", language: "ja", label: "Japan · ja" },
-  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnam · vi" },
+  { id: "france-fr", location: "France", language: "fr", label: "French (France)" },
+  { id: "germany-de", location: "Germany", language: "de", label: "German (Germany)" },
+  { id: "japan-ja", location: "Japan", language: "ja", label: "Japanese (Japan)" },
+  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnamese (Vietnam)" },
 ];
 
 const FRANCE_FR = DOMAIN_RESEARCH_MARKETS[0]!;
@@ -345,6 +346,7 @@ function catalogFor(
 ): DomainResearchCatalog {
   return {
     domain,
+    market: domain.locales[0]!,
     keywords: [],
     ranks: [],
     overviewKeywords: [],
@@ -369,7 +371,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
       id: "hyperlocalise-com",
       domainKey: "hyperlocalise.com",
       sourceUrl: "https://hyperlocalise.com",
-      market: FRANCE_FR,
+      locales: [FRANCE_FR, GERMANY_DE, VIETNAM_VI],
       status: "verified",
       keywordCount: 12400,
       keywordCountLabel: "12.4k",
@@ -500,7 +502,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
       id: "acme-fr",
       domainKey: "acme.fr",
       sourceUrl: "https://acme.fr",
-      market: FRANCE_FR,
+      locales: [FRANCE_FR],
       status: "verified",
       keywordCount: 6100,
       keywordCountLabel: "6.1k",
@@ -571,7 +573,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
     id: "help-acme-com",
     domainKey: "help.acme.com",
     sourceUrl: "https://help.acme.com",
-    market: GERMANY_DE,
+    locales: [GERMANY_DE],
     status: "pending_verification",
     keywordCount: 0,
     keywordCountLabel: "—",
@@ -586,7 +588,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
       id: "acme-jp",
       domainKey: "acme.jp",
       sourceUrl: "https://acme.jp",
-      market: JAPAN_JA,
+      locales: [JAPAN_JA],
       status: "verified",
       keywordCount: 8600,
       keywordCountLabel: "8.6k",
@@ -655,7 +657,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
       id: "docs-acme-com",
       domainKey: "docs.acme.com",
       sourceUrl: "https://docs.acme.com",
-      market: VIETNAM_VI,
+      locales: [VIETNAM_VI],
       status: "verified",
       keywordCount: 2400,
       keywordCountLabel: "2.4k",
@@ -713,7 +715,7 @@ const RESEARCH_PROTOTYPE_CATALOG: DomainResearchCatalog[] = [
     id: "shop-acme-de",
     domainKey: "shop.acme.de",
     sourceUrl: "https://shop.acme.de",
-    market: GERMANY_DE,
+    locales: [GERMANY_DE],
     status: "pending_verification",
     keywordCount: 0,
     keywordCountLabel: "—",
@@ -741,8 +743,16 @@ export function getResearchPrototypeDomain(linkedDomainId: string): DomainResear
   return RESEARCH_PROTOTYPE_BY_ID.get(linkedDomainId)?.domain ?? null;
 }
 
-export function getResearchPrototypeCatalog(linkedDomainId: string): DomainResearchCatalog | null {
-  return RESEARCH_PROTOTYPE_BY_ID.get(linkedDomainId) ?? null;
+export function getResearchPrototypeCatalog(
+  linkedDomainId: string,
+  localeId?: string,
+): DomainResearchCatalog | null {
+  const catalog = RESEARCH_PROTOTYPE_BY_ID.get(linkedDomainId);
+  return catalog && (!localeId || catalog.market.id === localeId) ? catalog : null;
+}
+
+export function resolveDomainLocale(domain: DomainResearchDomain, localeId: string | null) {
+  return domain.locales.find((locale) => locale.id === localeId) ?? domain.locales[0]!;
 }
 
 export function isResearchPrototypeDomain(linkedDomainId: string): boolean {
