@@ -46,6 +46,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/ai-engine", "AI Engine"],
     ["/org/acme/domains", "Domains"],
     ["/org/acme/domains/ld_1", "ld_1"],
+    ["/org/acme/domains/hyperlocalise-com/keywords", "Keywords"],
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
@@ -148,6 +149,15 @@ describe("getAppShellBreadcrumbs", () => {
     ).toEqual([
       { label: "Domains", href: "/org/acme/domains" },
       { label: "", isLoading: true },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/domains/hyperlocalise-com/keywords", intl, {
+        domainName: "hyperlocalise.com",
+      }),
+    ).toEqual([
+      { label: "Domains", href: "/org/acme/domains" },
+      { label: "hyperlocalise.com", href: "/org/acme/domains/hyperlocalise-com" },
+      { label: "Keywords" },
     ]);
   });
 

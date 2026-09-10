@@ -10,35 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { isResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import { DomainBrandView } from "../../_components/domain-brand-view";
+import { DomainResearchShell } from "../../_components/domain-research-shell";
 
-import { DomainHomeView } from "../_components/domain-home-view";
-import { DomainResearchShell } from "../_components/domain-research-shell";
-import { DomainDetailPageContent } from "./_components/domain-detail-page-content";
-
-export default async function DomainDetailPage({
+export default async function DomainBrandPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
 }) {
   const { organizationSlug, linkedDomainId } = await params;
 
-  if (!isResearchPrototypeDomain(linkedDomainId)) {
-    return (
-      <DomainDetailPageContent
-        organizationSlug={organizationSlug}
-        linkedDomainId={linkedDomainId}
-      />
-    );
-  }
-
   return (
     <DomainResearchShell
       organizationSlug={organizationSlug}
       linkedDomainId={linkedDomainId}
-      surface="home"
+      surface="brand"
     >
-      <DomainHomeView organizationSlug={organizationSlug} linkedDomainId={linkedDomainId} />
+      <DomainBrandView linkedDomainId={linkedDomainId} />
     </DomainResearchShell>
   );
 }

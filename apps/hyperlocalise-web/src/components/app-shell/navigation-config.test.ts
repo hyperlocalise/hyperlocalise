@@ -339,6 +339,15 @@ describe("parseDomainRoute", () => {
       organizationSlug: "acme",
       linkedDomainId: "ld_1",
     });
+    expect(parseDomainRoute("/org/acme/domains/hyperlocalise-com/keywords")).toEqual({
+      organizationSlug: "acme",
+      linkedDomainId: "hyperlocalise-com",
+      surface: "keywords",
+    });
+    expect(parseDomainRoute("/org/acme/domains/ld_1/unknown")).toEqual({
+      organizationSlug: "acme",
+      linkedDomainId: "ld_1",
+    });
   });
 });
 
@@ -351,6 +360,7 @@ describe("buildTeamPath", () => {
 describe("buildDomainPath", () => {
   it("encodes linked domain ids in the path", () => {
     expect(buildDomainPath("acme", "ld_1")).toBe("/org/acme/domains/ld_1");
+    expect(buildDomainPath("acme", "ld_1", "prompts")).toBe("/org/acme/domains/ld_1/prompts");
   });
 });
 

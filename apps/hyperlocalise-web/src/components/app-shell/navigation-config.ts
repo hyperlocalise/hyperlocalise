@@ -14,6 +14,10 @@ import type { ComponentProps } from "react";
 import type { IntlShape } from "react-intl";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
+import {
+  isDomainResearchSurface,
+  type DomainResearchSurface,
+} from "@/lib/domains/research-prototype";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
@@ -86,8 +90,13 @@ export function buildTeamPath(organizationSlug: string, teamId: string) {
   return `/org/${organizationSlug}/teams/${encodeURIComponent(teamId)}`;
 }
 
-export function buildDomainPath(organizationSlug: string, linkedDomainId: string) {
-  return `/org/${organizationSlug}/domains/${encodeURIComponent(linkedDomainId)}`;
+export function buildDomainPath(
+  organizationSlug: string,
+  linkedDomainId: string,
+  surface?: DomainResearchSurface,
+) {
+  const base = `/org/${organizationSlug}/domains/${encodeURIComponent(linkedDomainId)}`;
+  return surface ? `${base}/${surface}` : base;
 }
 
 export function buildAutomationsPath(
@@ -506,14 +515,19 @@ export function parseTeamRoute(pathname: string | null) {
 export function parseDomainRoute(pathname: string | null) {
   if (!pathname) return null;
 
-  const match = stripAppLocalePrefix(pathname).match(/^\/org\/([^/]+)\/domains\/([^/]+)$/);
+  const match = stripAppLocalePrefix(pathname).match(
+    /^\/org\/([^/]+)\/domains\/([^/]+)(?:\/([^/]+))?\/?$/,
+  );
   if (!match) return null;
 
-  const [, organizationSlug, linkedDomainIdSegment] = match;
+  const [, organizationSlug, linkedDomainIdSegment, surfaceSegment] = match;
+  const surface =
+    surfaceSegment && isDomainResearchSurface(surfaceSegment) ? surfaceSegment : undefined;
 
   return {
     organizationSlug,
     linkedDomainId: decodePathSegment(linkedDomainIdSegment),
+    ...(surface ? { surface } : {}),
   };
 }
 
