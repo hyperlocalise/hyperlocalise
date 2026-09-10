@@ -26,8 +26,8 @@ export const domainResearchShellMessages = defineMessages({
     description: "Manage domain locales from research",
   },
   localeScope: {
-    defaultMessage: "Applies to every research tab.",
-    id: "yWOL2/uNay",
+    defaultMessage: "Applies to every research view.",
+    id: "3bYYLdUKAu",
     description: "Research locale scope help",
   },
   localeEmptyTitle: {
@@ -40,31 +40,6 @@ export const domainResearchShellMessages = defineMessages({
       "There is no preview research for {locale}. Choose another locale to explore available data.",
     id: "Zln5rf1e7d",
     description: "Missing locale research explanation",
-  },
-  navKeywords: {
-    defaultMessage: "Keyword research",
-    id: "8Gk5dEdlLz",
-    description: "Domain research navigation label",
-  },
-  navOverview: {
-    defaultMessage: "Overview",
-    id: "oG1OMIsUb2",
-    description: "Domain research tab for domain overview",
-  },
-  navRanks: {
-    defaultMessage: "Rank tracking",
-    id: "dq6M0aso45",
-    description: "Domain research navigation label",
-  },
-  navBrand: {
-    defaultMessage: "AI visibility",
-    id: "3CBfdb8CgM",
-    description: "Domain research navigation label",
-  },
-  navPrompts: {
-    defaultMessage: "Prompt explorer",
-    id: "gtgCwprydq",
-    description: "Domain research navigation label",
   },
   shellDescription: {
     defaultMessage:

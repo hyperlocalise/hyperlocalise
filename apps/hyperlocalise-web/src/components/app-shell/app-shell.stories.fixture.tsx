@@ -37,7 +37,11 @@ import { appShellClientMessages } from "./app-shell-client.messages";
 import { AppShellClient } from "./app-shell-client";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
-import { buildGlobalNavigationGroups, buildProjectNavigationItems } from "./navigation-config";
+import {
+  buildDomainNavigationItems,
+  buildGlobalNavigationGroups,
+  buildProjectNavigationItems,
+} from "./navigation-config";
 import { NavUser } from "./nav-user";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
@@ -48,6 +52,7 @@ import { TmsUserConnectButton } from "./tms-user-connect-button";
 
 export const APP_SHELL_STORY_ORGANIZATION_SLUG = "acme";
 export const APP_SHELL_STORY_PROJECT_ID = "project_website";
+export const APP_SHELL_STORY_LINKED_DOMAIN_ID = "hyperlocalise-com";
 
 export const appShellStoryUser = {
   name: "Minh Cung",
@@ -93,6 +98,19 @@ export function buildAppShellStoryProjectNavigationGroups(locale: string = "en")
       items: buildProjectNavigationItems(
         APP_SHELL_STORY_ORGANIZATION_SLUG,
         APP_SHELL_STORY_PROJECT_ID,
+        intl,
+      ),
+    },
+  ];
+}
+
+export function buildAppShellStoryDomainNavigationGroups(locale: string = "en") {
+  const intl = getIntlShape(locale) as IntlShape;
+  return [
+    {
+      items: buildDomainNavigationItems(
+        APP_SHELL_STORY_ORGANIZATION_SLUG,
+        APP_SHELL_STORY_LINKED_DOMAIN_ID,
         intl,
       ),
     },
@@ -247,12 +265,25 @@ function ProjectSidebarStorySetup() {
   return null;
 }
 
+function DomainSidebarStorySetup() {
+  useAppShellNavigationCustom({
+    groups: buildAppShellStoryDomainNavigationGroups(),
+    domainContext: {
+      organizationSlug: APP_SHELL_STORY_ORGANIZATION_SLUG,
+      linkedDomainId: APP_SHELL_STORY_LINKED_DOMAIN_ID,
+      domainName: "hyperlocalise.com",
+    },
+  });
+
+  return null;
+}
+
 export function AppShellSidebarStoryFrame({
   collapsed = false,
   variant = "global",
 }: {
   collapsed?: boolean;
-  variant?: "global" | "project";
+  variant?: "global" | "project" | "domain";
 }) {
   const intl = useIntl();
 
@@ -268,6 +299,7 @@ export function AppShellSidebarStoryFrame({
       >
         <SidebarStoreBridge />
         {variant === "project" ? <ProjectSidebarStorySetup /> : null}
+        {variant === "domain" ? <DomainSidebarStorySetup /> : null}
         <Sidebar variant="sidebar" collapsible="icon">
           <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
             <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">

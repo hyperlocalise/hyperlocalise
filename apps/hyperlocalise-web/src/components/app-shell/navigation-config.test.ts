@@ -27,6 +27,7 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 
 import {
   buildAutomationsPath,
+  buildDomainNavigationItems,
   buildGlobalNavigationGroups,
   buildHyperlabNavigationItems,
   buildHyperlabPath,
@@ -261,6 +262,18 @@ describe("path builders", () => {
     );
   });
 
+  it("builds domain navigation items scoped to the linked domain", () => {
+    const items = buildDomainNavigationItems("acme", "ld_1", intl);
+
+    expect(items.map((item) => [item.label, item.href])).toEqual([
+      ["Overview", "/org/acme/domains/ld_1"],
+      ["Keyword research", "/org/acme/domains/ld_1/keywords"],
+      ["Rank tracking", "/org/acme/domains/ld_1/ranks"],
+      ["AI visibility", "/org/acme/domains/ld_1/brand"],
+      ["Prompt explorer", "/org/acme/domains/ld_1/prompts"],
+    ]);
+  });
+
   it("builds Hyperlab navigation items scoped to the organization", () => {
     const items = buildHyperlabNavigationItems("acme", intl);
 
@@ -488,6 +501,47 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/org/acme/projects/proj_1/files", "/org/acme/projects")).toBe(
       false,
     );
+  });
+
+  it("keeps the domains list inactive on domain detail routes", () => {
+    expect(isNavigationItemActive("/org/acme/domains", "/org/acme/domains")).toBe(true);
+    expect(isNavigationItemActive("/org/acme/domains/ld_1", "/org/acme/domains")).toBe(false);
+    expect(isNavigationItemActive("/org/acme/domains/ld_1/keywords", "/org/acme/domains")).toBe(
+      false,
+    );
+  });
+
+  it("keeps domain overview active state exact", () => {
+    const overviewHref = buildDomainPath("acme", "ld_1");
+    const keywordsHref = buildDomainPath("acme", "ld_1", "keywords");
+
+    expect(
+      isNavigationItemActive(keywordsHref, overviewHref, {
+        organizationSlug: "acme",
+        linkedDomainId: "ld_1",
+      }),
+    ).toBe(false);
+    expect(
+      isNavigationItemActive(overviewHref, overviewHref, {
+        organizationSlug: "acme",
+        linkedDomainId: "ld_1",
+      }),
+    ).toBe(true);
+    expect(
+      isNavigationItemActive(keywordsHref, keywordsHref, {
+        organizationSlug: "acme",
+        linkedDomainId: "ld_1",
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores query strings when matching navigation hrefs", () => {
+    expect(
+      isNavigationItemActive(
+        "/org/acme/domains/ld_1/keywords",
+        "/org/acme/domains/ld_1/keywords?locale=france-fr",
+      ),
+    ).toBe(true);
   });
 
   it("treats my-work and my-jobs as the same destination", () => {

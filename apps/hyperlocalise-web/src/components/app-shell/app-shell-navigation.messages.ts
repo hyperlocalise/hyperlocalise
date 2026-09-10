@@ -30,6 +30,21 @@ export const appShellNavigationMessages = defineMessages({
     id: "E2040akAix",
     description: "Fallback project name in the sidebar while the project is loading",
   },
+  allDomains: {
+    defaultMessage: "All domains",
+    id: "Cp1xBabTj3",
+    description: "Sidebar link to return from a domain to the domains list",
+  },
+  domainSection: {
+    defaultMessage: "Domain",
+    id: "c6gXHs0rHi",
+    description: "Sidebar section label above the current domain name and domain nav items",
+  },
+  domainFallbackName: {
+    defaultMessage: "Domain",
+    id: "v4ozYql2bQ",
+    description: "Fallback domain name in the sidebar while the domain is loading",
+  },
   badgeSeparator: {
     defaultMessage: "{label} · {badge}",
     id: "90L8I4Y/Gl",

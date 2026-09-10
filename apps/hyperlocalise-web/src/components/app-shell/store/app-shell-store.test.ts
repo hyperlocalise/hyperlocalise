@@ -154,9 +154,11 @@ describe("AppShellStore", () => {
     ] as const;
 
     store.navigation.setCustomNavigation(customGroups, {
-      organizationSlug: "acme",
-      projectId: "proj_1",
-      projectName: "Checkout",
+      projectContext: {
+        organizationSlug: "acme",
+        projectId: "proj_1",
+        projectName: "Checkout",
+      },
     });
 
     expect(store.navigation.mode).toBe("custom");
@@ -184,13 +186,17 @@ describe("AppShellStore", () => {
     ] as const;
 
     store.navigation.setCustomNavigation(firstGroups, {
-      organizationSlug: "acme",
-      projectId: "proj_1",
+      projectContext: {
+        organizationSlug: "acme",
+        projectId: "proj_1",
+      },
     });
     store.navigation.setCustomNavigation(nextGroups, {
-      organizationSlug: "acme",
-      projectId: "proj_2",
-      projectName: "Checkout v2",
+      projectContext: {
+        organizationSlug: "acme",
+        projectId: "proj_2",
+        projectName: "Checkout v2",
+      },
     });
 
     expect(store.navigation.activeGroups).toEqual(nextGroups);
@@ -353,6 +359,7 @@ describe("NavigationStore", () => {
     expect(store.navigation.defaultNavigationGroups).toEqual(sampleGroups);
     expect(store.navigation.activeGroups).toEqual(sampleGroups);
     expect(store.navigation.activeProjectContext).toBeNull();
+    expect(store.navigation.activeDomainContext).toBeNull();
   });
 
   it("returns default groups after clearing custom mode", () => {
@@ -362,14 +369,17 @@ describe("NavigationStore", () => {
     ] as const;
 
     store.navigation.setCustomNavigation(customGroups, {
-      organizationSlug: "acme",
-      projectId: "proj_1",
+      projectContext: {
+        organizationSlug: "acme",
+        projectId: "proj_1",
+      },
     });
     store.navigation.clearCustomMode();
 
     expect(store.navigation.mode).toBe("route");
     expect(store.navigation.activeGroups).toEqual(sampleGroups);
     expect(store.navigation.activeProjectContext).toBeNull();
+    expect(store.navigation.activeDomainContext).toBeNull();
   });
 
   it("enters custom mode without a project context", () => {
@@ -382,6 +392,29 @@ describe("NavigationStore", () => {
 
     expect(store.navigation.mode).toBe("custom");
     expect(store.navigation.activeGroups).toEqual(customGroups);
+    expect(store.navigation.activeProjectContext).toBeNull();
+    expect(store.navigation.activeDomainContext).toBeNull();
+  });
+
+  it("stores domain context for custom domain navigation", () => {
+    const store = createAppShellStore(sampleGroups);
+    const customGroups = [
+      { label: "Domain", items: [{ label: "Overview", href: "/d", icon: Chat01Icon }] },
+    ] as const;
+
+    store.navigation.setCustomNavigation(customGroups, {
+      domainContext: {
+        organizationSlug: "acme",
+        linkedDomainId: "ld_1",
+        domainName: "example.com",
+      },
+    });
+
+    expect(store.navigation.activeDomainContext).toEqual({
+      organizationSlug: "acme",
+      linkedDomainId: "ld_1",
+      domainName: "example.com",
+    });
     expect(store.navigation.activeProjectContext).toBeNull();
   });
 });

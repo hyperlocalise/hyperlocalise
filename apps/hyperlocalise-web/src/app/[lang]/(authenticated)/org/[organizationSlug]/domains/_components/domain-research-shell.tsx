@@ -28,14 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
-import type { DomainResearchNavId, DomainResearchSurface } from "@/lib/domains/research-prototype";
-import {
-  filterCatalogForLocale,
-  resolveDomainLocale,
-  isDomainResearchSurface,
-} from "@/lib/domains/research-prototype";
+import type { DomainResearchNavId } from "@/lib/domains/research-prototype";
+import { filterCatalogForLocale, resolveDomainLocale } from "@/lib/domains/research-prototype";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -49,14 +44,6 @@ import { domainResearchShellMessages as messages } from "./domain-research-shell
 import { useLiveDomainResearch } from "./use-live-domain-research";
 
 import styles from "./domain-header.module.css";
-
-const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navOverview }[] = [
-  { id: "overview", message: messages.navOverview },
-  { id: "keywords", message: messages.navKeywords },
-  { id: "ranks", message: messages.navRanks },
-  { id: "brand", message: messages.navBrand },
-  { id: "prompts", message: messages.navPrompts },
-];
 
 function hrefForLocale({
   organizationSlug,
@@ -145,16 +132,15 @@ export function DomainResearchShell({
     ((liveCatalog?.keywords.length ?? 0) > 0 || (liveCatalog?.ranks.length ?? 0) > 0)
       ? null
       : filteredCatalog;
-  const activeLocaleId = locale.id;
   const verifyHref = domain.domainSlug
     ? `/org/${organizationSlug}/link-domain/${domain.domainSlug}`
     : null;
 
-  function researchHref(nextLocaleId: string, nextSurface = surface) {
+  function researchHref(nextLocaleId: string) {
     return hrefForLocale({
       organizationSlug,
       linkedDomainId,
-      surface: nextSurface,
+      surface,
       search,
       localeId: nextLocaleId,
     });
@@ -162,13 +148,6 @@ export function DomainResearchShell({
 
   function changeLocale(nextLocaleId: string) {
     router.replace(researchHref(nextLocaleId), { scroll: false });
-  }
-
-  function handleSurfaceChange(next: string) {
-    const nextSurface: DomainResearchSurface | undefined = isDomainResearchSurface(next)
-      ? next
-      : undefined;
-    router.push(researchHref(activeLocaleId, nextSurface));
   }
 
   const isPending = domain.status !== "verified";
@@ -226,16 +205,6 @@ export function DomainResearchShell({
           <FormattedMessage {...messages.localeScope} />
         </p>
       </div>
-
-      <Tabs value={surface} onValueChange={handleSurfaceChange}>
-        <TabsList variant="line" className="w-full max-w-full justify-start overflow-x-auto">
-          {NAV_ITEMS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
-              <FormattedMessage {...item.message} />
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
 
       {isPending ? (
         <DomainResearchEmpty

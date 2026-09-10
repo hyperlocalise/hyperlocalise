@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -46,11 +46,16 @@ import {
 } from "@/lib/flags/workspace-flag-navigation";
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
+import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+
 import {
+  buildDomainNavigationItems,
   buildHyperlabNavigationItems,
   buildOrganizationPath,
   buildProjectNavigationItems,
   isNavigationItemActive,
+  parseDomainRoute,
   parseHyperlabRoute,
   parseProjectRoute,
   type NavigationGroup,
@@ -70,10 +75,23 @@ export const AppShellNavigation = observer(function AppShellNavigation({
   const store = useAppShellStore();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
+  const domainRoute = parseDomainRoute(pathname);
   const hyperlabRoute = parseHyperlabRoute(pathname);
 
   if (store.navigation.mode === "custom" && store.navigation.customState) {
     const customState = store.navigation.customState;
+
+    if (customState.domainContext) {
+      return (
+        <DomainNavigation
+          organizationSlug={customState.domainContext.organizationSlug}
+          linkedDomainId={customState.domainContext.linkedDomainId}
+          pathname={pathname}
+          domainName={customState.domainContext.domainName}
+          items={customState.groups.flatMap((group) => group.items)}
+        />
+      );
+    }
 
     if (customState.projectContext) {
       return (
@@ -91,6 +109,16 @@ export const AppShellNavigation = observer(function AppShellNavigation({
       <GlobalNavigation
         organizationSlug={organizationSlug}
         groups={customState.groups}
+        pathname={pathname}
+      />
+    );
+  }
+
+  if (domainRoute?.organizationSlug === organizationSlug) {
+    return (
+      <DomainNavigation
+        organizationSlug={organizationSlug}
+        linkedDomainId={domainRoute.linkedDomainId}
         pathname={pathname}
       />
     );
@@ -200,16 +228,120 @@ function ProjectNavigation({
     items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
     store.workspaceFeatureFlags,
   );
-  const tryLabel = intl.formatMessage(appShellNavigationMessages.trySection);
-  const grouped = groupPreviewNavigationGroups([{ items: resolvedItems }], tryLabel);
-  const tryGroup = grouped.find((group) => group.label === tryLabel);
-  const projectItems = grouped.find((group) => group.label !== tryLabel)?.items ?? [];
   const resolvedProjectName =
     projectName ??
     projectQuery.data?.name ??
     intl.formatMessage(appShellNavigationMessages.projectFallbackName);
-  const projectsHref = buildOrganizationPath(organizationSlug, "projects");
-  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
+
+  return (
+    <ResourceScopedNavigation
+      backHref={buildOrganizationPath(organizationSlug, "projects")}
+      backLabel={intl.formatMessage(appShellNavigationMessages.allProjects)}
+      sectionLabel={intl.formatMessage(appShellNavigationMessages.projectSection)}
+      resourceName={resolvedProjectName}
+      isNameLoading={!projectName && projectQuery.isLoading}
+      items={resolvedItems}
+      pathname={pathname}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+    />
+  );
+}
+
+function DomainNavigation({
+  organizationSlug,
+  linkedDomainId,
+  pathname,
+  domainName,
+  items,
+}: {
+  organizationSlug: string;
+  linkedDomainId: string;
+  pathname: string;
+  domainName?: string;
+  items?: readonly NavigationItem[];
+}) {
+  const intl = useIntl();
+  const searchParams = useSearchParams();
+  const domainQuery = useQuery({
+    queryKey: ["linked-domain", organizationSlug, linkedDomainId],
+    enabled: !domainName && !items && isLiveDomainResearchId(linkedDomainId),
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        linkedDomain?: LinkedDomainPublic;
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(body.message || body.error || "Failed to load domain");
+      }
+      if (!body.linkedDomain) {
+        throw new Error("Failed to load domain");
+      }
+      return body.linkedDomain;
+    },
+  });
+
+  const store = useAppShellStore();
+  const resolvedItems = annotateNavigationItemsWithWorkspaceFlags(
+    items ?? buildDomainNavigationItems(organizationSlug, linkedDomainId, intl),
+    store.workspaceFeatureFlags,
+  );
+  const resolvedDomainName =
+    domainName ??
+    domainQuery.data?.domainKey ??
+    intl.formatMessage(appShellNavigationMessages.domainFallbackName);
+  const itemSearch = searchParams.toString();
+
+  return (
+    <ResourceScopedNavigation
+      backHref={buildOrganizationPath(organizationSlug, "domains")}
+      backLabel={intl.formatMessage(appShellNavigationMessages.allDomains)}
+      sectionLabel={intl.formatMessage(appShellNavigationMessages.domainSection)}
+      resourceName={resolvedDomainName}
+      isNameLoading={!domainName && domainQuery.isLoading}
+      items={resolvedItems}
+      pathname={pathname}
+      organizationSlug={organizationSlug}
+      linkedDomainId={linkedDomainId}
+      itemSearch={itemSearch}
+    />
+  );
+}
+
+function ResourceScopedNavigation({
+  backHref,
+  backLabel,
+  sectionLabel,
+  resourceName,
+  isNameLoading,
+  items,
+  pathname,
+  organizationSlug,
+  projectId,
+  linkedDomainId,
+  itemSearch,
+}: {
+  backHref: string;
+  backLabel: string;
+  sectionLabel: string;
+  resourceName: string;
+  isNameLoading: boolean;
+  items: readonly NavigationItem[];
+  pathname: string;
+  organizationSlug: string;
+  projectId?: string;
+  linkedDomainId?: string;
+  itemSearch?: string;
+}) {
+  const intl = useIntl();
+  const tryLabel = intl.formatMessage(appShellNavigationMessages.trySection);
+  const grouped = groupPreviewNavigationGroups([{ items }], tryLabel);
+  const tryGroup = grouped.find((group) => group.label === tryLabel);
+  const scopedItems = grouped.find((group) => group.label !== tryLabel)?.items ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -218,14 +350,12 @@ function ProjectNavigation({
           <SidebarMenu className="gap-1">
             <SidebarMenuItem>
               <SidebarMenuButton
-                render={<OrgNavLink href={projectsHref} />}
-                tooltip={allProjectsLabel}
+                render={<OrgNavLink href={backHref} />}
+                tooltip={backLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
-                <span>
-                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
-                </span>
+                <span>{backLabel}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -234,22 +364,22 @@ function ProjectNavigation({
 
       <SidebarGroup className="gap-1 p-0">
         <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
-          <FormattedMessage {...appShellNavigationMessages.projectSection} />
+          {sectionLabel}
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
-          {!projectName && projectQuery.isLoading ? (
+          {isNameLoading ? (
             <Skeleton className="h-5 w-4/5" />
           ) : (
-            <p className="truncate text-sm font-medium text-sidebar-foreground">
-              {resolvedProjectName}
-            </p>
+            <p className="truncate text-sm font-medium text-sidebar-foreground">{resourceName}</p>
           )}
         </div>
         <NavigationGroupItems
-          group={{ items: projectItems }}
+          group={{ items: scopedItems }}
           pathname={pathname}
           organizationSlug={organizationSlug}
           projectId={projectId}
+          linkedDomainId={linkedDomainId}
+          itemSearch={itemSearch}
         />
       </SidebarGroup>
 
@@ -260,6 +390,8 @@ function ProjectNavigation({
             pathname={pathname}
             organizationSlug={organizationSlug}
             projectId={projectId}
+            linkedDomainId={linkedDomainId}
+            itemSearch={itemSearch}
           />
         </LabeledNavigationSection>
       ) : null}
@@ -345,11 +477,15 @@ function NavigationGroupItems({
   pathname,
   organizationSlug,
   projectId,
+  linkedDomainId,
+  itemSearch,
 }: {
   group: { items: readonly NavigationItem[] };
   pathname: string;
   organizationSlug: string;
   projectId?: string;
+  linkedDomainId?: string;
+  itemSearch?: string;
 }) {
   const intl = useIntl();
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
@@ -369,6 +505,7 @@ function NavigationGroupItems({
           const isActive = isNavigationItemActive(pathname, item.href, {
             exact: item.exact,
             projectId,
+            linkedDomainId,
             organizationSlug,
           });
           const isInboxItem = item.href === inboxHref;
@@ -383,11 +520,12 @@ function NavigationGroupItems({
                 badge,
               })
             : item.label;
+          const href = itemSearch ? `${item.href}?${itemSearch}` : item.href;
 
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<OrgNavLink href={item.href} />}
+                render={<OrgNavLink href={href} />}
                 isActive={isActive}
                 tooltip={tooltip}
                 className={navigationButtonClass(isActive)}

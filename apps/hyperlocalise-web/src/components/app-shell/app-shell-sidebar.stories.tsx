@@ -14,6 +14,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent } from "storybook/test";
 
 import {
+  APP_SHELL_STORY_LINKED_DOMAIN_ID,
   APP_SHELL_STORY_ORGANIZATION_SLUG,
   APP_SHELL_STORY_PROJECT_ID,
   AppShellSidebarStoryFrame,
@@ -75,6 +76,25 @@ export const ProjectNavigation: Story = {
     await expect(canvas.getByRole("link", { name: "All projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Files" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+  },
+};
+
+export const DomainNavigation: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${APP_SHELL_STORY_ORGANIZATION_SLUG}/domains/${APP_SHELL_STORY_LINKED_DOMAIN_ID}/keywords`,
+      },
+    },
+  },
+  render: () => <AppShellSidebarStoryFrame variant="domain" />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("hyperlocalise.com")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "All domains" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Keyword research" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Prompt explorer" })).toBeInTheDocument();
   },
 };
 
