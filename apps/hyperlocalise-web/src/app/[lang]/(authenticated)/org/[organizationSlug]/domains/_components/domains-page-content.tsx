@@ -30,6 +30,8 @@ import { DomainStatusBadge } from "./domain-status-badge";
 import { DomainVerifyDialog } from "./domain-verify-dialog";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
 
+import styles from "./domain-header.module.css";
+
 const LIST_GRID_CLASS =
   "grid grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.3fr)_minmax(7rem,0.8fr)_repeat(3,minmax(4rem,0.45fr))_auto_auto]";
 
@@ -41,20 +43,22 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
 
   return (
     <WorkspacePageShell>
-      <PageHeader
-        icon={Globe02Icon}
-        label="Workspace"
-        title="Domains"
-        description={intl.formatMessage(messages.pageDescription)}
-        actions={
-          <Button size="sm" onClick={() => setLinkOpen(true)}>
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-            <FormattedMessage {...messages.linkDomain} />
-          </Button>
-        }
-      />
+      <div className={styles.header}>
+        <PageHeader
+          icon={Globe02Icon}
+          label="Workspace"
+          title="Domains"
+          description={intl.formatMessage(messages.pageDescription)}
+          actions={
+            <Button size="sm" onClick={() => setLinkOpen(true)}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.linkDomain} />
+            </Button>
+          }
+        />
+      </div>
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div
           className={cn(
             LIST_GRID_CLASS,
@@ -82,7 +86,9 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
         <ul className="divide-y divide-border">
           {domains.map((domain) => (
             <li key={domain.id}>
-              <div className={LIST_GRID_CLASS}>
+              <div
+                className={cn(LIST_GRID_CLASS, "hover:bg-blue-100/50 focus-within:bg-blue-100/50")}
+              >
                 <div className="min-w-0">
                   <OrgNavLink
                     href={buildDomainPath(organizationSlug, domain.id)}
