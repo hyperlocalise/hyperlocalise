@@ -42,11 +42,11 @@ import {
 } from "./project-form";
 import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
+import { ProjectAvatar } from "./project-avatar";
 import {
   PROJECTS_PAGE_SIZE,
   ProjectsTable,
   ProjectsTableHeader,
-  ProjectSourceMark,
 } from "./projects-table";
 import { projectsPageContentMessages } from "./projects-page-content.messages";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
@@ -133,10 +133,12 @@ function RecentProjectsStrip({
             size="sm"
             className="max-w-full gap-2 rounded-lg bg-background"
           >
-            <ProjectSourceMark
+            <ProjectAvatar
               compact
               project={
                 allProjects.find((row) => row.id === project.id) ?? {
+                  name: project.name,
+                  logoUrl: null,
                   source: "native",
                   externalProviderKind: null,
                 }

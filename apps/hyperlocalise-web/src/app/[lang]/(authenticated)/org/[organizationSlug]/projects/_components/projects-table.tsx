@@ -42,6 +42,7 @@ import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-bran
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { formatRelativeTimestamp } from "../../_components/workspace-files-shared";
+import { ProjectAvatar } from "./project-avatar";
 import { formatProjectLocaleRoute, type ProjectListRow } from "./project-list";
 import { projectsTableMessages } from "./projects-table.messages";
 
@@ -123,7 +124,7 @@ function ProjectRow({
     <tr className="group border-b border-border last:border-b-0 hover:bg-muted/50">
       <td className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <ProjectSourceMark project={project} />
+          <ProjectAvatar project={project} />
           <div className="min-w-0">
             <OrgNavLink
               href={projectHref}
@@ -263,33 +264,6 @@ function ProjectRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-export function ProjectSourceMark({
-  project,
-  compact = false,
-}: {
-  project: Pick<ProjectListRow, "source" | "externalProviderKind">;
-  compact?: boolean;
-}) {
-  const isNative = project.source === "native";
-  const label = isNative
-    ? "H"
-    : getTmsProviderBranding(project.externalProviderKind).name.slice(0, 1);
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center font-medium",
-        compact ? "size-5 rounded-sm text-[9px]" : "size-8 rounded-md text-[11px]",
-        isNative
-          ? "bg-[#F0F4FF] text-[#4F6BED] dark:bg-blue-100 dark:text-blue-900"
-          : "bg-[#E8F4F8] text-primary dark:bg-muted",
-      )}
-    >
-      {label}
-    </span>
   );
 }
 

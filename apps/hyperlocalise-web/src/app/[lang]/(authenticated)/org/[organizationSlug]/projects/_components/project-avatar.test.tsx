@@ -70,4 +70,37 @@ describe("ProjectAvatar", () => {
 
     expect(screen.getByText("DOC")).toBeInTheDocument();
   });
+
+  it("renders the project image when a logo URL is present", () => {
+    render(
+      <ProjectAvatar
+        project={{
+          name: "Mobile App",
+          logoUrl: "https://crowdin.example/project.png",
+          externalProviderKind: "crowdin",
+          source: "external_tms",
+        }}
+      />,
+    );
+
+    expect(document.querySelector('img[src="https://crowdin.example/project.png"]')).not.toBeNull();
+    expect(screen.getByTitle("Mobile App")).toBeInTheDocument();
+  });
+
+  it("uses two letters in compact chips", () => {
+    render(
+      <ProjectAvatar
+        compact
+        project={{
+          name: "Tourmatic",
+          logoUrl: null,
+          externalProviderKind: null,
+          source: "native",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("TO")).toBeInTheDocument();
+    expect(screen.queryByText("TOU")).not.toBeInTheDocument();
+  });
 });
