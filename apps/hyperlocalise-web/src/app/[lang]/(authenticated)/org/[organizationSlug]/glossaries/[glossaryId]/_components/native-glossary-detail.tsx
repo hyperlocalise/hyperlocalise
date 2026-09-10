@@ -182,7 +182,7 @@ function ConceptListSkeleton() {
   );
 }
 
-export function GlossaryDetail({
+export function NativeGlossaryDetail({
   organizationSlug,
   glossaryId,
   canManageGlossaries,
@@ -209,16 +209,7 @@ export function GlossaryDetail({
   >([]);
   const [deleteGlossaryDialogOpen, setDeleteGlossaryDialogOpen] = useState(false);
 
-  const {
-    glossaryQuery,
-    glossary,
-    canManage,
-    canContribute,
-    isNative,
-    isLiveCrowdin,
-    isConceptGlossary,
-    sourceLanguage,
-  } = useGlossary({
+  const { glossaryQuery, glossary, canManage, canContribute, sourceLanguage } = useGlossary({
     organizationSlug,
     glossaryId,
     canManageGlossaries,
@@ -230,7 +221,7 @@ export function GlossaryDetail({
 
   const conceptsQuery = useQuery({
     queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    enabled: Boolean(isConceptGlossary),
+    enabled: true,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -247,7 +238,7 @@ export function GlossaryDetail({
 
   const attachedProjectsQuery = useQuery({
     queryKey: ["glossary-projects", organizationSlug, glossaryId],
-    enabled: Boolean(isNative || isLiveCrowdin),
+    enabled: true,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -264,7 +255,7 @@ export function GlossaryDetail({
 
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],
-    enabled: Boolean(isNative),
+    enabled: true,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -548,14 +539,10 @@ export function GlossaryDetail({
             strokeWidth={1.8}
           />
           <Badge variant="outline">
-            {isNative ? (
-              glossary.controlLevel === "team" ? (
-                teamControlLevelDisplayLabel(glossary, intl)
-              ) : (
-                <FormattedMessage {...messages.controlLevelOrg} />
-              )
+            {glossary.controlLevel === "team" ? (
+              teamControlLevelDisplayLabel(glossary, intl)
             ) : (
-              <FormattedMessage {...messages.sourceProvider} />
+              <FormattedMessage {...messages.controlLevelOrg} />
             )}
           </Badge>
           {glossary.languages.map((language) => (
@@ -618,7 +605,7 @@ export function GlossaryDetail({
         <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
           {glossary.description || intl.formatMessage(messages.descriptionFallback)}
         </TypographyP>
-        {canManage && isNative ? (
+        {canManage ? (
           <div className="flex justify-end">
             <Button
               type="button"
@@ -633,7 +620,7 @@ export function GlossaryDetail({
         ) : null}
       </section>
 
-      {isConceptGlossary ? (
+      <>
         <section className="grid gap-4 rounded-lg border border-border p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -644,9 +631,9 @@ export function GlossaryDetail({
                 <FormattedMessage {...messages.conceptsDescription} />
               </TypographyP>
             </div>
-            {canManage || canContribute || isNative ? (
+            {canManage || canContribute ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {isNative ? (
+                {canManage ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -867,30 +854,16 @@ export function GlossaryDetail({
             ) : null}
           </div>
         </section>
-      ) : (
-        <section className="rounded-lg border border-border p-4">
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.providerReadOnly} />
-          </TypographyP>
-        </section>
-      )}
-      {isNative || isLiveCrowdin ? (
         <section className="grid gap-4 rounded-lg border border-border p-4">
           <div>
             <TypographyP size="small" weight="medium" tone="content">
-              <FormattedMessage
-                {...(isLiveCrowdin ? messages.linkedProjectTitle : messages.assignedProjectsTitle)}
-              />
+              <FormattedMessage {...messages.assignedProjectsTitle} />
             </TypographyP>
             <TypographyP size="xsmall" tone="subtle">
-              <FormattedMessage
-                {...(isLiveCrowdin
-                  ? messages.linkedProjectDescription
-                  : messages.assignedProjectsDescription)}
-              />
+              <FormattedMessage {...messages.assignedProjectsDescription} />
             </TypographyP>
           </div>
-          {canManage && isNative ? (
+          {canManage ? (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
                 value={selectedProjectId || null}
@@ -946,7 +919,7 @@ export function GlossaryDetail({
                     {project.projectName}
                   </Link>
                 )}
-                {canManage && isNative ? (
+                {canManage ? (
                   <Button
                     type="button"
                     size="sm"
@@ -965,7 +938,7 @@ export function GlossaryDetail({
             ) : null}
           </div>
         </section>
-      ) : null}
+      </>
 
       <Dialog
         open={canManage && importDialogOpen}
