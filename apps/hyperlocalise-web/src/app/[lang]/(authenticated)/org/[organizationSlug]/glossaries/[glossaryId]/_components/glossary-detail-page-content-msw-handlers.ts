@@ -67,7 +67,8 @@ export function createGlossaryDetailMswHandlers({
     }),
     http.get(
       "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/:conceptId",
-      ({ params }) => {
+      async ({ params }) => {
+        if (conceptsLoading) await delay("infinite");
         const concept = currentConcepts.find(
           (candidate) => candidate.id === String(params.conceptId),
         );

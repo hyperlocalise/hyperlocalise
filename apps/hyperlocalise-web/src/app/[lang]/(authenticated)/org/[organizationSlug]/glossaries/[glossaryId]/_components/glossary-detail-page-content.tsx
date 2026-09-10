@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -223,6 +223,10 @@ export function GlossaryDetail({
     glossaryId,
     canManageGlossaries,
   });
+
+  useEffect(() => {
+    if (glossary) setNameDraft(glossary.name);
+  }, [glossary?.name]);
 
   const conceptsQuery = useQuery({
     queryKey: ["glossary-concepts", organizationSlug, glossaryId],
