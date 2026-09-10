@@ -488,39 +488,43 @@ export function ProjectFileContentEditorPageContent({
       return;
     }
 
-    const nextLocale = resolveProjectFileContentEditorTargetLocale(
-      nextFile,
-      targetLocale ?? highlightLocale,
-      projectTargetLocales,
-    );
-    const params = buildCatNavigationSearchParams(window.location.search, {
-      sourcePath: nextFile.sourcePath,
-      locale: nextLocale,
-      externalResourceId: nextFile.provider?.externalResourceId ?? null,
-      resourceType:
-        nextFile.provider?.resourceType && nextFile.provider.resourceType !== "file"
-          ? nextFile.provider.resourceType
-          : null,
-      branch,
-      segment: null,
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const nextLocale = resolveProjectFileContentEditorTargetLocale(
+        nextFile,
+        targetLocale ?? highlightLocale,
+        projectTargetLocales,
+      );
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: nextFile.sourcePath,
+        locale: nextLocale,
+        externalResourceId: nextFile.provider?.externalResourceId ?? null,
+        resourceType:
+          nextFile.provider?.resourceType && nextFile.provider.resourceType !== "file"
+            ? nextFile.provider.resourceType
+            : null,
+        branch,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
+      );
     });
-    router.push(
-      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-    );
   };
 
   const handleSelectAllFiles = () => {
-    const params = buildCatNavigationSearchParams(window.location.search, {
-      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-      locale: targetLocale ?? highlightLocale,
-      externalResourceId: null,
-      resourceType: null,
-      branch,
-      segment: null,
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+        locale: targetLocale ?? highlightLocale,
+        externalResourceId: null,
+        resourceType: null,
+        branch,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/strings?${params.toString()}`,
+      );
     });
-    router.push(
-      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/strings?${params.toString()}`,
-    );
   };
 
   const handleRepositoryChange = (

@@ -18,6 +18,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
+  emptyOfficeSnapshot,
   exportOfficeSnapshotToFile,
   loadOfficeSnapshotFromUrl,
   type ContentEditorOfficeKind,
@@ -92,9 +93,37 @@ export function ContentEditorOfficeFileViewerPane({
       containerRef.current?.replaceChildren();
       setPreviewSnapshot(null);
 
-      if (isLoading || !src) {
+      if (isLoading) {
         setIsMounting(false);
         setError(null);
+        return;
+      }
+
+      if (!src) {
+        if (readOnly) {
+          setIsMounting(false);
+          setError(null);
+          return;
+        }
+
+        setIsMounting(true);
+        setError(null);
+        try {
+          const snapshot = emptyOfficeSnapshot(kind, filename);
+          if (cancelled) {
+            return;
+          }
+          await mountEditor(snapshot);
+        } catch (mountError) {
+          if (cancelled) {
+            return;
+          }
+          setError(mountError instanceof Error ? mountError.message : String(mountError));
+        } finally {
+          if (!cancelled) {
+            setIsMounting(false);
+          }
+        }
         return;
       }
 
@@ -133,7 +162,7 @@ export function ContentEditorOfficeFileViewerPane({
       hostRef.current?.dispose();
       hostRef.current = null;
     };
-  }, [filename, isLoading, kind, mountEditor, src, useStoryPreview]);
+  }, [filename, isLoading, kind, mountEditor, readOnly, src, useStoryPreview]);
 
   async function handleSave() {
     if (!onSave) {
@@ -190,7 +219,7 @@ export function ContentEditorOfficeFileViewerPane({
       <div
         className={cn(
           "relative min-h-72 overflow-hidden border border-border bg-background",
-          !src && role === "target" ? "border-dashed" : "",
+          !src && readOnly && role === "target" ? "border-dashed" : "",
         )}
       >
         {(isLoading || isMounting) && (
@@ -198,7 +227,7 @@ export function ContentEditorOfficeFileViewerPane({
             <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
           </div>
         )}
-        {!src && !isLoading ? (
+        {!src && !isLoading && readOnly ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
             {emptyLabel}
           </div>

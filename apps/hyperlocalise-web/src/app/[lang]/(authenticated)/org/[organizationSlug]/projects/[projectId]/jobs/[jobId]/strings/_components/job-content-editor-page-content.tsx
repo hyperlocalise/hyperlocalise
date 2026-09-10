@@ -611,29 +611,33 @@ export function JobContentEditorPageContent({
       if (!nextSourcePath) {
         return;
       }
-      const params = buildCatNavigationSearchParams(window.location.search, {
-        sourcePath: nextSourcePath,
-        targetLocale: selectedTargetLocale,
-        storedFileId: null,
-        sourcePaths: null,
-        segment: null,
+      attemptCatPageNavigation(pageNavigationGuardRef, () => {
+        const params = buildCatNavigationSearchParams(window.location.search, {
+          sourcePath: nextSourcePath,
+          targetLocale: selectedTargetLocale,
+          storedFileId: null,
+          sourcePaths: null,
+          segment: null,
+        });
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+        );
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-      );
     };
 
     const handleJobSelectAllFiles = () => {
-      const params = buildCatNavigationSearchParams(window.location.search, {
-        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-        sourcePaths: serializeCatSourcePathsFilter(jobSourcePaths),
-        targetLocale: selectedTargetLocale,
-        storedFileId: null,
-        segment: null,
+      attemptCatPageNavigation(pageNavigationGuardRef, () => {
+        const params = buildCatNavigationSearchParams(window.location.search, {
+          sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+          sourcePaths: serializeCatSourcePathsFilter(jobSourcePaths),
+          targetLocale: selectedTargetLocale,
+          storedFileId: null,
+          segment: null,
+        });
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+        );
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-      );
     };
 
     return (
@@ -967,16 +971,18 @@ export function JobContentEditorPageContent({
       return;
     }
 
-    const params = buildCatNavigationSearchParams(window.location.search, {
-      sourcePath: nextSourcePath,
-      targetLocale: nextTargetLocale,
-      storedFileId: null,
-      sourcePaths: null,
-      segment: null,
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: nextSourcePath,
+        targetLocale: nextTargetLocale,
+        storedFileId: null,
+        sourcePaths: null,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+      );
     });
-    router.push(
-      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-    );
   };
 
   return (
