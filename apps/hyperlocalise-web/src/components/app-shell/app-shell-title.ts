@@ -33,17 +33,22 @@ type RouteTitleKey =
   | "ai-engine"
   | "api-keys"
   | "automations"
+  | "audiences"
   | "billing"
   | "dashboard"
   | "domains"
+  | "experiments"
   | "files"
+  | "flags"
   | "glossaries"
+  | "hyperlab"
   | "inbox"
   | "integrations"
   | "issues"
   | "issue-sheet"
   | "jobs"
   | "keywords"
+  | "keys"
   | "knowledge"
   | "linked-domains"
   | "locales"
@@ -79,7 +84,15 @@ const PROJECT_SECTION_KEYS = {
   strings: true,
 } as const;
 
+const HYPERLAB_SECTION_KEYS = {
+  audiences: true,
+  experiments: true,
+  flags: true,
+  keys: true,
+} as const;
+
 type ProjectSectionKey = keyof typeof PROJECT_SECTION_KEYS;
+type HyperlabSectionKey = keyof typeof HYPERLAB_SECTION_KEYS;
 
 function isRouteTitleKey(value: string): value is RouteTitleKey {
   return (
@@ -90,17 +103,22 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "ai-engine" ||
     value === "api-keys" ||
     value === "automations" ||
+    value === "audiences" ||
     value === "billing" ||
     value === "dashboard" ||
     value === "domains" ||
+    value === "experiments" ||
     value === "files" ||
+    value === "flags" ||
     value === "glossaries" ||
+    value === "hyperlab" ||
     value === "inbox" ||
     value === "integrations" ||
     value === "issues" ||
     value === "issue-sheet" ||
     value === "jobs" ||
     value === "keywords" ||
+    value === "keys" ||
     value === "knowledge" ||
     value === "linked-domains" ||
     value === "locales" ||
@@ -124,6 +142,10 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
 
 function isProjectSectionKey(value: string): value is ProjectSectionKey {
   return value in PROJECT_SECTION_KEYS;
+}
+
+function isHyperlabSectionKey(value: string): value is HyperlabSectionKey {
+  return value in HYPERLAB_SECTION_KEYS;
 }
 
 function parseOrgRoute(pathname: string | null) {
@@ -202,6 +224,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "XRHW9DFjAT",
         description: "App shell breadcrumb title for the API keys settings page",
       });
+    case "audiences":
+      return intl.formatMessage({
+        defaultMessage: "Audiences",
+        id: "pMWGh46Ptt",
+        description: "App shell breadcrumb title for the Hyperlab audiences page",
+      });
     case "billing":
       return intl.formatMessage({
         defaultMessage: "Billing",
@@ -220,6 +248,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "GuSsVpTTay",
         description: "App shell breadcrumb title for the domains page",
       });
+    case "experiments":
+      return intl.formatMessage({
+        defaultMessage: "Experiments",
+        id: "6acz11Hecl",
+        description: "App shell breadcrumb title for the Hyperlab experiments page",
+      });
     case "files":
       return intl.formatMessage({
         defaultMessage: "Files",
@@ -237,6 +271,24 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Inbox",
         id: "2f2Oa8dJQI",
         description: "App shell breadcrumb title for the inbox page",
+      });
+    case "hyperlab":
+      return intl.formatMessage({
+        defaultMessage: "Hyperlab",
+        id: "xeqCGSaHwJ",
+        description: "App shell breadcrumb title for Hyperlab",
+      });
+    case "flags":
+      return intl.formatMessage({
+        defaultMessage: "Flags",
+        id: "rgJk0uxb7q",
+        description: "App shell breadcrumb title for the Hyperlab flags page",
+      });
+    case "keys":
+      return intl.formatMessage({
+        defaultMessage: "API keys",
+        id: "NxYY7eU7aJ",
+        description: "App shell breadcrumb title for the Hyperlab API keys page",
       });
     case "integrations":
       return intl.formatMessage({
@@ -544,6 +596,27 @@ export function getAppShellBreadcrumbs(
 
   if (section === "projects") {
     return [{ label: formatRouteTitle(intl, "projects") }];
+  }
+
+  if (section === "hyperlab") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "hyperlab") }];
+    }
+
+    const crumbs: AppShellBreadcrumb[] = [
+      {
+        label: formatRouteTitle(intl, "hyperlab"),
+        href: buildOrgPath(organizationSlug, "hyperlab"),
+      },
+    ];
+
+    if (isHyperlabSectionKey(subsection)) {
+      crumbs.push({
+        label: formatRouteTitle(intl, subsection),
+      });
+    }
+
+    return crumbs;
   }
 
   if (section && isRouteTitleKey(section)) {

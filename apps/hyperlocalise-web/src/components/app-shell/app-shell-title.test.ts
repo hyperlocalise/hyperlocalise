@@ -48,6 +48,11 @@ describe("getAppShellTitle", () => {
     ["/org/acme/domains/ld_1", "ld_1"],
     ["/org/acme/domains/hyperlocalise-com/keywords", "Keywords"],
     ["/org/acme/glossaries", "Glossaries"],
+    ["/org/acme/hyperlab", "Hyperlab"],
+    ["/org/acme/hyperlab/experiments", "Experiments"],
+    ["/org/acme/hyperlab/audiences", "Audiences"],
+    ["/org/acme/hyperlab/flags", "Flags"],
+    ["/org/acme/hyperlab/keys", "API keys"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/teams", "Teams"],
@@ -166,6 +171,31 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/members/permissions", intl)).toEqual([
       { label: "Members", href: "/org/acme/members" },
       { label: "Role permissions" },
+    ]);
+  });
+
+  it("returns Hyperlab breadcrumbs for Hyperlab sections", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab", intl)).toEqual([{ label: "Hyperlab" }]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/hyperlab", intl)).toEqual([{ label: "Hyperlab" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab/experiments", intl)).toEqual([
+      { label: "Hyperlab", href: "/org/acme/hyperlab" },
+      { label: "Experiments" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab/experiments/exp_1", intl)).toEqual([
+      { label: "Hyperlab", href: "/org/acme/hyperlab" },
+      { label: "Experiments" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab/audiences", intl)).toEqual([
+      { label: "Hyperlab", href: "/org/acme/hyperlab" },
+      { label: "Audiences" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab/flags", intl)).toEqual([
+      { label: "Hyperlab", href: "/org/acme/hyperlab" },
+      { label: "Flags" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/hyperlab/keys", intl)).toEqual([
+      { label: "Hyperlab", href: "/org/acme/hyperlab" },
+      { label: "API keys" },
     ]);
   });
 

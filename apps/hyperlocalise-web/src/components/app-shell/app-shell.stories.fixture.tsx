@@ -257,7 +257,10 @@ export function AppShellSidebarStoryFrame({
   const intl = useIntl();
 
   return (
-    <AppShellStoreProvider defaultNavigationGroups={buildAppShellStoryNavigationGroups()}>
+    <AppShellStoreProvider
+      defaultNavigationGroups={buildAppShellStoryNavigationGroups()}
+      workspaceFeatureFlags={ALL_WORKSPACE_FEATURE_FLAGS}
+    >
       <SidebarProvider
         defaultOpen={!collapsed}
         style={appShellStoryLayoutStyle}
