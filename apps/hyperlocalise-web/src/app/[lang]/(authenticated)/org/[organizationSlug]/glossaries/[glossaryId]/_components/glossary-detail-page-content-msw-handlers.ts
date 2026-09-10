@@ -65,6 +65,17 @@ export function createGlossaryDetailMswHandlers({
         total: currentConcepts.length,
       });
     }),
+    http.get(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/:conceptId",
+      ({ params }) => {
+        const concept = currentConcepts.find(
+          (candidate) => candidate.id === String(params.conceptId),
+        );
+        return concept
+          ? HttpResponse.json({ concept })
+          : HttpResponse.json({ error: "not_found" }, { status: 404 });
+      },
+    ),
     http.patch(
       "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/:conceptId",
       async ({ params, request }) => {

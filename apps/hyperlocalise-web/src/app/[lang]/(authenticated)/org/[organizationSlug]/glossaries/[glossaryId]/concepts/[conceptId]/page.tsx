@@ -12,7 +12,7 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { GlossaryDetailPageContent } from "../../_components/glossary-detail-page-content";
+import { GlossaryConceptDetail } from "../../_components/glossary-concept-detail";
 import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 
 export default function GlossaryConceptPage({
@@ -44,7 +44,7 @@ async function GlossaryConceptPageLoader({
   const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
-    <GlossaryDetailPageContent
+    <GlossaryConceptDetail
       organizationSlug={organizationSlug}
       glossaryId={glossaryId}
       conceptId={conceptId}

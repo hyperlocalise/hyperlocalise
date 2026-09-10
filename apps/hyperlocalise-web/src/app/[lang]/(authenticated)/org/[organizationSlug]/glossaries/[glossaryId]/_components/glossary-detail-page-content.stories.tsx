@@ -16,7 +16,8 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 
 import { createGlossaryDetailMswHandlers } from "./glossary-detail-page-content-msw-handlers";
-import { GlossaryDetailPageContent } from "./glossary-detail-page-content";
+import { GlossaryConceptDetail } from "./glossary-concept-detail";
+import { GlossaryDetail } from "./glossary-detail-page-content";
 
 const fixedNow = "2026-08-19T12:00:00.000Z";
 const glossaryId = "glossary-1";
@@ -115,7 +116,7 @@ const onTermDelete = fn();
 
 const meta = {
   title: "App/Glossaries/Detail",
-  component: GlossaryDetailPageContent,
+  component: GlossaryDetail,
   parameters: {
     layout: "fullscreen",
   },
@@ -124,7 +125,7 @@ const meta = {
     glossaryId,
     canManageGlossaries: true,
   },
-} satisfies Meta<typeof GlossaryDetailPageContent>;
+} satisfies Meta<typeof GlossaryDetail>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -273,9 +274,7 @@ export const ProviderReadOnly: Story = {
 };
 
 export const ConceptDetail: Story = {
-  args: {
-    conceptId,
-  },
+  render: (args) => <GlossaryConceptDetail {...args} conceptId={conceptId} />,
   parameters: {
     msw: { handlers: detailHandlers },
     nextjs: {
@@ -341,9 +340,7 @@ export const ConceptDetail: Story = {
 };
 
 export const ConceptCreationWithTerms: Story = {
-  args: {
-    conceptId: "new",
-  },
+  render: (args) => <GlossaryConceptDetail {...args} conceptId="new" />,
   parameters: {
     msw: { handlers: detailHandlers },
     nextjs: {
@@ -395,9 +392,7 @@ export const LoadingConceptList: Story = {
 };
 
 export const LoadingConceptDetail: Story = {
-  args: {
-    conceptId,
-  },
+  render: (args) => <GlossaryConceptDetail {...args} conceptId={conceptId} />,
   parameters: {
     msw: {
       handlers: createGlossaryDetailMswHandlers({
