@@ -652,4 +652,24 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "TmON06MWzq",
     description: "Toast after a concept term is saved",
   },
+  historyTitle: {
+    defaultMessage: "History",
+    id: "0otixJ9zdV",
+    description: "Heading for the glossary concept history panel",
+  },
+  historyEmpty: {
+    defaultMessage: "No changes recorded yet.",
+    id: "xx79RfygY/",
+    description: "Empty state for a glossary concept history panel",
+  },
+  historyChangedFields: {
+    defaultMessage: "Changed fields: {fields}",
+    id: "/8T8dLh8LC",
+    description: "Summary of fields changed in a glossary history event",
+  },
+  historyBy: {
+    defaultMessage: "{event} · {actor} · {date}",
+    id: "g4pu5NkssB",
+    description: "Glossary history event metadata",
+  },
 });
