@@ -19,7 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -32,7 +32,7 @@ const RANK_GRID =
 
 export function DomainRanksView({ linkedDomainId }: { linkedDomainId: string }) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const catalog = useDomainResearchCatalog(linkedDomainId);
   const [addOpen, setAddOpen] = useState(false);
 
   if (!catalog) {

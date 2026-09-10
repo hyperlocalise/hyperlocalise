@@ -16,7 +16,7 @@ import { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -29,7 +29,7 @@ const PAGE_GRID =
 
 export function DomainOverviewTables({ linkedDomainId }: { linkedDomainId: string }) {
   const intl = useIntl();
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
+  const catalog = useDomainResearchCatalog(linkedDomainId);
   const [tab, setTab] = useState<"keywords" | "pages">("keywords");
 
   if (!catalog) {

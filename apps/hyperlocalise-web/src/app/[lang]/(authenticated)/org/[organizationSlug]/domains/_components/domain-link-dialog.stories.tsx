@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Button } from "@/components/ui/button";
@@ -31,3 +32,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
+
+export const EditMultipleLocales: Story = {
+  args: { domain: getResearchPrototypeDomain("hyperlocalise-com")! },
+};

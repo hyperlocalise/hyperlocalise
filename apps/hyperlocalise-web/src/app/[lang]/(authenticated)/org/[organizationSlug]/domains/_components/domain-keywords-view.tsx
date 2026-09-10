@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { useState } from "react";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
@@ -27,12 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  getResearchPrototypeCatalog,
-  DOMAIN_RESEARCH_MARKETS,
-  type DomainResearchCatalog,
-  type KeywordIdea,
-} from "@/lib/domains/research-prototype";
+import { type DomainResearchCatalog, type KeywordIdea } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 import { formatKeywordIntent } from "./domain-research-format";
 import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.messages";
@@ -59,8 +55,10 @@ const EMPTY_FILTERS: KeywordFilters = {
 };
 
 export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string }) {
-  const catalog = getResearchPrototypeCatalog(linkedDomainId);
-  return catalog ? <KeywordScreen key={linkedDomainId} catalog={catalog} /> : null;
+  const catalog = useDomainResearchCatalog(linkedDomainId);
+  return catalog ? (
+    <KeywordScreen key={`${linkedDomainId}-${catalog.market.id}`} catalog={catalog} />
+  ) : null;
 }
 
 function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
@@ -68,13 +66,13 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
   const t = intl.formatMessage;
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [market, setMarket] = useState(catalog.domain.market.id);
+
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState<KeywordSort>({ field: "volume", direction: "desc" });
   const [selected, setSelected] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(catalog.keywords[0]?.id ?? null);
-  const keywords = market === catalog.domain.market.id ? catalog.keywords : [];
+  const keywords = catalog.keywords;
   const rows = filterKeywordIdeas(keywords, search, filters, sort);
   const active = resolveActiveKeyword(rows, activeId);
   const selectedRows = rows.filter((row) => selected.includes(row.id));
@@ -94,7 +92,7 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `keywords-${catalog.domain.domainKey}-${market}.csv`;
+    link.download = `keywords-${catalog.domain.domainKey}-${catalog.market.id}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -102,7 +100,6 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
     setQuery("");
     setSearch("");
     setFilters(EMPTY_FILTERS);
-    setMarket(catalog.domain.market.id);
     setSelected([]);
     setActiveId(catalog.keywords[0]?.id ?? null);
   }
@@ -133,35 +130,6 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={catalog.keywords[0]?.keyword ?? t(messages.query)}
           />
-        </Field>
-        <Field className="w-full sm:w-48">
-          <FieldLabel htmlFor="keyword-market">{t(messages.market)}</FieldLabel>
-          <Select
-            value={market}
-            items={DOMAIN_RESEARCH_MARKETS.map((item) => ({ value: item.id, label: item.label }))}
-            onValueChange={(value) => {
-              if (value) {
-                setMarket(value);
-                setSelected([]);
-                setActiveId(
-                  value === catalog.domain.market.id ? (catalog.keywords[0]?.id ?? null) : null,
-                );
-              }
-            }}
-          >
-            <SelectTrigger id="keyword-market" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {DOMAIN_RESEARCH_MARKETS.map((item) => (
-                  <SelectItem key={item.id} value={item.id} label={item.label}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
         </Field>
         <Button type="submit">{t(messages.search)}</Button>
       </form>
