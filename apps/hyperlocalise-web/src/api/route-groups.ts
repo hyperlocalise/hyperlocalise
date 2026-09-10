@@ -37,6 +37,7 @@ import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.r
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
+import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
@@ -169,6 +170,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
+    .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())

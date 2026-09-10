@@ -477,6 +477,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "s7935wKE28",
     description: "Accessible label to remove the Semrush tool",
   },
+  zernio: {
+    defaultMessage: "Zernio",
+    id: "KzaICk+6Cz",
+    description: "Menu item and tool title for Zernio ads",
+  },
+  zernioDescription: {
+    defaultMessage: "Create paid ads through your connected Zernio API key.",
+    id: "vD18ztXAAC",
+    description: "Description for the Zernio automation tool when a connection exists",
+  },
+  zernioDisconnectedDescription: {
+    defaultMessage: "Connect Zernio with an API key in Integrations before using this tool.",
+    id: "uZhoOxPmIG",
+    description: "Description when no Zernio connection is available",
+  },
+  removeZernioTool: {
+    defaultMessage: "Remove Zernio tool",
+    id: "5JQnoYqOu1",
+    description: "Accessible label to remove the Zernio tool",
+  },
   crowdin: {
     defaultMessage: "Crowdin",
     id: "yQ7T8Cq+ij",

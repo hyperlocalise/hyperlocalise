@@ -20,6 +20,7 @@ import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
+import { lockZernioConnectionForUpdate } from "@/lib/zernio/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { enqueueAutomationRunStartedActivity } from "@/lib/activity-log/job-automation-events";
@@ -270,6 +271,14 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  const zernioTools = input.toolConfig.zernio;
+  if (zernioTools?.enabled && !zernioTools.connectionId) {
+    return err({
+      code: "zernio_connection_required",
+      message: "Enabled Zernio tools require a Zernio connection.",
+    });
+  }
+
   const crowdinTools = input.toolConfig.crowdin;
   if (crowdinTools?.enabled && !readOptionalProjectId(crowdinTools.projectId)) {
     return err({
@@ -291,6 +300,12 @@ export async function validateWorkspaceAutomationIntegrations(input: {
    * Requires `db` to be a transaction client.
    */
   lockSemrushConnection?: boolean;
+  /**
+   * When true, locks the selected Zernio connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockZernioConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
   const database = input.db ?? db;
 
@@ -444,6 +459,53 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "semrush_not_connected",
         message: "Enable the selected Semrush connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.zernio?.enabled) {
+    const connectionId = input.toolConfig.zernio.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "zernio_connection_required",
+        message: "Enabled Zernio tools require a Zernio connection.",
+      });
+    }
+
+    const connection = input.lockZernioConnection
+      ? await lockZernioConnectionForUpdate({
+          organizationId: input.organizationId,
+          connectionId,
+          db: database,
+        })
+      : ((
+          await database
+            .select({
+              id: schema.zernioConnections.id,
+              enabled: schema.zernioConnections.enabled,
+              validationStatus: schema.zernioConnections.validationStatus,
+            })
+            .from(schema.zernioConnections)
+            .where(
+              and(
+                eq(schema.zernioConnections.organizationId, input.organizationId),
+                eq(schema.zernioConnections.id, connectionId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null);
+
+    if (!connection) {
+      return err({
+        code: "zernio_connection_not_found",
+        message: "The selected Zernio connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled || connection.validationStatus !== "valid") {
+      return err({
+        code: "zernio_not_connected",
+        message: "Enable the selected Zernio connection in Integrations before using it.",
       });
     }
   }
@@ -636,6 +698,12 @@ function shouldLockSemrushConnectionForToolConfig(
   return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
 }
 
+function shouldLockZernioConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.zernio?.enabled && toolConfig.zernio.connectionId);
+}
+
 async function stampPipesUsersOnToolConfig(input: {
   toolConfig: WorkspaceAutomationToolConfig;
   actorWorkosUserId?: string | null;
@@ -742,7 +810,8 @@ export async function createWorkspaceAutomation(input: {
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
   const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(toolConfig);
-  const needsConnectionLock = lockSemrushConnection;
+  const lockZernioConnection = shouldLockZernioConnectionForToolConfig(toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockZernioConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -752,6 +821,7 @@ export async function createWorkspaceAutomation(input: {
       toolConfig,
       db: database,
       lockSemrushConnection,
+      lockZernioConnection,
     });
     if (isErr(integrationValidation)) {
       return err(integrationValidation.error);
@@ -903,7 +973,9 @@ export async function updateWorkspaceAutomation(input: {
 
   const lockSemrushConnection =
     configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
-  const needsConnectionLock = lockSemrushConnection;
+  const lockZernioConnection =
+    configChanged && shouldLockZernioConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockZernioConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -916,6 +988,7 @@ export async function updateWorkspaceAutomation(input: {
         toolConfig: config.toolConfig,
         db: database,
         lockSemrushConnection,
+        lockZernioConnection,
       });
       if (isErr(integrationValidation)) {
         return err(integrationValidation.error);

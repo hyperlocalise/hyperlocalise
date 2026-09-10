@@ -46,6 +46,7 @@ import {
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
+import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
 import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,12 @@ type SemrushConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
+type ZernioConnectionOption = {
+  id: string;
+  displayName: string;
+  enabled: boolean;
+  validationStatus: string;
+};
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
@@ -187,6 +194,10 @@ const AUTOMATION_MODEL_MESSAGES = {
   "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
   "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
 } as const;
+
+function ZernioToolIcon() {
+  return <IntegrationLogo src="/images/zernio-logo.svg" className="size-4" />;
+}
 
 function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
   if (icon) {
@@ -439,6 +450,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.knowledgeFilesEnabled) +
     Number(form.mcpEnabled) +
     Number(form.semrushEnabled) +
+    Number(form.zernioEnabled) +
     Number(form.ahrefsEnabled) +
     Number(form.webSearchEnabled)
   );
@@ -1282,6 +1294,7 @@ function AddToolMenu({
   repositories,
   ahrefsConnected,
   semrushConnected,
+  zernioConnected,
   slackConnected,
   crowdinProjects,
 }: {
@@ -1297,6 +1310,7 @@ function AddToolMenu({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   semrushConnected: boolean;
+  zernioConnected: boolean;
   slackConnected: boolean;
   crowdinProjects: ProjectOption[];
 }) {
@@ -1663,6 +1677,22 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
+              disabled={form.zernioEnabled || !zernioConnected}
+              onClick={() => onChange({ ...form, zernioEnabled: true })}
+            >
+              <ZernioToolIcon />
+              <FormattedMessage {...workspaceAutomationFormMessages.zernio} />
+              {form.zernioEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !zernioConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
               disabled={form.ahrefsEnabled || !ahrefsConnected}
               onClick={() => onChange({ ...form, ahrefsEnabled: true })}
             >
@@ -1814,6 +1844,7 @@ function ToolsSettings({
   repositories,
   ahrefsConnected,
   semrushConnections,
+  zernioConnections,
   slackConnected,
 }: {
   automationId?: string;
@@ -1835,6 +1866,7 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
+  zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
 }) {
   const contentfulConnected = contentfulConnections.length > 0;
@@ -1846,6 +1878,10 @@ function ToolsSettings({
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
   const semrushConnected = enabledSemrushConnections.length > 0;
+  const enabledZernioConnections = zernioConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const zernioConnected = enabledZernioConnections.length > 0;
   const crowdinProjects = collectCrowdinProjects(projects, crowdinLiveProjects);
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedProject = projects.find((project) => project.id === form.projectId);
@@ -2788,6 +2824,72 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.zernioEnabled ? (
+          <EditorRow
+            icon={<ZernioToolIcon />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.zernio} />}
+            description={
+              zernioConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.zernioDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.zernioDisconnectedDescription)
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeZernioTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    zernioEnabled: false,
+                    zernioConnectionId: "",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.selectConnection} />
+              </Label>
+              <Select
+                value={form.zernioConnectionId || null}
+                disabled={disabled || !zernioConnected}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, zernioConnectionId: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={intl.formatMessage(
+                      workspaceAutomationFormMessages.selectConnection,
+                    )}
+                  >
+                    {enabledZernioConnections.find(
+                      (connection) => connection.id === form.zernioConnectionId,
+                    )?.displayName ??
+                      intl.formatMessage(workspaceAutomationFormMessages.selectConnection)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {enabledZernioConnections.map((connection) => (
+                    <SelectItem
+                      key={connection.id}
+                      value={connection.id}
+                      label={connection.displayName}
+                    >
+                      {connection.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.zernioConnectionId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
         {form.ahrefsEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon />}
@@ -2890,6 +2992,7 @@ function ToolsSettings({
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
           semrushConnected={semrushConnected}
+          zernioConnected={zernioConnected}
           slackConnected={slackConnected}
         />
       </EditorPanel>
@@ -3216,6 +3319,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const zernioConnectionsQuery = useQuery({
+    queryKey: ["zernio-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["zernio-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Zernio connections");
+      }
+      const body = await response.json();
+      return body.zernioConnections as ZernioConnectionOption[];
+    },
+  });
+
   const ahrefsPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
@@ -3254,6 +3371,7 @@ export function WorkspaceAutomationEditor({
   const contentfulConnected = contentfulConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
+  const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
@@ -3403,6 +3521,7 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
             semrushConnections={semrushConnections}
+            zernioConnections={zernioConnections}
             slackConnected={slackConnected}
           />
         </TabsContent>

@@ -2198,6 +2198,148 @@ export const integrationDetailCopy = {
       },
     ],
   },
+  zernio: {
+    capabilities: [
+      {
+        title: {
+          defaultMessage: "Cross-platform ads",
+          id: "intZernioCapAdsTitle",
+          description: "Zernio capability title",
+        },
+        description: {
+          defaultMessage:
+            "Create campaigns on Meta, Google Ads, TikTok, LinkedIn, Pinterest, X, and OpenAI Ads from one API key.",
+          id: "intZernioCapAdsDesc",
+          description: "Zernio capability description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Localized creative",
+          id: "intZernioCapCopyTitle",
+          description: "Zernio capability title",
+        },
+        description: {
+          defaultMessage:
+            "Push translated headlines, bodies, and landing URLs into live ads after a Hyperlocalise job finishes.",
+          id: "intZernioCapCopyDesc",
+          description: "Zernio capability description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Agent tools",
+          id: "intZernioCapToolsTitle",
+          description: "Zernio capability title",
+        },
+        description: {
+          defaultMessage:
+            "Automations and inbound MCP agents can list accounts, inspect the ads tree, and create ads or campaigns.",
+          id: "intZernioCapToolsDesc",
+          description: "Zernio capability description",
+        },
+      },
+    ],
+    workflows: [
+      {
+        title: {
+          defaultMessage: "Localize then launch ads",
+          id: "intZernioWf1Title",
+          description: "Zernio workflow example title",
+        },
+        steps: [
+          {
+            label: {
+              defaultMessage: "Translate ad copy in Hyperlocalise",
+              id: "intZernioWf1Step1",
+              description: "Zernio workflow step label",
+            },
+          },
+          {
+            label: {
+              defaultMessage: "Automation calls Zernio with account and creative",
+              id: "intZernioWf1Step2",
+              description: "Zernio workflow step label",
+            },
+          },
+          {
+            label: {
+              defaultMessage: "Campaign created paused on the target platform",
+              id: "intZernioWf1Step3",
+              description: "Zernio workflow step label",
+            },
+          },
+        ],
+      },
+    ],
+    setupSteps: [
+      {
+        title: {
+          defaultMessage: "Create a Zernio API key",
+          id: "intZernioSetup1Title",
+          description: "Zernio setup step title",
+        },
+        description: {
+          defaultMessage: "Sign in to Zernio, open API keys, and copy a new sk_ key.",
+          id: "intZernioSetup1Desc",
+          description: "Zernio setup step description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Connect the key",
+          id: "intZernioSetup2Title",
+          description: "Zernio setup step title",
+        },
+        description: {
+          defaultMessage:
+            "Paste the key under Integrations → Zernio. Hyperlocalise validates it against GET /v1/accounts.",
+          id: "intZernioSetup2Desc",
+          description: "Zernio setup step description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Add the ads tool",
+          id: "intZernioSetup3Title",
+          description: "Zernio setup step title",
+        },
+        description: {
+          defaultMessage:
+            "Enable Zernio on an automation, or call zernio_* tools from the hosted MCP server.",
+          id: "intZernioSetup3Desc",
+          description: "Zernio setup step description",
+        },
+      },
+    ],
+    products: [
+      {
+        name: {
+          defaultMessage: "Standalone ads",
+          id: "intZernioProd1Name",
+          description: "Zernio product name",
+        },
+        description: {
+          defaultMessage: "Create campaign, ad set, and creative in one POST /v1/ads/create call.",
+          id: "intZernioProd1Desc",
+          description: "Zernio product description",
+        },
+      },
+      {
+        name: {
+          defaultMessage: "Campaign shells",
+          id: "intZernioProd2Name",
+          description: "Zernio product name",
+        },
+        description: {
+          defaultMessage:
+            "Provision an empty campaign, then attach later ads with existingCampaignId.",
+          id: "intZernioProd2Desc",
+          description: "Zernio product description",
+        },
+      },
+    ],
+  },
   hyperlab: {
     capabilities: [
       {
