@@ -12,36 +12,58 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { getResearchPrototypeCatalog, type KeywordIdea, type SerpResult } from "@/lib/domains/research-prototype";
+import {
+  getResearchPrototypeCatalog,
+  DOMAIN_RESEARCH_MARKETS,
+  type DomainResearchCatalog,
+  type KeywordIdea,
+  type SerpResult,
+} from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
-
-import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatKeywordIntent } from "./domain-research-format";
-import { domainKeywordsViewMessages as messages } from "./domain-keywords-view.messages";
-import { DomainSeedKeywordsDialog } from "./domain-seed-keywords-dialog";
+import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.messages";
+import { keywordScreenMessages as messages } from "./domain-keyword-screen.messages";
+import { DomainKeywordAnalysis } from "./domain-keyword-analysis";
+import {
+  filterKeywordIdeas,
+  keywordIdeasCsv,
+  resolveActiveKeyword,
+  type KeywordFilters,
+  type KeywordSort,
+} from "@/lib/domains/keyword-screen";
 import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
 
-const KEYWORD_GRID =
-  "grid grid-cols-[auto_minmax(12rem,1.4fr)_repeat(3,minmax(4.5rem,0.55fr))_minmax(6rem,0.7fr)_auto] items-center gap-3 px-3 py-2.5";
+const EMPTY_FILTERS: KeywordFilters = {
+  include: "",
+  exclude: "",
+  minVolume: "",
+  maxVolume: "",
+  minKd: "",
+  maxKd: "",
+  minCpc: "",
+  maxCpc: "",
+  intent: "all",
+};
 
 export function DomainKeywordsView({
   linkedDomainId,
@@ -50,47 +72,85 @@ export function DomainKeywordsView({
   linkedDomainId: string;
   organizationSlug?: string;
 }) {
-  const intl = useIntl();
-  const queryClient = useQueryClient();
   const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
   const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
   const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
-  const [seedOpen, setSeedOpen] = useState(false);
-  const [seedPending, setSeedPending] = useState(false);
-  const [persistPending, setPersistPending] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
-  const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
-  const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
-  const [serpPending, setSerpPending] = useState(false);
-  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
-  const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
-
-  const keywords = ideas ?? catalog?.keywords ?? [];
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const serpKeyword = keywords.find((keyword) => keyword.id === serpKeywordId) ?? null;
-  const serpResults =
-    liveSerpResults ??
-    (serpKeyword ? (catalog?.serpByKeywordId[serpKeyword.id] ?? []) : []);
 
   if (liveResearch.live && liveResearch.isPending) {
     return (
       <TypographyP size="small" tone="subtle">
-        <FormattedMessage {...messages.loading} />
+        <FormattedMessage {...shared.loading} />
       </TypographyP>
     );
   }
 
-  if (!catalog) {
-    return null;
-  }
+  return catalog ? (
+    <KeywordScreen
+      key={linkedDomainId}
+      catalog={catalog}
+      linkedDomainId={linkedDomainId}
+      organizationSlug={organizationSlug}
+      live={liveResearch.live}
+    />
+  ) : null;
+}
 
-  const selectedKeywords = keywords.filter((keyword) => selectedSet.has(keyword.id));
-  const marketId = expandedMarketId ?? catalog.domain.market.id;
+function KeywordScreen({
+  catalog,
+  linkedDomainId,
+  organizationSlug,
+  live,
+}: {
+  catalog: DomainResearchCatalog;
+  linkedDomainId: string;
+  organizationSlug?: string;
+  live: boolean;
+}) {
+  const intl = useIntl();
+  const t = intl.formatMessage;
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [market, setMarket] = useState(catalog.domain.market.id);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const [sort, setSort] = useState<KeywordSort>({ field: "volume", direction: "desc" });
+  const [selected, setSelected] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(catalog.keywords[0]?.id ?? null);
+  const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
+  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
+  const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
+  const [seedPending, setSeedPending] = useState(false);
+  const [persistPending, setPersistPending] = useState(false);
+  const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
+  const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
+  const [serpPending, setSerpPending] = useState(false);
+  const catalogKeywords = market === catalog.domain.market.id ? catalog.keywords : [];
+  const keywords = ideas && expandedMarketId === market ? ideas : catalogKeywords;
+  const rows = filterKeywordIdeas(keywords, live ? "" : search, filters, sort);
+  const active = resolveActiveKeyword(rows, activeId);
+  const selectedRows = rows.filter((row) => selected.includes(row.id));
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
+  const activeFilterCount = Object.entries(filters).filter(
+    ([key, value]) => value !== "" && !(key === "intent" && value === "all"),
+  ).length;
+  const columns = [
+    { field: "keyword", label: shared.columnKeyword },
+    { field: "volume", label: shared.columnVolume, help: messages.volumeHelp },
+    { field: "kd", label: shared.columnKd, help: messages.kdHelp },
+    { field: "cpc", label: shared.columnCpc, help: messages.cpcHelp },
+    { field: "competition", label: messages.competition, help: messages.competitionHelp },
+  ] as const;
+  const serpResults =
+    live && serpKeywordId === active?.id && liveSerpResults
+      ? liveSerpResults
+      : active
+        ? (catalog.serpByKeywordId[active.id] ?? [])
+        : [];
 
-  async function expandIdeas(input: { keyword: string; marketId: string }) {
-    if (!organizationSlug || !liveResearch.live) {
-      toast.success(intl.formatMessage(messages.seedSuccess));
+  async function expandIdeas(seed: string, marketId: string) {
+    if (!organizationSlug || !live) {
+      toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
     }
     setSeedPending(true);
@@ -100,7 +160,7 @@ export function DomainKeywordsView({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ seedKeyword: input.keyword, marketId: input.marketId }),
+          body: JSON.stringify({ seedKeyword: seed, marketId }),
         },
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -108,69 +168,41 @@ export function DomainKeywordsView({
         message?: string;
       };
       if (!response.ok || !body.ideas) {
-        toast.error(body.message || intl.formatMessage(messages.seedError));
+        toast.error(body.message || intl.formatMessage(shared.seedError));
         return false;
       }
       setIdeas(body.ideas);
-      setSelectedIds([]);
-      setExpandedMarketId(input.marketId);
-      setSeedKeyword(input.keyword);
-      toast.success(intl.formatMessage(messages.seedSuccess));
+      setSelected([]);
+      setExpandedMarketId(marketId);
+      setSeedKeyword(seed);
+      const nextActive = body.ideas[0] ?? null;
+      setActiveId(nextActive?.id ?? null);
+      if (nextActive) {
+        void inspectSerp(nextActive, marketId);
+      }
+      toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
     } finally {
       setSeedPending(false);
     }
   }
 
-  async function persistSelected(path: "save" | "ranks") {
-    if (!organizationSlug || !liveResearch.live) {
-      toast.success(
-        intl.formatMessage(path === "save" ? messages.saved : messages.sentToRanks),
-      );
-      setSelectedIds([]);
+  async function inspectSerp(keyword: KeywordIdea, marketId = market) {
+    setActiveId(keyword.id);
+    const cached = catalog.serpByKeywordId[keyword.id];
+    if (cached?.length) {
+      setSerpKeywordId(keyword.id);
+      setLiveSerpResults(cached);
       return;
     }
-    setPersistPending(true);
-    const endpoint =
-      path === "save"
-        ? `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/save`
-        : `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`;
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          marketId,
-          seedKeyword,
-          keywords: selectedKeywords,
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        toast.error(
-          body.message ||
-            intl.formatMessage(path === "save" ? messages.saveError : messages.ranksError),
-        );
-        return;
-      }
-      setSelectedIds([]);
-      setIdeas(null);
-      await queryClient.invalidateQueries({
-        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
-      });
-      toast.success(intl.formatMessage(path === "save" ? messages.saved : messages.sentToRanks));
-    } finally {
-      setPersistPending(false);
+    if (!organizationSlug || !live) {
+      setSerpKeywordId(keyword.id);
+      setLiveSerpResults(null);
+      return;
     }
-  }
-
-  async function inspectSerp(keyword: KeywordIdea) {
     setSerpKeywordId(keyword.id);
-    setLiveSerpResults(null);
-    if (!organizationSlug || !liveResearch.live) {
-      return;
-    }
     setSerpPending(true);
+    setLiveSerpResults(null);
     try {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/serp`,
@@ -185,7 +217,7 @@ export function DomainKeywordsView({
         message?: string;
       };
       if (!response.ok || !body.results) {
-        toast.error(body.message || intl.formatMessage(messages.serpError));
+        toast.error(body.message || intl.formatMessage(shared.serpError));
         return;
       }
       setLiveSerpResults(body.results);
@@ -197,208 +229,412 @@ export function DomainKeywordsView({
     }
   }
 
-  function toggleKeyword(id: string, checked: boolean) {
-    setSelectedIds((current) =>
-      checked
-        ? current.includes(id)
-          ? current
-          : [...current, id]
-        : current.filter((item) => item !== id),
-    );
+  async function persistSelected(path: "save" | "ranks") {
+    if (!organizationSlug || !live) {
+      toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
+      setSelected([]);
+      return;
+    }
+    setPersistPending(true);
+    const endpoint =
+      path === "save"
+        ? `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/save`
+        : `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: expandedMarketId ?? market,
+          seedKeyword,
+          keywords: selectedRows.map((row) => ({
+            keyword: row.keyword,
+            volume: row.volume,
+            kd: row.kd,
+            cpc: row.cpc,
+            intent: row.intent,
+          })),
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        toast.error(
+          body.message ||
+            intl.formatMessage(path === "save" ? shared.saveError : shared.ranksError),
+        );
+        return;
+      }
+      setSelected([]);
+      setIdeas(null);
+      setExpandedMarketId(null);
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+      toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
+    } finally {
+      setPersistPending(false);
+    }
   }
 
+  function exportCsv() {
+    const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows);
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `keywords-${catalog.domain.domainKey}-${market}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function reset() {
+    setQuery("");
+    setSearch("");
+    setFilters(EMPTY_FILTERS);
+    setMarket(catalog.domain.market.id);
+    setSelected([]);
+    setIdeas(null);
+    setExpandedMarketId(null);
+    setActiveId(catalog.keywords[0]?.id ?? null);
+  }
+  function metric(row: KeywordIdea, field: "volume" | "kd" | "cpc" | "competition") {
+    const value = row[field];
+    return value == null
+      ? "—"
+      : field === "cpc"
+        ? intl.formatNumber(value, { style: "currency", currency: "EUR" })
+        : intl.formatNumber(value, { maximumFractionDigits: 2 });
+  }
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={() => setSeedOpen(true)}>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          <FormattedMessage {...messages.seedCta} />
-        </Button>
-      </div>
-
-      {keywords.length === 0 ? (
-        <DomainResearchEmpty
-          title={<FormattedMessage {...messages.emptyTitle} />}
-          description={<FormattedMessage {...messages.emptyDescription} />}
-          action={
-            <Button size="sm" onClick={() => setSeedOpen(true)}>
-              <FormattedMessage {...messages.seedCta} />
-            </Button>
+    <div className="flex min-w-0 flex-col gap-4">
+      <form
+        className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const nextQuery = query.trim();
+          if (live && nextQuery) {
+            void expandIdeas(nextQuery, market);
+            setSearch("");
+            return;
           }
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <div
-            className={cn(
-              KEYWORD_GRID,
-              "border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground",
-            )}
-          >
-            <span />
-            <span>
-              <FormattedMessage {...messages.columnKeyword} />
-            </span>
-            <span className="text-end">
-              <FormattedMessage {...messages.columnVolume} />
-            </span>
-            <span className="text-end">
-              <FormattedMessage {...messages.columnKd} />
-            </span>
-            <span className="text-end">
-              <FormattedMessage {...messages.columnCpc} />
-            </span>
-            <span>
-              <FormattedMessage {...messages.columnIntent} />
-            </span>
-            <span />
-          </div>
-          <div className="divide-y divide-border">
-            {keywords.map((keyword) => (
-              <div key={keyword.id} className={KEYWORD_GRID}>
-                <Checkbox
-                  checked={selectedSet.has(keyword.id)}
-                  onCheckedChange={(checked) => toggleKeyword(keyword.id, checked === true)}
-                  aria-label={intl.formatMessage(messages.selectKeyword, {
-                    keyword: keyword.keyword,
-                  })}
-                />
-                <button
-                  type="button"
-                  className="min-w-0 truncate text-start font-medium text-foreground underline-offset-4 hover:underline"
-                  onClick={() => {
-                    void inspectSerp(keyword);
-                  }}
-                >
-                  {keyword.keyword}
-                </button>
-                <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {intl.formatNumber(keyword.volume)}
-                </span>
-                <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {keyword.kd}
-                </span>
-                <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {intl.formatNumber(keyword.cpc, {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </span>
-                <Badge variant="outline">{formatKeywordIntent(intl, keyword.intent)}</Badge>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    void inspectSerp(keyword);
-                  }}
-                >
-                  <FormattedMessage {...messages.inspectSerp} />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {selectedIds.length > 0 ? (
-        <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-popover px-4 py-3 shadow-lg">
-          <TypographyP size="small">
-            <FormattedMessage {...messages.selectedCount} values={{ count: selectedIds.length }} />
-          </TypographyP>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={persistPending}
-              onClick={() => {
-                void persistSelected("save");
-              }}
-            >
-              <FormattedMessage {...messages.save} />
-            </Button>
-            <Button
-              size="sm"
-              disabled={persistPending}
-              onClick={() => {
-                void persistSelected("ranks");
-              }}
-            >
-              <FormattedMessage {...messages.sendToRanks} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      <DomainSeedKeywordsDialog
-        open={seedOpen}
-        defaultKeyword={keywords[0]?.keyword ?? "traduction automatique"}
-        defaultMarketId={catalog.domain.market.id}
-        pending={seedPending}
-        onOpenChange={setSeedOpen}
-        onExpand={expandIdeas}
-      />
-
-      <Sheet
-        open={Boolean(serpKeyword)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSerpKeywordId(null);
-            setLiveSerpResults(null);
-          }
+          setSearch(nextQuery);
+          setActiveId(filterKeywordIdeas(keywords, nextQuery, filters, sort)[0]?.id ?? null);
+          setSelected([]);
         }}
       >
-        <SheetContent side="right" className="sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>
-              <FormattedMessage
-                {...messages.serpTitle}
-                values={{ keyword: serpKeyword?.keyword ?? "" }}
-              />
-            </SheetTitle>
-            <SheetDescription>
-              <FormattedMessage
-                {...messages.serpDescription}
-                values={{ market: catalog.domain.market.label }}
-              />
-            </SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-3 overflow-y-auto px-6 pb-6">
-            {serpPending ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner className="size-3.5" />
-                <FormattedMessage {...messages.serpLoading} />
+        <Field className="min-w-48 flex-1">
+          <FieldLabel htmlFor="keyword-query">{t(messages.query)}</FieldLabel>
+          <Input
+            id="keyword-query"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={catalog.keywords[0]?.keyword ?? t(messages.query)}
+            disabled={seedPending}
+          />
+        </Field>
+        <Field className="w-full sm:w-48">
+          <FieldLabel htmlFor="keyword-market">{t(messages.market)}</FieldLabel>
+          <Select
+            value={market}
+            items={DOMAIN_RESEARCH_MARKETS.map((item) => ({ value: item.id, label: item.label }))}
+            onValueChange={(value) => {
+              if (value) {
+                setMarket(value);
+                setSelected([]);
+                setActiveId(
+                  value === catalog.domain.market.id ? (catalog.keywords[0]?.id ?? null) : null,
+                );
+              }
+            }}
+          >
+            <SelectTrigger id="keyword-market" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {DOMAIN_RESEARCH_MARKETS.map((item) => (
+                  <SelectItem key={item.id} value={item.id} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Button type="submit" disabled={seedPending}>
+          {seedPending ? <Spinner className="size-3.5" /> : null}
+          {t(messages.search)}
+        </Button>
+      </form>
+      <p className="text-xs text-muted-foreground">{t(live ? messages.live : messages.preview)}</p>
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {active ? (
+            <section
+              className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-border px-4 py-3"
+              aria-label={active.keyword}
+            >
+              <div className="min-w-0">
+                <h2 className="break-words text-base font-semibold">{active.keyword}</h2>
+                <Badge variant="outline" className="mt-1">
+                  {formatKeywordIntent(intl, active.intent)}
+                </Badge>
               </div>
-            ) : serpResults.length === 0 ? (
-              <TypographyP size="small" tone="subtle">
-                <FormattedMessage {...messages.serpEmpty} />
-              </TypographyP>
-            ) : (
-              serpResults.map((result) => (
-                <article
-                  key={`${result.position}-${result.url}`}
-                  className={cn(
-                    "rounded-xl border border-border p-3",
-                    result.isOwn && "border-primary/40 bg-muted/60",
-                  )}
+              <dl className="flex flex-wrap gap-4">
+                {columns
+                  .filter((col) => col.field !== "keyword")
+                  .map((col) => (
+                    <div key={col.field}>
+                      <dt className="text-xs text-muted-foreground">{t(col.label)}</dt>
+                      <dd className="mt-1 text-sm font-medium tabular-nums">
+                        {metric(active, col.field as "volume" | "kd" | "cpc" | "competition")}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+            </section>
+          ) : null}
+          <section className="min-w-0 overflow-hidden rounded-lg border border-border">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+              <Button
+                size="sm"
+                variant="outline"
+                aria-expanded={showFilters}
+                aria-controls="keyword-filters"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                {t(messages.filters)}
+                {activeFilterCount ? ` (${activeFilterCount})` : ""}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {t(messages.results, { count: rows.length })}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ms-auto"
+                disabled={!rows.length}
+                onClick={exportCsv}
+              >
+                {t(selectedRows.length ? messages.exportSelected : messages.export)}
+              </Button>
+            </div>
+            {showFilters ? (
+              <div
+                id="keyword-filters"
+                className="grid gap-3 border-b border-border bg-muted/20 p-4 sm:grid-cols-2"
+              >
+                {(
+                  [
+                    "include",
+                    "exclude",
+                    "minVolume",
+                    "maxVolume",
+                    "minKd",
+                    "maxKd",
+                    "minCpc",
+                    "maxCpc",
+                  ] as const
+                ).map((name) => (
+                  <Field key={name}>
+                    <FieldLabel htmlFor={`keyword-${name}`}>{t(messages[name])}</FieldLabel>
+                    <Input
+                      id={`keyword-${name}`}
+                      type={name === "include" || name === "exclude" ? "text" : "number"}
+                      min={0}
+                      step={name.endsWith("Cpc") ? "0.01" : "1"}
+                      value={filters[name]}
+                      onChange={(event) =>
+                        setFilters((current) => ({ ...current, [name]: event.target.value }))
+                      }
+                    />
+                  </Field>
+                ))}
+                <Field>
+                  <FieldLabel htmlFor="keyword-intent">{t(shared.columnIntent)}</FieldLabel>
+                  <Select
+                    value={filters.intent}
+                    items={[
+                      { value: "all", label: t(messages.allIntents) },
+                      ...(
+                        ["informational", "commercial", "transactional", "navigational"] as const
+                      ).map((intent) => ({
+                        value: intent,
+                        label: formatKeywordIntent(intl, intent),
+                      })),
+                    ]}
+                    onValueChange={(value) => {
+                      if (value) setFilters((current) => ({ ...current, intent: value }));
+                    }}
+                  >
+                    <SelectTrigger id="keyword-intent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">{t(messages.allIntents)}</SelectItem>
+                        {(
+                          ["informational", "commercial", "transactional", "navigational"] as const
+                        ).map((intent) => (
+                          <SelectItem key={intent} value={intent}>
+                            {formatKeywordIntent(intl, intent)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="self-end"
+                  onClick={() => setFilters(EMPTY_FILTERS)}
                 >
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="tabular-nums">#{result.position}</span>
-                    {result.isOwn ? (
-                      <Badge variant="success">
-                        <FormattedMessage {...messages.ownResult} />
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 font-medium text-foreground">{result.title}</p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                    {result.url}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">{result.snippet}</p>
-                </article>
-              ))
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+                  {t(messages.clear)}
+                </Button>
+              </div>
+            ) : null}
+            {selectedRows.length ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2">
+                <span className="text-xs">
+                  {t(shared.selectedCount, { count: selectedRows.length })}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                    {t(messages.clearSelection)}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={persistPending}
+                    onClick={() => {
+                      void persistSelected("save");
+                    }}
+                  >
+                    {t(shared.save)}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={persistPending}
+                    onClick={() => {
+                      void persistSelected("ranks");
+                    }}
+                  >
+                    {t(shared.sendToRanks)}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/30 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="p-3">
+                      <Checkbox
+                        aria-label={t(messages.selectAll)}
+                        checked={allSelected ? true : selectedRows.length ? "indeterminate" : false}
+                        onCheckedChange={(checked) =>
+                          setSelected(checked === true ? rows.map((row) => row.id) : [])
+                        }
+                      />
+                    </th>
+                    {columns.map((col) => (
+                      <th
+                        key={col.field}
+                        className="whitespace-nowrap px-3 py-2 text-start"
+                        aria-sort={
+                          sort.field === col.field
+                            ? sort.direction === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          title={"help" in col ? t(col.help) : undefined}
+                          className="py-2"
+                          onClick={() =>
+                            setSort({
+                              field: col.field,
+                              direction:
+                                sort.field === col.field && sort.direction === "desc"
+                                  ? "asc"
+                                  : "desc",
+                            })
+                          }
+                        >
+                          {t(col.label)}{" "}
+                          {sort.field === col.field ? (sort.direction === "asc" ? "↑" : "↓") : ""}
+                        </button>
+                      </th>
+                    ))}
+                    <th className="px-3 py-2 text-start">{t(shared.columnIntent)}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className={cn("hover:bg-muted/30", active?.id === row.id && "bg-muted/50")}
+                    >
+                      <td className="p-3">
+                        <Checkbox
+                          checked={selected.includes(row.id)}
+                          aria-label={t(shared.selectKeyword, { keyword: row.keyword })}
+                          onCheckedChange={(checked) =>
+                            setSelected((current) =>
+                              checked === true
+                                ? [...new Set([...current, row.id])]
+                                : current.filter((id) => id !== row.id),
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="min-w-48 px-3 py-3">
+                        <button
+                          type="button"
+                          aria-pressed={active?.id === row.id}
+                          onClick={() => {
+                            void inspectSerp(row);
+                          }}
+                          className="text-start font-medium underline-offset-4 hover:underline"
+                        >
+                          {row.keyword}
+                        </button>
+                      </td>
+                      {(["volume", "kd", "cpc", "competition"] as const).map((field) => (
+                        <td
+                          key={field}
+                          className="whitespace-nowrap px-3 py-3 text-end tabular-nums text-muted-foreground"
+                        >
+                          {metric(row, field)}
+                        </td>
+                      ))}
+                      <td className="px-3 py-3">
+                        <Badge variant="outline">{formatKeywordIntent(intl, row.intent)}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!rows.length ? (
+              <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    live && keywords.length === 0 && !search
+                      ? shared.emptyDescription
+                      : messages.noMatches,
+                  )}
+                </p>
+                <Button size="sm" variant="outline" onClick={reset}>
+                  {t(messages.resetSearch)}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        </div>
+        <DomainKeywordAnalysis keyword={active} results={serpResults} loading={serpPending} />
+      </div>
     </div>
   );
 }
