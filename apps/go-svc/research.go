@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -15,14 +16,14 @@ import (
 )
 
 const (
-	maxResearchBodyBytes          = 64 << 10
-	defaultKeywordIdeaLimit       = 50
-	maxKeywordIdeaLimit           = 200
-	maxRankCheckBatchSize         = 20
-	defaultResearchSerpDepth      = 20
-	rankCheckConcurrency          = 4
-	researchServiceTokenHeader    = "X-Go-Svc-Research-Token"
-	researchServiceTokenNamespace = "go-svc-research:"
+	maxResearchBodyBytes        = 64 << 10
+	defaultKeywordIdeaLimit     = 50
+	maxKeywordIdeaLimit         = 200
+	maxRankCheckBatchSize       = 20
+	defaultResearchSerpDepth    = 20
+	rankCheckConcurrency        = 4
+	researchServiceTokenHeader  = "X-Go-Svc-Research-Token"
+	researchServiceTokenMessage = "go-svc-research"
 )
 
 type researchService interface {
@@ -314,8 +315,9 @@ func researchAuthMiddleware(verifier SessionVerifier) func(http.Handler) http.Ha
 }
 
 func researchServiceToken() string {
-	sum := sha256.Sum256([]byte(researchServiceTokenNamespace + os.Getenv("WORKOS_COOKIE_PASSWORD")))
-	return hex.EncodeToString(sum[:])
+	mac := hmac.New(sha256.New, []byte(os.Getenv("WORKOS_COOKIE_PASSWORD")))
+	_, _ = mac.Write([]byte(researchServiceTokenMessage))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func requireResearchServiceToken(w http.ResponseWriter, r *http.Request) bool {

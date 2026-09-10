@@ -460,4 +460,87 @@ describe("domainResearchRoutes", () => {
       .delete(schema.localisationAudits)
       .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
   });
+
+  it("does not persist a partial refresh when a later market fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    const { linkedDomain } = await insertVerifiedDomain(organizationId!, userId!);
+    const param = { organizationSlug, linkedDomainId: linkedDomain.id };
+    const keyword = {
+      keyword: "seo tools",
+      volume: 1200,
+      kd: 38,
+      cpc: 2.4,
+      intent: "commercial" as const,
+    };
+    let batchCalls = 0;
+
+    setDomainResearchProviderForTests({
+      expandKeywordIdeas: async () => ok([]),
+      liveSerp: async () => ok([]),
+      rankCheck: async (input) =>
+        ok({ keywordId: input.keywordId, keyword: input.keyword, position: 3, url: "" }),
+      rankCheckBatch: async (input) => {
+        batchCalls += 1;
+        if (batchCalls > 3) {
+          return err({
+            code: "provider_rate_limited",
+            message: "DataForSEO rate limited the request.",
+          });
+        }
+        return ok(
+          input.keywords.map((row) => ({
+            keywordId: row.keywordId,
+            keyword: row.keyword,
+            position: batchCalls > 2 ? 9 : 3,
+            url: "https://www.example.com/seo",
+          })),
+        );
+      },
+    });
+
+    expect(
+      (
+        await client.api.orgs[":organizationSlug"]["linked-domains"][
+          ":linkedDomainId"
+        ].research.ranks.$post(
+          { param, json: { marketId: "france-fr", keywords: [keyword] } },
+          { headers },
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await client.api.orgs[":organizationSlug"]["linked-domains"][
+          ":linkedDomainId"
+        ].research.ranks.$post(
+          { param, json: { marketId: "germany-de", keywords: [keyword] } },
+          { headers },
+        )
+      ).status,
+    ).toBe(200);
+
+    const refreshed = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.ranks.refresh.$post({ param }, { headers });
+    expect(refreshed.status).toBe(429);
+
+    const catalog = await client.api.orgs[":organizationSlug"]["linked-domains"][":linkedDomainId"][
+      "research"
+    ].$get({ param }, { headers });
+    const catalogBody = await catalog.json();
+    if (!("catalog" in catalogBody)) {
+      throw new Error("expected catalog");
+    }
+    expect(catalogBody.catalog.ranks).toHaveLength(2);
+    expect(new Set(catalogBody.catalog.ranks.map((row) => row.position))).toEqual(new Set([3]));
+    expect(catalogBody.catalog.ranks.every((row) => row.previousPosition == null)).toBe(true);
+
+    await db
+      .delete(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
+  });
 });

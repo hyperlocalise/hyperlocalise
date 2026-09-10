@@ -589,6 +589,7 @@ export async function refreshLiveDomainRanks(input: {
   }
 
   const provider = input.provider ?? getDomainResearchProvider();
+  const checks: { keywordId: string; keyword: string; position: number | null; url: string }[] = [];
   for (const group of groups.values()) {
     const locationCode = group[0]!.locationCode;
     const languageCode = group[0]!.languageCode;
@@ -608,12 +609,13 @@ export async function refreshLiveDomainRanks(input: {
       if (!rankResult.ok) {
         return rankResult;
       }
-      await applyRankChecks({
-        database,
-        checks: rankResult.value,
-      });
+      checks.push(...rankResult.value);
     }
   }
+  await applyRankChecks({
+    database,
+    checks,
+  });
 
   const catalog = await getLiveDomainResearchCatalog({
     organizationId: input.organizationId,

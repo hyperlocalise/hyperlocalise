@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -113,8 +113,8 @@ function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchP
 }
 
 function goSvcResearchToken() {
-  return createHash("sha256")
-    .update(`go-svc-research:${env.WORKOS_COOKIE_PASSWORD ?? ""}`)
+  return createHmac("sha256", env.WORKOS_COOKIE_PASSWORD ?? "")
+    .update("go-svc-research")
     .digest("hex");
 }
 
