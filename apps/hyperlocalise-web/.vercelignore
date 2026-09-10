@@ -7,7 +7,7 @@
 .storybook
 storybook-static
 
-# Tests, fixtures, MSW handlers, and stories (not imported by production code)
+# Tests, fixtures, MSW handlers, stories, and story views (not imported by production code)
 **/*.test.ts
 **/*.test.tsx
 **/*.test.js
@@ -19,6 +19,8 @@ storybook-static
 **/*.stories.tsx
 **/*.stories.js
 **/*.stories.jsx
+**/*.story-view.ts
+**/*.story-view.tsx
 
 # Test output
 coverage
