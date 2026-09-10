@@ -1,0 +1,43 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+.header {
+  padding: 1.5rem;
+  border: 1px solid var(--ds-blue-300);
+  border-radius: var(--radius-lg);
+  background-color: var(--background);
+  /* Reuse the seafoam artwork used by the project overview and marketing pages. */
+  background-image:
+    linear-gradient(
+      color-mix(in oklab, var(--background) 78%, transparent),
+      color-mix(in oklab, var(--background) 78%, transparent)
+    ),
+    url("/images/mesh/mesh-gradient-1784864145512.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+:global(.dark) .header {
+  background-image:
+    linear-gradient(
+      color-mix(in oklab, var(--background) 86%, transparent),
+      color-mix(in oklab, var(--background) 86%, transparent)
+    ),
+    url("/images/mesh/mesh-gradient-1784864145512.jpg");
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 1rem;
+  }
+}

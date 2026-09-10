@@ -29,15 +29,16 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
 
 import { DomainResearchEmpty, DomainResearchMissingDomain } from "./domain-research-empty";
-import { formatDomainStatus } from "./domain-research-format";
+import { DomainStatusBadge } from "./domain-status-badge";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
 import { domainResearchShellMessages as messages } from "./domain-research-shell.messages";
 import { DomainVerifyDialog } from "./domain-verify-dialog";
 
-const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navHome }[] = [
-  { id: "home", message: messages.navHome },
-  { id: "keywords", message: messages.navKeywords },
+import styles from "./domain-header.module.css";
+
+const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navOverview }[] = [
   { id: "overview", message: messages.navOverview },
+  { id: "keywords", message: messages.navKeywords },
   { id: "ranks", message: messages.navRanks },
   { id: "brand", message: messages.navBrand },
   { id: "prompts", message: messages.navPrompts },
@@ -78,22 +79,26 @@ export function DomainResearchShell({
 
   return (
     <WorkspacePageShell className="gap-5">
-      <PageHeader
-        icon={Globe02Icon}
-        label={intl.formatMessage(messages.sectionLabel)}
-        title={domain.domainKey}
-        description={intl.formatMessage(messages.shellDescription, {
-          market: domain.market.label,
-        })}
-        statusLabel={formatDomainStatus(intl, domain.status)}
-        actions={
-          isPending ? (
-            <Button size="sm" onClick={() => setVerifyOpen(true)}>
-              <FormattedMessage {...sharedMessages.verifyCta} />
-            </Button>
-          ) : null
-        }
-      />
+      <div className={styles.header}>
+        <PageHeader
+          icon={Globe02Icon}
+          label={intl.formatMessage(messages.sectionLabel)}
+          title={domain.domainKey}
+          description={intl.formatMessage(messages.shellDescription, {
+            market: domain.market.label,
+          })}
+          actions={
+            <>
+              <DomainStatusBadge status={domain.status} />
+              {isPending ? (
+                <Button size="sm" onClick={() => setVerifyOpen(true)}>
+                  <FormattedMessage {...sharedMessages.verifyCta} />
+                </Button>
+              ) : null}
+            </>
+          }
+        />
+      </div>
 
       <Tabs value={surface} onValueChange={handleSurfaceChange}>
         <TabsList variant="line" className="w-full max-w-full justify-start overflow-x-auto">
@@ -105,7 +110,7 @@ export function DomainResearchShell({
         </TabsList>
       </Tabs>
 
-      {isPending && surface !== "home" ? (
+      {isPending ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}

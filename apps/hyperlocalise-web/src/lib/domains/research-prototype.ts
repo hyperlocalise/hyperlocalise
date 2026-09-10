@@ -21,7 +21,7 @@ export const DOMAIN_RESEARCH_SURFACES = [
 
 export type DomainResearchSurface = (typeof DOMAIN_RESEARCH_SURFACES)[number];
 
-export type DomainResearchNavId = "home" | DomainResearchSurface;
+export type DomainResearchNavId = DomainResearchSurface;
 
 export type DomainResearchStatus = "verified" | "pending_verification";
 

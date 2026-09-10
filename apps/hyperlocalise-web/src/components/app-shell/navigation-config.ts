@@ -96,7 +96,7 @@ export function buildDomainPath(
   surface?: DomainResearchSurface,
 ) {
   const base = `/org/${organizationSlug}/domains/${encodeURIComponent(linkedDomainId)}`;
-  return surface ? `${base}/${surface}` : base;
+  return surface && surface !== "overview" ? `${base}/${surface}` : base;
 }
 
 export function buildAutomationsPath(

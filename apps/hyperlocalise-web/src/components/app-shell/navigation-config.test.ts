@@ -360,6 +360,7 @@ describe("buildTeamPath", () => {
 describe("buildDomainPath", () => {
   it("encodes linked domain ids in the path", () => {
     expect(buildDomainPath("acme", "ld_1")).toBe("/org/acme/domains/ld_1");
+    expect(buildDomainPath("acme", "ld_1", "overview")).toBe("/org/acme/domains/ld_1");
     expect(buildDomainPath("acme", "ld_1", "prompts")).toBe("/org/acme/domains/ld_1/prompts");
   });
 });

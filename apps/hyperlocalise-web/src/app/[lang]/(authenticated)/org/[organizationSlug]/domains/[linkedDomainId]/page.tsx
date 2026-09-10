@@ -12,7 +12,7 @@
  */
 import { isResearchPrototypeDomain } from "@/lib/domains/research-prototype";
 
-import { DomainHomeView } from "../_components/domain-home-view";
+import { DomainOverviewView } from "../_components/domain-overview-view";
 import { DomainResearchShell } from "../_components/domain-research-shell";
 import { DomainDetailPageContent } from "./_components/domain-detail-page-content";
 
@@ -36,9 +36,9 @@ export default async function DomainDetailPage({
     <DomainResearchShell
       organizationSlug={organizationSlug}
       linkedDomainId={linkedDomainId}
-      surface="home"
+      surface="overview"
     >
-      <DomainHomeView organizationSlug={organizationSlug} linkedDomainId={linkedDomainId} />
+      <DomainOverviewView linkedDomainId={linkedDomainId} />
     </DomainResearchShell>
   );
 }
