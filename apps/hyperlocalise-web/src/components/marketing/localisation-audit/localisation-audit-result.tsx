@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,8 +120,6 @@ const CRITERIA_INITIAL_LIMIT = 3;
 const FLUSH_ACCORDION = "rounded-none border-0";
 
 const COMPACT_TRIGGER = "gap-3 px-1 py-2.5 hover:no-underline";
-
-const CARD = "rounded-xl border border-border bg-card p-6 shadow-sm";
 
 function auditToneTextClass(tone: LocalisationAuditTone) {
   switch (tone) {
@@ -995,7 +994,9 @@ export function LocalisationAuditResult({
       ? "bg-grove-400"
       : scoreTone(score) === "watch"
         ? "bg-warning"
-        : "bg-destructive";
+        : scoreTone(score) === "risk"
+          ? "bg-destructive"
+          : "bg-blue-600";
 
   const outerPadding = isWorkspace ? "px-0 py-0" : "px-5 py-8 sm:px-8 lg:px-10";
 
@@ -1009,7 +1010,7 @@ export function LocalisationAuditResult({
                 label: copy.dimensionTechnical,
                 score: dimensionScores.technical,
                 icon: CodeIcon,
-                bg: "bg-audit-card-a/60 dark:bg-audit-card-a",
+                bg: "bg-audit-card-a/60 dark:bg-audit-card-b",
               },
               {
                 label: copy.dimensionLinguistic,
@@ -1021,7 +1022,7 @@ export function LocalisationAuditResult({
                 label: copy.dimensionContextual,
                 score: dimensionScores.contextual,
                 icon: BookOpen01Icon,
-                bg: "bg-audit-card-a/60 dark:bg-audit-card-a",
+                bg: "bg-audit-card-a/60 dark:bg-audit-card-b",
               },
               {
                 label: copy.dimensionVisual,
@@ -1049,7 +1050,7 @@ export function LocalisationAuditResult({
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-white text-neutral-900 dark:bg-white dark:text-neutral-900">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900 dark:bg-white dark:text-neutral-900">
                     <HugeiconsIcon icon={dimension.icon} className="size-4" aria-hidden />
                   </span>
                   <p className="text-xs font-medium text-neutral-600 dark:text-neutral-600">
@@ -1071,7 +1072,7 @@ export function LocalisationAuditResult({
                   >
                     {dimension.score == null ? "—" : <CountUp value={dimension.score} />}
                   </span>
-                  <span className="inline-flex items-center rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700">
+                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[0.45rem] md:text-[0.625rem] font-medium text-neutral-700">
                     {statusLabel}
                   </span>
                 </div>
@@ -1155,11 +1156,11 @@ export function LocalisationAuditResult({
                     className={cn(
                       "font-serif text-7xl tracking-tight tabular-nums",
                       scoreTone(score) === "safe"
-                        ? "text-[#107d32]"
+                        ? "text-grove-900"
                         : scoreTone(score) === "watch"
-                          ? "text-[#aa4d00]"
+                          ? "text-beam-900"
                           : scoreTone(score) === "risk"
-                            ? "text-[#ea001d]"
+                            ? "text-red-800"
                             : "text-[#6b7280]",
                     )}
                   >
@@ -1172,11 +1173,11 @@ export function LocalisationAuditResult({
                       className={cn(
                         "mb-1 capitalize",
                         tone === "safe"
-                          ? "border-[#107d32]/25 bg-[#107d32]/10 text-[#107d32]"
+                          ? "border-grove-900/25 bg-grove-900/10 text-grove-900"
                           : tone === "watch"
-                            ? "border-[#aa4d00]/25 bg-[#aa4d00]/10 text-[#aa4d00]"
+                            ? "border-beam-900/25 bg-beam-900/10 text-beam-900"
                             : tone === "risk"
-                              ? "border-[#ea001d]/25 bg-[#ea001d]/10 text-[#ea001d]"
+                              ? "border-red-800/25 bg-red-800/10 text-red-800"
                               : "border-border bg-muted text-muted-foreground",
                       )}
                     >
@@ -1231,254 +1232,286 @@ export function LocalisationAuditResult({
 
         <div className="flex flex-col gap-6">
           {standing && !isWorkspace ? (
-            <div className={cn(CARD, "flex-1")}>
-              <h2 className="font-semibold font-serif text-xl">{copy.standingHeading}</h2>
-              <dl className="mt-8 space-y-8">
-                <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-sm text-muted-foreground">{copy.standingHeading}</dt>
-                  <dd className="text-sm font-semibold tabular-nums">
-                    {copy.standingRank({ rank: standing.rank, total: standing.total })}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                  <dt className="text-sm text-muted-foreground">{copy.scopeLabel}</dt>
-                  <dd className="text-sm font-semibold text-primary tabular-nums">
-                    {copy.standingPercentile({ percentile: standing.percentile })}
-                  </dd>
-                </div>
-                {standing.averageScore != null ? (
-                  <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                    <dt className="text-sm text-muted-foreground">{copy.scoreLabel}</dt>
+            <Card className="flex-1">
+              <CardHeader>
+                <CardTitle className="font-serif text-xl">{copy.standingHeading}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-8">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-sm text-muted-foreground">{copy.standingHeading}</dt>
                     <dd className="text-sm font-semibold tabular-nums">
-                      {copy.standingAverage({ average: standing.averageScore })}
+                      {copy.standingRank({ rank: standing.rank, total: standing.total })}
                     </dd>
                   </div>
-                ) : null}
-              </dl>
-              <div className="mt-8 border-t border-border pt-6">
-                <Link
-                  href={`/${locale}/localisation-audit`}
-                  className="text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  {copy.standingCta}
-                </Link>
-              </div>
-            </div>
+                  <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
+                    <dt className="text-sm text-muted-foreground">{copy.scopeLabel}</dt>
+                    <dd className="text-sm font-semibold text-primary tabular-nums">
+                      {copy.standingPercentile({ percentile: standing.percentile })}
+                    </dd>
+                  </div>
+                  {standing.averageScore != null ? (
+                    <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
+                      <dt className="text-sm text-muted-foreground">{copy.scoreLabel}</dt>
+                      <dd className="text-sm font-semibold tabular-nums">
+                        {copy.standingAverage({ average: standing.averageScore })}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+                <div className="mt-8 border-t border-border pt-6">
+                  <Link
+                    href={`/${locale}/localisation-audit`}
+                    className="text-sm text-primary underline-offset-4 hover:underline"
+                  >
+                    {copy.standingCta}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
 
           {detectedLocales.length > 0 ? (
-            <div className={CARD}>
-              <h2 className="font-semibold font-serif text-xl">{copy.localesHeading}</h2>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {detectedLocales.map((localeSignal) => (
-                  <span
-                    key={`${localeSignal.locale}-${localeSignal.source}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-primary/10 px-2.5 py-1 text-xs font-medium"
-                  >
-                    {localeSignal.locale}
-                    <span className="text-muted-foreground/70">({localeSignal.source})</span>
-                  </span>
-                ))}
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif text-xl">{copy.localesHeading}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1.5">
+                  {detectedLocales.map((localeSignal) => (
+                    <span
+                      key={`${localeSignal.locale}-${localeSignal.source}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-primary/10 px-2.5 py-1 text-xs font-medium"
+                    >
+                      {localeSignal.locale}
+                      <span className="text-muted-foreground/70">({localeSignal.source})</span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
         </div>
       </div>
 
-      <div className={cn("mt-6", CARD)}>
-        <h2 className="font-serif font-semibold text-xl">{copy.fixFirstHeading}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{copy.fixFirstSubheading}</p>
-        <Accordion className={cn(FLUSH_ACCORDION, "mt-1")}>
-          {fixFirst.map((finding) => (
-            <FindingAccordionItem
-              key={finding.id}
-              finding={finding}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">{copy.fixFirstHeading}</CardTitle>
+          <CardDescription>{copy.fixFirstSubheading}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Accordion className={FLUSH_ACCORDION}>
+            {fixFirst.map((finding) => (
+              <FindingAccordionItem
+                key={finding.id}
+                finding={finding}
+                copy={copy}
+                domainKey={audit.domainKey}
+              />
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
+      {credits.length > 0 ? (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="font-serif text-xl">{copy.creditsHeading}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AuditCriteriaList
+              credits={credits}
+              findings={criteriaFindings}
               copy={copy}
               domainKey={audit.domainKey}
+              unlocked
             />
-          ))}
-        </Accordion>
-      </div>
-      {credits.length > 0 ? (
-        <div className={cn("mt-6", CARD)}>
-          <h2 className="font-serif font-semibold text-xl">{copy.creditsHeading}</h2>
-          <AuditCriteriaList
-            credits={credits}
-            findings={criteriaFindings}
-            copy={copy}
-            domainKey={audit.domainKey}
-            unlocked
-          />
-        </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
-        <div className={cn("mt-6", CARD)}>
-          <h2 className="font-semibold font-serif text-xl">{copy.linguisticHeading}</h2>
-          <div className="mt-4 grid gap-6 sm:grid-cols-2">
-            {report.linguisticNotes.map((note) => (
-              <div key={note.locale}>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold">
-                  {note.locale}
-                </span>
-                <p className="mt-2 text-sm text-muted-foreground">{note.summary}</p>
-                <ul className="mt-3 space-y-2">
-                  {note.samples.map((sample) => (
-                    <li
-                      key={`${note.locale}-${sample.text}`}
-                      className="border-l-2 border-border pl-3"
-                    >
-                      <p className="text-sm italic">"{sample.text}"</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{sample.note}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="font-serif text-xl">{copy.linguisticHeading}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 sm:grid-cols-2">
+              {report.linguisticNotes.map((note) => (
+                <div key={note.locale}>
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold">
+                    {note.locale}
+                  </span>
+                  <p className="mt-2 text-sm text-muted-foreground">{note.summary}</p>
+                  <ul className="mt-3 space-y-2">
+                    {note.samples.map((sample) => (
+                      <li
+                        key={`${note.locale}-${sample.text}`}
+                        className="border-l-2 border-border pl-3"
+                      >
+                        <p className="text-sm italic">"{sample.text}"</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{sample.note}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       {report?.pages && report.pages.length > 0 ? (
-        <div className={cn("mt-6", CARD)}>
+        <Card className="mt-6">
           <Collapsible>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-semibold font-serif text-xl">{copy.pagesHeading}</h2>
-              <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-                {copy.pagesHeading}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
-                  className="size-3.5 transition-transform [[data-state=open]_&]:rotate-180"
-                />
-              </CollapsibleTrigger>
-            </div>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="font-serif text-xl">{copy.pagesHeading}</CardTitle>
+                <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  {copy.pagesHeading}
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
+                    className="size-3.5 transition-transform [[data-state=open]_&]:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </div>
+            </CardHeader>
             <CollapsibleContent>
-              <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                {report.pages.map((page) => (
-                  <li key={page.url} className="flex items-baseline gap-2 break-all">
-                    <span
-                      className={cn(
-                        "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium tabular-nums",
-                        page.status === 200
-                          ? "bg-grove-100 text-grove-900"
-                          : "bg-destructive/10 text-destructive",
-                      )}
-                    >
-                      {page.status}
-                    </span>
-                    <span>{page.url}</span>
-                    {page.htmlLang ? (
-                      <span className="shrink-0 font-mono">lang={page.htmlLang}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
+              <CardContent>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  {report.pages.map((page) => (
+                    <li key={page.url} className="flex items-baseline gap-2 break-all">
+                      <span
+                        className={cn(
+                          "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium tabular-nums",
+                          page.status === 200
+                            ? "bg-grove-100 text-grove-900"
+                            : "bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        {page.status}
+                      </span>
+                      <span>{page.url}</span>
+                      {page.htmlLang ? (
+                        <span className="shrink-0 font-mono">lang={page.htmlLang}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
             </CollapsibleContent>
           </Collapsible>
-        </div>
+        </Card>
       ) : null}
 
       {isWorkspace ? null : (
         <div className="mt-6 grid gap-6 sm:grid-cols-2 pb-16">
-          <div className={CARD}>
-            <h2 className="font-semibold font-serif text-xl">{copy.unlockHeading}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{copy.unlockBody}</p>
-            <form onSubmit={requestReportEmail} className="mt-5 space-y-3">
-              <div className="flex flex-col gap-3 md:flex-row">
-                <Input
-                  id="localisation-audit-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder={copy.emailPlaceholder}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="flex-1"
-                />
-                <Button type="submit" disabled={pending} className="shrink-0">
-                  {pending ? copy.unlocking : copy.unlockSubmit}
-                </Button>
-              </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              {deliveryMessage ? (
-                <p className="text-sm text-muted-foreground">{deliveryMessage}</p>
-              ) : null}
-            </form>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif text-xl">{copy.unlockHeading}</CardTitle>
+              <CardDescription>{copy.unlockBody}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={requestReportEmail} className="space-y-3">
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <Input
+                    id="localisation-audit-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder={copy.emailPlaceholder}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit" disabled={pending} className="shrink-0">
+                    {pending ? copy.unlocking : copy.unlockSubmit}
+                  </Button>
+                </div>
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {deliveryMessage ? (
+                  <p className="text-sm text-muted-foreground">{deliveryMessage}</p>
+                ) : null}
+              </form>
+            </CardContent>
+          </Card>
 
-          <div className={CARD}>
-            <h2 className="font-semibold font-serif text-xl">{copy.reauditHeading}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{ctaBody}</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {audit.rerunnable ? (
-                <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
-                  {rerunPending ? copy.rerunning : copy.rerun}
-                </Button>
-              ) : null}
-              {showSignInCtas ? (
-                audit.claimed ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif text-xl">{copy.reauditHeading}</CardTitle>
+              <CardDescription>{ctaBody}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {audit.rerunnable ? (
+                  <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
+                    {rerunPending ? copy.rerunning : copy.rerun}
+                  </Button>
+                ) : null}
+                {showSignInCtas ? (
+                  audit.claimed ? (
+                    <Button
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={claimDomainHref}
+                          onClick={() => trackCta("open_claimed_domain")}
+                        />
+                      }
+                    >
+                      {copy.openInWorkspace}
+                    </Button>
+                  ) : (
+                    <Button
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
+                          onClick={() => trackCta("claim_domain")}
+                        />
+                      }
+                    >
+                      {copy.claimDomain}
+                    </Button>
+                  )
+                ) : null}
+                {showSignInCtas ? (
                   <Button
+                    variant="outline"
                     nativeButton={false}
                     render={
-                      <Link
-                        href={claimDomainHref}
-                        onClick={() => trackCta("open_claimed_domain")}
-                      />
+                      <Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />
                     }
                   >
-                    {copy.openInWorkspace}
+                    {band === "low" ? copy.createWorkspace : copy.deeperAudit}
                   </Button>
-                ) : (
-                  <Button
-                    nativeButton={false}
-                    render={
-                      <Link
-                        href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
-                        onClick={() => trackCta("claim_domain")}
-                      />
-                    }
-                  >
-                    {copy.claimDomain}
-                  </Button>
-                )
-              ) : null}
-              {showSignInCtas ? (
+                ) : null}
                 <Button
                   variant="outline"
                   nativeButton={false}
                   render={
-                    <Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />
+                    <a
+                      href={REQUEST_DEMO_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackCta("book_review")}
+                    />
                   }
                 >
-                  {band === "low" ? copy.createWorkspace : copy.deeperAudit}
+                  {copy.bookReview}
                 </Button>
+              </div>
+              {!audit.rerunnable && audit.rerunAvailableAt ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {copy.rerunCooldown({
+                    when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }),
+                  })}
+                </p>
               ) : null}
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={
-                  <a
-                    href={REQUEST_DEMO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackCta("book_review")}
-                  />
-                }
-              >
-                {copy.bookReview}
-              </Button>
-            </div>
-            {!audit.rerunnable && audit.rerunAvailableAt ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {copy.rerunCooldown({
-                  when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }),
-                })}
-              </p>
-            ) : null}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
