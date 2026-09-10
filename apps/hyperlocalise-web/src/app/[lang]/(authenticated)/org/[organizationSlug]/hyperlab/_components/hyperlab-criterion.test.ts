@@ -76,7 +76,9 @@ test("round-trips nested audience groups without dropping them", () => {
 test("round-trips a not root without rewriting it", () => {
   const criterion = {
     type: "not" as const,
-    children: [{ type: "attribute" as const, name: "country", match: "exact" as const, value: "US" }],
+    children: [
+      { type: "attribute" as const, name: "country", match: "exact" as const, value: "US" },
+    ],
   };
   expect(ruleGroupToCriterion(criterionToRuleGroup(criterion))).toEqual(criterion);
   expect(summarizeCriterion(criterion)).toBe("not Country is US");

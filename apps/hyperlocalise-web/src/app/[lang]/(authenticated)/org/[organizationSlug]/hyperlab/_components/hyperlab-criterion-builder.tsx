@@ -262,7 +262,9 @@ export function HyperlabCriterionBuilder({
           <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.nestedRulesHint} />
           </TypographyP>
-          <TypographyP size="small">{summarizeCriterion({ type: group.type, children: group.nested })}</TypographyP>
+          <TypographyP size="small">
+            {summarizeCriterion({ type: group.type, children: group.nested })}
+          </TypographyP>
         </Rows>
       ) : null}
     </Rows>

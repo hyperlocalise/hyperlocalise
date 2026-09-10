@@ -340,9 +340,9 @@ describe("hyperlabRoutes", () => {
       variants: Array<{ id: string; key: string; rolloutPercentage: number }>;
       allocations: Array<{ variantId: string; start: number; end: number }>;
     };
-    expect(detailBody.variants.find((variant) => variant.key === "control")?.rolloutPercentage).toBe(
-      2500,
-    );
+    expect(
+      detailBody.variants.find((variant) => variant.key === "control")?.rolloutPercentage,
+    ).toBe(2500);
     expect(
       detailBody.variants.find((variant) => variant.key === "treatment")?.rolloutPercentage,
     ).toBe(7500);

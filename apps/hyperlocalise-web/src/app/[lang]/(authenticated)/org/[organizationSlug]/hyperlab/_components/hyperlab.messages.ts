@@ -129,7 +129,7 @@ export const hyperlabMessages = defineMessages({
   },
   homeFailedCount: {
     defaultMessage: "Could not load",
-    id: "bH3kPq9wLm",
+    id: "JJS6v4yMLE",
     description: "Home card count when that resource failed to load",
   },
   howItWorksTitle: {
@@ -562,18 +562,19 @@ export const hyperlabMessages = defineMessages({
     description: "Warning when variant rollouts do not sum to 100 percent",
   },
   nestedRulesHint: {
-    defaultMessage: "This audience also has advanced conditions. Those stay in place when you save.",
-    id: "cJ4nRt0xPn",
+    defaultMessage:
+      "This audience also has advanced conditions. Those stay in place when you save.",
+    id: "m1Ls3vxDvB",
     description: "Hint that nested audience criteria are preserved",
   },
   scheduleNonexistent: {
     defaultMessage: "That local time does not exist when clocks jump forward. Pick another time.",
-    id: "dK5oSu1yQo",
+    id: "/S7CREbQ3+",
     description: "Error when a scheduled wall time is skipped by DST",
   },
   scheduleAmbiguous: {
     defaultMessage: "Clocks fall back at this time. Hyperlab uses the earlier occurrence.",
-    id: "eL6pTv2zRp",
+    id: "BBccZIFnh+",
     description: "Hint when a scheduled wall time happens twice during DST fallback",
   },
   control: {
