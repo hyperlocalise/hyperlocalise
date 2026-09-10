@@ -205,9 +205,9 @@ export async function resolveGitLabProjectContext(input: {
   });
 }
 
-async function allowedGitLabOrigins(organizationId: string): Promise<
-  { origin: string; connectionId: string | null }[]
-> {
+async function allowedGitLabOrigins(
+  organizationId: string,
+): Promise<{ origin: string; connectionId: string | null }[]> {
   const connections = await listEnabledGitLabConnections({ organizationId });
   return [
     { origin: GITLAB_API_ORIGIN, connectionId: null },
@@ -222,9 +222,7 @@ function connectionIdForOrigin(
   origin: string,
   origins: { origin: string; connectionId: string | null }[],
 ): string | null {
-  const match = origins.find(
-    (entry) => entry.origin.toLowerCase() === origin.toLowerCase(),
-  );
+  const match = origins.find((entry) => entry.origin.toLowerCase() === origin.toLowerCase());
   return match?.connectionId ?? null;
 }
 

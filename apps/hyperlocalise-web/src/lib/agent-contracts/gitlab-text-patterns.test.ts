@@ -92,9 +92,10 @@ describe("gitlab text patterns", () => {
 
   it("returns origin-tagged project references for allowed hosts", () => {
     expect(
-      extractGitLabProjectReferences("See https://gitlab.acme.example/acme/platform/web/-/tree/main", [
-        "https://gitlab.acme.example",
-      ]),
+      extractGitLabProjectReferences(
+        "See https://gitlab.acme.example/acme/platform/web/-/tree/main",
+        ["https://gitlab.acme.example"],
+      ),
     ).toEqual([
       {
         origin: "https://gitlab.acme.example",

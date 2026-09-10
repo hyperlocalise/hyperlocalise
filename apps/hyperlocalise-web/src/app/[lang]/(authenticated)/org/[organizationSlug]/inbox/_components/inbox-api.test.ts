@@ -199,6 +199,7 @@ describe("createInboxApi FormData", () => {
         defaultBranch: "main",
         enabled: true,
         fullName: "acme/platform/docs",
+        gitlabConnectionId: null,
         name: "docs",
         provider: "gitlab",
         selectionKey: "gitlab:acme/platform/docs",

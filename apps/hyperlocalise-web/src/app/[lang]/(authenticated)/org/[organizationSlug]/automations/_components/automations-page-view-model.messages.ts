@@ -57,7 +57,7 @@ export const automationsPageViewModelMessages = defineMessages({
   },
   toolGitlab: {
     defaultMessage: "GitLab",
-    id: "gitlabToolBadge",
+    id: "UTeqE+Yq4v",
     description: "Tool badge when an automation uses GitLab",
   },
   toolSlack: {

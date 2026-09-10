@@ -40,8 +40,7 @@ vi.mock("@/lib/gitlab/repository-context", () => ({
 vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
   createGitlabRepositorySandbox: (...args: unknown[]) =>
     mocks.createGitlabRepositorySandbox(...args),
-  stopGitlabRepositorySandbox: (...args: unknown[]) =>
-    mocks.stopGitlabRepositorySandbox(...args),
+  stopGitlabRepositorySandbox: (...args: unknown[]) => mocks.stopGitlabRepositorySandbox(...args),
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -173,9 +172,10 @@ describe("createUseGitlabRepositoryTool", () => {
 
   it("rejects when the automation has no GitLab repository target", async () => {
     await expect(
-      createUseGitlabRepositoryTool(
-        session({ repositoryTarget: { kind: "none" } }),
-      ).execute!({}, toolOptions),
+      createUseGitlabRepositoryTool(session({ repositoryTarget: { kind: "none" } })).execute!(
+        {},
+        toolOptions,
+      ),
     ).rejects.toThrow("gitlab_repository_target_required");
 
     expect(mocks.resolveGitLabProjectContext).not.toHaveBeenCalled();

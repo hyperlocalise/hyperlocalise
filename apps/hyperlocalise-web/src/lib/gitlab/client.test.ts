@@ -14,7 +14,12 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { getGitLabAuthenticatedUser, getGitLabMergeRequest, getGitLabProject, listGitLabMembershipProjects } from "./client";
+import {
+  getGitLabAuthenticatedUser,
+  getGitLabMergeRequest,
+  getGitLabProject,
+  listGitLabMembershipProjects,
+} from "./client";
 
 describe("gitlab client", () => {
   afterEach(() => {

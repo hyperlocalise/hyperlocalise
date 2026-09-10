@@ -27,7 +27,9 @@ export function isGitLabComOrigin(origin: string): boolean {
   }
 }
 
-export function normalizeGitLabInstanceOrigin(baseUrl: string): Result<string, GitLabConnectionError> {
+export function normalizeGitLabInstanceOrigin(
+  baseUrl: string,
+): Result<string, GitLabConnectionError> {
   let url: URL;
   try {
     url = new URL(baseUrl.trim());

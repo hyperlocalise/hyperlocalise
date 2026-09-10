@@ -45,7 +45,7 @@ const {
     source: "gateway" as const,
     modelId: "openai/gpt-5.6-luna",
   })),
-  resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
+  resolveGitLabPipesWorkosUserIdMock: vi.fn(async (): Promise<string | null> => "user_workos"),
 }));
 
 vi.mock("@/lib/env", () => ({

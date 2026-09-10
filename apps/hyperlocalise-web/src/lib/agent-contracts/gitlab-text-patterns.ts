@@ -107,12 +107,15 @@ export function extractGitLabMergeRequestReferences(
         continue;
       }
 
-      references.set(`${origin.toLowerCase()}:${pathWithNamespace.toLowerCase()}!${mergeRequestIid}`, {
-        origin,
-        pathWithNamespace,
-        mergeRequestIid,
-        sourceUrl: match[0],
-      });
+      references.set(
+        `${origin.toLowerCase()}:${pathWithNamespace.toLowerCase()}!${mergeRequestIid}`,
+        {
+          origin,
+          pathWithNamespace,
+          mergeRequestIid,
+          sourceUrl: match[0],
+        },
+      );
     }
   }
 

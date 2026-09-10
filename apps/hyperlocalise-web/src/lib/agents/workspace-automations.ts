@@ -19,10 +19,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
-import {
-  getGitLabPipesConnectionStatus,
-  resolveGitLabPipesWorkosUserId,
-} from "@/lib/gitlab/pipes";
+import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import { lockGitLabConnectionForUpdate } from "@/lib/gitlab/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { lockZernioConnectionForUpdate } from "@/lib/zernio/connections";
@@ -153,10 +150,7 @@ function validateWorkspaceAutomationConfig(input: {
       });
     }
 
-    if (
-      input.triggerConfig.mode !== "manual" &&
-      input.triggerConfig.mode !== "scheduled"
-    ) {
+    if (input.triggerConfig.mode !== "manual" && input.triggerConfig.mode !== "scheduled") {
       return err({
         code: "gitlab_agent_trigger_required",
         message: "GitLab repo agent automations support scheduled or manual triggers only.",
@@ -962,8 +956,7 @@ export async function createWorkspaceAutomation(input: {
   const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(toolConfig);
   const lockZernioConnection = shouldLockZernioConnectionForToolConfig(toolConfig);
   const lockGitLabConnection = shouldLockGitLabConnectionForToolConfig(toolConfig);
-  const needsConnectionLock =
-    lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
+  const needsConnectionLock = lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -1130,8 +1123,7 @@ export async function updateWorkspaceAutomation(input: {
     configChanged && shouldLockZernioConnectionForToolConfig(config.toolConfig);
   const lockGitLabConnection =
     configChanged && shouldLockGitLabConnectionForToolConfig(config.toolConfig);
-  const needsConnectionLock =
-    lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
+  const needsConnectionLock = lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
 
   const write = async (
     database: DatabaseClient,

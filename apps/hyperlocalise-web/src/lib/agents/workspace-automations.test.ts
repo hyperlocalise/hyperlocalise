@@ -65,6 +65,7 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { createGitLabConnection } from "@/lib/gitlab/connections";
+import { createSemrushConnection } from "@/lib/semrush/connections";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import {

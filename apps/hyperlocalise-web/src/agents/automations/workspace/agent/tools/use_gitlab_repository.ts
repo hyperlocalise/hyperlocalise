@@ -55,8 +55,7 @@ export function createUseGitlabRepositoryTool(session: WorkspaceOrchestratorSess
       }
 
       const gitlabTool = session.automation.toolConfig.gitlab;
-      const connectionId =
-        gitlabTool?.connectionId ?? repositoryTarget.gitlabConnectionId ?? null;
+      const connectionId = gitlabTool?.connectionId ?? repositoryTarget.gitlabConnectionId ?? null;
       const workosUserId = gitlabTool?.workosUserId ?? null;
 
       const gitlabContext = await resolveGitLabProjectContext({

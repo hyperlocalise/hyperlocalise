@@ -111,11 +111,7 @@ export function SourceControlIntegrationsSection({
         slugs={workspacePipesSourceControlSlugs}
         disabled={!userIsAdmin}
       />
-      <GitLabSelfHostedPanel
-        organizationSlug={organizationSlug}
-        disabled={!userIsAdmin}
-        isLast
-      />
+      <GitLabSelfHostedPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} isLast />
     </>
   );
 }

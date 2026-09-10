@@ -648,9 +648,7 @@ function GitlabProjectSelect({
           if (!value) {
             return;
           }
-          const project = projects.find(
-            (entry) => gitlabProjectPickerValue(entry) === value,
-          );
+          const project = projects.find((entry) => gitlabProjectPickerValue(entry) === value);
           if (!project) {
             return;
           }
@@ -663,13 +661,13 @@ function GitlabProjectSelect({
             {projects.length === 0
               ? intl.formatMessage(workspaceAutomationFormMessages.connectGitlabForProject)
               : selectedValue
-                ? (projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
-                    ? formatGitlabProjectOptionLabel(
-                        projects.find(
-                          (project) => gitlabProjectPickerValue(project) === selectedValue,
-                        )!,
-                      )
-                    : form.gitlabPathWithNamespace)
+                ? projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
+                  ? formatGitlabProjectOptionLabel(
+                      projects.find(
+                        (project) => gitlabProjectPickerValue(project) === selectedValue,
+                      )!,
+                    )
+                  : form.gitlabPathWithNamespace
                 : intl.formatMessage(workspaceAutomationFormMessages.selectGitlabProject)}
           </span>
         </SelectTrigger>

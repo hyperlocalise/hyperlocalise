@@ -17,108 +17,110 @@ import { defineMessages } from "react-intl";
 export const gitlabSelfHostedPanelMessages = defineMessages({
   rowName: {
     defaultMessage: "Self-hosted GitLab",
-    id: "gitlabSelfHostedName",
+    id: "leHroVsXJJ",
     description: "Name shown for the self-hosted GitLab integrations row",
   },
   rowDescription: {
     defaultMessage:
       "Connect a self-hosted GitLab instance with a personal access token so automations and chat can clone projects.",
-    id: "gitlabSelfHostedDescription",
+    id: "S9oRvBRj9d",
     description: "Description for the self-hosted GitLab integrations row",
   },
   addConnection: {
     defaultMessage: "Add instance",
-    id: "gitlabSelfHostedAdd",
+    id: "//7eVWA9bX",
     description: "Button to add a new self-hosted GitLab connection",
   },
   displayNameLabel: {
     defaultMessage: "Display name",
-    id: "gitlabSelfHostedDisplayName",
+    id: "74mzD8qTg0",
     description: "Label for self-hosted GitLab display name field",
   },
   baseUrlLabel: {
     defaultMessage: "Instance URL",
-    id: "gitlabSelfHostedBaseUrl",
+    id: "TkcqNY6N31",
     description: "Label for self-hosted GitLab instance URL field",
   },
   baseUrlHelp: {
-    defaultMessage: "Public HTTPS URL of your GitLab instance, for example https://gitlab.example.com. GitLab.com uses Pipes above.",
-    id: "gitlabSelfHostedBaseUrlHelp",
+    defaultMessage:
+      "Public HTTPS URL of your GitLab instance, for example https://gitlab.example.com. GitLab.com uses Pipes above.",
+    id: "3DOkf4gRJ+",
     description: "Help text for the self-hosted GitLab instance URL",
   },
   accessTokenLabel: {
     defaultMessage: "Personal access token",
-    id: "gitlabSelfHostedToken",
+    id: "r3cCLSJwjM",
     description: "Label for self-hosted GitLab personal access token field",
   },
   accessTokenHelp: {
-    defaultMessage: "Create a token with read_api and read_repository. Hyperlocalise clones over HTTPS as oauth2.",
-    id: "gitlabSelfHostedTokenHelp",
+    defaultMessage:
+      "Create a token with read_api and read_repository. Hyperlocalise clones over HTTPS as oauth2.",
+    id: "AbFwqOmDxK",
     description: "Help text for self-hosted GitLab personal access token scopes",
   },
   save: {
     defaultMessage: "Save",
-    id: "gitlabSelfHostedSave",
+    id: "p6mKOvaKJ3",
     description: "Save self-hosted GitLab connection button",
   },
   cancel: {
     defaultMessage: "Cancel",
-    id: "gitlabSelfHostedCancel",
+    id: "uwH+ztOSic",
     description: "Cancel adding a self-hosted GitLab connection",
   },
   delete: {
     defaultMessage: "Delete",
-    id: "gitlabSelfHostedDelete",
+    id: "0o02ytNfB/",
     description: "Delete self-hosted GitLab connection button",
   },
   fetchFailed: {
     defaultMessage: "Failed to load GitLab connections.",
-    id: "gitlabSelfHostedFetchFailed",
+    id: "NRzILcK0KY",
     description: "Error when self-hosted GitLab connections cannot be loaded",
   },
   saveFailed: {
     defaultMessage: "Failed to save GitLab connection.",
-    id: "gitlabSelfHostedSaveFailed",
+    id: "J0RacxHMqA",
     description: "Error when self-hosted GitLab connection save fails",
   },
   saveSucceeded: {
     defaultMessage: "GitLab instance connected.",
-    id: "gitlabSelfHostedSaveSucceeded",
+    id: "Qzzd1SH6bT",
     description: "Toast when a self-hosted GitLab connection is saved",
   },
   deleteFailed: {
     defaultMessage: "Failed to delete GitLab connection.",
-    id: "gitlabSelfHostedDeleteFailed",
+    id: "NaHxyXX2E4",
     description: "Error when self-hosted GitLab connection delete fails",
   },
   deleteInUse: {
     defaultMessage: "Remove this GitLab connection from automations before deleting it.",
-    id: "gitlabSelfHostedDeleteInUse",
+    id: "LX7X/4QqPW",
     description: "Error when deleting a GitLab connection still used by automations",
   },
   deleteSucceeded: {
     defaultMessage: "GitLab connection deleted.",
-    id: "gitlabSelfHostedDeleteSucceeded",
+    id: "9OFyQ9E3Fx",
     description: "Toast when a self-hosted GitLab connection is deleted",
   },
   tokenConfigured: {
     defaultMessage: "{baseUrl} · token ending in {suffix}",
-    id: "gitlabSelfHostedTokenConfigured",
+    id: "nCqC1RDN0w",
     description: "Hint that a GitLab instance URL and token are already stored",
   },
   accessTokenRequired: {
     defaultMessage: "Enter a GitLab personal access token.",
-    id: "gitlabSelfHostedTokenRequired",
+    id: "YeDtDdASyR",
     description: "Validation error when GitLab access token is missing on create",
   },
   baseUrlRequired: {
     defaultMessage: "Enter a GitLab instance URL.",
-    id: "gitlabSelfHostedBaseUrlRequired",
+    id: "i8GikOT7wI",
     description: "Validation error when GitLab instance URL is missing on create",
   },
   enabled: {
     defaultMessage: "Enabled",
-    id: "gitlabSelfHostedEnabled",
+    id: "/wTw3RalaC",
     description: "Badge shown when a self-hosted GitLab connection is enabled",
   },
 });
