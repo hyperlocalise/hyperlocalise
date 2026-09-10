@@ -1269,8 +1269,11 @@ func writeLokaliseDownloadConfig(t *testing.T) string {
 }
 
 type fakeLokaliseSourceUploader struct {
-	inputs []lokalise.SourceUploadInput
-	err    error
+	inputs     []lokalise.SourceUploadInput
+	waitInputs []lokalise.QueuedProcessWaitInput
+	waitResult lokalise.SourceUploadResult
+	waitErr    error
+	err        error
 }
 
 func (f *fakeLokaliseSourceUploader) UploadSourceFile(_ context.Context, input lokalise.SourceUploadInput) (lokalise.SourceUploadResult, error) {
@@ -1281,9 +1284,27 @@ func (f *fakeLokaliseSourceUploader) UploadSourceFile(_ context.Context, input l
 	return lokalise.SourceUploadResult{ProcessID: "proc-1", Type: "file-import", Status: "queued"}, nil
 }
 
+func (f *fakeLokaliseSourceUploader) WaitForQueuedProcess(_ context.Context, in lokalise.QueuedProcessWaitInput) (lokalise.SourceUploadResult, error) {
+	f.waitInputs = append(f.waitInputs, in)
+	if f.waitErr != nil {
+		result := f.waitResult
+		if result.ProcessID == "" {
+			result.ProcessID = in.ProcessID
+		}
+		return result, f.waitErr
+	}
+	if f.waitResult.ProcessID != "" {
+		return f.waitResult, nil
+	}
+	return lokalise.SourceUploadResult{ProcessID: in.ProcessID, Type: "file-import", Status: "finished"}, nil
+}
+
 type fakeLokaliseTranslationUploader struct {
-	inputs []lokalise.TranslationUploadInput
-	err    error
+	inputs     []lokalise.TranslationUploadInput
+	waitInputs []lokalise.QueuedProcessWaitInput
+	waitResult lokalise.SourceUploadResult
+	waitErr    error
+	err        error
 }
 
 func (f *fakeLokaliseTranslationUploader) UploadTranslationFile(_ context.Context, input lokalise.TranslationUploadInput) (lokalise.TranslationUploadResult, error) {
@@ -1292,4 +1313,318 @@ func (f *fakeLokaliseTranslationUploader) UploadTranslationFile(_ context.Contex
 		return lokalise.TranslationUploadResult{}, f.err
 	}
 	return lokalise.TranslationUploadResult{ProcessID: "proc-1", Type: "file-import", Status: "queued"}, nil
+}
+
+func (f *fakeLokaliseTranslationUploader) WaitForQueuedProcess(_ context.Context, in lokalise.QueuedProcessWaitInput) (lokalise.SourceUploadResult, error) {
+	f.waitInputs = append(f.waitInputs, in)
+	if f.waitErr != nil {
+		result := f.waitResult
+		if result.ProcessID == "" {
+			result.ProcessID = in.ProcessID
+		}
+		return result, f.waitErr
+	}
+	if f.waitResult.ProcessID != "" {
+		return f.waitResult, nil
+	}
+	return lokalise.SourceUploadResult{ProcessID: in.ProcessID, Type: "file-import", Status: "finished"}, nil
+}
+
+func TestLokaliseLocalesListPrintsOfficialFields(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+	oldFactory := newLokaliseDiscoveryClient
+	defer func() { newLokaliseDiscoveryClient = oldFactory }()
+	newLokaliseDiscoveryClient = func(cfg lokalise.Config) (lokaliseDiscoveryClient, error) {
+		if cfg.ProjectID != "project-1" || cfg.APIToken != "secret" {
+			t.Fatalf("config = %#v", cfg)
+		}
+		return &fakeLokaliseDiscoveryClient{
+			locales: []lokalise.LocaleListItem{
+				{LanguageID: 640, LanguageISO: "en", LanguageName: "English"},
+			},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "locales", "list", "--project-id", "project-1"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if got, want := out.String(), "id=640 iso=en name=English\n"; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+	if strings.Contains(out.String(), "default=") {
+		t.Fatalf("invented default field: %q", out.String())
+	}
+}
+
+func TestLokaliseLocalesListUsesConfigProjectID(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	configPath := filepath.Join(dir, "i18n.yml")
+	if err := os.WriteFile(configPath, []byte(`
+locales:
+  source: en
+  targets:
+    - de
+buckets:
+  ui:
+    files:
+      - from: content/en.json
+        to: dist/{{target}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: test
+storage:
+  adapter: lokalise
+  config:
+    projectID: project-from-config
+    apiTokenEnv: LOKALISE_TEST_TOKEN
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	oldFactory := newLokaliseDiscoveryClient
+	defer func() { newLokaliseDiscoveryClient = oldFactory }()
+	var gotProject string
+	newLokaliseDiscoveryClient = func(cfg lokalise.Config) (lokaliseDiscoveryClient, error) {
+		gotProject = cfg.ProjectID
+		return &fakeLokaliseDiscoveryClient{locales: []lokalise.LocaleListItem{}}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "locales", "list", "--config", configPath, "--output", "json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if gotProject != "project-from-config" {
+		t.Fatalf("project = %q", gotProject)
+	}
+	if strings.TrimSpace(out.String()) != "[]" {
+		t.Fatalf("json = %q, want []", out.String())
+	}
+}
+
+func TestLokaliseLocalesListRequiresProjectID(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "locales", "list"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "lokalise locales list") || !strings.Contains(err.Error(), "--project-id") {
+		t.Fatalf("error = %v, want lokalise locales list project id", err)
+	}
+}
+
+func TestLokaliseFilesListKeepsUnassignedAndEmpty(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+	oldFactory := newLokaliseDiscoveryClient
+	defer func() { newLokaliseDiscoveryClient = oldFactory }()
+	fake := &fakeLokaliseDiscoveryClient{
+		files: []lokalise.FileListItem{
+			{FileID: -1, Filename: "__unassigned__", KeyCount: 11},
+		},
+	}
+	newLokaliseDiscoveryClient = func(lokalise.Config) (lokaliseDiscoveryClient, error) {
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "files", "list", "--project-id", "project-1", "--filter-filename", "en.json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if !strings.Contains(out.String(), "id=-1 filename=__unassigned__ keys=11") {
+		t.Fatalf("output = %q", out.String())
+	}
+	if fake.fileIn.FilterFilename != "en.json" {
+		t.Fatalf("filter = %#v", fake.fileIn)
+	}
+
+	fake.files = nil
+	out.Reset()
+	cmd = newRootCmd("")
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "files", "list", "--project-id", "project-1"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("empty list: %v", err)
+	}
+	if out.String() != "" {
+		t.Fatalf("empty text output = %q, want empty", out.String())
+	}
+}
+
+func TestLokaliseUploadSourcesPollReprintsFinished(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseSourceUploader
+	defer func() { newLokaliseSourceUploader = oldFactory }()
+	fake := &fakeLokaliseSourceUploader{}
+	newLokaliseSourceUploader = func(lokalise.Config) (lokaliseSourceUploader, error) {
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--file", sourcePath, "--branch", "main", "--poll"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if !strings.Contains(out.String(), "process_id=proc-1 status=queued") {
+		t.Fatalf("missing queued line: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "process_id=proc-1 status=finished") {
+		t.Fatalf("missing finished line: %q", out.String())
+	}
+	if len(fake.waitInputs) != 1 || fake.waitInputs[0].ProcessID != "proc-1" || fake.waitInputs[0].Branch != "main" {
+		t.Fatalf("wait inputs = %#v", fake.waitInputs)
+	}
+}
+
+func TestLokaliseUploadSourcesPollKeepsProcessIDOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseSourceUploader
+	defer func() { newLokaliseSourceUploader = oldFactory }()
+	fake := &fakeLokaliseSourceUploader{
+		waitErr:    errors.New("wait timed out: status=running"),
+		waitResult: lokalise.SourceUploadResult{ProcessID: "proc-1", Status: "running"},
+	}
+	newLokaliseSourceUploader = func(lokalise.Config) (lokaliseSourceUploader, error) {
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--file", sourcePath, "--poll"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "wait timed out") {
+		t.Fatalf("error = %v, want timeout", err)
+	}
+	if !strings.Contains(out.String(), "process_id=proc-1") {
+		t.Fatalf("missing process_id after poll failure: %q", out.String())
+	}
+}
+
+func TestLokaliseUploadSourcesPollSkippedOnDryRun(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--file", sourcePath, "--poll", "--dry-run"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry-run action=lokalise-upload-sources") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestLokaliseUploadSourcesPollTimeoutWithoutPollDoesNotWait(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseSourceUploader
+	defer func() { newLokaliseSourceUploader = oldFactory }()
+	fake := &fakeLokaliseSourceUploader{}
+	newLokaliseSourceUploader = func(lokalise.Config) (lokaliseSourceUploader, error) {
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--file", sourcePath, "--poll-timeout", "10m"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if len(fake.waitInputs) != 0 {
+		t.Fatalf("wait called without --poll: %#v", fake.waitInputs)
+	}
+	if strings.Contains(out.String(), "status=finished") {
+		t.Fatalf("unexpected finished status without poll: %q", out.String())
+	}
+}
+
+func TestLokaliseUploadTranslationsPollKeepsTargetLocaleLocks(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(filePath, []byte(`{"hello":"Xin chao"}`), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseTranslationUploader
+	defer func() { newLokaliseTranslationUploader = oldFactory }()
+	fake := &fakeLokaliseTranslationUploader{}
+	newLokaliseTranslationUploader = func(lokalise.Config) (lokaliseTranslationUploader, error) {
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"lokalise", "upload", "translations", "--project-id", "project-1", "--target-locale", "vi", "--file", filePath, "--poll"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if len(fake.inputs) != 1 || fake.inputs[0].TargetLocale != "vi" {
+		t.Fatalf("input = %#v", fake.inputs)
+	}
+	if len(fake.waitInputs) != 1 {
+		t.Fatalf("wait inputs = %#v", fake.waitInputs)
+	}
+	if !strings.Contains(out.String(), "status=finished") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+type fakeLokaliseDiscoveryClient struct {
+	locales []lokalise.LocaleListItem
+	files   []lokalise.FileListItem
+	fileIn  lokalise.FileListInput
+}
+
+func (f *fakeLokaliseDiscoveryClient) ListProjectLanguages(_ context.Context, _ lokalise.LocaleListInput) ([]lokalise.LocaleListItem, error) {
+	if f.locales == nil {
+		return []lokalise.LocaleListItem{}, nil
+	}
+	return f.locales, nil
+}
+
+func (f *fakeLokaliseDiscoveryClient) ListFiles(_ context.Context, in lokalise.FileListInput) ([]lokalise.FileListItem, error) {
+	f.fileIn = in
+	if f.files == nil {
+		return []lokalise.FileListItem{}, nil
+	}
+	return f.files, nil
 }
