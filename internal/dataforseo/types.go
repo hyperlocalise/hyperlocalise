@@ -85,6 +85,25 @@ func boolPtr(value bool) *bool {
 // KeywordDataItem is a keyword metric row from Labs endpoints.
 type KeywordDataItem map[string]any
 
+// KeywordIdea is a normalized Labs keyword row for Domains research.
+type KeywordIdea struct {
+	Keyword string  `json:"keyword"`
+	Volume  int     `json:"volume"`
+	KD      int     `json:"kd"`
+	CPC     float64 `json:"cpc"`
+	Intent  string  `json:"intent"`
+}
+
+// OrganicSerpResult is a normalized live organic SERP row.
+type OrganicSerpResult struct {
+	Position int    `json:"position"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	Snippet  string `json:"snippet"`
+	Domain   string `json:"domain"`
+	IsOwn    bool   `json:"isOwn,omitempty"`
+}
+
 // RelatedKeywordPage is a Labs related-keywords response page.
 type RelatedKeywordPage struct {
 	Items []KeywordDataItem `json:"items"`

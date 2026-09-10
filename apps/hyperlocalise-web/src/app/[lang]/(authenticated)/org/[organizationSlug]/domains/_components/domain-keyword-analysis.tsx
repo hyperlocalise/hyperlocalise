@@ -23,9 +23,11 @@ import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.mes
 export function DomainKeywordAnalysis({
   keyword,
   results,
+  loading = false,
 }: {
   keyword: KeywordIdea | null;
   results: SerpResult[];
+  loading?: boolean;
 }) {
   const intl = useIntl();
   const t = intl.formatMessage;
@@ -100,7 +102,9 @@ export function DomainKeywordAnalysis({
             {t(messages.organicResults, { count: results.length })}
           </p>
         </div>
-        {results.length ? (
+        {loading ? (
+          <p className="p-4 text-sm text-muted-foreground">{t(shared.serpLoading)}</p>
+        ) : results.length ? (
           <ol className="divide-y divide-border px-4">
             {results.map((result) => (
               <li key={result.url} className="flex gap-3 py-4">

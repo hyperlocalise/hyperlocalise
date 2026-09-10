@@ -276,6 +276,13 @@ export const env = createEnv({
 
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
+
+    /**
+     * Origin of go-svc for server-side DataForSEO research calls.
+     * Vercel injects this via the `go_svc` service binding. Local default is
+     * `http://127.0.0.1:8080`.
+     */
+    GO_SVC_URL: z.url().optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -396,6 +403,7 @@ export const env = createEnv({
       (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
     CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
+    GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

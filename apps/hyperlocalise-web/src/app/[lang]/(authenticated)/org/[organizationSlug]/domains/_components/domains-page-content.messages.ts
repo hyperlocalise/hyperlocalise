@@ -31,6 +31,21 @@ export const domainsPageContentMessages = defineMessages({
     id: "BBrh+7z4Oj",
     description: "Error when the domains list fails to load",
   },
+  loading: {
+    defaultMessage: "Loading domains…",
+    id: "uSp36HVYw0",
+    description: "Loading state for the workspace domains list",
+  },
+  emptyTitle: {
+    defaultMessage: "No linked domains yet",
+    id: "/ga0PCFNu5",
+    description: "Empty state title when the workspace has no claimed domains",
+  },
+  emptyDescription: {
+    defaultMessage: "Claim a domain from a localisation audit to start keyword research.",
+    id: "8wa1gB5MCA",
+    description: "Empty state description when the workspace has no claimed domains",
+  },
   linkDomain: {
     defaultMessage: "Link domain",
     id: "RjCKAD/IFR",

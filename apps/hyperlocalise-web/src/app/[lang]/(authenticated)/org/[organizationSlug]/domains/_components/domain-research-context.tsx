@@ -14,16 +14,12 @@
  */
 
 import { createContext, useContext } from "react";
-import {
-  getResearchPrototypeCatalog,
-  type DomainResearchCatalog,
-} from "@/lib/domains/research-prototype";
+import type { DomainResearchCatalog } from "@/lib/domains/research-prototype";
 
 export const DomainResearchContext = createContext<DomainResearchCatalog | null | undefined>(
   undefined,
 );
 
-export function useDomainResearchCatalog(linkedDomainId: string) {
-  const catalog = useContext(DomainResearchContext);
-  return catalog === undefined ? getResearchPrototypeCatalog(linkedDomainId) : catalog;
+export function useDomainResearchCatalog(_linkedDomainId?: string) {
+  return useContext(DomainResearchContext) ?? null;
 }

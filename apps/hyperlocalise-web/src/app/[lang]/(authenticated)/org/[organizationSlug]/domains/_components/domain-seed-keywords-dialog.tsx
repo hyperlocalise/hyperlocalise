@@ -43,12 +43,16 @@ export function DomainSeedKeywordsDialog({
   open,
   defaultKeyword,
   defaultMarketId,
+  pending = false,
   onOpenChange,
+  onExpand,
 }: {
   open: boolean;
   defaultKeyword: string;
   defaultMarketId: string;
+  pending?: boolean;
   onOpenChange: (open: boolean) => void;
+  onExpand?: (input: { keyword: string; marketId: string }) => Promise<boolean> | boolean;
 }) {
   const intl = useIntl();
   const keywordId = useId();
@@ -63,8 +67,15 @@ export function DomainSeedKeywordsDialog({
     }
   }, [defaultKeyword, defaultMarketId, open]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (onExpand) {
+      const succeeded = await onExpand({ keyword, marketId: market });
+      if (succeeded) {
+        onOpenChange(false);
+      }
+      return;
+    }
     toast.success(intl.formatMessage(messages.seedSuccess));
     onOpenChange(false);
   }
@@ -120,7 +131,7 @@ export function DomainSeedKeywordsDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               <FormattedMessage {...sharedMessages.cancel} />
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={pending || !keyword.trim()}>
               <FormattedMessage {...messages.seedSubmit} />
             </Button>
           </DialogFooter>

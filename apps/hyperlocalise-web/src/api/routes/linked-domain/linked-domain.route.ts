@@ -36,6 +36,7 @@ import {
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { createDomainResearchRoutes } from "../domain-research/domain-research.route";
 import {
   createLinkedDomainBodySchema,
   linkedDomainIdParamSchema,
@@ -229,5 +230,6 @@ export function createLinkedDomainRoutes() {
       }
 
       return c.body(null, 204);
-    });
+    })
+    .route("/:linkedDomainId/research", createDomainResearchRoutes());
 }

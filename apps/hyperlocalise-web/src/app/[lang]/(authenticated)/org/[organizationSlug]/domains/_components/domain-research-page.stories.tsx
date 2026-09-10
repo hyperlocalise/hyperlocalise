@@ -18,6 +18,8 @@ import { DomainKeywordsView } from "./domain-keywords-view";
 import { DomainRanksView } from "./domain-ranks-view";
 import { DomainBrandView } from "./domain-brand-view";
 import { DomainPromptsView } from "./domain-prompts-view";
+import { domainResearchMswHandlers } from "./domain-research-msw-handlers";
+
 function DomainResearchPage({
   surface,
   linkedDomainId,
@@ -27,9 +29,13 @@ function DomainResearchPage({
 }) {
   const organizationSlug = "domains-preview";
   const views = {
-    overview: <DomainOverviewView linkedDomainId={linkedDomainId} />,
-    keywords: <DomainKeywordsView linkedDomainId={linkedDomainId} />,
-    ranks: <DomainRanksView linkedDomainId={linkedDomainId} />,
+    overview: (
+      <DomainOverviewView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
+    ),
+    keywords: (
+      <DomainKeywordsView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
+    ),
+    ranks: <DomainRanksView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />,
     brand: <DomainBrandView linkedDomainId={linkedDomainId} />,
     prompts: <DomainPromptsView linkedDomainId={linkedDomainId} />,
   };
@@ -43,6 +49,7 @@ function DomainResearchPage({
     </DomainResearchShell>
   );
 }
+
 const meta = {
   title: "App/Domains/Research",
   component: DomainResearchPage,
@@ -52,6 +59,7 @@ const meta = {
       appDirectory: true,
       navigation: { pathname: "/en/org/domains-preview/domains/hyperlocalise-com" },
     },
+    msw: { handlers: domainResearchMswHandlers() },
   },
   args: { surface: "overview", linkedDomainId: "hyperlocalise-com" },
   argTypes: {
