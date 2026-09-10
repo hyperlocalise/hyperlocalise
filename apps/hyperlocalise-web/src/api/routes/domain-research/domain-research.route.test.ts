@@ -281,7 +281,9 @@ describe("domainResearchRoutes", () => {
     expect(refreshedBody.ranks[0]?.previousPosition).toBe(7);
     expect(refreshedBody.ranks[0]?.position).toBe(7);
 
-    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
+    await db
+      .delete(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
   });
 
   it("rejects unknown markets", async () => {

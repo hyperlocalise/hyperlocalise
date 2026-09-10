@@ -125,9 +125,21 @@ export type DomainResearchCatalog = {
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
   { id: "france-fr", location: "France", language: "fr", label: "France · fr", locationCode: 2250 },
-  { id: "germany-de", location: "Germany", language: "de", label: "Germany · de", locationCode: 2276 },
+  {
+    id: "germany-de",
+    location: "Germany",
+    language: "de",
+    label: "Germany · de",
+    locationCode: 2276,
+  },
   { id: "japan-ja", location: "Japan", language: "ja", label: "Japan · ja", locationCode: 2392 },
-  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnam · vi", locationCode: 2704 },
+  {
+    id: "vietnam-vi",
+    location: "Vietnam",
+    language: "vi",
+    label: "Vietnam · vi",
+    locationCode: 2704,
+  },
 ];
 
 const FRANCE_FR = DOMAIN_RESEARCH_MARKETS[0]!;

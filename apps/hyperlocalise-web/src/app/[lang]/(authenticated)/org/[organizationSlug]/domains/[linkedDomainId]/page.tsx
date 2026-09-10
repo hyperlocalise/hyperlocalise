@@ -26,10 +26,7 @@ export default async function DomainDetailPage({
       linkedDomainId={linkedDomainId}
       surface="overview"
     >
-      <DomainOverviewView
-        linkedDomainId={linkedDomainId}
-        organizationSlug={organizationSlug}
-      />
+      <DomainOverviewView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
     </DomainResearchShell>
   );
 }

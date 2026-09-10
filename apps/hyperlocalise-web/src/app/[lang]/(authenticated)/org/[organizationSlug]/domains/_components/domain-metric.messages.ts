@@ -40,8 +40,9 @@ export const domainMetricMessages = defineMessages({
     description: "Disclosure for prototype domain metrics",
   },
   liveData: {
-    defaultMessage: "Live research via DataForSEO. Saved keywords and rank snapshots persist per market.",
-    id: "gO74LiveDt",
+    defaultMessage:
+      "Live research via DataForSEO. Saved keywords and rank snapshots persist per market.",
+    id: "OQDw2gWahR",
     description: "Disclosure for live domain research metrics",
   },
   noHistory: {

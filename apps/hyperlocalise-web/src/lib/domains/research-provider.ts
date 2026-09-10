@@ -85,10 +85,7 @@ function goSvcBaseUrl() {
   return (env.GO_SVC_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 }
 
-function mapProviderError(
-  status: number,
-  body: GoSvcErrorBody,
-): DomainResearchProviderError {
+function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchProviderError {
   if (status === 503 || body.error === "dataforseo_not_configured") {
     return {
       code: "provider_not_configured",
@@ -166,12 +163,16 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           cpc?: number;
           intent?: string;
         }>;
-      }>("/v1/domains/research/keywords", {
-        keyword: input.keyword,
-        locationCode: input.locationCode,
-        languageCode: input.languageCode,
-        limit: input.limit,
-      }, input);
+      }>(
+        "/v1/domains/research/keywords",
+        {
+          keyword: input.keyword,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          limit: input.limit,
+        },
+        input,
+      );
       if (!result.ok) {
         return result;
       }
@@ -196,12 +197,16 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           snippet?: string;
           isOwn?: boolean;
         }>;
-      }>("/v1/domains/research/serp", {
-        keyword: input.keyword,
-        locationCode: input.locationCode,
-        languageCode: input.languageCode,
-        targetDomain: input.targetDomain,
-      }, input);
+      }>(
+        "/v1/domains/research/serp",
+        {
+          keyword: input.keyword,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          targetDomain: input.targetDomain,
+        },
+        input,
+      );
       if (!result.ok) {
         return result;
       }
@@ -225,13 +230,17 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           position?: number | null;
           url?: string;
         };
-      }>("/v1/domains/research/rank-check", {
-        keywordId: input.keywordId,
-        keyword: input.keyword,
-        targetDomain: input.targetDomain,
-        locationCode: input.locationCode,
-        languageCode: input.languageCode,
-      }, input);
+      }>(
+        "/v1/domains/research/rank-check",
+        {
+          keywordId: input.keywordId,
+          keyword: input.keyword,
+          targetDomain: input.targetDomain,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+        },
+        input,
+      );
       if (!result.ok) {
         return result;
       }
@@ -250,12 +259,16 @@ export function createGoSvcDomainResearchProvider(): DomainResearchProvider {
           position?: number | null;
           url?: string;
         }>;
-      }>("/v1/domains/research/rank-check/batch", {
-        targetDomain: input.targetDomain,
-        locationCode: input.locationCode,
-        languageCode: input.languageCode,
-        keywords: input.keywords,
-      }, input);
+      }>(
+        "/v1/domains/research/rank-check/batch",
+        {
+          targetDomain: input.targetDomain,
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+          keywords: input.keywords,
+        },
+        input,
+      );
       if (!result.ok) {
         return result;
       }

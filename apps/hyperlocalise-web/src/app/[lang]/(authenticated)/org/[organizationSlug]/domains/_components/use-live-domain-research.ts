@@ -14,14 +14,20 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { isLiveDomainResearchId, type DomainResearchCatalog } from "@/lib/domains/research-prototype";
+import {
+  isLiveDomainResearchId,
+  type DomainResearchCatalog,
+} from "@/lib/domains/research-prototype";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 export function liveDomainResearchQueryKey(organizationSlug: string, linkedDomainId: string) {
   return ["domain-research", organizationSlug, linkedDomainId] as const;
 }
 
-export function useLiveDomainResearch(organizationSlug: string | undefined, linkedDomainId: string) {
+export function useLiveDomainResearch(
+  organizationSlug: string | undefined,
+  linkedDomainId: string,
+) {
   const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   const query = useQuery({
     queryKey: liveDomainResearchQueryKey(organizationSlug ?? "", linkedDomainId),

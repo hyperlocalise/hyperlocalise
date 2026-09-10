@@ -52,12 +52,12 @@ export const domainResearchShellMessages = defineMessages({
   },
   loading: {
     defaultMessage: "Loading domain research…",
-    id: "dR7mLiveLd",
+    id: "x0FiVbjynu",
     description: "Loading state for a live linked domain research page",
   },
   loadError: {
     defaultMessage: "Could not load domain research.",
-    id: "dR7mLiveEr",
+    id: "mJWxbqwGL6",
     description: "Error state when live domain research fails to load",
   },
 });

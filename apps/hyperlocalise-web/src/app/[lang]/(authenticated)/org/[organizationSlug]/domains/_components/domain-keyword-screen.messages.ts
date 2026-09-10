@@ -24,7 +24,7 @@ export const keywordScreenMessages = defineMessages({
   live: {
     defaultMessage:
       "Search expands live keyword ideas for the selected market. Save ideas you want to keep, or send them to rank tracking.",
-    id: "kW9liveHint",
+    id: "Kd7SldmcN9",
     description: "Keyword research screen: live discovery disclosure",
   },
   search: {

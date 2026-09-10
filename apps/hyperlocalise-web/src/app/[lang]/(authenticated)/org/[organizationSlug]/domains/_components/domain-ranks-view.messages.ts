@@ -92,27 +92,27 @@ export const domainRanksViewMessages = defineMessages({
   },
   loading: {
     defaultMessage: "Loading rank tracking…",
-    id: "rF5rankLd",
+    id: "d3O+fbcvsK",
     description: "Loading state for live rank tracking",
   },
   refreshCta: {
     defaultMessage: "Refresh ranks",
-    id: "rF5rankRef",
+    id: "SuICqSy+vo",
     description: "Re-check live SERP positions for tracked keywords",
   },
   refreshSuccess: {
     defaultMessage: "Rank positions updated from live SERPs.",
-    id: "rF5rankOk",
+    id: "H+FDeSqW77",
     description: "Toast after a successful rank refresh",
   },
   refreshError: {
     defaultMessage: "Could not refresh rank positions.",
-    id: "rF5rankErr",
+    id: "5UWcZIwCwa",
     description: "Error toast when rank refresh fails",
   },
   addError: {
     defaultMessage: "Could not add keywords to rank tracking.",
-    id: "aD3rankErr",
+    id: "HaCrxeRi6N",
     description: "Error toast when adding tracked keywords fails",
   },
 });
