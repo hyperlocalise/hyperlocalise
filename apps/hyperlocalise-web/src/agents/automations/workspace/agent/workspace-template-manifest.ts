@@ -117,6 +117,25 @@ export function composeGithubRepoInstructions(input: {
   });
 }
 
+export function composeGitlabRepoInstructions(input: {
+  userOverride?: string | null;
+  dynamicSections?: string[];
+  templateSkillId?: string | null;
+}) {
+  const sharedSkills = [
+    "recent-source-changes",
+    ...resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null),
+  ];
+
+  return composeInstructions({
+    automationId: "github-repository",
+    sharedSkills: [...new Set(sharedSkills)],
+    skills: ["gitlab-repo-agent"],
+    dynamicSections: input.dynamicSections,
+    userOverride: input.userOverride,
+  });
+}
+
 export function getTemplateExecutorAgent(skillId: string): string | null {
   const skill = getAgentManifest({ automationId: "workspace" }).skills[skillId];
   return skill?.frontmatter.executorAgent ?? null;

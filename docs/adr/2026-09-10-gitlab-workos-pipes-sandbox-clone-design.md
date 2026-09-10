@@ -18,7 +18,9 @@ List cloneable membership projects with `GET /api/v4/projects?membership=true&mi
 
 Resolve GitLab from a selected project or from `gitlab.com` project and merge-request URLs in the message. Persist `repositoryGitLabContext` on the conversation session. Clone into the Vercel sandbox with `createGitlabRepositorySandbox`. Reuse the stored sandbox when the GitLab context key matches.
 
-Do not persist GitLab installation tables. Do not add GitLab webhooks, MR review automations, or a `use_gitlab_repository` workspace tool. Do not support self-hosted GitLab.
+Do not persist GitLab installation tables. Do not add GitLab webhooks or MR review automations.
+
+The `use_gitlab_repository` workspace tool is specified in `docs/adr/2026-09-10-gitlab-workspace-tool-design.md`. Self-hosted GitLab is out of scope.
 
 ## Consequences
 

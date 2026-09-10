@@ -19,6 +19,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
+import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { lockZernioConnectionForUpdate } from "@/lib/zernio/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
@@ -30,6 +31,7 @@ import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "./workspace-automation-github-mapping";
+import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 import {
   formatWorkspaceAutomationAuthorName,
@@ -115,14 +117,42 @@ function validateWorkspaceAutomationConfig(input: {
 
   const githubTools = input.toolConfig.github;
   const githubCommentEnabled = Boolean(input.toolConfig.githubComment?.enabled);
+  const gitlabTools = input.toolConfig.gitlab;
+  const githubTargetSelected =
+    input.repositoryTarget.kind === "github" &&
+    Boolean(input.repositoryTarget.githubInstallationRepositoryId);
+  const gitlabTargetSelected =
+    input.repositoryTarget.kind === "gitlab" &&
+    Boolean(input.repositoryTarget.gitlabPathWithNamespace);
+
+  if ((githubTools?.enabled || githubCommentEnabled) && gitlabTools?.enabled) {
+    return err({
+      code: "gitlab_github_exclusive",
+      message: "GitHub and GitLab cannot be enabled on the same automation.",
+    });
+  }
+
   if (githubTools?.enabled || githubCommentEnabled) {
-    if (
-      input.repositoryTarget.kind !== "github" ||
-      !input.repositoryTarget.githubInstallationRepositoryId
-    ) {
+    if (!githubTargetSelected) {
       return err({
         code: "github_repository_target_required",
         message: "Enabled GitHub tools require a GitHub repository target.",
+      });
+    }
+  }
+
+  if (gitlabTools?.enabled) {
+    if (!gitlabTargetSelected) {
+      return err({
+        code: "gitlab_repository_target_required",
+        message: "Enabled GitLab tools require a GitLab project target.",
+      });
+    }
+
+    if (input.triggerConfig.mode !== "manual" && input.triggerConfig.mode !== "scheduled") {
+      return err({
+        code: "gitlab_agent_trigger_required",
+        message: "GitLab repo agent automations support scheduled or manual triggers only.",
       });
     }
   }
@@ -152,6 +182,7 @@ function validateWorkspaceAutomationConfig(input: {
     input.triggerConfig.mode === "scheduled" &&
     !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationGitlabAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
     !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
@@ -161,7 +192,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -545,6 +576,41 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.gitlab?.enabled) {
+    const workosUserId = input.toolConfig.gitlab.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "gitlab_not_connected",
+        message: "Connect GitLab in Integrations before using it.",
+      });
+    }
+
+    const status = await getGitLabPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "gitlab_pipes_unavailable",
+        message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "gitlab_pipes_needs_reauthorization",
+        message: "Reconnect GitLab in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "gitlab_not_connected",
+        message: "Connect GitLab in Integrations before using it.",
+      });
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -722,6 +788,21 @@ async function stampPipesUsersOnToolConfig(input: {
     toolConfig = {
       ...toolConfig,
       ahrefs: {
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.gitlab?.enabled) {
+    const workosUserId = await resolveGitLabPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      gitlab: {
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },
