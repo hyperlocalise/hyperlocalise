@@ -105,8 +105,10 @@ export const triggerConfigSchema = z
 
 export const repositoryTargetSchema = z
   .object({
-    kind: z.enum(["none", "github"]).default("none"),
+    kind: z.enum(["none", "github", "gitlab"]).default("none"),
     githubInstallationRepositoryId: z.string().uuid().optional(),
+    gitlabPathWithNamespace: z.string().trim().min(1).max(512).optional(),
+    gitlabConnectionId: z.string().uuid().optional(),
   })
   .default({ kind: "none" });
 
@@ -246,6 +248,14 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const gitlabToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const crowdinToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -322,6 +332,7 @@ const toolConfigObjectSchema = z
     semrush: semrushToolConfigSchema.optional(),
     zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
+    gitlab: gitlabToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -370,6 +381,7 @@ export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchem
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
+export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -381,6 +393,38 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "github_repository_target_required";
       message: "Enabled GitHub tools require a GitHub repository target.";
+    }
+  | {
+      code: "gitlab_repository_target_required";
+      message: "Enabled GitLab tools require a GitLab project target.";
+    }
+  | {
+      code: "gitlab_github_exclusive";
+      message: "GitHub and GitLab cannot be enabled on the same automation.";
+    }
+  | {
+      code: "gitlab_agent_trigger_required";
+      message: "GitLab repo agent automations support scheduled or manual triggers only.";
+    }
+  | {
+      code: "gitlab_connection_required";
+      message: "Enabled self-hosted GitLab tools require a GitLab connection.";
+    }
+  | {
+      code: "gitlab_connection_not_found";
+      message: "The selected GitLab connection was not found. Choose another connection.";
+    }
+  | {
+      code: "gitlab_not_connected";
+      message: "Connect GitLab in Integrations before using it.";
+    }
+  | {
+      code: "gitlab_pipes_needs_reauthorization";
+      message: "Reconnect GitLab in Integrations, then try again.";
+    }
+  | {
+      code: "gitlab_pipes_unavailable";
+      message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
     }
   | {
       code: "project_required";
@@ -404,7 +448,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -584,6 +628,10 @@ export function hasWorkspaceAutomationZernioTool(toolConfig: WorkspaceAutomation
 
 export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.ahrefs?.enabled);
+}
+
+export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.gitlab?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

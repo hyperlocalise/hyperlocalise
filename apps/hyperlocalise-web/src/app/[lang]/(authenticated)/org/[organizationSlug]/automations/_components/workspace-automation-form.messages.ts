@@ -372,6 +372,37 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "l9fbW9HiTx",
     description: "Menu item and tool title for the GitHub agent repository tool",
   },
+  useGitlabRepo: {
+    defaultMessage: "Use GitLab repo",
+    id: "gitlabUseRepoMenu",
+    description: "Menu item and tool title for the GitLab agent repository tool",
+  },
+  useGitlabRepoDescription: {
+    defaultMessage:
+      "Read the repository and follow your instructions. GitLab skills apply automatically.",
+    id: "gitlabUseRepoDescription",
+    description: "Description for the GitLab agent repository tool",
+  },
+  removeGitlabRepoTool: {
+    defaultMessage: "Remove GitLab repo tool",
+    id: "gitlabRemoveRepoTool",
+    description: "Accessible label to remove the GitLab agent repository tool",
+  },
+  gitlabProjectLabel: {
+    defaultMessage: "Project",
+    id: "gitlabProjectLabel",
+    description: "Label for the GitLab project select",
+  },
+  connectGitlabForProject: {
+    defaultMessage: "Connect GitLab to choose a project",
+    id: "gitlabConnectForProject",
+    description: "Placeholder when GitLab is not connected so projects cannot be chosen",
+  },
+  selectGitlabProject: {
+    defaultMessage: "Select a GitLab project",
+    id: "gitlabSelectProject",
+    description: "Placeholder when no GitLab project is selected",
+  },
   githubSyncWorkflows: {
     defaultMessage: "GitHub sync workflows",
     id: "wewNVYT5+w",

@@ -70,20 +70,20 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect GitLab so Hyperlocalise can list your projects and clone them into the chat sandbox.",
+        "Connect GitLab.com through Pipes, or a self-hosted instance with a token, so Hyperlocalise can clone projects into chat and automations.",
       id: "ezhaX1jR0b",
       description: "GitLab integration description on the integrations page",
     },
     overview: [
       {
         defaultMessage:
-          "GitLab support lets Hyperlocalise inspect localized strings from GitLab.com projects in the conversation sandbox.",
+          "GitLab support lets Hyperlocalise inspect localized strings from GitLab.com and self-hosted projects in chat and automations.",
         id: "intGitLabOverview0",
         description: "GitLab integration marketing overview paragraph",
       },
       {
         defaultMessage:
-          "Connect GitLab through WorkOS Pipes so Hyperlocalise can list membership projects and clone them into the chat sandbox.",
+          "Connect GitLab.com through WorkOS Pipes, or add a self-hosted instance with a personal access token, so Hyperlocalise can list membership projects and clone them.",
         id: "intGitLabOverview1",
         description: "GitLab integration marketing overview paragraph",
       },

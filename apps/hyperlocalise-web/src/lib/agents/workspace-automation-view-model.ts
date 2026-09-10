@@ -52,8 +52,11 @@ export type WorkspaceAutomationFormState = {
   scheduledHourUtc: number;
   scheduledDayOfWeek: number;
   scheduledTimezone: string;
-  repositoryTargetKind: "none" | "github";
+  repositoryTargetKind: "none" | "github" | "gitlab";
   githubInstallationRepositoryId: string;
+  gitlabEnabled: boolean;
+  gitlabPathWithNamespace: string;
+  gitlabConnectionId: string;
   githubEnabled: boolean;
   githubMode: WorkspaceAutomationGithubToolMode;
   pushSourceEnabled: boolean;
@@ -121,6 +124,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "model"
     | "projectId"
     | "githubRepository"
+    | "gitlabRepository"
     | "trigger"
     | "pushBranches"
     | "githubEvents"
@@ -144,6 +148,15 @@ export type WorkspaceAutomationFieldErrors = Partial<
 
 export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
+  gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
+  gitlab_github_exclusive: "GitHub and GitLab cannot be enabled on the same automation.",
+  gitlab_agent_trigger_required: "Use GitLab repo automations with a scheduled or manual trigger.",
+  gitlab_connection_required: "Choose a GitLab connection.",
+  gitlab_connection_not_found:
+    "The selected GitLab connection was not found. Choose another connection.",
+  gitlab_not_connected: "Connect GitLab in Integrations before using it.",
+  gitlab_pipes_needs_reauthorization: "Reconnect GitLab in Integrations, then try again.",
+  gitlab_pipes_unavailable: "GitLab is unavailable until WorkOS Pipes is configured.",
   project_required: "Choose a Hyperlocalise project for this automation.",
   github_project_required: "Choose a Hyperlocalise project for this automation.",
   contentful_project_required: "Choose a Hyperlocalise project for this automation.",
@@ -154,7 +167,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -225,6 +238,9 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     scheduledTimezone: "UTC",
     repositoryTargetKind: "none",
     githubInstallationRepositoryId: "",
+    gitlabEnabled: false,
+    gitlabPathWithNamespace: "",
+    gitlabConnectionId: "",
     githubEnabled: false,
     githubMode: "sync",
     pushSourceEnabled: false,
@@ -274,6 +290,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   automation: WorkspaceAutomationRecord,
 ): WorkspaceAutomationFormState {
   const github = automation.toolConfig.github;
+  const gitlab = automation.toolConfig.gitlab;
   const slack = automation.toolConfig.slack;
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
@@ -323,6 +340,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
     repositoryTargetKind: automation.repositoryTarget.kind,
     githubInstallationRepositoryId:
       automation.repositoryTarget.githubInstallationRepositoryId ?? "",
+    gitlabEnabled: Boolean(gitlab?.enabled),
+    gitlabPathWithNamespace: automation.repositoryTarget.gitlabPathWithNamespace ?? "",
+    gitlabConnectionId:
+      gitlab?.connectionId ?? automation.repositoryTarget.gitlabConnectionId ?? "",
     githubEnabled: Boolean(github?.enabled),
     githubMode: github?.mode ?? "sync",
     pushSourceEnabled: Boolean(github?.pushSource),
@@ -461,12 +482,18 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
               : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
-    (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
+    form.gitlabEnabled && form.gitlabPathWithNamespace.trim()
       ? {
-          kind: "github",
-          githubInstallationRepositoryId: form.githubInstallationRepositoryId,
+          kind: "gitlab",
+          gitlabPathWithNamespace: form.gitlabPathWithNamespace.trim(),
+          ...(form.gitlabConnectionId ? { gitlabConnectionId: form.gitlabConnectionId } : {}),
         }
-      : { kind: "none" };
+      : (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
+        ? {
+            kind: "github",
+            githubInstallationRepositoryId: form.githubInstallationRepositoryId,
+          }
+        : { kind: "none" };
 
   const toolConfig: WorkspaceAutomationToolConfig = {
     ...(form.githubEnabled
@@ -477,6 +504,14 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             pushSource: form.githubMode === "sync" ? form.pushSourceEnabled : false,
             pullTranslations: form.githubMode === "sync" ? form.pullTranslationsEnabled : false,
             validation: form.githubMode === "sync" ? form.validationEnabled : false,
+          },
+        }
+      : {}),
+    ...(form.gitlabEnabled
+      ? {
+          gitlab: {
+            enabled: true,
+            ...(form.gitlabConnectionId ? { connectionId: form.gitlabConnectionId } : {}),
           },
         }
       : {}),
@@ -667,6 +702,18 @@ export function validateWorkspaceAutomationFormState(
     errors.githubRepository = "Choose a GitHub repository.";
   }
 
+  if (form.gitlabEnabled) {
+    if (!form.gitlabPathWithNamespace.trim()) {
+      errors.gitlabRepository = "Choose a GitLab project.";
+    }
+    if (form.triggerMode !== "manual" && form.triggerMode !== "scheduled") {
+      errors.trigger = "Use GitLab repo automations with a scheduled or manual trigger.";
+    }
+    if (form.githubEnabled || form.githubCommentEnabled) {
+      errors.form = "GitHub and GitLab cannot be enabled on the same automation.";
+    }
+  }
+
   if (form.triggerMode === "github" && form.pushBranches.length === 0) {
     errors.pushBranches = "Add at least one branch pattern.";
   }
@@ -756,6 +803,16 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "github_repository_not_enabled":
     case "github_repository_archived":
       return { githubRepository: message };
+    case "gitlab_repository_target_required":
+    case "gitlab_not_connected":
+    case "gitlab_pipes_needs_reauthorization":
+    case "gitlab_pipes_unavailable":
+      return { gitlabRepository: message };
+    case "gitlab_connection_required":
+    case "gitlab_connection_not_found":
+      return { gitlabRepository: message };
+    case "gitlab_github_exclusive":
+      return { form: message };
     case "project_required":
     case "github_project_required":
     case "contentful_project_required":
@@ -764,6 +821,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { projectId: message };
     case "github_trigger_required":
     case "github_agent_trigger_required":
+    case "gitlab_agent_trigger_required":
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };
@@ -840,6 +898,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
 
   return (
     form.githubEnabled ||
+    form.gitlabEnabled ||
     form.slackEnabled ||
     form.emailEnabled ||
     form.githubCommentEnabled ||

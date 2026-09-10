@@ -19,6 +19,11 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
+import {
+  getGitLabPipesConnectionStatus,
+  resolveGitLabPipesWorkosUserId,
+} from "@/lib/gitlab/pipes";
+import { lockGitLabConnectionForUpdate } from "@/lib/gitlab/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { lockZernioConnectionForUpdate } from "@/lib/zernio/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
@@ -30,6 +35,7 @@ import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "./workspace-automation-github-mapping";
+import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 import {
   formatWorkspaceAutomationAuthorName,
@@ -115,14 +121,45 @@ function validateWorkspaceAutomationConfig(input: {
 
   const githubTools = input.toolConfig.github;
   const githubCommentEnabled = Boolean(input.toolConfig.githubComment?.enabled);
+  const gitlabTools = input.toolConfig.gitlab;
+  const githubTargetSelected =
+    input.repositoryTarget.kind === "github" &&
+    Boolean(input.repositoryTarget.githubInstallationRepositoryId);
+  const gitlabTargetSelected =
+    input.repositoryTarget.kind === "gitlab" &&
+    Boolean(input.repositoryTarget.gitlabPathWithNamespace);
+
+  if ((githubTools?.enabled || githubCommentEnabled) && gitlabTools?.enabled) {
+    return err({
+      code: "gitlab_github_exclusive",
+      message: "GitHub and GitLab cannot be enabled on the same automation.",
+    });
+  }
+
   if (githubTools?.enabled || githubCommentEnabled) {
-    if (
-      input.repositoryTarget.kind !== "github" ||
-      !input.repositoryTarget.githubInstallationRepositoryId
-    ) {
+    if (!githubTargetSelected) {
       return err({
         code: "github_repository_target_required",
         message: "Enabled GitHub tools require a GitHub repository target.",
+      });
+    }
+  }
+
+  if (gitlabTools?.enabled) {
+    if (!gitlabTargetSelected) {
+      return err({
+        code: "gitlab_repository_target_required",
+        message: "Enabled GitLab tools require a GitLab project target.",
+      });
+    }
+
+    if (
+      input.triggerConfig.mode !== "manual" &&
+      input.triggerConfig.mode !== "scheduled"
+    ) {
+      return err({
+        code: "gitlab_agent_trigger_required",
+        message: "GitLab repo agent automations support scheduled or manual triggers only.",
       });
     }
   }
@@ -152,6 +189,7 @@ function validateWorkspaceAutomationConfig(input: {
     input.triggerConfig.mode === "scheduled" &&
     !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationGitlabAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
     !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
@@ -161,7 +199,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -306,6 +344,12 @@ export async function validateWorkspaceAutomationIntegrations(input: {
    * Requires `db` to be a transaction client.
    */
   lockZernioConnection?: boolean;
+  /**
+   * When true, locks the selected GitLab connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockGitLabConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
   const database = input.db ?? db;
 
@@ -545,6 +589,81 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.gitlab?.enabled) {
+    const connectionId = input.toolConfig.gitlab.connectionId;
+    if (connectionId) {
+      const connection = input.lockGitLabConnection
+        ? await lockGitLabConnectionForUpdate({
+            organizationId: input.organizationId,
+            connectionId,
+            db: database,
+          })
+        : ((
+            await database
+              .select({
+                id: schema.gitlabConnections.id,
+                enabled: schema.gitlabConnections.enabled,
+                validationStatus: schema.gitlabConnections.validationStatus,
+              })
+              .from(schema.gitlabConnections)
+              .where(
+                and(
+                  eq(schema.gitlabConnections.organizationId, input.organizationId),
+                  eq(schema.gitlabConnections.id, connectionId),
+                ),
+              )
+              .limit(1)
+          )[0] ?? null);
+
+      if (!connection) {
+        return err({
+          code: "gitlab_connection_not_found",
+          message: "The selected GitLab connection was not found. Choose another connection.",
+        });
+      }
+
+      if (!connection.enabled || connection.validationStatus !== "valid") {
+        return err({
+          code: "gitlab_not_connected",
+          message: "Connect GitLab in Integrations before using it.",
+        });
+      }
+    } else {
+      const workosUserId = input.toolConfig.gitlab.workosUserId;
+      if (!workosUserId) {
+        return err({
+          code: "gitlab_not_connected",
+          message: "Connect GitLab in Integrations before using it.",
+        });
+      }
+
+      const status = await getGitLabPipesConnectionStatus({
+        localOrganizationId: input.organizationId,
+        workosUserId,
+      });
+      if (isErr(status)) {
+        return err({
+          code: "gitlab_pipes_unavailable",
+          message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+        });
+      }
+
+      if (status.value.needsReauthorization) {
+        return err({
+          code: "gitlab_pipes_needs_reauthorization",
+          message: "Reconnect GitLab in Integrations, then try again.",
+        });
+      }
+
+      if (!status.value.connected) {
+        return err({
+          code: "gitlab_not_connected",
+          message: "Connect GitLab in Integrations before using it.",
+        });
+      }
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -704,6 +823,12 @@ function shouldLockZernioConnectionForToolConfig(
   return Boolean(toolConfig.zernio?.enabled && toolConfig.zernio.connectionId);
 }
 
+function shouldLockGitLabConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.gitlab?.enabled && toolConfig.gitlab.connectionId);
+}
+
 async function stampPipesUsersOnToolConfig(input: {
   toolConfig: WorkspaceAutomationToolConfig;
   actorWorkosUserId?: string | null;
@@ -726,6 +851,31 @@ async function stampPipesUsersOnToolConfig(input: {
         ...(workosUserId ? { workosUserId } : {}),
       },
     };
+  }
+
+  if (toolConfig.gitlab?.enabled) {
+    if (toolConfig.gitlab.connectionId) {
+      toolConfig = {
+        ...toolConfig,
+        gitlab: {
+          enabled: true,
+          connectionId: toolConfig.gitlab.connectionId,
+        },
+      };
+    } else {
+      const workosUserId = await resolveGitLabPipesWorkosUserId({
+        workosUserId: input.actorWorkosUserId,
+        localUserId: input.authorUserId,
+      });
+
+      toolConfig = {
+        ...toolConfig,
+        gitlab: {
+          enabled: true,
+          ...(workosUserId ? { workosUserId } : {}),
+        },
+      };
+    }
   }
 
   if (toolConfig.email?.enabled) {
@@ -811,7 +961,9 @@ export async function createWorkspaceAutomation(input: {
 
   const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(toolConfig);
   const lockZernioConnection = shouldLockZernioConnectionForToolConfig(toolConfig);
-  const needsConnectionLock = lockSemrushConnection || lockZernioConnection;
+  const lockGitLabConnection = shouldLockGitLabConnectionForToolConfig(toolConfig);
+  const needsConnectionLock =
+    lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -822,6 +974,7 @@ export async function createWorkspaceAutomation(input: {
       db: database,
       lockSemrushConnection,
       lockZernioConnection,
+      lockGitLabConnection,
     });
     if (isErr(integrationValidation)) {
       return err(integrationValidation.error);
@@ -975,7 +1128,10 @@ export async function updateWorkspaceAutomation(input: {
     configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
   const lockZernioConnection =
     configChanged && shouldLockZernioConnectionForToolConfig(config.toolConfig);
-  const needsConnectionLock = lockSemrushConnection || lockZernioConnection;
+  const lockGitLabConnection =
+    configChanged && shouldLockGitLabConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock =
+    lockSemrushConnection || lockZernioConnection || lockGitLabConnection;
 
   const write = async (
     database: DatabaseClient,
@@ -989,6 +1145,7 @@ export async function updateWorkspaceAutomation(input: {
         db: database,
         lockSemrushConnection,
         lockZernioConnection,
+        lockGitLabConnection,
       });
       if (isErr(integrationValidation)) {
         return err(integrationValidation.error);

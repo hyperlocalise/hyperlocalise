@@ -445,7 +445,10 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     workosUserId: input.workosUserId,
     localUserId: input.localUserId,
   });
-  if (!workosUserId) {
+  const credentialOwner = input.gitlabContext.connectionId
+    ? `gitlab-connection:${input.gitlabContext.connectionId}`
+    : workosUserId;
+  if (!credentialOwner) {
     throw new Error("gitlab_not_connected");
   }
 
@@ -455,7 +458,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
   const canReuseStoredSandbox =
     sandboxSession != null &&
     sandboxSession.repositoryContextKey === repositoryContextKey &&
-    sandboxSession.credentialOwnerWorkosUserId === workosUserId;
+    sandboxSession.credentialOwnerWorkosUserId === credentialOwner;
 
   if (canReuseStoredSandbox && (await isRepositorySandboxAvailable(sandboxSession.sandboxId))) {
     log.info(
@@ -503,7 +506,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
-      credentialOwnerWorkosUserId: workosUserId,
+      credentialOwnerWorkosUserId: credentialOwner,
       createdAt: now,
       lastUsedAt: now,
     },

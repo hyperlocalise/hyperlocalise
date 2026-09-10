@@ -19,7 +19,7 @@ import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
 import { GITLAB_GIT_OAUTH_USERNAME } from "./constants";
-import { loadGitLabPipesAccessToken } from "./pipes";
+import { loadGitLabCloneCredentials } from "./credentials";
 
 const logger = createLogger("gitlab-repository-sandbox");
 
@@ -37,7 +37,7 @@ function gitlabRepositorySandboxRevisionKind(
 
 export async function createGitlabRepositorySandbox(input: {
   localOrganizationId: string;
-  workosUserId: string;
+  workosUserId?: string | null;
   gitlabContext: RepositoryAgentGitLabContext;
   cloneDepth?: number;
 }): Promise<string> {
@@ -45,14 +45,15 @@ export async function createGitlabRepositorySandbox(input: {
     projectId: input.gitlabContext.projectId,
     revisionKind: gitlabRepositorySandboxRevisionKind(input.gitlabContext),
   });
-  log.info("vending gitlab pipes access token for repository sandbox");
+  log.info("resolving gitlab access token for repository sandbox");
 
-  const tokenResult = await loadGitLabPipesAccessToken({
+  const tokenResult = await loadGitLabCloneCredentials({
     localOrganizationId: input.localOrganizationId,
     workosUserId: input.workosUserId,
+    connectionId: input.gitlabContext.connectionId,
   });
   if (isErr(tokenResult)) {
-    log.error({ err: tokenResult.error.code }, "gitlab pipes token unavailable for sandbox clone");
+    log.error({ err: tokenResult.error.code }, "gitlab token unavailable for sandbox clone");
     throw new Error(tokenResult.error.code);
   }
 
@@ -67,7 +68,7 @@ export async function createGitlabRepositorySandbox(input: {
         revision,
         depth: input.cloneDepth ?? 1,
         username: GITLAB_GIT_OAUTH_USERNAME,
-        password: tokenResult.value,
+        password: tokenResult.value.accessToken,
       },
     });
     log.info({ sandboxId: workspace.id }, "vercel gitlab repository sandbox created");

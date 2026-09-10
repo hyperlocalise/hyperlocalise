@@ -53,10 +53,13 @@ Open **Integrations**, find **GitLab**, then connect it through the WorkOS Pipes
 After you connect GitLab:
 
 1. Chat lists GitLab.com projects you can clone (Reporter access or higher).
-2. Selecting a project, or pasting a `gitlab.com` project or merge request URL, clones that project into the conversation sandbox.
-3. Clone uses the connected user's OAuth token (`oauth2` over HTTPS). Reconnect GitLab if Pipes asks.
+2. Selecting a project, or pasting a project or merge request URL, clones that project into the conversation sandbox.
+3. Clone uses HTTPS username `oauth2` and the access token as the password. Reconnect GitLab if Pipes asks.
+4. Add **Use GitLab repo** on a scheduled or manual automation to run the same read-only repository agent GitHub has.
 
-Self-hosted GitLab, merge-request automations, and a dedicated GitLab workspace tool are not included.
+GitLab.com stays on Pipes. For a self-hosted instance, open **Integrations** and add a **Self-hosted GitLab** connection with a public HTTPS URL and a personal access token (`read_api` and `read_repository`). Hyperlocalise rejects `gitlab.com` as a self-hosted URL. Self-hosted hosts must be reachable over public HTTPS (no loopback).
+
+Merge-request comment tools and GitLab sync workflows are not included.
 
 ## TMS and CLI sync
 

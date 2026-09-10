@@ -80,6 +80,35 @@ export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: automationEditorContentfulConnectionsFixture }),
   ),
+  http.get("/api/orgs/:organizationSlug/gitlab-connections", () =>
+    HttpResponse.json({ gitlabConnections: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
+    HttpResponse.json({
+      projects: [
+        {
+          id: 11,
+          name: "web",
+          pathWithNamespace: "acme/platform/web",
+          defaultBranch: "main",
+          httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
+          archived: false,
+          instanceOrigin: "https://gitlab.com",
+          connectionId: null,
+        },
+      ],
+    }),
+  ),
+  http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
+    HttpResponse.json({
+      pipe: {
+        provider: params.provider,
+        connected: params.provider === "gitlab" || params.provider === "resend",
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      },
+    }),
+  ),
   http.get("/api/orgs/:organizationSlug/knowledge-memory", () =>
     HttpResponse.json({
       knowledgeMemory: {
@@ -139,6 +168,22 @@ export const automationEditorDisconnectedMswHandlers = [
   ),
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/gitlab-connections", () =>
+    HttpResponse.json({ gitlabConnections: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
+    HttpResponse.json({ projects: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
+    HttpResponse.json({
+      pipe: {
+        provider: params.provider,
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      },
+    }),
   ),
 ];
 

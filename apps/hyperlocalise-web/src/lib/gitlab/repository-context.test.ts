@@ -12,18 +12,25 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { loadGitLabPipesAccessTokenMock, getGitLabProjectMock, getGitLabMergeRequestMock } =
+const { loadGitLabCloneCredentialsMock, getGitLabProjectMock, getGitLabMergeRequestMock } =
   vi.hoisted(() => ({
-    loadGitLabPipesAccessTokenMock: vi.fn(),
+    loadGitLabCloneCredentialsMock: vi.fn(),
     getGitLabProjectMock: vi.fn(),
     getGitLabMergeRequestMock: vi.fn(),
   }));
 
 vi.mock("./pipes", () => ({
-  loadGitLabPipesAccessToken: loadGitLabPipesAccessTokenMock,
   resolveGitLabPipesWorkosUserId: vi.fn(async (input: { workosUserId?: string | null }) =>
     input.workosUserId ? input.workosUserId : null,
   ),
+}));
+
+vi.mock("./credentials", () => ({
+  loadGitLabCloneCredentials: (...args: unknown[]) => loadGitLabCloneCredentialsMock(...args),
+}));
+
+vi.mock("./connections", () => ({
+  listEnabledGitLabConnections: vi.fn(async () => []),
 }));
 
 vi.mock("./client", () => ({
@@ -45,7 +52,9 @@ describe("resolveGitLabProjectContext", () => {
   });
 
   it("returns sandbox clone context for a membership project", async () => {
-    loadGitLabPipesAccessTokenMock.mockResolvedValue(ok("oauth-token"));
+    loadGitLabCloneCredentialsMock.mockResolvedValue(
+      ok({ accessToken: "oauth-token", apiOrigin: "https://gitlab.com", connectionId: null }),
+    );
     getGitLabProjectMock.mockResolvedValue(
       ok({
         id: 11,
@@ -69,12 +78,56 @@ describe("resolveGitLabProjectContext", () => {
       projectId: 11,
       repositoryFullName: "acme/platform/web",
       httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
+      instanceOrigin: "https://gitlab.com",
       branch: "main",
     });
   });
 
+  it("resolves a self-hosted project with a connection token", async () => {
+    const connectionId = "11111111-1111-4111-8111-111111111111";
+    loadGitLabCloneCredentialsMock.mockResolvedValue(
+      ok({
+        accessToken: "glpat-self-hosted",
+        apiOrigin: "https://gitlab.acme.example",
+        connectionId,
+      }),
+    );
+    getGitLabProjectMock.mockResolvedValue(
+      ok({
+        id: 22,
+        name: "platform",
+        pathWithNamespace: "acme/platform",
+        defaultBranch: "main",
+        httpUrlToRepo: "https://gitlab.acme.example/acme/platform.git",
+        archived: false,
+      }),
+    );
+
+    await expect(
+      resolveGitLabProjectContext({
+        localOrganizationId: "org-local",
+        pathWithNamespace: "acme/platform",
+        connectionId,
+      }),
+    ).resolves.toEqual({
+      resolved: true,
+      provider: "gitlab",
+      projectId: 22,
+      repositoryFullName: "acme/platform",
+      httpUrlToRepo: "https://gitlab.acme.example/acme/platform.git",
+      instanceOrigin: "https://gitlab.acme.example",
+      connectionId,
+      branch: "main",
+    });
+    expect(loadGitLabCloneCredentialsMock).toHaveBeenCalledWith({
+      localOrganizationId: "org-local",
+      workosUserId: undefined,
+      connectionId,
+    });
+  });
+
   it("returns null when GitLab is not connected", async () => {
-    loadGitLabPipesAccessTokenMock.mockResolvedValue(
+    loadGitLabCloneCredentialsMock.mockResolvedValue(
       err({ code: "gitlab_not_connected", message: "Connect GitLab" }),
     );
 
@@ -94,7 +147,9 @@ describe("resolveConversationRepositoryGitLabContext", () => {
   });
 
   it("resolves a merge request URL to clone context", async () => {
-    loadGitLabPipesAccessTokenMock.mockResolvedValue(ok("oauth-token"));
+    loadGitLabCloneCredentialsMock.mockResolvedValue(
+      ok({ accessToken: "oauth-token", apiOrigin: "https://gitlab.com", connectionId: null }),
+    );
     getGitLabProjectMock.mockResolvedValue(
       ok({
         id: 11,
@@ -127,6 +182,7 @@ describe("resolveConversationRepositoryGitLabContext", () => {
         projectId: 11,
         repositoryFullName: "acme/platform/web",
         httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
+        instanceOrigin: "https://gitlab.com",
         mergeRequestIid: 42,
         branch: "fix-copy",
         commitSha: "abc123",

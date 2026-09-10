@@ -21,6 +21,8 @@ export const repositoryAgentGitLabContextSchema = z.object({
   projectId: z.number(),
   repositoryFullName: z.string(),
   httpUrlToRepo: z.string(),
+  instanceOrigin: z.string().optional(),
+  connectionId: z.string().uuid().optional(),
   mergeRequestIid: z.number().optional(),
   branch: z.string().optional(),
   commitSha: z.string().optional(),

@@ -20,6 +20,7 @@ import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
+import { GitLabSelfHostedPanel } from "./gitlab-self-hosted-panel";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
@@ -108,6 +109,10 @@ export function SourceControlIntegrationsSection({
       <PipesIntegrationList
         organizationSlug={organizationSlug}
         slugs={workspacePipesSourceControlSlugs}
+        disabled={!userIsAdmin}
+      />
+      <GitLabSelfHostedPanel
+        organizationSlug={organizationSlug}
         disabled={!userIsAdmin}
         isLast
       />

@@ -18,6 +18,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 const pipesMocks = vi.hoisted(() => ({
   getAhrefsPipesConnectionStatus: vi.fn(),
   getEmailPipesConnectionStatus: vi.fn(),
+  getGitLabPipesConnectionStatus: vi.fn(),
 }));
 
 const { enqueueAutomationRunStartedActivityMock } = vi.hoisted(() => ({
@@ -46,6 +47,15 @@ vi.mock("@/lib/email/pipes", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/gitlab/pipes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/gitlab/pipes")>();
+  return {
+    ...actual,
+    getGitLabPipesConnectionStatus: (...args: unknown[]) =>
+      pipesMocks.getGitLabPipesConnectionStatus(...args),
+  };
+});
+
 import { db, schema } from "@/lib/database/client";
 import { ok, type Result } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
@@ -54,7 +64,7 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { createSemrushConnection } from "@/lib/semrush/connections";
+import { createGitLabConnection } from "@/lib/gitlab/connections";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import {
@@ -280,6 +290,13 @@ describe("workspace automations", () => {
       }),
     );
     pipesMocks.getEmailPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
+    pipesMocks.getGitLabPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: false,
         needsReauthorization: false,
@@ -535,7 +552,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -585,7 +602,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -1499,6 +1516,152 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("creates GitLab.com and self-hosted automations and keeps GitHub exclusive", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "GitLab automation",
+      instructions: "Review localisation impact.",
+      triggerConfig: { mode: "manual" as const },
+    };
+
+    const disconnected = await createWorkspaceAutomation({
+      ...base,
+      actorWorkosUserId: "user_workos",
+      repositoryTarget: {
+        kind: "gitlab",
+        gitlabPathWithNamespace: "acme/web",
+      },
+      toolConfig: {
+        gitlab: { enabled: true },
+      },
+    });
+    expect(disconnected.ok).toBe(false);
+    if (disconnected.ok) {
+      throw new Error("expected gitlab not-connected validation error");
+    }
+    expect(disconnected.error.code).toBe("gitlab_not_connected");
+
+    pipesMocks.getGitLabPipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
+    const gitlabCom = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        actorWorkosUserId: "user_workos",
+        repositoryTarget: {
+          kind: "gitlab",
+          gitlabPathWithNamespace: "acme/web",
+        },
+        toolConfig: {
+          gitlab: { enabled: true },
+        },
+      }),
+    );
+    expect(gitlabCom.toolConfig.gitlab).toEqual({
+      enabled: true,
+      workosUserId: "user_workos",
+    });
+    expect(gitlabCom.repositoryTarget).toEqual({
+      kind: "gitlab",
+      gitlabPathWithNamespace: "acme/web",
+    });
+
+    const exclusive = await createWorkspaceAutomation({
+      ...base,
+      actorWorkosUserId: "user_workos",
+      repositoryTarget: {
+        kind: "github",
+        githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+      },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        gitlab: { enabled: true },
+      },
+    });
+    expect(exclusive.ok).toBe(false);
+    if (exclusive.ok) {
+      throw new Error("expected gitlab github exclusive error");
+    }
+    expect(exclusive.error.code).toBe("gitlab_github_exclusive");
+
+    const githubTrigger = await createWorkspaceAutomation({
+      ...base,
+      actorWorkosUserId: "user_workos",
+      triggerConfig: {
+        mode: "github",
+        branches: ["main"],
+        events: ["push"],
+      },
+      repositoryTarget: {
+        kind: "gitlab",
+        gitlabPathWithNamespace: "acme/web",
+      },
+      toolConfig: {
+        gitlab: { enabled: true },
+      },
+    });
+    expect(githubTrigger.ok).toBe(false);
+    if (githubTrigger.ok) {
+      throw new Error("expected gitlab agent trigger error");
+    }
+    expect(githubTrigger.error.code).toBe("gitlab_agent_trigger_required");
+
+    const connection = expectOk(
+      await createGitLabConnection({
+        organizationId: scope.organizationId,
+        userId: scope.userId,
+        displayName: "Self-hosted GitLab",
+        baseUrl: "https://gitlab.acme.example",
+        accessToken: "glpat-self-hosted-token",
+        enabled: true,
+        validate: false,
+      }),
+    );
+    await db
+      .update(schema.gitlabConnections)
+      .set({ validationStatus: "valid", validationMessage: "test" })
+      .where(eq(schema.gitlabConnections.id, connection.id));
+
+    const scheduled = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        name: "Scheduled GitLab review",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+        repositoryTarget: {
+          kind: "gitlab",
+          gitlabPathWithNamespace: "acme/platform",
+          gitlabConnectionId: connection.id,
+        },
+        toolConfig: {
+          gitlab: {
+            enabled: true,
+            connectionId: connection.id,
+          },
+        },
+      }),
+    );
+    expect(scheduled.toolConfig.gitlab).toEqual({
+      enabled: true,
+      connectionId: connection.id,
+    });
+    expect(scheduled.toolConfig.gitlab).not.toHaveProperty("workosUserId");
   });
 
   it("rejects Crowdin tools without a linked project or Crowdin connection", async () => {

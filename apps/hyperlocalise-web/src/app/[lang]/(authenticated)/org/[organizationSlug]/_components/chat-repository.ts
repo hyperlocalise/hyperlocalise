@@ -22,21 +22,40 @@ export type ChatRepository = {
   name: string;
   provider: ChatRepositoryProvider;
   selectionKey: string;
+  gitlabConnectionId?: string | null;
 };
+
+const GITLAB_CONNECTION_KEY_PREFIX = "gitlab-connection:";
 
 export function chatRepositorySelectionKey(
   provider: ChatRepositoryProvider,
   fullName: string,
+  gitlabConnectionId?: string | null,
 ): string {
+  if (provider === "gitlab" && gitlabConnectionId) {
+    return `${GITLAB_CONNECTION_KEY_PREFIX}${gitlabConnectionId}:${fullName}`;
+  }
   return `${provider}:${fullName}`;
 }
 
-export function parseChatRepositorySelectionKey(
-  key: string,
-): { provider: ChatRepositoryProvider; fullName: string } | null {
+export function parseChatRepositorySelectionKey(key: string): {
+  provider: ChatRepositoryProvider;
+  fullName: string;
+  gitlabConnectionId?: string;
+} | null {
   if (key.startsWith("github:")) {
     const fullName = key.slice("github:".length);
     return fullName ? { provider: "github", fullName } : null;
+  }
+  if (key.startsWith(GITLAB_CONNECTION_KEY_PREFIX)) {
+    const rest = key.slice(GITLAB_CONNECTION_KEY_PREFIX.length);
+    const separator = rest.indexOf(":");
+    if (separator <= 0) {
+      return null;
+    }
+    const gitlabConnectionId = rest.slice(0, separator);
+    const fullName = rest.slice(separator + 1);
+    return fullName ? { provider: "gitlab", fullName, gitlabConnectionId } : null;
   }
   if (key.startsWith("gitlab:")) {
     const fullName = key.slice("gitlab:".length);
@@ -62,6 +81,7 @@ export function toChatRepositoryFromGitlab(project: {
   defaultBranch: string | null;
   name: string;
   pathWithNamespace: string;
+  connectionId?: string | null;
 }): ChatRepository {
   return {
     archived: project.archived,
@@ -70,6 +90,11 @@ export function toChatRepositoryFromGitlab(project: {
     fullName: project.pathWithNamespace,
     name: project.name,
     provider: "gitlab",
-    selectionKey: chatRepositorySelectionKey("gitlab", project.pathWithNamespace),
+    gitlabConnectionId: project.connectionId ?? null,
+    selectionKey: chatRepositorySelectionKey(
+      "gitlab",
+      project.pathWithNamespace,
+      project.connectionId,
+    ),
   };
 }

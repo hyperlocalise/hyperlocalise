@@ -387,6 +387,56 @@ describe("workspace automation view model", () => {
     );
   });
 
+  it("maps a GitLab repo tool onto a gitlab repository target", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "GitLab digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "scheduled" as const,
+      gitlabEnabled: true,
+      gitlabPathWithNamespace: "acme/platform/web",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      repositoryTarget: {
+        kind: "gitlab",
+        gitlabPathWithNamespace: "acme/platform/web",
+      },
+      toolConfig: {
+        gitlab: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it("maps a self-hosted GitLab connection onto the payload", () => {
+    const connectionId = "11111111-1111-4111-8111-111111111111";
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Self-hosted GitLab digest",
+      instructions: "Review the repo.",
+      gitlabEnabled: true,
+      gitlabPathWithNamespace: "acme/platform",
+      gitlabConnectionId: connectionId,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      repositoryTarget: {
+        kind: "gitlab",
+        gitlabPathWithNamespace: "acme/platform",
+        gitlabConnectionId: connectionId,
+      },
+      toolConfig: {
+        gitlab: {
+          enabled: true,
+          connectionId,
+        },
+      },
+    });
+  });
+
   it("maps Contentful tool settings to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),

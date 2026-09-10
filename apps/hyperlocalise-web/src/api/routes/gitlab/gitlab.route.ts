@@ -30,7 +30,7 @@ export function createGitlabRoutes() {
         workosUserId: c.var.auth.user.workosUserId,
       });
 
-      if (result.error?.code === "gitlab_pipes_unavailable") {
+      if (result.error?.code === "gitlab_pipes_unavailable" && result.projects.length === 0) {
         return serviceUnavailableResponse(c, result.error.code, result.error.message);
       }
 

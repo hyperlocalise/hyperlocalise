@@ -12,52 +12,140 @@
  */
 import {
   extractGitLabMergeRequestReferences,
-  extractGitLabProjectPathReferences,
+  extractGitLabProjectReferences,
   normalizeGitLabPathWithNamespace,
 } from "@/lib/agent-contracts/gitlab-text-patterns";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { GITLAB_API_ORIGIN } from "./constants";
+import { listEnabledGitLabConnections } from "./connections";
+import { loadGitLabCloneCredentials } from "./credentials";
 import { getGitLabMergeRequest, getGitLabProject, listGitLabMembershipProjects } from "./client";
-import { loadGitLabPipesAccessToken, resolveGitLabPipesWorkosUserId } from "./pipes";
-import type { GitLabApiError, GitLabProject } from "./types";
+import { resolveGitLabPipesWorkosUserId } from "./pipes";
+import type { GitLabApiError, GitLabProject, ListedGitLabProject } from "./types";
 
 export type GitLabContextResolution =
   | { status: "not_applicable" }
   | { status: "resolved"; context: RepositoryAgentGitLabContext }
   | { status: "unresolved"; followUp: string };
 
+function toListedProject(input: {
+  project: GitLabProject;
+  instanceOrigin: string;
+  connectionId: string | null;
+}): ListedGitLabProject {
+  return {
+    ...input.project,
+    instanceOrigin: input.instanceOrigin,
+    connectionId: input.connectionId,
+  };
+}
+
+function toGitLabContext(input: {
+  project: GitLabProject;
+  instanceOrigin: string;
+  connectionId?: string | null;
+  mergeRequestIid?: number;
+  branch?: string;
+  commitSha?: string;
+}): RepositoryAgentGitLabContext {
+  return {
+    resolved: true,
+    provider: "gitlab",
+    projectId: input.project.id,
+    repositoryFullName: input.project.pathWithNamespace,
+    httpUrlToRepo: input.project.httpUrlToRepo,
+    instanceOrigin: input.instanceOrigin,
+    ...(input.connectionId ? { connectionId: input.connectionId } : {}),
+    ...(input.mergeRequestIid === undefined ? {} : { mergeRequestIid: input.mergeRequestIid }),
+    ...(input.branch ? { branch: input.branch } : {}),
+    ...(input.commitSha ? { commitSha: input.commitSha } : {}),
+  };
+}
+
 export async function listAccessibleGitLabProjects(input: {
   localOrganizationId: string;
   workosUserId: string;
   signal?: AbortSignal;
-}): Promise<{ projects: GitLabProject[]; error: GitLabApiError | null }> {
-  const tokenResult = await loadGitLabPipesAccessToken({
+}): Promise<{ projects: ListedGitLabProject[]; error: GitLabApiError | null }> {
+  const projects: ListedGitLabProject[] = [];
+  let pipesError: GitLabApiError | null = null;
+
+  const pipesCredentials = await loadGitLabCloneCredentials({
     localOrganizationId: input.localOrganizationId,
     workosUserId: input.workosUserId,
   });
-  if (isErr(tokenResult)) {
-    if (tokenResult.error.code === "gitlab_not_connected") {
-      return { projects: [], error: null };
+  if (isErr(pipesCredentials)) {
+    if (pipesCredentials.error.code !== "gitlab_not_connected") {
+      pipesError = pipesCredentials.error;
     }
-    return { projects: [], error: tokenResult.error };
+  } else {
+    const projectsResult = await listGitLabMembershipProjects({
+      accessToken: pipesCredentials.value.accessToken,
+      apiOrigin: pipesCredentials.value.apiOrigin,
+      signal: input.signal,
+    });
+    if (isErr(projectsResult)) {
+      pipesError = projectsResult.error;
+    } else {
+      for (const project of projectsResult.value) {
+        projects.push(
+          toListedProject({
+            project,
+            instanceOrigin: GITLAB_API_ORIGIN,
+            connectionId: null,
+          }),
+        );
+      }
+    }
   }
 
-  const projectsResult = await listGitLabMembershipProjects({
-    accessToken: tokenResult.value,
-    signal: input.signal,
+  const connections = await listEnabledGitLabConnections({
+    organizationId: input.localOrganizationId,
   });
-  if (isErr(projectsResult)) {
-    return { projects: [], error: projectsResult.error };
+  for (const connection of connections) {
+    const credential = await loadGitLabCloneCredentials({
+      localOrganizationId: input.localOrganizationId,
+      connectionId: connection.id,
+    });
+    if (isErr(credential)) {
+      continue;
+    }
+
+    const projectsResult = await listGitLabMembershipProjects({
+      accessToken: credential.value.accessToken,
+      apiOrigin: credential.value.apiOrigin,
+      signal: input.signal,
+    });
+    if (isErr(projectsResult)) {
+      continue;
+    }
+
+    for (const project of projectsResult.value) {
+      projects.push(
+        toListedProject({
+          project,
+          instanceOrigin: connection.baseUrl,
+          connectionId: connection.id,
+        }),
+      );
+    }
   }
 
-  return { projects: projectsResult.value, error: null };
+  if (projects.length > 0) {
+    return { projects, error: null };
+  }
+
+  return { projects, error: pipesError };
 }
 
 export async function resolveGitLabProjectContext(input: {
   localOrganizationId: string;
-  workosUserId: string;
+  workosUserId?: string | null;
   pathWithNamespace: string;
+  connectionId?: string | null;
+  instanceOrigin?: string | null;
   mergeRequestIid?: number;
   signal?: AbortSignal;
 }): Promise<RepositoryAgentGitLabContext | null> {
@@ -66,17 +154,20 @@ export async function resolveGitLabProjectContext(input: {
     return null;
   }
 
-  const tokenResult = await loadGitLabPipesAccessToken({
+  const credentialResult = await loadGitLabCloneCredentials({
     localOrganizationId: input.localOrganizationId,
     workosUserId: input.workosUserId,
+    connectionId: input.connectionId,
   });
-  if (isErr(tokenResult)) {
+  if (isErr(credentialResult)) {
     return null;
   }
 
+  const apiOrigin = input.instanceOrigin?.trim() || credentialResult.value.apiOrigin;
   const projectResult = await getGitLabProject({
-    accessToken: tokenResult.value,
+    accessToken: credentialResult.value.accessToken,
     pathWithNamespace,
+    apiOrigin,
     signal: input.signal,
   });
   if (isErr(projectResult)) {
@@ -85,36 +176,56 @@ export async function resolveGitLabProjectContext(input: {
 
   const project = projectResult.value;
   if (input.mergeRequestIid === undefined) {
-    return {
-      resolved: true,
-      provider: "gitlab",
-      projectId: project.id,
-      repositoryFullName: project.pathWithNamespace,
-      httpUrlToRepo: project.httpUrlToRepo,
+    return toGitLabContext({
+      project,
+      instanceOrigin: apiOrigin,
+      connectionId: credentialResult.value.connectionId,
       branch: project.defaultBranch ?? undefined,
-    };
+    });
   }
 
   const mergeRequestResult = await getGitLabMergeRequest({
-    accessToken: tokenResult.value,
+    accessToken: credentialResult.value.accessToken,
     pathWithNamespace: project.pathWithNamespace,
     mergeRequestIid: input.mergeRequestIid,
+    apiOrigin,
     signal: input.signal,
   });
   if (isErr(mergeRequestResult)) {
     return null;
   }
 
-  return {
-    resolved: true,
-    provider: "gitlab",
-    projectId: project.id,
-    repositoryFullName: project.pathWithNamespace,
-    httpUrlToRepo: project.httpUrlToRepo,
+  return toGitLabContext({
+    project,
+    instanceOrigin: apiOrigin,
+    connectionId: credentialResult.value.connectionId,
     mergeRequestIid: input.mergeRequestIid,
     branch: mergeRequestResult.value.sourceBranch ?? project.defaultBranch ?? undefined,
     commitSha: mergeRequestResult.value.commitSha ?? undefined,
-  };
+  });
+}
+
+async function allowedGitLabOrigins(organizationId: string): Promise<
+  { origin: string; connectionId: string | null }[]
+> {
+  const connections = await listEnabledGitLabConnections({ organizationId });
+  return [
+    { origin: GITLAB_API_ORIGIN, connectionId: null },
+    ...connections.map((connection) => ({
+      origin: connection.baseUrl,
+      connectionId: connection.id,
+    })),
+  ];
+}
+
+function connectionIdForOrigin(
+  origin: string,
+  origins: { origin: string; connectionId: string | null }[],
+): string | null {
+  const match = origins.find(
+    (entry) => entry.origin.toLowerCase() === origin.toLowerCase(),
+  );
+  return match?.connectionId ?? null;
 }
 
 export async function resolveConversationRepositoryGitLabContext(input: {
@@ -127,11 +238,10 @@ export async function resolveConversationRepositoryGitLabContext(input: {
     workosUserId: input.workosUserId,
     localUserId: input.localUserId,
   });
-  if (!workosUserId) {
-    return { status: "not_applicable" };
-  }
+  const origins = await allowedGitLabOrigins(input.organizationId);
+  const originValues = origins.map((entry) => entry.origin);
 
-  const mergeRequests = extractGitLabMergeRequestReferences(input.text);
+  const mergeRequests = extractGitLabMergeRequestReferences(input.text, originValues);
   if (mergeRequests.length > 1) {
     return {
       status: "unresolved",
@@ -146,6 +256,8 @@ export async function resolveConversationRepositoryGitLabContext(input: {
       localOrganizationId: input.organizationId,
       workosUserId,
       pathWithNamespace: reference.pathWithNamespace,
+      connectionId: connectionIdForOrigin(reference.origin, origins),
+      instanceOrigin: reference.origin,
       mergeRequestIid: reference.mergeRequestIid,
     });
     if (!context) {
@@ -158,8 +270,8 @@ export async function resolveConversationRepositoryGitLabContext(input: {
     return { status: "resolved", context };
   }
 
-  const projectPaths = extractGitLabProjectPathReferences(input.text);
-  if (projectPaths.length > 1) {
+  const projectReferences = extractGitLabProjectReferences(input.text, originValues);
+  if (projectReferences.length > 1) {
     return {
       status: "unresolved",
       followUp:
@@ -167,11 +279,14 @@ export async function resolveConversationRepositoryGitLabContext(input: {
     };
   }
 
-  if (projectPaths.length === 1) {
+  if (projectReferences.length === 1) {
+    const reference = projectReferences[0]!;
     const context = await resolveGitLabProjectContext({
       localOrganizationId: input.organizationId,
       workosUserId,
-      pathWithNamespace: projectPaths[0]!,
+      pathWithNamespace: reference.pathWithNamespace,
+      connectionId: connectionIdForOrigin(reference.origin, origins),
+      instanceOrigin: reference.origin,
     });
     if (!context) {
       return {
@@ -193,6 +308,7 @@ export function buildRepositoryGitLabContextInstructions(
     "Resolved GitLab repository context:",
     `- provider: gitlab`,
     `- repository: ${context.repositoryFullName}`,
+    context.instanceOrigin ? `- instance: ${context.instanceOrigin}` : null,
     context.mergeRequestIid === undefined ? null : `- mergeRequestIid: ${context.mergeRequestIid}`,
     context.branch ? `- branch: ${context.branch}` : null,
     context.commitSha ? `- commitSha: ${context.commitSha}` : null,

@@ -25,6 +25,7 @@ export const createConversationRequestSchema = z.object({
   projectId: optionalProjectIdSchema,
   repositoryFullName: z.string().trim().min(1).max(255).optional(),
   repositoryProvider: repositoryProviderSchema.optional(),
+  gitlabConnectionId: z.string().uuid().optional(),
 });
 
 export const listConversationsQuerySchema = z.object({
