@@ -843,7 +843,18 @@ export async function executeVisualWorkflowRun(input: {
     ? (decryptWorkflowPayload(stored.encryptedPayload) as Record<string, unknown>)
     : run.inputSnapshot;
   const definition = resolveRunDefinition({ run: { ...run, inputSnapshot: payload }, workflow });
-  if (!definition || payload.executionPlanVersion !== EXECUTION_PLAN_VERSION)
+  if (!definition)
+    return finishVisualWorkflowRun({
+      leaseToken,
+      runId: run.id,
+      organizationId: input.organizationId,
+      status: "failed",
+      error: {
+        code: "visual_workflow_definition_snapshot_missing",
+        message: "visual_workflow_definition_snapshot_missing",
+      },
+    });
+  if (payload.executionPlanVersion !== EXECUTION_PLAN_VERSION)
     return finishVisualWorkflowRun({
       leaseToken,
       runId: run.id,

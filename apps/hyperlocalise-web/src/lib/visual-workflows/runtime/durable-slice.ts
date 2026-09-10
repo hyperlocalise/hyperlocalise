@@ -107,6 +107,7 @@ export async function executeDurableWorkflowSlice(input: {
       organizationId: input.organizationId,
       triggerInput: {
         triggeredAt: input.run.createdAt,
+        scheduledRunAt: input.run.createdAt,
         ...Object.fromEntries(
           Object.entries(input.payload).filter(
             ([name]) =>

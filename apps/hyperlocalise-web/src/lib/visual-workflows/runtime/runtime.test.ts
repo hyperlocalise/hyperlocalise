@@ -78,6 +78,31 @@ describe("visual workflow node execution edges", () => {
     withPublicHttpFetchMock.mockReset();
   });
 
+  it("emits triggeredAt and scheduledRunAt for scheduled triggers", async () => {
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { hello: "world", triggeredAt: "2026-09-10T12:00:00.000Z" },
+    });
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context,
+      node: {
+        id: "t",
+        type: "trigger.scheduled",
+        config: createDefaultConfig("trigger.scheduled"),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        hello: "world",
+        triggeredAt: "2026-09-10T12:00:00.000Z",
+        scheduledRunAt: "2026-09-10T12:00:00.000Z",
+      },
+    });
+  });
+
   it("resolves empty for_each collections to an empty item list", async () => {
     const { executeVisualWorkflowNode } = await import("./execute-node");
     const context = createVisualWorkflowExecutionContext({ triggerInput: {} });

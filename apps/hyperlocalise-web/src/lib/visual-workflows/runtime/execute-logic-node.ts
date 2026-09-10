@@ -30,13 +30,24 @@ export function executeLogicVisualWorkflowNode(input: {
     case "trigger.manual":
     case "trigger.scheduled":
     case "trigger.github":
-    case "trigger.source_upload":
+    case "trigger.source_upload": {
+      const triggeredAt =
+        typeof context.trigger.triggeredAt === "string"
+          ? context.trigger.triggeredAt
+          : new Date().toISOString();
+      const scheduledRunAt =
+        typeof context.trigger.scheduledRunAt === "string"
+          ? context.trigger.scheduledRunAt
+          : triggeredAt;
       return {
         ok: true,
         output: {
           ...context.trigger,
+          triggeredAt,
+          ...(node.config.kind === "trigger.scheduled" ? { scheduledRunAt } : {}),
         },
       };
+    }
     case "logic.if": {
       const resolvedCondition = input.inputsResolved
         ? String(node.config.condition)

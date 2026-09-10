@@ -262,6 +262,7 @@ describe("visual workflow runs", () => {
       .update(schema.visualWorkflowRuns)
       .set({
         inputSnapshot: { lead: "no-definition" },
+        encryptedPayload: null,
         definitionVersion: workflow.definitionVersion,
       })
       .where(eq(schema.visualWorkflowRuns.id, run.id));
@@ -288,6 +289,7 @@ describe("visual workflow runs", () => {
     });
     expect(executed?.status).toBe("failed");
     expect(executed?.error).toMatchObject({
+      code: "visual_workflow_definition_snapshot_missing",
       message: "visual_workflow_definition_snapshot_missing",
     });
   });
