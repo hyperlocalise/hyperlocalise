@@ -19,9 +19,13 @@ const FILE_ONLY_CONVERSATION_TEXT = "Please translate the attached source file."
 function stubInboxApiClient() {
   const createConversationPost = vi.fn();
   const sendMessagePost = vi.fn();
+  const listGithubRepositoriesGet = vi.fn();
+  const listGitlabProjectsGet = vi.fn();
   return {
     createConversationPost,
     sendMessagePost,
+    listGithubRepositoriesGet,
+    listGitlabProjectsGet,
     client: {
       api: {
         orgs: {
@@ -35,10 +39,10 @@ function stubInboxApiClient() {
               },
             },
             "github-installation": {
-              repositories: { $get: vi.fn() },
+              repositories: { $get: listGithubRepositoriesGet },
             },
             gitlab: {
-              projects: { $get: vi.fn() },
+              projects: { $get: listGitlabProjectsGet },
             },
           },
         },
@@ -146,10 +150,8 @@ describe("createInboxApi FormData", () => {
   });
 
   it("merges GitHub repositories and GitLab projects into chat repository options", async () => {
-    const { client } = stubInboxApiClient();
-    const githubGet = client.api.orgs[":organizationSlug"]["github-installation"].repositories.$get;
-    const gitlabGet = client.api.orgs[":organizationSlug"].gitlab.projects.$get;
-    githubGet.mockResolvedValue(
+    const { client, listGithubRepositoriesGet, listGitlabProjectsGet } = stubInboxApiClient();
+    listGithubRepositoriesGet.mockResolvedValue(
       jsonResponse(
         {
           repositories: [
@@ -165,7 +167,7 @@ describe("createInboxApi FormData", () => {
         200,
       ),
     );
-    gitlabGet.mockResolvedValue(
+    listGitlabProjectsGet.mockResolvedValue(
       jsonResponse(
         {
           projects: [

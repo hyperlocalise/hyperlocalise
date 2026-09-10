@@ -83,11 +83,7 @@ type ReplyComposerViewProps = {
   lockedProjectId?: string | null;
   lockedProjectName?: string | null;
   onDraftChange?: (draft: string) => void;
-  onSend: (
-    text: string,
-    files: File[],
-    options?: ChatComposerSendOptions,
-  ) => void | Promise<void>;
+  onSend: (text: string, files: File[], options?: ChatComposerSendOptions) => void | Promise<void>;
   placeholder?: string;
   projects: ChatProjectOption[];
   projectsIsError: boolean;
@@ -253,7 +249,9 @@ export function ReplyComposerView({
                 repositoriesIsError={repositoriesIsError}
                 repositoriesIsLoading={repositoriesIsLoading}
                 selectedRepositoryKey={resolvedRepository?.selectionKey ?? ""}
-                onSelectRepository={(repository) => setSelectedRepositoryKey(repository.selectionKey)}
+                onSelectRepository={(repository) =>
+                  setSelectedRepositoryKey(repository.selectionKey)
+                }
                 triggerStyle="prompt-input"
               />
               <PromptInputSubmit

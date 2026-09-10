@@ -20,8 +20,7 @@ export type GitLabMergeRequestReference = GitLabProjectReference & {
   mergeRequestIid: number;
 };
 
-export const gitlabMergeRequestUrlPatternSource =
-  String.raw`https?:\/\/(?:www\.)?gitlab\.com\/((?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+)\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
+export const gitlabMergeRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com\/((?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+)\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
 
 const gitlabMergeRequestUrlPattern = new RegExp(gitlabMergeRequestUrlPatternSource, "gi");
 const gitlabProjectUrlPattern =

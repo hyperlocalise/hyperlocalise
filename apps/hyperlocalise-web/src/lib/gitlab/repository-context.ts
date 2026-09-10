@@ -193,9 +193,7 @@ export function buildRepositoryGitLabContextInstructions(
     "Resolved GitLab repository context:",
     `- provider: gitlab`,
     `- repository: ${context.repositoryFullName}`,
-    context.mergeRequestIid === undefined
-      ? null
-      : `- mergeRequestIid: ${context.mergeRequestIid}`,
+    context.mergeRequestIid === undefined ? null : `- mergeRequestIid: ${context.mergeRequestIid}`,
     context.branch ? `- branch: ${context.branch}` : null,
     context.commitSha ? `- commitSha: ${context.commitSha}` : null,
   ]

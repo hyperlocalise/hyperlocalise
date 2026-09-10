@@ -13,8 +13,6 @@
 import { generateText, Output, type LanguageModel, type ModelMessage } from "ai";
 import { z } from "zod";
 
-import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
-
 import type { RepositoryGitHubContextResolution } from "@/lib/agents/repository-context";
 
 export const conversationClassificationSchema = z.object({

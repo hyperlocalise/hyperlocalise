@@ -150,9 +150,7 @@ export function createInboxApi(client: ApiClient): InboxApi {
       if (gitlabResponse.status === 200) {
         const body = await gitlabResponse.json();
         repositories.push(
-          ...body.projects
-            .filter((project) => !project.archived)
-            .map(toChatRepositoryFromGitlab),
+          ...body.projects.filter((project) => !project.archived).map(toChatRepositoryFromGitlab),
         );
       }
 

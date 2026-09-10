@@ -106,7 +106,7 @@ describe("gitlabRoutes", () => {
       projects: [],
       error: { code: "gitlab_not_connected", message: "Connect GitLab" },
     });
-    const identity = fixture.createWorkosIdentityWithRole("member");
+    const identity = fixture.createWorkosIdentityWithRole("developer");
     const headers = await fixture.authHeadersFor(identity);
 
     const response = await client.api.orgs[":organizationSlug"].gitlab.projects.$get(

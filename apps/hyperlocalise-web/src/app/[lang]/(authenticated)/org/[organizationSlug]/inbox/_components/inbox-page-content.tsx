@@ -178,11 +178,12 @@ export const InboxPageContent = observer(function InboxPageContent({
     : null;
 
   const sendMessageMutation = useMutation({
-    mutationFn: (input: {
-      text: string;
-      files: File[];
-    } & ChatComposerSendOptions) =>
-      injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
+    mutationFn: (
+      input: {
+        text: string;
+        files: File[];
+      } & ChatComposerSendOptions,
+    ) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
     onSuccess: () => {
       void messagesQuery.refetch();
       void conversationsQuery.refetch();
@@ -190,10 +191,12 @@ export const InboxPageContent = observer(function InboxPageContent({
   });
 
   const createConversationMutation = useMutation({
-    mutationFn: (input: {
-      text: string;
-      files: File[];
-    } & ChatComposerSendOptions) => injectedInboxApi.createConversation(organizationSlug, input),
+    mutationFn: (
+      input: {
+        text: string;
+        files: File[];
+      } & ChatComposerSendOptions,
+    ) => injectedInboxApi.createConversation(organizationSlug, input),
   });
 
   const markReadMutation = useMutation({
@@ -230,11 +233,7 @@ export const InboxPageContent = observer(function InboxPageContent({
   const mutateAsync = sendMessageMutation.mutateAsync;
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
-    async (
-      text: string,
-      files: File[],
-      options?: ChatComposerSendOptions,
-    ) => {
+    async (text: string, files: File[], options?: ChatComposerSendOptions) => {
       if (composeNew) {
         try {
           const result = await createConversationAsync({ text, files, ...options });

@@ -59,10 +59,7 @@ describe("RepositorySelector", () => {
 
     renderWithIntl(
       <RepositorySelector
-        repositories={[
-          createRepository({ name: "web", fullName: "acme/web" }),
-          gitlabRepository,
-        ]}
+        repositories={[createRepository({ name: "web", fullName: "acme/web" }), gitlabRepository]}
         repositoriesIsError={false}
         repositoriesIsLoading={false}
         selectedRepositoryKey=""
