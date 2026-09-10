@@ -34,20 +34,16 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-tms-live-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
+import { ProjectAvatar } from "./project-avatar";
+import { ProjectDialog } from "./project-dialog";
 import {
   createEmptyProjectForm,
   createProjectFormFromRow,
   toProjectPayload,
   type ProjectFormValues,
 } from "./project-form";
-import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
-import { ProjectAvatar } from "./project-avatar";
-import {
-  PROJECTS_PAGE_SIZE,
-  ProjectsTable,
-  ProjectsTableHeader,
-} from "./projects-table";
+import { PROJECTS_PAGE_SIZE, ProjectsTable, ProjectsTableHeader } from "./projects-table";
 import { projectsPageContentMessages } from "./projects-page-content.messages";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 

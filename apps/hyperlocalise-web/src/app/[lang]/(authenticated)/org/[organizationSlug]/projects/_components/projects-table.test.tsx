@@ -28,7 +28,25 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
+
+function stubLoadedImages() {
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      complete = true;
+      naturalWidth = 16;
+      referrerPolicy = "";
+      crossOrigin: string | null = null;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    },
+  );
+}
 
 function renderWithIntl(ui: ReactElement) {
   return render(
@@ -179,6 +197,7 @@ describe("ProjectsTable", () => {
   });
 
   it("renders a project image when the TMS project has a logo", () => {
+    stubLoadedImages();
     renderWithIntl(
       <ProjectsTable
         projects={[
