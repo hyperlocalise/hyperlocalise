@@ -296,6 +296,7 @@ export async function applyNativeGlossaryImport(input: {
   );
   const retainedConceptIds = new Set<string>();
   const retainedTermIds = new Set<string>();
+  let mutated = false;
 
   let backupCleanup: (() => Promise<void>) | undefined;
   const transaction = db.transaction(async (tx) => {
@@ -513,6 +514,7 @@ export async function applyNativeGlossaryImport(input: {
             .update(schema.glossaryConcepts)
             .set(conceptUpdateValues)
             .where(eq(schema.glossaryConcepts.id, concept.id));
+          mutated = true;
           retainedConceptIds.add(concept.id);
           bump(counts, input.mode === "merge" ? "merged" : "updated", "concept");
         } else {
@@ -526,6 +528,7 @@ export async function applyNativeGlossaryImport(input: {
             })
             .returning();
           if (!created) throw new Error("glossary_concept_create_failed");
+          mutated = true;
           concept = created;
           conceptById.set(created.id, created);
           conceptByStableKey.set(incoming.id, created);
@@ -685,6 +688,7 @@ export async function applyNativeGlossaryImport(input: {
               .update(schema.glossaryTerms)
               .set(termUpdateValues)
               .where(eq(schema.glossaryTerms.id, existingTerm.id));
+            mutated = true;
             retainedTermIds.add(existingTerm.id);
             termByStableKey.set(incomingTerm.id, existingTerm);
             bump(counts, input.mode === "merge" ? "merged" : "updated", "term");
@@ -699,6 +703,7 @@ export async function applyNativeGlossaryImport(input: {
               })
               .returning();
             if (!created) throw new Error("glossary_term_create_failed");
+            mutated = true;
             termById.set(created.id, created);
             termByStableKey.set(incomingTerm.id, created);
             retainedTermIds.add(created.id);
@@ -710,22 +715,32 @@ export async function applyNativeGlossaryImport(input: {
     if (input.mode === "replace") {
       const termScope = eq(schema.glossaryTerms.glossaryId, input.glossaryId);
       if (retainedTermIds.size > 0) {
-        await tx
+        const deletedTerms = await tx
           .delete(schema.glossaryTerms)
-          .where(and(termScope, notInArray(schema.glossaryTerms.id, [...retainedTermIds])));
+          .where(and(termScope, notInArray(schema.glossaryTerms.id, [...retainedTermIds])))
+          .returning({ id: schema.glossaryTerms.id });
+        mutated ||= deletedTerms.length > 0;
       } else {
-        await tx.delete(schema.glossaryTerms).where(termScope);
+        const deletedTerms = await tx
+          .delete(schema.glossaryTerms)
+          .where(termScope)
+          .returning({ id: schema.glossaryTerms.id });
+        mutated ||= deletedTerms.length > 0;
       }
 
       const conceptScope = eq(schema.glossaryConcepts.glossaryId, input.glossaryId);
       if (retainedConceptIds.size > 0) {
-        await tx
+        const deletedConcepts = await tx
           .delete(schema.glossaryConcepts)
-          .where(
-            and(conceptScope, notInArray(schema.glossaryConcepts.id, [...retainedConceptIds])),
-          );
+          .where(and(conceptScope, notInArray(schema.glossaryConcepts.id, [...retainedConceptIds])))
+          .returning({ id: schema.glossaryConcepts.id });
+        mutated ||= deletedConcepts.length > 0;
       } else {
-        await tx.delete(schema.glossaryConcepts).where(conceptScope);
+        const deletedConcepts = await tx
+          .delete(schema.glossaryConcepts)
+          .where(conceptScope)
+          .returning({ id: schema.glossaryConcepts.id });
+        mutated ||= deletedConcepts.length > 0;
       }
     }
     const reportCounts = reportCountsFromDiagnostics(counts, diagnostics);
@@ -737,6 +752,27 @@ export async function applyNativeGlossaryImport(input: {
           backupFileId,
         })
       : undefined;
+    if (report && mutated && input.report) {
+      await tx.insert(schema.glossaryHistoryEvents).values({
+        organizationId: input.report.organizationId,
+        glossaryId: input.glossaryId,
+        eventType: "imported",
+        actorKind: "user",
+        actorUserId: input.report.createdByUserId,
+        actorCredentialId: null,
+        version: 1,
+        changedFields: ["concepts", "terms"],
+        changes: [],
+        attributes: {
+          source: "native",
+          importRunId: report.id,
+          format: input.report.format,
+          mode: input.report.mode,
+          sourceTotals: input.report.sourceTotals,
+          counts: reportCounts,
+        },
+      });
+    }
     return { counts: reportCounts, reportId: report?.id, backupFileId, aborted: false };
   });
   const result = await transaction.catch(async (error) => {

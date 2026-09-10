@@ -53,6 +53,7 @@ import type {
   tmsLinks,
   glossaryImportRuns,
   glossaryImportReportEntries,
+  glossaryHistoryEvents,
   otaDistributionFormatEnum,
   otaDistributions,
   otaReleases,
@@ -64,6 +65,8 @@ export type GlossaryImportRun = typeof glossaryImportRuns.$inferSelect;
 export type NewGlossaryImportRun = typeof glossaryImportRuns.$inferInsert;
 export type GlossaryImportReportEntry = typeof glossaryImportReportEntries.$inferSelect;
 export type NewGlossaryImportReportEntry = typeof glossaryImportReportEntries.$inferInsert;
+export type GlossaryHistoryEvent = typeof glossaryHistoryEvents.$inferSelect;
+export type NewGlossaryHistoryEvent = typeof glossaryHistoryEvents.$inferInsert;
 
 export type Memory = typeof memories.$inferSelect;
 export type NewMemory = typeof memories.$inferInsert;
