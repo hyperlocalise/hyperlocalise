@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useDomainResearchCatalog } from "./domain-research-context";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -31,10 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { TypographyP } from "@/components/ui/typography";
 import {
-  getResearchPrototypeCatalog,
-  DOMAIN_RESEARCH_MARKETS,
+  isLiveDomainResearchId,
   type DomainResearchCatalog,
   type KeywordIdea,
   type SerpResult,
@@ -51,7 +50,7 @@ import {
   type KeywordFilters,
   type KeywordSort,
 } from "@/lib/domains/keyword-screen";
-import { liveDomainResearchQueryKey, useLiveDomainResearch } from "./use-live-domain-research";
+import { liveDomainResearchQueryKey } from "./use-live-domain-research";
 
 const EMPTY_FILTERS: KeywordFilters = {
   include: "",
@@ -72,25 +71,15 @@ export function DomainKeywordsView({
   linkedDomainId: string;
   organizationSlug?: string;
 }) {
-  const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
-  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
-  const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
-
-  if (liveResearch.live && liveResearch.isPending) {
-    return (
-      <TypographyP size="small" tone="subtle">
-        <FormattedMessage {...shared.loading} />
-      </TypographyP>
-    );
-  }
-
+  const catalog = useDomainResearchCatalog(linkedDomainId);
+  const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   return catalog ? (
     <KeywordScreen
-      key={linkedDomainId}
+      key={`${linkedDomainId}-${catalog.market.id}`}
       catalog={catalog}
       linkedDomainId={linkedDomainId}
       organizationSlug={organizationSlug}
-      live={liveResearch.live}
+      live={live}
     />
   ) : null;
 }
@@ -111,7 +100,7 @@ function KeywordScreen({
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [market, setMarket] = useState(catalog.domain.market.id);
+
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState<KeywordSort>({ field: "volume", direction: "desc" });
@@ -125,10 +114,8 @@ function KeywordScreen({
   const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
   const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
   const [serpPending, setSerpPending] = useState(false);
-  const catalogKeywords = catalog.keywords.filter(
-    (keyword) => (keyword.marketId ?? catalog.domain.market.id) === market,
-  );
-  const keywords = ideas && expandedMarketId === market ? ideas : catalogKeywords;
+  const market = catalog.market.id;
+  const keywords = ideas && expandedMarketId === market ? ideas : catalog.keywords;
   const rows = filterKeywordIdeas(keywords, live ? "" : search, filters, sort);
   const active = resolveActiveKeyword(rows, activeId);
   const selectedRows = rows.filter((row) => selected.includes(row.id));
@@ -283,7 +270,7 @@ function KeywordScreen({
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `keywords-${catalog.domain.domainKey}-${market}.csv`;
+    link.download = `keywords-${catalog.domain.domainKey}-${catalog.market.id}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -291,7 +278,6 @@ function KeywordScreen({
     setQuery("");
     setSearch("");
     setFilters(EMPTY_FILTERS);
-    setMarket(catalog.domain.market.id);
     setSelected([]);
     setIdeas(null);
     setExpandedMarketId(null);
@@ -331,35 +317,6 @@ function KeywordScreen({
             placeholder={catalog.keywords[0]?.keyword ?? t(messages.query)}
             disabled={seedPending}
           />
-        </Field>
-        <Field className="w-full sm:w-48">
-          <FieldLabel htmlFor="keyword-market">{t(messages.market)}</FieldLabel>
-          <Select
-            value={market}
-            items={DOMAIN_RESEARCH_MARKETS.map((item) => ({ value: item.id, label: item.label }))}
-            onValueChange={(value) => {
-              if (value) {
-                setMarket(value);
-                setSelected([]);
-                setActiveId(
-                  value === catalog.domain.market.id ? (catalog.keywords[0]?.id ?? null) : null,
-                );
-              }
-            }}
-          >
-            <SelectTrigger id="keyword-market" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {DOMAIN_RESEARCH_MARKETS.map((item) => (
-                  <SelectItem key={item.id} value={item.id} label={item.label}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
         </Field>
         <Button type="submit" disabled={seedPending}>
           {seedPending ? <Spinner className="size-3.5" /> : null}

@@ -174,18 +174,16 @@ export async function getLiveDomainResearchCatalog(input: {
   const latestMarket =
     getResearchMarket(keywordRows[0]?.marketId ?? trackedRows[0]?.marketId ?? "") ??
     DOMAIN_RESEARCH_MARKETS[0]!;
-  const domain = {
-    ...toResearchDomain(linkedDomainResult.value, {
-      keywordCount: keywords.length,
-      trackedCount: ranks.length,
-    }),
-    market: latestMarket,
-  };
+  const domain = toResearchDomain(linkedDomainResult.value, {
+    keywordCount: keywords.length,
+    trackedCount: ranks.length,
+  });
 
   return ok({
     linkedDomain: linkedDomainResult.value,
     catalog: {
       domain,
+      market: latestMarket,
       keywords,
       ranks,
       overviewKeywords: ranks.flatMap((row) =>

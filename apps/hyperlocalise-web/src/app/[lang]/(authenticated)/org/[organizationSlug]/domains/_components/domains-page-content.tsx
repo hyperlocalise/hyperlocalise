@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,12 +21,14 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
+  isLiveDomainResearchId,
   linkedDomainToResearchDomain,
-  listResearchPrototypeDomains,
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useDomainPrototype } from "./use-domain-prototype";
 import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -39,11 +41,11 @@ import { domainsPageContentMessages as messages } from "./domains-page-content.m
 import styles from "./domain-header.module.css";
 
 const LIST_GRID_CLASS =
-  "grid grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.3fr)_minmax(7rem,0.8fr)_repeat(3,minmax(4rem,0.45fr))_auto_auto]";
+  "grid grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4rem_auto_auto]";
 
 export function DomainsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
-  const prototypeDomains = useMemo(() => listResearchPrototypeDomains(), []);
+  const { domains: prototypeDomains, saveDomain } = useDomainPrototype(organizationSlug);
   const linkedDomainsQuery = useQuery({
     queryKey: ["linked-domains", organizationSlug],
     queryFn: async () => {
@@ -61,10 +63,10 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
       return (body.linkedDomains ?? []).map((domain) => linkedDomainToResearchDomain(domain));
     },
   });
+  const liveDomains = linkedDomainsQuery.data ?? [];
   const domains: DomainResearchDomain[] =
-    linkedDomainsQuery.data && linkedDomainsQuery.data.length > 0
-      ? linkedDomainsQuery.data
-      : prototypeDomains;
+    liveDomains.length > 0 ? liveDomains : prototypeDomains;
+  const [editingDomain, setEditingDomain] = useState<DomainResearchDomain | undefined>();
   const [linkOpen, setLinkOpen] = useState(false);
   const [verifyDomainKey, setVerifyDomainKey] = useState<string | null>(null);
 
@@ -96,13 +98,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
             <FormattedMessage {...messages.columnDomain} />
           </span>
           <span>
-            <FormattedMessage {...messages.columnMarket} />
-          </span>
-          <span className="text-end">
-            <FormattedMessage {...messages.columnKeywords} />
-          </span>
-          <span className="text-end">
-            <FormattedMessage {...messages.columnTraffic} />
+            <FormattedMessage {...messages.columnLocales} />
           </span>
           <span className="text-end">
             <FormattedMessage {...messages.columnScore} />
@@ -118,33 +114,35 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
               >
                 <div className="min-w-0">
                   <OrgNavLink
-                    href={buildDomainPath(organizationSlug, domain.id)}
+                    href={buildDomainPath(organizationSlug, domain.id, "overview")}
                     className="font-medium text-foreground underline-offset-4 hover:underline"
                   >
                     {domain.domainKey}
                   </OrgNavLink>
-                  <p className="mt-1 text-sm text-muted-foreground md:hidden">
-                    {domain.market.label}
-                  </p>
                 </div>
-                <span className="hidden text-sm text-muted-foreground md:block">
-                  {domain.market.label}
-                </span>
-                <span className="hidden text-end tabular-nums text-sm text-muted-foreground md:block">
-                  {domain.keywordCountLabel}
-                </span>
-                <span className="hidden text-end tabular-nums text-sm text-muted-foreground md:block">
-                  {domain.trafficLabel}
-                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {domain.locales.map((locale) => (
+                    <Badge key={locale.id} variant="secondary">
+                      {locale.label}
+                    </Badge>
+                  ))}
+                </div>
                 <span className="hidden text-end tabular-nums text-sm text-muted-foreground md:block">
                   {domain.score ?? intl.formatMessage(messages.scoreUnavailable)}
                 </span>
                 <DomainStatusBadge status={domain.status} />
                 <div className="flex flex-wrap justify-end gap-2">
+                  {isLiveDomainResearchId(domain.id) ? null : (
+                    <Button size="sm" variant="ghost" onClick={() => setEditingDomain(domain)}>
+                      <FormattedMessage {...messages.editLocales} />
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
-                    render={<OrgNavLink href={buildDomainPath(organizationSlug, domain.id)} />}
+                    render={
+                      <OrgNavLink href={buildDomainPath(organizationSlug, domain.id, "overview")} />
+                    }
                   >
                     <FormattedMessage {...messages.openDomain} />
                   </Button>
@@ -160,7 +158,23 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
         </ul>
       </div>
 
-      <DomainLinkDialog open={linkOpen} onOpenChange={setLinkOpen} />
+      <DomainLinkDialog
+        open={linkOpen}
+        onOpenChange={setLinkOpen}
+        existingDomains={domains}
+        onSave={(domain) => {
+          saveDomain(domain);
+          setVerifyDomainKey(domain.domainKey);
+        }}
+      />
+      <DomainLinkDialog
+        open={Boolean(editingDomain)}
+        domain={editingDomain}
+        onOpenChange={(open) => {
+          if (!open) setEditingDomain(undefined);
+        }}
+        onSave={saveDomain}
+      />
       <DomainVerifyDialog
         open={Boolean(verifyDomainKey)}
         domainKey={verifyDomainKey ?? ""}

@@ -6,8 +6,10 @@ description: "Lokalise file workflow commands using project flags and API creden
 ## Usage
 
 ```bash
-hyperlocalise lokalise upload sources --project-id <id> --source-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--skip-detect-lang-iso] [--dry-run]
-hyperlocalise lokalise upload translations [--config <path>] [--project-id <id>] --target-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--dry-run]
+hyperlocalise lokalise locales list [--config <path>] [--project-id <id>] [--branch <name>] [--output text|json]
+hyperlocalise lokalise files list [--config <path>] [--project-id <id>] [--filter-filename <substr>] [--branch <name>] [--output text|json]
+hyperlocalise lokalise upload sources --project-id <id> --source-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--skip-detect-lang-iso] [--poll] [--poll-timeout <duration>] [--dry-run]
+hyperlocalise lokalise upload translations [--config <path>] [--project-id <id>] --target-locale <locale> --file <path> [--format <format>] [--branch <name>] [--tag <tag>] [--token-env <name>] [--api-base-url <url>] [--convert-placeholders] [--replace-modified] [--distinguish-by-file] [--apply-tm] [--poll] [--poll-timeout <duration>] [--dry-run]
 hyperlocalise lokalise download sources --project-id <id> --source-locale <locale> [--format <format>] [--output <path>] [--all-platforms] [--force] [--dry-run]
 hyperlocalise lokalise download translations --project-id <id> --target-locale <locale> [--format <format>] [--output <path>] [--bundle-structure <pattern>] [--branch <name>] [--force] [--dry-run]
 hyperlocalise lokalise glossary download --project-id <id> [--language <locale>] [--output <path>] [--token-env <name>] [--api-base-url <url>]
@@ -17,12 +19,14 @@ These commands are flag-only. Hyperlocalise does not read a Lokalise YAML config
 
 ## What this command family does
 
-These commands talk to the Lokalise API v2 file and glossary endpoints.
+These commands talk to the Lokalise API v2 file, language, queued-process, and glossary endpoints.
 
 They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Lokalise adapter](/cli/storage/lokalise). Use this surface when you want flag-driven file upload and download against a Lokalise project.
 
 Use them for:
 
+- listing project locales (`locales list`; lokalise2 `language list`)
+- listing project files (`files list`; lokalise2 `file list`)
 - source-file upload (`upload sources`)
 - import of a pre-translated locale file (`upload translations`)
 - source download (`download sources`)
@@ -39,21 +43,25 @@ Do not put the API token in `i18n.yml`. Point `apiTokenEnv` at an environment va
 
 ## Command notes
 
+`locales list` prints `id`, `iso`, and `name` from Lokalise project languages. `iso` is the value to pass as `--source-locale` or `--target-locale`. Lokalise has no default-locale field on this API. `--output` is `text` or `json`, not a file path. Empty projects print nothing in text mode and `[]` with `--output json`. Both exit 0.
+
+`files list` prints `id`, `filename`, and `keys`. Keys with no file association appear as `__unassigned__`. `--filter-filename` is Lokalise's substring filter, not a glob. `--output` is `text` or `json`.
+
 `upload sources` requires `--project-id` (or `projectID` in `--config`), `--source-locale` (or `sourceLanguage` in `--config`), and at least one `--file`. `--dry-run` checks files and flags and does not need a token.
 
 `upload translations` requires `--target-locale` on every run. It does not take the locale from `sourceLanguage` or `targetLanguages` in `--config`. Config may still supply the project id and token. The locale comes from the flag, not the filename: uploading `en.json` as French uses `--target-locale fr`.
 
 `--replace-modified` maps to Lokalise `replace_modified`. Off (the default) preserves translations Lokalise treats as modified. On replaces those modified translations from the uploaded file. It is not a guarantee that every existing key stays unchanged. Dry-run and the success line print `modified_translations=preserved` or `modified_translations=replaced`.
 
-Success means the import is queued, not that strings are already visible in Lokalise. The command prints a process id and stops. It does not wait for the background import to finish.
+Without `--poll`, success means the import is queued. The command prints a process id and stops. `--poll` waits until the queued process reaches `finished` (lokalise2 `--poll`). `--poll-timeout` defaults to 30s, matching lokalise2. CI should pass a longer duration such as `--poll-timeout 10m`. `--poll` does not mean translations were kept. `--dry-run` does not poll. `--poll-timeout` without `--poll` is ignored. This is not Phrase `--wait`.
 
 Lokalise matches files by name. Use the same filename as the source file when you can. Language codes in the name (`en.json` / `fr.json`) are usually treated as one file. A totally different name can create a second file.
 
-`--file` can repeat for several files in that one locale. Use a separate invocation for each target locale.
+`--file` can repeat for several files in that one locale. Use a separate invocation for each target locale. `--poll` waits for each file in order.
 
 `download translations` can take more than one `--target-locale`. Use `%locale%` in `--output` when you download more than one locale to files.
 
-`glossary download` writes CSV to stdout unless you pass `--output`.
+`glossary download` writes CSV to stdout unless you pass `--output`. That `--output` is a file path, unlike list `--output text|json`.
 
 ## Crowdin and lokalise2 gap inventory
 
@@ -62,32 +70,40 @@ Lokalise matches files by name. Use the same filename as the source file when yo
 | Crowdin `upload sources` / `upload translations` | `upload sources` / `upload translations` |
 | Crowdin `download sources` / `download translations` | `download sources` / `download translations` |
 | Crowdin `glossary download` | `glossary download` (Hyperlocalise CSV) |
+| lokalise2 `language list` | `locales list` |
+| lokalise2 `file list` | `files list` |
+| lokalise2 `file upload --poll` / `--poll-timeout` | `--poll` / `--poll-timeout` on `upload sources` and `upload translations` (default 30s; not `--wait`) |
 | Crowdin `init` / `crowdin.yml` / lokalise2 config file | Unsupported (flag-only) |
-| Crowdin `status`, branch, file list/delete, string list | Out of scope |
+| Crowdin `status`, branch, file delete, string list | Out of scope |
 | Crowdin `glossary upload` / `tm` list, download, upload | Out of scope (package has no TM export) |
-| Crowdin `auto-translate` / Lokalise tasks and jobs | Out of scope |
-| lokalise2 `file upload --lang-iso` | `upload sources` or `upload translations` (queued; no `--wait`) |
-| lokalise2 process wait / file list / key CRUD | Out of scope |
+| Crowdin `auto-translate` / Lokalise tasks and jobs / key CRUD | Out of scope |
 
 ## Examples
 
-Upload a source file, then a French translation that reuses the source filename:
+List locales, then upload a source file and wait for the import:
 
 ```bash
 export LOKALISE_API_TOKEN="your-lokalise-token"
+
+hyperlocalise lokalise locales list --project-id your-project-id
 
 hyperlocalise lokalise upload sources \
   --project-id your-project-id \
   --source-locale en \
   --file ./locales/en.json \
-  --dry-run
+  --poll \
+  --poll-timeout 10m
+```
 
+Upload a French translation that reuses the source filename:
+
+```bash
 hyperlocalise lokalise upload translations \
   --project-id your-project-id \
   --target-locale fr \
   --file ./locales/en.json \
   --replace-modified \
-  --dry-run
+  --poll
 ```
 
 Download French translations:

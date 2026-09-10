@@ -15,6 +15,32 @@
 import { defineMessages } from "react-intl";
 
 export const domainResearchShellMessages = defineMessages({
+  localeLabel: {
+    defaultMessage: "Research locale",
+    id: "M7q1LgOgRx",
+    description: "Shared locale selector label",
+  },
+  editLocales: {
+    defaultMessage: "Edit locales",
+    id: "D6IBUTnPaw",
+    description: "Manage domain locales from research",
+  },
+  localeScope: {
+    defaultMessage: "Applies to every research tab.",
+    id: "yWOL2/uNay",
+    description: "Research locale scope help",
+  },
+  localeEmptyTitle: {
+    defaultMessage: "No research for this locale yet",
+    id: "HaSJjDRAg0",
+    description: "Missing locale research title",
+  },
+  localeEmptyDescription: {
+    defaultMessage:
+      "There is no preview research for {locale}. Choose another locale to explore available data.",
+    id: "Zln5rf1e7d",
+    description: "Missing locale research explanation",
+  },
   navKeywords: {
     defaultMessage: "Keyword research",
     id: "8Gk5dEdlLz",
@@ -41,8 +67,9 @@ export const domainResearchShellMessages = defineMessages({
     description: "Domain research navigation label",
   },
   shellDescription: {
-    defaultMessage: "Research this domain in {market}.",
-    id: "xzG6mihfhR",
+    defaultMessage:
+      "{count, plural, one {# locale configured} other {# locales configured}}. Verification applies to the whole domain.",
+    id: "4+P6YOB0GC",
     description: "Domain research header description",
   },
   sectionLabel: {

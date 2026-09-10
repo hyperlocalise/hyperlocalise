@@ -15,15 +15,55 @@
 import { defineMessages } from "react-intl";
 
 export const domainLinkDialogMessages = defineMessages({
+  editTitle: {
+    defaultMessage: "Edit locales",
+    id: "K6HKJyJvL1",
+    description: "Domain locale dialog title",
+  },
+  editDescription: {
+    defaultMessage: "Choose the locales to research for this domain.",
+    id: "NVI4PGUZDH",
+    description: "Domain locale dialog description",
+  },
+  save: {
+    defaultMessage: "Save locales",
+    id: "L1dn3JIeHU",
+    description: "Save supported domain locales",
+  },
+  saved: {
+    defaultMessage: "Locales updated for this preview.",
+    id: "BGjPXD5fgV",
+    description: "Prototype locale save toast",
+  },
+  localesRequired: {
+    defaultMessage: "Select at least one locale.",
+    id: "wYyC/XZMmS",
+    description: "Domain locale validation",
+  },
+  hostnameInvalid: {
+    defaultMessage: "Enter a hostname such as shop.example.com, without a URL path.",
+    id: "PYIsQFA2Np",
+    description: "Invalid domain hostname",
+  },
+  hostnameDuplicate: {
+    defaultMessage: "This domain is already linked. Edit its locales instead.",
+    id: "Ck9MOHJiWV",
+    description: "Duplicate domain validation",
+  },
+  prototypeNotice: {
+    defaultMessage:
+      "Preview only. Changes last until you reload and are not saved to your workspace.",
+    id: "4HQ7im6sof",
+    description: "Prototype domain persistence disclosure",
+  },
   title: {
     defaultMessage: "Link domain",
     id: "2+oKbAvHmj",
     description: "Link domain dialog title",
   },
   description: {
-    defaultMessage:
-      "Attach a hostname and pick the market research should run in. Verification comes next.",
-    id: "hJh6vnt3pF",
+    defaultMessage: "Choose the locales for this hostname. Verify the domain once for all locales.",
+    id: "ed78rqC5km",
     description: "Link domain dialog description",
   },
   hostnameLabel: {
@@ -37,8 +77,8 @@ export const domainLinkDialogMessages = defineMessages({
     description: "Hostname placeholder on the link domain dialog",
   },
   marketLabel: {
-    defaultMessage: "Market",
-    id: "SJ1G8g/3h7",
+    defaultMessage: "Locales",
+    id: "vOplG6AhcP",
     description: "Market field on the link domain dialog",
   },
   submit: {

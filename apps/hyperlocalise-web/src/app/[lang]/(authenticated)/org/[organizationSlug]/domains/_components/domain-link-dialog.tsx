@@ -25,16 +25,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DOMAIN_RESEARCH_MARKETS } from "@/lib/domains/research-prototype";
+  Field,
+  FieldError,
+  FieldLabel,
+  FieldSet,
+  FieldLegend,
+  FieldGroup,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DOMAIN_RESEARCH_MARKETS,
+  type DomainResearchDomain,
+} from "@/lib/domains/research-prototype";
 
 import { domainLinkDialogMessages as messages } from "./domain-link-dialog.messages";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
@@ -42,7 +46,13 @@ import { domainResearchSharedMessages as sharedMessages } from "./domain-researc
 export function DomainLinkDialog({
   open,
   onOpenChange,
+  domain,
+  existingDomains = [],
+  onSave,
 }: {
+  domain?: DomainResearchDomain;
+  existingDomains?: DomainResearchDomain[];
+  onSave?: (domain: DomainResearchDomain) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -50,16 +60,18 @@ export function DomainLinkDialog({
   const hostnameId = useId();
   const marketId = useId();
   const [hostname, setHostname] = useState("");
-  const [marketIdValue, setMarketIdValue] = useState(DOMAIN_RESEARCH_MARKETS[0]?.id ?? "");
+  const [localeIds, setLocaleIds] = useState<string[]>([]);
+  const [localeError, setLocaleError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setHostname("");
-      setMarketIdValue(DOMAIN_RESEARCH_MARKETS[0]?.id ?? "");
+      setHostname(domain?.domainKey ?? "");
+      setLocaleIds(domain?.locales.map((locale) => locale.id) ?? []);
+      setLocaleError(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, domain]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,7 +81,40 @@ export function DomainLinkDialog({
       return;
     }
 
-    toast.success(intl.formatMessage(messages.success));
+    if (
+      !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(nextHostname)
+    ) {
+      setError(intl.formatMessage(messages.hostnameInvalid));
+      return;
+    }
+    if (existingDomains.some((item) => item.id !== domain?.id && item.domainKey === nextHostname)) {
+      setError(intl.formatMessage(messages.hostnameDuplicate));
+      return;
+    }
+    const locales = DOMAIN_RESEARCH_MARKETS.filter((locale) => localeIds.includes(locale.id));
+    if (!locales.length) {
+      setLocaleError(intl.formatMessage(messages.localesRequired));
+      return;
+    }
+    onSave?.(
+      domain
+        ? { ...domain, locales }
+        : {
+            id: `preview-${crypto.randomUUID()}`,
+            domainKey: nextHostname,
+            sourceUrl: `https://${nextHostname}`,
+            locales,
+            status: "pending_verification",
+            keywordCount: 0,
+            keywordCountLabel: "—",
+            traffic: 0,
+            trafficLabel: "—",
+            score: null,
+            trackedCount: 0,
+            aiMentions: 0,
+          },
+    );
+    toast.success(intl.formatMessage(domain ? messages.saved : messages.success));
     onOpenChange(false);
   }
 
@@ -79,18 +124,19 @@ export function DomainLinkDialog({
         <form className="grid gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              <FormattedMessage {...messages.title} />
+              <FormattedMessage {...(domain ? messages.editTitle : messages.title)} />
             </DialogTitle>
             <DialogDescription>
-              <FormattedMessage {...messages.description} />
+              <FormattedMessage {...(domain ? messages.editDescription : messages.description)} />
             </DialogDescription>
           </DialogHeader>
 
-          <Field>
+          <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor={hostnameId}>
               <FormattedMessage {...messages.hostnameLabel} />
             </FieldLabel>
             <Input
+              readOnly={Boolean(domain)}
               id={hostnameId}
               value={hostname}
               onChange={(event) => {
@@ -104,37 +150,48 @@ export function DomainLinkDialog({
             <FieldError errors={error ? [{ message: error }] : undefined} />
           </Field>
 
-          <Field>
-            <FieldLabel htmlFor={marketId}>
+          <FieldSet
+            className="grid gap-3"
+            aria-describedby={localeError ? `${marketId}-error` : undefined}
+          >
+            <FieldLegend variant="label">
               <FormattedMessage {...messages.marketLabel} />
-            </FieldLabel>
-            <Select
-              value={marketIdValue || null}
-              onValueChange={(value) => {
-                if (value) {
-                  setMarketIdValue(value);
-                }
-              }}
-            >
-              <SelectTrigger id={marketId} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DOMAIN_RESEARCH_MARKETS.map((market) => (
-                  <SelectItem key={market.id} value={market.id} label={market.label}>
-                    {market.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+            </FieldLegend>
+            <FieldGroup className="gap-3">
+              {DOMAIN_RESEARCH_MARKETS.map((locale) => (
+                <Field key={locale.id} orientation="horizontal" data-invalid={Boolean(localeError)}>
+                  <Checkbox
+                    id={`${marketId}-${locale.id}`}
+                    checked={localeIds.includes(locale.id)}
+                    aria-invalid={Boolean(localeError)}
+                    onCheckedChange={(checked) => {
+                      setLocaleIds((current) =>
+                        checked
+                          ? [...current, locale.id]
+                          : current.filter((id) => id !== locale.id),
+                      );
+                      setLocaleError(null);
+                    }}
+                  />
+                  <FieldLabel htmlFor={`${marketId}-${locale.id}`}>{locale.label}</FieldLabel>
+                </Field>
+              ))}
+            </FieldGroup>
+            <FieldError
+              id={`${marketId}-error`}
+              errors={localeError ? [{ message: localeError }] : undefined}
+            />
+          </FieldSet>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.prototypeNotice} />
+          </p>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               <FormattedMessage {...sharedMessages.cancel} />
             </Button>
             <Button type="submit">
-              <FormattedMessage {...messages.submit} />
+              <FormattedMessage {...(domain ? messages.save : messages.submit)} />
             </Button>
           </DialogFooter>
         </form>

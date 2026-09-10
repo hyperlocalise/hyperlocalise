@@ -12,16 +12,31 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { Globe02Icon } from "@hugeicons/core-free-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { useSearchParams } from "next/navigation";
+import { DomainResearchContext } from "./domain-research-context";
+import { useDomainPrototype } from "./use-domain-prototype";
+import { DomainLinkDialog } from "./domain-link-dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import type { DomainResearchNavId, DomainResearchSurface } from "@/lib/domains/research-prototype";
 import {
-  getResearchPrototypeDomain,
+  filterCatalogForLocale,
+  getResearchPrototypeCatalog,
+  resolveDomainLocale,
   isDomainResearchSurface,
   isLiveDomainResearchId,
 } from "@/lib/domains/research-prototype";
@@ -47,6 +62,24 @@ const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navOverview
   { id: "prompts", message: messages.navPrompts },
 ];
 
+function hrefForLocale({
+  organizationSlug,
+  linkedDomainId,
+  surface,
+  search,
+  localeId,
+}: {
+  organizationSlug: string;
+  linkedDomainId: string;
+  surface?: DomainResearchNavId;
+  search: string;
+  localeId: string;
+}) {
+  const params = new URLSearchParams(search);
+  params.set("locale", localeId);
+  return `${buildDomainPath(organizationSlug, linkedDomainId, surface)}?${params}`;
+}
+
 export function DomainResearchShell({
   organizationSlug,
   linkedDomainId,
@@ -60,15 +93,31 @@ export function DomainResearchShell({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const prototypeDomain = getResearchPrototypeDomain(linkedDomainId);
-  const liveResearch = useLiveDomainResearch(
-    isLiveDomainResearchId(linkedDomainId) ? organizationSlug : undefined,
-    linkedDomainId,
-  );
-  const domain = prototypeDomain ?? liveResearch.data?.catalog.domain ?? null;
+  const live = isLiveDomainResearchId(linkedDomainId);
+  const liveResearch = useLiveDomainResearch(live ? organizationSlug : undefined, linkedDomainId);
+  const { domains, saveDomain } = useDomainPrototype(organizationSlug);
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  const requestedLocaleId = searchParams.get("locale");
+  const localeSelectId = useId();
+  const [editOpen, setEditOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
 
-  if (!prototypeDomain && liveResearch.isPending) {
+  const prototypeDomain = domains.find((item) => item.id === linkedDomainId);
+  const domain = live ? (liveResearch.data?.catalog.domain ?? null) : (prototypeDomain ?? null);
+  const locale = domain ? resolveDomainLocale(domain, requestedLocaleId) : null;
+  const localeId = locale?.id;
+
+  useEffect(() => {
+    if (!localeId || requestedLocaleId === localeId) return;
+    router.replace(hrefForLocale({ organizationSlug, linkedDomainId, surface, search, localeId }), {
+      scroll: false,
+    });
+    // useOrgRouter() returns a new object each render; depending on it recanonicalizes forever
+    // while the URL is still stale.
+  }, [linkedDomainId, localeId, organizationSlug, requestedLocaleId, search, surface]);
+
+  if (live && liveResearch.isPending) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -78,7 +127,7 @@ export function DomainResearchShell({
     );
   }
 
-  if (!prototypeDomain && liveResearch.isError) {
+  if (live && liveResearch.isError) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -88,7 +137,7 @@ export function DomainResearchShell({
     );
   }
 
-  if (!domain) {
+  if (!domain || !locale) {
     return (
       <WorkspacePageShell>
         <DomainResearchMissingDomain organizationSlug={organizationSlug} />
@@ -96,11 +145,33 @@ export function DomainResearchShell({
     );
   }
 
+  const liveCatalog = liveResearch.data?.catalog;
+  const catalog = live
+    ? liveCatalog
+      ? filterCatalogForLocale(liveCatalog, locale.id)
+      : null
+    : getResearchPrototypeCatalog(linkedDomainId, locale.id);
+  const activeLocaleId = locale.id;
+
+  function researchHref(nextLocaleId: string, nextSurface = surface) {
+    return hrefForLocale({
+      organizationSlug,
+      linkedDomainId,
+      surface: nextSurface,
+      search,
+      localeId: nextLocaleId,
+    });
+  }
+
+  function changeLocale(nextLocaleId: string) {
+    router.replace(researchHref(nextLocaleId), { scroll: false });
+  }
+
   function handleSurfaceChange(next: string) {
     const nextSurface: DomainResearchSurface | undefined = isDomainResearchSurface(next)
       ? next
       : undefined;
-    router.push(buildDomainPath(organizationSlug, linkedDomainId, nextSurface));
+    router.push(researchHref(activeLocaleId, nextSurface));
   }
 
   const isPending = domain.status !== "verified";
@@ -113,7 +184,7 @@ export function DomainResearchShell({
           label={intl.formatMessage(messages.sectionLabel)}
           title={domain.domainKey}
           description={intl.formatMessage(messages.shellDescription, {
-            market: domain.market.label,
+            count: domain.locales.length,
           })}
           actions={
             <>
@@ -126,6 +197,42 @@ export function DomainResearchShell({
             </>
           }
         />
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <Field className="w-full sm:w-72">
+          <FieldLabel htmlFor={localeSelectId}>
+            <FormattedMessage {...messages.localeLabel} />
+          </FieldLabel>
+          <Select
+            value={locale.id}
+            items={domain.locales.map((item) => ({ value: item.id, label: item.label }))}
+            onValueChange={(value) => {
+              if (value) changeLocale(value);
+            }}
+          >
+            <SelectTrigger id={localeSelectId} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {domain.locales.map((item) => (
+                  <SelectItem key={item.id} value={item.id} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        {live ? null : (
+          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+            <FormattedMessage {...messages.editLocales} />
+          </Button>
+        )}
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...messages.localeScope} />
+        </p>
       </div>
 
       <Tabs value={surface} onValueChange={handleSurfaceChange}>
@@ -148,8 +255,33 @@ export function DomainResearchShell({
             </Button>
           }
         />
+      ) : catalog ? (
+        <DomainResearchContext value={catalog} key={`${linkedDomainId}-${locale.id}`}>
+          {children}
+        </DomainResearchContext>
       ) : (
-        children
+        <DomainResearchEmpty
+          title={<FormattedMessage {...messages.localeEmptyTitle} />}
+          description={
+            <FormattedMessage
+              {...messages.localeEmptyDescription}
+              values={{ locale: locale.label }}
+            />
+          }
+          action={
+            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+              <FormattedMessage {...messages.editLocales} />
+            </Button>
+          }
+        />
+      )}
+      {live ? null : (
+        <DomainLinkDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          domain={domain}
+          onSave={saveDomain}
+        />
       )}
 
       <DomainVerifyDialog
