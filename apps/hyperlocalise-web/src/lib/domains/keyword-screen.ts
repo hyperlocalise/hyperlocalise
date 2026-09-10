@@ -91,3 +91,7 @@ export function keywordIdeasCsv(rows: KeywordIdea[]) {
     .map((row) => row.map(cell).join(","))
     .join("\r\n");
 }
+
+export function resolveActiveKeyword(rows: KeywordIdea[], activeId: string | null) {
+  return rows.find((row) => row.id === activeId) ?? rows[0] ?? null;
+}

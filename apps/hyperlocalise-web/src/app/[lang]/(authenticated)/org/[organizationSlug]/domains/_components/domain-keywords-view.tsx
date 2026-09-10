@@ -41,6 +41,7 @@ import { DomainKeywordAnalysis } from "./domain-keyword-analysis";
 import {
   filterKeywordIdeas,
   keywordIdeasCsv,
+  resolveActiveKeyword,
   type KeywordFilters,
   type KeywordSort,
 } from "@/lib/domains/keyword-screen";
@@ -75,7 +76,7 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
   const [activeId, setActiveId] = useState<string | null>(catalog.keywords[0]?.id ?? null);
   const keywords = market === catalog.domain.market.id ? catalog.keywords : [];
   const rows = filterKeywordIdeas(keywords, search, filters, sort);
-  const active = keywords.find((row) => row.id === activeId) ?? null;
+  const active = resolveActiveKeyword(rows, activeId);
   const selectedRows = rows.filter((row) => selected.includes(row.id));
   const allSelected = rows.length > 0 && selectedRows.length === rows.length;
   const activeFilterCount = Object.entries(filters).filter(

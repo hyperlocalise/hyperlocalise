@@ -11,7 +11,12 @@
  * Version 2.0 or later.
  */
 import { describe, expect, it } from "vite-plus/test";
-import { filterKeywordIdeas, keywordIdeasCsv, type KeywordFilters } from "./keyword-screen";
+import {
+  filterKeywordIdeas,
+  keywordIdeasCsv,
+  resolveActiveKeyword,
+  type KeywordFilters,
+} from "./keyword-screen";
 import type { KeywordIdea } from "./research-prototype";
 
 const filters: KeywordFilters = {
@@ -88,6 +93,16 @@ describe("keyword research table", () => {
         { field: "volume", direction: "asc" },
       ),
     ).toEqual([]);
+  });
+  it("resolves the active keyword from visible rows only", () => {
+    expect(resolveActiveKeyword(rows, "c")?.id).toBe("c");
+    expect(
+      resolveActiveKeyword(
+        rows.filter((row) => row.id !== "a"),
+        "a",
+      )?.id,
+    ).toBe("b");
+    expect(resolveActiveKeyword([], "a")).toBeNull();
   });
   it("exports Unicode, quotes and missing metrics without spreadsheet formulas", () => {
     const csv = keywordIdeasCsv([
