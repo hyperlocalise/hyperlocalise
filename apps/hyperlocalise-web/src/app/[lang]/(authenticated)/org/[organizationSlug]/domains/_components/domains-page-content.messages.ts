@@ -1,3 +1,5 @@
+"use client";
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -15,8 +17,8 @@ import { defineMessages } from "react-intl";
 export const domainsPageContentMessages = defineMessages({
   pageDescription: {
     defaultMessage:
-      "Domains verified for this workspace, with linked projects and localisation audit reports.",
-    id: "lZrVrk7oZs",
+      "Linked domains and the markets you research them in. Open a site to run keywords, ranks, and AI brand lookup.",
+    id: "qmpjf3XZ1L",
     description: "Domains workspace page description",
   },
   loadError: {
@@ -24,60 +26,49 @@ export const domainsPageContentMessages = defineMessages({
     id: "BBrh+7z4Oj",
     description: "Error when the domains list fails to load",
   },
-  loading: {
-    defaultMessage: "Loading domains…",
-    id: "0cJX5jLe/m",
-    description: "Loading state for the domains list",
+  linkDomain: {
+    defaultMessage: "Link domain",
+    id: "RjCKAD/IFR",
+    description: "Open the link domain dialog",
   },
-  empty: {
-    defaultMessage:
-      "No linked domains yet. Claim a domain from a localisation audit to get started.",
-    id: "blgD4379yD",
-    description: "Empty state for the domains list",
+  columnDomain: {
+    defaultMessage: "Domain",
+    id: "//lV7u3bI3",
+    description: "Domains list column for hostname",
   },
-  statusPending: {
-    defaultMessage: "Pending verification",
-    id: "M9l7nT/Rpj",
-    description: "Linked domain status label for pending verification",
+  columnMarket: {
+    defaultMessage: "Market",
+    id: "q4dfro4K/5",
+    description: "Domains list column for market",
   },
-  statusVerified: {
-    defaultMessage: "Verified",
-    id: "3GLhqP/R2l",
-    description: "Linked domain status label for verified",
+  columnKeywords: {
+    defaultMessage: "Keywords",
+    id: "y0Em+Wp3gc",
+    description: "Domains list column for keyword count",
   },
-  statusFailed: {
-    defaultMessage: "Failed",
-    id: "LRZ3vQhI80",
-    description: "Linked domain status label for failed",
+  columnTraffic: {
+    defaultMessage: "Traffic",
+    id: "uH1X4fN7MB",
+    description: "Domains list column for traffic",
   },
-  statusRevoked: {
-    defaultMessage: "Revoked",
-    id: "i9wq9AC2+9",
-    description: "Linked domain status label for revoked",
+  columnScore: {
+    defaultMessage: "Score",
+    id: "hBm/PWp/+S",
+    description: "Domains list column for audit score",
   },
-  scoreLabel: {
-    defaultMessage: "Score {score}",
-    id: "Xg01khiunA",
-    description: "Audit score label on a domain list row",
-  },
-  scoreUnavailable: {
-    defaultMessage: "No score yet",
-    id: "8UNQ0H4OW1",
-    description: "Shown when a linked domain has no audit score",
-  },
-  viewReport: {
-    defaultMessage: "View report",
-    id: "KRbtCrnBZw",
-    description: "Link to open a linked domain audit report",
+  openDomain: {
+    defaultMessage: "Open",
+    id: "NBDQ/KtIXb",
+    description: "Open a linked domain home",
   },
   continueVerification: {
-    defaultMessage: "Continue verification",
-    id: "k3MhPbqttd",
+    defaultMessage: "Verify",
+    id: "ANFQka6p0Z",
     description: "Link to continue verifying a pending linked domain",
   },
-  openProject: {
-    defaultMessage: "Open project",
-    id: "greERnCNu1",
-    description: "Link to open the project attached to a linked domain",
+  scoreUnavailable: {
+    defaultMessage: "—",
+    id: "giZZw2GSFO",
+    description: "Shown when a linked domain has no audit score",
   },
 });

@@ -13,6 +13,10 @@
 import type { ReactNode } from "react";
 import type { IntlShape } from "react-intl";
 
+import { isDomainResearchSurface } from "@/lib/domains/research-prototype";
+
+import { buildDomainPath } from "./navigation-config";
+
 export type AppShellBreadcrumb = {
   label: string;
   href?: string;
@@ -39,14 +43,19 @@ type RouteTitleKey =
   | "issues"
   | "issue-sheet"
   | "jobs"
+  | "keywords"
   | "knowledge"
   | "linked-domains"
   | "locales"
   | "members"
   | "my-jobs"
   | "my-work"
+  | "overview"
   | "permissions"
+  | "prompts"
   | "projects"
+  | "ranks"
+  | "brand"
   | "qa"
   | "reviews"
   | "settings"
@@ -91,15 +100,19 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "issues" ||
     value === "issue-sheet" ||
     value === "jobs" ||
-    value === "automations" ||
+    value === "keywords" ||
     value === "knowledge" ||
     value === "linked-domains" ||
     value === "locales" ||
     value === "members" ||
     value === "my-jobs" ||
     value === "my-work" ||
+    value === "overview" ||
     value === "permissions" ||
+    value === "prompts" ||
     value === "projects" ||
+    value === "ranks" ||
+    value === "brand" ||
     value === "qa" ||
     value === "reviews" ||
     value === "settings" ||
@@ -248,6 +261,36 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Jobs",
         id: "WzPTL0QId6",
         description: "App shell breadcrumb title for the jobs page",
+      });
+    case "keywords":
+      return intl.formatMessage({
+        defaultMessage: "Keywords",
+        id: "m6sWTuk4o8",
+        description: "App shell breadcrumb title for domain keyword research",
+      });
+    case "overview":
+      return intl.formatMessage({
+        defaultMessage: "Overview",
+        id: "vum/tkTswv",
+        description: "App shell breadcrumb title for domain overview research",
+      });
+    case "ranks":
+      return intl.formatMessage({
+        defaultMessage: "Ranks",
+        id: "v8HmqsxSuZ",
+        description: "App shell breadcrumb title for domain rank tracking",
+      });
+    case "brand":
+      return intl.formatMessage({
+        defaultMessage: "Brand",
+        id: "QqEr64QiAA",
+        description: "App shell breadcrumb title for domain AI brand lookup",
+      });
+    case "prompts":
+      return intl.formatMessage({
+        defaultMessage: "Prompts",
+        id: "Cx/AirNdqn",
+        description: "App shell breadcrumb title for domain prompt explorer",
       });
     case "automations":
       return intl.formatMessage({
@@ -427,17 +470,26 @@ export function getAppShellBreadcrumbs(
     const resolvedDomainName = options?.domainName?.trim();
     const domainNameLoading = options?.domainNameLoading && !resolvedDomainName;
     const domainLabel = resolvedDomainName || (domainNameLoading ? "" : linkedDomainId);
+    const surface =
+      projectSection && isDomainResearchSurface(projectSection) ? projectSection : undefined;
 
-    return [
+    const crumbs: AppShellBreadcrumb[] = [
       {
         label: formatRouteTitle(intl, "domains"),
         href: buildOrgPath(organizationSlug, "domains"),
       },
       {
         label: domainLabel,
+        ...(surface ? { href: buildDomainPath(organizationSlug, linkedDomainId) } : {}),
         ...(domainNameLoading ? { isLoading: true } : {}),
       },
     ];
+
+    if (surface) {
+      crumbs.push({ label: formatRouteTitle(intl, surface) });
+    }
+
+    return crumbs;
   }
 
   if (section === "members") {

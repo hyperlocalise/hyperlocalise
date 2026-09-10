@@ -12,9 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
+import type { DomainResearchSurface } from "@/lib/domains/research-prototype";
+import { listResearchPrototypeDomains } from "@/lib/domains/research-prototype";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
@@ -29,6 +32,7 @@ type DomainBreadcrumbSelectorProps = {
   organizationSlug: string;
   linkedDomainId: string;
   domainName: string;
+  surface?: DomainResearchSurface;
   isLast?: boolean;
 };
 
@@ -36,10 +40,19 @@ export function DomainBreadcrumbSelector({
   organizationSlug,
   linkedDomainId,
   domainName,
+  surface,
   isLast = false,
 }: DomainBreadcrumbSelectorProps) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const mockOptions = useMemo(
+    () =>
+      listResearchPrototypeDomains().map((domain) => ({
+        value: domain.id,
+        label: domain.domainKey,
+      })),
+    [],
+  );
   const domainsQuery = useQuery({
     queryKey: organizationDomainsQueryKey(organizationSlug),
     queryFn: async () => {
@@ -65,22 +78,34 @@ export function DomainBreadcrumbSelector({
     },
   });
 
+  const options = useMemo(() => {
+    const seen = new Set(mockOptions.map((option) => option.value));
+    const merged = [...mockOptions];
+    for (const option of domainsQuery.data ?? []) {
+      if (!seen.has(option.value)) {
+        seen.add(option.value);
+        merged.push(option);
+      }
+    }
+    return merged;
+  }, [domainsQuery.data, mockOptions]);
+
   function handleSelect(nextLinkedDomainId: string) {
     if (nextLinkedDomainId === linkedDomainId) {
       return;
     }
 
-    router.push(buildDomainPath(organizationSlug, nextLinkedDomainId));
+    router.push(buildDomainPath(organizationSlug, nextLinkedDomainId, surface));
   }
 
   return (
     <BreadcrumbCrumbSelector
       value={linkedDomainId}
       label={domainName}
-      options={domainsQuery.data ?? []}
+      options={options}
       onSelect={handleSelect}
-      isLoading={domainsQuery.isPending}
-      isError={domainsQuery.isError}
+      isLoading={mockOptions.length === 0 && domainsQuery.isPending}
+      isError={mockOptions.length === 0 && domainsQuery.isError}
       menuLabel={intl.formatMessage(messages.switchDomain)}
       isLast={isLast}
     />

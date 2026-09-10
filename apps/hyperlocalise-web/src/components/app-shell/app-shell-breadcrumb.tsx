@@ -29,6 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -88,11 +89,19 @@ function isDomainBreadcrumbCrumb(
   breadcrumbs: readonly AppShellBreadcrumbItem[],
   organizationSlug: string,
 ) {
-  if (index !== 1 || breadcrumbs.length !== 2 || crumb.href) {
+  if (index !== 1 || breadcrumbs.length < 2 || breadcrumbs.length > 3) {
     return false;
   }
 
-  return breadcrumbs[0]?.href === buildOrganizationPath(organizationSlug, "domains");
+  if (breadcrumbs[0]?.href !== buildOrganizationPath(organizationSlug, "domains")) {
+    return false;
+  }
+
+  if (breadcrumbs.length === 2) {
+    return !crumb.href;
+  }
+
+  return Boolean(crumb.href);
 }
 
 function resolveSelectorCrumbKind(
@@ -227,6 +236,7 @@ function SelectorBreadcrumbCrumbContent({
         organizationSlug={organizationSlug}
         linkedDomainId={domainRoute.linkedDomainId}
         domainName={domainName?.trim() || crumb.label || domainRoute.linkedDomainId}
+        surface={domainRoute.surface}
         isLast={isLast}
       />
     );
@@ -286,9 +296,13 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     },
   });
 
+  const mockDomain = domainRoute?.linkedDomainId
+    ? getResearchPrototypeDomain(domainRoute.linkedDomainId)
+    : null;
+
   const domainQuery = useQuery({
     queryKey: ["linked-domain", resolvedOrganizationSlug, domainRoute?.linkedDomainId],
-    enabled: Boolean(domainRoute?.linkedDomainId),
+    enabled: Boolean(domainRoute?.linkedDomainId) && !mockDomain,
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(resolvedOrganizationSlug)}/linked-domains/${encodeURIComponent(domainRoute!.linkedDomainId)}`,
@@ -314,8 +328,8 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       projectNameLoading: projectQuery.isPending,
       teamName: teamQuery.data?.name,
       teamNameLoading: teamQuery.isPending,
-      domainName: domainQuery.data?.domainKey,
-      domainNameLoading: domainQuery.isPending,
+      domainName: mockDomain?.domainKey ?? domainQuery.data?.domainKey,
+      domainNameLoading: !mockDomain && domainQuery.isPending,
     }),
   );
 
@@ -374,7 +388,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
                     domainRoute={domainRoute}
                     projectName={projectQuery.data?.name}
                     teamName={teamQuery.data?.name}
-                    domainName={domainQuery.data?.domainKey}
+                    domainName={mockDomain?.domainKey ?? domainQuery.data?.domainKey}
                   />
                 ) : (
                   <BreadcrumbCrumbContent crumb={crumb} isLast={isLast} />
