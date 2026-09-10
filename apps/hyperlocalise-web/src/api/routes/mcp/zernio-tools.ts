@@ -14,8 +14,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { err, isErr, type Result } from "@/lib/primitives/result/results";
 import {
+  buildZernioCreateBody,
   createZernioAd,
   createZernioCampaign,
   getZernioAd,
@@ -172,6 +174,9 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
       }),
     },
     async (input) => {
+      if (!isAiActionAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to create Zernio ads");
+      }
       const { connectionId, extra, idempotencyKey, ...fields } = input;
       const resolved = await resolveApiKey({ apiAuth, connectionId });
       if (isErr(resolved)) {
@@ -180,10 +185,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
       const result = await createZernioAd({
         apiKey: resolved.value.apiKey,
         idempotencyKey,
-        body: {
-          ...extra,
-          ...Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)),
-        },
+        body: buildZernioCreateBody({ extra, fields }),
       });
       if (isErr(result)) {
         return mcpToolError(result.error.code, result.error.message);
@@ -202,6 +204,9 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
       }),
     },
     async (input) => {
+      if (!isAiActionAllowed(apiAuth.membership.role)) {
+        return mcpToolError("forbidden", "Insufficient permissions to create Zernio ads");
+      }
       const { connectionId, extra, idempotencyKey, ...fields } = input;
       const resolved = await resolveApiKey({ apiAuth, connectionId });
       if (isErr(resolved)) {
@@ -210,10 +215,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
       const result = await createZernioCampaign({
         apiKey: resolved.value.apiKey,
         idempotencyKey,
-        body: {
-          ...extra,
-          ...Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)),
-        },
+        body: buildZernioCreateBody({ extra, fields }),
       });
       if (isErr(result)) {
         return mcpToolError(result.error.code, result.error.message);

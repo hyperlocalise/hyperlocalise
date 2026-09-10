@@ -258,6 +258,65 @@ describe("MCP Zernio tools", () => {
     });
     const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
     expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("mcp-create-ad-1");
+    expect(JSON.parse(typeof init.body === "string" ? init.body : "")).toMatchObject({
+      status: "PAUSED",
+    });
+  });
+
+  it("defaults omitted ad status to PAUSED and still sends an idempotency key", async () => {
+    const headers = await authenticatedMcpHeaders();
+    await seedValidConnection();
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      jsonFetchResponse({
+        ad: { _id: "ad_1", status: "PAUSED" },
+      }),
+    );
+
+    const result = await readToolResult(
+      await callMcpTool(headers, "zernio_create_ad", {
+        accountId: "acct_1",
+        adAccountId: "act_1",
+        name: "Localized launch",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(JSON.parse(typeof init.body === "string" ? init.body : "")).toMatchObject({
+      accountId: "acct_1",
+      adAccountId: "act_1",
+      name: "Localized launch",
+      status: "PAUSED",
+    });
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toMatch(
+      /^zernio:[a-f0-9]{64}$/,
+    );
+  });
+
+  it("returns forbidden when a read-only member creates an ad", async () => {
+    const adminIdentity = fixture.createWorkosIdentityWithRole("admin");
+    await authenticatedMcpHeaders(adminIdentity);
+    await seedValidConnection();
+
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      adminIdentity.organization,
+      "member",
+    );
+    const headers = await authenticatedMcpHeaders(memberIdentity);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await readToolResult(
+      await callMcpTool(headers, "zernio_create_ad", {
+        accountId: "acct_1",
+        adAccountId: "act_1",
+        name: "Localized launch",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output.error).toBe("forbidden");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns not connected when no Zernio key is saved", async () => {

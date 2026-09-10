@@ -14,7 +14,14 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { createZernioAd, listZernioAds, validateZernioApiKey, zernioRequest } from "./client";
+import {
+  buildZernioCreateBody,
+  createZernioAd,
+  listZernioAds,
+  resolveZernioCreateIdempotencyKey,
+  validateZernioApiKey,
+  zernioRequest,
+} from "./client";
 import { ZERNIO_API_BASE_URL } from "./constants";
 
 const fetchMock = vi.fn();
@@ -85,6 +92,50 @@ describe("zernio client", () => {
     }
   });
 
+  it("rejects a successful accounts response without an accounts array", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(jsonResponse({ message: "ok" }));
+
+    const result = await validateZernioApiKey({ apiKey: "sk_live_test" });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe("zernio_connection_validation_failed");
+      expect(result.error.message).toBe("Zernio did not return an accounts list.");
+    }
+  });
+
+  it("treats an empty accounts array as a valid key", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(jsonResponse({ accounts: [] }));
+
+    const result = await validateZernioApiKey({ apiKey: "sk_live_test" });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value).toEqual({ accountCount: 0 });
+    }
+  });
+
+  it("defaults omitted create status to PAUSED and ignores extra.status", () => {
+    expect(
+      buildZernioCreateBody({
+        extra: { status: "ACTIVE", objective: "OUTCOME_TRAFFIC" },
+        fields: {
+          accountId: "acct_1",
+          adAccountId: "act_1",
+          name: "Launch",
+        },
+      }),
+    ).toEqual({
+      objective: "OUTCOME_TRAFFIC",
+      accountId: "acct_1",
+      adAccountId: "act_1",
+      name: "Launch",
+      status: "PAUSED",
+    });
+  });
+
   it("sends create-ad bodies with an idempotency key", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(jsonResponse({ ad: { _id: "ad_1" } }, 201));
@@ -111,6 +162,29 @@ describe("zernio client", () => {
       name: "Paused launch",
       status: "PAUSED",
     });
+  });
+
+  it("derives an idempotency key when the caller omits one", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(jsonResponse({ ad: { _id: "ad_1" } }, 201));
+
+    const body = {
+      accountId: "acct_1",
+      adAccountId: "act_1",
+      name: "Paused launch",
+      status: "PAUSED",
+    };
+
+    const result = await createZernioAd({
+      apiKey: "sk_live_test",
+      body,
+    });
+
+    expect(isOk(result)).toBe(true);
+    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      resolveZernioCreateIdempotencyKey(undefined, body),
+    );
   });
 
   it("scopes the ads tree by accountId", async () => {

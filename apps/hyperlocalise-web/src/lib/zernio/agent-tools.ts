@@ -16,6 +16,7 @@ import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
+  buildZernioCreateBody,
   createZernioAd,
   createZernioCampaign,
   getZernioAd,
@@ -62,10 +63,6 @@ const createCampaignInputSchema = z.object({
 
 function serializeToolResult(value: unknown) {
   return JSON.stringify(value);
-}
-
-function omitUndefined<T extends Record<string, unknown>>(value: T): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
 }
 
 export function createZernioAdsToolSet(apiKey: string) {
@@ -118,10 +115,7 @@ export function createZernioAdsToolSet(apiKey: string) {
         const result = await createZernioAd({
           apiKey,
           idempotencyKey,
-          body: omitUndefined({
-            ...extra,
-            ...fields,
-          }),
+          body: buildZernioCreateBody({ extra, fields }),
         });
         if (isErr(result)) {
           throw new Error(result.error.message);
@@ -138,10 +132,7 @@ export function createZernioAdsToolSet(apiKey: string) {
         const result = await createZernioCampaign({
           apiKey,
           idempotencyKey,
-          body: omitUndefined({
-            ...extra,
-            ...fields,
-          }),
+          body: buildZernioCreateBody({ extra, fields }),
         });
         if (isErr(result)) {
           throw new Error(result.error.message);
