@@ -1077,8 +1077,6 @@ export function createGlossaryConceptRoutes(
       if (!product) return externalTmsGlossaryImmutableResponse(c);
       const current = await product.getConcept(conceptId);
       if (!current) return glossaryNotFoundResponse(c);
-      const deleted = await product.deleteConcept(conceptId);
-      if (!deleted) return glossaryNotFoundResponse(c);
       await recordGlossaryHistory({
         auth: c.var.auth,
         glossary,
@@ -1087,6 +1085,8 @@ export function createGlossaryConceptRoutes(
         before: toGlossaryConceptRecord(glossary, current) as unknown as Record<string, unknown>,
         fields: ["primaryTerm", "subject", "definition", "translatable", "note", "url", "terms"],
       });
+      const deleted = await product.deleteConcept(conceptId);
+      if (!deleted) return glossaryNotFoundResponse(c);
       return c.body(null, 204);
     })
     .get("/:conceptId/terms", validator("param", validateConceptParams), async (c) => {
@@ -1272,8 +1272,6 @@ export function createGlossaryConceptRoutes(
             "A concept must keep its primary source term",
           );
         }
-        const deleted = await product.deleteTerm(conceptId, termId);
-        if (!deleted) return glossaryNotFoundResponse(c);
         await recordGlossaryHistory({
           auth: c.var.auth,
           glossary,
@@ -1297,6 +1295,8 @@ export function createGlossaryConceptRoutes(
             "forbidden",
           ],
         });
+        const deleted = await product.deleteTerm(conceptId, termId);
+        if (!deleted) return glossaryNotFoundResponse(c);
         return c.body(null, 204);
       },
     );

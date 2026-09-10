@@ -447,7 +447,7 @@ export function GlossaryDetailPageContent({
 
   const conceptsQuery = useQuery({
     queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    enabled: false,
+    enabled: Boolean(isLiveCrowdin && !conceptPageMode),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -520,6 +520,7 @@ export function GlossaryDetailPageContent({
           id: string;
           primaryTerm: string;
           subject: string;
+          definition: string;
           reviewStatus: string;
           termCount: number;
           localeCount: number;
@@ -1052,8 +1053,8 @@ export function GlossaryDetailPageContent({
     return <ConceptListSkeleton />;
 
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const filteredConcepts = conceptPageQuery.data?.concepts ?? [];
-  const selected = concepts.find((concept) => concept.id === selectedConceptId) ?? null;
+  const filteredConcepts = isNative ? (conceptPageQuery.data?.concepts ?? []) : concepts;
+  const selected = selectedConcept;
   const allSelected =
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
@@ -1118,7 +1119,7 @@ export function GlossaryDetailPageContent({
   const newTermIsDirty = Boolean(newTermLocale && newTermDraft.term.trim());
   const isDirty =
     conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
-  if (conceptPageMode && !isCreatingConcept && conceptsQuery.isSuccess && !selected) {
+  if (conceptPageMode && !isCreatingConcept && selectedConceptQuery.isSuccess && !selected) {
     return (
       <TypographyP className="py-8" size="small" tone="subtle">
         <FormattedMessage {...messages.notFound} />
@@ -1473,7 +1474,8 @@ export function GlossaryDetailPageContent({
                             setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"))
                           }
                         >
-                          {sourceLanguage.name} {conceptSort === "asc" ? "↑" : "↓"}
+                          <FormattedMessage {...messages.lastModified} />{" "}
+                          {conceptSort === "asc" ? "↑" : "↓"}
                         </button>
                       </th>
                       <th className="px-3 py-2">
@@ -1515,10 +1517,14 @@ export function GlossaryDetailPageContent({
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap items-center gap-2 font-medium">
                               {concept.primaryTerm}
-                              <Badge variant="outline">{concept.reviewStatus}</Badge>
+                              {"reviewStatus" in concept ? (
+                                <Badge variant="outline">{concept.reviewStatus}</Badge>
+                              ) : null}
                             </div>
                           </td>
-                          <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">—</td>
+                          <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
+                            {concept.definition || "—"}
+                          </td>
                           <td className="px-3 py-3 text-muted-foreground">
                             {concept.subject || "—"}
                           </td>

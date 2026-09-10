@@ -374,6 +374,7 @@ export const glossaryConceptSummarySchema = z.object({
   glossaryId: z.string(),
   primaryTerm: z.string(),
   subject: z.string(),
+  definition: z.string(),
   reviewStatus: glossaryReviewStatusSchema,
   termCount: z.number().int().nonnegative(),
   localeCount: z.number().int().nonnegative(),

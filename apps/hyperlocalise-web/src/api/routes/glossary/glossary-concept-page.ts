@@ -293,6 +293,7 @@ export async function listGlossaryConceptsPage(
     glossaryId: concept.glossaryId,
     primaryTerm: concept.primaryTerm,
     subject: concept.subject,
+    definition: concept.definition,
     reviewStatus: concept.reviewStatus as "proposed" | "approved" | "rejected" | "superseded",
     termCount: Number(counts.get(concept.id)?.termCount ?? 0),
     localeCount: Number(counts.get(concept.id)?.localeCount ?? 0),
