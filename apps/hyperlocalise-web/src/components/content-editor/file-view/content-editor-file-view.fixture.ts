@@ -47,7 +47,7 @@ import {
   CAT_STORY_OFFICE_PPTX_TARGET_URL,
   CAT_STORY_OFFICE_XLSX_SOURCE_URL,
   CAT_STORY_OFFICE_XLSX_TARGET_URL,
-} from "./content-editor-office-msw-handlers";
+} from "./content-editor-office-story-assets";
 
 export const contentEditorImageFileIntelligenceFixture: ContentEditorSegmentIntelligence = {
   ...contentEditorIntelligenceFixture,
