@@ -60,15 +60,19 @@ describe("research prototype catalog", () => {
 });
 
 describe("domain research locales", () => {
-    it("does not substitute another locale's research when data is missing", () => {
-        expect(getResearchPrototypeCatalog("hyperlocalise-com", "france-fr")?.keywords.length).toBeGreaterThan(0);
-        expect(getResearchPrototypeCatalog("hyperlocalise-com", "germany-de")).toBeNull();
-        expect(getResearchPrototypeCatalog("missing", "france-fr")).toBeNull();
-    });
-    it("resolves only supported locales, including after removing the active locale", () => {
-        const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
-        expect(resolveDomainLocale(domain, "germany-de").id).toBe("germany-de");
-        expect(resolveDomainLocale(domain, "japan-ja").id).toBe("france-fr");
-        expect(resolveDomainLocale({ ...domain, locales: domain.locales.slice(1) }, "france-fr").id).toBe("germany-de");
-    });
+  it("does not substitute another locale's research when data is missing", () => {
+    expect(
+      getResearchPrototypeCatalog("hyperlocalise-com", "france-fr")?.keywords.length,
+    ).toBeGreaterThan(0);
+    expect(getResearchPrototypeCatalog("hyperlocalise-com", "germany-de")).toBeNull();
+    expect(getResearchPrototypeCatalog("missing", "france-fr")).toBeNull();
+  });
+  it("resolves only supported locales, including after removing the active locale", () => {
+    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    expect(resolveDomainLocale(domain, "germany-de").id).toBe("germany-de");
+    expect(resolveDomainLocale(domain, "japan-ja").id).toBe("france-fr");
+    expect(
+      resolveDomainLocale({ ...domain, locales: domain.locales.slice(1) }, "france-fr").id,
+    ).toBe("germany-de");
+  });
 });

@@ -21,37 +21,60 @@ import { DomainLinkDialog } from "./domain-link-dialog";
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
 describe("domain locale editing", () => {
-    it("requires a locale and links one hostname with multiple locales", () => {
-        const onSave = vi.fn();
-        render(<IntlProvider locale="en"><DomainLinkDialog open onOpenChange={() => {}} onSave={onSave} /></IntlProvider>);
-        fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "EXAMPLE.COM" } });
-        fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
-        expect(screen.getByText("Select at least one locale.")).toBeInTheDocument();
-        expect(onSave).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole("checkbox", { name: "French (France)" }));
-        fireEvent.click(screen.getByRole("checkbox", { name: "German (Germany)" }));
-        fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
-        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ domainKey: "example.com", status: "pending_verification", locales: [expect.objectContaining({ id: "france-fr" }), expect.objectContaining({ id: "germany-de" })] }));
-    });
+  it("requires a locale and links one hostname with multiple locales", () => {
+    const onSave = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open onOpenChange={() => {}} onSave={onSave} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: "EXAMPLE.COM" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    expect(screen.getByText("Select at least one locale.")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "French (France)" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "German (Germany)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        domainKey: "example.com",
+        status: "pending_verification",
+        locales: [
+          expect.objectContaining({ id: "france-fr" }),
+          expect.objectContaining({ id: "germany-de" }),
+        ],
+      }),
+    );
+  });
 
-    it("edits locales without changing domain identity or verification", () => {
-        const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
-        const onSave = vi.fn();
-        render(<IntlProvider locale="en"><DomainLinkDialog open domain={domain} onOpenChange={() => {}} onSave={onSave} /></IntlProvider>);
-        expect(screen.getByRole("checkbox", { name: "German (Germany)" })).toBeChecked();
-        expect(screen.getByLabelText("Hostname")).toHaveAttribute("readonly");
-        fireEvent.click(screen.getByRole("checkbox", { name: "French (France)" }));
-        fireEvent.click(screen.getByRole("button", { name: "Save locales" }));
-        expect(onSave).toHaveBeenCalledWith({ ...domain, locales: domain.locales.slice(1) });
-    });
+  it("edits locales without changing domain identity or verification", () => {
+    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    const onSave = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open domain={domain} onOpenChange={() => {}} onSave={onSave} />
+      </IntlProvider>,
+    );
+    expect(screen.getByRole("checkbox", { name: "German (Germany)" })).toBeChecked();
+    expect(screen.getByLabelText("Hostname")).toHaveAttribute("readonly");
+    fireEvent.click(screen.getByRole("checkbox", { name: "French (France)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save locales" }));
+    expect(onSave).toHaveBeenCalledWith({ ...domain, locales: domain.locales.slice(1) });
+  });
 
-    it("rejects duplicate hostnames instead of adding another domain row", () => {
-        const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
-        const onSave = vi.fn();
-        render(<IntlProvider locale="en"><DomainLinkDialog open existingDomains={[domain]} onOpenChange={() => {}} onSave={onSave} /></IntlProvider>);
-        fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: domain.domainKey } });
-        fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
-        expect(screen.getByText("This domain is already linked. Edit its locales instead.")).toBeInTheDocument();
-        expect(onSave).not.toHaveBeenCalled();
-    });
+  it("rejects duplicate hostnames instead of adding another domain row", () => {
+    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    const onSave = vi.fn();
+    render(
+      <IntlProvider locale="en">
+        <DomainLinkDialog open existingDomains={[domain]} onOpenChange={() => {}} onSave={onSave} />
+      </IntlProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Hostname"), { target: { value: domain.domainKey } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue to verification" }));
+    expect(
+      screen.getByText("This domain is already linked. Edit its locales instead."),
+    ).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });

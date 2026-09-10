@@ -84,5 +84,12 @@ export const MissingHistory: Story = {
 };
 
 export const LocaleWithoutResearch: Story = {
-    parameters: { nextjs: { navigation: { pathname: "/en/org/domains-preview/domains/hyperlocalise-com/overview", query: { locale: "germany-de" } } } },
+  parameters: {
+    nextjs: {
+      navigation: {
+        pathname: "/en/org/domains-preview/domains/hyperlocalise-com/overview",
+        query: { locale: "germany-de" },
+      },
+    },
+  },
 };

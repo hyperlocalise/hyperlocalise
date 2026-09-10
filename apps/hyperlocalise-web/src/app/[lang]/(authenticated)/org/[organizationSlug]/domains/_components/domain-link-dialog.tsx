@@ -25,7 +25,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel, FieldSet, FieldLegend, FieldGroup } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldLabel,
+  FieldSet,
+  FieldLegend,
+  FieldGroup,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -151,22 +158,24 @@ export function DomainLinkDialog({
               <FormattedMessage {...messages.marketLabel} />
             </FieldLegend>
             <FieldGroup className="gap-3">
-            {DOMAIN_RESEARCH_MARKETS.map((locale) => (
-              <Field key={locale.id} orientation="horizontal" data-invalid={Boolean(localeError)}>
-                <Checkbox
-                  id={`${marketId}-${locale.id}`}
-                  checked={localeIds.includes(locale.id)}
-                  aria-invalid={Boolean(localeError)}
-                  onCheckedChange={(checked) => {
-                    setLocaleIds((current) =>
-                      checked ? [...current, locale.id] : current.filter((id) => id !== locale.id),
-                    );
-                    setLocaleError(null);
-                  }}
-                />
-                <FieldLabel htmlFor={`${marketId}-${locale.id}`}>{locale.label}</FieldLabel>
-              </Field>
-            ))}
+              {DOMAIN_RESEARCH_MARKETS.map((locale) => (
+                <Field key={locale.id} orientation="horizontal" data-invalid={Boolean(localeError)}>
+                  <Checkbox
+                    id={`${marketId}-${locale.id}`}
+                    checked={localeIds.includes(locale.id)}
+                    aria-invalid={Boolean(localeError)}
+                    onCheckedChange={(checked) => {
+                      setLocaleIds((current) =>
+                        checked
+                          ? [...current, locale.id]
+                          : current.filter((id) => id !== locale.id),
+                      );
+                      setLocaleError(null);
+                    }}
+                  />
+                  <FieldLabel htmlFor={`${marketId}-${locale.id}`}>{locale.label}</FieldLabel>
+                </Field>
+              ))}
             </FieldGroup>
             <FieldError
               id={`${marketId}-error`}
