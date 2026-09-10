@@ -130,7 +130,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/localisation-audit",
 ]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org", "/claim-domain"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app", "/mcp"];
 // BotID (and similar) use opaque UUID first segments; locales never do.
 const UUID_PATH_SEGMENT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -282,7 +282,10 @@ export const config = {
     // Exclude opaque UUID roots (BotID challenge scripts) so locale proxy does not 404 them.
     // Exclude /auth.md so the AuthKit agent skill is not wrapped in a session proxy.
     // Exclude /llms.txt so coding agents can read the public index without locale 404s.
+    // Exclude /api and /mcp from the locale matcher; re-include them below so AuthKit
+    // still runs. /mcp/callback and /mcp/consent call withAuth() and throw if skipped.
     "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|llms\\.txt|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
     "/api/:path*",
+    "/mcp/:path*",
   ],
 };
