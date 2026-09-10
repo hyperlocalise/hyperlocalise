@@ -514,6 +514,11 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "mKyo1eMyN6",
       description: "Heading for the top findings to fix on a localisation audit result",
     }),
+    fixFirstSubheading: intl.formatMessage({
+      defaultMessage: "Prioritised recommendations",
+      id: "7GiABZ6PqZ",
+      description: "Subheading under the fix-first section on a localisation audit result",
+    }),
     localesHeading: intl.formatMessage({
       defaultMessage: "Detected locales",
       id: "OJQchlMSC5",
@@ -752,6 +757,20 @@ export function getLocalisationAuditResultCopy(locale: string) {
       defaultMessage: "Hide not applicable",
       id: "pw9PHi/ZLr",
       description: "Control to collapse not-applicable localisation audit criteria",
+    }),
+    criteriaShowAllFailed: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Show all {count} issues",
+          id: "2+PbV9bo++",
+          description: "Control to expand the full list of failed localisation audit criteria",
+        },
+        values,
+      ),
+    criteriaShowFewerFailed: intl.formatMessage({
+      defaultMessage: "Show fewer",
+      id: "vmpsiqnJs+",
+      description: "Control to collapse the full list of failed localisation audit criteria",
     }),
     linguisticHeading: intl.formatMessage({
       defaultMessage: "Linguistic notes",
