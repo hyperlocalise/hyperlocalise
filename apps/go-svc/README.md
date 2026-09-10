@@ -100,7 +100,7 @@ curl http://localhost:8080/health
 # {"status":"ok"}
 ```
 
-The web app reaches go-svc through `GO_SVC_URL` (set automatically on Vercel via the service binding) or through the `/api/go-svc` rewrite when running the full stack locally.
+The web app reaches go-svc through `GO_SVC_URL` (set automatically on Vercel via the service binding). Domains research is **not** available on the public `/api/go-svc` rewrite: handlers require a service token derived from `WORKOS_COOKIE_PASSWORD` (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js org API computes and sends that header server-side.
 
 ## Docker / Vercel
 
@@ -118,11 +118,11 @@ Set the required WorkOS variables in the Vercel `go_svc` service environment. Us
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie | Validate a CAT segment (format, length, spelling) |
-| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie | Expand a seed keyword + market through DataForSEO Labs |
-| `POST` | `/v1/domains/research/serp` | WorkOS session cookie | Fetch a live organic SERP snapshot |
-| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie | Live rank check for one keyword against a hostname |
-| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie | Live rank check for up to 20 keywords |
+| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
+| `POST` | `/v1/domains/research/serp` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
+| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
+| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
-Authenticated requests must include the `wos-session` cookie from a signed-in Hyperlocalise user.
+Authenticated CAT requests must include the `wos-session` cookie from a signed-in Hyperlocalise user. Research routes also require `X-Go-Svc-Research-Token`, a SHA-256 hex digest of `go-svc-research:` plus `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.

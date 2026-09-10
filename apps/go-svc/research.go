@@ -2,19 +2,27 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	maxResearchBodyBytes     = 64 << 10
-	defaultKeywordIdeaLimit  = 50
-	maxKeywordIdeaLimit      = 200
-	maxRankCheckBatchSize    = 20
-	defaultResearchSerpDepth = 20
+	maxResearchBodyBytes          = 64 << 10
+	defaultKeywordIdeaLimit       = 50
+	maxKeywordIdeaLimit           = 200
+	maxRankCheckBatchSize         = 20
+	defaultResearchSerpDepth      = 20
+	rankCheckConcurrency          = 4
+	researchServiceTokenHeader    = "X-Go-Svc-Research-Token"
+	researchServiceTokenNamespace = "go-svc-research:"
 )
 
 type researchService interface {
@@ -247,31 +255,77 @@ func (h *handler) rankCheckBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := make([]dataforseo.RankCheckResult, 0, len(req.Keywords))
+	items := make([]researchRankCheckKeyword, 0, len(req.Keywords))
 	for _, item := range req.Keywords {
 		keyword := strings.TrimSpace(item.Keyword)
 		if keyword == "" {
 			continue
 		}
-		response, err := h.research.RankCheck(r.Context(), dataforseo.RankCheckSerpInput{
-			KeywordID:    strings.TrimSpace(item.KeywordID),
-			Keyword:      keyword,
-			TargetDomain: targetDomain,
-			Market: dataforseo.MarketScope{
-				LocationCode: req.LocationCode,
-				LanguageCode: languageCode,
-			},
-			Device: req.Device,
-			Depth:  defaultSerpDepth(req.Depth),
+		items = append(items, researchRankCheckKeyword{
+			KeywordID: strings.TrimSpace(item.KeywordID),
+			Keyword:   keyword,
 		})
-		if err != nil {
-			writeResearchError(w, err)
-			return
-		}
-		results = append(results, response.Data)
+	}
+	if len(items) == 0 {
+		writeJSON(w, http.StatusOK, researchRankCheckBatchResponse{Results: []dataforseo.RankCheckResult{}})
+		return
+	}
+
+	results := make([]dataforseo.RankCheckResult, len(items))
+	group, ctx := errgroup.WithContext(r.Context())
+	group.SetLimit(rankCheckConcurrency)
+	for i, item := range items {
+		group.Go(func() error {
+			response, err := h.research.RankCheck(ctx, dataforseo.RankCheckSerpInput{
+				KeywordID:    item.KeywordID,
+				Keyword:      item.Keyword,
+				TargetDomain: targetDomain,
+				Market: dataforseo.MarketScope{
+					LocationCode: req.LocationCode,
+					LanguageCode: languageCode,
+				},
+				Device: req.Device,
+				Depth:  defaultSerpDepth(req.Depth),
+			})
+			if err != nil {
+				return err
+			}
+			results[i] = response.Data
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		writeResearchError(w, err)
+		return
 	}
 
 	writeJSON(w, http.StatusOK, researchRankCheckBatchResponse{Results: results})
+}
+
+func researchAuthMiddleware(verifier SessionVerifier) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !requireResearchServiceToken(w, r) {
+				return
+			}
+			next.ServeHTTP(w, r)
+		}))
+	}
+}
+
+func researchServiceToken() string {
+	sum := sha256.Sum256([]byte(researchServiceTokenNamespace + os.Getenv("WORKOS_COOKIE_PASSWORD")))
+	return hex.EncodeToString(sum[:])
+}
+
+func requireResearchServiceToken(w http.ResponseWriter, r *http.Request) bool {
+	provided := strings.TrimSpace(r.Header.Get(researchServiceTokenHeader))
+	expected := researchServiceToken()
+	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		writeUnauthorized(w, "missing research service token")
+		return false
+	}
+	return true
 }
 
 func (h *handler) requireResearch(w http.ResponseWriter) bool {

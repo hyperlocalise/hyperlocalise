@@ -49,10 +49,11 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/validate/segment", validate)
-	mux.Handle("POST /v1/domains/research/keywords", authMiddleware(verifier)(http.HandlerFunc(h.expandKeywords)))
-	mux.Handle("POST /v1/domains/research/serp", authMiddleware(verifier)(http.HandlerFunc(h.liveSerp)))
-	mux.Handle("POST /v1/domains/research/rank-check", authMiddleware(verifier)(http.HandlerFunc(h.rankCheck)))
-	mux.Handle("POST /v1/domains/research/rank-check/batch", authMiddleware(verifier)(http.HandlerFunc(h.rankCheckBatch)))
+	research := researchAuthMiddleware(verifier)
+	mux.Handle("POST /v1/domains/research/keywords", research(http.HandlerFunc(h.expandKeywords)))
+	mux.Handle("POST /v1/domains/research/serp", research(http.HandlerFunc(h.liveSerp)))
+	mux.Handle("POST /v1/domains/research/rank-check", research(http.HandlerFunc(h.rankCheck)))
+	mux.Handle("POST /v1/domains/research/rank-check/batch", research(http.HandlerFunc(h.rankCheckBatch)))
 	if h.ofrep != nil {
 		h.ofrep.Register(mux)
 	}

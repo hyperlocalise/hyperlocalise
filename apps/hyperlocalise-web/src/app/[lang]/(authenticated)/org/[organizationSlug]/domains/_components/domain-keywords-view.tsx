@@ -125,7 +125,9 @@ function KeywordScreen({
   const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
   const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
   const [serpPending, setSerpPending] = useState(false);
-  const catalogKeywords = market === catalog.domain.market.id ? catalog.keywords : [];
+  const catalogKeywords = catalog.keywords.filter(
+    (keyword) => (keyword.marketId ?? catalog.domain.market.id) === market,
+  );
   const keywords = ideas && expandedMarketId === market ? ideas : catalogKeywords;
   const rows = filterKeywordIdeas(keywords, live ? "" : search, filters, sort);
   const active = resolveActiveKeyword(rows, activeId);

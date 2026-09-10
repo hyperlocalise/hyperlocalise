@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -110,6 +112,12 @@ function mapProviderError(status: number, body: GoSvcErrorBody): DomainResearchP
   };
 }
 
+function goSvcResearchToken() {
+  return createHash("sha256")
+    .update(`go-svc-research:${env.WORKOS_COOKIE_PASSWORD ?? ""}`)
+    .digest("hex");
+}
+
 async function postGoSvc<T>(
   path: string,
   body: unknown,
@@ -120,6 +128,7 @@ async function postGoSvc<T>(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-Go-Svc-Research-Token": goSvcResearchToken(),
         ...(options.cookie ? { cookie: options.cookie } : {}),
       },
       body: JSON.stringify(body),

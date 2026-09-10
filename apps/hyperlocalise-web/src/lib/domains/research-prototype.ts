@@ -61,6 +61,7 @@ export type KeywordIdea = {
   kd: number;
   cpc: number;
   intent: KeywordIntent;
+  marketId?: string;
   competition?: number;
   monthlySearches?: { month: string; volume: number }[];
 };
@@ -72,6 +73,7 @@ export type RankRow = {
   previousPosition: number | null;
   url: string;
   volume: number;
+  marketId?: string;
 };
 
 export type OverviewKeywordRow = {

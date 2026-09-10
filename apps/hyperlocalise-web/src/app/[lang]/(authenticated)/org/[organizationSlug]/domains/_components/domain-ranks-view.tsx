@@ -20,9 +20,21 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
+import {
+  DOMAIN_RESEARCH_MARKETS,
+  getResearchPrototypeCatalog,
+} from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
@@ -58,6 +70,7 @@ export function DomainRanksView({
   const prototypeCatalog = getResearchPrototypeCatalog(linkedDomainId);
   const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
   const catalog = liveResearch.data?.catalog ?? prototypeCatalog;
+  const [market, setMarket] = useState(catalog?.domain.market.id ?? DOMAIN_RESEARCH_MARKETS[0]?.id);
   const [addOpen, setAddOpen] = useState(false);
   const [addPending, setAddPending] = useState(false);
   const [refreshPending, setRefreshPending] = useState(false);
@@ -74,7 +87,10 @@ export function DomainRanksView({
     return null;
   }
 
-  const marketId = catalog.domain.market.id;
+  const marketId = market ?? catalog.domain.market.id;
+  const ranks = catalog.ranks.filter(
+    (row) => (row.marketId ?? catalog.domain.market.id) === marketId,
+  );
 
   async function addKeywords(value: string) {
     const keywords = parseKeywordLines(value);
@@ -136,31 +152,60 @@ export function DomainRanksView({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        {liveResearch.live ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={refreshPending || catalog.ranks.length === 0}
-            onClick={() => {
-              void refreshRanks();
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <Field className="w-full sm:w-48">
+          <FieldLabel htmlFor="rank-market">
+            <FormattedMessage {...messages.market} />
+          </FieldLabel>
+          <Select
+            value={marketId}
+            items={DOMAIN_RESEARCH_MARKETS.map((item) => ({ value: item.id, label: item.label }))}
+            onValueChange={(value) => {
+              if (value) {
+                setMarket(value);
+              }
             }}
           >
-            {refreshPending ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <HugeiconsIcon icon={ReloadIcon} strokeWidth={1.8} />
-            )}
-            <FormattedMessage {...messages.refreshCta} />
+            <SelectTrigger id="rank-market" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {DOMAIN_RESEARCH_MARKETS.map((item) => (
+                  <SelectItem key={item.id} value={item.id} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="flex flex-wrap justify-end gap-2">
+          {liveResearch.live ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={refreshPending || ranks.length === 0}
+              onClick={() => {
+                void refreshRanks();
+              }}
+            >
+              {refreshPending ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <HugeiconsIcon icon={ReloadIcon} strokeWidth={1.8} />
+              )}
+              <FormattedMessage {...messages.refreshCta} />
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+            <FormattedMessage {...messages.addCta} />
           </Button>
-        ) : null}
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          <FormattedMessage {...messages.addCta} />
-        </Button>
+        </div>
       </div>
 
-      {catalog.ranks.length === 0 ? (
+      {ranks.length === 0 ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...messages.emptyTitle} />}
           description={<FormattedMessage {...messages.emptyDescription} />}
@@ -195,7 +240,7 @@ export function DomainRanksView({
             </span>
           </div>
           <div className="divide-y divide-border">
-            {catalog.ranks.map((row) => {
+            {ranks.map((row) => {
               const delta =
                 row.position != null && row.previousPosition != null
                   ? row.previousPosition - row.position

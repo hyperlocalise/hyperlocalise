@@ -7,19 +7,23 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 	"github.com/stretchr/testify/require"
 )
 
 type fakeResearch struct {
-	ideas    dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]
-	ideasErr error
-	serp     dataforseo.TaskResponse[[]dataforseo.SerpItem]
-	serpErr  error
-	rank     dataforseo.TaskResponse[dataforseo.RankCheckResult]
-	rankErr  error
+	ideas     dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]
+	ideasErr  error
+	serp      dataforseo.TaskResponse[[]dataforseo.SerpItem]
+	serpErr   error
+	rank      dataforseo.TaskResponse[dataforseo.RankCheckResult]
+	rankErr   error
+	rankDelay time.Duration
+	onRank    func()
 }
 
 func (f fakeResearch) KeywordIdeas(
@@ -37,9 +41,19 @@ func (f fakeResearch) LiveAdvanced(
 }
 
 func (f fakeResearch) RankCheck(
-	_ context.Context,
+	ctx context.Context,
 	_ dataforseo.RankCheckSerpInput,
 ) (dataforseo.TaskResponse[dataforseo.RankCheckResult], error) {
+	if f.onRank != nil {
+		f.onRank()
+	}
+	if f.rankDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return dataforseo.TaskResponse[dataforseo.RankCheckResult]{}, ctx.Err()
+		case <-time.After(f.rankDelay):
+		}
+	}
 	return f.rank, f.rankErr
 }
 
@@ -187,4 +201,79 @@ func TestExpandKeywordsUnauthorizedOnRegisteredRoute(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{}`))
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestResearchRegisteredRouteRequiresServiceToken(t *testing.T) {
+	h := newHandler()
+	h.research = fakeResearch{}
+	mux := http.NewServeMux()
+	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
+		"keyword":"seo","locationCode":2840,"languageCode":"en"
+	}`))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+	require.Contains(t, rec.Body.String(), "missing research service token")
+}
+
+func TestResearchRegisteredRouteAcceptsServiceToken(t *testing.T) {
+	h := newHandler()
+	h.research = fakeResearch{
+		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
+			Data: []dataforseo.KeywordDataItem{{"keyword": "seo tools"}},
+		},
+	}
+	mux := http.NewServeMux()
+	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
+		"keyword":"seo","locationCode":2840,"languageCode":"en"
+	}`))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	req.Header.Set(researchServiceTokenHeader, researchServiceToken())
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestRankCheckBatchUsesBoundedConcurrency(t *testing.T) {
+	var inFlight, maxInFlight atomic.Int32
+	h := newHandler()
+	h.research = fakeResearch{
+		onRank: func() {
+			n := inFlight.Add(1)
+			defer inFlight.Add(-1)
+			for {
+				current := maxInFlight.Load()
+				if n <= current || maxInFlight.CompareAndSwap(current, n) {
+					break
+				}
+			}
+			time.Sleep(40 * time.Millisecond)
+		},
+		rank: dataforseo.TaskResponse[dataforseo.RankCheckResult]{
+			Data: dataforseo.RankCheckResult{Keyword: "seo"},
+		},
+	}
+	keywords := make([]map[string]string, 8)
+	for i := range keywords {
+		keywords[i] = map[string]string{"keywordId": "kw", "keyword": "seo"}
+	}
+	body, err := json.Marshal(map[string]any{
+		"targetDomain": "example.com",
+		"locationCode": 2840,
+		"languageCode": "en",
+		"keywords":     keywords,
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/rank-check/batch", bytes.NewReader(body))
+	h.rankCheckBatch(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Greater(t, maxInFlight.Load(), int32(1))
+	require.LessOrEqual(t, maxInFlight.Load(), int32(rankCheckConcurrency))
 }

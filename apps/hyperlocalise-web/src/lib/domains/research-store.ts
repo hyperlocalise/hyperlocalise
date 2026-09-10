@@ -145,6 +145,7 @@ export async function getLiveDomainResearchCatalog(input: {
     kd: row.kd,
     cpc: row.cpc,
     intent: asIntent(row.intent),
+    marketId: row.marketId,
   }));
   const ranks: RankRow[] = trackedRows.map((row) => ({
     id: row.id,
@@ -153,6 +154,7 @@ export async function getLiveDomainResearchCatalog(input: {
     previousPosition: row.previousPosition,
     url: row.url,
     volume: row.volume,
+    marketId: row.marketId,
   }));
   const serpByKeywordId: Record<string, SerpResult[]> = {};
   const keywordIdByKey = new Map(
@@ -270,6 +272,7 @@ export async function expandLiveDomainKeywords(input: {
       kd: idea.kd,
       cpc: idea.cpc,
       intent: idea.intent,
+      marketId: market.id,
     })),
   });
 }
@@ -461,18 +464,44 @@ export async function trackLiveDomainKeywords(input: {
     return ok({ ranks: catalog.value.catalog.ranks });
   }
 
+  const provider = input.provider ?? getDomainResearchProvider();
+  const rankResult = await provider.rankCheckBatch({
+    targetDomain: linkedDomainResult.value.domainKey,
+    locationCode: market.locationCode,
+    languageCode: market.language,
+    keywords: rows.slice(0, 20).map((row) => ({
+      keywordId: row.keyword,
+      keyword: row.keyword,
+    })),
+    cookie: input.cookie,
+    signal: input.signal,
+  });
+  if (!rankResult.ok) {
+    return rankResult;
+  }
+
+  const checkByKeyword = new Map(
+    rankResult.value.map((check) => [check.keyword.toLowerCase(), check]),
+  );
+  const checkedAt = new Date();
   const tracked = await database
     .insert(schema.domainResearchTrackedKeywords)
     .values(
-      rows.map((keyword) => ({
-        organizationId: input.organizationId,
-        linkedDomainId: input.linkedDomainId,
-        keyword: keyword.keyword,
-        marketId: market.id,
-        locationCode: market.locationCode,
-        languageCode: market.language,
-        volume: keyword.volume,
-      })),
+      rows.map((keyword) => {
+        const check = checkByKeyword.get(keyword.keyword.toLowerCase());
+        return {
+          organizationId: input.organizationId,
+          linkedDomainId: input.linkedDomainId,
+          keyword: keyword.keyword,
+          marketId: market.id,
+          locationCode: market.locationCode,
+          languageCode: market.language,
+          volume: keyword.volume,
+          position: check?.position ?? null,
+          url: check?.url ?? "",
+          lastCheckedAt: check ? checkedAt : null,
+        };
+      }),
     )
     .onConflictDoUpdate({
       target: [
@@ -485,30 +514,31 @@ export async function trackLiveDomainKeywords(input: {
       set: {
         volume: sql`excluded.volume`,
         marketId: sql`excluded.market_id`,
+        previousPosition: sql`${schema.domainResearchTrackedKeywords.position}`,
+        position: sql`excluded.position`,
+        url: sql`excluded.url`,
+        lastCheckedAt: sql`excluded.last_checked_at`,
         updatedAt: sql`now()`,
       },
     })
     .returning();
 
-  const provider = input.provider ?? getDomainResearchProvider();
-  const rankResult = await provider.rankCheckBatch({
-    targetDomain: linkedDomainResult.value.domainKey,
-    locationCode: market.locationCode,
-    languageCode: market.language,
-    keywords: tracked.slice(0, 20).map((row) => ({
-      keywordId: row.id,
-      keyword: row.keyword,
-    })),
-    cookie: input.cookie,
-    signal: input.signal,
-  });
-  if (!rankResult.ok) {
-    return rankResult;
-  }
-
   await applyRankChecks({
     database,
-    checks: rankResult.value,
+    checks: tracked.flatMap((row) => {
+      const check = checkByKeyword.get(row.keyword.toLowerCase());
+      return check
+        ? [
+            {
+              keywordId: row.id,
+              keyword: row.keyword,
+              position: check.position,
+              url: check.url,
+            },
+          ]
+        : [];
+    }),
+    updateTracked: false,
   });
 
   const catalog = await getLiveDomainResearchCatalog({
@@ -544,33 +574,46 @@ export async function refreshLiveDomainRanks(input: {
     .select()
     .from(schema.domainResearchTrackedKeywords)
     .where(eq(schema.domainResearchTrackedKeywords.linkedDomainId, input.linkedDomainId))
-    .orderBy(desc(schema.domainResearchTrackedKeywords.updatedAt))
-    .limit(20);
+    .orderBy(desc(schema.domainResearchTrackedKeywords.updatedAt));
 
   if (tracked.length === 0) {
     return ok({ ranks: [] });
   }
 
-  const provider = input.provider ?? getDomainResearchProvider();
-  const rankResult = await provider.rankCheckBatch({
-    targetDomain: linkedDomainResult.value.domainKey,
-    locationCode: tracked[0]!.locationCode,
-    languageCode: tracked[0]!.languageCode,
-    keywords: tracked.map((row) => ({
-      keywordId: row.id,
-      keyword: row.keyword,
-    })),
-    cookie: input.cookie,
-    signal: input.signal,
-  });
-  if (!rankResult.ok) {
-    return rankResult;
+  const groups = new Map<string, typeof tracked>();
+  for (const row of tracked) {
+    const key = `${row.locationCode}:${row.languageCode}`;
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
   }
 
-  await applyRankChecks({
-    database,
-    checks: rankResult.value,
-  });
+  const provider = input.provider ?? getDomainResearchProvider();
+  for (const group of groups.values()) {
+    const locationCode = group[0]!.locationCode;
+    const languageCode = group[0]!.languageCode;
+    for (let offset = 0; offset < group.length; offset += 20) {
+      const batch = group.slice(offset, offset + 20);
+      const rankResult = await provider.rankCheckBatch({
+        targetDomain: linkedDomainResult.value.domainKey,
+        locationCode,
+        languageCode,
+        keywords: batch.map((row) => ({
+          keywordId: row.id,
+          keyword: row.keyword,
+        })),
+        cookie: input.cookie,
+        signal: input.signal,
+      });
+      if (!rankResult.ok) {
+        return rankResult;
+      }
+      await applyRankChecks({
+        database,
+        checks: rankResult.value,
+      });
+    }
+  }
 
   const catalog = await getLiveDomainResearchCatalog({
     organizationId: input.organizationId,
@@ -586,6 +629,7 @@ export async function refreshLiveDomainRanks(input: {
 async function applyRankChecks(input: {
   database: DatabaseClient;
   checks: { keywordId: string; keyword: string; position: number | null; url: string }[];
+  updateTracked?: boolean;
 }) {
   for (const check of input.checks) {
     if (!check.keywordId) {
@@ -600,16 +644,18 @@ async function applyRankChecks(input: {
       continue;
     }
 
-    await input.database
-      .update(schema.domainResearchTrackedKeywords)
-      .set({
-        previousPosition: current.position,
-        position: check.position,
-        url: check.url,
-        lastCheckedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.domainResearchTrackedKeywords.id, check.keywordId));
+    if (input.updateTracked !== false) {
+      await input.database
+        .update(schema.domainResearchTrackedKeywords)
+        .set({
+          previousPosition: current.position,
+          position: check.position,
+          url: check.url,
+          lastCheckedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.domainResearchTrackedKeywords.id, check.keywordId));
+    }
 
     await input.database.insert(schema.domainResearchRankSnapshots).values({
       trackedKeywordId: check.keywordId,

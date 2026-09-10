@@ -51,7 +51,7 @@ import {
   setDomainResearchProviderForTests,
 } from "@/lib/domains/research-provider";
 import { hostnameToDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -224,6 +224,7 @@ describe("domainResearchRoutes", () => {
       throw new Error("expected keywords");
     }
     expect(savedBody.keywords).toHaveLength(1);
+    expect(savedBody.keywords[0]?.marketId).toBe("france-fr");
 
     const serp = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
@@ -256,6 +257,7 @@ describe("domainResearchRoutes", () => {
       throw new Error("expected ranks");
     }
     expect(trackedBody.ranks[0]?.position).toBe(7);
+    expect(trackedBody.ranks[0]?.marketId).toBe("france-fr");
 
     const catalog = await client.api.orgs[":organizationSlug"]["linked-domains"][":linkedDomainId"][
       "research"
@@ -305,5 +307,157 @@ describe("domainResearchRoutes", () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: "market_not_found" });
+  });
+
+  it("labels saved keywords by market and does not persist ranks when the check fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    const { linkedDomain } = await insertVerifiedDomain(organizationId!, userId!);
+    const param = { organizationSlug, linkedDomainId: linkedDomain.id };
+    const keyword = {
+      keyword: "seo tools",
+      volume: 1200,
+      kd: 38,
+      cpc: 2.4,
+      intent: "commercial" as const,
+    };
+
+    const france = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.keywords.save.$post(
+      { param, json: { marketId: "france-fr", keywords: [keyword] } },
+      { headers },
+    );
+    expect(france.status).toBe(200);
+    const germany = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.keywords.save.$post(
+      { param, json: { marketId: "germany-de", keywords: [keyword] } },
+      { headers },
+    );
+    expect(germany.status).toBe(200);
+
+    const catalog = await client.api.orgs[":organizationSlug"]["linked-domains"][":linkedDomainId"][
+      "research"
+    ].$get({ param }, { headers });
+    const catalogBody = await catalog.json();
+    if (!("catalog" in catalogBody)) {
+      throw new Error("expected catalog");
+    }
+    expect(catalogBody.catalog.keywords).toHaveLength(2);
+    expect(new Set(catalogBody.catalog.keywords.map((row) => row.marketId))).toEqual(
+      new Set(["france-fr", "germany-de"]),
+    );
+
+    setDomainResearchProviderForTests({
+      expandKeywordIdeas: async () => ok([]),
+      liveSerp: async () => ok([]),
+      rankCheck: async (input) =>
+        ok({ keywordId: input.keywordId, keyword: input.keyword, position: null, url: "" }),
+      rankCheckBatch: async () =>
+        err({ code: "provider_rate_limited", message: "DataForSEO rate limited the request." }),
+    });
+
+    const tracked = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.ranks.$post(
+      { param, json: { marketId: "france-fr", keywords: [keyword] } },
+      { headers },
+    );
+    expect(tracked.status).toBe(429);
+
+    const afterFailure = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ]["research"].$get({ param }, { headers });
+    const afterFailureBody = await afterFailure.json();
+    if (!("catalog" in afterFailureBody)) {
+      throw new Error("expected catalog");
+    }
+    expect(afterFailureBody.catalog.ranks).toEqual([]);
+
+    await db
+      .delete(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
+  });
+
+  it("refreshes rank checks grouped by market", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    const { linkedDomain } = await insertVerifiedDomain(organizationId!, userId!);
+    const param = { organizationSlug, linkedDomainId: linkedDomain.id };
+    const batches: { locationCode: number; languageCode: string }[] = [];
+
+    setDomainResearchProviderForTests({
+      expandKeywordIdeas: async () => ok([]),
+      liveSerp: async () => ok([]),
+      rankCheck: async (input) =>
+        ok({ keywordId: input.keywordId, keyword: input.keyword, position: 3, url: "" }),
+      rankCheckBatch: async (input) => {
+        batches.push({
+          locationCode: input.locationCode,
+          languageCode: input.languageCode,
+        });
+        return ok(
+          input.keywords.map((keyword) => ({
+            keywordId: keyword.keywordId,
+            keyword: keyword.keyword,
+            position: 3,
+            url: "https://www.example.com/seo",
+          })),
+        );
+      },
+    });
+
+    const keyword = {
+      keyword: "seo tools",
+      volume: 1200,
+      kd: 38,
+      cpc: 2.4,
+      intent: "commercial" as const,
+    };
+    const france = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.ranks.$post(
+      { param, json: { marketId: "france-fr", keywords: [keyword] } },
+      { headers },
+    );
+    expect(france.status).toBe(200);
+    const germany = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.ranks.$post(
+      { param, json: { marketId: "germany-de", keywords: [keyword] } },
+      { headers },
+    );
+    expect(germany.status).toBe(200);
+
+    const refreshed = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].research.ranks.refresh.$post({ param }, { headers });
+    expect(refreshed.status).toBe(200);
+    const refreshedBody = await refreshed.json();
+    if (!("ranks" in refreshedBody)) {
+      throw new Error("expected ranks");
+    }
+    expect(refreshedBody.ranks).toHaveLength(2);
+    expect(new Set(refreshedBody.ranks.map((row) => row.marketId))).toEqual(
+      new Set(["france-fr", "germany-de"]),
+    );
+    expect(batches).toHaveLength(4);
+    expect(batches.slice(2)).toEqual(
+      expect.arrayContaining([
+        { locationCode: 2250, languageCode: "fr" },
+        { locationCode: 2276, languageCode: "de" },
+      ]),
+    );
+
+    await db
+      .delete(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId!));
   });
 });

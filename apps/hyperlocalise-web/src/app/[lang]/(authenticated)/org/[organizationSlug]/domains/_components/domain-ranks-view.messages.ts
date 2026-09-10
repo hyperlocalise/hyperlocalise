@@ -115,4 +115,9 @@ export const domainRanksViewMessages = defineMessages({
     id: "HaCrxeRi6N",
     description: "Error toast when adding tracked keywords fails",
   },
+  market: {
+    defaultMessage: "Market",
+    id: "6/WZRSBILe",
+    description: "Rank tracking market selector",
+  },
 });
