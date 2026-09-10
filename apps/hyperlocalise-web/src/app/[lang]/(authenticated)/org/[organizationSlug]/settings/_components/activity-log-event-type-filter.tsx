@@ -105,6 +105,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "translation_memory_exported",
       "translation_memory_project_attached",
       "translation_memory_project_detached",
+      "translation_memory_action_rejected",
     ],
   },
   {

@@ -19,7 +19,10 @@ import {
   listAttachedProjectMemoryIds,
 } from "@/lib/memory/ensure-default-native-project-memory";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
-import { isMemoryWritableForExecution } from "@/lib/memory/memory-capabilities";
+import {
+  isMemorySearchableForExecution,
+  isMemoryWritableForExecution,
+} from "@/lib/memory/memory-capabilities";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import {
   normalizeSyncedDatabaseTranslationMemoryMatch,
@@ -60,7 +63,26 @@ export class FileTranslationMemoryStore {
       return emptyFileTranslationMemoryReuseResult();
     }
 
-    const memoryIds = await listAttachedProjectMemoryIds(input.projectId);
+    const attachedMemoryIds = await listAttachedProjectMemoryIds(input.projectId);
+    if (attachedMemoryIds.length === 0) {
+      return emptyFileTranslationMemoryReuseResult();
+    }
+
+    const searchableMemories = await db
+      .select({
+        id: schema.memories.id,
+        source: schema.memories.source,
+        status: schema.memories.status,
+        capabilityMode: schema.memories.capabilityMode,
+        externalProviderKind: schema.memories.externalProviderKind,
+      })
+      .from(schema.memories)
+      .where(
+        and(inArray(schema.memories.id, attachedMemoryIds), eq(schema.memories.status, "active")),
+      );
+    const memoryIds = searchableMemories
+      .filter(isMemorySearchableForExecution)
+      .map((memory) => memory.id);
     if (memoryIds.length === 0) {
       return emptyFileTranslationMemoryReuseResult();
     }

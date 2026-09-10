@@ -401,3 +401,25 @@ export function deniedMemoryCapabilities(reason: MemoryCapabilityReason) {
 export function isMemoryWritableForExecution(memory: Pick<Memory, "source" | "status">) {
   return memory.source === "native" && memory.status === "active";
 }
+
+/**
+ * Background translation jobs may reuse only active memories whose persisted
+ * entries are valid search sources for the memory's capability mode.
+ */
+export function isMemorySearchableForExecution(
+  memory: Pick<Memory, "source" | "status" | "capabilityMode" | "externalProviderKind">,
+) {
+  if (memory.status !== "active") {
+    return false;
+  }
+
+  if (memory.source === "native") {
+    return true;
+  }
+
+  return (
+    memory.capabilityMode !== "reference_only" &&
+    memory.externalProviderKind != null &&
+    providerSupportsTranslationMemoryMatch(memory.externalProviderKind)
+  );
+}
