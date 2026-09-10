@@ -51,6 +51,7 @@ const REVIEW_CAPABILITIES: OrganizationCapability[] = [
 ];
 
 const MEMORY_REVIEW_CAPABILITIES: OrganizationCapability[] = ["memories:review"];
+const GLOSSARY_REVIEW_CAPABILITIES: OrganizationCapability[] = ["glossaries:review"];
 
 const OPERATOR_CAPABILITIES: OrganizationCapability[] = [
   "workspace:update",
@@ -108,6 +109,7 @@ describe("organization capability policy", () => {
         ...WRITE_BACK_TRANSLATION_CAPABILITIES,
         ...REVIEW_CAPABILITIES,
         ...MEMORY_REVIEW_CAPABILITIES,
+        ...GLOSSARY_REVIEW_CAPABILITIES,
         ...OPERATOR_CAPABILITIES,
         ...ADMIN_ONLY_CAPABILITIES,
       ].sort(),

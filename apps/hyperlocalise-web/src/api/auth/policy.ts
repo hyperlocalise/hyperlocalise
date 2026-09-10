@@ -42,6 +42,7 @@ const REVIEW_CAPABILITIES = [
 ] as const;
 
 const MEMORY_REVIEW_CAPABILITIES = ["memories:review"] as const;
+const GLOSSARY_REVIEW_CAPABILITIES = ["glossaries:review"] as const;
 
 /** Technical contributors: projects, sync jobs, integrations visibility; no review or org admin. */
 const DEVELOPER_CAPABILITIES = [
@@ -60,6 +61,7 @@ const LOCALIZATION_MANAGER_CAPABILITIES = [
   ...WRITE_BACK_TRANSLATION_CAPABILITIES,
   ...REVIEW_CAPABILITIES,
   ...MEMORY_REVIEW_CAPABILITIES,
+  ...GLOSSARY_REVIEW_CAPABILITIES,
   "workspace:update",
   "members:invite",
   "teams:write",
@@ -102,6 +104,7 @@ const REVIEWER_CAPABILITIES = new Set<OrganizationCapability>([
   ...WRITE_BACK_TRANSLATION_CAPABILITIES,
   ...REVIEW_CAPABILITIES,
   ...MEMORY_REVIEW_CAPABILITIES,
+  ...GLOSSARY_REVIEW_CAPABILITIES,
 ]);
 
 const TRANSLATOR_CAPABILITY_SET = new Set<OrganizationCapability>(TRANSLATOR_CAPABILITIES);

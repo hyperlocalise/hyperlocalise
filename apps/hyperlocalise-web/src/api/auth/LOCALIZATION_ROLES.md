@@ -56,6 +56,7 @@ membership further limits which projects appear in listings.
 | `glossaries:write`           | ✓     | ✓                    |           |          |            |        |
 | `memories:write`             | ✓     | ✓                    |           |          |            |        |
 | `memories:review`            | ✓     | ✓                    |           | ✓        |            |        |
+| `glossaries:review`          | ✓     | ✓                    |           | ✓        |            |        |
 | `provider_credentials:read`  | ✓     | ✓                    |           |          |            |        |
 | `provider_credentials:write` | ✓     | ✓                    |           |          |            |        |
 | `api_keys:read`              | ✓     | ✓                    |           |          |            |        |
