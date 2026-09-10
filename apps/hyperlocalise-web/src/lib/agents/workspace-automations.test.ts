@@ -1624,6 +1624,7 @@ describe("workspace automations", () => {
       await createWorkspaceAutomation({
         ...base,
         name: "Scheduled GitLab review",
+        actorWorkosUserId: "user_workos",
         triggerConfig: {
           mode: "scheduled",
           schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
