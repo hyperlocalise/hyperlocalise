@@ -112,7 +112,7 @@ export const glossaryHistoryPageMessages = defineMessages({
   },
   invalidCursor: {
     defaultMessage: "That page is no longer valid. Showing the first page.",
-    id: "k4nH8qL2wR",
+    id: "BxVa0XAhsz",
     description: "Status announced when a glossary history cursor can no longer be used",
   },
   loadMore: {

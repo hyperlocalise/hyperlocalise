@@ -147,25 +147,23 @@ describe("GlossaryHistoryPage", () => {
 
   it("restarts from the first page when a cursor expires", async () => {
     const user = userEvent.setup();
-    apiMocks.getHistory.mockImplementation(
-      async (args: { query?: { cursor?: string } }) => {
-        if (args.query?.cursor) {
-          return jsonResponse(
-            {
-              error: "invalid_glossary_history_cursor",
-              message: "Glossary history cursor is invalid",
-            },
-            400,
-          );
-        }
+    apiMocks.getHistory.mockImplementation(async (args: { query?: { cursor?: string } }) => {
+      if (args.query?.cursor) {
         return jsonResponse(
-          historyPage(
-            [historyEvent("11111111-1111-4111-8111-111111111111")],
-            args.query?.cursor ? null : "cursor-1",
-          ),
+          {
+            error: "invalid_glossary_history_cursor",
+            message: "Glossary history cursor is invalid",
+          },
+          400,
         );
-      },
-    );
+      }
+      return jsonResponse(
+        historyPage(
+          [historyEvent("11111111-1111-4111-8111-111111111111")],
+          args.query?.cursor ? null : "cursor-1",
+        ),
+      );
+    });
 
     renderHistoryPage();
 
@@ -180,7 +178,9 @@ describe("GlossaryHistoryPage", () => {
         screen.getByText("That page is no longer valid. Showing the first page."),
       ).toBeInTheDocument();
     });
-    expect(screen.queryByText("This glossary does not expose local history.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This glossary does not expose local history."),
+    ).not.toBeInTheDocument();
     expect(apiMocks.getHistory.mock.calls.some((call) => !call[0]?.query?.cursor)).toBe(true);
   });
 

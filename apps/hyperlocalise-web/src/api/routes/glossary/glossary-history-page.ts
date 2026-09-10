@@ -17,6 +17,7 @@ import { and, desc, eq, ilike, lt, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 
+import { actorDisplayName } from "./glossary-history-actor";
 import type { GlossaryHistoryQuery } from "./glossary.schema";
 
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
@@ -141,21 +142,6 @@ function decodeCursor(
     return invalidCursor("filter_mismatch");
   }
   return value;
-}
-
-export function actorDisplayName(
-  actorKind: string,
-  actorUserId: string | null,
-  firstName: string | null,
-  lastName: string | null,
-  email: string | null = null,
-) {
-  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
-  if (name) return name;
-  // ON DELETE SET NULL clears actorUserId when the user row is removed.
-  if (actorKind === "user" && !actorUserId) return "Deleted user";
-  if (email) return email;
-  return actorKind;
 }
 
 export async function listGlossaryHistoryPage(glossaryId: string, query: GlossaryHistoryQuery) {

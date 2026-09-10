@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { actorDisplayName } from "./glossary-history-page";
+import { actorDisplayName } from "./glossary-history-actor";
 
 describe("glossary history actor display name", () => {
   it("uses the joined first and last name when present", () => {
