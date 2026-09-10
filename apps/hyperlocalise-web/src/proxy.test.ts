@@ -49,6 +49,9 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/auth/sign-in")).toBe(false);
     expect(isUnsupportedLocalePath("/install")).toBe(false);
     expect(isUnsupportedLocalePath("/api/auth/callback")).toBe(false);
+    expect(isUnsupportedLocalePath("/mcp")).toBe(false);
+    expect(isUnsupportedLocalePath("/mcp/callback")).toBe(false);
+    expect(isUnsupportedLocalePath("/mcp/consent")).toBe(false);
     expect(isUnsupportedLocalePath("/crowdin-app/inbox")).toBe(false);
     expect(isUnsupportedLocalePath("/crowdin-app/manifest.json")).toBe(false);
   });
@@ -216,6 +219,18 @@ describe("proxy", () => {
     expect(response?.status).toBe(200);
   });
 
+  it("delegates /mcp OAuth callback and consent paths to AuthKit", async () => {
+    authkitProxyMock.mockReset();
+    authkitProxyMock.mockResolvedValue(NextResponse.next());
+
+    for (const pathname of ["/mcp/callback", "/mcp/consent", "/mcp"]) {
+      const response = await proxy(createRequest(pathname), {} as never);
+
+      expect(response?.status, pathname).toBe(200);
+      expect(authkitProxyMock).toHaveBeenCalled();
+    }
+  });
+
   it("does not 404 opaque UUID challenge paths as unsupported locale paths", async () => {
     authkitProxyMock.mockReset();
     authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
@@ -275,5 +290,15 @@ describe("proxy matcher", () => {
     expect(regex.test("/auth.md")).toBe(false);
     expect(regex.test("/llms.txt")).toBe(false);
     expect(regex.test("/en/org/acme/dashboard")).toBe(true);
+  });
+
+  it("re-includes /mcp paths via a dedicated AuthKit matcher", () => {
+    const [localeMatcher] = config.matcher;
+    const regex = new RegExp(`^${localeMatcher}$`);
+
+    expect(regex.test("/mcp")).toBe(false);
+    expect(regex.test("/mcp/callback")).toBe(false);
+    expect(regex.test("/mcp/consent")).toBe(false);
+    expect(config.matcher).toContain("/mcp/:path*");
   });
 });
