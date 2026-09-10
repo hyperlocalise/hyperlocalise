@@ -70,20 +70,20 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes.",
+        "Connect GitLab so Hyperlocalise can list your projects and clone them into the chat sandbox.",
       id: "ezhaX1jR0b",
       description: "GitLab integration description on the integrations page",
     },
     overview: [
       {
         defaultMessage:
-          "GitLab support lets Hyperlocalise inspect localized strings, review merge requests, and open localization fixes from GitLab repositories.",
+          "GitLab support lets Hyperlocalise inspect localized strings from GitLab.com projects in the conversation sandbox.",
         id: "intGitLabOverview0",
         description: "GitLab integration marketing overview paragraph",
       },
       {
         defaultMessage:
-          "This connector is on the roadmap for teams that run localization workflows on GitLab instead of GitHub.",
+          "Connect GitLab through WorkOS Pipes so Hyperlocalise can list membership projects and clone them into the chat sandbox.",
         id: "intGitLabOverview1",
         description: "GitLab integration marketing overview paragraph",
       },

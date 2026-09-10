@@ -17,18 +17,23 @@ const {
   createConversationToolLoopAgentMock,
   loadInteractionModelMessagesMock,
   resolveConversationRepositoryGitHubContextMock,
+  resolveConversationRepositoryGitLabContextMock,
   createRepositorySandboxMock,
+  createGitlabRepositorySandboxMock,
   isRepositorySandboxAvailableMock,
   resolveOrganizationHasTmsIntegrationMock,
   resolveWorkspaceVisualMockFlagMock,
   getOrganizationRepositoryConnectorConfigMock,
   resolveHyperlocaliseAgentLanguageModelMock,
+  resolveGitLabPipesWorkosUserIdMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
   loadInteractionModelMessagesMock: vi.fn(),
   resolveConversationRepositoryGitHubContextMock: vi.fn(),
+  resolveConversationRepositoryGitLabContextMock: vi.fn(),
   createRepositorySandboxMock: vi.fn(),
+  createGitlabRepositorySandboxMock: vi.fn(),
   isRepositorySandboxAvailableMock: vi.fn(async () => true),
   resolveOrganizationHasTmsIntegrationMock: vi.fn(),
   resolveWorkspaceVisualMockFlagMock: vi.fn(),
@@ -40,6 +45,7 @@ const {
     source: "gateway" as const,
     modelId: "openai/gpt-5.6-luna",
   })),
+  resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -86,6 +92,19 @@ vi.mock("@/lib/agents/repository-context", () => ({
   resolveConversationRepositoryGitHubContext: resolveConversationRepositoryGitHubContextMock,
 }));
 
+vi.mock("@/lib/gitlab/repository-context", () => ({
+  buildRepositoryGitLabContextInstructions: vi.fn(() => "resolved-gitlab-context"),
+  resolveConversationRepositoryGitLabContext: resolveConversationRepositoryGitLabContextMock,
+}));
+
+vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
+  createGitlabRepositorySandbox: createGitlabRepositorySandboxMock,
+}));
+
+vi.mock("@/lib/gitlab/pipes", () => ({
+  resolveGitLabPipesWorkosUserId: resolveGitLabPipesWorkosUserIdMock,
+}));
+
 vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
   createRepositorySandbox: createRepositorySandboxMock,
   isRepositorySandboxAvailable: isRepositorySandboxAvailableMock,
@@ -113,6 +132,7 @@ vi.mock("@/lib/log", () => ({
 
 import {
   buildFileTranslationInstructions,
+  getOrCreateConversationGitlabRepositorySandbox,
   getOrCreateConversationRepositorySandbox,
   prepareConversationAgentTurn,
   REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP,
@@ -213,6 +233,83 @@ describe("conversation repository sandbox reuse", () => {
   });
 });
 
+describe("conversation gitlab repository sandbox reuse", () => {
+  const gitlabContext = {
+    resolved: true as const,
+    provider: "gitlab" as const,
+    projectId: 11,
+    repositoryFullName: "acme/web",
+    httpUrlToRepo: "https://gitlab.com/acme/web.git",
+  };
+  const repositoryContextKey = JSON.stringify({
+    provider: "gitlab",
+    projectId: gitlabContext.projectId,
+    repositoryFullName: gitlabContext.repositoryFullName,
+    mergeRequestIid: null,
+    branch: null,
+    commitSha: null,
+  });
+  const repositorySession = {
+    repositoryGitLabContext: gitlabContext,
+    repositorySandboxSession: {
+      sandboxId: "sandbox_gitlab_stored",
+      repositoryContextKey,
+      createdAt: "2026-07-01T12:00:00.000Z",
+      lastUsedAt: "2026-07-01T12:00:00.000Z",
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isRepositorySandboxAvailableMock.mockResolvedValue(true);
+    resolveGitLabPipesWorkosUserIdMock.mockResolvedValue("user_workos");
+  });
+
+  it("reuses a matching stored gitlab sandbox after the availability probe", async () => {
+    const result = await getOrCreateConversationGitlabRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      gitlabContext,
+      repositorySession,
+      organizationId: "org_123",
+      localUserId: "user_123",
+    });
+
+    expect(isRepositorySandboxAvailableMock).toHaveBeenCalledWith("sandbox_gitlab_stored");
+    expect(createGitlabRepositorySandboxMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      sandboxId: "sandbox_gitlab_stored",
+      sandboxCreated: false,
+      staleSandboxId: null,
+    });
+  });
+
+  it("creates a gitlab sandbox when the stored sandbox is missing", async () => {
+    isRepositorySandboxAvailableMock.mockResolvedValueOnce(false);
+    createGitlabRepositorySandboxMock.mockResolvedValueOnce("sandbox_gitlab_new");
+
+    const result = await getOrCreateConversationGitlabRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      gitlabContext,
+      repositorySession,
+      organizationId: "org_123",
+      localUserId: "user_123",
+    });
+
+    expect(createGitlabRepositorySandboxMock).toHaveBeenCalledWith({
+      localOrganizationId: "org_123",
+      workosUserId: "user_workos",
+      gitlabContext,
+    });
+    expect(result).toMatchObject({
+      sandboxId: "sandbox_gitlab_new",
+      sandboxCreated: true,
+      staleSandboxId: "sandbox_gitlab_stored",
+    });
+  });
+});
+
 describe("resolveVirtualAttachedProjectContext", () => {
   it("recovers Crowdin provider metadata from live encoded project ids", () => {
     expect(resolveVirtualAttachedProjectContext("ext:crowdin:42")).toEqual({
@@ -239,6 +336,9 @@ describe("conversation turn preparation", () => {
     resolveOrganizationHasTmsIntegrationMock.mockResolvedValue(true);
     resolveWorkspaceVisualMockFlagMock.mockResolvedValue(false);
     resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({
       status: "not_applicable",
     });
   });
@@ -596,5 +696,54 @@ describe("conversation turn preparation", () => {
     expect(result.updatedRepositorySession?.repositorySandboxSession?.sandboxId).toBe(
       "sandbox_committed",
     );
+  });
+
+  it("creates a gitlab sandbox when gitlab repository context resolves", async () => {
+    const gitlabContext = {
+      resolved: true as const,
+      provider: "gitlab" as const,
+      projectId: 11,
+      repositoryFullName: "acme/platform/web",
+      httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
+      branch: "main",
+    };
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+    });
+    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({
+      status: "resolved",
+      context: gitlabContext,
+    });
+    createGitlabRepositorySandboxMock.mockResolvedValue("sandbox_gitlab");
+
+    const result = await prepareConversationAgentTurn({
+      surface: "web",
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "admin",
+      projectId: null,
+      messageText: "where is the login copy in https://gitlab.com/acme/platform/web?",
+      hasTranslationAttachments: false,
+      db: {} as never,
+    });
+
+    expect(createGitlabRepositorySandboxMock).toHaveBeenCalledWith({
+      localOrganizationId: "org_123",
+      workosUserId: "user_workos",
+      gitlabContext,
+    });
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolContext: expect.objectContaining({
+          sandboxId: "sandbox_gitlab",
+          gitlabContext,
+          githubContext: null,
+          workMode: "read_only",
+        }),
+      }),
+    );
+    expect(result.updatedRepositorySession?.repositoryGitLabContext).toEqual(gitlabContext);
   });
 });

@@ -30,6 +30,7 @@ import {
   workspacePipesCollaborationSlugs,
   workspacePipesCustomerEngagementSlugs,
   workspacePipesGuidelineSlugs,
+  workspacePipesSourceControlSlugs,
   type WorkspaceIntegrationSummary,
 } from "@/lib/integrations/workspace-integrations";
 import type { PipesProviderSlug } from "@/lib/pipes/providers";
@@ -99,13 +100,17 @@ function useWorkspaceIntegrations(slugs: readonly string[]) {
 export function SourceControlIntegrationsSection({
   organizationSlug,
   userCanManage,
-}: AgentIntegrationsSectionProps) {
-  const comingSoonGitLab = useWorkspaceIntegrations(["gitlab"])[0];
-
+  userIsAdmin,
+}: AgentIntegrationsSectionProps & { userIsAdmin: boolean }) {
   return (
     <>
       <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-      {comingSoonGitLab ? <ComingSoonIntegrationRow integration={comingSoonGitLab} isLast /> : null}
+      <PipesIntegrationList
+        organizationSlug={organizationSlug}
+        slugs={workspacePipesSourceControlSlugs}
+        disabled={!userIsAdmin}
+        isLast
+      />
     </>
   );
 }

@@ -24,7 +24,7 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type InboxApi } from "./inbox-api";
+import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
 import { conversationPanelMessages } from "./conversation-panel.messages";
 import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
@@ -181,9 +181,8 @@ export const InboxPageContent = observer(function InboxPageContent({
     mutationFn: (input: {
       text: string;
       files: File[];
-      projectId?: string;
-      repositoryFullName?: string;
-    }) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
+    } & ChatComposerSendOptions) =>
+      injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
     onSuccess: () => {
       void messagesQuery.refetch();
       void conversationsQuery.refetch();
@@ -194,9 +193,7 @@ export const InboxPageContent = observer(function InboxPageContent({
     mutationFn: (input: {
       text: string;
       files: File[];
-      projectId?: string;
-      repositoryFullName?: string;
-    }) => injectedInboxApi.createConversation(organizationSlug, input),
+    } & ChatComposerSendOptions) => injectedInboxApi.createConversation(organizationSlug, input),
   });
 
   const markReadMutation = useMutation({
@@ -236,7 +233,7 @@ export const InboxPageContent = observer(function InboxPageContent({
     async (
       text: string,
       files: File[],
-      options?: { projectId?: string; repositoryFullName?: string },
+      options?: ChatComposerSendOptions,
     ) => {
       if (composeNew) {
         try {

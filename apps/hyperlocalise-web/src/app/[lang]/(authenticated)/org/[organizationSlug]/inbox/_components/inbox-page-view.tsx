@@ -18,6 +18,7 @@ import { Box } from "@/components/ui/layout/box";
 
 import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
+import type { ChatComposerSendOptions } from "./inbox-api";
 import { InboxIssuePanel } from "./inbox-issue-panel";
 import { InboxList, type InboxSelection } from "./inbox-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
@@ -88,7 +89,7 @@ export function InboxPageView({
   onSendMessage: (
     text: string,
     files: File[],
-    options?: { projectId?: string; repositoryFullName?: string },
+    options?: ChatComposerSendOptions,
   ) => void | Promise<void>;
   organizationSlug: string;
   selectedConversation: Conversation | undefined;

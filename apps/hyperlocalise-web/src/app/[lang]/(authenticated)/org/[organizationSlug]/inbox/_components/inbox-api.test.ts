@@ -37,6 +37,9 @@ function stubInboxApiClient() {
             "github-installation": {
               repositories: { $get: vi.fn() },
             },
+            gitlab: {
+              projects: { $get: vi.fn() },
+            },
           },
         },
       },
@@ -118,5 +121,86 @@ describe("createInboxApi FormData", () => {
         text: "   ",
       },
     });
+  });
+
+  it("sends repositoryProvider with GitLab selections", async () => {
+    const { client, createConversationPost } = stubInboxApiClient();
+    createConversationPost.mockResolvedValue(jsonResponse({ conversation: { id: "conv_3" } }, 201));
+
+    const api = createInboxApi(client);
+    await api.createConversation("acme", {
+      text: "Review this GitLab project",
+      files: [],
+      repositoryFullName: "acme/platform/web",
+      repositoryProvider: "gitlab",
+    });
+
+    expect(createConversationPost).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme" },
+      form: {
+        text: "Review this GitLab project",
+        repositoryFullName: "acme/platform/web",
+        repositoryProvider: "gitlab",
+      },
+    });
+  });
+
+  it("merges GitHub repositories and GitLab projects into chat repository options", async () => {
+    const { client } = stubInboxApiClient();
+    const githubGet = client.api.orgs[":organizationSlug"]["github-installation"].repositories.$get;
+    const gitlabGet = client.api.orgs[":organizationSlug"].gitlab.projects.$get;
+    githubGet.mockResolvedValue(
+      jsonResponse(
+        {
+          repositories: [
+            {
+              archived: false,
+              defaultBranch: "main",
+              enabled: true,
+              fullName: "acme/web",
+              name: "web",
+            },
+          ],
+        },
+        200,
+      ),
+    );
+    gitlabGet.mockResolvedValue(
+      jsonResponse(
+        {
+          projects: [
+            {
+              archived: false,
+              defaultBranch: "main",
+              name: "docs",
+              pathWithNamespace: "acme/platform/docs",
+            },
+          ],
+        },
+        200,
+      ),
+    );
+
+    const api = createInboxApi(client);
+    await expect(api.listChatRepositories("acme")).resolves.toEqual([
+      {
+        archived: false,
+        defaultBranch: "main",
+        enabled: true,
+        fullName: "acme/web",
+        name: "web",
+        provider: "github",
+        selectionKey: "github:acme/web",
+      },
+      {
+        archived: false,
+        defaultBranch: "main",
+        enabled: true,
+        fullName: "acme/platform/docs",
+        name: "docs",
+        provider: "gitlab",
+        selectionKey: "gitlab:acme/platform/docs",
+      },
+    ]);
   });
 });

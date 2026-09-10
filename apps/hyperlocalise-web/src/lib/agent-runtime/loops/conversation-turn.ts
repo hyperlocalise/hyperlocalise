@@ -16,6 +16,7 @@ import type {
   HyperlocaliseAgentSurface,
   HyperlocaliseAttachedProjectContext,
 } from "@/agents/hyperlocalise/agent/agent";
+import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -27,6 +28,12 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
+import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
+import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
+import {
+  buildRepositoryGitLabContextInstructions,
+  resolveConversationRepositoryGitLabContext,
+} from "@/lib/gitlab/repository-context";
 import {
   createRepositorySandbox,
   isRepositorySandboxAvailable,
@@ -52,6 +59,7 @@ import {
 } from "./hyperlocalise-agent";
 import { resolveOrganizationHasTmsIntegration } from "../skills/conversation-tms-integration";
 import {
+  getGitlabRepositoryContextKey,
   getRepositoryContextKey,
   type ConversationRepositorySession,
 } from "./conversation-repository-session";
@@ -133,7 +141,7 @@ export function buildMissingRepositoryContextInstructions(followUp: string) {
   return [
     "Repository context is not available for this request.",
     `If the user asks where a string, message, copy, or localized text appears in code, ask this follow-up exactly: ${followUp}`,
-    "Do not invent a GitHub repository, pull request, branch, installation ID, path, or file contents.",
+    "Do not invent a GitHub or GitLab repository, pull request, merge request, branch, installation ID, path, or file contents.",
   ].join("\n");
 }
 
@@ -147,9 +155,23 @@ export function buildResolvedRepositoryContextInstructions(context: RepositoryAg
   ].join("\n");
 }
 
+export function buildResolvedGitLabRepositoryContextInstructions(
+  context: RepositoryAgentGitLabContext,
+) {
+  return [
+    buildRepositoryGitLabContextInstructions(context),
+    "Repository read tools are available for this request.",
+    "Use grep with the user's literal string or copy, then read for surrounding lines when needed.",
+    "Only explain where strings, messages, or copy appear and what nearby code implies.",
+    "Do not modify files, upload sources, commit, push, or create jobs from repository context alone.",
+  ].join("\n");
+}
+
 type ResolveRepositoryContextInput = {
   surface: HyperlocaliseAgentSurface;
   organizationId: string;
+  localUserId?: string | null;
+  workosUserId?: string | null;
   projectId: string | null;
   conversationText: string;
   classification: ConversationClassification;
@@ -160,27 +182,36 @@ type ResolveRepositoryContextInput = {
 
 export type ResolvedRepositoryContext = {
   context: RepositoryAgentGitHubContext | null;
+  gitlabContext: RepositoryAgentGitLabContext | null;
   instructions: string | null;
   clarificationFollowUp: string | null;
   updatedSession: ConversationRepositorySession | null;
 };
 
+function emptyRepositoryResolution(
+  repositorySession: ConversationRepositorySession | null,
+): ResolvedRepositoryContext {
+  return {
+    context: null,
+    gitlabContext: null,
+    instructions: null,
+    clarificationFollowUp: null,
+    updatedSession: repositorySession,
+  };
+}
+
 export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
+  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
-    storedRepositoryContext,
+    storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
   });
 
   if (!shouldResolve) {
-    return {
-      context: null,
-      instructions: null,
-      clarificationFollowUp: null,
-      updatedSession: input.repositorySession,
-    };
+    return emptyRepositoryResolution(input.repositorySession);
   }
 
   const connectorConfig =
@@ -189,13 +220,23 @@ export async function resolveConversationRepositoryContext(
       ? await getOrganizationRepositoryConnectorConfig(input.organizationId)
       : null);
 
-  const canReuseStoredRepositoryContext =
-    storedRepositoryContext !== null && !input.classification.currentMessageSpecifiesRepository;
+  const canReuseStoredRepositoryContext = !input.classification.currentMessageSpecifiesRepository;
 
-  if (canReuseStoredRepositoryContext) {
+  if (canReuseStoredRepositoryContext && storedRepositoryContext) {
     return {
       context: storedRepositoryContext,
+      gitlabContext: null,
       instructions: buildResolvedRepositoryContextInstructions(storedRepositoryContext),
+      clarificationFollowUp: null,
+      updatedSession: input.repositorySession,
+    };
+  }
+
+  if (canReuseStoredRepositoryContext && storedGitLabContext) {
+    return {
+      context: null,
+      gitlabContext: storedGitLabContext,
+      instructions: buildResolvedGitLabRepositoryContextInstructions(storedGitLabContext),
       clarificationFollowUp: null,
       updatedSession: input.repositorySession,
     };
@@ -214,11 +255,36 @@ export async function resolveConversationRepositoryContext(
     const context = githubContextResolution.context;
     return {
       context,
+      gitlabContext: null,
       instructions: buildResolvedRepositoryContextInstructions(context),
       clarificationFollowUp: null,
       updatedSession: {
         ...input.repositorySession,
         repositoryGitHubContext: context,
+        repositoryGitLabContext: undefined,
+      },
+    };
+  }
+
+  const gitlabContextResolution = await resolveConversationRepositoryGitLabContext({
+    organizationId: input.organizationId,
+    localUserId: input.localUserId,
+    workosUserId: input.workosUserId,
+    text: input.conversationText,
+  });
+
+  if (gitlabContextResolution.status === "resolved") {
+    return {
+      context: null,
+      gitlabContext: gitlabContextResolution.context,
+      instructions: buildResolvedGitLabRepositoryContextInstructions(
+        gitlabContextResolution.context,
+      ),
+      clarificationFollowUp: null,
+      updatedSession: {
+        ...input.repositorySession,
+        repositoryGitHubContext: undefined,
+        repositoryGitLabContext: gitlabContextResolution.context,
       },
     };
   }
@@ -227,6 +293,7 @@ export async function resolveConversationRepositoryContext(
     if (storedRepositoryContext && !input.classification.currentMessageSpecifiesRepository) {
       return {
         context: storedRepositoryContext,
+        gitlabContext: null,
         instructions: buildResolvedRepositoryContextInstructions(storedRepositoryContext),
         clarificationFollowUp: null,
         updatedSession: input.repositorySession,
@@ -245,18 +312,44 @@ export async function resolveConversationRepositoryContext(
 
     return {
       context: null,
+      gitlabContext: null,
       instructions,
       clarificationFollowUp,
       updatedSession: input.repositorySession,
     };
   }
 
-  return {
-    context: null,
-    instructions: null,
-    clarificationFollowUp: null,
-    updatedSession: input.repositorySession,
-  };
+  if (gitlabContextResolution.status === "unresolved") {
+    const instructions = buildMissingRepositoryContextInstructions(
+      gitlabContextResolution.followUp,
+    );
+    const clarificationFollowUp = shouldRequireRepositoryContextClarification(
+      input.classification,
+      { repositoryContextStatus: "unresolved" },
+    )
+      ? gitlabContextResolution.followUp
+      : null;
+
+    return {
+      context: null,
+      gitlabContext: null,
+      instructions,
+      clarificationFollowUp,
+      updatedSession: input.repositorySession,
+    };
+  }
+
+  if (storedGitLabContext && !input.classification.currentMessageSpecifiesRepository) {
+    return {
+      context: null,
+      gitlabContext: storedGitLabContext,
+      instructions: buildResolvedGitLabRepositoryContextInstructions(storedGitLabContext),
+      clarificationFollowUp: null,
+      updatedSession: input.repositorySession,
+    };
+  }
+
+  return emptyRepositoryResolution(input.repositorySession);
 }
 
 export async function getOrCreateConversationRepositorySandbox(input: {
@@ -291,6 +384,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
       updatedSession: {
         ...input.repositorySession,
         repositoryGitHubContext: input.githubContext,
+        repositoryGitLabContext: undefined,
         repositorySandboxSession: {
           ...sandboxSession,
           lastUsedAt: now,
@@ -315,6 +409,93 @@ export async function getOrCreateConversationRepositorySandbox(input: {
   const updatedSession: ConversationRepositorySession = {
     ...input.repositorySession,
     repositoryGitHubContext: input.githubContext,
+    repositoryGitLabContext: undefined,
+    repositorySandboxSession: {
+      sandboxId,
+      repositoryContextKey,
+      createdAt: now,
+      lastUsedAt: now,
+    },
+  };
+
+  const staleSandboxId = sandboxSession?.sandboxId ?? null;
+
+  return { sandboxId, updatedSession, sandboxCreated: true, staleSandboxId };
+}
+
+export async function getOrCreateConversationGitlabRepositorySandbox(input: {
+  conversationId: string;
+  surface: HyperlocaliseAgentSurface;
+  gitlabContext: RepositoryAgentGitLabContext;
+  repositorySession: ConversationRepositorySession | null;
+  organizationId: string;
+  workosUserId?: string | null;
+  localUserId?: string | null;
+}): Promise<{
+  sandboxId: string;
+  updatedSession: ConversationRepositorySession;
+  sandboxCreated: boolean;
+  staleSandboxId: string | null;
+}> {
+  const log = logger.child({
+    conversationId: input.conversationId,
+    surface: input.surface,
+  });
+  const repositoryContextKey = getGitlabRepositoryContextKey(input.gitlabContext);
+  const sandboxSession = input.repositorySession?.repositorySandboxSession;
+  const now = new Date().toISOString();
+
+  if (
+    sandboxSession?.repositoryContextKey === repositoryContextKey &&
+    (await isRepositorySandboxAvailable(sandboxSession.sandboxId))
+  ) {
+    log.info(
+      { sandboxId: sandboxSession.sandboxId },
+      "reusing stored gitlab repository sandbox for conversation agent",
+    );
+    return {
+      sandboxId: sandboxSession.sandboxId,
+      updatedSession: {
+        ...input.repositorySession,
+        repositoryGitHubContext: undefined,
+        repositoryGitLabContext: input.gitlabContext,
+        repositorySandboxSession: {
+          ...sandboxSession,
+          lastUsedAt: now,
+        },
+      },
+      sandboxCreated: false,
+      staleSandboxId: null,
+    };
+  }
+
+  const workosUserId = await resolveGitLabPipesWorkosUserId({
+    workosUserId: input.workosUserId,
+    localUserId: input.localUserId,
+  });
+  if (!workosUserId) {
+    throw new Error("gitlab_not_connected");
+  }
+
+  log.info(
+    {
+      projectId: input.gitlabContext.projectId,
+      branch: input.gitlabContext.branch ?? null,
+      commitSha: input.gitlabContext.commitSha ?? null,
+    },
+    "creating gitlab repository sandbox for conversation agent",
+  );
+  const sandboxId = await createGitlabRepositorySandbox({
+    localOrganizationId: input.organizationId,
+    workosUserId,
+    gitlabContext: input.gitlabContext,
+  });
+  log.info({ sandboxId }, "gitlab repository sandbox created for conversation agent");
+
+  const updatedSession: ConversationRepositorySession = {
+    ...input.repositorySession,
+    repositoryGitHubContext: undefined,
+    repositoryGitLabContext: input.gitlabContext,
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
@@ -349,6 +530,7 @@ export type PrepareConversationAgentTurnInput = {
   conversationId: string;
   organizationId: string;
   localUserId: string;
+  workosUserId?: string | null;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   messageText: string;
@@ -391,6 +573,7 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
+  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
   const languageModel = await resolveHyperlocaliseAgentLanguageModel({
     organizationId: input.organizationId,
   });
@@ -399,7 +582,7 @@ export async function prepareConversationAgentTurn(
     currentMessage: input.messageText,
     conversationText,
     hasFileAttachments: input.hasTranslationAttachments,
-    hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+    hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
     knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
     model: languageModel.model,
@@ -408,6 +591,8 @@ export async function prepareConversationAgentTurn(
   const repositoryResolution = await resolveConversationRepositoryContext({
     surface: input.surface,
     organizationId: input.organizationId,
+    localUserId: input.localUserId,
+    workosUserId: input.workosUserId,
     projectId: input.projectId,
     conversationText,
     classification,
@@ -420,6 +605,7 @@ export async function prepareConversationAgentTurn(
   let sandboxId: string | null = null;
   let staleSandboxId: string | null = null;
   let activeRepositoryContext = repositoryResolution.context;
+  let activeGitlabContext = repositoryResolution.gitlabContext;
   let repositoryInstructions = repositoryResolution.instructions;
   let clarificationFollowUp = repositoryResolution.clarificationFollowUp;
 
@@ -432,6 +618,7 @@ export async function prepareConversationAgentTurn(
     if (input.reuseCommittedRepositorySandboxOnly && !canReuseStoredSandbox) {
       updatedRepositorySession = input.repositorySession ?? null;
       activeRepositoryContext = null;
+      activeGitlabContext = null;
       repositoryInstructions = null;
       clarificationFollowUp = REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP;
     } else {
@@ -440,6 +627,31 @@ export async function prepareConversationAgentTurn(
         surface: input.surface,
         githubContext: repositoryResolution.context,
         repositorySession: updatedRepositorySession,
+      });
+      sandboxId = sandboxResult.sandboxId;
+      updatedRepositorySession = sandboxResult.updatedSession;
+      staleSandboxId = sandboxResult.staleSandboxId;
+    }
+  } else if (repositoryResolution.gitlabContext) {
+    const repositoryContextKey = getGitlabRepositoryContextKey(repositoryResolution.gitlabContext);
+    const storedSandboxSession = updatedRepositorySession?.repositorySandboxSession;
+    const canReuseStoredSandbox =
+      storedSandboxSession?.repositoryContextKey === repositoryContextKey;
+
+    if (input.reuseCommittedRepositorySandboxOnly && !canReuseStoredSandbox) {
+      updatedRepositorySession = input.repositorySession ?? null;
+      activeGitlabContext = null;
+      repositoryInstructions = null;
+      clarificationFollowUp = REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP;
+    } else {
+      const sandboxResult = await getOrCreateConversationGitlabRepositorySandbox({
+        conversationId: input.conversationId,
+        surface: input.surface,
+        gitlabContext: repositoryResolution.gitlabContext,
+        repositorySession: updatedRepositorySession,
+        organizationId: input.organizationId,
+        workosUserId: input.workosUserId,
+        localUserId: input.localUserId,
       });
       sandboxId = sandboxResult.sandboxId;
       updatedRepositorySession = sandboxResult.updatedSession;
@@ -479,7 +691,11 @@ export async function prepareConversationAgentTurn(
         ? {
             sandboxId,
             githubContext: activeRepositoryContext,
-            workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
+            gitlabContext: activeGitlabContext,
+            workMode:
+              hasVisualMockSkill && activeRepositoryContext
+                ? ("write" as const)
+                : ("read_only" as const),
             repositorySource: input.repositorySource ?? "chat_ui",
             actor: resolveConversationActor(input),
           }

@@ -13,23 +13,31 @@
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
 
-import type { GithubRepository } from "../../_components/github-repository";
+import type { ChatRepository, ChatRepositoryProvider } from "../../_components/chat-repository";
+import {
+  toChatRepositoryFromGithub,
+  toChatRepositoryFromGitlab,
+} from "../../_components/chat-repository";
 import type { Conversation, ConversationMessage, LinkedJob } from "./inbox-types";
 
-export type InboxGithubRepository = GithubRepository;
+export type InboxChatRepository = ChatRepository;
+
+export type ChatComposerSendOptions = {
+  projectId?: string;
+  repositoryFullName?: string;
+  repositoryProvider?: ChatRepositoryProvider;
+};
 
 export type SendConversationMessageInput = {
   text: string;
   files: File[];
-  projectId?: string;
-  repositoryFullName?: string;
-};
+} & ChatComposerSendOptions;
 
 export type InboxApi = {
   listConversations(organizationSlug: string, limit?: number): Promise<Conversation[]>;
   listMessages(organizationSlug: string, conversationId: string): Promise<ConversationMessage[]>;
   listLinkedJobs(organizationSlug: string, conversationId: string): Promise<LinkedJob[]>;
-  listGithubRepositories(organizationSlug: string): Promise<InboxGithubRepository[]>;
+  listChatRepositories(organizationSlug: string): Promise<InboxChatRepository[]>;
   createConversation(
     organizationSlug: string,
     input: SendConversationMessageInput,
@@ -114,18 +122,41 @@ export function createInboxApi(client: ApiClient): InboxApi {
       return body.jobs;
     },
 
-    async listGithubRepositories(organizationSlug) {
-      const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+    async listChatRepositories(organizationSlug) {
+      const githubRequest = client.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
       ].$get({
         param: { organizationSlug },
         query: {},
       });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load GitHub repositories");
+      const gitlabRequest = client.api.orgs[":organizationSlug"].gitlab.projects.$get({
+        param: { organizationSlug },
+      });
+      const [githubResponse, gitlabResponse] = await Promise.all([githubRequest, gitlabRequest]);
+
+      if (githubResponse.status !== 200 && gitlabResponse.status !== 200) {
+        throw await readApiResponseError(githubResponse, "Failed to load repositories");
       }
-      const body = await response.json();
-      return body.repositories.filter((repository) => repository.enabled && !repository.archived);
+
+      const repositories: InboxChatRepository[] = [];
+      if (githubResponse.status === 200) {
+        const body = await githubResponse.json();
+        repositories.push(
+          ...body.repositories
+            .filter((repository) => repository.enabled && !repository.archived)
+            .map(toChatRepositoryFromGithub),
+        );
+      }
+      if (gitlabResponse.status === 200) {
+        const body = await gitlabResponse.json();
+        repositories.push(
+          ...body.projects
+            .filter((project) => !project.archived)
+            .map(toChatRepositoryFromGitlab),
+        );
+      }
+
+      return repositories;
     },
 
     async createConversation(organizationSlug, input) {
@@ -135,6 +166,7 @@ export function createInboxApi(client: ApiClient): InboxApi {
           text: input.text.trim() || FILE_ONLY_CONVERSATION_TEXT,
           ...(input.projectId ? { projectId: input.projectId } : {}),
           ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
+          ...(input.repositoryProvider ? { repositoryProvider: input.repositoryProvider } : {}),
           ...(input.files.length > 0 ? { files: input.files } : {}),
         },
       } as never);
@@ -155,6 +187,7 @@ export function createInboxApi(client: ApiClient): InboxApi {
           text: input.text,
           ...(input.projectId ? { projectId: input.projectId } : {}),
           ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
+          ...(input.repositoryProvider ? { repositoryProvider: input.repositoryProvider } : {}),
           ...(input.files.length > 0 ? { files: input.files } : {}),
         },
       } as never);
