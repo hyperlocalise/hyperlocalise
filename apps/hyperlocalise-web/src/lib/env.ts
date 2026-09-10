@@ -285,9 +285,6 @@ export const env = createEnv({
     GO_SVC_URL: z.url().optional(),
   },
   client: {
-    /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
-    NEXT_PUBLIC_WAITLIST_URL: z.url(),
-
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
 
@@ -404,9 +401,6 @@ export const env = createEnv({
     CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
-    NEXT_PUBLIC_WAITLIST_URL:
-      process.env.NEXT_PUBLIC_WAITLIST_URL ??
-      (isTestEnv ? "https://example.com/waitlist" : undefined),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??

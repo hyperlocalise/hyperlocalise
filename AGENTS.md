@@ -52,7 +52,6 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
   ```
   DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
   PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-  NEXT_PUBLIC_WAITLIST_URL=https://example.com/waitlist
   WORKOS_API_KEY=sk_test_placeholder
   WORKOS_CLIENT_ID=client_placeholder
   WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
