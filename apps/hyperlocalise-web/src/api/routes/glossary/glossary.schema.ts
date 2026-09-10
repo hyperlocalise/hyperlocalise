@@ -89,6 +89,8 @@ export const glossaryConceptPageQuerySchema = z.object({
 export const glossaryHistoryQuerySchema = z.object({
   conceptId: z.string().uuid().optional(),
   termId: z.string().uuid().optional(),
+  search: z.string().trim().max(200).optional(),
+  eventType: z.string().trim().max(80).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 

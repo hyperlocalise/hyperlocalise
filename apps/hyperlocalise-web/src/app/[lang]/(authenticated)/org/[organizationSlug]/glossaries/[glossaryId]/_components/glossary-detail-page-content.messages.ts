@@ -672,4 +672,14 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "g4pu5NkssB",
     description: "Glossary history event metadata",
   },
+  historySearchPlaceholder: {
+    defaultMessage: "Search history",
+    id: "J6z9WnUHU7",
+    description: "Placeholder for searching glossary history",
+  },
+  historyAllEvents: {
+    defaultMessage: "All events",
+    id: "7SltjgHpss",
+    description: "Option to show all glossary history event types",
+  },
 });

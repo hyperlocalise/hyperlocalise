@@ -39,7 +39,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { db, schema } from "@/lib/database/client";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { listGlossaryConceptsPage } from "./glossary-concept-page";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
@@ -530,6 +530,20 @@ export function createGlossaryConceptRoutes(
         if (query.conceptId)
           conditions.push(eq(schema.glossaryHistoryEvents.conceptId, query.conceptId));
         if (query.termId) conditions.push(eq(schema.glossaryHistoryEvents.termId, query.termId));
+        if (query.eventType)
+          conditions.push(eq(schema.glossaryHistoryEvents.eventType, query.eventType));
+        if (query.search) {
+          const pattern = `%${query.search}%`;
+          conditions.push(
+            or(
+              ilike(schema.glossaryHistoryEvents.eventType, pattern),
+              ilike(schema.glossaryHistoryEvents.actorKind, pattern),
+              ilike(schema.glossaryHistoryEvents.reason, pattern),
+              sql`${schema.glossaryHistoryEvents.changedFields}::text ILIKE ${pattern}`,
+              sql`${schema.glossaryHistoryEvents.changes}::text ILIKE ${pattern}`,
+            )!,
+          );
+        }
         const events = await db
           .select()
           .from(schema.glossaryHistoryEvents)

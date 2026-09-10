@@ -401,6 +401,8 @@ export function GlossaryDetailPageContent({
   const [conceptSearch, setConceptSearch] = useState("");
   const [conceptReviewStatus, setConceptReviewStatus] = useState("");
   const [includeArchivedConcepts, setIncludeArchivedConcepts] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyEventType, setHistoryEventType] = useState("");
   const [conceptPageCursor, setConceptPageCursor] = useState<string | undefined>();
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
@@ -488,7 +490,14 @@ export function GlossaryDetailPageContent({
     },
   });
   const historyQuery = useQuery({
-    queryKey: ["glossary-history", organizationSlug, glossaryId, selectedConceptId],
+    queryKey: [
+      "glossary-history",
+      organizationSlug,
+      glossaryId,
+      selectedConceptId,
+      historySearch,
+      historyEventType,
+    ],
     enabled: Boolean(
       isConceptGlossary && isNative && selectedConceptId && selectedConceptId !== "new",
     ),
@@ -497,7 +506,12 @@ export function GlossaryDetailPageContent({
         ":glossaryId"
       ].concepts.history.$get({
         param: { organizationSlug, glossaryId },
-        query: { conceptId: selectedConceptId!, limit: "50" },
+        query: {
+          conceptId: selectedConceptId!,
+          search: historySearch || undefined,
+          eventType: historyEventType || undefined,
+          limit: "100",
+        },
       });
       if (!response.ok)
         throw new Error(
@@ -2710,7 +2724,36 @@ export function GlossaryDetailPageContent({
                     <FormattedMessage {...messages.historyTitle} />
                   </summary>
                   <div className="border-t border-border p-4">
-                    {historyQuery.isLoading ? (
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        value={historySearch}
+                        onChange={(event) => setHistorySearch(event.target.value)}
+                        placeholder={intl.formatMessage(messages.historySearchPlaceholder)}
+                        className="sm:max-w-sm"
+                      />
+                      <Select
+                        value={historyEventType || "all"}
+                        onValueChange={(value) =>
+                          setHistoryEventType(value === "all" ? "" : (value ?? ""))
+                        }
+                      >
+                        <SelectTrigger className="sm:w-44">
+                          <SelectValue>
+                            {historyEventType || intl.formatMessage(messages.historyAllEvents)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            <FormattedMessage {...messages.historyAllEvents} />
+                          </SelectItem>
+                          <SelectItem value="created">created</SelectItem>
+                          <SelectItem value="updated">updated</SelectItem>
+                          <SelectItem value="deleted">deleted</SelectItem>
+                          <SelectItem value="imported">imported</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {historyQuery.isLoading || historyQuery.isFetching ? (
                       <Skeleton className="h-4 w-48" />
                     ) : historyQuery.data?.length ? (
                       <ol className="grid gap-4">
