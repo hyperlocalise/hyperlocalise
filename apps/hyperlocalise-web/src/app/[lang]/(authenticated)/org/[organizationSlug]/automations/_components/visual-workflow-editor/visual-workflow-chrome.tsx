@@ -177,6 +177,20 @@ export function VisualWorkflowChrome({
             <FormattedMessage {...messages.deleteWorkflow} />
           </Button>
         ) : null}
+        {onStatusChange ? (
+          <Button
+            type="button"
+            size="sm"
+            disabled={statusDisabled || isSaving}
+            onClick={() => onStatusChange(true)}
+          >
+            {intl.formatMessage({
+              defaultMessage: "Publish",
+              id: "rUIfR5O8Wi",
+              description: "Publish and activate the current workflow draft",
+            })}
+          </Button>
+        ) : null}
         {onSave ? (
           <Button type="button" size="sm" disabled={saveDisabled || isSaving} onClick={onSave}>
             {isSaving ? (

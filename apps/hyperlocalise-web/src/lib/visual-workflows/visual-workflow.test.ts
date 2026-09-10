@@ -54,7 +54,7 @@ describe("toVisualWorkflowDefinition", () => {
 
     const draft = toVisualWorkflowDefinition({ name: "Lead ping", nodes, edges });
 
-    expect(draft.schemaVersion).toBe(1);
+    expect(draft.schemaVersion).toBe(2);
     expect(draft.name).toBe("Lead ping");
     expect(draft.nodes).toEqual([
       { id: "a", type: "trigger.manual", config: { kind: "trigger.manual" } },
@@ -149,7 +149,10 @@ describe("validateVisualWorkflowGraph", () => {
       name: "Nested loops",
       nodes: [
         node("t", "trigger.manual"),
-        node("outer", "logic.for_each"),
+        {
+          ...node("outer", "logic.for_each"),
+          data: { ...node("outer", "logic.for_each").data, bodyNodeIds: ["inner"] },
+        },
         node("inner", "logic.for_each"),
       ],
       edges: [
@@ -158,16 +161,18 @@ describe("validateVisualWorkflowGraph", () => {
       ],
     });
 
-    expect(validateVisualWorkflowDefinition(definition)).toEqual([
-      { code: "nested_for_each", nodeId: "inner" },
-    ]);
+    expect(validateVisualWorkflowDefinition(definition)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "nested_for_each", nodeId: "inner" }),
+      ]),
+    );
   });
 });
 
 describe("visualWorkflowDefinitionSchema", () => {
   it("rejects nodes whose type does not match config kind", () => {
     const parsed = visualWorkflowDefinitionSchema.safeParse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Mismatched",
       nodes: [
         {

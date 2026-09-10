@@ -30,7 +30,11 @@ import {
   getVisualWorkflowRunById,
   listVisualWorkflowRuns,
 } from "./visual-workflow-runs";
-import { createVisualWorkflow, updateVisualWorkflow } from "./visual-workflows";
+import {
+  createVisualWorkflow,
+  updateVisualWorkflow,
+  publishVisualWorkflow,
+} from "./visual-workflows";
 
 const fixture = createAuthTestFixture();
 
@@ -54,7 +58,13 @@ async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
   if (isErr(created)) {
     throw new Error(`failed to create visual workflow: ${created.error.code}`);
   }
-  return { organizationId: organization.id, workflow: created.value };
+  const published = await publishVisualWorkflow({
+    organizationId: organization.id,
+    visualWorkflowId: created.value.id,
+    expectedRevision: created.value.revision,
+  });
+  if (isErr(published)) throw new Error(published.error.code);
+  return { organizationId: organization.id, workflow: published.value };
 }
 
 describe("visual workflow runs", () => {
@@ -74,7 +84,7 @@ describe("visual workflow runs", () => {
     expect(first.inputSnapshot).toMatchObject({
       lead: "Ada",
       definitionSnapshot: expect.objectContaining({
-        schemaVersion: 1,
+        schemaVersion: 2,
         name: "Run coverage",
       }),
     });
@@ -182,7 +192,7 @@ describe("visual workflow runs", () => {
 
   it("claims queued runs once, executes trigger graphs, and returns already_finished", async () => {
     const definition: VisualWorkflowDefinition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: "Trigger only",
       nodes: [
         {

@@ -22,6 +22,7 @@ import {
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
+  inputsResolved?: boolean;
 }): VisualWorkflowNodeExecutionResult {
   const { node, context } = input;
 
@@ -37,8 +38,10 @@ export function executeLogicVisualWorkflowNode(input: {
         },
       };
     case "logic.if": {
-      const resolvedCondition = resolveVisualWorkflowTemplate(node.config.condition, context);
-      const branchResult = evaluateVisualWorkflowCondition(node.config.condition, context);
+      const resolvedCondition = input.inputsResolved
+        ? String(node.config.condition)
+        : resolveVisualWorkflowTemplate(String(node.config.condition), context);
+      const branchResult = evaluateVisualWorkflowCondition(resolvedCondition, context, true);
       return {
         ok: true,
         output: {
@@ -49,7 +52,11 @@ export function executeLogicVisualWorkflowNode(input: {
       };
     }
     case "logic.switch": {
-      const expressionValue = resolveVisualWorkflowTemplate(node.config.expression, context).trim();
+      const expressionValue = (
+        input.inputsResolved
+          ? String(node.config.expression)
+          : resolveVisualWorkflowTemplate(String(node.config.expression), context)
+      ).trim();
       let matchedCase = "default";
 
       for (let index = 0; index < node.config.cases.length; index += 1) {
@@ -73,14 +80,19 @@ export function executeLogicVisualWorkflowNode(input: {
       };
     }
     case "logic.set": {
-      const output: Record<string, unknown> = {};
+      const output: Record<string, unknown> = Object.fromEntries(
+        Object.keys(node.inputs ?? {}).map((key) => [
+          key,
+          (node.config as unknown as Record<string, unknown>)[key],
+        ]),
+      );
       for (const assignment of node.config.assignments) {
         const key = assignment.key.trim();
-        if (!key) {
+        if (!key || node.inputs?.[key]) {
           continue;
         }
         const resolved = resolveVisualWorkflowTemplate(assignment.value, context);
-        output[key] = coerceSetValue(resolved);
+        output[key] = resolved;
       }
 
       return {
@@ -107,35 +119,4 @@ export function executeLogicVisualWorkflowNode(input: {
         },
       };
   }
-}
-
-function coerceSetValue(value: string): unknown {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (trimmed === "true") {
-    return true;
-  }
-  if (trimmed === "false") {
-    return false;
-  }
-  if (trimmed === "null") {
-    return null;
-  }
-  const asNumber = Number(trimmed);
-  if (Number.isFinite(asNumber) && trimmed === String(asNumber)) {
-    return asNumber;
-  }
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  ) {
-    try {
-      return JSON.parse(trimmed) as unknown;
-    } catch {
-      return value;
-    }
-  }
-  return value;
 }

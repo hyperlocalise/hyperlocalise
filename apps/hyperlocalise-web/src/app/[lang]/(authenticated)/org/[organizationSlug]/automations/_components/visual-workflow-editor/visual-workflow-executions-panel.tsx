@@ -17,12 +17,12 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
+import { WorkflowRunDetails } from "./workflow-run-details";
 
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
-function runStatusVariant(status: VisualWorkflowRunRecord["status"]) {
+function runStatusVariant(status: string) {
   switch (status) {
     case "succeeded":
       return "default" as const;
@@ -137,12 +137,21 @@ export function VisualWorkflowExecutionsPanel({
           </p>
         ) : selectedRunQuery.data ? (
           <div className="flex flex-col gap-4">
+            <WorkflowRunDetails
+              run={selectedRunQuery.data}
+              organizationSlug={organizationSlug}
+              onRefresh={() => {
+                void selectedRunQuery.refetch();
+                void runsQuery.refetch();
+              }}
+            />
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={runStatusVariant(selectedRunQuery.data.status)}>
                 {selectedRunQuery.data.status}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                {selectedRunQuery.data.triggerSource}
+                {selectedRunQuery.data.triggerSource} · {selectedRunQuery.data.mode ?? "live"} · v
+                {selectedRunQuery.data.definitionVersion}
               </span>
             </div>
             {(selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
@@ -169,6 +178,29 @@ export function VisualWorkflowExecutionsPanel({
                           >
                             {nodeRun.status}
                           </Badge>
+                          <details className="mt-2">
+                            <summary>
+                              {nodeRun.nodeId} · {nodeRun.iteration ?? -1} · {nodeRun.attempt ?? 1}
+                            </summary>
+                            <pre className="max-h-80 overflow-auto p-2 text-xs">
+                              {JSON.stringify(
+                                {
+                                  inputs: nodeRun.inputSnapshot,
+                                  outputs: nodeRun.outputSnapshot,
+                                  error: nodeRun.error,
+                                  startedAt: nodeRun.startedAt,
+                                  finishedAt: nodeRun.finishedAt,
+                                  durationMs:
+                                    nodeRun.startedAt && nodeRun.finishedAt
+                                      ? Date.parse(nodeRun.finishedAt) -
+                                        Date.parse(nodeRun.startedAt)
+                                      : null,
+                                },
+                                null,
+                                2,
+                              )}
+                            </pre>
+                          </details>
                         </td>
                       </tr>
                     ))}

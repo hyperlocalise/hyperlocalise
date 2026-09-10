@@ -73,18 +73,33 @@ export function buildHttpRequestHeaders(input: {
 }
 
 export function resolveHttpRequestBody(input: {
-  body?: string;
+  body?: unknown;
+  resolved?: boolean;
   bodyType?: "none" | "json" | "text";
   context: VisualWorkflowExecutionContext;
   method: string;
 }): string | undefined {
-  if (input.method === "GET" || input.method === "DELETE") {
+  if (input.method === "GET") {
     return undefined;
   }
-  if (input.bodyType === "none" || !input.body?.trim()) {
+  if (input.bodyType === "none" || input.body === undefined) {
     return undefined;
   }
-  return resolveVisualWorkflowTemplate(input.body, input.context);
+  if (input.bodyType === "json") {
+    const value = typeof input.body === "string" ? JSON.parse(input.body) : input.body;
+    const resolve = (value: unknown): unknown => {
+      if (typeof value === "string") return resolveVisualWorkflowTemplate(value, input.context);
+      if (Array.isArray(value)) return value.map(resolve);
+      if (value !== null && typeof value === "object")
+        return Object.fromEntries(
+          Object.entries(value).map(([key, entry]) => [key, resolve(entry)]),
+        );
+      return value;
+    };
+    return JSON.stringify(input.resolved ? value : resolve(value));
+  }
+  if (typeof input.body !== "string") throw new Error("text_body_requires_string");
+  return input.resolved ? input.body : resolveVisualWorkflowTemplate(input.body, input.context);
 }
 
 export function parseHttpResponseBody(bodyText: string, parseJsonBody: boolean): unknown {
@@ -94,6 +109,6 @@ export function parseHttpResponseBody(bodyText: string, parseJsonBody: boolean):
   try {
     return JSON.parse(bodyText) as unknown;
   } catch {
-    return undefined;
+    throw new Error("invalid_http_json");
   }
 }

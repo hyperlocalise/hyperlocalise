@@ -148,7 +148,7 @@ describe("visual workflow routes", () => {
           organizationSlug,
           visualWorkflowId: created.visualWorkflow.id,
         },
-        json: { name: "Lead ping v2" },
+        json: { name: "Lead ping v2", expectedRevision: 1 },
       },
       { headers },
     );
@@ -223,7 +223,7 @@ describe("visual workflow routes", () => {
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
     const scheduledDefinition = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       name: "Delete then revive",
       nodes: [
         {
@@ -279,6 +279,7 @@ describe("visual workflow routes", () => {
           visualWorkflowId: created.visualWorkflow.id,
         },
         json: {
+          expectedRevision: 1,
           status: "active",
           name: "Still gone",
           definition: { ...scheduledDefinition, name: "Still gone" },
@@ -335,6 +336,17 @@ describe("visual workflow routes", () => {
     const created = (await createdResponse.json()) as {
       visualWorkflow: { id: string; definitionVersion: number };
     };
+
+    const publishedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].publish.$post(
+      {
+        param: { organizationSlug, visualWorkflowId: created.visualWorkflow.id },
+        json: { expectedRevision: 1 },
+      },
+      { headers },
+    );
+    expect(publishedResponse.status).toBe(200);
 
     const runPayload = {
       idempotencyKey: `manual:${created.visualWorkflow.id}:coverage`,

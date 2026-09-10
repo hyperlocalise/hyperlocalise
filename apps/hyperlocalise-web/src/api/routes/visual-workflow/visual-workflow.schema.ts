@@ -38,6 +38,7 @@ export const createVisualWorkflowBodySchema = z
 
 export const updateVisualWorkflowBodySchema = z
   .object({
+    expectedRevision: z.number().int().positive(),
     name: z.string().trim().min(1).max(120).optional(),
     projectId: optionalProjectIdSchema.nullable().optional(),
     status: visualWorkflowStatusSchema.optional(),
@@ -62,4 +63,23 @@ export const createVisualWorkflowRunBodySchema = z
     idempotencyKey: z.string().trim().min(1).max(200),
     inputSnapshot: z.record(z.string(), z.unknown()).optional(),
   })
+  .strict();
+
+export const workflowTestSchema = z
+  .object({
+    idempotencyKey: z.string().min(1).max(200),
+    definition: visualWorkflowDefinitionSchema,
+    mode: z.enum(["mock", "live"]).default("mock"),
+    inputSnapshot: z.record(z.string(), z.unknown()).default({}),
+    mockOutputs: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+  })
+  .strict();
+export const workflowPublishSchema = z
+  .object({ expectedRevision: z.number().int().positive() })
+  .strict();
+export const workflowRetrySchema = z
+  .object({ acknowledgePossibleDuplication: z.literal(true) })
+  .strict();
+export const workflowCredentialSchema = z
+  .object({ name: z.string().trim().min(1).max(120), value: z.string().min(1).max(10000) })
   .strict();

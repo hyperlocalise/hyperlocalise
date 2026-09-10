@@ -27,6 +27,7 @@ const visualNodeErrorBehaviorSchema = z.enum(["stop", "continue", "branch"]);
 const httpAuthSchema = z.object({
   type: z.enum(["none", "bearer", "api_key"]),
   token: z.string().max(4000).optional(),
+  credentialId: z.string().uuid().optional(),
   headerName: z.string().trim().min(1).max(128).optional(),
 });
 
@@ -82,6 +83,11 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("action.http"),
     method: httpMethodSchema,
+    idempotencyHeader: z
+      .string()
+      .regex(/^[A-Za-z0-9-]+$/)
+      .max(128)
+      .optional(),
     url: z.string().max(2048),
     headers: z.array(visualKeyValuePairSchema).max(32).optional(),
     queryParams: z.array(visualKeyValuePairSchema).max(32).optional(),
@@ -102,7 +108,7 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("action.notify_email"),
     provider: z.enum(EMAIL_PROVIDER_SLUGS).default("resend"),
     workosUserId: z.string().trim().min(1).max(128).optional(),
-    from: z.string().trim().email().max(320),
+    from: z.string().max(320),
     recipients: z.string().trim().min(1).max(4000),
     subject: z.string().max(1000),
     message: z.string().max(4000),
@@ -135,11 +141,37 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+export const workflowBindingSchema = z.intersection(
+  z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("literal"), value: z.unknown() }),
+    z.object({
+      kind: z.literal("reference"),
+      nodeId: z.string().min(1),
+      path: z.array(z.union([z.string(), z.number().int().nonnegative()])).max(32),
+    }),
+    z.object({ kind: z.literal("template"), template: z.string().max(100000) }),
+    z.object({ kind: z.literal("secret"), credentialId: z.string().uuid() }),
+  ]),
+  z.object({ optional: z.boolean().optional(), fallback: z.unknown().optional() }),
+);
 const visualWorkflowNodeSchema = z
   .object({
     id: z.string().trim().min(1).max(128),
     type: visualCatalogTypeSchema,
     config: visualNodeConfigSchema,
+    inputs: z.record(z.string(), workflowBindingSchema).optional(),
+    outputFields: z
+      .array(
+        z.object({
+          path: z.string().min(1),
+          type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+          optional: z.boolean().optional(),
+        }),
+      )
+      .max(100)
+      .optional(),
+    bodyNodeIds: z.array(z.string()).max(200).optional(),
+    collect: z.record(z.string(), workflowBindingSchema).optional(),
   })
   .strict()
   .superRefine((node, ctx) => {

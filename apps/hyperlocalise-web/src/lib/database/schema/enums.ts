@@ -259,6 +259,7 @@ export const visualWorkflowRunStatusEnum = pgEnum("visual_workflow_run_status", 
   "failed",
   "cancelled",
   "skipped",
+  "needs_attention",
 ]);
 /**
  * Tracks per-node execution status within a visual workflow run.
@@ -269,6 +270,10 @@ export const visualWorkflowNodeRunStatusEnum = pgEnum("visual_workflow_node_run_
   "succeeded",
   "failed",
   "skipped",
+  "blocked",
+  "cancelled",
+  "handled_error",
+  "needs_attention",
 ]);
 /**
  * Defines where automated TMS agent settings apply: organization-wide, project-specific, or provider-credential-specific.

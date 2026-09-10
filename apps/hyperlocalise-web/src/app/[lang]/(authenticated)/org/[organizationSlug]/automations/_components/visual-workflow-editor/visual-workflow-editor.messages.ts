@@ -396,8 +396,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "HTTP node api key auth option",
   },
   httpAuthToken: {
-    defaultMessage: "Token",
-    id: "M872sYIDd7",
+    defaultMessage: "Credential ID",
+    id: "LDHGi8vihl",
     description: "HTTP node auth token label",
   },
   httpAuthHeaderName: {
@@ -526,13 +526,13 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Disabled AI node slot label for tools",
   },
   stubSlotHint: {
-    defaultMessage: "Not wired in this preview",
-    id: "TlTcdCU8vl",
+    defaultMessage: "Uses the workspace AI Engine.",
+    id: "GOCzWjzueG",
     description: "Hint under disabled AI agent configuration slots",
   },
   noConfig: {
-    defaultMessage: "This step has no extra settings in the preview.",
-    id: "n02KlXlk6i",
+    defaultMessage: "Provide sample event data in Test settings.",
+    id: "HrEbvbWkeA",
     description: "Config panel empty copy for nodes without fields",
   },
   testWorkflow: {
@@ -556,8 +556,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Validation message when the canvas has no trigger node",
   },
   multipleTriggers: {
-    defaultMessage: "Use a single trigger in this preview.",
-    id: "8lYImh+BEP",
+    defaultMessage: "Use a single trigger in each workflow.",
+    id: "QYO84wfpXR",
     description: "Validation message when more than one trigger is on the canvas",
   },
   orphanNode: {

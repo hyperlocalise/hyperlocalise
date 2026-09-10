@@ -22,9 +22,14 @@ function readPath(root: Record<string, unknown>, path: string): unknown {
   let current: unknown = root;
 
   for (const segment of segments) {
-    if (typeof current !== "object" || current === null || Array.isArray(current)) {
+    if (typeof current !== "object" || current === null) {
       return undefined;
     }
+    if (
+      ["__proto__", "constructor", "prototype"].includes(segment) ||
+      !Object.hasOwn(current, segment)
+    )
+      return undefined;
     current = (current as Record<string, unknown>)[segment];
   }
 
@@ -61,51 +66,39 @@ export function resolveVisualWorkflowTemplate(
 ): string {
   return template.replace(TEMPLATE_PATTERN, (_match, expression: string) => {
     const value = resolveExpressionPath(expression, context);
+    if (value === undefined) throw new Error("missing_workflow_input");
     return stringifyResolvedValue(value);
   });
 }
 
-function normalizeToArray(value: unknown): unknown[] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  if (value === null || value === undefined) {
-    return [];
-  }
-  return [value];
-}
-
 export function resolveVisualWorkflowCollection(
-  template: string,
+  template: unknown,
   context: VisualWorkflowExecutionContext,
 ): unknown[] {
-  const trimmed = template.trim();
-  const fullExpression = trimmed.match(/^\{\{\s*([^}]+?)\s*\}\}$/);
-  if (fullExpression?.[1]) {
-    return normalizeToArray(resolveExpressionPath(fullExpression[1], context));
+  if (Array.isArray(template)) return template;
+  if (typeof template !== "string") throw new Error("workflow_collection_must_be_array");
+  const match = template.trim().match(/^\{\{\s*([^}]+?)\s*\}\}$/);
+  let value: unknown;
+  if (match?.[1]) value = resolveExpressionPath(match[1], context);
+  else {
+    try {
+      value = JSON.parse(template);
+    } catch {
+      throw new Error("workflow_collection_must_be_array");
+    }
   }
-
-  const resolved = resolveVisualWorkflowTemplate(trimmed, context).trim();
-  if (!resolved) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(resolved) as unknown;
-    return normalizeToArray(parsed);
-  } catch {
-    return resolved
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-  }
+  if (!Array.isArray(value)) throw new Error("workflow_collection_must_be_array");
+  return value;
 }
 
 export function evaluateVisualWorkflowCondition(
   condition: string,
   context: VisualWorkflowExecutionContext,
+  alreadyResolved = false,
 ): boolean {
-  const resolved = resolveVisualWorkflowTemplate(condition, context).trim();
+  const resolved = (
+    alreadyResolved ? condition : resolveVisualWorkflowTemplate(condition, context)
+  ).trim();
   if (!resolved) {
     return false;
   }

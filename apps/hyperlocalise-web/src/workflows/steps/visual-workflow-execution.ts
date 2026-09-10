@@ -22,6 +22,7 @@ export type VisualWorkflowExecutionStepResult =
       value: {
         runId: string;
         status: string;
+        continueExecution?: boolean;
       };
     }
   | {
@@ -49,8 +50,7 @@ export async function executeVisualWorkflowStep(
 
   logger.info(stepContext, "visual workflow execution step started");
 
-  const { executeVisualWorkflowRun, failInFlightVisualWorkflowRun } =
-    await import("@/lib/visual-workflows/visual-workflow-runs");
+  const { executeVisualWorkflowRun } = await import("@/lib/visual-workflows/visual-workflow-runs");
 
   try {
     const run = await executeVisualWorkflowRun({
@@ -90,19 +90,14 @@ export async function executeVisualWorkflowStep(
       value: {
         runId: run.id,
         status: run.status,
+        continueExecution: run.status === "running" && !run.executionLeaseBusy,
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "visual_workflow_step_failed";
+    const message = "visual_workflow_step_failed";
     logger.error({ ...stepContext, message }, "visual workflow execution step threw");
 
-    await failInFlightVisualWorkflowRun({
-      runId: event.visualWorkflowRunId,
-      organizationId: event.organizationId,
-      visualWorkflowId: event.visualWorkflowId,
-      message,
-    }).catch(() => undefined);
-
+    // Leave the expiring claim for reconciliation; never fail a newer worker's lease.
     throw error;
   }
 }

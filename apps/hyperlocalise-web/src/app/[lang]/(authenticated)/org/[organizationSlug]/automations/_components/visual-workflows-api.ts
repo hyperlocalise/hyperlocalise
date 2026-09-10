@@ -29,6 +29,7 @@ export type VisualWorkflowsApi = {
     organizationSlug: string,
     visualWorkflowId: string,
     input: {
+      expectedRevision?: number;
       name?: string;
       definition?: VisualWorkflowDefinition;
       status?: VisualWorkflowRecord["status"];
@@ -38,7 +39,13 @@ export type VisualWorkflowsApi = {
   createVisualWorkflowRun(
     organizationSlug: string,
     visualWorkflowId: string,
-    input: { idempotencyKey: string; inputSnapshot?: Record<string, unknown> },
+    input: {
+      idempotencyKey: string;
+      inputSnapshot?: Record<string, unknown>;
+      definition?: VisualWorkflowDefinition;
+      mode?: "mock" | "live";
+      mockOutputs?: Record<string, Record<string, unknown>>;
+    },
   ): Promise<{ run: VisualWorkflowRunRecord; dispatch: { runId: string; enqueued: boolean } }>;
   listVisualWorkflowRuns(
     organizationSlug: string,
@@ -123,7 +130,7 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
     },
     async createVisualWorkflowRun(organizationSlug, visualWorkflowId, input) {
       const response = await fetch(
-        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}/runs`,
+        `${visualWorkflowsBasePath(organizationSlug)}/${encodeURIComponent(visualWorkflowId)}/${input.definition ? "test" : "runs"}`,
         {
           method: "POST",
           credentials: "include",
@@ -170,4 +177,22 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
       return body.run;
     },
   };
+}
+
+export async function publishWorkflowVersion(
+  slug: string,
+  id: string,
+  expectedRevision: number,
+): Promise<VisualWorkflowRecord> {
+  const response = await fetch(
+    `${visualWorkflowsBasePath(slug)}/${encodeURIComponent(id)}/publish`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedRevision }),
+    },
+  );
+  if (!response.ok) throw await readApiResponseError(response, "Failed to publish workflow");
+  return ((await response.json()) as { visualWorkflow: VisualWorkflowRecord }).visualWorkflow;
 }
