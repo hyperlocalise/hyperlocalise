@@ -146,10 +146,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
       ],
     });
     const view = renderCatWorkspace(
-      <ContentEditorWorkspaceContainer
-        initialState={initialState}
-        initialViewMode="comfortable"
-      />,
+      <ContentEditorWorkspaceContainer initialState={initialState} initialViewMode="comfortable" />,
     );
 
     expect(
