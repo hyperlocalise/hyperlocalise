@@ -18,7 +18,11 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -34,6 +38,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+}));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -110,9 +118,9 @@ describe("memoryRoutes", () => {
       },
       { headers: memberHeaders },
     );
-    expect(entryResponse.status).toBe(403);
+    expect(entryResponse.status).toBe(404);
     await expect(entryResponse.json()).resolves.toMatchObject({
-      error: "forbidden",
+      error: "memory_not_found",
     });
 
     const deleteResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
@@ -126,9 +134,9 @@ describe("memoryRoutes", () => {
       },
       { headers: memberHeaders },
     );
-    expect(deleteResponse.status).toBe(403);
+    expect(deleteResponse.status).toBe(404);
     await expect(deleteResponse.json()).resolves.toMatchObject({
-      error: "forbidden",
+      error: "memory_not_found",
     });
   });
 

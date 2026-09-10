@@ -45,6 +45,7 @@ const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target
   translation_memory_exported: "translation_memory",
   translation_memory_project_attached: "project",
   translation_memory_project_detached: "project",
+  translation_memory_action_rejected: "translation_memory",
 };
 
 const storyNow = new Date("2026-09-04T10:00:00.000Z").getTime();

@@ -13,8 +13,12 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type { Memory } from "@/lib/database/types";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+import type {
+  MemoryCapabilities,
+  MemoryCapabilityResource,
+} from "@/lib/memory/memory-capabilities";
 
-export function toMemoryRecord(memory: Memory): MemoryRecord {
+export function toMemoryRecord(memory: Memory, capabilities?: MemoryCapabilities): MemoryRecord {
   return {
     id: memory.id,
     organizationId: memory.organizationId,
@@ -37,5 +41,57 @@ export function toMemoryRecord(memory: Memory): MemoryRecord {
     lastSyncErrorMessage: memory.lastSyncErrorMessage,
     createdAt: memory.createdAt.toISOString(),
     updatedAt: memory.updatedAt.toISOString(),
+    resourceKind:
+      memory.source === "native"
+        ? "native"
+        : memory.capabilityMode === "reference_only"
+          ? "reference_only"
+          : "synced",
+    capabilities: capabilities ?? {
+      read: { allowed: true, reason: null },
+      search: {
+        allowed: memory.status === "active",
+        reason: memory.status === "active" ? null : "archived",
+      },
+      edit: { allowed: false, reason: "unsupported" },
+      review: { allowed: false, reason: "unsupported" },
+      import: { allowed: false, reason: "unsupported" },
+      export: { allowed: true, reason: null },
+      bulk_mutation: { allowed: false, reason: "unsupported" },
+      archive: { allowed: false, reason: "unsupported" },
+      restore: { allowed: false, reason: "unsupported" },
+      delete: { allowed: false, reason: "unsupported" },
+    },
+  };
+}
+
+export function toVirtualMemoryRecord(
+  resource: MemoryCapabilityResource,
+  capabilities: MemoryCapabilities,
+): MemoryRecord {
+  return {
+    id: resource.id,
+    organizationId: resource.organizationId,
+    createdByUserId: null,
+    name: resource.name,
+    description: resource.description,
+    status: resource.status,
+    source: resource.source,
+    externalProviderKind: resource.externalProviderKind,
+    externalProjectId: resource.externalProjectId,
+    externalMemoryId: resource.externalMemoryId,
+    localeCoverage: resource.localeCoverage,
+    segmentCount: resource.segmentCount,
+    syncState: null,
+    capabilityMode: resource.capabilityMode,
+    segmentCapabilities: resource.segmentCapabilities,
+    externalUrl: sanitizeExternalUrl(resource.externalUrl),
+    lastSyncedAt: null,
+    lastSyncErrorAt: resource.lastSyncErrorAt?.toISOString() ?? null,
+    lastSyncErrorMessage: resource.lastSyncErrorMessage,
+    createdAt: resource.createdAt.toISOString(),
+    updatedAt: resource.updatedAt.toISOString(),
+    resourceKind: resource.resourceKind,
+    capabilities,
   };
 }

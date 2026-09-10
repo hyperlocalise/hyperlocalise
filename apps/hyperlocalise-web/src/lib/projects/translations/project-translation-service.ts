@@ -25,6 +25,7 @@ import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+import { isMemoryWritableForExecution } from "@/lib/memory/memory-capabilities";
 
 type ProjectKeysScopeInput = {
   organizationId: string;
@@ -811,7 +812,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     sourcePath?: string;
   }) {
     const [memory] = await this.database
-      .select({ id: schema.memories.id })
+      .select()
       .from(schema.memories)
       .where(
         and(
@@ -827,6 +828,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
         "translation promotion skipped: memory not found",
       );
       return { promoted: 0, skipped: 0, reason: "memory_not_found" as const };
+    }
+
+    if (!isMemoryWritableForExecution(memory)) {
+      this.log.warn(
+        { organizationId: input.organizationId, memoryId: input.memoryId },
+        "translation promotion skipped: memory is not writable",
+      );
+      return { promoted: 0, skipped: 0, reason: "memory_not_writable" as const };
     }
 
     const [attachment] = await this.database

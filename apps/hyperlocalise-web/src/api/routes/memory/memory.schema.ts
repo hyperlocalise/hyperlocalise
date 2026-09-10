@@ -18,6 +18,10 @@ import {
   TMX_MAX_IMPORT_CONTENT_CHARS,
 } from "@/lib/memory/tmx/tmx-constants";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import {
+  MEMORY_CAPABILITY_ACTIONS,
+  MEMORY_CAPABILITY_REASONS,
+} from "@/lib/memory/memory-capabilities";
 
 export const memoryIdParamsSchema = z.object({
   memoryId: z.string().trim().min(1).max(128),
@@ -193,6 +197,16 @@ export const memoryRecordSchema = z.object({
   lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  resourceKind: z.enum(["native", "synced", "live_provider", "reference_only"]).optional(),
+  capabilities: z
+    .record(
+      z.enum(MEMORY_CAPABILITY_ACTIONS),
+      z.object({
+        allowed: z.boolean(),
+        reason: z.enum(MEMORY_CAPABILITY_REASONS).nullable(),
+      }),
+    )
+    .optional(),
 });
 
 export const memoryResponseSchema = z.object({

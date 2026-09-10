@@ -50,6 +50,7 @@ const {
   inArrayMock,
   insertMock,
   listHiddenKeysMock,
+  memoryWhereMock,
   onConflictDoUpdateMock,
   selectMock,
   sqlMock,
@@ -87,8 +88,23 @@ const {
       externalMemoryId: null,
     },
   ]);
+  const memoryWhereMock = vi.fn(async (condition?: unknown) => {
+    const memoryIds =
+      Array.isArray(condition) && condition[0] === "inArray"
+        ? condition[2]
+        : Array.isArray(condition) && Array.isArray(condition[1]) && Array.isArray(condition[1][0])
+          ? condition[1][0][2]
+          : [];
+    return (memoryIds as string[]).map((id) => ({
+      id,
+      source: "native",
+      status: "active",
+      capabilityMode: null,
+      externalProviderKind: null,
+    }));
+  });
   const innerJoinMock = vi.fn(() => ({ where: whereMock }));
-  const fromMock = vi.fn(() => ({ innerJoin: innerJoinMock }));
+  const fromMock = vi.fn(() => ({ innerJoin: innerJoinMock, where: memoryWhereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
   const listHiddenKeysMock = vi.fn(async () => [] as string[]);
   const ensureDefaultMemoryIdsMock = vi.fn(async () => [] as string[]);
@@ -99,6 +115,7 @@ const {
     eqMock: vi.fn((field: string, value: unknown) => ["eq", field, value]),
     ensureDefaultMemoryIdsMock,
     listAttachedMemoryIdsMock,
+    memoryWhereMock,
     inArrayMock: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
     insertMock,
     listHiddenKeysMock,
@@ -147,10 +164,13 @@ vi.mock("@/lib/database/client", () => ({
       targetText: "targetText",
     },
     memories: {
+      capabilityMode: "capabilityMode",
       externalMemoryId: "externalMemoryId",
       externalProviderKind: "externalProviderKind",
       id: "id",
       name: "name",
+      source: "source",
+      status: "status",
     },
     projectMemories: {
       memoryId: "memoryId",
@@ -350,6 +370,35 @@ describe("reuseFileTranslationMemoryEntries", () => {
       ["inArray", "memoryId", ["memory_1", "memory_2"]],
       ["inArray", "normalizedSourceText", ["hello"]],
     );
+  });
+
+  it("does not reuse entries from archived or reference-only memories", async () => {
+    memoryWhereMock.mockResolvedValueOnce([
+      {
+        id: "memory_1",
+        source: "native",
+        status: "archived",
+        capabilityMode: null,
+        externalProviderKind: null,
+      },
+      {
+        id: "memory_2",
+        source: "external_tms",
+        status: "active",
+        capabilityMode: "reference_only",
+        externalProviderKind: "crowdin",
+      },
+    ] as never);
+
+    const result = await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: { first: "Hello" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(result).toEqual({ prefilled: {}, matchesByKey: {} });
+    expect(whereMock).not.toHaveBeenCalled();
   });
 
   it("reuses exact approved text across keys while keeping locales isolated", async () => {

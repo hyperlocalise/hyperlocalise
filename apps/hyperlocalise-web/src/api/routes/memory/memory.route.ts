@@ -18,7 +18,7 @@ import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedMemoryWhere,
 } from "@/api/auth/team-access";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
@@ -44,7 +44,15 @@ import {
   listMemoryImportAttempts,
   statusFromMemoryImportReport,
 } from "@/lib/memory/memory-import-attempts";
-import { toMemoryRecord } from "@/lib/memory/memory-records";
+import { toMemoryRecord, toVirtualMemoryRecord } from "@/lib/memory/memory-records";
+import {
+  capabilityDeniedReason,
+  isMemoryCapabilityAllowed,
+  memoryCapabilitiesForPersistedMemory,
+  resolveMemoryCapabilities,
+  type MemoryCapabilityAction,
+} from "@/lib/memory/memory-capabilities";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type { MemoryImportReport } from "@/lib/memory/tmx/tmx-types";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
@@ -83,19 +91,18 @@ import {
   type MemoryEntryListFilterFields,
 } from "./memory-entry-cursor";
 import {
-  externalTmsMemoryImmutableResponse,
   forbiddenResponse,
   invalidMemoryPayloadResponse,
   isMemoryMutationAllowed,
   getOwnedMemory,
   ownedMemoryWhere,
   memoryEntryReadOnlyResponse,
+  memoryCapabilityDeniedResponse,
   memoryNotFoundResponse,
 } from "./memory.shared";
 import { listMemoryEntriesPage } from "./memory-entry-list";
 import { getMemoryEntryDetail, toMemoryEntryDetailRecord } from "@/lib/memory/memory-entry-detail";
 import {
-  isMemoryEntryWritable,
   recordMemoryEntryCreatedEvent,
   updateMemoryEntrySafely,
 } from "@/lib/memory/memory-entry-lifecycle";
@@ -114,6 +121,48 @@ type MemoryStore = {
 };
 
 type MemoryEntry = typeof schema.memoryEntries.$inferSelect;
+
+type MemoryRouteContext = Context<{ Variables: AuthVariables }>;
+
+async function requireMemoryCapability(
+  c: MemoryRouteContext,
+  memoryId: string,
+  action: MemoryCapabilityAction,
+) {
+  const resolved = await resolveMemoryCapabilities(c.var.auth, memoryId);
+  if (resolved.kind === "not_found") {
+    return { response: memoryNotFoundResponse(c) } as const;
+  }
+  if (resolved.kind === "unavailable") {
+    return {
+      response: apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable"),
+    } as const;
+  }
+  if (!isMemoryCapabilityAllowed(resolved.value.capabilities, action)) {
+    await enqueueActivityLogEvent({
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: c.var.auth.user.localUserId,
+      eventType: "translation_memory_action_rejected",
+      organizationId: c.var.auth.organization.localOrganizationId,
+      payload: {
+        action,
+        reason: capabilityDeniedReason(resolved.value.capabilities, action),
+        resourceId: resolved.value.resource.id,
+      },
+      targetId: resolved.value.resource.id,
+      targetKind: "translation_memory",
+    });
+    return {
+      response: memoryCapabilityDeniedResponse(
+        c,
+        action,
+        capabilityDeniedReason(resolved.value.capabilities, action),
+      ),
+    } as const;
+  }
+  return { value: resolved.value } as const;
+}
 
 type MemoryProjectRecord = {
   projectId: string;
@@ -491,7 +540,13 @@ export function createMemoryRoutes() {
     .get("/", validateListMemoryQuery, async (c) => {
       const query = c.req.valid("query");
       const { memories, total } = await memoryStore.list(c.var.auth, query);
-      return c.json({ memories: memories.map(toMemoryRecord), total }, 200);
+      const records = await mapWithConcurrency(memories, 10, async (memory) =>
+        toMemoryRecord(
+          memory,
+          memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
+        ),
+      );
+      return c.json({ memories: records, total }, 200);
     })
     .post("/", validateCreateMemoryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
@@ -515,17 +570,37 @@ export function createMemoryRoutes() {
         targetId: memory.id,
         targetKind: "translation_memory",
       });
-      return c.json({ memory: toMemoryRecord(memory) }, 201);
+      const resolved = await resolveMemoryCapabilities(c.var.auth, memory.id);
+      return c.json(
+        {
+          memory:
+            resolved.kind === "resolved"
+              ? toMemoryRecord(memory, resolved.value.capabilities)
+              : toMemoryRecord(memory),
+        },
+        201,
+      );
     })
     .get("/:memoryId", validateMemoryParams, async (c) => {
       const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
+      const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
 
-      if (!memory) {
+      if (resolved.kind === "not_found") {
         return memoryNotFoundResponse(c);
       }
+      if (resolved.kind === "unavailable") {
+        return apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable");
+      }
 
-      return c.json({ memory: toMemoryRecord(memory) }, 200);
+      const { resource, capabilities } = resolved.value;
+      return c.json(
+        {
+          memory: resource.persistedMemory
+            ? toMemoryRecord(resource.persistedMemory, capabilities)
+            : toVirtualMemoryRecord(resource, capabilities),
+        },
+        200,
+      );
     })
     .get(
       "/:memoryId/import-attempts",
@@ -635,10 +710,25 @@ export function createMemoryRoutes() {
     .get("/:memoryId/entries", validateMemoryParams, validateListMemoryEntriesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
+      const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
+      if (resolved.kind !== "resolved") {
+        if (resolved.kind === "unavailable") {
+          return apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable");
+        }
         return memoryNotFoundResponse(c);
+      }
+
+      const memory = resolved.value.resource.persistedMemory;
+      if (!memory) {
+        return c.json(
+          {
+            memoryEntries: [],
+            nextCursor: null,
+            total: 0,
+            pagination: { limit: query?.limit ?? 50, returned: 0, hasMore: false },
+          },
+          200,
+        );
       }
 
       const page = await listMemoryEntriesPage(params.memoryId, query);
@@ -663,10 +753,23 @@ export function createMemoryRoutes() {
       async (c) => {
         const params = c.req.valid("param");
         const query: ExportMemoryEntriesQuery = c.req.valid("query");
-        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-        if (!memory) {
+        const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
+        if (resolved.kind !== "resolved") {
+          if (resolved.kind === "unavailable") {
+            return apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable");
+          }
           return memoryNotFoundResponse(c);
+        }
+        if (!isMemoryCapabilityAllowed(resolved.value.capabilities, "export")) {
+          return memoryCapabilityDeniedResponse(
+            c,
+            "export",
+            capabilityDeniedReason(resolved.value.capabilities, "export"),
+          );
+        }
+        const memory = resolved.value.resource.persistedMemory;
+        if (!memory) {
+          return memoryCapabilityDeniedResponse(c, "export", "unsupported");
         }
 
         const exported = await exportMemoryEntriesTmx({
@@ -696,23 +799,12 @@ export function createMemoryRoutes() {
       },
     )
     .post("/:memoryId/entries", validateMemoryParams, validateCreateMemoryEntryBody, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-      if (!isMemoryEntryWritable(memory)) {
-        return memoryEntryReadOnlyResponse(
-          c,
-          memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
-        );
-      }
+      const access = await requireMemoryCapability(c, params.memoryId, "edit");
+      if ("response" in access) return access.response;
+      const memory = access.value.resource.persistedMemory;
+      if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
 
       const entry = await createMemoryEntry(memory, payload, c.var.auth.user.localUserId);
       if (!entry) {
@@ -730,23 +822,12 @@ export function createMemoryRoutes() {
       validateMemoryParams,
       validateImportMemoryEntriesBody,
       async (c) => {
-        if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
-        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-        if (!memory) {
-          return memoryNotFoundResponse(c);
-        }
-        if (!isMemoryEntryWritable(memory)) {
-          return memoryEntryReadOnlyResponse(
-            c,
-            memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
-          );
-        }
+        const access = await requireMemoryCapability(c, params.memoryId, "import");
+        if ("response" in access) return access.response;
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, "import", "unsupported");
 
         const dryRun = payload.dryRun === true;
         const importBatchId = dryRun ? undefined : randomUUID();
@@ -892,23 +973,12 @@ export function createMemoryRoutes() {
       validateMemoryParams,
       validatePromoteMemoryFromProjectBody,
       async (c) => {
-        if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload: PromoteMemoryFromProjectBody = c.req.valid("json");
-        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-        if (!memory) {
-          return memoryNotFoundResponse(c);
-        }
-        if (!isMemoryEntryWritable(memory)) {
-          return memoryEntryReadOnlyResponse(
-            c,
-            memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
-          );
-        }
+        const access = await requireMemoryCapability(c, params.memoryId, "edit");
+        if ("response" in access) return access.response;
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
 
         const project = await getOwnedProject(c.var.auth, payload.projectId);
         if (!project) {
@@ -970,17 +1040,16 @@ export function createMemoryRoutes() {
       validateMemoryEntryParams,
       validateUpdateMemoryEntryBody,
       async (c) => {
-        if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload: UpdateMemoryEntryBody = c.req.valid("json");
-        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-        if (!memory) {
-          return memoryNotFoundResponse(c);
-        }
+        const isReviewOnly = Object.keys(payload).every(
+          (key) => key === "expectedVersion" || key === "reviewStatus",
+        );
+        const action: MemoryCapabilityAction = isReviewOnly ? "review" : "edit";
+        const access = await requireMemoryCapability(c, params.memoryId, action);
+        if ("response" in access) return access.response;
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, action, "unsupported");
 
         const result = await updateMemoryEntrySafely({
           memory,
@@ -1031,22 +1100,11 @@ export function createMemoryRoutes() {
       },
     )
     .delete("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-      if (!isMemoryEntryWritable(memory)) {
-        return memoryEntryReadOnlyResponse(
-          c,
-          memory.capabilityMode === "reference_only" ? "reference_only" : "external_tms",
-        );
-      }
+      const access = await requireMemoryCapability(c, params.memoryId, "delete");
+      if ("response" in access) return access.response;
+      const memory = access.value.resource.persistedMemory;
+      if (!memory) return memoryCapabilityDeniedResponse(c, "delete", "unsupported");
 
       const deleted = await db
         .delete(schema.memoryEntries)
@@ -1079,14 +1137,12 @@ export function createMemoryRoutes() {
       validateMemoryParams,
       validateAttachMemoryProjectBody,
       async (c) => {
-        if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
         const params = c.req.valid("param");
         const payload: AttachMemoryProjectBody = c.req.valid("json");
+        const access = await requireMemoryCapability(c, params.memoryId, "edit");
+        if ("response" in access) return access.response;
         const [memory, project] = await Promise.all([
-          memoryStore.getById(c.var.auth, params.memoryId),
+          Promise.resolve(access.value.resource.persistedMemory),
           getOwnedProject(c.var.auth, payload.projectId),
         ]);
 
@@ -1125,13 +1181,11 @@ export function createMemoryRoutes() {
       },
     )
     .delete("/:memoryId/projects/:projectId", validateMemoryProjectParams, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
+      const access = await requireMemoryCapability(c, params.memoryId, "edit");
+      if ("response" in access) return access.response;
       const [memory, project] = await Promise.all([
-        memoryStore.getById(c.var.auth, params.memoryId),
+        Promise.resolve(access.value.resource.persistedMemory),
         getOwnedProject(c.var.auth, params.projectId),
       ]);
 
@@ -1169,21 +1223,12 @@ export function createMemoryRoutes() {
       return c.body(null, 204);
     })
     .patch("/:memoryId", validateMemoryParams, validateUpdateMemoryBody, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-
-      if (memory.source === "external_tms") {
-        return externalTmsMemoryImmutableResponse(c);
-      }
+      const access = await requireMemoryCapability(c, params.memoryId, "edit");
+      if ("response" in access) return access.response;
+      const memory = access.value.resource.persistedMemory;
+      if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
 
       const updated = await memoryStore.update(c.var.auth, params.memoryId, payload);
 
@@ -1191,23 +1236,23 @@ export function createMemoryRoutes() {
         return memoryNotFoundResponse(c);
       }
 
-      return c.json({ memory: toMemoryRecord(updated) }, 200);
+      const updatedAccess = await resolveMemoryCapabilities(c.var.auth, updated.id);
+      return c.json(
+        {
+          memory:
+            updatedAccess.kind === "resolved"
+              ? toMemoryRecord(updated, updatedAccess.value.capabilities)
+              : toMemoryRecord(updated),
+        },
+        200,
+      );
     })
     .delete("/:memoryId", validateMemoryParams, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
       const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-
-      if (memory.source === "external_tms") {
-        return externalTmsMemoryImmutableResponse(c);
-      }
+      const access = await requireMemoryCapability(c, params.memoryId, "delete");
+      if ("response" in access) return access.response;
+      const memory = access.value.resource.persistedMemory;
+      if (!memory) return memoryCapabilityDeniedResponse(c, "delete", "unsupported");
 
       const deleted = await memoryStore.delete(c.var.auth, params.memoryId);
 

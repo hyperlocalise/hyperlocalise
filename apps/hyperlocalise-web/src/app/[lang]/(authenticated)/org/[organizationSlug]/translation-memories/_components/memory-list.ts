@@ -16,6 +16,7 @@ import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/jobs/tms-provider-live";
+import type { MemoryCapabilities } from "@/lib/memory/memory-capabilities";
 
 import { memoryListMessages } from "./memory-list.messages";
 
@@ -49,6 +50,7 @@ export type MemoryListRow = {
   segmentCountLabel: string;
   syncState: string | null;
   capabilityMode: ApiMemory["capabilityMode"];
+  capabilities: MemoryCapabilities | undefined;
   capabilityLabel: string;
   externalUrl: string | null;
   lastSyncedAt: string | null;
@@ -154,6 +156,7 @@ export function mapMemoryToListRow(
     segmentCountLabel: formatSegmentCount(memory.segmentCount, intl),
     syncState: memory.syncState,
     capabilityMode: memory.capabilityMode,
+    capabilities: memory.capabilities,
     capabilityLabel: capabilityLabelFor(memory, intl),
     externalUrl: memory.externalUrl,
     lastSyncedAt: formatRelativeTimestamp(memory.lastSyncedAt),
@@ -185,8 +188,11 @@ export function mapLiveTmsProviderMemoryToListRow(
     segmentCount: memory.segmentCount,
     segmentCountLabel: formatSegmentCount(memory.segmentCount, intl),
     syncState: null,
-    capabilityMode: "reference_only",
-    capabilityLabel: resolveMessage(intl, memoryListMessages.capabilityReadOnly),
+    capabilityMode: memory.capabilities?.search.allowed ? "live_search" : "reference_only",
+    capabilities: memory.capabilities,
+    capabilityLabel: memory.capabilities?.search.allowed
+      ? resolveMessage(intl, memoryListMessages.capabilityLiveSearch)
+      : resolveMessage(intl, memoryListMessages.capabilityReadOnly),
     externalUrl: memory.externalUrl,
     lastSyncedAt: null,
     lastSyncErrorAt: null,

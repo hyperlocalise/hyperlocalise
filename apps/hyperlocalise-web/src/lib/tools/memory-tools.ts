@@ -16,11 +16,17 @@ import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
 import { hasCapability } from "@/api/auth/policy";
+import type { ApiAuthContext } from "@/api/auth/workos";
+import {
+  capabilityDeniedReason,
+  isMemoryCapabilityAllowed,
+  memoryCapabilitiesForPersistedMemory,
+  type MemoryCapabilityAction,
+} from "@/lib/memory/memory-capabilities";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { localePattern } from "./locale";
 import {
-  isMemoryEntryWritable,
   recordMemoryEntryCreatedEvent,
   updateMemoryEntrySafely,
 } from "@/lib/memory/memory-entry-lifecycle";
@@ -31,6 +37,23 @@ import {
   toolProjectLinkedMemoryWhere,
 } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
+
+function toolMemoryActionAllowed(
+  ctx: ToolContext,
+  memory: typeof schema.memories.$inferSelect,
+  action: MemoryCapabilityAction,
+) {
+  const capabilities = memoryCapabilitiesForPersistedMemory(
+    {
+      membership: { role: ctx.membershipRole },
+    } as ApiAuthContext,
+    memory,
+  ).capabilities;
+  return {
+    allowed: isMemoryCapabilityAllowed(capabilities, action),
+    reason: capabilityDeniedReason(capabilities, action),
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* Translation Memory CRUD                                            */
@@ -122,6 +145,10 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
       if (!existing) {
         return { success: false, error: `Translation memory ${memoryId} not found.` };
       }
+      const access = toolMemoryActionAllowed(ctx, existing, "edit");
+      if (!access.allowed) {
+        return { success: false, error: `Translation memory action denied: ${access.reason}.` };
+      }
 
       const [memory] = await ctx.db
         .update(schema.memories)
@@ -156,6 +183,10 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
       const existing = await toolGetAccessibleMemory(ctx, memoryId);
       if (!existing) {
         return { success: false, error: `Translation memory ${memoryId} not found.` };
+      }
+      const access = toolMemoryActionAllowed(ctx, existing, "delete");
+      if (!access.allowed) {
+        return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }
 
       const deleted = await ctx.db
@@ -272,8 +303,9 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
       if (!memory) {
         return { success: false, error: `Memory ${memoryId} not found.` };
       }
-      if (!isMemoryEntryWritable(memory)) {
-        return { success: false, error: "This translation memory is read-only." };
+      const access = toolMemoryActionAllowed(ctx, memory, "edit");
+      if (!access.allowed) {
+        return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }
 
       const normalizedSourceText = normalizeTranslationMemorySourceText(entryData.sourceText);
@@ -373,7 +405,10 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "memories:write")) {
+      const isReviewOnly = Object.keys(input).every(
+        (key) => key === "entryId" || key === "reviewStatus",
+      );
+      if (!isReviewOnly && !hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -407,6 +442,15 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
 
       if (!entryWithMemory || entryWithMemory.memory.organizationId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
+      }
+
+      const access = toolMemoryActionAllowed(
+        ctx,
+        entryWithMemory.memory,
+        isReviewOnly ? "review" : "edit",
+      );
+      if (!access.allowed) {
+        return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }
 
       const result = await updateMemoryEntrySafely({
@@ -465,24 +509,19 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
       // Verify ownership via the parent memory.
       const [entryWithMemory] = await ctx.db
         .select({
-          memoryOrgId: schema.memories.organizationId,
-          memorySource: schema.memories.source,
-          capabilityMode: schema.memories.capabilityMode,
+          memory: schema.memories,
         })
         .from(schema.memoryEntries)
         .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(eq(schema.memoryEntries.id, entryId))
         .limit(1);
 
-      if (!entryWithMemory || entryWithMemory.memoryOrgId !== ctx.organizationId) {
+      if (!entryWithMemory || entryWithMemory.memory.organizationId !== ctx.organizationId) {
         return { success: false, error: `Entry ${entryId} not found.` };
       }
-
-      if (
-        entryWithMemory.memorySource === "external_tms" ||
-        entryWithMemory.capabilityMode === "reference_only"
-      ) {
-        return { success: false, error: "This translation memory is read-only." };
+      const access = toolMemoryActionAllowed(ctx, entryWithMemory.memory, "delete");
+      if (!access.allowed) {
+        return { success: false, error: `Translation memory action denied: ${access.reason}.` };
       }
 
       const deleted = await ctx.db

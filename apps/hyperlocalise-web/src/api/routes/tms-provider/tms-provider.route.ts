@@ -35,7 +35,10 @@ import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
 } from "@/lib/providers/jobs/job-provider-actions";
-import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  parseLiveProviderMemoryId,
+  parseProviderJobId,
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
   createTmsProviderLiveJobs,
@@ -60,6 +63,7 @@ import {
 import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import { memoryCapabilitiesForLiveProviderMemory } from "@/lib/memory/memory-capabilities";
 
 const mineQuerySchema = z.object({
   mine: z
@@ -794,7 +798,21 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
             actorUserId: c.var.auth.user.localUserId,
           },
         );
-        return c.json({ translationMemories }, 200);
+        return c.json(
+          {
+            translationMemories: translationMemories.map((memory) => ({
+              ...memory,
+              capabilities: parseLiveProviderMemoryId(memory.id)
+                ? memoryCapabilitiesForLiveProviderMemory(
+                    c.var.auth,
+                    memory,
+                    parseLiveProviderMemoryId(memory.id)!.providerKind,
+                  ).capabilities
+                : undefined,
+            })),
+          },
+          200,
+        );
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

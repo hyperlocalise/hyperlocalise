@@ -200,6 +200,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "WMQy9MxPzs",
     description: "Activity log event type label for detaching translation memory from a project",
   },
+  translationMemoryActionRejectedEventType: {
+    defaultMessage: "Translation Memory Action Rejected",
+    id: "V9EOgHjiEJ",
+    description: "Activity log event type label for a rejected translation memory action",
+  },
   jobCreatedEventType: {
     defaultMessage: "Job Created",
     id: "GlcR7TOaql",
@@ -554,6 +559,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "detached translation memory from a project",
     id: "sz2LfqYMb0",
     description: "Action for detaching translation memory from a project",
+  },
+  translationMemoryActionRejectedAction: {
+    defaultMessage: "was denied a translation memory action",
+    id: "5T9j+Au8xH",
+    description: "Action for a rejected translation memory action activity",
   },
   jobCreatedAction: {
     defaultMessage: "created a job",

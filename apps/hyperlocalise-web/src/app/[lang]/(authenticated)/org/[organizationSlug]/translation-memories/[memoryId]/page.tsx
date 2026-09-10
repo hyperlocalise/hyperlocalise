@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { TranslationMemoryDetailPageContent } from "./_components/translation-memory-detail-page-content";
 import { OrgPageSuspense } from "../../_components/org-page-suspense";
@@ -33,13 +32,9 @@ async function TranslationMemoryDetailPageLoader({
   params: Promise<{ organizationSlug: string; memoryId: string }>;
 }) {
   const { organizationSlug, memoryId } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
+  await requireAppAuthContext({ organizationSlug });
 
   return (
-    <TranslationMemoryDetailPageContent
-      organizationSlug={organizationSlug}
-      memoryId={memoryId}
-      canManageMemories={hasCapability(auth.membership.role, "memories:write")}
-    />
+    <TranslationMemoryDetailPageContent organizationSlug={organizationSlug} memoryId={memoryId} />
   );
 }
