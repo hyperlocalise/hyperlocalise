@@ -59,6 +59,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         services={{ validateFormat: mockValidateFormat }}
       />,
     );
@@ -117,6 +118,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         review={{ onApprove }}
         services={{ validateFormat: mockValidateFormat }}
       />,
@@ -137,6 +139,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         review={{ onApprove }}
         services={{ validateFormat: mockValidateFormat }}
       />,
@@ -160,6 +163,7 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         editing={{ onUseAiSuggestion }}
         services={{
           validateFormat: mockValidateFormat,

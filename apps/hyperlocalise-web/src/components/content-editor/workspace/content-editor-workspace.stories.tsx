@@ -43,6 +43,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
+    initialViewMode: "comfortable",
     initialState: createContentEditorWorkspaceState({
       segmentIntelligence: {
         "seg-02": {
@@ -176,6 +177,7 @@ export const MobileEmptyQueue: Story = {
 
 export const InteractiveReview: Story = {
   args: {
+    initialViewMode: "comfortable",
     initialState: createContentEditorWorkspaceState(),
     services: { validateFormat: mockValidateFormat },
     review: { onApprove: fn() },
@@ -209,6 +211,7 @@ export const InteractiveReview: Story = {
 
 export const PluralIcuSegment: Story = {
   args: {
+    initialViewMode: "comfortable",
     initialState: createContentEditorWorkspaceState({
       selectedSegmentId: "seg-06",
       formatChecks: [
@@ -247,6 +250,7 @@ const placeholderSegments = contentEditorSegmentsFixture.map((segment) =>
 
 export const MissingPlaceholderSegment: Story = {
   args: {
+    initialViewMode: "comfortable",
     initialState: createContentEditorWorkspaceState({
       segments: placeholderSegments,
       selectedSegmentId: "seg-13",

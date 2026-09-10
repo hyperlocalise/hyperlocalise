@@ -411,6 +411,21 @@ export function JobContentEditorPageContent({
     attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
+  const navigateToAllFiles = (nextSourcePaths: string[], nextTargetLocale: string) => {
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+        sourcePaths: serializeCatSourcePathsFilter(nextSourcePaths),
+        targetLocale: nextTargetLocale,
+        storedFileId: null,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+      );
+    });
+  };
+
   useEffect(() => {
     if (
       hasFileReference ||
@@ -626,18 +641,7 @@ export function JobContentEditorPageContent({
     };
 
     const handleJobSelectAllFiles = () => {
-      attemptCatPageNavigation(pageNavigationGuardRef, () => {
-        const params = buildCatNavigationSearchParams(window.location.search, {
-          sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-          sourcePaths: serializeCatSourcePathsFilter(jobSourcePaths),
-          targetLocale: selectedTargetLocale,
-          storedFileId: null,
-          segment: null,
-        });
-        router.push(
-          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-        );
-      });
+      navigateToAllFiles(jobSourcePaths, selectedTargetLocale);
     };
 
     return (
@@ -1006,20 +1010,11 @@ export function JobContentEditorPageContent({
               allFilesSelected={false}
               onSelectAllFiles={
                 canUseAllFiles
-                  ? () => {
-                      const params = buildCatNavigationSearchParams(window.location.search, {
-                        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-                        sourcePaths: serializeCatSourcePathsFilter(
-                          providerFiles.map((file) => file.sourcePath),
-                        ),
-                        targetLocale: selectedTargetLocale,
-                        storedFileId: null,
-                        segment: null,
-                      });
-                      router.push(
-                        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-                      );
-                    }
+                  ? () =>
+                      navigateToAllFiles(
+                        providerFiles.map((file) => file.sourcePath),
+                        selectedTargetLocale,
+                      )
                   : undefined
               }
               repositoryFullNames={enabledRepositoryFullNames}
@@ -1058,20 +1053,11 @@ export function JobContentEditorPageContent({
             allFilesSelected={false}
             onSelectAllFiles={
               canUseAllFiles
-                ? () => {
-                    const params = buildCatNavigationSearchParams(window.location.search, {
-                      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-                      sourcePaths: serializeCatSourcePathsFilter(
-                        providerFiles.map((file) => file.sourcePath),
-                      ),
-                      targetLocale: selectedTargetLocale,
-                      storedFileId: null,
-                      segment: null,
-                    });
-                    router.push(
-                      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-                    );
-                  }
+                ? () =>
+                    navigateToAllFiles(
+                      providerFiles.map((file) => file.sourcePath),
+                      selectedTargetLocale,
+                    )
                 : undefined
             }
             repositoryFullNames={enabledRepositoryFullNames}

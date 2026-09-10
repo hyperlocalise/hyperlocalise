@@ -26,6 +26,7 @@ const {
   loadJobContentEditorProviderJobFilesMock,
   loadJobContentEditorJobSourceFilesMock,
   loadJobContentEditorSelectableTargetLocalesMock,
+  routerPushMock,
   routerReplaceMock,
   repositoriesGetMock,
   ProjectFileContentEditorWorkspaceMock,
@@ -36,6 +37,7 @@ const {
   loadJobContentEditorProviderJobFilesMock: vi.fn(),
   loadJobContentEditorJobSourceFilesMock: vi.fn(),
   loadJobContentEditorSelectableTargetLocalesMock: vi.fn(),
+  routerPushMock: vi.fn(),
   routerReplaceMock: vi.fn(),
   repositoriesGetMock: vi.fn(),
   ProjectFileContentEditorWorkspaceMock: vi.fn(
@@ -60,7 +62,7 @@ const {
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: routerPushMock,
     replace: routerReplaceMock,
   }),
 }));
@@ -313,6 +315,7 @@ describe("JobContentEditorPageContent CAT shell", () => {
     ]);
     loadJobContentEditorSelectableTargetLocalesMock.mockResolvedValue(["vi", "de-DE"]);
     ProjectFileContentEditorWorkspaceMock.mockClear();
+    routerPushMock.mockClear();
     vi.stubGlobal("localStorage", createLocalStorageMock());
   });
 
@@ -349,10 +352,35 @@ describe("JobContentEditorPageContent CAT shell", () => {
         "untranslated",
       );
     });
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Source file"));
-    expect(await screen.findByLabelText("GitHub repository")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("GitHub repository").length).toBeGreaterThan(0);
+  });
+
+  it("routes All Files selection from a single-file workspace", async () => {
+    const user = userEvent.setup();
+    loadJobContentEditorTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
+    loadJobContentEditorProviderJobFilesMock.mockResolvedValue([providerFile]);
+
+    render(
+      <ContentEditorTestProviders>
+        <JobContentEditorPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          jobId="job_1"
+          sourcePath="crowdin/home.json"
+          targetLocale="vi"
+          contentEditorAllFilesEnabled
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "All Files" }));
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/org/acme/projects/proj_1/jobs/job_1/strings?sourcePath=*&sourcePaths=crowdin%2Fhome.json&targetLocale=vi",
+    );
   });
 
   it("opens with needs_review queue filter when provided", async () => {
@@ -436,7 +464,7 @@ describe("JobContentEditorPageContent CAT shell", () => {
         "en-US.json",
       );
     });
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toHaveTextContent("acme/web");
   });
 
   it("prompts for a repository on native task CAT when multiple repos are enabled", async () => {
@@ -495,6 +523,6 @@ describe("JobContentEditorPageContent CAT shell", () => {
       );
     });
     expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toHaveTextContent("acme/docs");
   });
 });

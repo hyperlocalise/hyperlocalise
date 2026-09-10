@@ -121,6 +121,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         navigation={{ onSelectSegment }}
         services={{ validateFormat: mockValidateFormat }}
       />,
@@ -145,7 +146,10 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
       ],
     });
     const view = renderCatWorkspace(
-      <ContentEditorWorkspaceContainer initialState={initialState} />,
+      <ContentEditorWorkspaceContainer
+        initialState={initialState}
+        initialViewMode="comfortable"
+      />,
     );
 
     expect(
@@ -156,6 +160,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
       <div style={{ height: "900px", width: "1280px" }} className="bg-background text-foreground">
         <ContentEditorWorkspaceContainer
           initialState={initialState}
+          initialViewMode="comfortable"
           queueSnapshot={filteredState}
         />
       </div>,
@@ -176,6 +181,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         navigation={{ onSelectSegment }}
         services={{ validateFormat: mockValidateFormat }}
       />,
@@ -197,6 +203,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer
         initialState={createUiCatWorkspaceState()}
+        initialViewMode="comfortable"
         services={{ validateFormat: mockValidateFormat }}
       />,
     );
