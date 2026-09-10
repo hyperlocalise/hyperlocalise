@@ -24,13 +24,3 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Populated: Story = {};
-export const Dark: Story = { globals: { theme: "dark" } };
-export const Mobile: Story = {
-  decorators: [
-    (Story) => (
-      <div style={{ maxWidth: 390 }}>
-        <Story />
-      </div>
-    ),
-  ],
-};

@@ -15,15 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const domainResearchShellMessages = defineMessages({
-  navHome: {
-    defaultMessage: "Home",
-    id: "wpfeiFkA9G",
-    description: "Domain research tab for the domain home",
-  },
   navKeywords: {
-    defaultMessage: "Keywords",
-    id: "Wll3W4intY",
-    description: "Domain research tab for keyword research",
+    defaultMessage: "Keyword research",
+    id: "8Gk5dEdlLz",
+    description: "Domain research navigation label",
   },
   navOverview: {
     defaultMessage: "Overview",
@@ -31,19 +26,19 @@ export const domainResearchShellMessages = defineMessages({
     description: "Domain research tab for domain overview",
   },
   navRanks: {
-    defaultMessage: "Ranks",
-    id: "C5ZmaDbx8N",
-    description: "Domain research tab for rank tracking",
+    defaultMessage: "Rank tracking",
+    id: "dq6M0aso45",
+    description: "Domain research navigation label",
   },
   navBrand: {
-    defaultMessage: "Brand",
-    id: "Uy/topjaXg",
-    description: "Domain research tab for AI brand lookup",
+    defaultMessage: "AI visibility",
+    id: "3CBfdb8CgM",
+    description: "Domain research navigation label",
   },
   navPrompts: {
-    defaultMessage: "Prompts",
-    id: "kRCx0FuBBM",
-    description: "Domain research tab for prompt explorer",
+    defaultMessage: "Prompt explorer",
+    id: "gtgCwprydq",
+    description: "Domain research navigation label",
   },
   shellDescription: {
     defaultMessage: "Research this domain in {market}.",

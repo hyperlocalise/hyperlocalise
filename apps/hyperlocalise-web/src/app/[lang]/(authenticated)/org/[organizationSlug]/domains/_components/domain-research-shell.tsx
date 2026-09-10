@@ -36,10 +36,9 @@ import { DomainVerifyDialog } from "./domain-verify-dialog";
 
 import styles from "./domain-header.module.css";
 
-const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navHome }[] = [
-  { id: "home", message: messages.navHome },
-  { id: "keywords", message: messages.navKeywords },
+const NAV_ITEMS: { id: DomainResearchNavId; message: typeof messages.navOverview }[] = [
   { id: "overview", message: messages.navOverview },
+  { id: "keywords", message: messages.navKeywords },
   { id: "ranks", message: messages.navRanks },
   { id: "brand", message: messages.navBrand },
   { id: "prompts", message: messages.navPrompts },
@@ -111,7 +110,7 @@ export function DomainResearchShell({
         </TabsList>
       </Tabs>
 
-      {isPending && surface !== "home" ? (
+      {isPending ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}

@@ -10,23 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { DomainOverviewView } from "../../_components/domain-overview-view";
-import { DomainResearchShell } from "../../_components/domain-research-shell";
-
+import { redirect } from "next/navigation";
+import { buildDomainPath } from "@/components/app-shell/navigation-config";
 export default async function DomainOverviewPage({
   params,
 }: {
-  params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
+  params: Promise<{ lang: string; organizationSlug: string; linkedDomainId: string }>;
 }) {
-  const { organizationSlug, linkedDomainId } = await params;
-
-  return (
-    <DomainResearchShell
-      organizationSlug={organizationSlug}
-      linkedDomainId={linkedDomainId}
-      surface="overview"
-    >
-      <DomainOverviewView linkedDomainId={linkedDomainId} />
-    </DomainResearchShell>
-  );
+  const { lang, organizationSlug, linkedDomainId } = await params;
+  redirect(`/${lang}${buildDomainPath(organizationSlug, linkedDomainId)}`);
 }
