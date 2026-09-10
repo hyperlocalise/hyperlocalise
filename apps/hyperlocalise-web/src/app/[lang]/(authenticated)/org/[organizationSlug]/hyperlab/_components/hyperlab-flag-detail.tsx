@@ -13,29 +13,45 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 import { Rows } from "@/components/ui/layout/rows";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   hyperlabClient,
+  hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAssignment,
+  type HyperlabExperiment,
   type HyperlabFlag,
   type HyperlabFlagConfig,
+  type HyperlabVariant,
 } from "./hyperlab-api";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
+import { HyperlabLoadError } from "./hyperlab-ui";
 
 export function HyperlabFlagDetail({
   organizationSlug,
@@ -52,10 +68,9 @@ export function HyperlabFlagDetail({
   const client = hyperlabClient();
   const [description, setDescription] = useState("");
   const [configText, setConfigText] = useState("{}");
-  const [variantId, setVariantId] = useState("");
 
   const detailQuery = useQuery({
-    queryKey: ["hyperlab-flag", organizationSlug, flagId],
+    queryKey: hyperlabQueryKeys.flag(organizationSlug, flagId),
     queryFn: async () => {
       const response = await client.flags[":flagId"].$get({
         param: { organizationSlug, flagId },
@@ -66,9 +81,8 @@ export function HyperlabFlagDetail({
       );
     },
   });
-
   const assignmentsQuery = useQuery({
-    queryKey: ["hyperlab-assignments", organizationSlug],
+    queryKey: hyperlabQueryKeys.assignments(organizationSlug),
     queryFn: async () => {
       const response = await client.assignments.$get({ param: { organizationSlug } });
       const body = await readHyperlabJson<{ assignments: HyperlabAssignment[] }>(
@@ -76,6 +90,17 @@ export function HyperlabFlagDetail({
         intl.formatMessage(messages.loadError),
       );
       return body.assignments.filter((assignment) => assignment.flagId === flagId);
+    },
+  });
+  const experimentsQuery = useQuery({
+    queryKey: hyperlabQueryKeys.experiments(organizationSlug),
+    queryFn: async () => {
+      const response = await client.experiments.$get({ param: { organizationSlug } });
+      const body = await readHyperlabJson<{ experiments: HyperlabExperiment[] }>(
+        response,
+        intl.formatMessage(messages.loadError),
+      );
+      return body.experiments;
     },
   });
 
@@ -97,31 +122,28 @@ export function HyperlabFlagDetail({
       });
       await readHyperlabJson(response, intl.formatMessage(messages.loadError));
       if (detailQuery.data?.flag.kind === "config") {
+        const parsed = JSON.parse(configText) as unknown;
         const configResponse = await client.flags[":flagId"].config.$put({
           param: { organizationSlug, flagId },
-          json: { value: JSON.parse(configText) as unknown },
+          json: { value: parsed },
         });
         await readHyperlabJson(configResponse, intl.formatMessage(messages.loadError));
       }
     },
     onSuccess: async () => {
+      toast.success(intl.formatMessage(messages.saveSuccess));
       await queryClient.invalidateQueries({
-        queryKey: ["hyperlab-flag", organizationSlug, flagId],
+        queryKey: hyperlabQueryKeys.flag(organizationSlug, flagId),
       });
     },
-  });
-
-  const assignMutation = useMutation({
-    mutationFn: async () => {
-      const response = await client.assignments.$post({
-        param: { organizationSlug },
-        json: { flagId, variantId, enabled: true },
-      });
-      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
-    },
-    onSuccess: async () => {
-      setVariantId("");
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-assignments", organizationSlug] });
+    onError: (error) => {
+      const message =
+        error instanceof SyntaxError
+          ? intl.formatMessage(messages.invalidJson)
+          : error instanceof Error
+            ? error.message
+            : intl.formatMessage(messages.loadError);
+      toast.error(message);
     },
   });
 
@@ -135,11 +157,16 @@ export function HyperlabFlagDetail({
       }
     },
     onSuccess: () => {
+      toast.success(intl.formatMessage(messages.deleteSuccess));
       router.push(`/org/${organizationSlug}/hyperlab/flags`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
     },
   });
 
   const flag = detailQuery.data?.flag;
+  const assignments = assignmentsQuery.data ?? [];
 
   return (
     <HyperlabPageShell
@@ -147,117 +174,199 @@ export function HyperlabFlagDetail({
       section="flags"
       title={flag?.key ?? intl.formatMessage(messages.flagsTitle)}
       description={intl.formatMessage(messages.flagsDescription)}
+      backHref={`/org/${organizationSlug}/hyperlab/flags`}
       actions={
         canWrite ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-          >
-            <FormattedMessage {...messages.delete} />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger render={<Button variant="outline" />}>
+              <FormattedMessage {...messages.delete} />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  <FormattedMessage {...messages.deleteFlagTitle} />
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  <FormattedMessage
+                    {...messages.deleteFlagBody}
+                    values={{ name: flag?.key ?? "" }}
+                  />
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  <FormattedMessage {...messages.cancel} />
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                >
+                  <FormattedMessage {...messages.delete} />
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null
       }
     >
       <Rows spacing="2u">
         {detailQuery.isError ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="critical">
-            {detailQuery.error instanceof Error
-              ? detailQuery.error.message
-              : intl.formatMessage(messages.loadError)}
-          </TypographyP>
-        ) : null}
-        {detailQuery.isLoading ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
+          <HyperlabLoadError error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
         ) : null}
         {flag ? (
-          <Rows spacing="2u">
-            <Field>
-              <FieldLabel htmlFor="hyperlab-flag-description">
-                <FormattedMessage {...messages.flagDescriptionLabel} />
-              </FieldLabel>
-              <Input
-                id="hyperlab-flag-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                disabled={!canWrite}
-              />
-            </Field>
-            {flag.kind === "config" ? (
-              <Field>
-                <FieldLabel htmlFor="hyperlab-flag-config">
-                  <FormattedMessage {...messages.configJsonLabel} />
-                </FieldLabel>
-                <Textarea
-                  id="hyperlab-flag-config"
-                  value={configText}
-                  onChange={(event) => setConfigText(event.target.value)}
-                  rows={8}
-                  disabled={!canWrite}
-                />
-              </Field>
-            ) : null}
-            {canWrite ? (
-              <Button
-                type="button"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-              >
-                <FormattedMessage {...messages.save} />
-              </Button>
-            ) : null}
-
-            <Rows spacing="1.5u">
-              <h2 className="text-sm font-medium">
-                <FormattedMessage {...messages.assignmentsTitle} />
-              </h2>
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <FormattedMessage {...messages.generalCardTitle} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="hyperlab-flag-key">
+                      <FormattedMessage {...messages.flagKeyLabel} />
+                    </FieldLabel>
+                    <Input id="hyperlab-flag-key" value={flag.key} disabled />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="hyperlab-flag-description">
+                      <FormattedMessage {...messages.flagDescriptionLabel} />
+                    </FieldLabel>
+                    <Input
+                      id="hyperlab-flag-description"
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      disabled={!canWrite}
+                    />
+                  </Field>
+                  {flag.kind === "config" ? (
+                    <Field>
+                      <FieldLabel htmlFor="hyperlab-flag-config">
+                        <FormattedMessage {...messages.configJsonLabel} />
+                      </FieldLabel>
+                      <Textarea
+                        id="hyperlab-flag-config"
+                        value={configText}
+                        onChange={(event) => setConfigText(event.target.value)}
+                        rows={8}
+                        disabled={!canWrite}
+                      />
+                      <FieldDescription>
+                        <FormattedMessage {...messages.configJsonHint} />
+                      </FieldDescription>
+                    </Field>
+                  ) : null}
+                </FieldGroup>
+              </CardContent>
               {canWrite ? (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    assignMutation.mutate();
-                  }}
-                >
-                  <Columns spacing="1.5u" alignY="end" collapseBelow="small">
-                    <Column width="fluid">
-                      <Field>
-                        <FieldLabel htmlFor="hyperlab-variant-id">
-                          <FormattedMessage {...messages.variantIdLabel} />
-                        </FieldLabel>
-                        <Input
-                          id="hyperlab-variant-id"
-                          value={variantId}
-                          onChange={(event) => setVariantId(event.target.value)}
-                          required
-                        />
-                      </Field>
-                    </Column>
-                    <Column width="content">
-                      <Button type="submit" disabled={!variantId || assignMutation.isPending}>
-                        <FormattedMessage {...messages.attachVariant} />
-                      </Button>
-                    </Column>
-                  </Columns>
-                </form>
+                <CardFooter>
+                  <Button
+                    type="button"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+                    <FormattedMessage
+                      {...(saveMutation.isPending ? messages.saving : messages.save)}
+                    />
+                  </Button>
+                </CardFooter>
               ) : null}
-              <Box border="standard" borderRadius="standard">
-                <Rows spacing="0">
-                  {(assignmentsQuery.data ?? []).map((assignment) => (
-                    <Box key={assignment.id} paddingX="2u" paddingY="1.5u">
-                      <TypographyP size="small">
-                        {assignment.variantId} · {assignment.enabled ? "on" : "off"}
-                      </TypographyP>
-                    </Box>
-                  ))}
-                </Rows>
-              </Box>
-            </Rows>
-          </Rows>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <FormattedMessage {...messages.assignmentsTitle} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {assignments.length === 0 ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.noAssignments} />
+                  </TypographyP>
+                ) : (
+                  <FlagAssignmentList
+                    organizationSlug={organizationSlug}
+                    assignments={assignments}
+                    experiments={experimentsQuery.data ?? []}
+                    client={client}
+                    loadError={intl.formatMessage(messages.loadError)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </>
         ) : null}
       </Rows>
     </HyperlabPageShell>
+  );
+}
+
+function FlagAssignmentList({
+  organizationSlug,
+  assignments,
+  experiments,
+  client,
+  loadError,
+}: {
+  organizationSlug: string;
+  assignments: HyperlabAssignment[];
+  experiments: HyperlabExperiment[];
+  client: ReturnType<typeof hyperlabClient>;
+  loadError: string;
+}) {
+  const variantsQuery = useQuery({
+    queryKey: [
+      "hyperlab-assignment-variants",
+      organizationSlug,
+      assignments.map((item) => item.variantId),
+    ],
+    queryFn: async () => {
+      const details = await Promise.all(
+        experiments.map(async (experiment) => {
+          const response = await client.experiments[":experimentId"].$get({
+            param: { organizationSlug, experimentId: experiment.id },
+          });
+          const body = await readHyperlabJson<{ variants: HyperlabVariant[] }>(response, loadError);
+          return { experiment, variants: body.variants };
+        }),
+      );
+      return details;
+    },
+    enabled: experiments.length > 0 && assignments.length > 0,
+  });
+
+  const rows = assignments.flatMap((assignment) => {
+    for (const detail of variantsQuery.data ?? []) {
+      const variant = detail.variants.find((item) => item.id === assignment.variantId);
+      if (variant) {
+        return [{ assignment, experiment: detail.experiment, variant }];
+      }
+    }
+    return [];
+  });
+
+  if (rows.length === 0) {
+    return (
+      <TypographyP size="small" tone="subtle">
+        <FormattedMessage {...messages.noAssignments} />
+      </TypographyP>
+    );
+  }
+
+  return (
+    <Rows spacing="1u">
+      {rows.map((row) => (
+        <Link
+          key={row.assignment.id}
+          href={`/org/${organizationSlug}/hyperlab/experiments/${row.experiment.id}`}
+          className="text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {row.experiment.name} · {row.variant.key}
+        </Link>
+      ))}
+    </Rows>
   );
 }

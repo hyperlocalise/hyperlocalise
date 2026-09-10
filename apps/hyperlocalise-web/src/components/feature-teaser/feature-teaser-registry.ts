@@ -258,14 +258,14 @@ export const featureTeaserMessages = defineMessages({
   },
   hyperlabDescription: {
     defaultMessage:
-      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
-    id: "smm3qbe1rP",
+      "Try a different headline, checkout, or offer in one market. Keep the version people like.",
+    id: "yK7qvwt0hg",
     description: "Feature teaser description for Hyperlab",
   },
   hyperlabDescriptionProject: {
     defaultMessage:
-      "Ship flags and experiments from this workspace, then evaluate them in your apps.",
-    id: "uScOO0+uJ9",
+      "Try a different headline, checkout, or offer in one market. Keep the version people like.",
+    id: "IY3g7G42ej",
     description: "Feature teaser description for Hyperlab when opened from a project",
   },
   hyperlabEarlyAccessTitle: {
@@ -275,23 +275,23 @@ export const featureTeaserMessages = defineMessages({
   },
   hyperlabEarlyAccessDescription: {
     defaultMessage:
-      "Hyperlab lets your team define flags, audiences, and rollouts, then evaluate them over OFREP. Available in early access.",
-    id: "AHcwXmS1XC",
+      "Run a test in Japan first, then keep the version that works. Your developer connects the site once.",
+    id: "flcDp2zUQk",
     description: "Feature teaser early access description for Hyperlab",
   },
   hyperlabBenefit0: {
-    defaultMessage: "Create experiment and config flags unique to your workspace",
-    id: "OpL4o1Rl3O",
+    defaultMessage: "Set up timed tests with dates, who sees them, and the versions to compare",
+    id: "1PNRDT2hG7",
     description: "Feature teaser benefit for Hyperlab",
   },
   hyperlabBenefit1: {
-    defaultMessage: "Target visitors with attribute rules evaluated live",
-    id: "32sQGI6Lre",
+    defaultMessage: "Show a change only to visitors in a market, plan, or traffic source",
+    id: "t/bGej2tnr",
     description: "Feature teaser benefit for Hyperlab",
   },
   hyperlabBenefit2: {
-    defaultMessage: "Evaluate from any OpenFeature SDK over OFREP",
-    id: "cGCurVuGU/",
+    defaultMessage: "Hand an API key to whoever plugs Hyperlab into your website",
+    id: "n+zGp2MRqD",
     description: "Feature teaser benefit for Hyperlab",
   },
 

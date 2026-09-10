@@ -15,26 +15,32 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Rows } from "@/components/ui/layout/rows";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
-import { experimentCriterionNodeSchema } from "@/lib/experiments/criterion";
-
 import { hyperlabMessages as messages } from "./hyperlab.messages";
-import { hyperlabClient, readHyperlabJson, type HyperlabAudience } from "./hyperlab-api";
+import {
+  hyperlabClient,
+  hyperlabQueryKeys,
+  readHyperlabJson,
+  type HyperlabAudience,
+} from "./hyperlab-api";
+import {
+  criterionToRuleGroup,
+  ruleGroupToCriterion,
+  type HyperlabRuleGroup,
+} from "./hyperlab-criterion";
+import { HyperlabCriterionBuilder } from "./hyperlab-criterion-builder";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
-
-const SAMPLE_CRITERION = `{
-  "type": "attribute",
-  "name": "plan",
-  "match": "exact",
-  "value": "pro"
-}`;
+import { HyperlabLoadError } from "./hyperlab-ui";
 
 export function HyperlabAudienceDetail({
   organizationSlug,
@@ -49,10 +55,12 @@ export function HyperlabAudienceDetail({
   const queryClient = useQueryClient();
   const client = hyperlabClient();
   const [name, setName] = useState("");
-  const [criterionText, setCriterionText] = useState(SAMPLE_CRITERION);
+  const [description, setDescription] = useState("");
+  const [group, setGroup] = useState<HyperlabRuleGroup>({ type: "or", rules: [] });
+  const [baseline, setBaseline] = useState("");
 
   const detailQuery = useQuery({
-    queryKey: ["hyperlab-audience", organizationSlug, audienceId],
+    queryKey: hyperlabQueryKeys.audience(organizationSlug, audienceId),
     queryFn: async () => {
       const response = await client.audiences[":audienceId"].$get({
         param: { organizationSlug, audienceId },
@@ -68,27 +76,46 @@ export function HyperlabAudienceDetail({
     if (!detailQuery.data) {
       return;
     }
-    setName(detailQuery.data.audience.name);
-    if (detailQuery.data.audience.criterion) {
-      setCriterionText(JSON.stringify(detailQuery.data.audience.criterion, null, 2));
-    }
+    const audience = detailQuery.data.audience;
+    const nextGroup = criterionToRuleGroup(audience.criterion);
+    setName(audience.name);
+    setDescription(audience.description ?? "");
+    setGroup(nextGroup);
+    setBaseline(
+      JSON.stringify({
+        name: audience.name,
+        description: audience.description ?? "",
+        group: nextGroup,
+      }),
+    );
   }, [detailQuery.data]);
+
+  const current = JSON.stringify({ name, description, group });
+  const dirty = current !== baseline && Boolean(detailQuery.data);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const criterion = criterionText.trim()
-        ? experimentCriterionNodeSchema.parse(JSON.parse(criterionText))
-        : null;
       const response = await client.audiences[":audienceId"].$put({
         param: { organizationSlug, audienceId },
-        json: { name, criterion },
+        json: {
+          name,
+          description: description || null,
+          criterion: ruleGroupToCriterion(group),
+        },
       });
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
+      toast.success(intl.formatMessage(messages.saveSuccess));
       await queryClient.invalidateQueries({
-        queryKey: ["hyperlab-audience", organizationSlug, audienceId],
+        queryKey: hyperlabQueryKeys.audience(organizationSlug, audienceId),
       });
+      await queryClient.invalidateQueries({
+        queryKey: hyperlabQueryKeys.audiences(organizationSlug),
+      });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
     },
   });
 
@@ -100,58 +127,72 @@ export function HyperlabAudienceDetail({
       section="audiences"
       title={audience?.name ?? intl.formatMessage(messages.audiencesTitle)}
       description={intl.formatMessage(messages.audiencesDescription)}
+      backHref={`/org/${organizationSlug}/hyperlab/audiences`}
     >
       <Rows spacing="2u">
         {detailQuery.isError ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="critical">
-            {detailQuery.error instanceof Error
-              ? detailQuery.error.message
-              : intl.formatMessage(messages.loadError)}
-          </TypographyP>
-        ) : null}
-        {detailQuery.isLoading ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
+          <HyperlabLoadError error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
         ) : null}
         {audience ? (
-          <Rows spacing="2u">
-            <Field>
-              <FieldLabel htmlFor="hyperlab-audience-name">
-                <FormattedMessage {...messages.audienceNameLabel} />
-              </FieldLabel>
-              <Input
-                id="hyperlab-audience-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={!canWrite}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="hyperlab-audience-criterion">
-                <FormattedMessage {...messages.criterionLabel} />
-              </FieldLabel>
-              <Textarea
-                id="hyperlab-audience-criterion"
-                value={criterionText}
-                onChange={(event) => setCriterionText(event.target.value)}
-                rows={10}
-                disabled={!canWrite}
-              />
-              <FieldDescription>
-                <FormattedMessage {...messages.criterionHint} />
-              </FieldDescription>
-            </Field>
+          <Card className={dirty ? "ring-foreground/40" : undefined}>
+            <CardHeader>
+              <CardTitle>
+                <FormattedMessage {...messages.audienceRulesTitle} />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Rows spacing="2u">
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="hyperlab-audience-name">
+                      <FormattedMessage {...messages.audienceNameLabel} />
+                    </FieldLabel>
+                    <Input
+                      id="hyperlab-audience-name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      disabled={!canWrite}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="hyperlab-audience-note">
+                      <FormattedMessage {...messages.audienceDescriptionLabel} />
+                    </FieldLabel>
+                    <Textarea
+                      id="hyperlab-audience-note"
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      rows={3}
+                      disabled={!canWrite}
+                    />
+                  </Field>
+                </FieldGroup>
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...messages.audienceRulesHint} />
+                </TypographyP>
+                <HyperlabCriterionBuilder group={group} onChange={setGroup} disabled={!canWrite} />
+              </Rows>
+            </CardContent>
             {canWrite ? (
-              <Button
-                type="button"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-              >
-                <FormattedMessage {...messages.save} />
-              </Button>
+              <CardFooter className="gap-3">
+                <Button
+                  type="button"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || !dirty}
+                >
+                  {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+                  <FormattedMessage
+                    {...(saveMutation.isPending ? messages.saving : messages.save)}
+                  />
+                </Button>
+                {dirty ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.unsavedChanges} />
+                  </TypographyP>
+                ) : null}
+              </CardFooter>
             ) : null}
-          </Rows>
+          </Card>
         ) : null}
       </Rows>
     </HyperlabPageShell>

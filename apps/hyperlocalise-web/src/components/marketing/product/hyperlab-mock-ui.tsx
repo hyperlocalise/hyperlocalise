@@ -41,9 +41,9 @@ function MockNav({ active }: { active: SceneId }) {
     () =>
       [
         ["overview", hyperlabMockMessages.navOverview, false],
-        ["flags", hyperlabMockMessages.navFlags, active === "flags"],
         ["experiments", hyperlabMockMessages.navExperiments, active === "experiments"],
         ["audiences", hyperlabMockMessages.navAudiences, active === "audiences"],
+        ["flags", hyperlabMockMessages.navFlags, active === "flags"],
         ["keys", hyperlabMockMessages.navKeys, false],
       ] as const,
     [active],
@@ -112,7 +112,7 @@ export function HyperlabFlagsPanel() {
             transition={{ delay: index * 0.08, duration: 0.25 }}
             className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/80 px-3 py-2.5"
           >
-            <span className="font-mono text-xs text-foreground">{flag.key}</span>
+            <span className="text-xs text-foreground">{flag.key}</span>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-medium",
@@ -173,7 +173,7 @@ export function HyperlabExperimentsPanel({ rolloutPercent }: { rolloutPercent: n
         {variants.map((variant) => (
           <div key={variant.label} className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-mono text-foreground">{variant.label}</span>
+              <span className="text-foreground">{variant.label}</span>
               <span className="text-muted-foreground">{variant.percent}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-border/50">
@@ -212,7 +212,7 @@ export function HyperlabAudiencesPanel({ showEvaluate }: { showEvaluate: boolean
           <div className="mb-2 text-sm font-medium text-foreground">
             <FormattedMessage {...hyperlabMockMessages.audienceProUsers} />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="rounded border border-border/60 bg-background px-1.5 py-0.5">
               {intl.formatMessage(hyperlabMockMessages.criterionAttribute)}
             </span>
@@ -232,12 +232,12 @@ export function HyperlabAudiencesPanel({ showEvaluate }: { showEvaluate: boolean
               transition={{ duration: 0.28 }}
               className="rounded-lg border border-border/60 bg-muted/30 p-3"
             >
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <FormattedMessage {...hyperlabMockMessages.evaluateTitle} />
               </div>
-              <pre className="overflow-x-auto font-mono text-[11px] leading-relaxed text-foreground/90">
-                {`{\n  ${intl.formatMessage(hyperlabMockMessages.evaluateEnabled)},\n  ${intl.formatMessage(hyperlabMockMessages.evaluateVariant)},\n  ${intl.formatMessage(hyperlabMockMessages.evaluateReason)}\n}`}
-              </pre>
+              <p className="text-sm text-foreground">
+                <FormattedMessage {...hyperlabMockMessages.evaluateResult} />
+              </p>
             </motion.div>
           ) : null}
         </AnimatePresence>

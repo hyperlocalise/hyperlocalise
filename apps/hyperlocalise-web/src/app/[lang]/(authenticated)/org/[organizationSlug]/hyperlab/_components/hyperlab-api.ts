@@ -20,6 +20,20 @@ export function hyperlabClient() {
   return api.api.orgs[":organizationSlug"].hyperlab;
 }
 
+export const hyperlabQueryKeys = {
+  flags: (organizationSlug: string) => ["hyperlab-flags", organizationSlug] as const,
+  flag: (organizationSlug: string, flagId: string) =>
+    ["hyperlab-flag", organizationSlug, flagId] as const,
+  experiments: (organizationSlug: string) => ["hyperlab-experiments", organizationSlug] as const,
+  experiment: (organizationSlug: string, experimentId: string) =>
+    ["hyperlab-experiment", organizationSlug, experimentId] as const,
+  audiences: (organizationSlug: string) => ["hyperlab-audiences", organizationSlug] as const,
+  audience: (organizationSlug: string, audienceId: string) =>
+    ["hyperlab-audience", organizationSlug, audienceId] as const,
+  assignments: (organizationSlug: string) => ["hyperlab-assignments", organizationSlug] as const,
+  keys: (organizationSlug: string) => ["hyperlab-keys", organizationSlug] as const,
+};
+
 export async function readHyperlabJson<T>(response: Response, fallbackMessage: string): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as T & {
     message?: string;
@@ -50,6 +64,8 @@ export type HyperlabAudience = {
   name: string;
   description: string | null;
   criterion: unknown;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type HyperlabExperiment = {
@@ -61,6 +77,9 @@ export type HyperlabExperiment = {
   rolloutPercentage: number;
   startAt: string;
   endAt: string;
+  timezone: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type HyperlabVariant = {

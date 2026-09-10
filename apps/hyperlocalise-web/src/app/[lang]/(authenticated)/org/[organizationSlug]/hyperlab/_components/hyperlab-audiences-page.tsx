@@ -12,23 +12,31 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
-import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
-import { hyperlabClient, readHyperlabJson, type HyperlabAudience } from "./hyperlab-api";
+import {
+  hyperlabClient,
+  hyperlabQueryKeys,
+  readHyperlabJson,
+  type HyperlabAudience,
+} from "./hyperlab-api";
+import { HyperlabCreateAudienceDialog } from "./hyperlab-create-dialogs";
+import { summarizeCriterion } from "./hyperlab-criterion";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
+import {
+  HyperlabEmptyState,
+  HyperlabLoadError,
+  HyperlabLoadingRows,
+  HyperlabTable,
+  HyperlabTableCell,
+  HyperlabTableRow,
+} from "./hyperlab-ui";
 
 export function HyperlabAudiencesPage({
   organizationSlug,
@@ -38,12 +46,9 @@ export function HyperlabAudiencesPage({
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
   const client = hyperlabClient();
-
   const audiencesQuery = useQuery({
-    queryKey: ["hyperlab-audiences", organizationSlug],
+    queryKey: hyperlabQueryKeys.audiences(organizationSlug),
     queryFn: async () => {
       const response = await client.audiences.$get({ param: { organizationSlug } });
       const body = await readHyperlabJson<{ audiences: HyperlabAudience[] }>(
@@ -53,22 +58,10 @@ export function HyperlabAudiencesPage({
       return body.audiences;
     },
   });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const response = await client.audiences.$post({
-        param: { organizationSlug },
-        json: { name },
-      });
-      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
-    },
-    onSuccess: async () => {
-      setName("");
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-audiences", organizationSlug] });
-    },
-  });
-
   const audiences = audiencesQuery.data ?? [];
+  const createAction = canWrite ? (
+    <HyperlabCreateAudienceDialog organizationSlug={organizationSlug} />
+  ) : null;
 
   return (
     <HyperlabPageShell
@@ -76,72 +69,67 @@ export function HyperlabAudiencesPage({
       section="audiences"
       title={intl.formatMessage(messages.audiencesTitle)}
       description={intl.formatMessage(messages.audiencesDescription)}
+      actions={createAction}
     >
-      <Rows spacing="2u">
-        {canWrite ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              createMutation.mutate();
-            }}
-          >
-            <Columns spacing="1.5u" alignY="end" collapseBelow="small">
-              <Column width="fluid">
-                <Field>
-                  <FieldLabel htmlFor="hyperlab-audience-name">
-                    <FormattedMessage {...messages.audienceNameLabel} />
-                  </FieldLabel>
-                  <Input
-                    id="hyperlab-audience-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                  />
-                </Field>
-              </Column>
-              <Column width="content">
-                <Button type="submit" disabled={!name || createMutation.isPending}>
-                  <FormattedMessage {...messages.createAudience} />
+      {audiencesQuery.isError ? (
+        <HyperlabLoadError
+          error={audiencesQuery.error}
+          onRetry={() => void audiencesQuery.refetch()}
+        />
+      ) : null}
+      {audiencesQuery.isLoading ? <HyperlabLoadingRows /> : null}
+      {!audiencesQuery.isLoading && audiences.length === 0 ? (
+        <HyperlabEmptyState
+          title={<FormattedMessage {...messages.audiencesEmptyTitle} />}
+          description={<FormattedMessage {...messages.audiencesEmpty} />}
+          action={createAction}
+        />
+      ) : null}
+      {audiences.length > 0 ? (
+        <HyperlabTable
+          headers={[
+            intl.formatMessage(messages.audienceNameLabel),
+            intl.formatMessage(messages.audienceDescriptionLabel),
+            intl.formatMessage(messages.audienceColumnRules),
+            "",
+          ]}
+        >
+          {audiences.map((audience) => (
+            <HyperlabTableRow key={audience.id}>
+              <HyperlabTableCell>
+                <Link
+                  href={`/org/${organizationSlug}/hyperlab/audiences/${audience.id}`}
+                  className="font-medium underline-offset-4 hover:underline"
+                >
+                  {audience.name}
+                </Link>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <TypographyP size="small" tone="subtle">
+                  {audience.description || "—"}
+                </TypographyP>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <TypographyP size="small" tone="subtle">
+                  {summarizeCriterion(audience.criterion) || "—"}
+                </TypographyP>
+              </HyperlabTableCell>
+              <HyperlabTableCell>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/org/${organizationSlug}/hyperlab/audiences/${audience.id}`} />
+                  }
+                >
+                  <FormattedMessage {...messages.view} />
                 </Button>
-              </Column>
-            </Columns>
-          </form>
-        ) : null}
-
-        {audiencesQuery.isError ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="critical">
-            {audiencesQuery.error instanceof Error
-              ? audiencesQuery.error.message
-              : intl.formatMessage(messages.loadError)}
-          </TypographyP>
-        ) : null}
-        {audiencesQuery.isLoading ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
-        ) : null}
-        {!audiencesQuery.isLoading && audiences.length === 0 ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.audiencesEmpty} />
-          </TypographyP>
-        ) : null}
-        {audiences.length > 0 ? (
-          <Box border="standard" borderRadius="standard">
-            <Rows spacing="0">
-              {audiences.map((audience) => (
-                <Box key={audience.id} paddingX="2u" paddingY="1.5u">
-                  <Link
-                    href={`/org/${organizationSlug}/hyperlab/audiences/${audience.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {audience.name}
-                  </Link>
-                </Box>
-              ))}
-            </Rows>
-          </Box>
-        ) : null}
-      </Rows>
+              </HyperlabTableCell>
+            </HyperlabTableRow>
+          ))}
+        </HyperlabTable>
+      ) : null}
     </HyperlabPageShell>
   );
 }

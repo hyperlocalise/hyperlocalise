@@ -15,21 +15,32 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
-import { hyperlabClient, readHyperlabJson, type HyperlabClientKey } from "./hyperlab-api";
+import {
+  hyperlabClient,
+  hyperlabQueryKeys,
+  readHyperlabJson,
+  type HyperlabClientKey,
+} from "./hyperlab-api";
+import { HyperlabCreateKeyDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
+import {
+  HyperlabEmptyState,
+  HyperlabLoadError,
+  HyperlabLoadingRows,
+  HyperlabTable,
+  HyperlabTableCell,
+  HyperlabTableRow,
+} from "./hyperlab-ui";
 
 export function HyperlabKeysPage({
   organizationSlug,
@@ -40,12 +51,10 @@ export function HyperlabKeysPage({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const client = hyperlabClient();
-
+  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const keysQuery = useQuery({
-    queryKey: ["hyperlab-keys", organizationSlug],
+    queryKey: hyperlabQueryKeys.keys(organizationSlug),
     queryFn: async () => {
       const response = await client.keys.$get({ param: { organizationSlug } });
       const body = await readHyperlabJson<{ keys: HyperlabClientKey[] }>(
@@ -55,24 +64,10 @@ export function HyperlabKeysPage({
       return body.keys;
     },
   });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const response = await client.keys.$post({
-        param: { organizationSlug },
-        json: { name },
-      });
-      return readHyperlabJson<{ key: HyperlabClientKey }>(
-        response,
-        intl.formatMessage(messages.loadError),
-      );
-    },
-    onSuccess: async (body) => {
-      setName("");
-      setCreatedSecret(body.key.secret ?? null);
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-keys", organizationSlug] });
-    },
-  });
+  const keys = keysQuery.data ?? [];
+  const createAction = canWrite ? (
+    <HyperlabCreateKeyDialog organizationSlug={organizationSlug} onCreated={setCreatedSecret} />
+  ) : null;
 
   const revokeMutation = useMutation({
     mutationFn: async (keyId: string) => {
@@ -82,11 +77,13 @@ export function HyperlabKeysPage({
       return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["hyperlab-keys", organizationSlug] });
+      toast.success(intl.formatMessage(messages.saveSuccess));
+      await queryClient.invalidateQueries({ queryKey: hyperlabQueryKeys.keys(organizationSlug) });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
     },
   });
-
-  const keys = keysQuery.data ?? [];
 
   return (
     <HyperlabPageShell
@@ -94,38 +91,9 @@ export function HyperlabKeysPage({
       section="keys"
       title={intl.formatMessage(messages.keysTitle)}
       description={intl.formatMessage(messages.keysDescription)}
+      actions={createAction}
     >
       <Rows spacing="2u">
-        {canWrite ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              createMutation.mutate();
-            }}
-          >
-            <Columns spacing="1.5u" alignY="end" collapseBelow="small">
-              <Column width="fluid">
-                <Field>
-                  <FieldLabel htmlFor="hyperlab-key-name">
-                    <FormattedMessage {...messages.keyNameLabel} />
-                  </FieldLabel>
-                  <Input
-                    id="hyperlab-key-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                  />
-                </Field>
-              </Column>
-              <Column width="content">
-                <Button type="submit" disabled={!name || createMutation.isPending}>
-                  <FormattedMessage {...messages.createKey} />
-                </Button>
-              </Column>
-            </Columns>
-          </form>
-        ) : null}
-
         {createdSecret ? (
           <Box border="standard" borderRadius="standard" background="muted" padding="2u">
             <Rows spacing="1u">
@@ -133,39 +101,52 @@ export function HyperlabKeysPage({
                 <FormattedMessage {...messages.copySecret} />
               </TypographyP>
               <code className="overflow-x-auto text-sm">{createdSecret}</code>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => {
+                  void navigator.clipboard.writeText(createdSecret);
+                  toast.success(intl.formatMessage(messages.copied));
+                }}
+              >
+                <FormattedMessage {...messages.copyKey} />
+              </Button>
             </Rows>
           </Box>
         ) : null}
-
         {keysQuery.isError ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="critical">
-            {keysQuery.error instanceof Error
-              ? keysQuery.error.message
-              : intl.formatMessage(messages.loadError)}
-          </TypographyP>
+          <HyperlabLoadError error={keysQuery.error} onRetry={() => void keysQuery.refetch()} />
         ) : null}
-        {keysQuery.isLoading ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.loading} />
-          </TypographyP>
-        ) : null}
+        {keysQuery.isLoading ? <HyperlabLoadingRows /> : null}
         {!keysQuery.isLoading && keys.length === 0 ? (
-          <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-            <FormattedMessage {...messages.keysEmpty} />
-          </TypographyP>
+          <HyperlabEmptyState
+            title={<FormattedMessage {...messages.keysEmptyTitle} />}
+            description={<FormattedMessage {...messages.keysEmpty} />}
+            action={createAction}
+          />
         ) : null}
         {keys.length > 0 ? (
-          <Box border="standard" borderRadius="standard">
-            <Rows spacing="0">
-              {keys.map((key) => (
-                <Box key={key.id} paddingX="2u" paddingY="1.5u">
-                  <Row spacing="1.5u" align="spaceBetween" alignY="center">
-                    <Rows spacing="0.5u">
-                      <TypographyP weight="medium">{key.name}</TypographyP>
-                      <TypographyP size="small" tone="subtle">
-                        {key.keyPrefix}…
-                      </TypographyP>
-                    </Rows>
+          <HyperlabTable
+            headers={[
+              intl.formatMessage(messages.keyNameLabel),
+              intl.formatMessage(messages.keyPrefixColumn),
+              "",
+            ]}
+          >
+            {keys.map((key) => (
+              <HyperlabTableRow key={key.id}>
+                <HyperlabTableCell>
+                  <TypographyP weight="medium">{key.name}</TypographyP>
+                </HyperlabTableCell>
+                <HyperlabTableCell>
+                  <TypographyP size="small" tone="subtle">
+                    {key.keyPrefix}…
+                  </TypographyP>
+                </HyperlabTableCell>
+                <HyperlabTableCell>
+                  <Row spacing="1u" alignY="center">
                     {key.revokedAt ? (
                       <Badge variant="outline">
                         <FormattedMessage {...messages.revoked} />
@@ -182,10 +163,10 @@ export function HyperlabKeysPage({
                       </Button>
                     ) : null}
                   </Row>
-                </Box>
-              ))}
-            </Rows>
-          </Box>
+                </HyperlabTableCell>
+              </HyperlabTableRow>
+            ))}
+          </HyperlabTable>
         ) : null}
       </Rows>
     </HyperlabPageShell>

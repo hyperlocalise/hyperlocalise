@@ -165,9 +165,9 @@ export const Hyperlab: Story = {
     await expect(
       canvas.getByText("Target, split, and ship without another vendor"),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("checkout-cta")).toBeInTheDocument();
+    await expect(canvas.getByText("Japan checkout button")).toBeInTheDocument();
     await expect(
-      canvas.getByText("Create experiment and config flags unique to your workspace"),
+      canvas.getByText("Set up timed tests with dates, who sees them, and the versions to compare"),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Request a demo" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Contact us" })).toBeInTheDocument();
