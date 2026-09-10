@@ -26,6 +26,7 @@ const {
   fetchProjectFilesMock,
   repositoriesGetMock,
   ProjectFileContentEditorWorkspaceMock,
+  projectFilesTreeMock,
 } = vi.hoisted(() => ({
   useProjectPageQueryMock: vi.fn(),
   useAppShellSidebarMock: vi.fn(),
@@ -51,6 +52,23 @@ const {
         data-target-locales={(targetLocales ?? []).join(",")}
       />
     ),
+  ),
+  projectFilesTreeMock: ({
+    files,
+    onSelectFile,
+  }: {
+    files: Array<{ sourcePath: string; filename: string }>;
+    onSelectFile: (sourcePath: string) => void;
+  }) => (
+    <ul aria-label="Source files">
+      {files.map((file) => (
+        <li key={file.sourcePath}>
+          <button type="button" onClick={() => onSelectFile(file.sourcePath)}>
+            {file.filename}
+          </button>
+        </li>
+      ))}
+    </ul>
   ),
 }));
 
@@ -106,24 +124,15 @@ vi.mock("@/components/content-editor/project-file/project-file-content-editor-wo
 }));
 
 vi.mock("./project-files-tree", () => ({
-  ProjectFilesTree: ({
-    files,
-    onSelectFile,
-  }: {
-    files: Array<{ sourcePath: string; filename: string }>;
-    onSelectFile: (sourcePath: string) => void;
-  }) => (
-    <ul>
-      {files.map((file) => (
-        <li key={file.sourcePath}>
-          <button type="button" onClick={() => onSelectFile(file.sourcePath)}>
-            {file.filename}
-          </button>
-        </li>
-      ))}
-    </ul>
-  ),
+  ProjectFilesTree: projectFilesTreeMock,
 }));
+
+vi.mock(
+  "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree",
+  () => ({
+    ProjectFilesTree: projectFilesTreeMock,
+  }),
+);
 
 import { ProjectFileContentEditorPageContent } from "./project-file-content-editor-page-content";
 
@@ -246,9 +255,7 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders source file and locale selectors in the CAT header", async () => {
-    const user = userEvent.setup();
-
+  it("renders the file sidebar, locale selector, and mobile file picker in the CAT shell", async () => {
     render(
       <ContentEditorTestProviders>
         <ProjectFileContentEditorPageContent
@@ -261,13 +268,12 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Source file")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Files" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Source files")).toBeInTheDocument();
       expect(screen.getByLabelText("Target locale")).toBeInTheDocument();
+      expect(screen.getByLabelText("Source file")).toBeInTheDocument();
     });
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
-
-    await user.click(screen.getByLabelText("Source file"));
-    expect(await screen.findByLabelText("GitHub repository")).toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
   });
 
   it("passes a saved repository preference into the CAT workspace", async () => {
@@ -414,8 +420,8 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
         "*",
       );
     });
-    expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All Files" })).toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toHaveTextContent("acme/docs");
   });
 
   it("auto-selects the only enabled repository when viewing All Files", async () => {
@@ -440,7 +446,7 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
         "acme/web",
       );
     });
-    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("GitHub repository")).toBeDisabled();
   });
 
   it("saves the chosen repository under the destination file preference key", async () => {
@@ -458,15 +464,15 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
       </ContentEditorTestProviders>,
     );
 
-    await user.click(await screen.findByLabelText("Source file"));
     await user.click(await screen.findByLabelText("GitHub repository"));
     await user.click(await screen.findByRole("option", { name: "acme/docs" }));
     await user.click(screen.getByRole("button", { name: "pricing.json" }));
-    await user.click(screen.getByRole("button", { name: "Open file" }));
 
     expect(
       localStorage.getItem("job-content-editor-repository:acme:proj_1:marketing/pricing.json"),
     ).toBe("acme/docs");
-    expect(localStorage.getItem("job-content-editor-repository:acme:proj_1:en-US.json")).toBeNull();
+    expect(localStorage.getItem("job-content-editor-repository:acme:proj_1:en-US.json")).toBe(
+      "acme/docs",
+    );
   });
 });

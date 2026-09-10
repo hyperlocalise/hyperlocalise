@@ -288,12 +288,12 @@ export function emptyOfficeSnapshot(
   }
 }
 
-function plainTextFromDocument(data: IDocumentData): string {
+export function plainTextFromDocument(data: IDocumentData): string {
   const dataStream = data.body?.dataStream ?? "";
   return BuildTextUtils.transform.getPlainText(dataStream);
 }
 
-function plainTextsFromSlide(data: ISlideData): string[] {
+export function plainTextsFromSlide(data: ISlideData): string[] {
   const body = data.body;
   if (!body) {
     return [];
@@ -307,6 +307,35 @@ function plainTextsFromSlide(data: ISlideData): string[] {
       .map((element) => element.richText?.text?.trim() || element.shape?.text?.trim() || "")
       .filter(Boolean)
       .join("\n");
+  });
+}
+
+export function rowsFromWorkbook(data: IWorkbookData): string[][] {
+  const sheetId = data.sheetOrder[0];
+  const sheet = sheetId ? data.sheets?.[sheetId] : undefined;
+  const cellData = sheet?.cellData;
+  if (!cellData) {
+    return [];
+  }
+
+  const rowIndices = Object.keys(cellData)
+    .map(Number)
+    .filter(Number.isFinite)
+    .toSorted((left, right) => left - right);
+
+  return rowIndices.map((rowIndex) => {
+    const row = cellData[rowIndex];
+    if (!row) {
+      return [];
+    }
+    const columnIndices = Object.keys(row)
+      .map(Number)
+      .filter(Number.isFinite)
+      .toSorted((left, right) => left - right);
+    return columnIndices.map((columnIndex) => {
+      const value = row[columnIndex]?.v;
+      return value == null ? "" : String(value);
+    });
   });
 }
 
