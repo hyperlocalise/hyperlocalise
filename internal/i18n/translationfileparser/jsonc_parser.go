@@ -50,11 +50,10 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 
 func parseJSONCKeyComments(content []byte) map[string]string {
 	// BOLT OPTIMIZATION: Avoid bytes.Split(content, []byte("\n")) to reduce allocations for large files.
-	// Grow the comment map lazily. A ':' count is not a key count: string values
-	// and comments can contain many colons and would force a huge empty allocation.
+	// Store pendingComments as [][]byte slices of content to avoid heap allocations per line comment.
 	stack := make([]string, 0, 16)
 	stackPrefix := ""
-	pendingComments := make([]string, 0, 8)
+	pendingComments := make([][]byte, 0, 8)
 	contexts := make(map[string]string)
 	inBlockComment := false
 
@@ -78,7 +77,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		if inBlockComment {
 			if idx := bytes.Index(line, []byte("*/")); idx >= 0 {
 				comment := cleanJSONCCommentText(line[:idx])
-				if comment != "" {
+				if len(comment) > 0 {
 					pendingComments = append(pendingComments, comment)
 				}
 				line = bytes.TrimSpace(line[idx+2:])
@@ -88,7 +87,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 				}
 			} else {
 				comment := cleanJSONCCommentText(line)
-				if comment != "" {
+				if len(comment) > 0 {
 					pendingComments = append(pendingComments, comment)
 				}
 				continue
@@ -97,7 +96,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 
 		if bytes.HasPrefix(line, []byte("//")) {
 			comment := cleanJSONCCommentText(line)
-			if comment != "" {
+			if len(comment) > 0 {
 				pendingComments = append(pendingComments, comment)
 			}
 			continue
@@ -106,7 +105,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			end := bytes.Index(line[2:], []byte("*/"))
 			if end >= 0 {
 				comment := cleanJSONCCommentText(line[:end+4])
-				if comment != "" {
+				if len(comment) > 0 {
 					pendingComments = append(pendingComments, comment)
 				}
 				line = bytes.TrimSpace(line[end+4:])
@@ -115,7 +114,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 				}
 			} else {
 				comment := cleanJSONCCommentText(line)
-				if comment != "" {
+				if len(comment) > 0 {
 					pendingComments = append(pendingComments, comment)
 				}
 				inBlockComment = true
@@ -123,7 +122,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			}
 		}
 
-		inlineComment := ""
+		var inlineComment []byte
 		if bytes.IndexByte(line, '/') >= 0 {
 			if idx := indexJSONCLineComment(line); idx >= 0 {
 				inlineComment = cleanJSONCCommentText(line[idx:])
@@ -137,38 +136,75 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 				popped := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
 				stackPrefix = stackPrefix[:len(stackPrefix)-len(popped)-1]
-				pendingComments = nil
+				pendingComments = pendingComments[:0]
 			}
 			line = bytes.TrimSpace(line[1:])
 		}
 
 		// BOLT OPTIMIZATION: Manual scan for JSON object key/value pair avoids regex overhead.
 		// Expected format: "key": value
-		key, valuePart, ok := scanJSONCKeyLine(line)
+		keyBytes, valuePart, ok := scanJSONCKeyLine(line)
 		if !ok {
 			continue
 		}
 
-		decodedKey, err := decodeJSONKey(key)
-		if err != nil {
-			continue
+		var fullKey string
+		var decodedKey string
+		if len(stackPrefix) == 0 {
+			var err error
+			decodedKey, err = decodeJSONKeyBytes(keyBytes)
+			if err != nil {
+				continue
+			}
+			fullKey = decodedKey
+		} else {
+			if bytes.IndexByte(keyBytes, '\\') == -1 && bytes.IndexByte(keyBytes, '"') == -1 {
+				decodedKey = string(keyBytes)
+				var b strings.Builder
+				b.Grow(len(stackPrefix) + len(keyBytes))
+				b.WriteString(stackPrefix)
+				b.Write(keyBytes)
+				fullKey = b.String()
+			} else {
+				var err error
+				decodedKey, err = decodeJSONKeyBytes(keyBytes)
+				if err != nil {
+					continue
+				}
+				var b strings.Builder
+				b.Grow(len(stackPrefix) + len(decodedKey))
+				b.WriteString(stackPrefix)
+				b.WriteString(decodedKey)
+				fullKey = b.String()
+			}
 		}
-		fullKey := stackPrefix + decodedKey
 
 		if len(pendingComments) > 0 {
 			// BOLT OPTIMIZATION: Fast-path for single comments to avoid strings.Join.
 			if len(pendingComments) == 1 {
-				contexts[fullKey] = pendingComments[0]
+				contexts[fullKey] = string(pendingComments[0])
 			} else {
-				contexts[fullKey] = strings.Join(pendingComments, "\n")
+				totalLen := len(pendingComments) - 1
+				for _, c := range pendingComments {
+					totalLen += len(c)
+				}
+				var b strings.Builder
+				b.Grow(totalLen)
+				for i, c := range pendingComments {
+					if i > 0 {
+						b.WriteByte('\n')
+					}
+					b.Write(c)
+				}
+				contexts[fullKey] = b.String()
 			}
-			pendingComments = nil
+			pendingComments = pendingComments[:0]
 		}
-		if inlineComment != "" {
+		if len(inlineComment) > 0 {
 			if existing := strings.TrimSpace(contexts[fullKey]); existing != "" {
-				contexts[fullKey] = existing + "\n" + inlineComment
+				contexts[fullKey] = existing + "\n" + string(inlineComment)
 			} else {
-				contexts[fullKey] = inlineComment
+				contexts[fullKey] = string(inlineComment)
 			}
 		}
 
@@ -185,9 +221,9 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 	return contexts
 }
 
-func scanJSONCKeyLine(line []byte) (string, []byte, bool) {
+func scanJSONCKeyLine(line []byte) ([]byte, []byte, bool) {
 	if len(line) == 0 || line[0] != '"' {
-		return "", nil, false
+		return nil, nil, false
 	}
 
 	// Find the end of the quoted key.
@@ -209,40 +245,44 @@ func scanJSONCKeyLine(line []byte) (string, []byte, bool) {
 	}
 
 	if endKey == -1 {
-		return "", nil, false
+		return nil, nil, false
 	}
 
 	// Look for the colon.
 	remaining := line[endKey+1:]
 	colonIdx := bytes.IndexByte(remaining, ':')
 	if colonIdx == -1 {
-		return "", nil, false
+		return nil, nil, false
 	}
 
 	// Check if only whitespace exists between end quote and colon.
 	for i := 0; i < colonIdx; i++ {
 		ch := remaining[i]
 		if ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r' {
-			return "", nil, false
+			return nil, nil, false
 		}
 	}
 
 	// Extract the key (without surrounding quotes).
-	key := string(line[1:endKey])
+	key := line[1:endKey]
 	valuePart := bytes.TrimSpace(remaining[colonIdx+1:])
 
 	return key, valuePart, true
 }
 
-func decodeJSONKey(raw string) (string, error) {
+func decodeJSONKeyBytes(raw []byte) (string, error) {
 	// BOLT OPTIMIZATION: Fast-path for simple keys without escape sequences or quotes.
 	// This avoids expensive json.Unmarshal for the majority of keys.
-	if strings.IndexByte(raw, '\\') == -1 && strings.IndexByte(raw, '"') == -1 {
-		return raw, nil
+	if bytes.IndexByte(raw, '\\') == -1 && bytes.IndexByte(raw, '"') == -1 {
+		return string(raw), nil
 	}
 
 	var decoded string
-	err := json.Unmarshal([]byte("\""+raw+"\""), &decoded)
+	buf := make([]byte, 0, len(raw)+2)
+	buf = append(buf, '"')
+	buf = append(buf, raw...)
+	buf = append(buf, '"')
+	err := json.Unmarshal(buf, &decoded)
 	if err != nil {
 		return "", err
 	}
@@ -252,7 +292,7 @@ func decodeJSONKey(raw string) (string, error) {
 // cleanJSONCCommentText strips comment markers (//, /*, */) and whitespace.
 // BOLT OPTIMIZATION: Replaced bytes.TrimPrefix/Suffix calls with direct byte checks
 // and slicing to eliminate slice allocations during comment cleaning.
-func cleanJSONCCommentText(comment []byte) string {
+func cleanJSONCCommentText(comment []byte) []byte {
 	comment = bytes.TrimSpace(comment)
 	if len(comment) >= 2 && comment[0] == '/' && comment[1] == '/' {
 		comment = comment[2:]
@@ -265,8 +305,7 @@ func cleanJSONCCommentText(comment []byte) string {
 			comment = comment[:len(comment)-2]
 		}
 	}
-	comment = bytes.TrimSpace(comment)
-	return string(comment)
+	return bytes.TrimSpace(comment)
 }
 
 func indexJSONCLineComment(line []byte) int {

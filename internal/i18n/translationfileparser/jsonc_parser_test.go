@@ -217,7 +217,7 @@ func TestCleanJSONCCommentText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := cleanJSONCCommentText([]byte(tt.in))
+			got := string(cleanJSONCCommentText([]byte(tt.in)))
 			if got != tt.want {
 				t.Fatalf("cleanJSONCCommentText(%q) = %q, want %q", tt.in, got, tt.want)
 			}
