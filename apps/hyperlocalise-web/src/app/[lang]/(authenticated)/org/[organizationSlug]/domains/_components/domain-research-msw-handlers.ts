@@ -59,7 +59,11 @@ function linkedDomainPublic(domain: DomainResearchDomain): LinkedDomainPublic {
   };
 }
 
-function mergedResearchCatalog(linkedDomainId: string): DomainResearchCatalog | null {
+function withCatalogMarket<T extends { marketId?: string }>(rows: T[], marketId: string): T[] {
+  return rows.map((row) => ({ ...row, marketId: row.marketId ?? marketId }));
+}
+
+export function mergedResearchCatalog(linkedDomainId: string): DomainResearchCatalog | null {
   const domain = getResearchPrototypeDomain(linkedDomainId);
   if (!domain) return null;
   const localeCatalogs = domain.locales.flatMap((locale) => {
@@ -88,8 +92,10 @@ function mergedResearchCatalog(linkedDomainId: string): DomainResearchCatalog | 
   return {
     ...base,
     domain,
-    keywords: localeCatalogs.flatMap((catalog) => catalog.keywords),
-    ranks: localeCatalogs.flatMap((catalog) => catalog.ranks),
+    keywords: localeCatalogs.flatMap((catalog) =>
+      withCatalogMarket(catalog.keywords, catalog.market.id),
+    ),
+    ranks: localeCatalogs.flatMap((catalog) => withCatalogMarket(catalog.ranks, catalog.market.id)),
     overviewKeywords: localeCatalogs.flatMap((catalog) => catalog.overviewKeywords),
     overviewPages: localeCatalogs.flatMap((catalog) => catalog.overviewPages),
     serpByKeywordId: Object.assign({}, ...localeCatalogs.map((catalog) => catalog.serpByKeywordId)),
