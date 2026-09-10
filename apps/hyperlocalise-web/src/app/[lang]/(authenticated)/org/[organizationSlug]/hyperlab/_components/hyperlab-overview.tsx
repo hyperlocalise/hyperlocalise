@@ -132,8 +132,6 @@ OpenFeature.setProvider(
 
   return (
     <HyperlabPageShell
-      organizationSlug={organizationSlug}
-      section="overview"
       title={intl.formatMessage(messages.overviewTitle)}
       description={intl.formatMessage(messages.overviewDescription)}
     >

@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const hyperlabMessages = defineMessages({
   workspaceLabel: {
-    defaultMessage: "Workspace",
-    id: "vttVPlqAsl",
+    defaultMessage: "Hyperlab",
+    id: "YY/pZV3cX9",
     description: "Page label above Hyperlab titles",
   },
   overviewTitle: {
@@ -30,31 +30,6 @@ export const hyperlabMessages = defineMessages({
       "Try a different headline, checkout, or offer in one market. Keep the version people like.",
     id: "M7Q//ePO1O",
     description: "Hyperlab overview page description",
-  },
-  navHome: {
-    defaultMessage: "Home",
-    id: "lrOpO6sjSs",
-    description: "Hyperlab sub-navigation item for the home page",
-  },
-  navFlags: {
-    defaultMessage: "Flags",
-    id: "IpQ4vzh2L9",
-    description: "Hyperlab sub-navigation item for flags",
-  },
-  navExperiments: {
-    defaultMessage: "Experiments",
-    id: "A6hxrVxwgZ",
-    description: "Hyperlab sub-navigation item for experiments",
-  },
-  navAudiences: {
-    defaultMessage: "Audiences",
-    id: "ZJI5SD947D",
-    description: "Hyperlab sub-navigation item for audiences",
-  },
-  navKeys: {
-    defaultMessage: "API keys",
-    id: "AyY17qkMp3",
-    description: "Hyperlab sub-navigation item for API keys",
   },
   backToList: {
     defaultMessage: "Back",

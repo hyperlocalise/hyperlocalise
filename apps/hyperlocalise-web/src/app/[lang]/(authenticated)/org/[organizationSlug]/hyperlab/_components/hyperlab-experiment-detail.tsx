@@ -396,8 +396,6 @@ export function HyperlabExperimentDetail({
 
   return (
     <HyperlabPageShell
-      organizationSlug={organizationSlug}
-      section="experiments"
       title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
       description={intl.formatMessage(messages.experimentsDescription)}
       backHref={`/org/${organizationSlug}/hyperlab/experiments`}

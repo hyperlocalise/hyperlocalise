@@ -65,8 +65,6 @@ export function HyperlabAudiencesPage({
 
   return (
     <HyperlabPageShell
-      organizationSlug={organizationSlug}
-      section="audiences"
       title={intl.formatMessage(messages.audiencesTitle)}
       description={intl.formatMessage(messages.audiencesDescription)}
       actions={createAction}

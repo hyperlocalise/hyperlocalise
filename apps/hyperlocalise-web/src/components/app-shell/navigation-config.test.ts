@@ -28,6 +28,8 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 import {
   buildAutomationsPath,
   buildGlobalNavigationGroups,
+  buildHyperlabNavigationItems,
+  buildHyperlabPath,
   buildOrganizationPath,
   buildProjectNavigationItems,
   buildProjectPath,
@@ -37,6 +39,7 @@ import {
   isNavigationItemActive,
   isOrganizationSettingsPath,
   parseDomainRoute,
+  parseHyperlabRoute,
   parseProjectRoute,
   parseTeamRoute,
   stripAppLocalePrefix,
@@ -168,6 +171,11 @@ describe("path builders", () => {
     expect(buildProjectPath("acme", "proj_1", "files")).toBe("/org/acme/projects/proj_1/files");
   });
 
+  it("builds Hyperlab paths with and without a section", () => {
+    expect(buildHyperlabPath("acme")).toBe("/org/acme/hyperlab");
+    expect(buildHyperlabPath("acme", "experiments")).toBe("/org/acme/hyperlab/experiments");
+  });
+
   it("builds workspace and project automations paths", () => {
     expect(buildAutomationsPath("acme")).toBe("/org/acme/automations");
     expect(buildAutomationsPath("acme", { section: "new" })).toBe("/org/acme/automations/new");
@@ -251,6 +259,18 @@ describe("path builders", () => {
     expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBe(
       WORKSPACE_REPORTS_FLAG,
     );
+  });
+
+  it("builds Hyperlab navigation items scoped to the organization", () => {
+    const items = buildHyperlabNavigationItems("acme", intl);
+
+    expect(items.map((item) => [item.label, item.href, item.exact ?? false])).toEqual([
+      ["Home", "/org/acme/hyperlab", true],
+      ["Experiments", "/org/acme/hyperlab/experiments", false],
+      ["Audiences", "/org/acme/hyperlab/audiences", false],
+      ["Flags", "/org/acme/hyperlab/flags", false],
+      ["API keys", "/org/acme/hyperlab/keys", false],
+    ]);
   });
 });
 
@@ -351,6 +371,41 @@ describe("parseDomainRoute", () => {
   });
 });
 
+describe("parseHyperlabRoute", () => {
+  it("returns null for empty and non-hyperlab routes", () => {
+    expect(parseHyperlabRoute(null)).toBeNull();
+    expect(parseHyperlabRoute("")).toBeNull();
+    expect(parseHyperlabRoute("/org/acme/inbox")).toBeNull();
+    expect(parseHyperlabRoute("/org/acme/projects/proj_1")).toBeNull();
+  });
+
+  it("returns a null section for the Hyperlab home route", () => {
+    expect(parseHyperlabRoute("/org/acme/hyperlab")).toEqual({
+      organizationSlug: "acme",
+      section: null,
+    });
+    expect(parseHyperlabRoute("/en/org/acme/hyperlab")).toEqual({
+      organizationSlug: "acme",
+      section: null,
+    });
+  });
+
+  it("only reports the first section segment for nested routes", () => {
+    expect(parseHyperlabRoute("/org/acme/hyperlab/experiments")).toEqual({
+      organizationSlug: "acme",
+      section: "experiments",
+    });
+    expect(parseHyperlabRoute("/org/acme/hyperlab/experiments/exp_1")).toEqual({
+      organizationSlug: "acme",
+      section: "experiments",
+    });
+    expect(parseHyperlabRoute("/org/acme/hyperlab/flags/flag_1")).toEqual({
+      organizationSlug: "acme",
+      section: "flags",
+    });
+  });
+});
+
 describe("buildTeamPath", () => {
   it("encodes team ids in the path", () => {
     expect(buildTeamPath("acme", "team_1")).toBe("/org/acme/teams/team_1");
@@ -443,6 +498,21 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/org/acme/my-jobs/job_1", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/en/org/acme/my-jobs", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/org/acme/inbox", myWorkHref)).toBe(false);
+  });
+
+  it("keeps Hyperlab home exact and nested sections distinct", () => {
+    const homeHref = buildHyperlabPath("acme");
+    const experimentsHref = buildHyperlabPath("acme", "experiments");
+    const flagsHref = buildHyperlabPath("acme", "flags");
+
+    expect(isNavigationItemActive(homeHref, homeHref, { exact: true })).toBe(true);
+    expect(
+      isNavigationItemActive("/org/acme/hyperlab/experiments", homeHref, { exact: true }),
+    ).toBe(false);
+    expect(isNavigationItemActive("/org/acme/hyperlab/experiments/exp_1", experimentsHref)).toBe(
+      true,
+    );
+    expect(isNavigationItemActive("/org/acme/hyperlab/experiments", flagsHref)).toBe(false);
   });
 });
 
