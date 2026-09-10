@@ -479,6 +479,13 @@ export function createGlossaryConceptRoutes(
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
+        if (glossary.source !== "native") {
+          return badRequestResponse(
+            c,
+            "external_glossary_history_unsupported",
+            "This provider does not expose local glossary history yet",
+          );
+        }
         const conditions = [eq(schema.glossaryHistoryEvents.glossaryId, glossaryId)];
         if (query.conceptId)
           conditions.push(eq(schema.glossaryHistoryEvents.conceptId, query.conceptId));
@@ -544,18 +551,20 @@ export function createGlossaryConceptRoutes(
         }
         if (!created) return conflictResponse(c, "duplicate_glossary_concept_term");
         const createdRecord = toGlossaryConceptRecord(glossary, created);
-        await db.insert(schema.glossaryHistoryEvents).values({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          glossaryId: glossary.id,
-          conceptId: createdRecord.id,
-          eventType: "created",
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          version: 1,
-          changedFields: ["primaryTerm", "terms"],
-          changes: [],
-          attributes: { source: glossary.source },
-        });
+        if (glossary.source === "native") {
+          await db.insert(schema.glossaryHistoryEvents).values({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            glossaryId: glossary.id,
+            conceptId: createdRecord.id,
+            eventType: "created",
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            version: 1,
+            changedFields: ["primaryTerm", "terms"],
+            changes: [],
+            attributes: { source: glossary.source },
+          });
+        }
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
           status: "created",
           source: "glossary_concept",

@@ -102,7 +102,6 @@ import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 import {
   glossaryTermStatusValues,
-  selectGlossaryPrimaryTerm,
   type GlossaryPartOfSpeech,
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
@@ -389,6 +388,10 @@ export function GlossaryDetailPageContent({
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
   const [conceptSort, setConceptSort] = useState<"asc" | "desc">("asc");
   const [languageFilter, setLanguageFilter] = useState("");
+  const [conceptSearch, setConceptSearch] = useState("");
+  const [conceptReviewStatus, setConceptReviewStatus] = useState("");
+  const [includeArchivedConcepts, setIncludeArchivedConcepts] = useState(false);
+  const [conceptPageCursor, setConceptPageCursor] = useState<string | undefined>();
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
@@ -444,7 +447,7 @@ export function GlossaryDetailPageContent({
 
   const conceptsQuery = useQuery({
     queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    enabled: Boolean(isConceptGlossary),
+    enabled: false,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -456,6 +459,78 @@ export function GlossaryDetailPageContent({
           await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
         );
       return (await response.json()).concepts as GlossaryConceptRecord[];
+    },
+  });
+  const selectedConceptQuery = useQuery({
+    queryKey: ["glossary-concept", organizationSlug, glossaryId, selectedConceptId],
+    enabled: Boolean(isConceptGlossary && selectedConceptId && selectedConceptId !== "new"),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts[":conceptId"].$get({
+        param: { organizationSlug, glossaryId, conceptId: selectedConceptId! },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
+        );
+      return (await response.json()) as { concept: GlossaryConceptRecord };
+    },
+  });
+  const conceptPageQuery = useQuery({
+    queryKey: [
+      "glossary-concept-page",
+      organizationSlug,
+      glossaryId,
+      conceptSearch,
+      languageFilter,
+      conceptReviewStatus,
+      includeArchivedConcepts,
+      conceptSort,
+      conceptPageCursor,
+    ],
+    enabled: Boolean(isConceptGlossary && !conceptPageMode && isNative),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts.page.$get({
+        param: { organizationSlug, glossaryId },
+        query: {
+          search: conceptSearch || undefined,
+          locale: languageFilter || undefined,
+          reviewStatus: (conceptReviewStatus || undefined) as
+            | "proposed"
+            | "approved"
+            | "rejected"
+            | "superseded"
+            | undefined,
+          includeArchived: includeArchivedConcepts ? "true" : "false",
+          sort: "updated_at",
+          sortDir: conceptSort === "asc" ? "asc" : "desc",
+          cursor: conceptPageCursor,
+          limit: "25",
+        },
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
+        );
+      return (await response.json()) as {
+        concepts: Array<{
+          id: string;
+          primaryTerm: string;
+          subject: string;
+          reviewStatus: string;
+          termCount: number;
+          localeCount: number;
+          archivedAt: string | null;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        nextCursor: string | null;
+        total: number;
+        pagination: { returned: number; hasMore: boolean };
+      };
     },
   });
   const attachedProjectsQuery = useQuery({
@@ -494,7 +569,10 @@ export function GlossaryDetailPageContent({
   });
 
   const concepts = conceptsQuery.data ?? [];
-  const selectedConcept = concepts.find((concept) => concept.id === selectedConceptId) ?? null;
+  const selectedConcept =
+    selectedConceptQuery.data?.concept ??
+    concepts.find((concept) => concept.id === selectedConceptId) ??
+    null;
   const attachedProjectIds = useMemo(
     () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
     [attachedProjectsQuery.data],
@@ -596,9 +674,17 @@ export function GlossaryDetailPageContent({
   };
 
   const invalidateConcepts = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concepts", organizationSlug, glossaryId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concept-page", organizationSlug, glossaryId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concept", organizationSlug, glossaryId],
+      }),
+    ]);
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
       queryKey: ["glossary-projects", organizationSlug, glossaryId],
@@ -950,7 +1036,11 @@ export function GlossaryDetailPageContent({
     onError: (error) => toast.error(error.message),
   });
 
-  if (glossaryQuery.isLoading || (conceptPageMode && !isCreatingConcept && conceptsQuery.isLoading))
+  if (
+    glossaryQuery.isLoading ||
+    (!isCreatingConcept && selectedConceptId !== null && selectedConceptQuery.isLoading) ||
+    (!conceptPageMode && isConceptGlossary && isNative && conceptPageQuery.isLoading)
+  )
     return conceptPageMode ? <ConceptDetailSkeleton /> : <ConceptListSkeleton />;
   if (!glossary)
     return (
@@ -958,32 +1048,16 @@ export function GlossaryDetailPageContent({
         <FormattedMessage {...messages.notFound} />
       </TypographyP>
     );
-  if (!conceptPageMode && conceptsQuery.isLoading) return <ConceptListSkeleton />;
+  if (!conceptPageMode && isConceptGlossary && isNative && conceptPageQuery.isLoading)
+    return <ConceptListSkeleton />;
 
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const matchesLanguageFilter = (term: GlossaryConceptTermRecord) =>
-    !normalizedLanguageFilter ||
-    term.locale.toLowerCase().includes(normalizedLanguageFilter) ||
-    getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter);
-  const filteredConcepts = concepts
-    .filter((concept) => {
-      return concept.terms.some(matchesLanguageFilter);
-    })
-    .sort(
-      (left, right) =>
-        (conceptSort === "asc" ? 1 : -1) * left.primaryTerm.localeCompare(right.primaryTerm),
-    );
+  const filteredConcepts = conceptPageQuery.data?.concepts ?? [];
   const selected = concepts.find((concept) => concept.id === selectedConceptId) ?? null;
   const allSelected =
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
-  const filteredExportLocales = [
-    ...new Set(
-      filteredConcepts.flatMap((concept) =>
-        concept.terms.filter(matchesLanguageFilter).map((term) => term.locale),
-      ),
-    ),
-  ];
+  const filteredExportLocales: string[] = [];
   const hasFilteredExport = normalizedLanguageFilter.length > 0 && filteredExportLocales.length > 0;
   const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selected?.terms ?? [])
@@ -1313,9 +1387,50 @@ export function GlossaryDetailPageContent({
                   </div>
                 ) : null}
               </div>
-              {conceptsQuery.isError ? (
+              {isNative ? (
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_12rem_auto]">
+                  <Input
+                    value={conceptSearch}
+                    onChange={(event) => {
+                      setConceptSearch(event.currentTarget.value);
+                      setConceptPageCursor(undefined);
+                    }}
+                    placeholder="Search terms, definitions, notes, or IDs"
+                    aria-label="Search glossary concepts"
+                  />
+                  <Select
+                    value={conceptReviewStatus || "all"}
+                    onValueChange={(value) => {
+                      setConceptReviewStatus(value === "all" || value === null ? "" : value);
+                      setConceptPageCursor(undefined);
+                    }}
+                  >
+                    <SelectTrigger aria-label="Filter by review status">
+                      <SelectValue placeholder="Review status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All review statuses</SelectItem>
+                      <SelectItem value="proposed">Proposed</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="superseded">Superseded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={includeArchivedConcepts}
+                      onCheckedChange={(checked) => {
+                        setIncludeArchivedConcepts(Boolean(checked));
+                        setConceptPageCursor(undefined);
+                      }}
+                    />
+                    Include archived
+                  </label>
+                </div>
+              ) : null}
+              {conceptPageQuery.isError || conceptsQuery.isError ? (
                 <TypographyP size="small" tone="critical">
-                  {conceptsQuery.error.message}
+                  {(conceptPageQuery.error ?? conceptsQuery.error)?.message}
                 </TypographyP>
               ) : null}
               <div className="overflow-x-auto rounded-lg border border-border">
@@ -1368,15 +1483,6 @@ export function GlossaryDetailPageContent({
                   </thead>
                   <tbody>
                     {filteredConcepts.map((concept) => {
-                      const primary = selectGlossaryPrimaryTerm(
-                        concept.terms.map((term) => ({
-                          id: term.id,
-                          locale: term.locale,
-                          text: term.term,
-                          status: term.status as TermDraft["status"],
-                        })),
-                        glossary.sourceLocale,
-                      );
                       return (
                         <tr
                           key={concept.id}
@@ -1399,20 +1505,11 @@ export function GlossaryDetailPageContent({
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap items-center gap-2 font-medium">
-                              {primary?.text ?? concept.primaryTerm}
-                              {primary ? (
-                                <Badge
-                                  variant="outline"
-                                  className={statusBadgeClass(primary.status)}
-                                >
-                                  <StatusLabel status={primary.status} />
-                                </Badge>
-                              ) : null}
+                              {concept.primaryTerm}
+                              <Badge variant="outline">{concept.reviewStatus}</Badge>
                             </div>
                           </td>
-                          <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
-                            {concept.definition || "—"}
-                          </td>
+                          <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">—</td>
                           <td className="px-3 py-3 text-muted-foreground">
                             {concept.subject || "—"}
                           </td>
@@ -1427,7 +1524,7 @@ export function GlossaryDetailPageContent({
                     })}
                   </tbody>
                 </table>
-                {conceptsQuery.isSuccess && filteredConcepts.length === 0 ? (
+                {conceptPageQuery.isSuccess && filteredConcepts.length === 0 ? (
                   <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
                     <TypographyP size="small" tone="subtle">
                       <FormattedMessage {...messages.noConcepts} />
@@ -1466,6 +1563,36 @@ export function GlossaryDetailPageContent({
                   </div>
                 ) : null}
               </div>
+              {conceptPageQuery.data ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Showing {conceptPageQuery.data.pagination.returned} of{" "}
+                    {conceptPageQuery.data.total}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!conceptPageCursor || conceptPageQuery.isFetching}
+                      onClick={() => setConceptPageCursor(undefined)}
+                    >
+                      First page
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!conceptPageQuery.data.nextCursor || conceptPageQuery.isFetching}
+                      onClick={() =>
+                        setConceptPageCursor(conceptPageQuery.data?.nextCursor ?? undefined)
+                      }
+                    >
+                      Next page
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : (
             <section className="rounded-lg border border-border p-4">

@@ -44,6 +44,7 @@ export type GlossaryConceptPageError = {
 
 type CursorPayload = {
   v: 1;
+  glossaryId: string;
   id: string;
   sortValue: string;
   issuedAt: string;
@@ -59,10 +60,11 @@ function cursorSecret() {
   );
 }
 
-function filterHash(filters: FilterFields) {
+function filterHash(glossaryId: string, filters: FilterFields) {
   return createHash("sha256")
     .update(
       JSON.stringify({
+        glossaryId,
         ...filters,
         modifiedFrom: filters.modifiedFrom ?? "",
         modifiedTo: filters.modifiedTo ?? "",
@@ -78,13 +80,14 @@ function sign(encoded: string) {
     .digest("base64url");
 }
 
-function encodeCursor(filters: FilterFields, id: string, sortValue: string) {
+function encodeCursor(glossaryId: string, filters: FilterFields, id: string, sortValue: string) {
   const payload: CursorPayload = {
     v: 1,
+    glossaryId,
     id,
     sortValue,
     issuedAt: new Date().toISOString(),
-    filterHash: filterHash(filters),
+    filterHash: filterHash(glossaryId, filters),
   };
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${encoded}.${sign(encoded)}`;
@@ -92,10 +95,12 @@ function encodeCursor(filters: FilterFields, id: string, sortValue: string) {
 
 function decodeCursor(
   cursor: string,
+  glossaryId: string,
   filters: FilterFields,
 ): CursorPayload | GlossaryConceptPageError {
-  const [encoded, signature] = cursor.split(".");
-  if (!encoded || !signature)
+  const parts = cursor.split(".");
+  const [encoded, signature] = parts;
+  if (parts.length !== 2 || !encoded || !signature)
     return { code: "invalid_cursor", reason: "malformed", message: "Cursor is invalid" };
   const expected = sign(encoded);
   const left = Buffer.from(signature);
@@ -113,6 +118,7 @@ function decodeCursor(
     !payload ||
     typeof payload !== "object" ||
     (payload as CursorPayload).v !== 1 ||
+    typeof (payload as CursorPayload).glossaryId !== "string" ||
     typeof (payload as CursorPayload).id !== "string" ||
     typeof (payload as CursorPayload).sortValue !== "string" ||
     typeof (payload as CursorPayload).issuedAt !== "string" ||
@@ -122,10 +128,10 @@ function decodeCursor(
   }
   const value = payload as CursorPayload;
   const issuedAt = Date.parse(value.issuedAt);
-  if (Number.isNaN(issuedAt) || Date.now() - issuedAt > CURSOR_TTL_MS) {
+  if (Number.isNaN(issuedAt) || issuedAt > Date.now() || Date.now() - issuedAt > CURSOR_TTL_MS) {
     return { code: "invalid_cursor", reason: "expired", message: "Cursor is invalid" };
   }
-  if (value.filterHash !== filterHash(filters)) {
+  if (value.glossaryId !== glossaryId || value.filterHash !== filterHash(glossaryId, filters)) {
     return { code: "invalid_cursor", reason: "filter_mismatch", message: "Cursor is invalid" };
   }
   return value;
@@ -140,8 +146,8 @@ function termExistsWhere(
     eq(schema.glossaryTerms.glossaryId, schema.glossaryConcepts.glossaryId),
   ];
   if (filters.locale) conditions.push(eq(schema.glossaryTerms.locale, filters.locale));
-  if (filters.reviewStatus)
-    conditions.push(eq(schema.glossaryTerms.reviewStatus, filters.reviewStatus));
+  if (filters.termReviewStatus)
+    conditions.push(eq(schema.glossaryTerms.reviewStatus, filters.termReviewStatus));
   if (filters.linguisticStatus)
     conditions.push(eq(schema.glossaryTerms.status, filters.linguisticStatus));
   if (filters.provenance) conditions.push(eq(schema.glossaryTerms.provenance, filters.provenance));
@@ -155,6 +161,7 @@ function termExistsWhere(
     conditions.push(eq(schema.glossaryTerms.reviewedByUserId, filters.reviewedByUserId));
   if (filters.importBatchId)
     conditions.push(eq(schema.glossaryTerms.importBatchId, filters.importBatchId));
+  if (!filters.includeArchived) conditions.push(sql`${schema.glossaryTerms.archivedAt} is null`);
   return and(...conditions);
 }
 
@@ -165,12 +172,14 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
     conditions.push(gte(schema.glossaryConcepts.updatedAt, new Date(filters.modifiedFrom)));
   if (filters.modifiedTo)
     conditions.push(lte(schema.glossaryConcepts.updatedAt, new Date(filters.modifiedTo)));
+  if (filters.reviewStatus)
+    conditions.push(eq(schema.glossaryConcepts.reviewStatus, filters.reviewStatus));
 
   const termWhere = termExistsWhere(schema.glossaryConcepts.id, filters);
   if (
     termWhere &&
     (filters.locale ||
-      filters.reviewStatus ||
+      filters.termReviewStatus ||
       filters.linguisticStatus ||
       filters.provenance ||
       filters.caseSensitive !== undefined ||
@@ -204,6 +213,7 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
           .where(
             and(
               eq(schema.glossaryTerms.conceptId, schema.glossaryConcepts.id),
+              filters.includeArchived ? undefined : sql`${schema.glossaryTerms.archivedAt} is null`,
               or(
                 ilike(schema.glossaryTerms.term, `%${search}%`),
                 ilike(schema.glossaryTerms.description, `%${search}%`),
@@ -229,7 +239,7 @@ export async function listGlossaryConceptsPage(
   query: GlossaryConceptPageQuery,
 ) {
   const { cursor, limit, ...filters } = query;
-  const decoded = cursor ? decodeCursor(cursor, filters) : undefined;
+  const decoded = cursor ? decodeCursor(cursor, glossaryId, filters) : undefined;
   if (decoded && "code" in decoded) return decoded;
   const column =
     filters.sort === "created_at"
@@ -269,7 +279,12 @@ export async function listGlossaryConceptsPage(
           localeCount: sql<number>`count(distinct ${schema.glossaryTerms.locale})`,
         })
         .from(schema.glossaryTerms)
-        .where(inArray(schema.glossaryTerms.conceptId, ids))
+        .where(
+          and(
+            inArray(schema.glossaryTerms.conceptId, ids),
+            filters.includeArchived ? undefined : sql`${schema.glossaryTerms.archivedAt} is null`,
+          ),
+        )
         .groupBy(schema.glossaryTerms.conceptId)
     : [];
   const counts = new Map(termCounts.map((row) => [row.conceptId, row]));
@@ -288,7 +303,8 @@ export async function listGlossaryConceptsPage(
   const last = pageRows.at(-1);
   return {
     concepts,
-    nextCursor: hasMore && last ? encodeCursor(filters, last.concept.id, last.sortValue) : null,
+    nextCursor:
+      hasMore && last ? encodeCursor(glossaryId, filters, last.concept.id, last.sortValue) : null,
     total: totalRows[0]?.value ?? 0,
     pagination: { limit, returned: concepts.length, hasMore },
   };
