@@ -662,6 +662,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "xx79RfygY/",
     description: "Empty state for a glossary concept history panel",
   },
+  historyLoadFailed: {
+    defaultMessage: "Unable to load glossary history",
+    id: "Hc0JU+HwNl",
+    description: "Fallback error when glossary history cannot be loaded",
+  },
   historyChangedFields: {
     defaultMessage: "Changed fields: {fields}",
     id: "/8T8dLh8LC",

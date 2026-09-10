@@ -1058,7 +1058,13 @@ export function GlossaryDetailPageContent({
   const allSelected =
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
-  const filteredExportLocales: string[] = [];
+  const filteredExportLocales = glossary.languages
+    .filter(
+      (language) =>
+        language.locale.toLowerCase().includes(normalizedLanguageFilter) ||
+        language.name.toLowerCase().includes(normalizedLanguageFilter),
+    )
+    .map((language) => language.locale);
   const hasFilteredExport = normalizedLanguageFilter.length > 0 && filteredExportLocales.length > 0;
   const availableTermLocales = availableConceptTermLocales();
   const unsortedTermGroups = (selected?.terms ?? [])

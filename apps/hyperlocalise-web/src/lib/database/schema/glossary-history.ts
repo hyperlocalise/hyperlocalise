@@ -32,8 +32,10 @@ export const glossaryHistoryEvents = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
-    conceptId: uuid("concept_id").references(() => glossaryConcepts.id, { onDelete: "set null" }),
-    termId: uuid("term_id").references(() => glossaryTerms.id, { onDelete: "set null" }),
+    // These are immutable audit identifiers, not live-row relationships. Keeping them
+    // independent of the content tables preserves delete history after hard deletion.
+    conceptId: uuid("concept_id"),
+    termId: uuid("term_id"),
     eventType: text("event_type").notNull(),
     actorKind: text("actor_kind").notNull(),
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),

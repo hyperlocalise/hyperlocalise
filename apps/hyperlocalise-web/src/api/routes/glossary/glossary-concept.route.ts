@@ -121,46 +121,6 @@ function glossaryValidationErrorResponse(
   return badRequestResponse(c, error.code, error.message, error.details);
 }
 
-function historyChanges(
-  before: Record<string, unknown> | undefined,
-  after: Record<string, unknown> | undefined,
-  fields: string[],
-) {
-  return fields.flatMap((field) => {
-    const beforeValue = before?.[field] ?? null;
-    const afterValue = after?.[field] ?? null;
-    if (JSON.stringify(beforeValue) === JSON.stringify(afterValue)) return [];
-    return [{ field, before: beforeValue, after: afterValue }];
-  });
-}
-
-async function recordGlossaryHistory(input: {
-  auth: AuthVariables["auth"];
-  glossary: { id: string; source: string };
-  conceptId?: string;
-  termId?: string;
-  eventType: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
-  fields: string[];
-}) {
-  if (input.glossary.source !== "native") return;
-  const changes = historyChanges(input.before, input.after, input.fields);
-  await db.insert(schema.glossaryHistoryEvents).values({
-    organizationId: input.auth.organization.localOrganizationId,
-    glossaryId: input.glossary.id,
-    conceptId: input.conceptId,
-    termId: input.termId,
-    eventType: input.eventType,
-    actorKind: "user",
-    actorUserId: input.auth.user.localUserId,
-    version: 1,
-    changedFields: changes.map((change) => change.field),
-    changes,
-    attributes: { source: input.glossary.source },
-  });
-}
-
 function toCrowdinTermRecord(
   glossary: NativeGlossary,
   conceptId: string,
@@ -605,14 +565,6 @@ export function createGlossaryConceptRoutes(
         }
         if (!created) return conflictResponse(c, "duplicate_glossary_concept_term");
         const createdRecord = toGlossaryConceptRecord(glossary, created);
-        await recordGlossaryHistory({
-          auth: c.var.auth,
-          glossary,
-          conceptId: createdRecord.id,
-          eventType: "created",
-          after: createdRecord as unknown as Record<string, unknown>,
-          fields: ["primaryTerm", "subject", "definition", "translatable", "note", "url", "terms"],
-        });
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
           status: "created",
           source: "glossary_concept",
@@ -1052,15 +1004,6 @@ export function createGlossaryConceptRoutes(
         }
         if (!updated) return glossaryNotFoundResponse(c);
         const updatedRecord = toGlossaryConceptRecord(glossary, updated);
-        await recordGlossaryHistory({
-          auth: c.var.auth,
-          glossary,
-          conceptId,
-          eventType: "updated",
-          before: toGlossaryConceptRecord(glossary, current) as unknown as Record<string, unknown>,
-          after: updatedRecord as unknown as Record<string, unknown>,
-          fields: ["primaryTerm", "subject", "definition", "translatable", "note", "url", "terms"],
-        });
         return c.json({ concept: updatedRecord }, 200);
       },
     )
@@ -1075,16 +1018,6 @@ export function createGlossaryConceptRoutes(
       const { glossary } = owned;
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (!product) return externalTmsGlossaryImmutableResponse(c);
-      const current = await product.getConcept(conceptId);
-      if (!current) return glossaryNotFoundResponse(c);
-      await recordGlossaryHistory({
-        auth: c.var.auth,
-        glossary,
-        conceptId,
-        eventType: "deleted",
-        before: toGlossaryConceptRecord(glossary, current) as unknown as Record<string, unknown>,
-        fields: ["primaryTerm", "subject", "definition", "translatable", "note", "url", "terms"],
-      });
       const deleted = await product.deleteConcept(conceptId);
       if (!deleted) return glossaryNotFoundResponse(c);
       return c.body(null, 204);
@@ -1145,26 +1078,6 @@ export function createGlossaryConceptRoutes(
             "A term with this locale and text already exists",
           );
         const createdRecord = toGlossaryTermRecord(glossary, conceptId, term);
-        await recordGlossaryHistory({
-          auth: c.var.auth,
-          glossary,
-          conceptId,
-          termId: createdRecord.id,
-          eventType: "created",
-          after: createdRecord as unknown as Record<string, unknown>,
-          fields: [
-            "locale",
-            "term",
-            "description",
-            "note",
-            "partOfSpeech",
-            "gender",
-            "termType",
-            "status",
-            "caseSensitive",
-            "forbidden",
-          ],
-        });
         return c.json({ term: createdRecord }, 201);
       },
     )
@@ -1221,30 +1134,6 @@ export function createGlossaryConceptRoutes(
         if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
         if (!updatedTerm) return glossaryNotFoundResponse(c);
         const updatedRecord = toGlossaryTermRecord(glossary, conceptId, updatedTerm);
-        await recordGlossaryHistory({
-          auth: c.var.auth,
-          glossary,
-          conceptId,
-          termId,
-          eventType: "updated",
-          before: toGlossaryTermRecord(glossary, conceptId, existing) as unknown as Record<
-            string,
-            unknown
-          >,
-          after: updatedRecord as unknown as Record<string, unknown>,
-          fields: [
-            "locale",
-            "term",
-            "description",
-            "note",
-            "partOfSpeech",
-            "gender",
-            "termType",
-            "status",
-            "caseSensitive",
-            "forbidden",
-          ],
-        });
         return c.json({ term: updatedRecord }, 200);
       },
     )
@@ -1272,29 +1161,6 @@ export function createGlossaryConceptRoutes(
             "A concept must keep its primary source term",
           );
         }
-        await recordGlossaryHistory({
-          auth: c.var.auth,
-          glossary,
-          conceptId,
-          termId,
-          eventType: "deleted",
-          before: toGlossaryTermRecord(glossary, conceptId, term) as unknown as Record<
-            string,
-            unknown
-          >,
-          fields: [
-            "locale",
-            "term",
-            "description",
-            "note",
-            "partOfSpeech",
-            "gender",
-            "termType",
-            "status",
-            "caseSensitive",
-            "forbidden",
-          ],
-        });
         const deleted = await product.deleteTerm(conceptId, termId);
         if (!deleted) return glossaryNotFoundResponse(c);
         return c.body(null, 204);

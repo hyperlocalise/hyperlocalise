@@ -133,7 +133,13 @@ export function GlossaryHistoryPageContent({
             </SelectContent>
           </Select>
         </div>
-        {historyQuery.isLoading ? (
+        {historyQuery.isError ? (
+          <TypographyP size="small" tone="subtle">
+            {historyQuery.error instanceof Error
+              ? historyQuery.error.message
+              : intl.formatMessage(messages.historyLoadFailed)}
+          </TypographyP>
+        ) : historyQuery.isLoading ? (
           <div className="grid gap-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-20 w-full" />
