@@ -16,17 +16,24 @@
   border: 1px solid var(--ds-blue-300);
   border-radius: var(--radius-lg);
   background-color: var(--background);
+  /* Reuse the seafoam artwork used by the project overview and marketing pages. */
   background-image:
-    radial-gradient(ellipse at 8% 0%, var(--ds-blue-300), transparent 65%),
-    radial-gradient(ellipse at 85% 5%, var(--ds-teal-200), transparent 55%),
-    radial-gradient(ellipse at 100% 80%, var(--ds-amber-200), transparent 35%);
+    linear-gradient(
+      color-mix(in oklab, var(--background) 78%, transparent),
+      color-mix(in oklab, var(--background) 78%, transparent)
+    ),
+    url("/images/mesh/mesh-gradient-1784864145512.jpg");
+  background-size: cover;
+  background-position: center;
 }
 
 :global(.dark) .header {
   background-image:
-    radial-gradient(ellipse at 8% 0%, var(--ds-blue-200), transparent 65%),
-    radial-gradient(ellipse at 85% 5%, var(--ds-teal-100), transparent 55%),
-    radial-gradient(ellipse at 100% 80%, var(--ds-amber-100), transparent 35%);
+    linear-gradient(
+      color-mix(in oklab, var(--background) 86%, transparent),
+      color-mix(in oklab, var(--background) 86%, transparent)
+    ),
+    url("/images/mesh/mesh-gradient-1784864145512.jpg");
 }
 
 @media (max-width: 640px) {
