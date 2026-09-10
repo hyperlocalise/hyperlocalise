@@ -145,8 +145,6 @@ type GitlabProjectOption = {
   defaultBranch: string | null;
   httpUrlToRepo: string;
   archived: boolean;
-  instanceOrigin: string;
-  connectionId: string | null;
 };
 type McpServerConnectionOption = {
   id: string;
@@ -509,29 +507,18 @@ function resolveDefaultGithubRepositoryId(
   return repositories.find((repository) => repository.enabled && !repository.archived)?.id ?? "";
 }
 
-function gitlabProjectPickerValue(project: {
-  pathWithNamespace: string;
-  connectionId: string | null;
-}) {
-  return project.connectionId
-    ? `gitlab-connection:${project.connectionId}:${project.pathWithNamespace}`
-    : `gitlab:${project.pathWithNamespace}`;
+function gitlabProjectPickerValue(project: { pathWithNamespace: string }) {
+  return `gitlab:${project.pathWithNamespace}`;
 }
 
 function formGitlabProjectValue(form: WorkspaceAutomationFormState) {
   if (!form.gitlabPathWithNamespace) {
     return "";
   }
-  return gitlabProjectPickerValue({
-    pathWithNamespace: form.gitlabPathWithNamespace,
-    connectionId: form.gitlabConnectionId || null,
-  });
+  return `gitlab:${form.gitlabPathWithNamespace}`;
 }
 
 function formatGitlabProjectOptionLabel(project: GitlabProjectOption) {
-  if (project.connectionId) {
-    return `${project.pathWithNamespace} (${project.instanceOrigin})`;
-  }
   return project.pathWithNamespace;
 }
 
@@ -549,13 +536,12 @@ function resolveDefaultGitlabProject(
 
 function withGitlabRepository(
   form: WorkspaceAutomationFormState,
-  project: { pathWithNamespace: string; connectionId: string | null },
+  project: { pathWithNamespace: string },
 ): WorkspaceAutomationFormState {
   return {
     ...form,
     gitlabEnabled: true,
     gitlabPathWithNamespace: project.pathWithNamespace,
-    gitlabConnectionId: project.connectionId ?? "",
     repositoryTargetKind: "gitlab",
     githubEnabled: false,
     githubCommentEnabled: false,
@@ -1538,7 +1524,6 @@ function AddToolMenu({
                       githubInstallationRepositoryId: defaultRepositoryId,
                       gitlabEnabled: false,
                       gitlabPathWithNamespace: "",
-                      gitlabConnectionId: "",
                       pushSourceEnabled: false,
                       pullTranslationsEnabled: false,
                       validationEnabled: false,
@@ -1573,7 +1558,6 @@ function AddToolMenu({
                       githubInstallationRepositoryId: defaultRepositoryId,
                       gitlabEnabled: false,
                       gitlabPathWithNamespace: "",
-                      gitlabConnectionId: "",
                       validationEnabled:
                         form.pushSourceEnabled || form.pullTranslationsEnabled
                           ? form.validationEnabled
@@ -1608,7 +1592,6 @@ function AddToolMenu({
                       githubInstallationRepositoryId: defaultRepositoryId,
                       gitlabEnabled: false,
                       gitlabPathWithNamespace: "",
-                      gitlabConnectionId: "",
                     });
                   }}
                 >
@@ -1638,7 +1621,6 @@ function AddToolMenu({
                 onChange(
                   withGitlabRepository(form, {
                     pathWithNamespace: defaultProject?.pathWithNamespace ?? "",
-                    connectionId: defaultProject?.connectionId ?? null,
                   }),
                 );
               }}
@@ -2198,7 +2180,6 @@ function ToolsSettings({
                     ...form,
                     gitlabEnabled: false,
                     gitlabPathWithNamespace: "",
-                    gitlabConnectionId: "",
                     repositoryTargetKind:
                       form.githubEnabled || form.githubCommentEnabled ? "github" : "none",
                   })
@@ -3585,24 +3566,6 @@ export function WorkspaceAutomationEditor({
     },
   });
 
-  const gitlabConnectionsQuery = useQuery({
-    queryKey: ["gitlab-connections", organizationSlug],
-    queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["gitlab-connections"].$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to load GitLab connections");
-      }
-      const body = await response.json();
-      return body.gitlabConnections as Array<{
-        id: string;
-        enabled: boolean;
-        validationStatus: string;
-      }>;
-    },
-  });
-
   const gitlabProjectsQuery = useQuery({
     queryKey: ["gitlab-projects", organizationSlug],
     queryFn: async () => {
@@ -3639,12 +3602,7 @@ export function WorkspaceAutomationEditor({
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
-  const gitlabConnections = gitlabConnectionsQuery.data ?? [];
-  const gitlabConnected =
-    Boolean(gitlabPipesQuery.data?.connected) ||
-    gitlabConnections.some(
-      (connection) => connection.enabled && connection.validationStatus === "valid",
-    );
+  const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";

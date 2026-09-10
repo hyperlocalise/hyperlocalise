@@ -88,7 +88,6 @@ const gitlabContext = {
   projectId: 11,
   repositoryFullName: "acme/platform/web",
   httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
-  instanceOrigin: "https://gitlab.com",
   branch: "main",
 };
 
@@ -201,7 +200,6 @@ describe("createUseGitlabRepositoryTool", () => {
       localOrganizationId: "org-1",
       workosUserId: "user_workos",
       pathWithNamespace: "acme/platform/web",
-      connectionId: null,
     });
     expect(mocks.createGitlabRepositorySandbox).toHaveBeenCalledWith({
       localOrganizationId: "org-1",
@@ -214,7 +212,6 @@ describe("createUseGitlabRepositoryTool", () => {
         userOverride: "Review localisation impact",
         dynamicSections: expect.arrayContaining([
           "Repository: acme/platform/web.",
-          "Instance: https://gitlab.com.",
           "Branch: main.",
           "Lookback window: 24 hours.",
           "Sandbox id: sbx-gitlab-1.",
@@ -226,47 +223,23 @@ describe("createUseGitlabRepositoryTool", () => {
       repositoryFullName: "acme/platform/web",
       branch: "main",
       lookbackHours: 24,
-      instanceOrigin: "https://gitlab.com",
     });
     expect(current.terminalStatus).toBe("succeeded");
     expect(current.stepResults.use_gitlab_repository).toEqual(payload);
     expect(mocks.stopGitlabRepositorySandbox).toHaveBeenCalledWith("sbx-gitlab-1");
   });
 
-  it("clones a self-hosted project with the connection id", async () => {
-    const connectionId = "11111111-1111-4111-8111-111111111111";
-    const selfHostedContext = {
-      ...gitlabContext,
-      instanceOrigin: "https://gitlab.acme.example",
-      connectionId,
-    };
-    mocks.resolveGitLabProjectContext.mockResolvedValue(selfHostedContext);
+  it("rejects when GitLab is not connected through Pipes", async () => {
+    await expect(
+      createUseGitlabRepositoryTool(
+        session({
+          toolConfig: { gitlab: { enabled: true } },
+        }),
+      ).execute!({}, toolOptions),
+    ).rejects.toThrow("gitlab_not_connected");
 
-    await createUseGitlabRepositoryTool(
-      session({
-        repositoryTarget: {
-          kind: "gitlab",
-          gitlabPathWithNamespace: "acme/platform/web",
-          gitlabConnectionId: connectionId,
-        },
-        toolConfig: {
-          gitlab: { enabled: true, connectionId },
-        },
-      }),
-    ).execute!({}, toolOptions);
-
-    expect(mocks.resolveGitLabProjectContext).toHaveBeenCalledWith({
-      localOrganizationId: "org-1",
-      workosUserId: null,
-      pathWithNamespace: "acme/platform/web",
-      connectionId,
-    });
-    expect(mocks.createGitlabRepositorySandbox).toHaveBeenCalledWith({
-      localOrganizationId: "org-1",
-      workosUserId: null,
-      gitlabContext: selfHostedContext,
-      cloneDepth: 50,
-    });
+    expect(mocks.resolveGitLabProjectContext).not.toHaveBeenCalled();
+    expect(mocks.createGitlabRepositorySandbox).not.toHaveBeenCalled();
   });
 
   it("marks the session failed and still stops the sandbox when the agent throws", async () => {

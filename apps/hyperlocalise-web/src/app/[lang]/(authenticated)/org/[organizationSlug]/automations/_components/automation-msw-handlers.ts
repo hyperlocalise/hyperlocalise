@@ -80,9 +80,6 @@ export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: automationEditorContentfulConnectionsFixture }),
   ),
-  http.get("/api/orgs/:organizationSlug/gitlab-connections", () =>
-    HttpResponse.json({ gitlabConnections: [] }),
-  ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({
       projects: [
@@ -93,8 +90,6 @@ export const automationEditorMswHandlers = [
           defaultBranch: "main",
           httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
           archived: false,
-          instanceOrigin: "https://gitlab.com",
-          connectionId: null,
         },
       ],
     }),
@@ -168,9 +163,6 @@ export const automationEditorDisconnectedMswHandlers = [
   ),
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: [] }),
-  ),
-  http.get("/api/orgs/:organizationSlug/gitlab-connections", () =>
-    HttpResponse.json({ gitlabConnections: [] }),
   ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({ projects: [] }),

@@ -232,7 +232,6 @@ async function resolveSelectedChatRepositoryContext(input: {
   workosUserId: string;
   repositoryFullName?: string;
   repositoryProvider?: "github" | "gitlab";
-  gitlabConnectionId?: string;
 }): Promise<
   | { status: "none" }
   | { status: "github"; context: RepositoryAgentGitHubContext }
@@ -263,7 +262,6 @@ async function resolveSelectedChatRepositoryContext(input: {
     localOrganizationId: input.organizationId,
     workosUserId: input.workosUserId,
     pathWithNamespace: input.repositoryFullName,
-    connectionId: input.gitlabConnectionId,
   });
   if (gitlabContext) {
     return { status: "gitlab", context: gitlabContext };
@@ -448,7 +446,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         projectId: asString(body.projectId),
         repositoryFullName: asString(body.repositoryFullName),
         repositoryProvider: asString(body.repositoryProvider),
-        gitlabConnectionId: asString(body.gitlabConnectionId),
       });
 
       if (!parsed.success) {
@@ -499,7 +496,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         workosUserId: c.var.auth.user.workosUserId,
         repositoryFullName: parsed.data.repositoryFullName,
         repositoryProvider: parsed.data.repositoryProvider,
-        gitlabConnectionId: parsed.data.gitlabConnectionId,
       });
       if (selectedRepository.status === "unavailable") {
         return selectedRepositoryUnavailableResponse(c, selectedRepository.error);
@@ -683,12 +679,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const repositoryProvider = repositoryProviderParse.success
           ? repositoryProviderParse.data.repositoryProvider
           : undefined;
-        const gitlabConnectionIdParse = createConversationRequestSchema
-          .pick({ gitlabConnectionId: true })
-          .safeParse({ gitlabConnectionId: asString(body.gitlabConnectionId) });
-        const gitlabConnectionId = gitlabConnectionIdParse.success
-          ? gitlabConnectionIdParse.data.gitlabConnectionId
-          : undefined;
 
         if (!text.trim() && files.length === 0) {
           return invalidMessagePayloadResponse(c);
@@ -715,7 +705,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           workosUserId: c.var.auth.user.workosUserId,
           repositoryFullName,
           repositoryProvider,
-          gitlabConnectionId,
         });
         if (selectedRepository.status === "unavailable") {
           return selectedRepositoryUnavailableResponse(c, selectedRepository.error);

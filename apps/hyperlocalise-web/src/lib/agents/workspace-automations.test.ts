@@ -64,7 +64,6 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { createGitLabConnection } from "@/lib/gitlab/connections";
 import { createSemrushConnection } from "@/lib/semrush/connections";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
@@ -1519,7 +1518,7 @@ describe("workspace automations", () => {
     expect(updateRejected.error.code).toBe("semrush_not_connected");
   });
 
-  it("creates GitLab.com and self-hosted automations and keeps GitHub exclusive", async () => {
+  it("creates GitLab.com automations and keeps GitHub exclusive", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const base = {
       organizationId: scope.organizationId,
@@ -1621,22 +1620,6 @@ describe("workspace automations", () => {
     }
     expect(githubTrigger.error.code).toBe("gitlab_agent_trigger_required");
 
-    const connection = expectOk(
-      await createGitLabConnection({
-        organizationId: scope.organizationId,
-        userId: scope.userId,
-        displayName: "Self-hosted GitLab",
-        baseUrl: "https://gitlab.acme.example",
-        accessToken: "glpat-self-hosted-token",
-        enabled: true,
-        validate: false,
-      }),
-    );
-    await db
-      .update(schema.gitlabConnections)
-      .set({ validationStatus: "valid", validationMessage: "test" })
-      .where(eq(schema.gitlabConnections.id, connection.id));
-
     const scheduled = expectOk(
       await createWorkspaceAutomation({
         ...base,
@@ -1648,21 +1631,16 @@ describe("workspace automations", () => {
         repositoryTarget: {
           kind: "gitlab",
           gitlabPathWithNamespace: "acme/platform",
-          gitlabConnectionId: connection.id,
         },
         toolConfig: {
-          gitlab: {
-            enabled: true,
-            connectionId: connection.id,
-          },
+          gitlab: { enabled: true },
         },
       }),
     );
     expect(scheduled.toolConfig.gitlab).toEqual({
       enabled: true,
-      connectionId: connection.id,
+      workosUserId: "user_workos",
     });
-    expect(scheduled.toolConfig.gitlab).not.toHaveProperty("workosUserId");
   });
 
   it("rejects Crowdin tools without a linked project or Crowdin connection", async () => {

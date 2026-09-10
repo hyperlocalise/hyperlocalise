@@ -26,7 +26,6 @@ export type ChatComposerSendOptions = {
   projectId?: string;
   repositoryFullName?: string;
   repositoryProvider?: ChatRepositoryProvider;
-  gitlabConnectionId?: string;
 };
 
 export type SendConversationMessageInput = {
@@ -166,7 +165,6 @@ export function createInboxApi(client: ApiClient): InboxApi {
           ...(input.projectId ? { projectId: input.projectId } : {}),
           ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
           ...(input.repositoryProvider ? { repositoryProvider: input.repositoryProvider } : {}),
-          ...(input.gitlabConnectionId ? { gitlabConnectionId: input.gitlabConnectionId } : {}),
           ...(input.files.length > 0 ? { files: input.files } : {}),
         },
       } as never);
@@ -188,7 +186,6 @@ export function createInboxApi(client: ApiClient): InboxApi {
           ...(input.projectId ? { projectId: input.projectId } : {}),
           ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
           ...(input.repositoryProvider ? { repositoryProvider: input.repositoryProvider } : {}),
-          ...(input.gitlabConnectionId ? { gitlabConnectionId: input.gitlabConnectionId } : {}),
           ...(input.files.length > 0 ? { files: input.files } : {}),
         },
       } as never);

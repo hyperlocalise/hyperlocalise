@@ -56,7 +56,6 @@ export type WorkspaceAutomationFormState = {
   githubInstallationRepositoryId: string;
   gitlabEnabled: boolean;
   gitlabPathWithNamespace: string;
-  gitlabConnectionId: string;
   githubEnabled: boolean;
   githubMode: WorkspaceAutomationGithubToolMode;
   pushSourceEnabled: boolean;
@@ -151,9 +150,6 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
   gitlab_github_exclusive: "GitHub and GitLab cannot be enabled on the same automation.",
   gitlab_agent_trigger_required: "Use GitLab repo automations with a scheduled or manual trigger.",
-  gitlab_connection_required: "Choose a GitLab connection.",
-  gitlab_connection_not_found:
-    "The selected GitLab connection was not found. Choose another connection.",
   gitlab_not_connected: "Connect GitLab in Integrations before using it.",
   gitlab_pipes_needs_reauthorization: "Reconnect GitLab in Integrations, then try again.",
   gitlab_pipes_unavailable: "GitLab is unavailable until WorkOS Pipes is configured.",
@@ -240,7 +236,6 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     githubInstallationRepositoryId: "",
     gitlabEnabled: false,
     gitlabPathWithNamespace: "",
-    gitlabConnectionId: "",
     githubEnabled: false,
     githubMode: "sync",
     pushSourceEnabled: false,
@@ -342,8 +337,6 @@ export function createWorkspaceAutomationFormStateFromRecord(
       automation.repositoryTarget.githubInstallationRepositoryId ?? "",
     gitlabEnabled: Boolean(gitlab?.enabled),
     gitlabPathWithNamespace: automation.repositoryTarget.gitlabPathWithNamespace ?? "",
-    gitlabConnectionId:
-      gitlab?.connectionId ?? automation.repositoryTarget.gitlabConnectionId ?? "",
     githubEnabled: Boolean(github?.enabled),
     githubMode: github?.mode ?? "sync",
     pushSourceEnabled: Boolean(github?.pushSource),
@@ -486,7 +479,6 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           kind: "gitlab",
           gitlabPathWithNamespace: form.gitlabPathWithNamespace.trim(),
-          ...(form.gitlabConnectionId ? { gitlabConnectionId: form.gitlabConnectionId } : {}),
         }
       : (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
         ? {
@@ -511,7 +503,6 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           gitlab: {
             enabled: true,
-            ...(form.gitlabConnectionId ? { connectionId: form.gitlabConnectionId } : {}),
           },
         }
       : {}),
@@ -807,9 +798,6 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "gitlab_not_connected":
     case "gitlab_pipes_needs_reauthorization":
     case "gitlab_pipes_unavailable":
-      return { gitlabRepository: message };
-    case "gitlab_connection_required":
-    case "gitlab_connection_not_found":
       return { gitlabRepository: message };
     case "gitlab_github_exclusive":
       return { form: message };

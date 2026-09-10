@@ -12,9 +12,9 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { createVercelSandboxWorkspaceMock, loadGitLabCloneCredentialsMock } = vi.hoisted(() => ({
+const { createVercelSandboxWorkspaceMock, loadGitLabPipesAccessTokenMock } = vi.hoisted(() => ({
   createVercelSandboxWorkspaceMock: vi.fn(),
-  loadGitLabCloneCredentialsMock: vi.fn(),
+  loadGitLabPipesAccessTokenMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
@@ -22,8 +22,8 @@ vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
   stopWorkspace: vi.fn(),
 }));
 
-vi.mock("./credentials", () => ({
-  loadGitLabCloneCredentials: loadGitLabCloneCredentialsMock,
+vi.mock("./pipes", () => ({
+  loadGitLabPipesAccessToken: loadGitLabPipesAccessTokenMock,
 }));
 
 import { err, ok } from "@/lib/primitives/result/results";
@@ -36,9 +36,7 @@ describe("createGitlabRepositorySandbox", () => {
   });
 
   it("clones with oauth2 credentials and the Pipes access token", async () => {
-    loadGitLabCloneCredentialsMock.mockResolvedValue(
-      ok({ accessToken: "oauth-token", apiOrigin: "https://gitlab.com", connectionId: null }),
-    );
+    loadGitLabPipesAccessTokenMock.mockResolvedValue(ok("oauth-token"));
     createVercelSandboxWorkspaceMock.mockResolvedValue({ id: "sbx_gitlab" });
 
     await expect(
@@ -68,46 +66,8 @@ describe("createGitlabRepositorySandbox", () => {
     });
   });
 
-  it("clones a self-hosted project with the connection token", async () => {
-    loadGitLabCloneCredentialsMock.mockResolvedValue(
-      ok({
-        accessToken: "glpat-self-hosted",
-        apiOrigin: "https://gitlab.acme.example",
-        connectionId: "11111111-1111-4111-8111-111111111111",
-      }),
-    );
-    createVercelSandboxWorkspaceMock.mockResolvedValue({ id: "sbx_self_hosted" });
-
-    await expect(
-      createGitlabRepositorySandbox({
-        localOrganizationId: "org-local",
-        gitlabContext: {
-          resolved: true,
-          provider: "gitlab",
-          projectId: 22,
-          repositoryFullName: "acme/web",
-          httpUrlToRepo: "https://gitlab.acme.example/acme/web.git",
-          instanceOrigin: "https://gitlab.acme.example",
-          connectionId: "11111111-1111-4111-8111-111111111111",
-          branch: "main",
-        },
-      }),
-    ).resolves.toBe("sbx_self_hosted");
-
-    expect(createVercelSandboxWorkspaceMock).toHaveBeenCalledWith({
-      source: {
-        type: "git",
-        url: "https://gitlab.acme.example/acme/web.git",
-        revision: "main",
-        depth: 1,
-        username: "oauth2",
-        password: "glpat-self-hosted",
-      },
-    });
-  });
-
   it("throws a stable error code when GitLab is not connected", async () => {
-    loadGitLabCloneCredentialsMock.mockResolvedValue(
+    loadGitLabPipesAccessTokenMock.mockResolvedValue(
       err({ code: "gitlab_not_connected", message: "Connect GitLab" }),
     );
 

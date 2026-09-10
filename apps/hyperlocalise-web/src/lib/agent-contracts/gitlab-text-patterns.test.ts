@@ -15,7 +15,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   extractGitLabMergeRequestReferences,
   extractGitLabProjectPathReferences,
-  extractGitLabProjectReferences,
   normalizeGitLabPathWithNamespace,
 } from "./gitlab-text-patterns";
 
@@ -60,26 +59,9 @@ describe("gitlab text patterns", () => {
       ),
     ).toEqual([
       {
-        origin: "https://gitlab.com",
         pathWithNamespace: "acme/platform/web",
         mergeRequestIid: 42,
         sourceUrl: "https://gitlab.com/acme/platform/web/-/merge_requests/42",
-      },
-    ]);
-  });
-
-  it("extracts merge request URLs from a self-hosted origin", () => {
-    expect(
-      extractGitLabMergeRequestReferences(
-        "Review https://gitlab.acme.example/acme/web/-/merge_requests/9",
-        ["https://gitlab.acme.example"],
-      ),
-    ).toEqual([
-      {
-        origin: "https://gitlab.acme.example",
-        pathWithNamespace: "acme/web",
-        mergeRequestIid: 9,
-        sourceUrl: "https://gitlab.acme.example/acme/web/-/merge_requests/9",
       },
     ]);
   });
@@ -88,20 +70,5 @@ describe("gitlab text patterns", () => {
     expect(normalizeGitLabPathWithNamespace("acme/web.git")).toBe("acme/web");
     expect(normalizeGitLabPathWithNamespace("acme")).toBeNull();
     expect(normalizeGitLabPathWithNamespace("acme/sub/web")).toBe("acme/sub/web");
-  });
-
-  it("returns origin-tagged project references for allowed hosts", () => {
-    expect(
-      extractGitLabProjectReferences(
-        "See https://gitlab.acme.example/acme/platform/web/-/tree/main",
-        ["https://gitlab.acme.example"],
-      ),
-    ).toEqual([
-      {
-        origin: "https://gitlab.acme.example",
-        pathWithNamespace: "acme/platform/web",
-        sourceUrl: "https://gitlab.acme.example/acme/platform/web",
-      },
-    ]);
   });
 });

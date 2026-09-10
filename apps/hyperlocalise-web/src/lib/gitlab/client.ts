@@ -14,11 +14,11 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 import {
+  GITLAB_API_ORIGIN,
   GITLAB_CLONE_MIN_ACCESS_LEVEL,
   GITLAB_PROJECT_MAX_PAGES,
   GITLAB_PROJECT_PAGE_SIZE,
 } from "./constants";
-import { resolveGitLabApiOrigin } from "./base-url";
 import type { GitLabApiError, GitLabMergeRequestDetails, GitLabProject } from "./types";
 
 const UNAUTHORIZED: GitLabApiError = {
@@ -82,9 +82,8 @@ async function gitlabJson(input: {
   path: string;
   query?: URLSearchParams;
   signal?: AbortSignal;
-  apiOrigin?: string;
 }): Promise<Result<unknown, GitLabApiError>> {
-  const url = new URL(input.path, `${resolveGitLabApiOrigin(input.apiOrigin)}/`);
+  const url = new URL(input.path, `${GITLAB_API_ORIGIN}/`);
   if (input.query) {
     url.search = input.query.toString();
   }
@@ -121,33 +120,8 @@ async function gitlabJson(input: {
   return ok(parsed.value);
 }
 
-export async function getGitLabAuthenticatedUser(input: {
-  accessToken: string;
-  apiOrigin?: string;
-  signal?: AbortSignal;
-}): Promise<Result<{ username: string }, GitLabApiError>> {
-  const result = await gitlabJson({
-    accessToken: input.accessToken,
-    path: "/api/v4/user",
-    apiOrigin: input.apiOrigin,
-    signal: input.signal,
-  });
-  if (isErr(result)) {
-    return result;
-  }
-
-  const record = asRecord(result.value);
-  const username = asString(record?.username);
-  if (!username) {
-    return err(NOT_FOUND);
-  }
-
-  return ok({ username });
-}
-
 export async function listGitLabMembershipProjects(input: {
   accessToken: string;
-  apiOrigin?: string;
   signal?: AbortSignal;
 }): Promise<Result<GitLabProject[], GitLabApiError>> {
   const projects: GitLabProject[] = [];
@@ -166,7 +140,6 @@ export async function listGitLabMembershipProjects(input: {
       accessToken: input.accessToken,
       path: "/api/v4/projects",
       query,
-      apiOrigin: input.apiOrigin,
       signal: input.signal,
     });
     if (isErr(result)) {
@@ -195,14 +168,12 @@ export async function listGitLabMembershipProjects(input: {
 export async function getGitLabProject(input: {
   accessToken: string;
   pathWithNamespace: string;
-  apiOrigin?: string;
   signal?: AbortSignal;
 }): Promise<Result<GitLabProject, GitLabApiError>> {
   const encodedPath = encodeURIComponent(input.pathWithNamespace);
   const result = await gitlabJson({
     accessToken: input.accessToken,
     path: `/api/v4/projects/${encodedPath}`,
-    apiOrigin: input.apiOrigin,
     signal: input.signal,
   });
   if (isErr(result)) {
@@ -221,14 +192,12 @@ export async function getGitLabMergeRequest(input: {
   accessToken: string;
   pathWithNamespace: string;
   mergeRequestIid: number;
-  apiOrigin?: string;
   signal?: AbortSignal;
 }): Promise<Result<GitLabMergeRequestDetails, GitLabApiError>> {
   const encodedPath = encodeURIComponent(input.pathWithNamespace);
   const result = await gitlabJson({
     accessToken: input.accessToken,
     path: `/api/v4/projects/${encodedPath}/merge_requests/${input.mergeRequestIid}`,
-    apiOrigin: input.apiOrigin,
     signal: input.signal,
   });
   if (isErr(result)) {

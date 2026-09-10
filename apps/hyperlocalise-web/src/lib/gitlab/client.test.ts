@@ -14,12 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import {
-  getGitLabAuthenticatedUser,
-  getGitLabMergeRequest,
-  getGitLabProject,
-  listGitLabMembershipProjects,
-} from "./client";
+import { getGitLabMergeRequest, getGitLabProject, listGitLabMembershipProjects } from "./client";
 
 describe("gitlab client", () => {
   afterEach(() => {
@@ -105,27 +100,6 @@ describe("gitlab client", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
       "/api/v4/projects/acme%2Fplatform%2Fweb",
     );
-  });
-
-  it("loads the authenticated user from a custom API origin", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({ username: "ada" }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await getGitLabAuthenticatedUser({
-      accessToken: "glpat-token",
-      apiOrigin: "https://gitlab.acme.example",
-    });
-
-    expect(isOk(result)).toBe(true);
-    if (!isOk(result)) {
-      throw new Error("expected ok");
-    }
-    expect(result.value).toEqual({ username: "ada" });
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gitlab.acme.example/api/v4/user");
   });
 
   it("maps 401 responses to gitlab_unauthorized", async () => {

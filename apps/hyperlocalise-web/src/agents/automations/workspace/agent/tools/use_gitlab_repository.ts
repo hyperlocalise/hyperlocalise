@@ -54,15 +54,15 @@ export function createUseGitlabRepositoryTool(session: WorkspaceOrchestratorSess
         throw new Error("gitlab_repository_target_required");
       }
 
-      const gitlabTool = session.automation.toolConfig.gitlab;
-      const connectionId = gitlabTool?.connectionId ?? repositoryTarget.gitlabConnectionId ?? null;
-      const workosUserId = gitlabTool?.workosUserId ?? null;
+      const workosUserId = session.automation.toolConfig.gitlab?.workosUserId;
+      if (!workosUserId) {
+        throw new Error("gitlab_not_connected");
+      }
 
       const gitlabContext = await resolveGitLabProjectContext({
         localOrganizationId: session.organizationId,
         workosUserId,
         pathWithNamespace: repositoryTarget.gitlabPathWithNamespace,
-        connectionId,
       });
       if (!gitlabContext) {
         throw new Error("gitlab_repository_not_found");
@@ -100,11 +100,10 @@ export function createUseGitlabRepositoryTool(session: WorkspaceOrchestratorSess
           dynamicSections: [
             "This is an automated read-only GitLab repository task.",
             `Repository: ${gitlabContext.repositoryFullName}.`,
-            gitlabContext.instanceOrigin ? `Instance: ${gitlabContext.instanceOrigin}.` : null,
             `Branch: ${branch}.`,
             `Lookback window: ${lookbackLabel}.`,
             `Sandbox id: ${sandboxId}.`,
-          ].filter((line): line is string => Boolean(line)),
+          ],
         });
 
         const toolContext: ToolContext = {
@@ -175,7 +174,6 @@ export function createUseGitlabRepositoryTool(session: WorkspaceOrchestratorSess
           repositoryFullName: gitlabContext.repositoryFullName,
           branch,
           lookbackHours,
-          ...(gitlabContext.instanceOrigin ? { instanceOrigin: gitlabContext.instanceOrigin } : {}),
         };
         session.stepResults.use_gitlab_repository = payload;
 

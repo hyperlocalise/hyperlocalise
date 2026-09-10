@@ -50,8 +50,6 @@ export function getGitlabRepositoryContextKey(context: RepositoryAgentGitLabCont
     provider: "gitlab",
     projectId: context.projectId,
     repositoryFullName: context.repositoryFullName,
-    instanceOrigin: context.instanceOrigin ?? null,
-    connectionId: context.connectionId ?? null,
     mergeRequestIid: context.mergeRequestIid ?? null,
     branch: context.branch ?? null,
     commitSha: context.commitSha ?? null,

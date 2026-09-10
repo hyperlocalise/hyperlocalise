@@ -173,7 +173,6 @@ export function ReplyComposerView({
       projectId: resolvedProjectId || undefined,
       repositoryFullName: resolvedRepository?.fullName,
       repositoryProvider: resolvedRepository?.provider,
-      gitlabConnectionId: resolvedRepository?.gitlabConnectionId ?? undefined,
     });
     setReplyText("");
     onDraftChange?.("");

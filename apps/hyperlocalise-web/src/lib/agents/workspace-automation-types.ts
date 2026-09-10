@@ -108,7 +108,6 @@ export const repositoryTargetSchema = z
     kind: z.enum(["none", "github", "gitlab"]).default("none"),
     githubInstallationRepositoryId: z.string().uuid().optional(),
     gitlabPathWithNamespace: z.string().trim().min(1).max(512).optional(),
-    gitlabConnectionId: z.string().uuid().optional(),
   })
   .default({ kind: "none" });
 
@@ -252,7 +251,6 @@ const gitlabToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     workosUserId: z.string().trim().min(1).max(128).optional(),
-    connectionId: z.string().uuid().optional(),
   })
   .default({ enabled: false });
 
@@ -405,14 +403,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "gitlab_agent_trigger_required";
       message: "GitLab repo agent automations support scheduled or manual triggers only.";
-    }
-  | {
-      code: "gitlab_connection_required";
-      message: "Enabled self-hosted GitLab tools require a GitLab connection.";
-    }
-  | {
-      code: "gitlab_connection_not_found";
-      message: "The selected GitLab connection was not found. Choose another connection.";
     }
   | {
       code: "gitlab_not_connected";

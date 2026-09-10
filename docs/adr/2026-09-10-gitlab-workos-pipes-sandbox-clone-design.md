@@ -20,7 +20,7 @@ Resolve GitLab from a selected project or from `gitlab.com` project and merge-re
 
 Do not persist GitLab installation tables. Do not add GitLab webhooks or MR review automations.
 
-Self-hosted GitLab and the `use_gitlab_repository` workspace tool are specified in `docs/adr/2026-09-10-gitlab-workspace-tool-and-self-hosted-design.md`.
+The `use_gitlab_repository` workspace tool is specified in `docs/adr/2026-09-10-gitlab-workspace-tool-design.md`. Self-hosted GitLab is out of scope.
 
 ## Consequences
 

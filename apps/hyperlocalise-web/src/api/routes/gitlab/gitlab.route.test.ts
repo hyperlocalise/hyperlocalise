@@ -61,8 +61,6 @@ describe("gitlabRoutes", () => {
           defaultBranch: "main",
           httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
           archived: false,
-          instanceOrigin: "https://gitlab.com",
-          connectionId: null,
         },
       ],
       error: null,
@@ -94,8 +92,6 @@ describe("gitlabRoutes", () => {
           defaultBranch: "main",
           httpUrlToRepo: "https://gitlab.com/acme/platform/web.git",
           archived: false,
-          instanceOrigin: "https://gitlab.com",
-          connectionId: null,
         },
       ],
     });
@@ -145,52 +141,6 @@ describe("gitlabRoutes", () => {
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
       error: "gitlab_pipes_unavailable",
-    });
-  });
-
-  it("lists self-hosted projects when WorkOS Pipes is unavailable", async () => {
-    mocks.listAccessibleGitLabProjects.mockResolvedValue({
-      projects: [
-        {
-          id: 22,
-          name: "platform",
-          pathWithNamespace: "acme/platform",
-          defaultBranch: "main",
-          httpUrlToRepo: "https://gitlab.acme.example/acme/platform.git",
-          archived: false,
-          instanceOrigin: "https://gitlab.acme.example",
-          connectionId: "11111111-1111-4111-8111-111111111111",
-        },
-      ],
-      error: {
-        code: "gitlab_pipes_unavailable",
-        message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
-      },
-    });
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-
-    const response = await client.api.orgs[":organizationSlug"].gitlab.projects.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      projects: [
-        {
-          id: 22,
-          name: "platform",
-          pathWithNamespace: "acme/platform",
-          defaultBranch: "main",
-          httpUrlToRepo: "https://gitlab.acme.example/acme/platform.git",
-          archived: false,
-          instanceOrigin: "https://gitlab.acme.example",
-          connectionId: "11111111-1111-4111-8111-111111111111",
-        },
-      ],
     });
   });
 });

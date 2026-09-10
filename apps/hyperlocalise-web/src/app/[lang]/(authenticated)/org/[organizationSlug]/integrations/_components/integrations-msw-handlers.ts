@@ -87,9 +87,6 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/zernio-connections", () =>
       HttpResponse.json({ zernioConnections: [] }),
     ),
-    http.get("/api/orgs/:organizationSlug/gitlab-connections", () =>
-      HttpResponse.json({ gitlabConnections: [] }),
-    ),
     http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
       HttpResponse.json({ projects: [] }),
     ),
@@ -209,10 +206,6 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/zernio-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ zernioConnections: [] });
-  }),
-  http.get("/api/orgs/:organizationSlug/gitlab-connections", async () => {
-    await delay("infinite");
-    return HttpResponse.json({ gitlabConnections: [] });
   }),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", async () => {
     await delay("infinite");

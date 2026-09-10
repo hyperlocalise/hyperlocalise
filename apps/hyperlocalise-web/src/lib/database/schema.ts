@@ -18,7 +18,6 @@ export * from "./schema/projects";
 export * from "./schema/translation-memory";
 export * from "./schema/glossary-interchange";
 export * from "./schema/github";
-export * from "./schema/gitlab";
 export * from "./schema/integrations";
 export * from "./schema/contentful";
 export * from "./schema/mcp-server-connections";

@@ -45,7 +45,7 @@ const {
     source: "gateway" as const,
     modelId: "openai/gpt-5.6-luna",
   })),
-  resolveGitLabPipesWorkosUserIdMock: vi.fn(async (): Promise<string | null> => "user_workos"),
+  resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -245,8 +245,6 @@ describe("conversation gitlab repository sandbox reuse", () => {
     provider: "gitlab",
     projectId: gitlabContext.projectId,
     repositoryFullName: gitlabContext.repositoryFullName,
-    instanceOrigin: null,
-    connectionId: null,
     mergeRequestIid: null,
     branch: null,
     commitSha: null,
@@ -823,51 +821,5 @@ describe("conversation turn preparation", () => {
       }),
     );
     expect(result.updatedRepositorySession?.repositoryGitLabContext).toEqual(gitlabContext);
-  });
-
-  it("clones a self-hosted GitLab project without a Pipes user", async () => {
-    const connectionId = "11111111-1111-4111-8111-111111111111";
-    const gitlabContext = {
-      resolved: true as const,
-      provider: "gitlab" as const,
-      projectId: 22,
-      repositoryFullName: "acme/platform",
-      httpUrlToRepo: "https://gitlab.acme.example/acme/platform.git",
-      instanceOrigin: "https://gitlab.acme.example",
-      connectionId,
-      branch: "main",
-    };
-    resolveGitLabPipesWorkosUserIdMock.mockResolvedValueOnce(null);
-    classifyConversationMock.mockResolvedValue({
-      ...baseClassification,
-      needsRepositoryTools: true,
-    });
-    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({
-      status: "resolved",
-      context: gitlabContext,
-    });
-    createGitlabRepositorySandboxMock.mockResolvedValue("sandbox_gitlab_self_hosted");
-
-    const result = await prepareConversationAgentTurn({
-      surface: "web",
-      conversationId: "conv_123",
-      organizationId: "org_123",
-      localUserId: "user_123",
-      membershipRole: "admin",
-      projectId: null,
-      messageText: "where is the login copy in https://gitlab.acme.example/acme/platform?",
-      hasTranslationAttachments: false,
-      db: {} as never,
-    });
-
-    expect(createGitlabRepositorySandboxMock).toHaveBeenCalledWith({
-      localOrganizationId: "org_123",
-      workosUserId: null,
-      gitlabContext,
-    });
-    expect(result.updatedRepositorySession?.repositorySandboxSession).toMatchObject({
-      sandboxId: "sandbox_gitlab_self_hosted",
-      credentialOwnerWorkosUserId: `gitlab-connection:${connectionId}`,
-    });
   });
 });
