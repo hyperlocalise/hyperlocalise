@@ -775,6 +775,8 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url || null,
           figure: normalizedInput.figure || null,
           languageDetails: normalizedInput.languageDetails ?? [],
+          createdByUserId: this.input.auth.user.localUserId,
+          modifiedByUserId: this.input.auth.user.localUserId,
         })
         .returning();
       if (normalizedInput.terms.length > 0) {
@@ -795,6 +797,7 @@ export class NativeGlossary extends Glossary {
             lemma: term.lemma ?? null,
             status: term.status ?? "draft",
             forbidden: term.forbidden ?? false,
+            createdByUserId: this.input.auth.user.localUserId,
             provenance: "manual" as const,
           })),
         );
@@ -839,6 +842,7 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url || null,
           figure: normalizedInput.figure || null,
           languageDetails: normalizedInput.languageDetails ?? [],
+          modifiedByUserId: this.input.auth.user.localUserId,
         })
         .where(eq(schema.glossaryConcepts.id, conceptId));
       // Match Crowdin concept PATCH reconcile: terms present in the payload are
@@ -877,6 +881,7 @@ export class NativeGlossary extends Glossary {
             conceptId,
             ...values,
             provenance: "manual" as const,
+            createdByUserId: this.input.auth.user.localUserId,
           });
         }
       }
@@ -1233,6 +1238,7 @@ export class NativeGlossary extends Glossary {
           lemma: normalizedInput.lemma ?? null,
           status: normalizedInput.status ?? "draft",
           forbidden: normalizedInput.forbidden ?? false,
+          createdByUserId: this.input.auth.user.localUserId,
           provenance: "manual" as const,
         })
         .returning();

@@ -512,13 +512,23 @@ export function createGlossaryConceptRoutes(
             desc(schema.glossaryHistoryEvents.occurredAt),
             desc(schema.glossaryHistoryEvents.id),
           )
-          .limit(query.limit);
+          .limit(query.limit + 1)
+          .offset(query.offset);
+        const hasMore = events.length > query.limit;
+        const pageEvents = hasMore ? events.slice(0, query.limit) : events;
         return c.json(
           {
-            events: events.map((event) => ({
+            events: pageEvents.map((event) => ({
               ...event,
               occurredAt: event.occurredAt.toISOString(),
             })),
+            nextOffset: hasMore ? query.offset + query.limit : null,
+            pagination: {
+              limit: query.limit,
+              offset: query.offset,
+              returned: pageEvents.length,
+              hasMore,
+            },
           },
           200,
         );

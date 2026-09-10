@@ -1476,9 +1476,10 @@ export function GlossaryDetailPageContent({
                         <button
                           type="button"
                           className="font-medium"
-                          onClick={() =>
-                            setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"))
-                          }
+                          onClick={() => {
+                            setConceptPageCursor(undefined);
+                            setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"));
+                          }}
                         >
                           <FormattedMessage {...messages.lastModified} />{" "}
                           {conceptSort === "asc" ? "↑" : "↓"}

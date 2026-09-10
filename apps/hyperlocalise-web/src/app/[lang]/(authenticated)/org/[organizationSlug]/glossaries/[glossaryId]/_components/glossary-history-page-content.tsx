@@ -47,6 +47,11 @@ type GlossaryHistoryEvent = {
   occurredAt: string;
 };
 
+type GlossaryHistoryResponse = {
+  events: GlossaryHistoryEvent[];
+  pagination: { hasMore: boolean };
+};
+
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -67,10 +72,18 @@ export function GlossaryHistoryPageContent({
   const intl = useIntl();
   const [historySearch, setHistorySearch] = useState("");
   const [historyEventType, setHistoryEventType] = useState("");
+  const [historyOffset, setHistoryOffset] = useState(0);
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
 
   const historyQuery = useQuery({
-    queryKey: ["glossary-history", organizationSlug, glossaryId, historySearch, historyEventType],
+    queryKey: [
+      "glossary-history",
+      organizationSlug,
+      glossaryId,
+      historySearch,
+      historyEventType,
+      historyOffset,
+    ],
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -79,6 +92,7 @@ export function GlossaryHistoryPageContent({
         query: {
           search: historySearch || undefined,
           eventType: historyEventType || undefined,
+          offset: String(historyOffset),
           limit: "100",
         },
       });
@@ -86,7 +100,8 @@ export function GlossaryHistoryPageContent({
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
         );
-      return (await response.json()).events as GlossaryHistoryEvent[];
+      const body = (await response.json()) as GlossaryHistoryResponse;
+      return body;
     },
   });
 
@@ -109,13 +124,19 @@ export function GlossaryHistoryPageContent({
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={historySearch}
-            onChange={(event) => setHistorySearch(event.target.value)}
+            onChange={(event) => {
+              setHistorySearch(event.target.value);
+              setHistoryOffset(0);
+            }}
             placeholder={intl.formatMessage(messages.historySearchPlaceholder)}
             className="sm:max-w-sm"
           />
           <Select
             value={historyEventType || "all"}
-            onValueChange={(value) => setHistoryEventType(value === "all" ? "" : (value ?? ""))}
+            onValueChange={(value) => {
+              setHistoryEventType(value === "all" ? "" : (value ?? ""));
+              setHistoryOffset(0);
+            }}
           >
             <SelectTrigger className="sm:w-44">
               <SelectValue>
@@ -145,9 +166,9 @@ export function GlossaryHistoryPageContent({
               <Skeleton key={index} className="h-20 w-full" />
             ))}
           </div>
-        ) : historyQuery.data?.length ? (
+        ) : historyQuery.data?.events.length ? (
           <ol className="grid gap-4">
-            {historyQuery.data.map((event) => (
+            {historyQuery.data.events.map((event) => (
               <li key={event.id} className="grid gap-2 rounded-md border border-border p-3 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-medium capitalize">{event.eventType}</span>
@@ -198,6 +219,29 @@ export function GlossaryHistoryPageContent({
             <FormattedMessage {...messages.historyEmpty} />
           </TypographyP>
         )}
+        {historyQuery.data?.events.length ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={historyOffset === 0 || historyQuery.isFetching}
+              onClick={() => setHistoryOffset((offset) => Math.max(0, offset - 100))}
+            >
+              Previous
+            </Button>
+            <TypographyP size="xsmall" tone="subtle">
+              Page {historyOffset / 100 + 1}
+            </TypographyP>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!historyQuery.data?.pagination.hasMore || historyQuery.isFetching}
+              onClick={() => setHistoryOffset((offset) => offset + 100)}
+            >
+              Next
+            </Button>
+          </div>
+        ) : null}
         {historyQuery.isFetching && !historyQuery.isLoading ? (
           <TypographyP size="xsmall" tone="subtle">
             Loading…
