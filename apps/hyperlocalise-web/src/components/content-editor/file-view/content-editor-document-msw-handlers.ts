@@ -12,11 +12,13 @@
  */
 import { http, HttpResponse } from "msw";
 
-export const CAT_STORY_DOCUMENT_SOURCE_URL = "/storybook/cat/content/intro.source.md";
-export const CAT_STORY_DOCUMENT_TARGET_URL = "/storybook/cat/content/intro.target.md";
-export const CAT_STORY_DOCUMENT_MDX_SOURCE_URL = "/storybook/cat/content/guide.source.mdx";
-export const CAT_STORY_DOCUMENT_MDX_TARGET_URL = "/storybook/cat/content/guide.target.mdx";
-export const CAT_STORY_DOCUMENT_ERROR_TARGET_URL = "/storybook/cat/content/missing.target.md";
+import {
+  CAT_STORY_DOCUMENT_ERROR_TARGET_URL,
+  CAT_STORY_DOCUMENT_MDX_SOURCE_URL,
+  CAT_STORY_DOCUMENT_MDX_TARGET_URL,
+  CAT_STORY_DOCUMENT_SOURCE_URL,
+  CAT_STORY_DOCUMENT_TARGET_URL,
+} from "./content-editor-document-story-assets";
 
 export const catStoryDocumentSourceMarkdown = `---
 title: Getting started
