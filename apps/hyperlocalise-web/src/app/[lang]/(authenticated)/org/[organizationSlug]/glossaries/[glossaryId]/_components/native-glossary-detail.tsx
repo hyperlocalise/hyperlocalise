@@ -28,11 +28,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import type {
-  GlossaryConceptRecord,
-  GlossaryProjectRecord,
-  GlossaryRecord,
-} from "@/api/routes/glossary/glossary.schema";
+import type { GlossaryProjectRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,14 +69,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import {
-  StatusLabel,
-  statusBadgeClass,
-} from "@/components/glossary/glossary-term-property-pickers";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
-import { selectGlossaryPrimaryTerm, type GlossaryTermStatus } from "@/lib/glossary/glossary";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
@@ -198,6 +189,9 @@ export function NativeGlossaryDetail({
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
   const [conceptSort, setConceptSort] = useState<"asc" | "desc">("asc");
+  const [conceptSearch, setConceptSearch] = useState("");
+  const [conceptCursor, setConceptCursor] = useState<string | undefined>();
+  const [, setConceptCursorStack] = useState<string[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
   const skipNameBlurSave = useRef(false);
@@ -220,20 +214,36 @@ export function NativeGlossaryDetail({
   }, [glossary?.name]);
 
   const conceptsQuery = useQuery({
-    queryKey: ["glossary-concepts", organizationSlug, glossaryId],
+    queryKey: [
+      "glossary-concepts-page",
+      organizationSlug,
+      glossaryId,
+      conceptSearch,
+      conceptCursor,
+      conceptSort,
+    ],
     enabled: true,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
-      ].concepts.$get({
+      ].concepts.page.$get({
         param: { organizationSlug, glossaryId },
+        query: {
+          limit: "50",
+          sort: "created_at",
+          sortDir: conceptSort,
+          includeArchived: "false",
+          ...(conceptSearch.trim() ? { search: conceptSearch.trim() } : {}),
+          ...(conceptCursor ? { cursor: conceptCursor } : {}),
+        },
       });
       if (!response.ok)
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.loadConceptsFailed)),
         );
-      return (await response.json()).concepts as GlossaryConceptRecord[];
+      return await response.json();
     },
+    placeholderData: (previous) => previous,
   });
 
   const attachedProjectsQuery = useQuery({
@@ -272,7 +282,7 @@ export function NativeGlossaryDetail({
     },
   });
 
-  const concepts = conceptsQuery.data ?? [];
+  const concepts = conceptsQuery.data?.concepts ?? [];
   const attachedProjectIds = useMemo(
     () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
     [attachedProjectsQuery.data],
@@ -281,17 +291,12 @@ export function NativeGlossaryDetail({
     (project) => !attachedProjectIds.has(project.id),
   );
 
-  const filteredConcepts = concepts.sort(
-    (left, right) =>
-      (conceptSort === "asc" ? 1 : -1) * left.primaryTerm.localeCompare(right.primaryTerm),
-  );
   const allSelected =
-    filteredConcepts.length > 0 &&
-    filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
+    concepts.length > 0 && concepts.every((concept) => selectedConceptIds.has(concept.id));
 
   const invalidateConcepts = () =>
     queryClient.invalidateQueries({
-      queryKey: ["glossary-concepts", organizationSlug, glossaryId],
+      queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
     });
 
   const invalidateProjects = () =>
@@ -522,6 +527,27 @@ export function NativeGlossaryDetail({
   }
   if (conceptsQuery.isLoading) return <ConceptListSkeleton />;
 
+  const resetConceptCursor = (nextSearch = conceptSearch) => {
+    setConceptCursorStack([]);
+    setConceptCursor(undefined);
+    if (nextSearch !== conceptSearch) setConceptSearch(nextSearch);
+  };
+
+  const goToNextConceptPage = () => {
+    const nextCursor = conceptsQuery.data?.nextCursor;
+    if (!nextCursor) return;
+    setConceptCursorStack((current) => [...current, conceptCursor ?? ""]);
+    setConceptCursor(nextCursor);
+  };
+
+  const goToPreviousConceptPage = () => {
+    setConceptCursorStack((current) => {
+      const next = [...current];
+      setConceptCursor(next.pop() || undefined);
+      return next;
+    });
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <Link
@@ -631,6 +657,19 @@ export function NativeGlossaryDetail({
                 <FormattedMessage {...messages.conceptsDescription} />
               </TypographyP>
             </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-72">
+              <label htmlFor="glossary-concept-search" className="sr-only">
+                Search concepts
+              </label>
+              <input
+                id="glossary-concept-search"
+                type="search"
+                value={conceptSearch}
+                onChange={(event) => resetConceptCursor(event.currentTarget.value)}
+                placeholder="Search concepts"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
             {canManage || canContribute ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {canManage ? (
@@ -728,9 +767,7 @@ export function NativeGlossaryDetail({
                       }
                       onCheckedChange={(checked) =>
                         setSelectedConceptIds(
-                          checked
-                            ? new Set(filteredConcepts.map((concept) => concept.id))
-                            : new Set(),
+                          checked ? new Set(concepts.map((concept) => concept.id)) : new Set(),
                         )
                       }
                     />
@@ -739,7 +776,10 @@ export function NativeGlossaryDetail({
                     <button
                       type="button"
                       className="font-medium"
-                      onClick={() => setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"))}
+                      onClick={() => {
+                        setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"));
+                        resetConceptCursor();
+                      }}
                     >
                       {sourceLanguage.name} {conceptSort === "asc" ? "↑" : "↓"}
                     </button>
@@ -759,62 +799,46 @@ export function NativeGlossaryDetail({
                 </tr>
               </thead>
               <tbody>
-                {filteredConcepts.map((concept) => {
-                  const primary = selectGlossaryPrimaryTerm(
-                    concept.terms.map((term) => ({
-                      id: term.id,
-                      locale: term.locale,
-                      text: term.term,
-                      status: term.status as GlossaryTermStatus,
-                    })),
-                    glossary.sourceLocale,
-                  );
-                  return (
-                    <tr
-                      key={concept.id}
-                      className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
-                      onClick={() => router.push(conceptHref(concept.id))}
-                    >
-                      <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
-                        <Checkbox
-                          aria-label={`Select ${concept.primaryTerm}`}
-                          checked={selectedConceptIds.has(concept.id)}
-                          onCheckedChange={(checked) =>
-                            setSelectedConceptIds((current) => {
-                              const next = new Set(current);
-                              if (checked) next.add(concept.id);
-                              else next.delete(concept.id);
-                              return next;
-                            })
-                          }
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap items-center gap-2 font-medium">
-                          {primary?.text ?? concept.primaryTerm}
-                          {primary ? (
-                            <Badge variant="outline" className={statusBadgeClass(primary.status)}>
-                              <StatusLabel status={primary.status} />
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
-                        {concept.definition || "—"}
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">{concept.subject || "—"}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                        {formatDate(concept.createdAt)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                        {formatDate(concept.updatedAt)}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {concepts.map((concept) => (
+                  <tr
+                    key={concept.id}
+                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
+                    onClick={() => router.push(conceptHref(concept.id))}
+                  >
+                    <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
+                      <Checkbox
+                        aria-label={`Select ${concept.primaryTerm}`}
+                        checked={selectedConceptIds.has(concept.id)}
+                        onCheckedChange={(checked) =>
+                          setSelectedConceptIds((current) => {
+                            const next = new Set(current);
+                            if (checked) next.add(concept.id);
+                            else next.delete(concept.id);
+                            return next;
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap items-center gap-2 font-medium">
+                        {concept.primaryTerm}
+                      </div>
+                    </td>
+                    <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
+                      {concept.definition || "—"}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{concept.subject || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                      {formatDate(concept.createdAt)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                      {formatDate(concept.updatedAt)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-            {conceptsQuery.isSuccess && filteredConcepts.length === 0 ? (
+            {conceptsQuery.isSuccess && concepts.length === 0 ? (
               <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
                 <TypographyP size="small" tone="subtle">
                   <FormattedMessage {...messages.noConcepts} />
@@ -853,6 +877,31 @@ export function NativeGlossaryDetail({
               </div>
             ) : null}
           </div>
+          {conceptsQuery.isSuccess && (conceptsQuery.data?.pagination.hasMore || conceptCursor) ? (
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!conceptCursor || conceptsQuery.isFetching}
+                onClick={goToPreviousConceptPage}
+              >
+                Previous
+              </Button>
+              <TypographyP size="xsmall" tone="subtle">
+                {conceptsQuery.data.pagination.returned} of {conceptsQuery.data.total}
+              </TypographyP>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!conceptsQuery.data.nextCursor || conceptsQuery.isFetching}
+                onClick={goToNextConceptPage}
+              >
+                Next
+              </Button>
+            </div>
+          ) : null}
         </section>
         <section className="grid gap-4 rounded-lg border border-border p-4">
           <div>

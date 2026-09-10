@@ -120,13 +120,6 @@ export const glossarySyncStateEnum = pgEnum("glossary_sync_state", [
  * Records whether a glossary term was created manually or imported through provider synchronization.
  */
 export const glossaryTermProvenanceEnum = pgEnum("glossary_term_provenance", ["manual", "sync"]);
-/** Editorial lifecycle for terminology proposals and curated terms. */
-export const glossaryReviewStatusEnum = pgEnum("glossary_review_status", [
-  "proposed",
-  "approved",
-  "rejected",
-  "superseded",
-]);
 /**
  * Describes how a provider-backed translation memory can be used, ranging from live search to synced import or reference-only access.
  */

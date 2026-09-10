@@ -61,22 +61,27 @@ export const glossaryReviewStatusSchema = z.enum([
   "superseded",
 ]);
 
+const queryBooleanSchema = z
+  .union([z.boolean(), z.enum(["true", "false"])])
+  .transform((value) => value === true || value === "true");
+
 export const glossaryConceptPageQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().trim().max(2_000).optional(),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
   reviewStatus: glossaryReviewStatusSchema.optional(),
+  termReviewStatus: z.string().trim().min(1).max(50).optional(),
   linguisticStatus: glossaryTermStatusSchema.optional(),
   provenance: z.enum(["manual", "sync"]).optional(),
-  caseSensitive: z.coerce.boolean().optional(),
-  forbidden: z.coerce.boolean().optional(),
+  caseSensitive: queryBooleanSchema.optional(),
+  forbidden: queryBooleanSchema.optional(),
   createdByUserId: z.string().uuid().optional(),
   reviewedByUserId: z.string().uuid().optional(),
   importBatchId: z.string().uuid().optional(),
   modifiedFrom: z.string().datetime().optional(),
   modifiedTo: z.string().datetime().optional(),
-  includeArchived: z.coerce.boolean().default(false),
+  includeArchived: queryBooleanSchema.default(false),
   sort: z.enum(["created_at", "updated_at"]).default("updated_at"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -367,6 +372,7 @@ export const glossaryConceptSummarySchema = z.object({
   glossaryId: z.string(),
   primaryTerm: z.string(),
   subject: z.string(),
+  definition: z.string(),
   reviewStatus: glossaryReviewStatusSchema,
   termCount: z.number().int().nonnegative(),
   localeCount: z.number().int().nonnegative(),
