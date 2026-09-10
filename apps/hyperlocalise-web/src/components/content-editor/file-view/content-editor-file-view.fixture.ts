@@ -39,7 +39,7 @@ import {
   CAT_STORY_DOCUMENT_MDX_TARGET_URL,
   CAT_STORY_DOCUMENT_SOURCE_URL,
   CAT_STORY_DOCUMENT_TARGET_URL,
-} from "./content-editor-document-msw-handlers";
+} from "./content-editor-document-story-assets";
 import {
   CAT_STORY_OFFICE_DOCX_SOURCE_URL,
   CAT_STORY_OFFICE_DOCX_TARGET_URL,
