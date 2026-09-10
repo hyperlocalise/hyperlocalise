@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -297,6 +297,7 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
           gender: term.gender ?? undefined,
           url: term.url || undefined,
           lemma: term.lemma ?? undefined,
+          forbidden: term.forbidden,
         };
       }
       return { ...term };
@@ -589,6 +590,7 @@ export class NativeGlossary extends Glossary {
         note: term.note,
         url: term.url ?? undefined,
         lemma: term.lemma ?? undefined,
+        forbidden: term.forbidden,
         createdAt: term.createdAt.toISOString(),
         updatedAt: term.updatedAt.toISOString(),
       })),
@@ -608,6 +610,7 @@ export class NativeGlossary extends Glossary {
       note: term.note,
       url: term.url ?? undefined,
       lemma: term.lemma ?? undefined,
+      forbidden: term.forbidden,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
     };
@@ -658,6 +661,38 @@ export class NativeGlossary extends Glossary {
         return null;
       }
 
+      const normalizedTermKeys = normalizedInput.terms.map(
+        (term) => `${term.locale}\0${term.text.toLocaleLowerCase()}`,
+      );
+
+      if (new Set(normalizedTermKeys).size !== normalizedTermKeys.length) {
+        return null;
+      }
+
+      if (normalizedInput.terms.length > 0) {
+        const [duplicateTerm] = await tx
+          .select({ id: schema.glossaryTerms.id })
+          .from(schema.glossaryTerms)
+          .where(
+            and(
+              eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+              or(
+                ...normalizedInput.terms.map((term) =>
+                  and(
+                    eq(schema.glossaryTerms.locale, term.locale),
+                    sql`lower(${schema.glossaryTerms.term}) = lower(${term.text})`,
+                  ),
+                ),
+              ),
+            ),
+          )
+          .limit(1);
+
+        if (duplicateTerm) {
+          return null;
+        }
+      }
+
       const [concept] = await tx
         .insert(schema.glossaryConcepts)
         .values({
@@ -689,6 +724,7 @@ export class NativeGlossary extends Glossary {
             url: term.url ?? null,
             lemma: term.lemma ?? null,
             status: term.status ?? "draft",
+            forbidden: term.forbidden ?? false,
             provenance: "manual" as const,
           })),
         );
@@ -748,6 +784,7 @@ export class NativeGlossary extends Glossary {
           url: term.url ?? null,
           lemma: term.lemma ?? null,
           status: term.status ?? "draft",
+          forbidden: term.forbidden ?? existing?.forbidden ?? false,
         };
         if (existing) {
           retainedIds.add(existing.id);
@@ -1094,6 +1131,7 @@ export class NativeGlossary extends Glossary {
           url: normalizedInput.url ?? null,
           lemma: normalizedInput.lemma ?? null,
           status: normalizedInput.status ?? "draft",
+          forbidden: normalizedInput.forbidden ?? false,
           provenance: "manual" as const,
         })
         .returning();
@@ -1119,6 +1157,9 @@ export class NativeGlossary extends Glossary {
         url: normalizedInput.url ?? null,
         lemma: normalizedInput.lemma ?? null,
         status: normalizedInput.status ?? "draft",
+        ...(normalizedInput.forbidden === undefined
+          ? {}
+          : { forbidden: normalizedInput.forbidden }),
       })
       .where(
         and(

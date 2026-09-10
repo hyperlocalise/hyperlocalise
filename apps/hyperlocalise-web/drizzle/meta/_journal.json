@@ -806,6 +806,13 @@
       "when": 1788845521281,
       "tag": "0114_cute_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1789019249119,
+      "tag": "0115_pale_vector",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,10 @@
  */
 import { useDomainResearchCatalog } from "./domain-research-context";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,7 +31,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type DomainResearchCatalog, type KeywordIdea } from "@/lib/domains/research-prototype";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  isLiveDomainResearchId,
+  type DomainResearchCatalog,
+  type KeywordIdea,
+  type SerpResult,
+} from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 import { formatKeywordIntent } from "./domain-research-format";
 import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.messages";
@@ -41,6 +50,7 @@ import {
   type KeywordFilters,
   type KeywordSort,
 } from "@/lib/domains/keyword-screen";
+import { liveDomainResearchQueryKey } from "./use-live-domain-research";
 
 const EMPTY_FILTERS: KeywordFilters = {
   include: "",
@@ -54,16 +64,40 @@ const EMPTY_FILTERS: KeywordFilters = {
   intent: "all",
 };
 
-export function DomainKeywordsView({ linkedDomainId }: { linkedDomainId: string }) {
+export function DomainKeywordsView({
+  linkedDomainId,
+  organizationSlug,
+}: {
+  linkedDomainId: string;
+  organizationSlug?: string;
+}) {
   const catalog = useDomainResearchCatalog(linkedDomainId);
+  const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   return catalog ? (
-    <KeywordScreen key={`${linkedDomainId}-${catalog.market.id}`} catalog={catalog} />
+    <KeywordScreen
+      key={`${linkedDomainId}-${catalog.market.id}`}
+      catalog={catalog}
+      linkedDomainId={linkedDomainId}
+      organizationSlug={organizationSlug}
+      live={live}
+    />
   ) : null;
 }
 
-function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
+function KeywordScreen({
+  catalog,
+  linkedDomainId,
+  organizationSlug,
+  live,
+}: {
+  catalog: DomainResearchCatalog;
+  linkedDomainId: string;
+  organizationSlug?: string;
+  live: boolean;
+}) {
   const intl = useIntl();
   const t = intl.formatMessage;
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
 
@@ -72,8 +106,17 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
   const [sort, setSort] = useState<KeywordSort>({ field: "volume", direction: "desc" });
   const [selected, setSelected] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(catalog.keywords[0]?.id ?? null);
-  const keywords = catalog.keywords;
-  const rows = filterKeywordIdeas(keywords, search, filters, sort);
+  const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
+  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
+  const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
+  const [seedPending, setSeedPending] = useState(false);
+  const [persistPending, setPersistPending] = useState(false);
+  const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
+  const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
+  const [serpPending, setSerpPending] = useState(false);
+  const market = catalog.market.id;
+  const keywords = ideas && expandedMarketId === market ? ideas : catalog.keywords;
+  const rows = filterKeywordIdeas(keywords, live ? "" : search, filters, sort);
   const active = resolveActiveKeyword(rows, activeId);
   const selectedRows = rows.filter((row) => selected.includes(row.id));
   const allSelected = rows.length > 0 && selectedRows.length === rows.length;
@@ -87,6 +130,141 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
     { field: "cpc", label: shared.columnCpc, help: messages.cpcHelp },
     { field: "competition", label: messages.competition, help: messages.competitionHelp },
   ] as const;
+  const serpResults =
+    live && serpKeywordId === active?.id && liveSerpResults
+      ? liveSerpResults
+      : active
+        ? (catalog.serpByKeywordId[active.id] ?? [])
+        : [];
+
+  async function expandIdeas(seed: string, marketId: string) {
+    if (!organizationSlug || !live) {
+      toast.success(intl.formatMessage(shared.seedSuccess));
+      return true;
+    }
+    setSeedPending(true);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/expand`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seedKeyword: seed, marketId }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        ideas?: KeywordIdea[];
+        message?: string;
+      };
+      if (!response.ok || !body.ideas) {
+        toast.error(body.message || intl.formatMessage(shared.seedError));
+        return false;
+      }
+      setIdeas(body.ideas);
+      setSelected([]);
+      setExpandedMarketId(marketId);
+      setSeedKeyword(seed);
+      const nextActive = body.ideas[0] ?? null;
+      setActiveId(nextActive?.id ?? null);
+      if (nextActive) {
+        void inspectSerp(nextActive, marketId);
+      }
+      toast.success(intl.formatMessage(shared.seedSuccess));
+      return true;
+    } finally {
+      setSeedPending(false);
+    }
+  }
+
+  async function inspectSerp(keyword: KeywordIdea, marketId = market) {
+    setActiveId(keyword.id);
+    const cached = catalog.serpByKeywordId[keyword.id];
+    if (cached?.length) {
+      setSerpKeywordId(keyword.id);
+      setLiveSerpResults(cached);
+      return;
+    }
+    if (!organizationSlug || !live) {
+      setSerpKeywordId(keyword.id);
+      setLiveSerpResults(null);
+      return;
+    }
+    setSerpKeywordId(keyword.id);
+    setSerpPending(true);
+    setLiveSerpResults(null);
+    try {
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/serp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword: keyword.keyword, marketId }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        results?: SerpResult[];
+        message?: string;
+      };
+      if (!response.ok || !body.results) {
+        toast.error(body.message || intl.formatMessage(shared.serpError));
+        return;
+      }
+      setLiveSerpResults(body.results);
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+    } finally {
+      setSerpPending(false);
+    }
+  }
+
+  async function persistSelected(path: "save" | "ranks") {
+    if (!organizationSlug || !live) {
+      toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
+      setSelected([]);
+      return;
+    }
+    setPersistPending(true);
+    const endpoint =
+      path === "save"
+        ? `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/keywords/save`
+        : `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research/ranks`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: expandedMarketId ?? market,
+          seedKeyword,
+          keywords: selectedRows.map((row) => ({
+            keyword: row.keyword,
+            volume: row.volume,
+            kd: row.kd,
+            cpc: row.cpc,
+            intent: row.intent,
+          })),
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        toast.error(
+          body.message ||
+            intl.formatMessage(path === "save" ? shared.saveError : shared.ranksError),
+        );
+        return;
+      }
+      setSelected([]);
+      setIdeas(null);
+      setExpandedMarketId(null);
+      await queryClient.invalidateQueries({
+        queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
+      });
+      toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
+    } finally {
+      setPersistPending(false);
+    }
+  }
+
   function exportCsv() {
     const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows);
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
@@ -101,6 +279,8 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
     setSearch("");
     setFilters(EMPTY_FILTERS);
     setSelected([]);
+    setIdeas(null);
+    setExpandedMarketId(null);
     setActiveId(catalog.keywords[0]?.id ?? null);
   }
   function metric(row: KeywordIdea, field: "volume" | "kd" | "cpc" | "competition") {
@@ -117,8 +297,14 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
         className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
         onSubmit={(event) => {
           event.preventDefault();
-          setSearch(query.trim());
-          setActiveId(filterKeywordIdeas(keywords, query, filters, sort)[0]?.id ?? null);
+          const nextQuery = query.trim();
+          if (live && nextQuery) {
+            void expandIdeas(nextQuery, market);
+            setSearch("");
+            return;
+          }
+          setSearch(nextQuery);
+          setActiveId(filterKeywordIdeas(keywords, nextQuery, filters, sort)[0]?.id ?? null);
           setSelected([]);
         }}
       >
@@ -129,11 +315,15 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={catalog.keywords[0]?.keyword ?? t(messages.query)}
+            disabled={seedPending}
           />
         </Field>
-        <Button type="submit">{t(messages.search)}</Button>
+        <Button type="submit" disabled={seedPending}>
+          {seedPending ? <Spinner className="size-3.5" /> : null}
+          {t(messages.search)}
+        </Button>
       </form>
-      <p className="text-xs text-muted-foreground">{t(messages.preview)}</p>
+      <p className="text-xs text-muted-foreground">{t(live ? messages.live : messages.preview)}</p>
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]">
         <div className="flex min-w-0 flex-col gap-4">
           {active ? (
@@ -262,13 +452,34 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
               </div>
             ) : null}
             {selectedRows.length ? (
-              <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2">
                 <span className="text-xs">
                   {t(shared.selectedCount, { count: selectedRows.length })}
                 </span>
-                <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
-                  {t(messages.clearSelection)}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                    {t(messages.clearSelection)}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={persistPending}
+                    onClick={() => {
+                      void persistSelected("save");
+                    }}
+                  >
+                    {t(shared.save)}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={persistPending}
+                    onClick={() => {
+                      void persistSelected("ranks");
+                    }}
+                  >
+                    {t(shared.sendToRanks)}
+                  </Button>
+                </div>
               </div>
             ) : null}
             <div className="overflow-x-auto">
@@ -341,7 +552,9 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
                         <button
                           type="button"
                           aria-pressed={active?.id === row.id}
-                          onClick={() => setActiveId(row.id)}
+                          onClick={() => {
+                            void inspectSerp(row);
+                          }}
                           className="text-start font-medium underline-offset-4 hover:underline"
                         >
                           {row.keyword}
@@ -365,7 +578,13 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
             </div>
             {!rows.length ? (
               <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-                <p className="text-sm text-muted-foreground">{t(messages.noMatches)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    live && keywords.length === 0 && !search
+                      ? shared.emptyDescription
+                      : messages.noMatches,
+                  )}
+                </p>
                 <Button size="sm" variant="outline" onClick={reset}>
                   {t(messages.resetSearch)}
                 </Button>
@@ -373,10 +592,7 @@ function KeywordScreen({ catalog }: { catalog: DomainResearchCatalog }) {
             ) : null}
           </section>
         </div>
-        <DomainKeywordAnalysis
-          keyword={active}
-          results={active ? (catalog.serpByKeywordId[active.id] ?? []) : []}
-        />
+        <DomainKeywordAnalysis keyword={active} results={serpResults} loading={serpPending} />
       </div>
     </div>
   );

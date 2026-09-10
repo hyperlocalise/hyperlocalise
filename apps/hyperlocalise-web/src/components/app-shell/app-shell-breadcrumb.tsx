@@ -29,7 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
-import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -296,13 +296,11 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     },
   });
 
-  const mockDomain = domainRoute?.linkedDomainId
-    ? getResearchPrototypeDomain(domainRoute.linkedDomainId)
-    : null;
-
   const domainQuery = useQuery({
     queryKey: ["linked-domain", resolvedOrganizationSlug, domainRoute?.linkedDomainId],
-    enabled: Boolean(domainRoute?.linkedDomainId) && !mockDomain,
+    enabled:
+      Boolean(domainRoute?.linkedDomainId) &&
+      isLiveDomainResearchId(domainRoute?.linkedDomainId ?? ""),
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(resolvedOrganizationSlug)}/linked-domains/${encodeURIComponent(domainRoute!.linkedDomainId)}`,
@@ -328,8 +326,8 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       projectNameLoading: projectQuery.isPending,
       teamName: teamQuery.data?.name,
       teamNameLoading: teamQuery.isPending,
-      domainName: mockDomain?.domainKey ?? domainQuery.data?.domainKey,
-      domainNameLoading: !mockDomain && domainQuery.isPending,
+      domainName: domainQuery.data?.domainKey,
+      domainNameLoading: domainQuery.isLoading,
     }),
   );
 
@@ -388,7 +386,7 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
                     domainRoute={domainRoute}
                     projectName={projectQuery.data?.name}
                     teamName={teamQuery.data?.name}
-                    domainName={mockDomain?.domainKey ?? domainQuery.data?.domainKey}
+                    domainName={domainQuery.data?.domainKey}
                   />
                 ) : (
                   <BreadcrumbCrumbContent crumb={crumb} isLast={isLast} />

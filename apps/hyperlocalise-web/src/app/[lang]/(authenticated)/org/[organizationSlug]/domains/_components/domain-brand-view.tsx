@@ -150,7 +150,9 @@ export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) 
         placeholder={intl.formatMessage(messages.addPlaceholder)}
         submitLabel={intl.formatMessage(messages.addSubmit)}
         onOpenChange={setAddOpen}
-        onSubmit={() => toast.success(intl.formatMessage(messages.addSuccess))}
+        onSubmit={() => {
+          toast.success(intl.formatMessage(messages.addSuccess));
+        }}
       />
     </div>
   );

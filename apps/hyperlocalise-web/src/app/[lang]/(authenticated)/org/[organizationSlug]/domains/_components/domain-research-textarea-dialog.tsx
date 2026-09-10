@@ -36,6 +36,7 @@ export function DomainResearchTextareaDialog({
   label,
   placeholder,
   submitLabel,
+  pending = false,
   onOpenChange,
   onSubmit,
 }: {
@@ -45,8 +46,9 @@ export function DomainResearchTextareaDialog({
   label: string;
   placeholder: string;
   submitLabel: string;
+  pending?: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (value: string) => void;
+  onSubmit: (value: string) => void | boolean | Promise<void | boolean>;
 }) {
   const fieldId = useId();
   const [value, setValue] = useState("");
@@ -57,10 +59,12 @@ export function DomainResearchTextareaDialog({
     }
   }, [open]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit(value);
-    onOpenChange(false);
+    const result = await onSubmit(value);
+    if (result !== false) {
+      onOpenChange(false);
+    }
   }
 
   return (
@@ -85,7 +89,9 @@ export function DomainResearchTextareaDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               <FormattedMessage {...sharedMessages.cancel} />
             </Button>
-            <Button type="submit">{submitLabel}</Button>
+            <Button type="submit" disabled={pending || !value.trim()}>
+              {submitLabel}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -120,6 +120,16 @@ export const domainKeywordsViewMessages = defineMessages({
     id: "dDYz0HQlRX",
     description: "Empty keyword research description",
   },
+  loading: {
+    defaultMessage: "Loading keyword research…",
+    id: "/wR0WQz4Yx",
+    description: "Loading state for live keyword research",
+  },
+  serpLoading: {
+    defaultMessage: "Loading live SERP results…",
+    id: "g9Z7QKCbkk",
+    description: "Loading state while fetching a live SERP snapshot",
+  },
   serpTitle: {
     defaultMessage: "SERP · {keyword}",
     id: "+FX267AAXq",
@@ -144,5 +154,25 @@ export const domainKeywordsViewMessages = defineMessages({
     defaultMessage: "Select {keyword}",
     id: "WUx/Brx1Q5",
     description: "Accessible label for selecting a keyword idea",
+  },
+  seedError: {
+    defaultMessage: "Could not expand ideas for this market.",
+    id: "PQOjJOrlAv",
+    description: "Error toast when seed expansion fails",
+  },
+  saveError: {
+    defaultMessage: "Could not save the selected keywords.",
+    id: "SCGXq3oGQR",
+    description: "Error toast when saving keywords fails",
+  },
+  serpError: {
+    defaultMessage: "Could not load a live SERP for this keyword.",
+    id: "SeT4t9aRFg",
+    description: "Error toast when live SERP fetch fails",
+  },
+  ranksError: {
+    defaultMessage: "Could not send keywords to rank tracking.",
+    id: "Imew7qccLy",
+    description: "Error toast when sending keywords to ranks fails",
   },
 });

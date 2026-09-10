@@ -36,11 +36,13 @@ export type DomainResearchMarket = {
   location: string;
   language: string;
   label: string;
+  locationCode: number;
 };
 
 export type DomainResearchDomain = {
   id: string;
   domainKey: string;
+  domainSlug?: string;
   sourceUrl: string;
   locales: DomainResearchMarket[];
   status: DomainResearchStatus;
@@ -60,6 +62,7 @@ export type KeywordIdea = {
   kd: number;
   cpc: number;
   intent: KeywordIntent;
+  marketId?: string;
   competition?: number;
   monthlySearches?: { month: string; volume: number }[];
 };
@@ -71,6 +74,7 @@ export type RankRow = {
   previousPosition: number | null;
   url: string;
   volume: number;
+  marketId?: string;
 };
 
 export type OverviewKeywordRow = {
@@ -124,10 +128,34 @@ export type DomainResearchCatalog = {
 };
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
-  { id: "france-fr", location: "France", language: "fr", label: "French (France)" },
-  { id: "germany-de", location: "Germany", language: "de", label: "German (Germany)" },
-  { id: "japan-ja", location: "Japan", language: "ja", label: "Japanese (Japan)" },
-  { id: "vietnam-vi", location: "Vietnam", language: "vi", label: "Vietnamese (Vietnam)" },
+  {
+    id: "france-fr",
+    location: "France",
+    language: "fr",
+    label: "French (France)",
+    locationCode: 2250,
+  },
+  {
+    id: "germany-de",
+    location: "Germany",
+    language: "de",
+    label: "German (Germany)",
+    locationCode: 2276,
+  },
+  {
+    id: "japan-ja",
+    location: "Japan",
+    language: "ja",
+    label: "Japanese (Japan)",
+    locationCode: 2392,
+  },
+  {
+    id: "vietnam-vi",
+    location: "Vietnam",
+    language: "vi",
+    label: "Vietnamese (Vietnam)",
+    locationCode: 2704,
+  },
 ];
 
 const FRANCE_FR = DOMAIN_RESEARCH_MARKETS[0]!;
@@ -801,6 +829,65 @@ export function resolveDomainLocale(domain: DomainResearchDomain, localeId: stri
 
 export function isResearchPrototypeDomain(linkedDomainId: string): boolean {
   return RESEARCH_PROTOTYPE_DOMAINS.has(linkedDomainId);
+}
+
+export function getResearchMarket(marketId: string): DomainResearchMarket | undefined {
+  return DOMAIN_RESEARCH_MARKETS.find((market) => market.id === marketId);
+}
+
+export function filterCatalogForLocale(
+  catalog: DomainResearchCatalog,
+  localeId: string,
+): DomainResearchCatalog {
+  const market = getResearchMarket(localeId) ?? catalog.market;
+  const matchesLocale = (marketId: string | undefined) =>
+    (marketId ?? catalog.market.id) === localeId;
+  const keywords = catalog.keywords.filter((keyword) => matchesLocale(keyword.marketId));
+  const ranks = catalog.ranks.filter((row) => matchesLocale(row.marketId));
+  const keywordIds = new Set(keywords.map((keyword) => keyword.id));
+  const rankIds = new Set(ranks.map((row) => row.id));
+  return {
+    ...catalog,
+    market,
+    keywords,
+    ranks,
+    overviewKeywords: catalog.overviewKeywords.filter((row) => rankIds.has(row.id)),
+    overviewPages: catalog.overviewPages.filter((row) => rankIds.has(row.id)),
+    serpByKeywordId: Object.fromEntries(
+      Object.entries(catalog.serpByKeywordId).filter(([id]) => keywordIds.has(id)),
+    ),
+  };
+}
+
+export function isLiveDomainResearchId(linkedDomainId: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    linkedDomainId,
+  );
+}
+
+export function linkedDomainToResearchDomain(input: {
+  id: string;
+  domainKey: string;
+  domainSlug?: string;
+  sourceUrl: string;
+  status: string;
+  auditScore: number | null;
+}): DomainResearchDomain {
+  return {
+    id: input.id,
+    domainKey: input.domainKey,
+    domainSlug: input.domainSlug,
+    sourceUrl: input.sourceUrl,
+    locales: DOMAIN_RESEARCH_MARKETS,
+    status: input.status === "verified" ? "verified" : "pending_verification",
+    keywordCount: 0,
+    keywordCountLabel: "—",
+    traffic: 0,
+    trafficLabel: "—",
+    score: input.auditScore,
+    trackedCount: 0,
+    aiMentions: 0,
+  };
 }
 
 export const DOMAIN_RESEARCH_VERIFY_RECORD = {

@@ -90,4 +90,34 @@ export const domainRanksViewMessages = defineMessages({
     id: "bnmPX9ah2A",
     description: "Shown when a tracked keyword has no position",
   },
+  loading: {
+    defaultMessage: "Loading rank tracking…",
+    id: "d3O+fbcvsK",
+    description: "Loading state for live rank tracking",
+  },
+  refreshCta: {
+    defaultMessage: "Refresh ranks",
+    id: "SuICqSy+vo",
+    description: "Re-check live SERP positions for tracked keywords",
+  },
+  refreshSuccess: {
+    defaultMessage: "Rank positions updated from live SERPs.",
+    id: "H+FDeSqW77",
+    description: "Toast after a successful rank refresh",
+  },
+  refreshError: {
+    defaultMessage: "Could not refresh rank positions.",
+    id: "5UWcZIwCwa",
+    description: "Error toast when rank refresh fails",
+  },
+  addError: {
+    defaultMessage: "Could not add keywords to rank tracking.",
+    id: "HaCrxeRi6N",
+    description: "Error toast when adding tracked keywords fails",
+  },
+  market: {
+    defaultMessage: "Market",
+    id: "6/WZRSBILe",
+    description: "Rank tracking market selector",
+  },
 });

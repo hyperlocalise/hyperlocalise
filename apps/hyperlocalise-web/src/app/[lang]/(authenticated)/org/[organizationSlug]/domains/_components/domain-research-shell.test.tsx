@@ -12,23 +12,27 @@
  */
 
 // @vitest-environment happy-dom
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
+  getResearchPrototypeCatalog,
   getResearchPrototypeDomain,
-  type DomainResearchDomain,
+  type DomainResearchCatalog,
 } from "@/lib/domains/research-prototype";
 import { DomainResearchShell } from "./domain-research-shell";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   search: "locale=france-fr",
-  domains: [] as DomainResearchDomain[],
+  catalog: null as DomainResearchCatalog | null,
+  isPending: false,
+  isError: false,
 }));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(mocks.search),
+  usePathname: () => "/en/org/acme/domains/hyperlocalise-com",
 }));
 
 vi.mock("@/lib/navigation/use-org-router", () => ({
@@ -38,10 +42,12 @@ vi.mock("@/lib/navigation/use-org-router", () => ({
   }),
 }));
 
-vi.mock("./use-domain-prototype", () => ({
-  useDomainPrototype: () => ({
-    domains: mocks.domains,
-    saveDomain: vi.fn(),
+vi.mock("./use-live-domain-research", () => ({
+  useLiveDomainResearch: () => ({
+    live: true,
+    data: mocks.catalog ? { catalog: mocks.catalog } : { catalog: null },
+    isPending: mocks.isPending,
+    isError: mocks.isError,
   }),
 }));
 
@@ -49,12 +55,17 @@ describe("domain research locale URL", () => {
   beforeEach(() => {
     mocks.replace.mockReset();
     mocks.search = "locale=france-fr";
-    mocks.domains = [getResearchPrototypeDomain("hyperlocalise-com")!];
+    mocks.isPending = false;
+    mocks.isError = false;
+    mocks.catalog = getResearchPrototypeCatalog("hyperlocalise-com", "france-fr");
   });
 
   it("replaces a removed locale in the URL with the fallback locale", () => {
     const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
-    mocks.domains = [{ ...domain, locales: domain.locales.slice(1) }];
+    mocks.catalog = {
+      ...mocks.catalog!,
+      domain: { ...domain, locales: domain.locales.slice(1) },
+    };
     render(
       <IntlProvider locale="en">
         <DomainResearchShell
@@ -85,5 +96,22 @@ describe("domain research locale URL", () => {
       </IntlProvider>,
     );
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to prototype catalogs when research is missing", () => {
+    mocks.catalog = null;
+    render(
+      <IntlProvider locale="en">
+        <DomainResearchShell
+          organizationSlug="acme"
+          linkedDomainId="hyperlocalise-com"
+          surface="overview"
+        >
+          research
+        </DomainResearchShell>
+      </IntlProvider>,
+    );
+    expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
+    expect(screen.getByText("Domain not found")).toBeInTheDocument();
   });
 });
