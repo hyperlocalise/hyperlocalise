@@ -7,14 +7,12 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
- *
+    10| *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { Globe02Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -32,11 +30,8 @@ import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
-import { DomainLinkDialog } from "./domain-link-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
-import { useDomainResearchPreview } from "./domain-research-preview";
 import { DomainStatusBadge } from "./domain-status-badge";
-import { DomainVerifyDialog } from "./domain-verify-dialog";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
 
 import styles from "./domain-header.module.css";
@@ -46,10 +41,8 @@ const LIST_GRID_CLASS =
 
 export function DomainsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
-  const preview = useDomainResearchPreview();
   const linkedDomainsQuery = useQuery({
     queryKey: ["linked-domains", organizationSlug],
-    enabled: !preview,
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
@@ -65,12 +58,9 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
       return (body.linkedDomains ?? []).map((domain) => linkedDomainToResearchDomain(domain));
     },
   });
-  const domains: DomainResearchDomain[] = preview?.domains ?? linkedDomainsQuery.data ?? [];
-  const isLoading = !preview && linkedDomainsQuery.isPending;
-  const isError = !preview && linkedDomainsQuery.isError;
-  const [editingDomain, setEditingDomain] = useState<DomainResearchDomain | undefined>();
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [verifyDomainKey, setVerifyDomainKey] = useState<string | null>(null);
+  const domains: DomainResearchDomain[] = linkedDomainsQuery.data ?? [];
+  const isLoading = linkedDomainsQuery.isPending;
+  const isError = linkedDomainsQuery.isError;
 
   return (
     <WorkspacePageShell>
@@ -80,14 +70,6 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
           label="Workspace"
           title="Domains"
           description={intl.formatMessage(messages.pageDescription)}
-          actions={
-            preview ? (
-              <Button size="sm" onClick={() => setLinkOpen(true)}>
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-                <FormattedMessage {...messages.linkDomain} />
-              </Button>
-            ) : null
-          }
         />
       </div>
 
@@ -157,11 +139,6 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                   </span>
                   <DomainStatusBadge status={domain.status} />
                   <div className="flex flex-wrap justify-end gap-2">
-                    {preview ? (
-                      <Button size="sm" variant="ghost" onClick={() => setEditingDomain(domain)}>
-                        <FormattedMessage {...messages.editLocales} />
-                      </Button>
-                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"
@@ -173,23 +150,17 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                     >
                       <FormattedMessage {...messages.openDomain} />
                     </Button>
-                    {domain.status !== "verified" ? (
-                      preview ? (
-                        <Button size="sm" onClick={() => setVerifyDomainKey(domain.domainKey)}>
-                          <FormattedMessage {...messages.continueVerification} />
-                        </Button>
-                      ) : domain.domainSlug ? (
-                        <Button
-                          size="sm"
-                          render={
-                            <OrgNavLink
-                              href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`}
-                            />
-                          }
-                        >
-                          <FormattedMessage {...messages.continueVerification} />
-                        </Button>
-                      ) : null
+                    {domain.status !== "verified" && domain.domainSlug ? (
+                      <Button
+                        size="sm"
+                        render={
+                          <OrgNavLink
+                            href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`}
+                          />
+                        }
+                      >
+                        <FormattedMessage {...messages.continueVerification} />
+                      </Button>
                     ) : null}
                   </div>
                 </div>
@@ -198,37 +169,6 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
           </ul>
         )}
       </div>
-
-      {preview ? (
-        <>
-          <DomainLinkDialog
-            open={linkOpen}
-            onOpenChange={setLinkOpen}
-            existingDomains={domains}
-            onSave={(domain) => {
-              preview.saveDomain(domain);
-              setVerifyDomainKey(domain.domainKey);
-            }}
-          />
-          <DomainLinkDialog
-            open={Boolean(editingDomain)}
-            domain={editingDomain}
-            onOpenChange={(open) => {
-              if (!open) setEditingDomain(undefined);
-            }}
-            onSave={preview.saveDomain}
-          />
-          <DomainVerifyDialog
-            open={Boolean(verifyDomainKey)}
-            domainKey={verifyDomainKey ?? ""}
-            onOpenChange={(open) => {
-              if (!open) {
-                setVerifyDomainKey(null);
-              }
-            }}
-          />
-        </>
-      ) : null}
     </WorkspacePageShell>
   );
 }

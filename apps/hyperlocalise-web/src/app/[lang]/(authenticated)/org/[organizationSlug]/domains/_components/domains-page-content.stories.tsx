@@ -11,9 +11,12 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { http, HttpResponse } from "msw";
+import { expect } from "storybook/test";
 import { DomainsPageContent } from "./domains-page-content";
-import { DomainResearchPreviewProvider } from "./domain-research-preview";
+import {
+  domainResearchMswHandlers,
+  emptyLinkedDomainsMswHandlers,
+} from "./domain-research-msw-handlers";
 
 const ORGANIZATION_SLUG = "domains-preview";
 
@@ -23,6 +26,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: { appDirectory: true, navigation: { pathname: "/en/org/domains-preview/domains" } },
+    msw: { handlers: domainResearchMswHandlers() },
   },
   args: { organizationSlug: ORGANIZATION_SLUG },
 } satisfies Meta<typeof DomainsPageContent>;
@@ -30,23 +34,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Populated: Story = {
-  decorators: [
-    (Story) => (
-      <DomainResearchPreviewProvider organizationSlug={ORGANIZATION_SLUG}>
-        <Story />
-      </DomainResearchPreviewProvider>
-    ),
-  ],
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("hyperlocalise.com")).toBeInTheDocument();
+  },
 };
 
 export const Empty: Story = {
   parameters: {
-    msw: {
-      handlers: [
-        http.get("*/api/orgs/:organizationSlug/linked-domains", () =>
-          HttpResponse.json({ linkedDomains: [] }),
-        ),
-      ],
-    },
+    msw: { handlers: emptyLinkedDomainsMswHandlers() },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("No linked domains yet")).toBeInTheDocument();
   },
 };

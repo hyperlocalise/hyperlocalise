@@ -18,7 +18,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { DomainResearchPreviewProvider } from "./domain-research-preview";
+import { listResearchPrototypeDomains } from "@/lib/domains/research-prototype";
 import { DomainsPageContent } from "./domains-page-content";
 
 vi.mock("next/navigation", () => ({
@@ -31,21 +31,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function renderPage({ preview = false }: { preview?: boolean } = {}) {
+function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const page = <DomainsPageContent organizationSlug="acme" />;
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        {preview ? (
-          <DomainResearchPreviewProvider organizationSlug="acme">
-            {page}
-          </DomainResearchPreviewProvider>
-        ) : (
-          page
-        )}
+        <DomainsPageContent organizationSlug="acme" />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -69,12 +62,29 @@ describe("domains page content", () => {
       expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
     });
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Link domain" })).not.toBeInTheDocument();
   });
 
-  it("keeps prototype domains in the Storybook preview", async () => {
-    renderPage({ preview: true });
+  it("renders linked domains returned by the API", async () => {
+    const domain = listResearchPrototypeDomains()[0]!;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          linkedDomains: [
+            {
+              id: domain.id,
+              domainKey: domain.domainKey,
+              domainSlug: domain.id,
+              sourceUrl: domain.sourceUrl,
+              status: domain.status,
+              auditScore: domain.score,
+            },
+          ],
+        }),
+      }),
+    );
+    renderPage();
     expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Link domain" })).toBeInTheDocument();
   });
 });

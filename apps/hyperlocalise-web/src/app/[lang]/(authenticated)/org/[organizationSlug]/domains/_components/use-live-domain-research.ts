@@ -7,7 +7,7 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
- *
+    10| *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
@@ -31,11 +31,14 @@ export function useLiveDomainResearch(
   const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   const query = useQuery({
     queryKey: liveDomainResearchQueryKey(organizationSlug ?? "", linkedDomainId),
-    enabled: live,
+    enabled: Boolean(organizationSlug),
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug!)}/linked-domains/${encodeURIComponent(linkedDomainId)}/research`,
       );
+      if (response.status === 404) {
+        return { catalog: null, linkedDomain: undefined };
+      }
       const body = (await response.json().catch(() => ({}))) as {
         catalog?: DomainResearchCatalog;
         linkedDomain?: LinkedDomainPublic;

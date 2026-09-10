@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { useDomainResearchCatalog } from "./domain-research-context";
-import { useDomainResearchPreview } from "./domain-research-preview";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -73,8 +72,7 @@ export function DomainKeywordsView({
   organizationSlug?: string;
 }) {
   const catalog = useDomainResearchCatalog(linkedDomainId);
-  const preview = useDomainResearchPreview();
-  const live = !preview && Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
+  const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   return catalog ? (
     <KeywordScreen
       key={`${linkedDomainId}-${catalog.market.id}`}

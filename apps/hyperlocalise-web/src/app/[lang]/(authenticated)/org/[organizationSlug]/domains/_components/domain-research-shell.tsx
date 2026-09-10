@@ -7,19 +7,17 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
- *
+    10| *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId } from "react";
 import { Globe02Icon } from "@hugeicons/core-free-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { useSearchParams } from "next/navigation";
 import { DomainResearchContext } from "./domain-research-context";
-import { useDomainResearchPreview } from "./domain-research-preview";
-import { DomainLinkDialog } from "./domain-link-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -35,7 +33,6 @@ import { TypographyP } from "@/components/ui/typography";
 import type { DomainResearchNavId, DomainResearchSurface } from "@/lib/domains/research-prototype";
 import {
   filterCatalogForLocale,
-  getResearchPrototypeCatalog,
   resolveDomainLocale,
   isDomainResearchSurface,
 } from "@/lib/domains/research-prototype";
@@ -49,7 +46,6 @@ import { DomainResearchEmpty, DomainResearchMissingDomain } from "./domain-resea
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
 import { domainResearchShellMessages as messages } from "./domain-research-shell.messages";
-import { DomainVerifyDialog } from "./domain-verify-dialog";
 import { useLiveDomainResearch } from "./use-live-domain-research";
 
 import styles from "./domain-header.module.css";
@@ -93,20 +89,14 @@ export function DomainResearchShell({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const preview = useDomainResearchPreview();
-  const liveResearch = useLiveDomainResearch(
-    preview ? undefined : organizationSlug,
-    linkedDomainId,
-  );
+  const liveResearch = useLiveDomainResearch(organizationSlug, linkedDomainId);
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const requestedLocaleId = searchParams.get("locale");
   const localeSelectId = useId();
-  const [editOpen, setEditOpen] = useState(false);
-  const [verifyOpen, setVerifyOpen] = useState(false);
 
-  const previewDomain = preview?.domains.find((item) => item.id === linkedDomainId) ?? null;
-  const domain = previewDomain ?? liveResearch.data?.catalog.domain ?? null;
+  const liveCatalog = liveResearch.data?.catalog ?? null;
+  const domain = liveCatalog?.domain ?? null;
   const locale = domain ? resolveDomainLocale(domain, requestedLocaleId) : null;
   const localeId = locale?.id;
 
@@ -119,7 +109,7 @@ export function DomainResearchShell({
     // while the URL is still stale.
   }, [linkedDomainId, localeId, organizationSlug, requestedLocaleId, search, surface]);
 
-  if (!preview && liveResearch.live && liveResearch.isPending) {
+  if (liveResearch.isPending) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -129,7 +119,7 @@ export function DomainResearchShell({
     );
   }
 
-  if (!preview && liveResearch.live && liveResearch.isError) {
+  if (liveResearch.isError) {
     return (
       <WorkspacePageShell>
         <TypographyP size="small" tone="subtle">
@@ -147,12 +137,14 @@ export function DomainResearchShell({
     );
   }
 
-  const liveCatalog = liveResearch.data?.catalog;
-  const catalog = preview
-    ? getResearchPrototypeCatalog(linkedDomainId, locale.id)
-    : liveCatalog
-      ? filterCatalogForLocale(liveCatalog, locale.id)
-      : null;
+  const filteredCatalog = liveCatalog ? filterCatalogForLocale(liveCatalog, locale.id) : null;
+  const catalog =
+    filteredCatalog &&
+    filteredCatalog.keywords.length === 0 &&
+    filteredCatalog.ranks.length === 0 &&
+    ((liveCatalog?.keywords.length ?? 0) > 0 || (liveCatalog?.ranks.length ?? 0) > 0)
+      ? null
+      : filteredCatalog;
   const activeLocaleId = locale.id;
   const verifyHref = domain.domainSlug
     ? `/org/${organizationSlug}/link-domain/${domain.domainSlug}`
@@ -194,16 +186,10 @@ export function DomainResearchShell({
           actions={
             <>
               <DomainStatusBadge status={domain.status} />
-              {isPending ? (
-                verifyHref ? (
-                  <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
-                    <FormattedMessage {...sharedMessages.verifyCta} />
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => setVerifyOpen(true)}>
-                    <FormattedMessage {...sharedMessages.verifyCta} />
-                  </Button>
-                )
+              {isPending && verifyHref ? (
+                <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
+                  <FormattedMessage {...sharedMessages.verifyCta} />
+                </Button>
               ) : null}
             </>
           }
@@ -236,11 +222,6 @@ export function DomainResearchShell({
             </SelectContent>
           </Select>
         </Field>
-        {preview ? (
-          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-            <FormattedMessage {...messages.editLocales} />
-          </Button>
-        ) : null}
         <p className="text-sm text-muted-foreground">
           <FormattedMessage {...messages.localeScope} />
         </p>
@@ -265,11 +246,7 @@ export function DomainResearchShell({
               <Button size="sm" render={<OrgNavLink href={verifyHref} />}>
                 <FormattedMessage {...sharedMessages.verifyCta} />
               </Button>
-            ) : (
-              <Button size="sm" onClick={() => setVerifyOpen(true)}>
-                <FormattedMessage {...sharedMessages.verifyCta} />
-              </Button>
-            )
+            ) : undefined
           }
         />
       ) : catalog ? (
@@ -285,31 +262,8 @@ export function DomainResearchShell({
               values={{ locale: locale.label }}
             />
           }
-          action={
-            preview ? (
-              <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-                <FormattedMessage {...messages.editLocales} />
-              </Button>
-            ) : undefined
-          }
         />
       )}
-      {preview ? (
-        <DomainLinkDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          domain={domain}
-          onSave={preview.saveDomain}
-        />
-      ) : null}
-
-      {preview ? (
-        <DomainVerifyDialog
-          open={verifyOpen}
-          domainKey={domain.domainKey}
-          onOpenChange={setVerifyOpen}
-        />
-      ) : null}
     </WorkspacePageShell>
   );
 }
