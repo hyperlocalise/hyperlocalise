@@ -380,6 +380,7 @@ function CriteriaGroup({
   defaultOpen,
   expandLabel,
   collapseLabel,
+  limit = criteria.length,
 }: {
   heading: string;
   criteria: LocalisationAuditCriterion[];
@@ -390,13 +391,35 @@ function CriteriaGroup({
   defaultOpen: boolean;
   expandLabel: string;
   collapseLabel: string;
+  limit?: number;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [showAll, setShowAll] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
   if (criteria.length === 0) return null;
 
+  const visible = showAll ? criteria : criteria.slice(0, limit);
+  const hasMore = criteria.length > limit;
+
+  function scrollBackToSection() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mt-5">
+    <Collapsible
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) scrollBackToSection();
+      }}
+      ref={sectionRef}
+      className="mt-5"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           {heading}
@@ -411,7 +434,7 @@ function CriteriaGroup({
       </div>
       <CollapsibleContent>
         <Accordion className={cn(FLUSH_ACCORDION, "mt-1")}>
-          {criteria.map((criterion) => (
+          {visible.map((criterion) => (
             <CriterionAccordionItem
               key={criterion.id}
               criterion={criterion}
@@ -422,6 +445,25 @@ function CriteriaGroup({
             />
           ))}
         </Accordion>
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={() => {
+              const collapsing = showAll;
+              setShowAll((v) => !v);
+              if (collapsing) scrollBackToSection();
+            }}
+            className="mt-2 flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {showAll
+              ? copy.criteriaShowFewerFailed
+              : copy.criteriaShowAllFailed({ count: criteria.length })}
+            <HugeiconsIcon
+              icon={ArrowDown01Icon}
+              className={cn("size-3.5 transition-transform", showAll && "rotate-180")}
+            />
+          </button>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -524,6 +566,7 @@ function AuditCriteriaList({
         defaultOpen={failed.length === 0}
         expandLabel={copy.criteriaExpandPassed}
         collapseLabel={copy.criteriaCollapsePassed}
+        limit={CRITERIA_INITIAL_LIMIT}
       />
 
       <CriteriaGroup
@@ -536,6 +579,7 @@ function AuditCriteriaList({
         defaultOpen={false}
         expandLabel={copy.criteriaExpandNa}
         collapseLabel={copy.criteriaCollapseNa}
+        limit={CRITERIA_INITIAL_LIMIT}
       />
     </div>
   );
@@ -1072,7 +1116,7 @@ export function LocalisationAuditResult({
                   >
                     {dimension.score == null ? "—" : <CountUp value={dimension.score} />}
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[0.45rem] md:text-[0.625rem] font-medium text-neutral-700">
+                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[0.55rem] md:text-[0.725rem] font-medium text-neutral-700">
                     {statusLabel}
                   </span>
                 </div>
