@@ -12,6 +12,7 @@
  */
 import { and, eq, lte } from "drizzle-orm";
 
+import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { db, schema } from "@/lib/database/client";
@@ -24,10 +25,12 @@ export type ConversationRepositorySandboxSession = {
   repositoryContextKey: string;
   createdAt: string;
   lastUsedAt: string;
+  credentialOwnerWorkosUserId?: string;
 };
 
 export type ConversationRepositorySession = {
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
+  repositoryGitLabContext?: RepositoryAgentGitLabContext;
   repositorySandboxSession?: ConversationRepositorySandboxSession;
 };
 
@@ -39,6 +42,17 @@ export function getRepositoryContextKey(context: RepositoryAgentGitHubContext): 
     branch: context.branch ?? null,
     commitSha: context.commitSha ?? null,
     commentId: context.commentId ?? null,
+  });
+}
+
+export function getGitlabRepositoryContextKey(context: RepositoryAgentGitLabContext): string {
+  return JSON.stringify({
+    provider: "gitlab",
+    projectId: context.projectId,
+    repositoryFullName: context.repositoryFullName,
+    mergeRequestIid: context.mergeRequestIid ?? null,
+    branch: context.branch ?? null,
+    commitSha: context.commitSha ?? null,
   });
 }
 

@@ -28,6 +28,7 @@ import { createSaveMemoryTool } from "./tools/save_memory";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseCrowdinTool } from "./tools/use_crowdin";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
+import { createUseGitlabRepositoryTool } from "./tools/use_gitlab_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
 import { createUseZernioTool } from "./tools/use_zernio";
 import { createUseWebSearchTool } from "./tools/use_web_search";
@@ -37,6 +38,7 @@ const TOOL_BUILDERS: Record<
   (session: WorkspaceOrchestratorSession) => ToolSet[string]
 > = {
   use_github_repository: createUseGithubRepositoryTool,
+  use_gitlab_repository: createUseGitlabRepositoryTool,
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
   create_native_tms_job: createNativeTmsJobTool,

@@ -28,7 +28,25 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
+
+function stubLoadedImages() {
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      complete = true;
+      naturalWidth = 16;
+      referrerPolicy = "";
+      crossOrigin: string | null = null;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    },
+  );
+}
 
 function renderWithIntl(ui: ReactElement) {
   return render(
@@ -112,6 +130,10 @@ describe("ProjectsTable", () => {
 
     expect(screen.getByText("Native")).toBeInTheDocument();
     expect(screen.getByText("Crowdin")).toBeInTheDocument();
+    expect(screen.getByTitle("Hyperlocalise Web")).toHaveTextContent("HW");
+    expect(screen.getByTitle("Crowdin Site")).toHaveTextContent("CS");
+    expect(screen.queryByText("H")).not.toBeInTheDocument();
+    expect(screen.queryByText("C")).not.toBeInTheDocument();
     expect(screen.getAllByText("en → vi")).toHaveLength(2);
   });
 
@@ -172,5 +194,30 @@ describe("ProjectsTable", () => {
     expect(onLoadMore).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("link", { name: "Hyperlocalise Web" }));
     expect(onOpenProject).toHaveBeenCalledWith("project_native");
+  });
+
+  it("renders a project image when the TMS project has a logo", () => {
+    stubLoadedImages();
+    renderWithIntl(
+      <ProjectsTable
+        projects={[
+          createProject({
+            id: "project_crowdin",
+            name: "Crowdin Site",
+            source: "external_tms",
+            externalProviderKind: "crowdin",
+            logoUrl: "https://crowdin.example/site.png",
+          }),
+        ]}
+        projectsQuery={successQuery()}
+        isSavingProject={false}
+        isDeletingProject={false}
+        organizationSlug="acme"
+        variant="tms"
+      />,
+    );
+
+    expect(document.querySelector('img[src="https://crowdin.example/site.png"]')).not.toBeNull();
+    expect(screen.getByTitle("Crowdin Site")).toBeInTheDocument();
   });
 });

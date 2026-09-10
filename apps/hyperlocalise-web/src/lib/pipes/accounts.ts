@@ -150,3 +150,59 @@ export async function loadPipesApiKey(input: {
     return err(PIPES_UNAVAILABLE);
   }
 }
+
+function pipesCredentialErrorFromVendError(error: unknown): PipesCredentialError {
+  const code =
+    typeof error === "string"
+      ? error
+      : error && typeof error === "object" && "code" in error && typeof error.code === "string"
+        ? error.code
+        : null;
+
+  if (code === "needs_reauthorization" || code === "reauthorization_needed") {
+    return PIPES_NEEDS_REAUTHORIZATION;
+  }
+
+  return PIPES_NOT_CONNECTED;
+}
+
+export async function loadPipesAccessToken(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosUserId: string;
+}): Promise<Result<string, PipesCredentialError>> {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    const result = await workos.pipes.getAccessToken({
+      provider: input.provider,
+      userId: input.workosUserId,
+      organizationId: organizationIdResult.value,
+    });
+
+    if (!result.active) {
+      return err(pipesCredentialErrorFromVendError(result.error));
+    }
+
+    const accessToken = result.accessToken.accessToken.trim();
+    if (!accessToken) {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return ok(accessToken);
+  } catch (error) {
+    if (isNotFound(error)) {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return err(PIPES_UNAVAILABLE);
+  }
+}

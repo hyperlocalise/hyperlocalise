@@ -1,7 +1,7 @@
 ---
 title: Qu’est-ce que l’intelligence de traduction ?
 date: 2026-06-19T00:00:00.000Z
-excerpt: La traduction n’est pas le goulot d’étranglement. C’est le manque de contexte. Découvrez ce qu’est l’intelligence de traduction et pourquoi les équipes de localisation modernes en ont besoin.
+excerpt: La traduction n’est pas le goulot d’étranglement. Le manque de contexte, si. Découvrez ce qu’est l’intelligence de traduction et pourquoi les équipes de localisation modernes en ont besoin.
 category: Produit
 tags:
   - translation intelligence
@@ -18,59 +18,59 @@ tags:
   - machine translation
 ---
 
-La traduction n’est pas le goulot d’étranglement. C’est le manque de contexte.
+La traduction n’est pas le goulot d’étranglement. C’est le contexte qui fait défaut.
 
 La localisation a longtemps été considérée comme un problème de traduction.
 
-L’industrie s’est optimisée autour de cette hypothèse pendant des années. Les systèmes de gestion de traduction aident les équipes à faire passer le contenu dans des workflows. La traduction automatique produit des premiers jets plus rapides. La mémoire de traduction réutilise les segments précédents. Les glossaires améliorent la cohérence terminologique. Les étapes de révision donnent aux humains une chance de corriger les erreurs avant la mise en ligne du contenu.
+Le secteur s’est optimisé autour de cette hypothèse depuis des années. Les systèmes de gestion de la traduction aident les équipes à faire passer le contenu par les flux de travail. La traduction automatique produit des premières versions plus rapidement. La mémoire de traduction réutilise les segments précédents. Les glossaires améliorent la cohérence terminologique. Les étapes de révision donnent aux humains la possibilité de corriger les erreurs avant la mise en ligne du contenu.
 
-Ces systèmes ont rendu la localisation plus efficace. Ils ont aidé les entreprises à traduire davantage de contenu, dans davantage de langues, avec un meilleur contrôle opérationnel.
+Ces systèmes ont rendu la localisation plus efficace. Ils ont aidé les entreprises à traduire davantage de contenu, dans un plus grand nombre de langues, avec un meilleur contrôle opérationnel.
 
 Mais ils n’ont pas résolu la partie la plus difficile de la localisation.
 
-La partie la plus difficile n’est plus de produire une traduction. L’IA peut désormais générer en quelques secondes des textes multilingues fluides. La question plus difficile est de savoir si cette traduction convient au produit, à la marque, au marché et à l’expérience client dans laquelle elle apparaît.
+Le plus difficile n’est plus de produire une traduction. L’IA peut désormais générer en quelques secondes des textes multilingues fluides. La question la plus ardue est de savoir si cette traduction est adaptée au produit, à la marque, au marché et à l’expérience client dans laquelle elle s’inscrit.
 
 Une traduction peut être grammaticalement correcte et pourtant échouer.
 
-Il peut utiliser le mauvais terme produit. Il peut ne pas correspondre à l’image de marque. Il peut manquer l’intention d’un message marketing. Il peut être trop long pour un bouton. Il peut avoir du sens dans un éditeur de traduction, mais sembler maladroit dans le produit lui-même. Il peut conserver le sens littéral du texte source tout en perdant la nuance qui faisait la force de l’original.
+Elle peut utiliser le mauvais terme produit. Elle peut sembler décalée par rapport à la marque. Elle peut passer à côté de l’intention d’un message marketing. Elle peut être trop longue pour un bouton. Elle peut avoir du sens dans un éditeur de traduction, mais sembler maladroite dans le produit lui-même. Elle peut préserver le sens littéral du texte source tout en perdant la nuance qui faisait la force de l’original.
 
 C’est pourquoi la qualité de la traduction est de plus en plus limitée non pas par le résultat de la traduction, mais par l’intelligence qui l’entoure.
 
 C’est le rôle de l’intelligence de traduction.
 
-L’intelligence de traduction est l’infrastructure qui transforme des connaissances éparses sur le produit, la marque, l’interface utilisateur, le marché et les évaluateurs en meilleures décisions de localisation. Elle aide les humains et l’IA à comprendre ce que signifie le contenu, où il apparaît, quel ton il doit avoir et quelles contraintes il doit respecter avant que la traduction ne commence.
+L’intelligence de traduction est l’infrastructure qui transforme les connaissances dispersées sur les produits, la marque, l’interface utilisateur, le marché et les réviseurs en de meilleures décisions de localisation. Elle aide les humains et l’IA à comprendre ce que signifie le contenu, où il apparaît, quel ton il doit adopter et quelles contraintes il doit respecter avant le début de la traduction.
 
-En termes simples : l’intelligence de traduction donne à la traduction le contexte dont elle a besoin pour être utile.
+En termes simples : l’intelligence de traduction fournit à la traduction le contexte dont elle a besoin pour être utile.
 
 ## Pourquoi la traduction seule ne suffit pas
 
-La plupart des flux de travail de traduction commencent par un texte source.
+La plupart des processus de traduction commencent par un extrait de texte source.
 
-Ce texte peut être une chaîne produit, un article du centre d’aide, un e-mail, un titre de campagne, un message d’intégration ou un avis juridique. Dans de nombreux systèmes, le traducteur ou le modèle d’IA voit le texte source, la langue cible et peut-être une correspondance de glossaire.
+Ce texte peut être une chaîne de produit, un article du centre d’aide, un e-mail, un titre de campagne, un message d’intégration ou un avis juridique. Dans de nombreux systèmes, le traducteur ou le modèle d’IA voit le texte source, la langue cible et éventuellement une correspondance dans le glossaire.
 
-Mais la langue, à elle seule, véhicule rarement suffisamment d’informations.
+Mais la langue fournit rarement suffisamment d’informations à elle seule.
 
-Considérez une chaîne simple :
+Prenons une chaîne simple :
 
 > Créer un projet
 
 Cela semble facile à traduire. Mais la traduction correcte dépend de plusieurs questions.
 
-Est-ce un bouton, un élément de menu ou un titre de page ? « project » est-il un objet produit formel ou un mot générique ? L’utilisateur crée-t-il un projet vide, en importe-t-il un, ou part-il d’un modèle ? La langue cible exige-t-elle une grammaire plus explicite ? Le bouton a-t-il une limite de caractères ? Le même objet produit a-t-il déjà été traduit ailleurs ? Le ton doit-il être technique, simple ou de niveau entreprise ?
+Est-ce un bouton, un élément de menu ou un titre de page ? Le terme « projet » désigne-t-il un objet produit officiel ou un mot générique ? L’utilisateur crée-t-il un projet vierge, en importe-t-il un ou démarre-t-il à partir d’un modèle ? La langue cible nécessite-t-elle une grammaire plus explicite ? Le bouton est-il soumis à une limite de caractères ? Le même objet produit a-t-il déjà été traduit ailleurs ? Le ton doit-il être technique, simple ou adapté à une entreprise ?
 
 Sans ce contexte, les humains comme l’IA doivent deviner.
 
-Le même problème apparaît dans la localisation marketing. Un titre de campagne peut être court, astucieux et émotionnellement efficace en anglais, mais une traduction littérale peut ne pas transmettre la même intention sur un autre marché. Le traducteur doit comprendre non seulement les mots, mais aussi le positionnement, le public, l’offre, le ton et la réaction recherchée.
+Le même problème se pose dans la localisation marketing. Le titre d’une campagne peut être court, ingénieux et émotionnellement percutant en anglais, mais une traduction littérale peut ne pas véhiculer la même intention sur un autre marché. Le traducteur doit comprendre non seulement les mots, mais aussi le positionnement, le public cible, l’offre, le ton et la réaction recherchée.
 
 Il apparaît également dans le contenu d’assistance. Un article d’aide peut contenir une terminologie produit qui doit rester cohérente avec l’interface. Si l’article utilise un terme et que le produit en utilise un autre, la traduction peut semer la confusion chez les utilisateurs, même si chaque phrase est linguistiquement correcte.
 
 Ce ne sont pas seulement des problèmes de langue. Ce sont des problèmes de contexte.
 
-## Le goulot d'étranglement est passé de la production au jugement
+## Le goulot d’étranglement est passé de la production au jugement
 
 L’IA a changé l’économie de la traduction.
 
-La génération d’une première version est désormais rapide. Produire davantage de contenu multilingue est plus facile que jamais. Mais cette rapidité crée un nouveau défi : les équipes doivent décider de ce qui peut être considéré comme fiable, de ce qui nécessite une relecture et de ce qui exige une compréhension plus approfondie du produit ou du marché.
+Générer une première ébauche est désormais rapide. Produire davantage de contenu multilingue n’a jamais été aussi facile. Mais cette rapidité crée un nouveau défi : les équipes doivent déterminer ce qui peut être fiable, ce qui nécessite une révision et ce qui exige une compréhension plus approfondie du produit ou du marché.
 
 En d’autres termes, le goulot d’étranglement est passé de la production au jugement.
 
@@ -78,122 +78,122 @@ La question clé n’est plus seulement :
 
 > Comment traduire ceci ?
 
-Il est maintenant :
+C’est maintenant :
 
-> Est-ce la bonne traduction pour ce cas d’utilisation spécifique ?
+> Est-ce la bonne traduction pour ce cas d’utilisation précis ?
 
-Cette question exige plus que de la fluidité. Elle exige du contexte.
+Cette question exige plus que de la maîtrise de la langue. Elle nécessite du contexte.
 
-Une décision de localisation de haute qualité doit tenir compte du sens du produit, de l’intention de l’utilisateur, de la voix de la marque, des contraintes de conception, des règles terminologiques, des attentes du marché, des exigences de conformité et des décisions précédentes. Lorsque ces informations sont manquantes, les équipes de localisation compensent manuellement.
+Une décision de localisation de haute qualité doit tenir compte du sens du produit, de l’intention de l’utilisateur, de la voix de la marque, des contraintes de conception, des règles terminologiques, des attentes du marché, des exigences de conformité et des décisions antérieures. Lorsque ces informations font défaut, les équipes de localisation compensent manuellement.
 
-Les traducteurs posent des questions. Les réviseurs réécrivent les textes. Les chefs de produit expliquent les fonctionnalités. Les responsables de la localisation collectent des captures d’écran. Les équipes régionales débattent du ton. Les ingénieurs corrigent les problèmes de dépassement de l’interface utilisateur. Les mêmes décisions terminologiques sont prises à plusieurs reprises dans tous les projets.
+Les traducteurs posent des questions. Les réviseurs réécrivent les textes. Les chefs de produit expliquent les fonctionnalités. Les responsables de la localisation rassemblent des captures d’écran. Les équipes régionales débattent du ton à adopter. Les ingénieurs corrigent les problèmes de débordement de l’interface utilisateur. Les mêmes choix terminologiques sont pris à plusieurs reprises dans différents projets.
 
-Cela ne veut pas dire que l’équipe fait de la localisation de manière médiocre. Cela veut dire que le système ne transporte pas assez d’intelligence.
+Rien de tout cela ne signifie que l’équipe fait mal la localisation. Cela signifie que le système ne dispose pas d’une intelligence suffisante.
 
 ## Intelligence de traduction vs gestion de la traduction
 
-La gestion de la traduction et l’intelligence de traduction résolvent des problèmes différents.
+La gestion de la traduction et l’intelligence de traduction répondent à des problématiques différentes.
 
-La gestion de la traduction consiste à coordonner. Elle aide les équipes à organiser le contenu, à attribuer le travail, à gérer les langues, à suivre les progrès et à approuver les traductions.
+La gestion des traductions repose sur la coordination. Elle aide les équipes à organiser le contenu, à attribuer les tâches, à gérer les langues, à suivre l’avancement et à approuver les traductions.
 
-L’intelligence de traduction concerne la qualité des décisions. Elle aide les équipes à comprendre le contenu suffisamment en profondeur pour le traduire, le relire et l’adapter correctement.
+L’intelligence de traduction concerne la qualité des décisions. Elle aide les équipes à comprendre suffisamment bien le contenu pour le traduire, le réviser et l’adapter correctement.
 
-Un système de gestion de la traduction peut indiquer à un responsable de localisation qu’une chaîne est prête pour révision.
+Un système de gestion des traductions peut indiquer à un responsable de la localisation qu’une chaîne est prête à être révisée.
 
-Une couche d’intelligence de traduction peut indiquer que la chaîne n’a pas de capture d’écran, entre en conflit avec une règle du glossaire, utilise un terme produit à haut risque, dépasse une limite de caractères de l’interface ou diffère d’une traduction précédemment approuvée.
+Une couche d’intelligence de traduction peut indiquer que la chaîne ne comporte aucune capture d’écran, est en conflit avec une règle du glossaire, utilise un terme de produit à haut risque, dépasse une limite de caractères de l’interface utilisateur ou diffère d’une traduction approuvée précédemment.
 
-Cette distinction est importante, car la qualité de la localisation ne se détermine pas uniquement par le fait qu’un flux de travail soit achevé. Elle se détermine par les connaissances disponibles au moment où une décision de traduction est prise.
+Cette distinction est importante, car la qualité de la localisation ne dépend pas uniquement de l’achèvement d’un processus. Elle dépend des connaissances disponibles au moment où une décision de traduction est prise.
 
-Quand le contexte manque, même les traducteurs expérimentés et les modèles d’IA avancés produisent des résultats incohérents. Lorsque le contexte est disponible, le flux de travail devient plus fiable.
+Lorsque le contexte fait défaut, même les traducteurs expérimentés et les modèles d’IA avancés produisent des résultats incohérents. Lorsque le contexte est disponible, le processus devient plus fiable.
 
 ## Ce que comprend l’intelligence de traduction
 
-La plateforme Translation intelligence rassemble les connaissances que les équipes de localisation doivent généralement rechercher manuellement.
+L’intelligence de traduction rassemble les connaissances que les équipes de localisation doivent généralement rechercher manuellement.
 
-Il inclut le **contexte produit** : ce que fait une fonctionnalité, la manière dont les utilisateurs interagissent avec elle, et les objets ou actions précis du produit auxquels une phrase fait référence.
+Il inclut le **contexte produit** : ce que fait une fonctionnalité, comment les utilisateurs interagissent avec elle et à quels objets ou actions spécifiques du produit une phrase fait référence.
 
-Il inclut un **contexte visuel** : captures d’écran, emplacement dans l’interface, type de composant, limites de caractères et contraintes de conception.
+Cela inclut le contexte visuel : captures d’écran, emplacement dans l’interface, type de composant, limites de caractères et contraintes de conception.
 
-Il inclut le **contexte de la marque** : la voix, le ton, les principes de communication et le niveau de formalité attendu sur différents marchés.
+Cela inclut le **contexte de marque** : la voix, le ton, les principes de communication et le niveau de formalité attendu selon les différents marchés.
 
-Il inclut un **contexte terminologique** : termes approuvés, noms de produits, mots interdits, règles de glossaire et langage spécifique au domaine.
+Il inclut un **contexte terminologique** : termes approuvés, noms de produits, mots interdits, règles du glossaire et langage spécifique au domaine.
 
-Il inclut le **contexte du marché** : les attentes culturelles, les préférences régionales, les conventions locales et la différence entre la traduction directe et l’adaptation.
+Cela inclut le **contexte du marché** : les attentes culturelles, les préférences régionales, les conventions locales, ainsi que la différence entre traduction directe et adaptation.
 
-Il comprend le **contexte du workflow** : qui doit examiner le contenu, quel niveau de risque il comporte et si une approbation humaine est requise.
+Il inclut le **contexte du workflow** : les personnes qui doivent examiner le contenu, le niveau de risque qu’il comporte et si une approbation humaine est requise.
 
-Plus important encore, il inclut **l’historique des décisions** : ce qui a été modifié, ce qui a été approuvé, ce que les relecteurs ont corrigé, et pourquoi un choix particulier a été fait.
+Plus important encore, il comprend **l’historique des décisions** : ce qui a été modifié, ce qui a été approuvé, ce que les réviseurs ont corrigé et pourquoi un choix particulier a été fait.
 
-C’est là que les systèmes de localisation traditionnels montrent souvent leurs limites. Ils peuvent stocker la traduction finale, mais ne préservent pas toujours le raisonnement qui l’a sous-tendue. Par conséquent, les équipes se souviennent de ce qui a été traduit, mais pas pourquoi.
+C’est ici que les systèmes de localisation traditionnels montrent souvent leurs limites. Ils peuvent enregistrer la traduction finale, mais ils ne préservent pas toujours le raisonnement qui la sous-tend. Par conséquent, les équipes se souviennent de ce qui a été traduit, mais pas de la raison.
 
-Les changements de l’intelligence de traduction transforment cela. Elle convertit les connaissances en localisation en un atout réutilisable.
+L’intelligence de traduction change la donne. Elle transforme les connaissances en localisation en un actif réutilisable.
 
-## De la mémoire de traduction à la mémoire de décision
+## De la mémoire de traduction à la mémoire décisionnelle
 
-La mémoire de traduction a été l’une des idées les plus importantes en localisation. Elle aide les équipes à réutiliser des traductions précédentes, à réduire le travail répétitif et à maintenir la cohérence.
+La mémoire de traduction a été l’une des idées les plus importantes dans le domaine de la localisation. Elle aide les équipes à réutiliser les traductions précédentes, à réduire le travail répétitif et à maintenir la cohérence.
 
-Mais la mémoire de traduction a une limite : elle se souvient du résultat.
+Mais la mémoire de traduction a une limitation : elle mémorise les sorties.
 
 Il ne se souvient pas toujours du contexte.
 
-Il peut montrer qu’une phrase a été traduite d’une certaine manière, mais pas si ce choix a été fait en raison du ton de la marque, de l’espace de l’interface, de la terminologie produit, d’une préférence juridique ou des retours d’un relecteur. Il peut ne pas montrer si la traduction a bien fonctionné en production. Il peut ne pas expliquer si la même décision devrait s’appliquer à une nouvelle fonctionnalité ou à une campagne.
+Il peut indiquer qu’une phrase a été traduite d’une certaine manière, sans préciser si ce choix a été dicté par le ton de la marque, l’espace disponible dans l’interface, la terminologie du produit, des exigences juridiques ou les retours des réviseurs. Il peut ne pas montrer si la traduction a bien fonctionné en production. Il peut ne pas expliquer si la même décision devrait s’appliquer à une nouvelle fonctionnalité ou à une nouvelle campagne.
 
-L'intelligence de traduction étend l'idée de la mémoire au-delà des segments traduits.
+L’intelligence de traduction étend l’idée de mémoire au-delà des segments traduits.
 
-Cela crée une mémoire des décisions.
+Cela crée une mémoire décisionnelle.
 
-La mémoire de décision capture le raisonnement derrière les choix de localisation. Elle aide les équipes à comprendre non seulement ce qui a été traduit, mais aussi pourquoi cela a été traduit de cette façon. Cela devient particulièrement important lorsque l’IA fait partie du flux de travail, car l’IA s’améliore lorsqu’elle peut apprendre à partir d’un contexte structuré et des retours humains.
+La mémoire des décisions consigne le raisonnement qui sous-tend les choix de localisation. Elle aide les équipes à comprendre non seulement ce qui a été traduit, mais aussi pourquoi cela a été traduit de cette manière. Cela devient particulièrement important lorsque l’IA fait partie du flux de travail, car elle s’améliore lorsqu’elle peut apprendre à partir d’un contexte structuré et des retours humains.
 
-Si un relecteur modifie un terme, le système doit apprendre de ce changement. Si un expert régional explique pourquoi une expression ne fonctionne pas sur le marché local, cette connaissance doit être disponible la prochaine fois. Si un chef de produit précise le sens d'une fonctionnalité, cette explication doit accompagner les chaînes associées à l'avenir.
+Si un réviseur modifie un terme, le système doit tirer des enseignements de cette modification. Si un expert régional explique pourquoi une phrase ne fonctionne pas sur le marché local, ces connaissances doivent être disponibles la prochaine fois. Si un chef de produit clarifie la signification d’une fonctionnalité, cette explication doit accompagner les chaînes associées à l’avenir.
 
 C’est ainsi que la localisation devient auto-améliorante.
 
 ## À quoi cela ressemble en pratique
 
-Un flux de travail de localisation sensible au contexte est très différent d’un flux de travail traditionnel basé sur des chaînes.
+Un flux de travail de localisation adapté au contexte est très différent d’un flux de travail traditionnel basé sur les chaînes de caractères.
 
-Avant que la traduction ne commence, le système rassemble le contexte pertinent à partir des outils où le travail se déroule déjà. Il peut comprendre d’où vient le contenu, s’il appartient à une interface produit, à un article d’aide, à une page marketing ou à une campagne. Il peut joindre des captures d’écran, détecter la terminologie, identifier les chaînes associées, retrouver les décisions précédentes et faire remonter les risques avant que le traducteur ou le réviseur ne voie la tâche.
+Avant le début de la traduction, le système rassemble le contexte pertinent à partir des outils dans lesquels le travail est déjà effectué. Il peut comprendre d’où provient le contenu, déterminer s’il appartient à une interface produit, à un article d’aide, à une page marketing ou à une campagne. Il peut joindre des captures d’écran, détecter la terminologie, identifier les chaînes associées, retrouver les décisions précédentes et signaler les risques avant que le traducteur ou le réviseur ne voie la tâche.
 
-Pendant la traduction, les suggestions de l’IA sont guidées par la connaissance du produit, les règles du glossaire, la tonalité de marque et les contraintes de l’interface utilisateur. Au lieu de produire une traduction générique, le système peut suggérer une traduction adaptée au cas d’usage réel.
+Pendant la traduction, les suggestions de l’IA sont guidées par les connaissances produit, les règles du glossaire, le ton de la marque et les contraintes de l’interface utilisateur. Au lieu de produire une traduction générique, le système peut suggérer une traduction adaptée au cas d’utilisation réel.
 
-Pendant la révision, il n’est pas demandé aux humains d’examiner tout depuis le début. Ils peuvent se concentrer sur les décisions qui nécessitent un jugement : termes ambigus, contenu à fort impact, adaptation au marché, risque juridique, ton ou contenu en contradiction avec les directives précédentes.
+Lors de la révision, il n’est pas demandé aux humains de tout examiner depuis le début. Ils peuvent se concentrer sur les décisions qui nécessitent un jugement : les termes ambigus, les textes à fort impact, l’adaptation au marché, les risques juridiques, le ton ou le contenu qui entre en conflit avec les directives précédentes.
 
-Après examen, le flux de travail ne se contente pas de stocker la traduction finale. Il enregistre ce qui a changé et réinjecte ces informations dans les travaux futurs.
+Après examen, le flux de travail ne se contente pas d’enregistrer la traduction finale. Il consigne les modifications apportées et réinjecte ces connaissances dans les travaux futurs.
 
-Il s’agit du passage de la traduction en tant que tâche ponctuelle à la localisation en tant que système d’apprentissage.
+C’est le passage d’une traduction ponctuelle à la localisation comme système d’apprentissage.
 
-## Pourquoi Hyperlocalise se construit autour de l’intelligence de traduction
+## Pourquoi Hyperlocalise mise sur l’intelligence de traduction
 
-Chez Hyperlocalise, nous pensons que la prochaine génération de logiciels de localisation ne sera pas définie par la seule vitesse de traduction.
+Chez Hyperlocalise, nous pensons que la prochaine génération de logiciels de localisation ne se définira pas uniquement par la rapidité de traduction.
 
-La rapidité compte. Mais la rapidité sans contexte peut créer davantage de travail pour les réviseurs, davantage d’incohérences entre les marchés et davantage d’incertitude avant la publication.
+La rapidité compte. Mais la rapidité sans contexte peut créer davantage de travail pour les réviseurs, plus d’incohérences entre les marchés et plus d’incertitude avant la publication.
 
-Hyperlocalise intègre l’intelligence de traduction dans le flux de travail de localisation afin que les équipes puissent intégrer le contexte dès le départ dans le processus. Notre approche consiste à aider l’IA et les relecteurs humains à travailler avec les informations dont ils ont besoin : contexte produit, captures d’écran, règles de glossaire, tonalité de marque, contraintes d’interface, exigences du flux de travail et décisions de localisation antérieures.
+Hyperlocalise intègre l’intelligence de traduction au processus de localisation afin que les équipes puissent prendre en compte le contexte dès le départ. Notre approche consiste à aider l’IA et les réviseurs humains à travailler avec les informations dont ils ont besoin : contexte produit, captures d’écran, règles du glossaire, ton de la marque, contraintes de l’interface utilisateur, exigences du flux de travail et décisions de localisation antérieures.
 
-Cela compte parce que la plupart des entreprises disposent déjà des connaissances nécessaires pour améliorer la localisation. Le problème, c’est que ces connaissances sont dispersées. Elles se trouvent dans les outils produits, les fichiers de design, les plateformes de support, les systèmes de contenu, les commentaires de relecture, les discussions sur Slack et dans la tête de chaque membre de l’équipe.
+Cela est important, car la plupart des entreprises disposent déjà des connaissances nécessaires pour améliorer la localisation. Le problème, c’est que ces connaissances sont dispersées. Elles se trouvent dans les outils produit, les fichiers de conception, les plateformes d’assistance, les systèmes de gestion de contenu, les commentaires de révision, les discussions Slack et dans la tête des membres de l’équipe.
 
-Hyperlocalise aide à rendre ce savoir opérationnel.
+Hyperlocalise aide à rendre ces connaissances opérationnelles.
 
-Au lieu de demander aux traducteurs et aux relecteurs de chercher le contexte, Hyperlocalise vise à intégrer automatiquement le bon contexte dans l’expérience de traduction. Au lieu de considérer l’IA comme un traducteur générique, Hyperlocalise utilise le contexte pour orienter l’IA vers de meilleures décisions. Au lieu de perdre les commentaires des relecteurs une fois une tâche terminée, Hyperlocalise aide à transformer ces commentaires en mémoire qui améliore le travail futur.
+Plutôt que de demander aux traducteurs et aux réviseurs de rechercher le contexte, Hyperlocalise vise à intégrer automatiquement le contexte pertinent à l’expérience de traduction. Plutôt que de considérer l’IA comme un traducteur générique, Hyperlocalise utilise le contexte pour orienter l’IA vers de meilleures décisions. Plutôt que de perdre les retours des réviseurs une fois une tâche terminée, Hyperlocalise contribue à transformer ces retours en une mémoire qui améliore le travail futur.
 
-L’objectif n’est pas de supprimer le jugement humain. L’objectif est de rendre le jugement humain plus ciblé, plus éclairé et plus réutilisable.
+L’objectif n’est pas de supprimer le jugement humain. L’objectif est de rendre le jugement humain plus ciblé, éclairé et réutilisable.
 
-## L’avenir de la localisation est contextuel
+## L’avenir de la localisation tient compte du contexte
 
-Les entreprises qui réussissent à l’échelle mondiale ne seront pas simplement celles qui traduisent le plus de mots. Ce seront celles qui communiquent clairement, de manière cohérente et naturelle sur chaque marché.
+Les entreprises qui réussiront à l’échelle mondiale ne seront pas simplement celles qui traduiront le plus de mots. Ce seront celles qui communiqueront de manière claire, cohérente et naturelle sur tous les marchés.
 
-Cela nécessite plus qu’une traduction.
+Cela nécessite plus qu’une simple traduction.
 
 Cela nécessite des systèmes qui comprennent la relation entre la langue, le produit, la marque, le design et l’expérience client.
 
-C’est pourquoi l’intelligence de traduction compte.
+C’est pourquoi l’intelligence en matière de traduction est importante.
 
-Il offre aux équipes de localisation une base plus solide pour travailler avec l’IA. Il réduit la collecte répétée de contexte. Il aide les relecteurs à se concentrer sur les décisions à forte valeur ajoutée. Il améliore la cohérence entre les contenus produit, marketing et support. Il préserve les connaissances derrière les choix de traduction afin que les équipes ne résolvent pas encore et encore les mêmes problèmes.
+Elle fournit aux équipes de localisation une meilleure base pour travailler avec l’IA. Elle réduit la collecte répétée de contexte. Elle aide les relecteurs à se concentrer sur les décisions à forte valeur ajoutée. Elle améliore la cohérence des contenus produit, marketing et d’assistance. Elle préserve les connaissances à l’origine des choix de traduction afin que les équipes n’aient pas à résoudre les mêmes problèmes encore et encore.
 
 La traduction n’est plus le goulot d’étranglement.
 
-Le contexte manquant est.
+Le contexte manque.
 
-L’intelligence de traduction est la manière dont les équipes de localisation modernes comblent cet écart.
+L’intelligence de traduction permet aux équipes de localisation modernes de combler cet écart.
 
-Pour le passage plus large de la traduction à une communication prête pour le marché, voir [Hyperlocalisation : pourquoi la croissance mondiale nécessite plus qu’une traduction](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Pour en savoir plus sur le passage de la traduction à une communication adaptée au marché, consultez [Hyperlocalisation : pourquoi la croissance mondiale nécessite plus qu’une traduction](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).

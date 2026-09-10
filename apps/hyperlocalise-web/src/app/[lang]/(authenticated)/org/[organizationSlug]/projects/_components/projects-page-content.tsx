@@ -34,20 +34,16 @@ import { PageHeader, WorkspacePageShell } from "../../_components/workspace-reso
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-tms-live-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
+import { ProjectAvatar } from "./project-avatar";
+import { ProjectDialog } from "./project-dialog";
 import {
   createEmptyProjectForm,
   createProjectFormFromRow,
   toProjectPayload,
   type ProjectFormValues,
 } from "./project-form";
-import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
-import {
-  PROJECTS_PAGE_SIZE,
-  ProjectsTable,
-  ProjectsTableHeader,
-  ProjectSourceMark,
-} from "./projects-table";
+import { PROJECTS_PAGE_SIZE, ProjectsTable, ProjectsTableHeader } from "./projects-table";
 import { projectsPageContentMessages } from "./projects-page-content.messages";
 import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
 
@@ -133,10 +129,12 @@ function RecentProjectsStrip({
             size="sm"
             className="max-w-full gap-2 rounded-lg bg-background"
           >
-            <ProjectSourceMark
+            <ProjectAvatar
               compact
               project={
                 allProjects.find((row) => row.id === project.id) ?? {
+                  name: project.name,
+                  logoUrl: null,
                   source: "native",
                   externalProviderKind: null,
                 }

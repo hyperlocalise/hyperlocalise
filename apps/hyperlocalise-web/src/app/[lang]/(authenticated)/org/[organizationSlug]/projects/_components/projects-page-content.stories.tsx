@@ -18,6 +18,11 @@ import { recordRecentProjectVisit } from "./recent-projects";
 
 const ORGANIZATION_SLUG = "projects-design-preview";
 const HOURS = 3_600_000;
+const CROWDIN_PROJECT_LOGO =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#2B5CFF"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="system-ui">M</text></svg>',
+  );
 const projects = [
   {
     id: "marketing",
@@ -45,6 +50,7 @@ const projects = [
     description: "iOS & Android strings",
     source: "external_tms",
     externalProviderKind: "crowdin",
+    logoUrl: CROWDIN_PROJECT_LOGO,
     sourceLocale: "en",
     targetLocales: ["fr", "de", "vi", "zh", "ja", "es", "ko", "pt", "it", "nl", "ar", "th"],
     openJobCount: 3,

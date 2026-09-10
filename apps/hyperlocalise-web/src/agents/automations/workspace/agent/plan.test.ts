@@ -196,6 +196,26 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_ahrefs", "notify_slack"]);
   });
 
+  it("includes use_gitlab_repository when GitLab is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        repositoryTarget: {
+          kind: "gitlab",
+          gitlabPathWithNamespace: "acme/web",
+        },
+        toolConfig: {
+          gitlab: {
+            enabled: true,
+            workosUserId: "user_workos",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_gitlab_repository", "notify_slack"]);
+  });
+
   it("plans use_crowdin after GitHub tools when a Crowdin project is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

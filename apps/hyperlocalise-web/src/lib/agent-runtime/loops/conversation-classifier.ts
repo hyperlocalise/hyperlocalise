@@ -13,8 +13,6 @@
 import { generateText, Output, type LanguageModel, type ModelMessage } from "ai";
 import { z } from "zod";
 
-import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
-
 import type { RepositoryGitHubContextResolution } from "@/lib/agents/repository-context";
 
 export const conversationClassificationSchema = z.object({
@@ -69,12 +67,12 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
       : [];
 
   return [
-    "Classify this Hyperlocalise agent conversation for GitHub repository tooling setup.",
+    "Classify this Hyperlocalise agent conversation for GitHub or GitLab repository tooling setup.",
     "",
     "Repository tooling flags:",
-    "- needsRepositoryTools: true when the assistant should connect to GitHub and use read-only repo search tools for this turn.",
+    "- needsRepositoryTools: true when the assistant should connect to GitHub or GitLab and use read-only repo search tools for this turn.",
     "- continuesRepositoryThread: true when the latest message continues an in-thread repo lookup (for example nearby words, surrounding copy, which file, show more) even if the latest message is short.",
-    "- currentMessageSpecifiesRepository: true only when the latest user message explicitly names a repo (owner/name), GitHub URL, or pull request.",
+    "- currentMessageSpecifiesRepository: true only when the latest user message explicitly names a repo (owner/name), GitHub URL, GitLab URL, pull request, or merge request.",
     "- requiresPullRequest: true only when the user is asking for PR-scoped work such as fixing, reviewing, or checking a specific pull request.",
     "- shouldAskForRepositoryClarification: true when the user clearly wants repo-based localization context but the conversation does not yet identify which repository or PR to use.",
     ...knowledgeMemoryRouting,
@@ -88,7 +86,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     "  Classification: needsRepositoryTools false.",
     "",
     "Use the full recent conversation, not only the latest message.",
-    "If the user asks for the context of a string, key, label, word, or copy, they usually mean context in the connected GitHub repository.",
+    "If the user asks for the context of a string, key, label, word, or copy, they usually mean context in the connected GitHub or GitLab repository.",
     "If a repository was already established earlier in the thread, treat short follow-ups as continuesRepositoryThread and keep needsRepositoryTools true when repository lookup still applies.",
     "",
     `Surface: ${input.surface}`,
@@ -125,7 +123,7 @@ export function createConversationClassifier({ model }: CreateConversationClassi
         schema: conversationClassificationSchema,
       }),
       instructions:
-        "You are a precise conversation classifier for a localization agent. Return only structured classification data for GitHub repository tooling.",
+        "You are a precise conversation classifier for a localization agent. Return only structured classification data for GitHub or GitLab repository tooling.",
       prompt: buildConversationClassificationPrompt(input),
       temperature: 0,
     });
@@ -185,7 +183,7 @@ export function getRecentUserConversationText(
 
 export function shouldAttemptRepositoryContextResolution(input: {
   classification: ConversationClassification;
-  storedRepositoryContext?: RepositoryAgentGitHubContext | null;
+  storedRepositoryContext?: unknown;
 }): boolean {
   if (input.classification.needsRepositoryTools) {
     return true;

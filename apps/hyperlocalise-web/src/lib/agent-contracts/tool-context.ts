@@ -12,6 +12,7 @@
  */
 import type { db } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type {
   RepositoryAgentActor,
   RepositoryAgentGitHubContext,
@@ -68,6 +69,7 @@ export type ToolContext = {
   actor?: RepositoryAgentActor;
   sandboxId?: string | null;
   githubContext?: RepositoryAgentGitHubContext | null;
+  gitlabContext?: RepositoryAgentGitLabContext | null;
   /** Mutable per-run session state (todos, etc.). */
   agentSession?: AgentSessionState;
   /** Request-scoped live progress for web chat tools. Other channels omit it. */

@@ -46,27 +46,43 @@ Use those enabled repos in automation **GitHub push** triggers. See [Automations
 
 Click **Disconnect** to unlink the installation from this organization.
 
+## GitLab
+
+Open **Integrations**, find **GitLab**, then connect it through the WorkOS Pipes widget. GitLab uses OAuth, not an API key. Only workspace admins can connect Pipes providers.
+
+After you connect GitLab:
+
+1. Chat lists GitLab.com projects you can clone (Reporter access or higher).
+2. Selecting a project, or pasting a project or merge request URL, clones that project into the conversation sandbox.
+3. Clone uses HTTPS username `oauth2` and the access token as the password. Reconnect GitLab if Pipes asks.
+4. Add **Use GitLab repo** on a scheduled or manual automation to run the same read-only repository agent GitHub has.
+
+Merge-request comment tools and GitLab sync workflows are not included.
+
 ## TMS and CLI sync
 
 Cloud can work with an existing TMS. For repository-first native projects, the CLI [pushes](/cli/commands/sync-push) and [pulls](/cli/commands/sync-pull) against Hyperlocalise. See [Connect the CLI](/platform/cli).
 
-## WorkOS Pipes API keys
+## WorkOS Pipes
 
-Open **Integrations** and connect these providers through the WorkOS Pipes widget. Enable each provider in the WorkOS Dashboard and allow the widget origin for this app. Users paste an API key; WorkOS stores the secret.
+Open **Integrations** and connect these providers through the WorkOS Pipes widget. Enable each provider in the WorkOS Dashboard and allow the widget origin for this app.
 
-| Provider | WorkOS slug | Integrations category |
-| --- | --- | --- |
-| Ahrefs | `ahrefs` (custom) | SEO tools |
-| Similarweb | `similarweb` | SEO tools |
-| Intercom | `intercom` | Customer engagement |
-| HubSpot | `hubspot` | Customer engagement |
-| Mailchimp | `mailchimp` | Customer engagement |
-| SendGrid | `sendgrid` | Customer engagement |
-| Resend | `resend` | Customer engagement |
-| Webflow | `webflow` | Content & publishing |
-| Sanity | `sanity` | Content & publishing |
-| Notion | `notion` | Guidelines |
-| Atlassian | `atlassian` | Collaboration |
+Most Pipes providers store an API key. GitLab is OAuth: WorkOS vends an access token with `getAccessToken`.
+
+| Provider | WorkOS slug | Integrations category | Credential |
+| --- | --- | --- | --- |
+| GitLab | `gitlab` | Source control | OAuth access token |
+| Ahrefs | `ahrefs` (custom) | SEO tools | API key |
+| Similarweb | `similarweb` | SEO tools | API key |
+| Intercom | `intercom` | Customer engagement | API key |
+| HubSpot | `hubspot` | Customer engagement | API key |
+| Mailchimp | `mailchimp` | Customer engagement | API key |
+| SendGrid | `sendgrid` | Customer engagement | API key |
+| Resend | `resend` | Customer engagement | API key |
+| Webflow | `webflow` | Content & publishing | API key |
+| Sanity | `sanity` | Content & publishing | API key |
+| Notion | `notion` | Guidelines | API key |
+| Atlassian | `atlassian` | Collaboration | API key |
 
 Ahrefs is not in the default WorkOS catalog. Enable a custom API-key provider with slug `ahrefs`. The other providers are catalog API-key integrations.
 

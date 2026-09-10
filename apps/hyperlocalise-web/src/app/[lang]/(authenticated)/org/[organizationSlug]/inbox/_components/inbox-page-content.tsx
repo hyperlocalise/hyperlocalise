@@ -24,7 +24,7 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type InboxApi } from "./inbox-api";
+import { createInboxApi, type ChatComposerSendOptions, type InboxApi } from "./inbox-api";
 import { conversationPanelMessages } from "./conversation-panel.messages";
 import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
@@ -178,12 +178,12 @@ export const InboxPageContent = observer(function InboxPageContent({
     : null;
 
   const sendMessageMutation = useMutation({
-    mutationFn: (input: {
-      text: string;
-      files: File[];
-      projectId?: string;
-      repositoryFullName?: string;
-    }) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
+    mutationFn: (
+      input: {
+        text: string;
+        files: File[];
+      } & ChatComposerSendOptions,
+    ) => injectedInboxApi.sendMessage(organizationSlug, selectedConversationId, input),
     onSuccess: () => {
       void messagesQuery.refetch();
       void conversationsQuery.refetch();
@@ -191,12 +191,12 @@ export const InboxPageContent = observer(function InboxPageContent({
   });
 
   const createConversationMutation = useMutation({
-    mutationFn: (input: {
-      text: string;
-      files: File[];
-      projectId?: string;
-      repositoryFullName?: string;
-    }) => injectedInboxApi.createConversation(organizationSlug, input),
+    mutationFn: (
+      input: {
+        text: string;
+        files: File[];
+      } & ChatComposerSendOptions,
+    ) => injectedInboxApi.createConversation(organizationSlug, input),
   });
 
   const markReadMutation = useMutation({
@@ -233,11 +233,7 @@ export const InboxPageContent = observer(function InboxPageContent({
   const mutateAsync = sendMessageMutation.mutateAsync;
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
-    async (
-      text: string,
-      files: File[],
-      options?: { projectId?: string; repositoryFullName?: string },
-    ) => {
+    async (text: string, files: File[], options?: ChatComposerSendOptions) => {
       if (composeNew) {
         try {
           const result = await createConversationAsync({ text, files, ...options });

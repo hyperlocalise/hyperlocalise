@@ -33,7 +33,7 @@ export type RepositoryAgentWorkMode = z.infer<typeof repositoryAgentWorkModeSche
  * Kept as a string union so future adapters (e.g. CLI, webhook) can be added
  * without changing downstream workflow code.
  */
-export const repositoryAgentTaskSourceSchema = z.enum(["slack", "github", "chat_ui"]);
+export const repositoryAgentTaskSourceSchema = z.enum(["slack", "github", "gitlab", "chat_ui"]);
 
 export type RepositoryAgentTaskSource = z.infer<typeof repositoryAgentTaskSourceSchema>;
 

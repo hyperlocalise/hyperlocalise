@@ -18,7 +18,8 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import type { GithubRepository } from "./github-repository";
+import type { ChatRepository } from "./chat-repository";
+import { chatRepositorySelectionKey } from "./chat-repository";
 import { RepositorySelector } from "./repository-selector";
 
 function renderWithIntl(ui: ReactElement) {
@@ -29,45 +30,47 @@ function renderWithIntl(ui: ReactElement) {
   );
 }
 
-function createRepository(overrides: Partial<GithubRepository> = {}): GithubRepository {
+function createRepository(overrides: Partial<ChatRepository> = {}): ChatRepository {
   const name = overrides.name ?? "web";
-  const owner = overrides.owner ?? "acme";
+  const fullName = overrides.fullName ?? `acme/${name}`;
+  const provider = overrides.provider ?? "github";
 
   return {
     archived: false,
     defaultBranch: "main",
     enabled: true,
-    fullName: `${owner}/${name}`,
-    githubRepositoryId: `repo_${owner}_${name}`,
-    id: `installation_repo_${owner}_${name}`,
+    fullName,
     name,
-    owner,
+    provider,
+    selectionKey: chatRepositorySelectionKey(provider, fullName),
     ...overrides,
   };
 }
 
 describe("RepositorySelector", () => {
-  it("opens the repository menu and selects a repository", async () => {
+  it("opens the repository menu and selects a GitLab project", async () => {
     const user = userEvent.setup();
     const onSelectRepository = vi.fn();
+    const gitlabRepository = createRepository({
+      provider: "gitlab",
+      name: "docs",
+      fullName: "acme/platform/docs",
+    });
 
     renderWithIntl(
       <RepositorySelector
-        repositories={[
-          createRepository({ name: "web", fullName: "acme/web" }),
-          createRepository({ name: "docs", fullName: "acme/docs" }),
-        ]}
+        repositories={[createRepository({ name: "web", fullName: "acme/web" }), gitlabRepository]}
         repositoriesIsError={false}
         repositoriesIsLoading={false}
-        selectedRepositoryFullName=""
+        selectedRepositoryKey=""
         onSelectRepository={onSelectRepository}
         triggerStyle="button"
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /github repo/i }));
-    await user.click(await screen.findByText("acme/docs"));
+    await user.click(screen.getByRole("button", { name: /repository/i }));
+    await user.click(await screen.findByText("acme/platform/docs"));
 
-    expect(onSelectRepository).toHaveBeenCalledWith("acme/docs");
+    expect(onSelectRepository).toHaveBeenCalledWith(gitlabRepository);
   });
 });

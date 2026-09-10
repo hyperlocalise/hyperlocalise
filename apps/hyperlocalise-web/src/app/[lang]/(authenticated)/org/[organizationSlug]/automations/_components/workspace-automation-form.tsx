@@ -36,6 +36,7 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
   siGithub,
+  siGitlab,
   siGoogle,
   siGoogleads,
   siGoogleanalytics,
@@ -85,6 +86,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
+import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
 import {
   AUTOMATION_WEEKDAY_OPTIONS,
@@ -135,6 +137,14 @@ type GithubRepositoryOption = {
   enabled: boolean;
   archived: boolean;
   defaultBranch: string | null;
+};
+type GitlabProjectOption = {
+  id: number;
+  name: string;
+  pathWithNamespace: string;
+  defaultBranch: string | null;
+  httpUrlToRepo: string;
+  archived: boolean;
 };
 type McpServerConnectionOption = {
   id: string;
@@ -437,6 +447,7 @@ function triggerSummary(
 function toolCount(form: WorkspaceAutomationFormState) {
   return (
     Number(form.githubEnabled) +
+    Number(form.gitlabEnabled) +
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
     Number(form.githubCommentEnabled) +
@@ -496,6 +507,48 @@ function resolveDefaultGithubRepositoryId(
   return repositories.find((repository) => repository.enabled && !repository.archived)?.id ?? "";
 }
 
+function gitlabProjectPickerValue(project: { pathWithNamespace: string }) {
+  return `gitlab:${project.pathWithNamespace}`;
+}
+
+function formGitlabProjectValue(form: WorkspaceAutomationFormState) {
+  if (!form.gitlabPathWithNamespace) {
+    return "";
+  }
+  return `gitlab:${form.gitlabPathWithNamespace}`;
+}
+
+function formatGitlabProjectOptionLabel(project: GitlabProjectOption) {
+  return project.pathWithNamespace;
+}
+
+function resolveDefaultGitlabProject(
+  form: WorkspaceAutomationFormState,
+  projects: GitlabProjectOption[],
+): GitlabProjectOption | null {
+  const currentValue = formGitlabProjectValue(form);
+  const current = projects.find((project) => gitlabProjectPickerValue(project) === currentValue);
+  if (current) {
+    return current;
+  }
+  return projects.find((project) => !project.archived) ?? null;
+}
+
+function withGitlabRepository(
+  form: WorkspaceAutomationFormState,
+  project: { pathWithNamespace: string },
+): WorkspaceAutomationFormState {
+  return {
+    ...form,
+    gitlabEnabled: true,
+    gitlabPathWithNamespace: project.pathWithNamespace,
+    repositoryTargetKind: "gitlab",
+    githubEnabled: false,
+    githubCommentEnabled: false,
+    githubInstallationRepositoryId: "",
+  };
+}
+
 function GithubRepositorySelect({
   disabled,
   error,
@@ -545,6 +598,73 @@ function GithubRepositorySelect({
               label={formatRepositoryOptionLabel(intl, repository)}
             >
               {formatRepositoryOptionLabel(intl, repository)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
+function GitlabProjectSelect({
+  disabled,
+  error,
+  form,
+  onChange,
+  projects,
+}: {
+  disabled?: boolean;
+  error?: string;
+  form: WorkspaceAutomationFormState;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+  projects: GitlabProjectOption[];
+}) {
+  const intl = useIntl();
+  const selectedValue = formGitlabProjectValue(form);
+
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-xs text-muted-foreground">
+        <FormattedMessage {...workspaceAutomationFormMessages.gitlabProjectLabel} />
+      </Label>
+      <Select
+        value={selectedValue || null}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          const project = projects.find((entry) => gitlabProjectPickerValue(entry) === value);
+          if (!project) {
+            return;
+          }
+          onChange(withGitlabRepository(form, project));
+        }}
+        disabled={disabled || projects.length === 0}
+      >
+        <SelectTrigger className="h-8 w-full rounded-lg">
+          <span className="truncate">
+            {projects.length === 0
+              ? intl.formatMessage(workspaceAutomationFormMessages.connectGitlabForProject)
+              : selectedValue
+                ? projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
+                  ? formatGitlabProjectOptionLabel(
+                      projects.find(
+                        (project) => gitlabProjectPickerValue(project) === selectedValue,
+                      )!,
+                    )
+                  : form.gitlabPathWithNamespace
+                : intl.formatMessage(workspaceAutomationFormMessages.selectGitlabProject)}
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {projects.map((project) => (
+            <SelectItem
+              key={gitlabProjectPickerValue(project)}
+              value={gitlabProjectPickerValue(project)}
+              label={formatGitlabProjectOptionLabel(project)}
+            >
+              {formatGitlabProjectOptionLabel(project)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -1288,6 +1408,8 @@ function AddToolMenu({
   emailConnected,
   form,
   githubConnected,
+  gitlabConnected,
+  gitlabProjects,
   knowledgeAvailable,
   mcpConnected,
   onChange,
@@ -1304,6 +1426,8 @@ function AddToolMenu({
   emailConnected: boolean;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  gitlabConnected: boolean;
+  gitlabProjects: GitlabProjectOption[];
   knowledgeAvailable: boolean;
   mcpConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -1385,7 +1509,7 @@ function AddToolMenu({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
                 <DropdownMenuItem
-                  disabled={form.githubEnabled || !githubConnected}
+                  disabled={form.githubEnabled || !githubConnected || form.gitlabEnabled}
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1398,6 +1522,8 @@ function AddToolMenu({
                       githubMode: "agent",
                       repositoryTargetKind: "github",
                       githubInstallationRepositoryId: defaultRepositoryId,
+                      gitlabEnabled: false,
+                      gitlabPathWithNamespace: "",
                       pushSourceEnabled: false,
                       pullTranslationsEnabled: false,
                       validationEnabled: false,
@@ -1417,7 +1543,7 @@ function AddToolMenu({
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  disabled={form.githubEnabled || !githubConnected}
+                  disabled={form.githubEnabled || !githubConnected || form.gitlabEnabled}
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1430,6 +1556,8 @@ function AddToolMenu({
                       githubMode: "sync",
                       repositoryTargetKind: "github",
                       githubInstallationRepositoryId: defaultRepositoryId,
+                      gitlabEnabled: false,
+                      gitlabPathWithNamespace: "",
                       validationEnabled:
                         form.pushSourceEnabled || form.pullTranslationsEnabled
                           ? form.validationEnabled
@@ -1450,7 +1578,7 @@ function AddToolMenu({
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  disabled={form.githubCommentEnabled || !githubConnected}
+                  disabled={form.githubCommentEnabled || !githubConnected || form.gitlabEnabled}
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1462,6 +1590,8 @@ function AddToolMenu({
                       githubCommentEnabled: true,
                       repositoryTargetKind: "github",
                       githubInstallationRepositoryId: defaultRepositoryId,
+                      gitlabEnabled: false,
+                      gitlabPathWithNamespace: "",
                     });
                   }}
                 >
@@ -1479,6 +1609,34 @@ function AddToolMenu({
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuItem
+              disabled={
+                form.gitlabEnabled ||
+                !gitlabConnected ||
+                form.githubEnabled ||
+                form.githubCommentEnabled
+              }
+              onClick={() => {
+                const defaultProject = resolveDefaultGitlabProject(form, gitlabProjects);
+                onChange(
+                  withGitlabRepository(form, {
+                    pathWithNamespace: defaultProject?.pathWithNamespace ?? "",
+                  }),
+                );
+              }}
+            >
+              <AutomationToolMenuIcon icon={siGitlab} />
+              <FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepo} />
+              {form.gitlabEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !gitlabConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
@@ -1836,6 +1994,8 @@ function ToolsSettings({
   errors,
   form,
   githubConnected,
+  gitlabConnected,
+  gitlabProjects,
   knowledgeAvailable,
   mcpServerConnections,
   onChange,
@@ -1858,6 +2018,8 @@ function ToolsSettings({
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  gitlabConnected: boolean;
+  gitlabProjects: GitlabProjectOption[];
   knowledgeAvailable: boolean;
   mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -1998,6 +2160,39 @@ function ToolsSettings({
               form={form}
               onChange={onChange}
               repositories={repositories}
+            />
+          </EditorRow>
+        ) : null}
+
+        {form.gitlabEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siGitlab} />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepo} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepoDescription} />
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeGitlabRepoTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    gitlabEnabled: false,
+                    gitlabPathWithNamespace: "",
+                    repositoryTargetKind:
+                      form.githubEnabled || form.githubCommentEnabled ? "github" : "none",
+                  })
+                }
+              />
+            }
+          >
+            <GitlabProjectSelect
+              disabled={disabled}
+              error={errors.gitlabRepository}
+              form={form}
+              onChange={onChange}
+              projects={gitlabProjects}
             />
           </EditorRow>
         ) : null}
@@ -2986,6 +3181,8 @@ function ToolsSettings({
           emailConnected={emailConnected}
           form={form}
           githubConnected={githubConnected}
+          gitlabConnected={gitlabConnected}
+          gitlabProjects={gitlabProjects}
           knowledgeAvailable={knowledgeAvailable}
           mcpConnected={mcpConnected}
           onChange={onChange}
@@ -3351,6 +3548,38 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const gitlabPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, GITLAB_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: GITLAB_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load GitLab connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
+  const gitlabProjectsQuery = useQuery({
+    queryKey: ["gitlab-projects", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.projects.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        return [] as GitlabProjectOption[];
+      }
+      const body = await response.json();
+      return body.projects as GitlabProjectOption[];
+    },
+  });
+
   const repositories = useMemo(
     () =>
       selectableAutomationRepositories(
@@ -3373,6 +3602,8 @@ export function WorkspaceAutomationEditor({
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
+  const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
+  const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
 
@@ -3513,6 +3744,8 @@ export function WorkspaceAutomationEditor({
             errors={errors}
             form={form}
             githubConnected={githubConnected}
+            gitlabConnected={gitlabConnected}
+            gitlabProjects={gitlabProjects}
             knowledgeAvailable={knowledgeAvailable}
             mcpServerConnections={mcpServerConnections}
             onChange={onChange}

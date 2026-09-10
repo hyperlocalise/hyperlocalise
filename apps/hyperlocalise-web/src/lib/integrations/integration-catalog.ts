@@ -30,7 +30,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "gitlab",
     category: "source-control",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: true,
     workspace: true,

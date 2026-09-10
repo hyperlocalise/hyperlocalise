@@ -137,6 +137,9 @@ export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAut
   if (automation.toolConfig.github?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithub));
   }
+  if (automation.toolConfig.gitlab?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGitlab));
+  }
   if (automation.toolConfig.slack?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolSlack));
   }

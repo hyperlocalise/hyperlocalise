@@ -387,6 +387,30 @@ describe("workspace automation view model", () => {
     );
   });
 
+  it("maps a GitLab repo tool onto a gitlab repository target", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "GitLab digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "scheduled" as const,
+      gitlabEnabled: true,
+      gitlabPathWithNamespace: "acme/platform/web",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      repositoryTarget: {
+        kind: "gitlab",
+        gitlabPathWithNamespace: "acme/platform/web",
+      },
+      toolConfig: {
+        gitlab: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
   it("maps Contentful tool settings to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),

@@ -16,7 +16,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { siGithub } from "simple-icons";
+import { siGithub, siGitlab } from "simple-icons";
 
 import { PromptInputButton } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { SimpleBrandIcon } from "../integrations/_components/simple-brand-icon";
-import type { GithubRepository } from "./github-repository";
+import type { ChatRepository, ChatRepositoryProvider } from "./chat-repository";
 import { repositorySelectorMessages as messages } from "./repository-selector.messages";
 
 type RepositorySelectorTriggerStyle = "button" | "prompt-input";
@@ -74,22 +74,41 @@ function RepositorySelectorTrigger({
   );
 }
 
+function ProviderIcon({
+  provider,
+  className,
+}: {
+  provider: ChatRepositoryProvider;
+  className?: string;
+}) {
+  return (
+    <SimpleBrandIcon
+      icon={provider === "gitlab" ? siGitlab : siGithub}
+      colored
+      className={className}
+    />
+  );
+}
+
 export function RepositorySelector({
   onSelectRepository,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
-  selectedRepositoryFullName,
+  selectedRepositoryKey,
   triggerStyle,
 }: {
-  onSelectRepository: (fullName: string) => void;
-  repositories: GithubRepository[];
+  onSelectRepository: (repository: ChatRepository) => void;
+  repositories: ChatRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
-  selectedRepositoryFullName: string;
+  selectedRepositoryKey: string;
   triggerStyle: RepositorySelectorTriggerStyle;
 }) {
   const intl = useIntl();
+  const selectedRepository =
+    repositories.find((repository) => repository.selectionKey === selectedRepositoryKey) ?? null;
+  const triggerProvider = selectedRepository?.provider ?? repositories[0]?.provider ?? "github";
   const disabledTriggerClassName =
     triggerStyle === "prompt-input"
       ? "inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
@@ -110,7 +129,7 @@ export function RepositorySelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
+        <ProviderIcon provider={triggerProvider} className="size-4" />
         <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
       </RepositorySelectorTrigger>
     );
@@ -123,7 +142,7 @@ export function RepositorySelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
+        <ProviderIcon provider={triggerProvider} className="size-4" />
         <FormattedMessage {...messages.reposUnavailable} />
       </RepositorySelectorTrigger>
     );
@@ -136,8 +155,8 @@ export function RepositorySelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4" />
-        <FormattedMessage {...messages.noGithubRepos} />
+        <ProviderIcon provider={triggerProvider} className="size-4" />
+        <FormattedMessage {...messages.noRepos} />
       </RepositorySelectorTrigger>
     );
   }
@@ -149,7 +168,7 @@ export function RepositorySelector({
         className={singleRepositoryTriggerClassName}
         disabled
       >
-        <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
+        <ProviderIcon provider={triggerProvider} className="size-4 shrink-0" />
         <span className="truncate">{repositories[0]?.fullName}</span>
       </RepositorySelectorTrigger>
     );
@@ -163,9 +182,9 @@ export function RepositorySelector({
             triggerStyle={triggerStyle}
             className={interactiveTriggerClassName}
           >
-            <SimpleBrandIcon icon={siGithub} colored className="size-4 shrink-0" />
+            <ProviderIcon provider={triggerProvider} className="size-4 shrink-0" />
             <span className="max-w-44 truncate">
-              {selectedRepositoryFullName || intl.formatMessage(messages.githubRepoPlaceholder)}
+              {selectedRepository?.fullName || intl.formatMessage(messages.repoPlaceholder)}
             </span>
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
           </RepositorySelectorTrigger>
@@ -175,10 +194,10 @@ export function RepositorySelector({
         <DropdownMenuGroup>
           {repositories.map((repository) => (
             <DropdownMenuItem
-              key={repository.id}
-              onClick={() => onSelectRepository(repository.fullName)}
+              key={repository.selectionKey}
+              onClick={() => onSelectRepository(repository)}
             >
-              <SimpleBrandIcon icon={siGithub} colored className="size-4" />
+              <ProviderIcon provider={repository.provider} className="size-4" />
               <span className="min-w-0 flex-1 truncate">{repository.fullName}</span>
             </DropdownMenuItem>
           ))}
