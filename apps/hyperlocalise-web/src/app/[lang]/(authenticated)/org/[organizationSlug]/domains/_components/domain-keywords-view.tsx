@@ -15,7 +15,7 @@
 import { useDomainResearchCatalog } from "./domain-research-context";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";

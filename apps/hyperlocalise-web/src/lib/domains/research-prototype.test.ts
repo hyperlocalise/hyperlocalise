@@ -132,7 +132,13 @@ describe("domain research locales", () => {
         { ...french.ranks[0]!, id: "de-rank", marketId: "germany-de" },
       ],
       overviewKeywords: [
-        { id: "fr-rank", keyword: "traduction automatique", position: 22, volume: 8100, traffic: 0 },
+        {
+          id: "fr-rank",
+          keyword: "traduction automatique",
+          position: 22,
+          volume: 8100,
+          traffic: 0,
+        },
         {
           id: "de-rank",
           keyword: "maschinelle übersetzung",

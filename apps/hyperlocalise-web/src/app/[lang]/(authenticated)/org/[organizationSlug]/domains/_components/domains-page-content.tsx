@@ -64,8 +64,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
     },
   });
   const liveDomains = linkedDomainsQuery.data ?? [];
-  const domains: DomainResearchDomain[] =
-    liveDomains.length > 0 ? liveDomains : prototypeDomains;
+  const domains: DomainResearchDomain[] = liveDomains.length > 0 ? liveDomains : prototypeDomains;
   const [editingDomain, setEditingDomain] = useState<DomainResearchDomain | undefined>();
   const [linkOpen, setLinkOpen] = useState(false);
   const [verifyDomainKey, setVerifyDomainKey] = useState<string | null>(null);
