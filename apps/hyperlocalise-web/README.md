@@ -84,14 +84,14 @@ vp test
 
 ## Useful paths
 
-| Path | Purpose |
-| --- | --- |
-| `src/app/` | Next.js App Router pages |
-| `src/api/` | Hono API mounted through the Next.js catch-all |
-| `src/lib/database/` | Drizzle schema and helpers |
-| `src/lib/domains/` | Domains research store and go-svc client |
-| `drizzle/` | Generated migrations (do not edit by hand) |
-| `vite.config.ts` | Vite+ config for lint, format, tests, aliases |
+| Path                | Purpose                                        |
+| ------------------- | ---------------------------------------------- |
+| `src/app/`          | Next.js App Router pages                       |
+| `src/api/`          | Hono API mounted through the Next.js catch-all |
+| `src/lib/database/` | Drizzle schema and helpers                     |
+| `src/lib/domains/`  | Domains research store and go-svc client       |
+| `drizzle/`          | Generated migrations (do not edit by hand)     |
+| `vite.config.ts`    | Vite+ config for lint, format, tests, aliases  |
 
 ## Database migrations
 
