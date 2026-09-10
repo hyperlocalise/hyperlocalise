@@ -230,6 +230,13 @@ const semrushToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const zernioToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
 const ahrefsToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -313,6 +320,7 @@ const toolConfigObjectSchema = z
     knowledgeFiles: knowledgeFilesToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
+    zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
@@ -360,6 +368,7 @@ export type WorkspaceAutomationKnowledgeFilesToolConfig = z.infer<
 >;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
+export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
@@ -478,6 +487,18 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Enable the selected Semrush connection in Integrations before using it.";
     }
   | {
+      code: "zernio_connection_required";
+      message: "Enabled Zernio tools require a Zernio connection.";
+    }
+  | {
+      code: "zernio_connection_not_found";
+      message: "The selected Zernio connection was not found. Choose another connection.";
+    }
+  | {
+      code: "zernio_not_connected";
+      message: "Enable the selected Zernio connection in Integrations before using it.";
+    }
+  | {
       code: "ahrefs_not_connected";
       message: "Connect Ahrefs in Integrations before using it.";
     }
@@ -555,6 +576,10 @@ export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToo
 
 export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.semrush?.enabled);
+}
+
+export function hasWorkspaceAutomationZernioTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.zernio?.enabled);
 }
 
 export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {

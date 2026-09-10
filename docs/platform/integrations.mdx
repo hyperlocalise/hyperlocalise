@@ -80,6 +80,17 @@ The org-level `ahrefs_connections` and `intercom_connections` tables are depreca
 2. On an automation, add the **Ahrefs** tool. Saving stamps the current WorkOS user on the automation.
 3. At run time the automation vends that user's Pipes credential and calls Ahrefs MCP.
 
+## Zernio
+
+Open **Integrations** → **Zernio** and save an API key from [Zernio](https://docs.zernio.com). Hyperlocalise stores the key encrypted on the organization. Automations keep only a connection id.
+
+1. Create an API key in Zernio.
+2. Paste it on the Zernio row. Saving calls `GET /v1/accounts` to confirm the key.
+3. On an [automation](/platform/automations), add the **Zernio** tool and pick the connection.
+4. Hosted [MCP](/platform/mcp) agents can call `zernio_*` tools after the org connects a key.
+
+Zernio is not a WorkOS Pipes provider. Automations and inbound agents call `https://zernio.com/api/v1` with `Authorization: Bearer`. Use this path to create paid ads from localized copy on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads.
+
 ## MCP server connections
 
 Add a remote MCP server when an [automation](/platform/automations) should call external tools at run time (for example Semrush). Ahrefs uses [WorkOS Pipes](/platform/integrations#workos-pipes-api-keys) instead of a generic MCP server connection.

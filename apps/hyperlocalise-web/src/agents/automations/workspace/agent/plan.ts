@@ -37,6 +37,7 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "create_issue",
   "use_crowdin",
   "use_semrush",
+  "use_zernio",
   "use_ahrefs",
   "use_web_search",
   "notify_slack",
@@ -66,6 +67,7 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "create_issue",
   "use_crowdin",
   "use_semrush",
+  "use_zernio",
   "use_ahrefs",
   "use_web_search",
 ];
@@ -105,6 +107,8 @@ function workflowToolEnabled(
       return Boolean(toolConfig.crowdin?.enabled && toolConfig.crowdin.projectId?.trim());
     case "use_semrush":
       return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+    case "use_zernio":
+      return Boolean(toolConfig.zernio?.enabled && toolConfig.zernio.connectionId);
     case "use_ahrefs":
       return Boolean(toolConfig.ahrefs?.enabled);
     case "use_web_search":
@@ -160,6 +164,7 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "create_issue"),
       ...enabled.filter((tool) => tool === "use_crowdin"),
       ...enabled.filter((tool) => tool === "use_semrush"),
+      ...enabled.filter((tool) => tool === "use_zernio"),
       ...enabled.filter((tool) => tool === "use_ahrefs"),
       ...enabled.filter((tool) => tool === "use_web_search"),
     ];
@@ -175,6 +180,7 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "create_issue"),
     ...enabled.filter((tool) => tool === "use_crowdin"),
     ...enabled.filter((tool) => tool === "use_semrush"),
+    ...enabled.filter((tool) => tool === "use_zernio"),
     ...enabled.filter((tool) => tool === "use_ahrefs"),
     ...enabled.filter((tool) => tool === "use_web_search"),
   ];

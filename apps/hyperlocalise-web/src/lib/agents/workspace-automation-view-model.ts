@@ -89,6 +89,8 @@ export type WorkspaceAutomationFormState = {
   mcpConnectionId: string;
   semrushEnabled: boolean;
   semrushConnectionId: string;
+  zernioEnabled: boolean;
+  zernioConnectionId: string;
   ahrefsEnabled: boolean;
   crowdinEnabled: boolean;
   crowdinProjectId: string;
@@ -131,6 +133,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "createNativeTmsJobTargetLocales"
     | "mcpConnectionId"
     | "semrushConnectionId"
+    | "zernioConnectionId"
     | "ahrefs"
     | "crowdinProjectId"
     | "scheduledTimezone"
@@ -179,6 +182,10 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   semrush_connection_not_found:
     "The selected Semrush connection was not found. Choose another connection.",
   semrush_not_connected: "Enable the selected Semrush connection in Integrations before using it.",
+  zernio_connection_required: "Choose a Zernio connection.",
+  zernio_connection_not_found:
+    "The selected Zernio connection was not found. Choose another connection.",
+  zernio_not_connected: "Enable the selected Zernio connection in Integrations before using it.",
   ahrefs_not_connected: "Connect Ahrefs in Integrations before using it.",
   ahrefs_pipes_needs_reauthorization: "Reconnect Ahrefs in Integrations, then try again.",
   ahrefs_pipes_unavailable: "Ahrefs is unavailable until WorkOS Pipes is configured.",
@@ -253,6 +260,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     mcpConnectionId: "",
     semrushEnabled: false,
     semrushConnectionId: "",
+    zernioEnabled: false,
+    zernioConnectionId: "",
     ahrefsEnabled: false,
     crowdinEnabled: false,
     crowdinProjectId: "",
@@ -276,6 +285,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const knowledgeFiles = automation.toolConfig.knowledgeFiles;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
+  const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
@@ -350,6 +360,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     mcpConnectionId: mcp?.connectionId ?? "",
     semrushEnabled: Boolean(semrush?.enabled),
     semrushConnectionId: semrush?.connectionId ?? "",
+    zernioEnabled: Boolean(zernio?.enabled),
+    zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     crowdinEnabled: Boolean(crowdin?.enabled),
     crowdinProjectId: crowdin?.projectId ?? "",
@@ -574,6 +586,14 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.zernioEnabled
+      ? {
+          zernio: {
+            enabled: true,
+            connectionId: form.zernioConnectionId || undefined,
+          },
+        }
+      : {}),
     ...(form.ahrefsEnabled
       ? {
           ahrefs: {
@@ -712,6 +732,10 @@ export function validateWorkspaceAutomationFormState(
     errors.semrushConnectionId = "Choose a Semrush connection.";
   }
 
+  if (form.zernioEnabled && !form.zernioConnectionId) {
+    errors.zernioConnectionId = "Choose a Zernio connection.";
+  }
+
   if (form.crowdinEnabled && !form.crowdinProjectId.trim()) {
     errors.crowdinProjectId = "Choose a Crowdin-linked project.";
   }
@@ -778,6 +802,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "semrush_connection_not_found":
     case "semrush_not_connected":
       return { semrushConnectionId: message };
+    case "zernio_connection_required":
+    case "zernio_connection_not_found":
+    case "zernio_not_connected":
+      return { zernioConnectionId: message };
     case "ahrefs_not_connected":
     case "ahrefs_pipes_needs_reauthorization":
     case "ahrefs_pipes_unavailable":
@@ -822,6 +850,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.createIssueEnabled ||
     form.mcpEnabled ||
     form.semrushEnabled ||
+    form.zernioEnabled ||
     form.ahrefsEnabled ||
     form.crowdinEnabled ||
     form.webSearchEnabled ||

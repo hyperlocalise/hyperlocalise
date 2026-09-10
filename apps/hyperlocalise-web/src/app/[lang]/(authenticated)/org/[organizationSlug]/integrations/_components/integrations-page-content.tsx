@@ -75,6 +75,7 @@ import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
 import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
+import { ZernioConnectionPanel } from "./zernio-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationLogo } from "./integration-logo";
@@ -1110,6 +1111,7 @@ export function IntegrationsPageContent({
                 iconMuted
                 action="coming-soon"
               />
+              <ZernioConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <SemrushConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <AhrefsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               {workspacePipesSeoToolSlugs.map((slug, index) => (

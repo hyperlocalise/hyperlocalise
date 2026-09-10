@@ -84,6 +84,9 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
       HttpResponse.json({ semrushConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/zernio-connections", () =>
+      HttpResponse.json({ zernioConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
       HttpResponse.json({ ahrefsConnections: [] }),
     ),
@@ -196,6 +199,10 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/semrush-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ semrushConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/zernio-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ zernioConnections: [] });
   }),
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");
