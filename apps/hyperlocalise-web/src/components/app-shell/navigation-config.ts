@@ -43,7 +43,9 @@ import {
   Globe02Icon,
   InboxIcon,
   LanguageCircleIcon,
+  Message01Icon,
   PuzzleIcon,
+  SearchIcon,
   SentIcon,
   Settings01Icon,
   SparklesIcon,
@@ -461,6 +463,60 @@ export function buildProjectNavigationItems(
   return items;
 }
 
+export function buildDomainNavigationItems(
+  organizationSlug: string,
+  linkedDomainId: string,
+  intl: IntlShape,
+): readonly NavigationItem[] {
+  return [
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Overview",
+        id: "anZA7El/dn",
+        description: "Domain sidebar navigation item for domain overview",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId),
+      icon: Globe02Icon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Keyword research",
+        id: "nTrVg4wzwz",
+        description: "Domain sidebar navigation item for keyword research",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "keywords"),
+      icon: SearchIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Rank tracking",
+        id: "Msc3y2PRr9",
+        description: "Domain sidebar navigation item for rank tracking",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "ranks"),
+      icon: ChartHistogramIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "AI visibility",
+        id: "5/dmhZm327",
+        description: "Domain sidebar navigation item for AI visibility",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "brand"),
+      icon: SparklesIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Prompt explorer",
+        id: "qLDfc32277",
+        description: "Domain sidebar navigation item for prompt explorer",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "prompts"),
+      icon: Message01Icon,
+    },
+  ];
+}
+
 export function stripAppLocalePrefix(pathname: string | null | undefined) {
   if (!pathname) {
     return "/";
@@ -555,6 +611,7 @@ export function isNavigationItemActive(
   options?: {
     exact?: boolean;
     projectId?: string;
+    linkedDomainId?: string;
     organizationSlug?: string;
   },
 ) {
@@ -563,16 +620,25 @@ export function isNavigationItemActive(
   }
 
   const normalizedPathname = stripAppLocalePrefix(pathname);
-  const itemPathname = href.split("#", 1)[0];
+  const itemPathname = href.split("#", 1)[0].split("?", 1)[0];
 
   if (options?.exact) {
     return normalizedPathname === itemPathname;
   }
 
-  if (options?.projectId && options.organizationSlug) {
-    const overviewHref = buildProjectPath(options.organizationSlug, options.projectId);
-    if (itemPathname === overviewHref) {
-      return normalizedPathname === overviewHref;
+  if (options?.organizationSlug) {
+    if (options.projectId) {
+      const overviewHref = buildProjectPath(options.organizationSlug, options.projectId);
+      if (itemPathname === overviewHref) {
+        return normalizedPathname === overviewHref;
+      }
+    }
+
+    if (options.linkedDomainId) {
+      const overviewHref = buildDomainPath(options.organizationSlug, options.linkedDomainId);
+      if (itemPathname === overviewHref) {
+        return normalizedPathname === overviewHref;
+      }
     }
   }
 
@@ -585,7 +651,7 @@ export function isNavigationItemActive(
     return false;
   }
 
-  if (itemPathname.endsWith("/projects")) {
+  if (itemPathname.endsWith("/projects") || itemPathname.endsWith("/domains")) {
     return normalizedPathname === itemPathname;
   }
 

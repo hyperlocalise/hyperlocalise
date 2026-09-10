@@ -16,7 +16,7 @@ import { useEffect, useRef } from "react";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 
-import type { NavigationProjectContext } from "./navigation-store";
+import type { NavigationDomainContext, NavigationProjectContext } from "./navigation-store";
 import { useAppShellStore } from "./app-shell-store-context";
 
 type AppShellNavigationCustomConfig = {
@@ -26,6 +26,7 @@ type AppShellNavigationCustomConfig = {
    */
   groups: readonly NavigationGroup[];
   projectContext?: NavigationProjectContext;
+  domainContext?: NavigationDomainContext;
 };
 
 function buildGroupsSignature(groups: readonly NavigationGroup[]) {
@@ -39,23 +40,31 @@ function buildGroupsSignature(groups: readonly NavigationGroup[]) {
 export function useAppShellNavigationCustom({
   groups,
   projectContext,
+  domainContext,
 }: AppShellNavigationCustomConfig) {
   const store = useAppShellStore();
   const groupsRef = useRef(groups);
   const projectContextRef = useRef(projectContext);
+  const domainContextRef = useRef(domainContext);
   groupsRef.current = groups;
   projectContextRef.current = projectContext;
+  domainContextRef.current = domainContext;
 
   const groupsSignature = buildGroupsSignature(groups);
-  const organizationSlug = projectContext?.organizationSlug;
+  const organizationSlug = projectContext?.organizationSlug ?? domainContext?.organizationSlug;
   const projectId = projectContext?.projectId;
   const projectName = projectContext?.projectName;
+  const linkedDomainId = domainContext?.linkedDomainId;
+  const domainName = domainContext?.domainName;
 
   useEffect(() => {
-    store.navigation.setCustomNavigation(groupsRef.current, projectContextRef.current);
+    store.navigation.setCustomNavigation(groupsRef.current, {
+      projectContext: projectContextRef.current,
+      domainContext: domainContextRef.current,
+    });
 
     return () => {
       store.navigation.clearCustomMode();
     };
-  }, [store, groupsSignature, organizationSlug, projectId, projectName]);
+  }, [store, groupsSignature, organizationSlug, projectId, projectName, linkedDomainId, domainName]);
 }

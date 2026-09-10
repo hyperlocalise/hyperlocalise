@@ -20,9 +20,21 @@ export type NavigationProjectContext = {
   projectName?: string;
 };
 
+export type NavigationDomainContext = {
+  organizationSlug: string;
+  linkedDomainId: string;
+  domainName?: string;
+};
+
+export type NavigationCustomOptions = {
+  projectContext?: NavigationProjectContext;
+  domainContext?: NavigationDomainContext;
+};
+
 export type NavigationCustomState = {
   groups: readonly NavigationGroup[];
   projectContext?: NavigationProjectContext;
+  domainContext?: NavigationDomainContext;
 };
 
 export class NavigationStore {
@@ -49,12 +61,17 @@ export class NavigationStore {
     return this.customState?.projectContext ?? null;
   }
 
-  setCustomNavigation(
-    groups: readonly NavigationGroup[],
-    projectContext?: NavigationProjectContext,
-  ) {
+  get activeDomainContext(): NavigationDomainContext | null {
+    return this.customState?.domainContext ?? null;
+  }
+
+  setCustomNavigation(groups: readonly NavigationGroup[], options?: NavigationCustomOptions) {
     this.mode = "custom";
-    this.customState = { groups, projectContext };
+    this.customState = {
+      groups,
+      projectContext: options?.projectContext,
+      domainContext: options?.domainContext,
+    };
   }
 
   clearCustomMode() {
