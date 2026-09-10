@@ -40,6 +40,14 @@ import {
   CAT_STORY_DOCUMENT_SOURCE_URL,
   CAT_STORY_DOCUMENT_TARGET_URL,
 } from "./content-editor-document-msw-handlers";
+import {
+  CAT_STORY_OFFICE_DOCX_SOURCE_URL,
+  CAT_STORY_OFFICE_DOCX_TARGET_URL,
+  CAT_STORY_OFFICE_PPTX_SOURCE_URL,
+  CAT_STORY_OFFICE_PPTX_TARGET_URL,
+  CAT_STORY_OFFICE_XLSX_SOURCE_URL,
+  CAT_STORY_OFFICE_XLSX_TARGET_URL,
+} from "./content-editor-office-story-assets";
 
 export const contentEditorImageFileIntelligenceFixture: ContentEditorSegmentIntelligence = {
   ...contentEditorIntelligenceFixture,
@@ -85,6 +93,22 @@ export const contentEditorVideoFileIntelligenceFixture: ContentEditorSegmentInte
   productMeaning: "Short video that shows how reviewers approve translations.",
   segmentType: "Video file",
   constraints: "Keep the same runtime and safe-area captions.",
+  aiSuggestion: undefined,
+  aiReasoning: undefined,
+};
+
+export const contentEditorOfficeFileIntelligenceFixture: ContentEditorSegmentIntelligence = {
+  ...contentEditorIntelligenceFixture,
+  reviewReason:
+    "Slide titles and speaker notes still mix English product names with localized body copy.",
+  reviewRisk: "medium",
+  intent: "Quarterly business review deck for customer success.",
+  locationBreadcrumb: "Decks > Quarterly review",
+  filePath: "decks/quarterly-review.pptx",
+  componentName: "QuarterlyReviewDeck",
+  productMeaning: "Executive slide deck summarizing localization progress.",
+  segmentType: "Office file",
+  constraints: "Preserve chart data and speaker notes layout.",
   aiSuggestion: undefined,
   aiReasoning: undefined,
 };
@@ -171,6 +195,60 @@ export function createCatVideoFileSegment(
   };
 }
 
+export function createCatOfficeFileSegment(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorSegment {
+  return {
+    id: "seg-office-file",
+    index: 1,
+    key: "decks/quarterly-review.pptx",
+    sourceText: "decks/quarterly-review.pptx",
+    targetText: "",
+    sourcePath: "decks/quarterly-review.pptx",
+    sourceLocale: SOURCE_LOCALE,
+    targetLocale: TARGET_LOCALE,
+    status: "needs_review",
+    contextLabel: "Quarterly review deck",
+    tags: ["office", "slides"],
+    contentKind: "office_file",
+    sourceAssetUrl: CAT_STORY_OFFICE_PPTX_SOURCE_URL,
+    targetAssetUrl: CAT_STORY_OFFICE_PPTX_TARGET_URL,
+    ...overrides,
+  };
+}
+
+export function createCatOfficeDocxFileSegment(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorSegment {
+  return createCatOfficeFileSegment({
+    id: "seg-office-docx-file",
+    key: "docs/product-brief.docx",
+    sourceText: "docs/product-brief.docx",
+    sourcePath: "docs/product-brief.docx",
+    contextLabel: "Product brief",
+    tags: ["office", "document"],
+    sourceAssetUrl: CAT_STORY_OFFICE_DOCX_SOURCE_URL,
+    targetAssetUrl: CAT_STORY_OFFICE_DOCX_TARGET_URL,
+    ...overrides,
+  });
+}
+
+export function createCatOfficeXlsxFileSegment(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorSegment {
+  return createCatOfficeFileSegment({
+    id: "seg-office-xlsx-file",
+    key: "sheets/localization-metrics.xlsx",
+    sourceText: "sheets/localization-metrics.xlsx",
+    sourcePath: "sheets/localization-metrics.xlsx",
+    contextLabel: "Localization metrics",
+    tags: ["office", "spreadsheet"],
+    sourceAssetUrl: CAT_STORY_OFFICE_XLSX_SOURCE_URL,
+    targetAssetUrl: CAT_STORY_OFFICE_XLSX_TARGET_URL,
+    ...overrides,
+  });
+}
+
 function createMediaFileContext(sourcePath: string, filename: string): ContentEditorFileContext {
   return {
     sourcePath,
@@ -237,6 +315,48 @@ export function createCatDocumentFileWorkspaceState(
     segment.id,
     contentEditorDocumentFileIntelligenceFixture,
     createMediaFileContext(segment.sourcePath ?? "content/intro.md", "intro.md"),
+  );
+}
+
+export function createCatOfficeFileWorkspaceState(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorWorkspaceState {
+  const segment = createCatOfficeFileSegment(overrides);
+  return createMediaWorkspaceState(
+    [segment],
+    segment.id,
+    contentEditorOfficeFileIntelligenceFixture,
+    createMediaFileContext(
+      segment.sourcePath ?? "decks/quarterly-review.pptx",
+      "quarterly-review.pptx",
+    ),
+  );
+}
+
+export function createCatOfficeDocxFileWorkspaceState(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorWorkspaceState {
+  const segment = createCatOfficeDocxFileSegment(overrides);
+  return createMediaWorkspaceState(
+    [segment],
+    segment.id,
+    contentEditorOfficeFileIntelligenceFixture,
+    createMediaFileContext(segment.sourcePath ?? "docs/product-brief.docx", "product-brief.docx"),
+  );
+}
+
+export function createCatOfficeXlsxFileWorkspaceState(
+  overrides: Partial<ContentEditorSegment> = {},
+): ContentEditorWorkspaceState {
+  const segment = createCatOfficeXlsxFileSegment(overrides);
+  return createMediaWorkspaceState(
+    [segment],
+    segment.id,
+    contentEditorOfficeFileIntelligenceFixture,
+    createMediaFileContext(
+      segment.sourcePath ?? "sheets/localization-metrics.xlsx",
+      "localization-metrics.xlsx",
+    ),
   );
 }
 

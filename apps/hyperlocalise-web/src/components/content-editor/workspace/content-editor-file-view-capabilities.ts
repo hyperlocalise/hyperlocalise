@@ -110,7 +110,7 @@ export function resolveCatFileViewCapabilities(input: {
   return {
     family: "text",
     availableViews: SEGMENT_VIEWS,
-    defaultView: "comfortable",
+    defaultView: "side-by-side",
     viewerId: null,
   };
 }

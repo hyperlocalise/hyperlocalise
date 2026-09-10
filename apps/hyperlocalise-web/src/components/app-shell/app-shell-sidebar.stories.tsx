@@ -78,6 +78,27 @@ export const ProjectNavigation: Story = {
   },
 };
 
+export const HyperlabNavigation: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${APP_SHELL_STORY_ORGANIZATION_SLUG}/hyperlab/experiments`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("link", { name: "Workspace" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Home" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Experiments" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Audiences" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Flags" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "API keys" })).toBeInTheDocument();
+    const experimentsLink = canvas.getByRole("link", { name: "Experiments" });
+    await expect(experimentsLink.querySelector("[data-active]")).toBeTruthy();
+  },
+};
+
 export const Collapsed: Story = {
   render: () => <AppShellSidebarStoryFrame collapsed />,
   play: async () => {

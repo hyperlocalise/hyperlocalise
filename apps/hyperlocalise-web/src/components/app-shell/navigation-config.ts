@@ -38,10 +38,12 @@ import {
   DashboardSquare01Icon,
   Database01Icon,
   File01Icon,
+  Flag01Icon,
   FlashIcon,
   FlaskConicalIcon,
   Globe02Icon,
   InboxIcon,
+  Key01Icon,
   LanguageCircleIcon,
   PuzzleIcon,
   SentIcon,
@@ -83,6 +85,11 @@ export function buildOrganizationPath(organizationSlug: string, section: string)
 
 export function buildProjectPath(organizationSlug: string, projectId: string, section?: string) {
   const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}`;
+  return section ? `${base}/${section}` : base;
+}
+
+export function buildHyperlabPath(organizationSlug: string, section?: string) {
+  const base = `/org/${organizationSlug}/hyperlab`;
   return section ? `${base}/${section}` : base;
 }
 
@@ -461,6 +468,62 @@ export function buildProjectNavigationItems(
   return items;
 }
 
+export function buildHyperlabNavigationItems(
+  organizationSlug: string,
+  intl: IntlShape,
+): readonly NavigationItem[] {
+  const hyperlab = (section?: string) => buildHyperlabPath(organizationSlug, section);
+
+  return [
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Home",
+        id: "lrOpO6sjSs",
+        description: "Hyperlab sub-navigation item for the home page",
+      }),
+      href: hyperlab(),
+      icon: DashboardSquare01Icon,
+      exact: true,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Experiments",
+        id: "A6hxrVxwgZ",
+        description: "Hyperlab sub-navigation item for experiments",
+      }),
+      href: hyperlab("experiments"),
+      icon: FlaskConicalIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Audiences",
+        id: "ZJI5SD947D",
+        description: "Hyperlab sub-navigation item for audiences",
+      }),
+      href: hyperlab("audiences"),
+      icon: UserMultiple02Icon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Flags",
+        id: "IpQ4vzh2L9",
+        description: "Hyperlab sub-navigation item for flags",
+      }),
+      href: hyperlab("flags"),
+      icon: Flag01Icon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "API keys",
+        id: "AyY17qkMp3",
+        description: "Hyperlab sub-navigation item for API keys",
+      }),
+      href: hyperlab("keys"),
+      icon: Key01Icon,
+    },
+  ];
+}
+
 export function stripAppLocalePrefix(pathname: string | null | undefined) {
   if (!pathname) {
     return "/";
@@ -528,6 +591,21 @@ export function parseDomainRoute(pathname: string | null) {
     organizationSlug,
     linkedDomainId: decodePathSegment(linkedDomainIdSegment),
     ...(surface ? { surface } : {}),
+  };
+}
+
+export function parseHyperlabRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const match = stripAppLocalePrefix(pathname).match(/^\/org\/([^/]+)\/hyperlab(?:\/(.*))?$/);
+  if (!match) return null;
+
+  const [, organizationSlug, remainder] = match;
+  const section = remainder?.split("/").filter(Boolean)[0] ?? null;
+
+  return {
+    organizationSlug,
+    section,
   };
 }
 

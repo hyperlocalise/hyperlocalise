@@ -75,6 +75,7 @@ function createOrgSlugClient(origin: string) {
       "mcp-server-connections",
       "linked-domains",
       "semrush-connections",
+      "zernio-connections",
       "ahrefs-connections",
       "pipes",
       "intercom-connections",

@@ -25,6 +25,8 @@ import {
   type ContentEditorOfficeSnapshot,
 } from "@/components/content-editor/file-view/content-editor-office-convert";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
+import { ContentEditorOfficeFilePreview } from "@/components/content-editor/file-view/content-editor-office-file-preview";
+import { isCatStoryOfficeAssetUrl } from "@/components/content-editor/file-view/content-editor-office-story-assets";
 import {
   isCatOfficeKind,
   mountCatUniverHost,
@@ -58,6 +60,8 @@ export function ContentEditorOfficeFileViewerPane({
   const [error, setError] = useState<string | null>(null);
   const [isMounting, setIsMounting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [previewSnapshot, setPreviewSnapshot] = useState<ContentEditorOfficeSnapshot | null>(null);
+  const useStoryPreview = isCatStoryOfficeAssetUrl(src);
   const readOnly = role === "source" || !canEdit;
 
   const emptyLabel =
@@ -84,20 +88,58 @@ export function ContentEditorOfficeFileViewerPane({
     let cancelled = false;
 
     async function run() {
+      hostRef.current?.dispose();
+      hostRef.current = null;
+      containerRef.current?.replaceChildren();
+      setPreviewSnapshot(null);
+
       if (isLoading) {
+        setIsMounting(false);
+        setError(null);
         return;
       }
+
+      if (!src) {
+        if (readOnly) {
+          setIsMounting(false);
+          setError(null);
+          return;
+        }
+
+        setIsMounting(true);
+        setError(null);
+        try {
+          const snapshot = emptyOfficeSnapshot(kind, filename);
+          if (cancelled) {
+            return;
+          }
+          await mountEditor(snapshot);
+        } catch (mountError) {
+          if (cancelled) {
+            return;
+          }
+          setError(mountError instanceof Error ? mountError.message : String(mountError));
+        } finally {
+          if (!cancelled) {
+            setIsMounting(false);
+          }
+        }
+        return;
+      }
+
       setIsMounting(true);
       setError(null);
       try {
-        const snapshot = src
-          ? await loadOfficeSnapshotFromUrl({
-              kind,
-              src,
-              filename,
-            })
-          : emptyOfficeSnapshot(kind, filename);
+        const snapshot = await loadOfficeSnapshotFromUrl({
+          kind,
+          src,
+          filename,
+        });
         if (cancelled) {
+          return;
+        }
+        if (useStoryPreview) {
+          setPreviewSnapshot(snapshot);
           return;
         }
         await mountEditor(snapshot);
@@ -106,11 +148,6 @@ export function ContentEditorOfficeFileViewerPane({
           return;
         }
         setError(mountError instanceof Error ? mountError.message : String(mountError));
-        try {
-          await mountEditor(emptyOfficeSnapshot(kind, filename));
-        } catch {
-          // Keep the error message; empty mount may also fail if Univer cannot boot.
-        }
       } finally {
         if (!cancelled) {
           setIsMounting(false);
@@ -125,16 +162,20 @@ export function ContentEditorOfficeFileViewerPane({
       hostRef.current?.dispose();
       hostRef.current = null;
     };
-  }, [filename, isLoading, kind, mountEditor, src]);
+  }, [filename, isLoading, kind, mountEditor, readOnly, src, useStoryPreview]);
 
   async function handleSave() {
-    if (!onSave || !hostRef.current) {
+    if (!onSave) {
       return;
     }
     setIsSaving(true);
     setError(null);
     try {
-      const snapshot = hostRef.current.getSnapshot();
+      const snapshot =
+        useStoryPreview && previewSnapshot ? previewSnapshot : hostRef.current?.getSnapshot();
+      if (!snapshot) {
+        return;
+      }
       const file = await exportOfficeSnapshotToFile({ snapshot, filename });
       await onSave(file);
     } catch (saveError) {
@@ -156,7 +197,14 @@ export function ContentEditorOfficeFileViewerPane({
             type="button"
             variant="outline"
             size="xs"
-            disabled={!canEdit || isBusy || isSaving || isMounting || Boolean(isLoading)}
+            disabled={
+              !canEdit ||
+              isBusy ||
+              isSaving ||
+              isMounting ||
+              Boolean(isLoading) ||
+              (useStoryPreview && !previewSnapshot)
+            }
             onClick={() => void handleSave()}
           >
             {isSaving ? (
@@ -171,7 +219,7 @@ export function ContentEditorOfficeFileViewerPane({
       <div
         className={cn(
           "relative min-h-72 overflow-hidden border border-border bg-background",
-          !src && role === "target" ? "border-dashed" : "",
+          !src && readOnly && role === "target" ? "border-dashed" : "",
         )}
       >
         {(isLoading || isMounting) && (
@@ -179,8 +227,8 @@ export function ContentEditorOfficeFileViewerPane({
             <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
           </div>
         )}
-        {!src && !isLoading ? (
-          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 px-3 text-center text-xs text-muted-foreground">
+        {!src && !isLoading && readOnly ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
             {emptyLabel}
           </div>
         ) : null}
@@ -189,7 +237,14 @@ export function ContentEditorOfficeFileViewerPane({
             {error}
           </div>
         ) : null}
-        <div ref={containerRef} className="h-[28rem] w-full" />
+        {useStoryPreview && previewSnapshot ? (
+          <ContentEditorOfficeFilePreview
+            snapshot={previewSnapshot}
+            className="max-h-[28rem] overflow-y-auto"
+          />
+        ) : (
+          <div ref={containerRef} className="h-[28rem] w-full" />
+        )}
       </div>
     </div>
   );

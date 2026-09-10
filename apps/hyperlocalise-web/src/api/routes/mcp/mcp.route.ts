@@ -30,6 +30,7 @@ import {
 import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { z } from "zod";
 
+import { registerZernioMcpTools } from "@/api/routes/mcp/zernio-tools";
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
 import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -2509,6 +2510,8 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       };
     },
   );
+
+  registerZernioMcpTools(server, apiAuth);
 
   return server;
 }

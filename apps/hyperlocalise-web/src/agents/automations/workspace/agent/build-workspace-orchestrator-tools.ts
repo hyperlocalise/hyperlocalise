@@ -29,6 +29,7 @@ import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseCrowdinTool } from "./tools/use_crowdin";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
+import { createUseZernioTool } from "./tools/use_zernio";
 import { createUseWebSearchTool } from "./tools/use_web_search";
 
 const TOOL_BUILDERS: Record<
@@ -44,6 +45,7 @@ const TOOL_BUILDERS: Record<
   create_issue: createCreateIssueTool,
   use_crowdin: createUseCrowdinTool,
   use_semrush: createUseSemrushTool,
+  use_zernio: createUseZernioTool,
   use_ahrefs: createUseAhrefsTool,
   use_web_search: createUseWebSearchTool,
   notify_slack: createNotifySlackTool,

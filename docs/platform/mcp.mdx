@@ -152,6 +152,25 @@ Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `complete
 
 Missing or inaccessible jobs, including jobs from another organization, return `job_not_found`.
 
+### Zernio ads
+
+These tools use a Zernio API key saved under **Integrations**. They never return the secret. If the organization has one enabled, valid connection, the ads tools use it. If it has more than one, pass `connectionId` from `zernio_list_connections`.
+
+| Tool | Description |
+| --- | --- |
+| `zernio_list_connections` | List Zernio connections for this organization (id, display name, enabled, validation status, masked suffix) |
+| `zernio_list_accounts` | List social and ads accounts for a connected key (`connectionId` optional) |
+| `zernio_list_ads` | Read the campaign → ad set → ad tree (`connectionId` optional, optional `accountId`) |
+| `zernio_get_ad` | Get one ad by `adId` (`connectionId` optional) |
+| `zernio_create_ad` | Create a campaign, ad set, and ad via `POST /v1/ads/create`. Send `idempotencyKey` on retries. Default new ads to `PAUSED` unless you set `status: "ACTIVE"`. |
+| `zernio_create_campaign` | Create a campaign shell without its first ad set. Later ads join with `existingCampaignId` on `zernio_create_ad`. |
+
+`zernio_create_ad` requires `accountId`, `adAccountId`, and `name`. Optional fields include `goal`, `budgetAmount`, `budgetType`, `headline`, `body`, `linkUrl`, `imageUrl`, `callToAction`, `status`, `existingCampaignId`, `adSetId`, `targeting`, `extra`, `idempotencyKey`, and `validateOnly`. Omitted `status` is sent as `PAUSED`. Reuse `idempotencyKey` only when retrying the same create. If omitted, Hyperlocalise generates a unique key per call and retries a timeout once with that key. Create tools require `ai_actions:run` (not the read-only `member` role).
+
+No connection returns `zernio_connection_not_found`. Several valid connections without `connectionId` return `zernio_connection_ambiguous`. A disabled or unvalidated connection returns `zernio_not_connected`.
+
+See [Integrations](/platform/integrations#zernio).
+
 ## Outbound MCP in automations
 
 To let a **saved automation** call a **remote** MCP server (Semrush or your own), add an **MCP Server** connection under **Integrations**, then enable the MCP tool on the automation. Ahrefs uses [WorkOS Pipes](/platform/integrations#workos-pipes-api-keys) instead. That path is outbound from Hyperlocalise to a third-party server and is unrelated to the hosted `/api/mcp` server agents connect to.

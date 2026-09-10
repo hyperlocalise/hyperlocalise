@@ -16,7 +16,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 import { z } from "zod";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { SparklesIcon, Video01Icon } from "@hugeicons/core-free-icons";
+import { SparklesIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -345,29 +345,6 @@ export function ContentEditorVideoWorkspace(props: {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30 p-3 sm:p-6">
       <div className="mx-auto flex max-w-[96rem] flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <HugeiconsIcon
-              icon={Video01Icon}
-              className="size-5 text-muted-foreground"
-              aria-hidden
-            />
-            <div>
-              <h2 className="text-base font-semibold text-balance">
-                {intl.formatMessage(messages.refine)}
-              </h2>
-              <p className="text-sm text-muted-foreground">{intl.formatMessage(messages.intro)}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {props.actions}
-            {props.targetSrc ? (
-              <Button variant="outline" size="xs" render={<a href={props.targetSrc} download />}>
-                {intl.formatMessage(messages.download)}
-              </Button>
-            ) : null}
-          </div>
-        </div>
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex min-w-0 flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -375,24 +352,36 @@ export function ContentEditorVideoWorkspace(props: {
                 value={displaySource ? "source" : "target"}
                 onValueChange={(value) => changeView(String(value))}
               >
-                <TabsList aria-label={intl.formatMessage(messages.refine)}>
+                <TabsList aria-label={intl.formatMessage(messages.viewTabs)}>
                   <TabsTrigger value="source">{intl.formatMessage(messages.original)}</TabsTrigger>
                   <TabsTrigger value="target" disabled={!props.targetSrc}>
                     {intl.formatMessage(messages.translated)}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
-              <Badge variant="secondary">
-                {intl.formatMessage(
-                  busy
-                    ? messages.pending
-                    : dirty
-                      ? messages.dirty
-                      : props.targetSrc
-                        ? messages.clean
-                        : messages.emptyTarget,
-                )}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">
+                  {intl.formatMessage(
+                    busy
+                      ? messages.pending
+                      : dirty
+                        ? messages.dirty
+                        : props.targetSrc
+                          ? messages.clean
+                          : messages.emptyTarget,
+                  )}
+                </Badge>
+                {props.actions}
+                {props.targetSrc ? (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    render={<a href={props.targetSrc} download />}
+                  >
+                    {intl.formatMessage(messages.download)}
+                  </Button>
+                ) : null}
+              </div>
             </div>
             <div className={cn("grid gap-3", comparison && "lg:grid-cols-2")}>
               {renderVideo("source")}

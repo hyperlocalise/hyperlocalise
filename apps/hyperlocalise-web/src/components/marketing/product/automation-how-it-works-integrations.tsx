@@ -40,6 +40,7 @@ export const AUTOMATION_HOW_IT_WORKS_INTEGRATION_SLUGS = [
   "smartling",
   "ahrefs",
   "semrush",
+  "zernio",
   "resend",
 ] as const;
 

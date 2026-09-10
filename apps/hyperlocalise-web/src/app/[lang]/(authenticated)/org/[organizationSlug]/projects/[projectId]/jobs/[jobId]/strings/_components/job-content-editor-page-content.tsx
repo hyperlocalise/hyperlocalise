@@ -52,6 +52,10 @@ import {
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
+import {
+  ContentEditorFilesSidebar,
+  ContentEditorPageBody,
+} from "@/components/content-editor/files/content-editor-files-sidebar";
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
@@ -407,6 +411,21 @@ export function JobContentEditorPageContent({
     attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
+  const navigateToAllFiles = (nextSourcePaths: string[], nextTargetLocale: string) => {
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
+        sourcePaths: serializeCatSourcePathsFilter(nextSourcePaths),
+        targetLocale: nextTargetLocale,
+        storedFileId: null,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+      );
+    });
+  };
+
   useEffect(() => {
     if (
       hasFileReference ||
@@ -607,29 +626,22 @@ export function JobContentEditorPageContent({
       if (!nextSourcePath) {
         return;
       }
-      const params = buildCatNavigationSearchParams(window.location.search, {
-        sourcePath: nextSourcePath,
-        targetLocale: selectedTargetLocale,
-        storedFileId: null,
-        sourcePaths: null,
-        segment: null,
+      attemptCatPageNavigation(pageNavigationGuardRef, () => {
+        const params = buildCatNavigationSearchParams(window.location.search, {
+          sourcePath: nextSourcePath,
+          targetLocale: selectedTargetLocale,
+          storedFileId: null,
+          sourcePaths: null,
+          segment: null,
+        });
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+        );
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-      );
     };
 
     const handleJobSelectAllFiles = () => {
-      const params = buildCatNavigationSearchParams(window.location.search, {
-        sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-        sourcePaths: serializeCatSourcePathsFilter(jobSourcePaths),
-        targetLocale: selectedTargetLocale,
-        storedFileId: null,
-        segment: null,
-      });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-      );
+      navigateToAllFiles(jobSourcePaths, selectedTargetLocale);
     };
 
     return (
@@ -645,16 +657,18 @@ export function JobContentEditorPageContent({
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             </Button>
 
-            <ContentEditorFileTreePicker
-              files={jobFiles}
-              selectedSourcePath=""
-              onSelectFile={handleJobFileChange}
-              allFilesSelected
-              onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
+            <div className="lg:hidden">
+              <ContentEditorFileTreePicker
+                files={jobFiles}
+                selectedSourcePath=""
+                onSelectFile={handleJobFileChange}
+                allFilesSelected
+                onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
+                repositoryFullNames={enabledRepositoryFullNames}
+                selectedRepositoryFullName={selectedRepositoryFullName}
+                onRepositoryChange={handleRepositoryChange}
+              />
+            </div>
 
             {jobTargetLocales.length > 0 ? (
               <ContentEditorLocaleSelect
@@ -676,7 +690,21 @@ export function JobContentEditorPageContent({
 
         {repositoryBanner}
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+        <ContentEditorPageBody
+          sidebar={
+            <ContentEditorFilesSidebar
+              className="hidden w-[17.5rem] shrink-0 lg:flex"
+              files={jobFiles}
+              selectedSourcePath={null}
+              onSelectFile={handleJobFileChange}
+              allFilesSelected
+              onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          }
+        >
           <ProjectFileContentEditorWorkspace
             key={`${CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}:${selectedTargetLocale}`}
             organizationSlug={organizationSlug}
@@ -699,7 +727,7 @@ export function JobContentEditorPageContent({
             className="min-h-0 flex-1"
             pageNavigationGuardRef={pageNavigationGuardRef}
           />
-        </div>
+        </ContentEditorPageBody>
       </main>
     );
   }
@@ -831,14 +859,16 @@ export function JobContentEditorPageContent({
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             </Button>
 
-            <ContentEditorFileTreePicker
-              files={[selectedFile]}
-              selectedSourcePath={selectedFile.sourcePath}
-              onSelectFile={() => undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
+            <div className="lg:hidden">
+              <ContentEditorFileTreePicker
+                files={[selectedFile]}
+                selectedSourcePath={selectedFile.sourcePath}
+                onSelectFile={() => undefined}
+                repositoryFullNames={enabledRepositoryFullNames}
+                selectedRepositoryFullName={selectedRepositoryFullName}
+                onRepositoryChange={handleRepositoryChange}
+              />
+            </div>
 
             {jobTargetLocales.length > 0 ? (
               <ContentEditorLocaleSelect
@@ -860,7 +890,19 @@ export function JobContentEditorPageContent({
 
         {repositoryBanner}
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+        <ContentEditorPageBody
+          sidebar={
+            <ContentEditorFilesSidebar
+              className="hidden w-[17.5rem] shrink-0 lg:flex"
+              files={[selectedFile]}
+              selectedSourcePath={selectedFile.sourcePath}
+              onSelectFile={() => undefined}
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          }
+        >
           <ProjectFileContentEditorWorkspace
             key={`${selectedFile.sourcePath}:${activeTargetLocale}`}
             organizationSlug={organizationSlug}
@@ -882,7 +924,7 @@ export function JobContentEditorPageContent({
             className="min-h-0 flex-1"
             pageNavigationGuardRef={pageNavigationGuardRef}
           />
-        </div>
+        </ContentEditorPageBody>
       </main>
     );
   }
@@ -933,16 +975,18 @@ export function JobContentEditorPageContent({
       return;
     }
 
-    const params = buildCatNavigationSearchParams(window.location.search, {
-      sourcePath: nextSourcePath,
-      targetLocale: nextTargetLocale,
-      storedFileId: null,
-      sourcePaths: null,
-      segment: null,
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        sourcePath: nextSourcePath,
+        targetLocale: nextTargetLocale,
+        storedFileId: null,
+        sourcePaths: null,
+        segment: null,
+      });
+      router.push(
+        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
+      );
     });
-    router.push(
-      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-    );
   };
 
   return (
@@ -958,33 +1002,26 @@ export function JobContentEditorPageContent({
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
           </Button>
 
-          <ContentEditorFileTreePicker
-            files={providerFiles}
-            selectedSourcePath={selectedFile.sourcePath}
-            onSelectFile={handleFileChange}
-            allFilesSelected={false}
-            onSelectAllFiles={
-              canUseAllFiles
-                ? () => {
-                    const params = buildCatNavigationSearchParams(window.location.search, {
-                      sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
-                      sourcePaths: serializeCatSourcePathsFilter(
+          <div className="lg:hidden">
+            <ContentEditorFileTreePicker
+              files={providerFiles}
+              selectedSourcePath={selectedFile.sourcePath}
+              onSelectFile={handleFileChange}
+              allFilesSelected={false}
+              onSelectAllFiles={
+                canUseAllFiles
+                  ? () =>
+                      navigateToAllFiles(
                         providerFiles.map((file) => file.sourcePath),
-                      ),
-                      targetLocale: selectedTargetLocale,
-                      storedFileId: null,
-                      segment: null,
-                    });
-                    router.push(
-                      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/strings?${params.toString()}`,
-                    );
-                  }
-                : undefined
-            }
-            repositoryFullNames={enabledRepositoryFullNames}
-            selectedRepositoryFullName={selectedRepositoryFullName}
-            onRepositoryChange={handleRepositoryChange}
-          />
+                        selectedTargetLocale,
+                      )
+                  : undefined
+              }
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          </div>
 
           {jobTargetLocales.length > 0 ? (
             <ContentEditorLocaleSelect
@@ -1006,7 +1043,29 @@ export function JobContentEditorPageContent({
 
       {repositoryBanner}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+      <ContentEditorPageBody
+        sidebar={
+          <ContentEditorFilesSidebar
+            className="hidden w-[17.5rem] shrink-0 lg:flex"
+            files={providerFiles}
+            selectedSourcePath={selectedFile.sourcePath}
+            onSelectFile={handleFileChange}
+            allFilesSelected={false}
+            onSelectAllFiles={
+              canUseAllFiles
+                ? () =>
+                    navigateToAllFiles(
+                      providerFiles.map((file) => file.sourcePath),
+                      selectedTargetLocale,
+                    )
+                : undefined
+            }
+            repositoryFullNames={enabledRepositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
+        }
+      >
         <ProjectFileContentEditorWorkspace
           key={`${selectedFile.sourcePath}:${selectedTargetLocale}`}
           organizationSlug={organizationSlug}
@@ -1029,7 +1088,7 @@ export function JobContentEditorPageContent({
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
         />
-      </div>
+      </ContentEditorPageBody>
     </main>
   );
 }

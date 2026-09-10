@@ -77,6 +77,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Webflow")).toBeInTheDocument();
     await expect(canvas.getByText("Sanity")).toBeInTheDocument();
     await expect(canvas.getByText("Intercom")).toBeInTheDocument();
+    await expect(canvas.getByText("Zernio")).toBeInTheDocument();
     await expect(canvas.getByText("Semrush")).toBeInTheDocument();
     await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();
     await expect(canvas.getByText("Similarweb")).toBeInTheDocument();

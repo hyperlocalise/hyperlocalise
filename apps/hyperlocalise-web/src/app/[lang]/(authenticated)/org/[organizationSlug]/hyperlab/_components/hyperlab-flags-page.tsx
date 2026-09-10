@@ -64,8 +64,6 @@ export function HyperlabFlagsPage({
 
   return (
     <HyperlabPageShell
-      organizationSlug={organizationSlug}
-      section="flags"
       title={intl.formatMessage(messages.flagsTitle)}
       description={intl.formatMessage(messages.flagsDescription)}
       actions={createAction}

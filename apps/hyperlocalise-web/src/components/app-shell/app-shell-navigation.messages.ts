@@ -45,4 +45,14 @@ export const appShellNavigationMessages = defineMessages({
     id: "cCjEeqCM8J",
     description: "Sidebar group label for gated features that are not yet enabled",
   },
+  workspace: {
+    defaultMessage: "Workspace",
+    id: "eycmrBubUR",
+    description: "Sidebar link to return from Hyperlab to the workspace overview",
+  },
+  hyperlabSection: {
+    defaultMessage: "Hyperlab",
+    id: "pJnog+S4bX",
+    description: "Sidebar section label above Hyperlab navigation items",
+  },
 });

@@ -16,7 +16,10 @@ RUN apt-get update \
 
 COPY go.mod go.sum ./
 COPY third_party ./third_party
+# Shared packages imported by apps/go-svc. Add a COPY for each new
+# internal/... import, or `go build ./apps/go-svc` fails in this image.
 COPY internal/i18n ./internal/i18n
+COPY internal/dataforseo ./internal/dataforseo
 COPY apps/go-svc ./apps/go-svc
 
 RUN go mod download

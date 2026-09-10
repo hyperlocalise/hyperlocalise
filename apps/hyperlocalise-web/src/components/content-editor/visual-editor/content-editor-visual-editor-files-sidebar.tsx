@@ -15,9 +15,8 @@
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
+import { ContentEditorFilesSidebar } from "@/components/content-editor/files/content-editor-files-sidebar";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
-import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorVisualEditorMessages } from "./content-editor-visual-editor.messages";
 import type { ContentEditorVisualEditorProgress } from "./content-editor-visual-editor.types";
@@ -36,65 +35,51 @@ export function ContentEditorVisualEditorFilesSidebar({
   className?: string;
 }) {
   return (
-    <aside
-      className={cn(
-        "flex h-full min-h-0 w-full flex-col border-r border-border bg-background",
-        className,
-      )}
-    >
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          <FormattedMessage {...contentEditorVisualEditorMessages.filesTitle} />
-        </h2>
-      </div>
+    <ContentEditorFilesSidebar
+      files={files}
+      selectedSourcePath={selectedSourcePath}
+      onSelectFile={onSelectFile}
+      className={className}
+      footer={
+        <div className="space-y-3 px-4 py-4">
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-muted-foreground">
+              <FormattedMessage {...contentEditorVisualEditorMessages.progressTitle} />
+            </h3>
+            <Progress value={progress.percent} className="gap-1.5">
+              <ProgressLabel className="text-xs text-foreground">{progress.locale}</ProgressLabel>
+              <ProgressValue className="text-xs" />
+            </Progress>
+          </div>
 
-      <div className="min-h-0 flex-1 px-2 py-2">
-        <ProjectFilesTree
-          files={files}
-          selectedSourcePath={selectedSourcePath}
-          onSelectFile={onSelectFile}
-          fillHeight
-        />
-      </div>
-
-      <div className="space-y-3 border-t border-border px-4 py-4">
-        <div className="space-y-2">
-          <h3 className="text-xs font-medium text-muted-foreground">
-            <FormattedMessage {...contentEditorVisualEditorMessages.progressTitle} />
-          </h3>
-          <Progress value={progress.percent} className="gap-1.5">
-            <ProgressLabel className="text-xs text-foreground">{progress.locale}</ProgressLabel>
-            <ProgressValue className="text-xs" />
-          </Progress>
+          <dl className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-lg bg-muted/60 px-2 py-2">
+              <dt className="text-[10px] text-muted-foreground">
+                <FormattedMessage {...contentEditorVisualEditorMessages.translatedCount} />
+              </dt>
+              <dd className="mt-0.5 text-sm font-semibold text-grove-300 tabular-nums">
+                {progress.translated}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2 py-2">
+              <dt className="text-[10px] text-muted-foreground">
+                <FormattedMessage {...contentEditorVisualEditorMessages.inReviewCount} />
+              </dt>
+              <dd className="mt-0.5 text-sm font-semibold text-beam-700 tabular-nums">
+                {progress.inReview}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2 py-2">
+              <dt className="text-[10px] text-muted-foreground">
+                <FormattedMessage {...contentEditorVisualEditorMessages.untranslatedCount} />
+              </dt>
+              <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
+                {progress.untranslated}
+              </dd>
+            </div>
+          </dl>
         </div>
-
-        <dl className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-lg bg-muted/60 px-2 py-2">
-            <dt className="text-[10px] text-muted-foreground">
-              <FormattedMessage {...contentEditorVisualEditorMessages.translatedCount} />
-            </dt>
-            <dd className="mt-0.5 text-sm font-semibold text-grove-300 tabular-nums">
-              {progress.translated}
-            </dd>
-          </div>
-          <div className="rounded-lg bg-muted/60 px-2 py-2">
-            <dt className="text-[10px] text-muted-foreground">
-              <FormattedMessage {...contentEditorVisualEditorMessages.inReviewCount} />
-            </dt>
-            <dd className="mt-0.5 text-sm font-semibold text-beam-700 tabular-nums">
-              {progress.inReview}
-            </dd>
-          </div>
-          <div className="rounded-lg bg-muted/60 px-2 py-2">
-            <dt className="text-[10px] text-muted-foreground">
-              <FormattedMessage {...contentEditorVisualEditorMessages.untranslatedCount} />
-            </dt>
-            <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
-              {progress.untranslated}
-            </dd>
-          </div>
-        </dl>
-      </div>
-    </aside>
+      }
+    />
   );
 }

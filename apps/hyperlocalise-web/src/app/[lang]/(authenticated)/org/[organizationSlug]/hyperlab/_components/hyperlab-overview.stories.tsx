@@ -47,7 +47,6 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Hyperlab" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "Home", current: "page" })).toBeInTheDocument();
     await expect(await canvas.findAllByText("2 set up")).toHaveLength(3);
     await expect(canvas.getByText("Experiments", { selector: "a" })).toBeInTheDocument();
     await expect(canvas.getByText("How a test usually goes")).toBeInTheDocument();

@@ -50,15 +50,10 @@ export const videoWorkspaceMessages = defineMessages({
     defaultMessage: "On-screen text",
     description: "Video refinement workspace: text",
   },
-  refine: {
-    id: "UNee5IDZlj",
-    defaultMessage: "Refine translation",
-    description: "Video refinement workspace: refine",
-  },
-  intro: {
-    id: "RLoOYF9XsY",
-    defaultMessage: "Fine-tune the voice. Make every word fit.",
-    description: "Video refinement workspace: intro",
+  viewTabs: {
+    id: "qvglD+hm1d",
+    defaultMessage: "Video view",
+    description: "Video refinement workspace: source and translated tabs",
   },
   soundHint: {
     id: "Im/lBlp8FY",

@@ -683,29 +683,13 @@ async function enqueueTranslationJob(input: {
     });
   }
 
+  if (input.job.workflowRunId) {
+    return ok({ workflowRunIds: [input.job.workflowRunId] });
+  }
+
   try {
-    const result = await jobQueue.enqueue({
-      kind: "translation",
-      jobId: input.job.id,
-      projectId,
-      type: input.type,
-    });
-
-    const [claimedJob] = await input.ctx.db
-      .update(schema.jobs)
-      .set({ workflowRunId: result.ids[0] ?? null })
-      .where(
-        and(
-          eq(schema.jobs.id, input.job.id),
-          eq(schema.jobs.organizationId, input.ctx.organizationId),
-          eq(schema.jobs.status, "queued"),
-          isNull(schema.jobs.workflowRunId),
-        ),
-      )
-      .returning({ workflowRunId: schema.jobs.workflowRunId });
-
-    if (!claimedJob) {
-      const [ownedJob] = await input.ctx.db
+    const claimed = await input.ctx.db.transaction(async (tx) => {
+      const [lockedJob] = await tx
         .select({ workflowRunId: schema.jobs.workflowRunId })
         .from(schema.jobs)
         .where(
@@ -714,14 +698,54 @@ async function enqueueTranslationJob(input: {
             eq(schema.jobs.organizationId, input.ctx.organizationId),
           ),
         )
-        .limit(1);
+        .limit(1)
+        .for("update");
 
-      return ok({ workflowRunIds: ownedJob?.workflowRunId ? [ownedJob.workflowRunId] : [] });
-    }
+      if (lockedJob?.workflowRunId) {
+        return { workflowRunIds: [lockedJob.workflowRunId] };
+      }
 
-    return ok({
-      workflowRunIds: claimedJob.workflowRunId ? [claimedJob.workflowRunId] : [],
+      const result = await jobQueue.enqueue({
+        kind: "translation",
+        jobId: input.job.id,
+        projectId,
+        type: input.type,
+      });
+
+      const [claimedJob] = await tx
+        .update(schema.jobs)
+        .set({ workflowRunId: result.ids[0] ?? null })
+        .where(
+          and(
+            eq(schema.jobs.id, input.job.id),
+            eq(schema.jobs.organizationId, input.ctx.organizationId),
+            eq(schema.jobs.status, "queued"),
+            isNull(schema.jobs.workflowRunId),
+          ),
+        )
+        .returning({ workflowRunId: schema.jobs.workflowRunId });
+
+      if (!claimedJob) {
+        const [ownedJob] = await tx
+          .select({ workflowRunId: schema.jobs.workflowRunId })
+          .from(schema.jobs)
+          .where(
+            and(
+              eq(schema.jobs.id, input.job.id),
+              eq(schema.jobs.organizationId, input.ctx.organizationId),
+            ),
+          )
+          .limit(1);
+
+        return { workflowRunIds: ownedJob?.workflowRunId ? [ownedJob.workflowRunId] : [] };
+      }
+
+      return {
+        workflowRunIds: claimedJob.workflowRunId ? [claimedJob.workflowRunId] : [],
+      };
     });
+
+    return ok(claimed);
   } catch (error) {
     const [failedJob] = await input.ctx.db
       .update(schema.jobs)
