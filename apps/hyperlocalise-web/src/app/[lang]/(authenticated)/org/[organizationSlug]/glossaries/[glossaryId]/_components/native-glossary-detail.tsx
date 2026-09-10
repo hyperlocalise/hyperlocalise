@@ -230,7 +230,7 @@ export function NativeGlossaryDetail({
         param: { organizationSlug, glossaryId },
         query: {
           limit: "50",
-          sort: "created_at",
+          sort: "primary_term",
           sortDir: conceptSort,
           includeArchived: "false",
           ...(conceptSearch.trim() ? { search: conceptSearch.trim() } : {}),

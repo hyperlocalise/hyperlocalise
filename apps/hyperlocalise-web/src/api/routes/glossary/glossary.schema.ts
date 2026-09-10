@@ -82,7 +82,7 @@ export const glossaryConceptPageQuerySchema = z.object({
   modifiedFrom: z.string().datetime().optional(),
   modifiedTo: z.string().datetime().optional(),
   includeArchived: queryBooleanSchema.default(false),
-  sort: z.enum(["created_at", "updated_at"]).default("updated_at"),
+  sort: z.enum(["created_at", "updated_at", "primary_term"]).default("updated_at"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
 });
 

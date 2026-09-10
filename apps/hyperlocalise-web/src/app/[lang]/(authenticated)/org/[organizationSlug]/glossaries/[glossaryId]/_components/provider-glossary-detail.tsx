@@ -11,6 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -46,6 +47,9 @@ export function ProviderGlossaryDetail({
   canManageGlossaries: boolean;
 }) {
   const intl = useIntl();
+  const router = useRouter();
+  const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
+  const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
   const { glossaryQuery, glossary, isLiveCrowdin, sourceLanguage } = useGlossary({
     organizationSlug,
     glossaryId,
@@ -151,9 +155,19 @@ export function ProviderGlossaryDetail({
                       glossary.sourceLocale,
                     );
                     return (
-                      <tr key={concept.id} className="border-b border-border last:border-b-0">
+                      <tr
+                        key={concept.id}
+                        className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
+                        onClick={() => router.push(conceptHref(concept.id))}
+                      >
                         <td className="px-3 py-3 font-medium">
-                          {primary?.text ?? concept.primaryTerm}
+                          <Link
+                            href={conceptHref(concept.id)}
+                            className="hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {primary?.text ?? concept.primaryTerm}
+                          </Link>
                         </td>
                         <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
                           {concept.definition || "—"}

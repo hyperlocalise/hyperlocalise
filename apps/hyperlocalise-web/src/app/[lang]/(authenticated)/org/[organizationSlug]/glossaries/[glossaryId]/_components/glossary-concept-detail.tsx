@@ -419,9 +419,17 @@ export function GlossaryConceptDetail({
   };
 
   const invalidateConcepts = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concepts", organizationSlug, glossaryId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["glossary-concepts-page", organizationSlug, glossaryId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["provider-glossary-concepts", organizationSlug, glossaryId],
+      }),
+    ]);
 
   const invalidateConceptDetail = () =>
     queryClient.invalidateQueries({

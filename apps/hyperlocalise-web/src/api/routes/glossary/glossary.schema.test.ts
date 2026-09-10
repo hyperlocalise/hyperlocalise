@@ -32,4 +32,14 @@ describe("glossary concept page query schema", () => {
     expect(result.reviewStatus).toBe("approved");
     expect(result.termReviewStatus).toBe("draft");
   });
+
+  it("accepts primary-term sort for the source-term column", () => {
+    const result = glossaryConceptPageQuerySchema.parse({
+      sort: "primary_term",
+      sortDir: "asc",
+    });
+
+    expect(result.sort).toBe("primary_term");
+    expect(result.sortDir).toBe("asc");
+  });
 });

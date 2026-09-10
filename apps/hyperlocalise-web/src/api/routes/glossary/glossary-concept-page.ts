@@ -167,6 +167,8 @@ function termExistsWhere(
 function buildWhere(glossaryId: string, filters: FilterFields): SQL {
   const conditions: SQL[] = [eq(schema.glossaryConcepts.glossaryId, glossaryId)];
   if (!filters.includeArchived) conditions.push(sql`${schema.glossaryConcepts.archivedAt} is null`);
+  if (filters.reviewStatus)
+    conditions.push(eq(schema.glossaryConcepts.reviewStatus, filters.reviewStatus));
   if (filters.modifiedFrom)
     conditions.push(gte(schema.glossaryConcepts.updatedAt, new Date(filters.modifiedFrom)));
   if (filters.modifiedTo)
@@ -230,6 +232,34 @@ function buildWhere(glossaryId: string, filters: FilterFields): SQL {
   return and(...conditions)!;
 }
 
+function sortColumn(sort: FilterFields["sort"]) {
+  if (sort === "created_at") return schema.glossaryConcepts.createdAt;
+  if (sort === "primary_term") return schema.glossaryConcepts.primaryTerm;
+  return schema.glossaryConcepts.updatedAt;
+}
+
+function sortValueSql(sort: FilterFields["sort"]) {
+  const column = sortColumn(sort);
+  if (sort === "primary_term") return sql<string>`${column}`;
+  return sql<string>`to_char(${column} at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+}
+
+function cursorSortValueSql(sort: FilterFields["sort"], sortValue: string) {
+  return sort === "primary_term" ? sql`${sortValue}` : sql`${sortValue}::timestamptz`;
+}
+
+function cursorWhereSql(
+  sort: FilterFields["sort"],
+  sortDir: FilterFields["sortDir"],
+  decoded: CursorPayload,
+): SQL {
+  const column = sortColumn(sort);
+  const sortValue = cursorSortValueSql(sort, decoded.sortValue);
+  return sortDir === "asc"
+    ? sql`(${column} > ${sortValue} or (${column} = ${sortValue} and ${schema.glossaryConcepts.id} > ${decoded.id}))`
+    : sql`(${column} < ${sortValue} or (${column} = ${sortValue} and ${schema.glossaryConcepts.id} < ${decoded.id}))`;
+}
+
 export async function listGlossaryConceptsPage(
   glossaryId: string,
   query: GlossaryConceptPageQuery,
@@ -237,16 +267,9 @@ export async function listGlossaryConceptsPage(
   const { cursor, limit, ...filters } = query;
   const decoded = cursor ? decodeCursor(cursor, glossaryId, filters) : undefined;
   if (decoded && "code" in decoded) return decoded;
-  const column =
-    filters.sort === "created_at"
-      ? schema.glossaryConcepts.createdAt
-      : schema.glossaryConcepts.updatedAt;
+  const column = sortColumn(filters.sort);
   const baseWhere = buildWhere(glossaryId, filters);
-  const cursorWhere = decoded
-    ? filters.sortDir === "asc"
-      ? sql`(${column} > ${sql`${decoded.sortValue}::timestamptz`} or (${column} = ${sql`${decoded.sortValue}::timestamptz`} and ${schema.glossaryConcepts.id} > ${decoded.id}))`
-      : sql`(${column} < ${sql`${decoded.sortValue}::timestamptz`} or (${column} = ${sql`${decoded.sortValue}::timestamptz`} and ${schema.glossaryConcepts.id} < ${decoded.id}))`
-    : undefined;
+  const cursorWhere = decoded ? cursorWhereSql(filters.sort, filters.sortDir, decoded) : undefined;
   const where = cursorWhere ? and(baseWhere, cursorWhere)! : baseWhere;
   const orderBy =
     filters.sortDir === "asc"
@@ -256,7 +279,7 @@ export async function listGlossaryConceptsPage(
     db
       .select({
         concept: schema.glossaryConcepts,
-        sortValue: sql<string>`to_char(${column} at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        sortValue: sortValueSql(filters.sort),
       })
       .from(schema.glossaryConcepts)
       .where(where)

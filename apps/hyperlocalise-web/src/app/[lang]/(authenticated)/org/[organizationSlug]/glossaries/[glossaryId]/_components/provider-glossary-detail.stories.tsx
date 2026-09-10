@@ -123,7 +123,10 @@ export const CrowdinReadOnly: Story = {
       await canvas.findByRole("heading", { name: "Crowdin product terminology" }),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Provider")).toBeInTheDocument();
-    await expect(canvas.getByText("Checkout")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Checkout" })).toHaveAttribute(
+      "href",
+      `/org/acme/glossaries/${glossaryId}/concepts/${providerConcept.id}`,
+    );
     await expect(canvas.getByText("Commerce")).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Add concept" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Delete glossary" })).not.toBeInTheDocument();
