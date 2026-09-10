@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -34,20 +34,39 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
+import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { glossaryHistoryPageMessages as messages } from "./glossary-history-page.messages";
 
 const PAGE_SIZE = 50;
+const UNAVAILABLE_STATUSES = new Set([401, 403, 404]);
+const INVALID_GLOSSARY_HISTORY_CURSOR = "invalid_glossary_history_cursor";
+const EXTERNAL_GLOSSARY_HISTORY_UNSUPPORTED = "external_glossary_history_unsupported";
 
-class GlossaryHistoryRequestError extends Error {
+export class GlossaryHistoryRequestError extends Error {
   constructor(
     readonly status: number,
+    readonly code: string | null,
     message: string,
   ) {
     super(message);
+    this.name = "GlossaryHistoryRequestError";
   }
+}
+
+export function isInvalidGlossaryHistoryCursorError(error: unknown) {
+  return (
+    error instanceof GlossaryHistoryRequestError && error.code === INVALID_GLOSSARY_HISTORY_CURSOR
+  );
+}
+
+export function isUnavailableGlossaryHistoryError(error: unknown) {
+  if (!(error instanceof GlossaryHistoryRequestError)) return false;
+  if (isInvalidGlossaryHistoryCursorError(error)) return false;
+  return (
+    UNAVAILABLE_STATUSES.has(error.status) || error.code === EXTERNAL_GLOSSARY_HISTORY_UNSUPPORTED
+  );
 }
 
 function formatValue(value: unknown) {
@@ -173,10 +192,19 @@ export function GlossaryHistoryPage({
   const intl = useIntl();
   const [search, setSearch] = useState("");
   const [eventType, setEventType] = useState("");
+  const [paginationEpoch, setPaginationEpoch] = useState(0);
+  const [cursorNotice, setCursorNotice] = useState<string | null>(null);
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
 
   const historyQuery = useInfiniteQuery({
-    queryKey: ["glossary-history", organizationSlug, glossaryId, search, eventType],
+    queryKey: [
+      "glossary-history",
+      organizationSlug,
+      glossaryId,
+      search,
+      eventType,
+      paginationEpoch,
+    ],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
@@ -194,23 +222,33 @@ export function GlossaryHistoryPage({
         { init: { signal } },
       );
       if (!response.ok) {
-        throw new GlossaryHistoryRequestError(
-          response.status,
-          await readApiError(response, intl.formatMessage(messages.errorTitle)),
+        const apiError = await readApiResponseError(
+          response,
+          intl.formatMessage(messages.errorTitle),
         );
+        throw new GlossaryHistoryRequestError(apiError.status, apiError.code, apiError.message);
       }
       return (await response.json()) as GlossaryHistoryPageResponse;
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 
+  const invalidCursor = isInvalidGlossaryHistoryCursorError(historyQuery.error);
+  useEffect(() => {
+    if (!invalidCursor) return;
+    setCursorNotice(intl.formatMessage(messages.invalidCursor));
+    setPaginationEpoch((epoch) => epoch + 1);
+  }, [intl, invalidCursor]);
+
+  useEffect(() => {
+    setCursorNotice(null);
+  }, [search, eventType]);
+
   const events = useMemo(
     () => historyQuery.data?.pages.flatMap((page) => page.events) ?? [],
     [historyQuery.data?.pages],
   );
-  const unavailable =
-    historyQuery.error instanceof GlossaryHistoryRequestError &&
-    [400, 401, 403, 404].includes(historyQuery.error.status);
+  const unavailable = isUnavailableGlossaryHistoryError(historyQuery.error);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -272,9 +310,9 @@ export function GlossaryHistoryPage({
             </Select>
           </div>
         </div>
-        {historyQuery.isPending ? (
+        {(historyQuery.isPending || invalidCursor) && events.length === 0 ? (
           <HistorySkeleton />
-        ) : historyQuery.isError ? (
+        ) : historyQuery.isError && !invalidCursor ? (
           <div className="grid gap-3 rounded-md border border-destructive/30 p-4">
             <div>
               <TypographyP weight="medium">
@@ -293,7 +331,9 @@ export function GlossaryHistoryPage({
                 type="button"
                 variant="outline"
                 className="w-fit"
-                onClick={() => historyQuery.refetch()}
+                onClick={() => {
+                  void historyQuery.refetch();
+                }}
               >
                 <FormattedMessage {...messages.retry} />
               </Button>
@@ -310,6 +350,11 @@ export function GlossaryHistoryPage({
           </div>
         ) : (
           <div className="grid gap-3">
+            {cursorNotice ? (
+              <TypographyP size="small" tone="subtle">
+                {cursorNotice}
+              </TypographyP>
+            ) : null}
             {events.map((event) => (
               <HistoryEventCard key={event.id} event={event} glossaryHref={glossaryHref} />
             ))}

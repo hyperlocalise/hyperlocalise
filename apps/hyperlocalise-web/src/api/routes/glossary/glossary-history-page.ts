@@ -143,15 +143,18 @@ function decodeCursor(
   return value;
 }
 
-function actorDisplayName(
+export function actorDisplayName(
   actorKind: string,
   actorUserId: string | null,
   firstName: string | null,
   lastName: string | null,
+  email: string | null = null,
 ) {
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   if (name) return name;
-  if (actorKind === "user" && actorUserId) return "Deleted user";
+  // ON DELETE SET NULL clears actorUserId when the user row is removed.
+  if (actorKind === "user" && !actorUserId) return "Deleted user";
+  if (email) return email;
   return actorKind;
 }
 
@@ -203,6 +206,7 @@ export async function listGlossaryHistoryPage(glossaryId: string, query: Glossar
       event: schema.glossaryHistoryEvents,
       actorFirstName: schema.users.firstName,
       actorLastName: schema.users.lastName,
+      actorEmail: schema.users.email,
     })
     .from(schema.glossaryHistoryEvents)
     .leftJoin(schema.users, eq(schema.users.id, schema.glossaryHistoryEvents.actorUserId))
@@ -212,7 +216,7 @@ export async function listGlossaryHistoryPage(glossaryId: string, query: Glossar
 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
-  const events = page.map(({ event, actorFirstName, actorLastName }) => ({
+  const events = page.map(({ event, actorFirstName, actorLastName, actorEmail }) => ({
     id: event.id,
     conceptId: event.conceptId,
     termId: event.termId,
@@ -225,6 +229,7 @@ export async function listGlossaryHistoryPage(glossaryId: string, query: Glossar
       event.actorUserId,
       actorFirstName,
       actorLastName,
+      actorEmail,
     ),
     version: event.version,
     reason: event.reason,
