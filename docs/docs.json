@@ -134,6 +134,7 @@
                 "group": "Workspace",
                 "pages": [
                   "platform/cat",
+                  "platform/domains",
                   "platform/automations",
                   "platform/visual-workflows",
                   "platform/knowledge"
