@@ -60,6 +60,8 @@ export type KeywordIdea = {
   kd: number;
   cpc: number;
   intent: KeywordIntent;
+  competition?: number;
+  monthlySearches?: { month: string; volume: number }[];
 };
 
 export type RankRow = {
@@ -134,6 +136,21 @@ const VIETNAM_VI = DOMAIN_RESEARCH_MARKETS[3]!;
 
 const HYPERLOCALISE_KEYWORDS: KeywordIdea[] = [
   {
+    competition: 0.28,
+    monthlySearches: [
+      { month: "2025-09", volume: 6600 },
+      { month: "2025-10", volume: 7200 },
+      { month: "2025-11", volume: 8100 },
+      { month: "2025-12", volume: 5900 },
+      { month: "2026-01", volume: 7400 },
+      { month: "2026-02", volume: 8100 },
+      { month: "2026-03", volume: 9900 },
+      { month: "2026-04", volume: 9100 },
+      { month: "2026-05", volume: 8800 },
+      { month: "2026-06", volume: 8100 },
+      { month: "2026-07", volume: 7600 },
+      { month: "2026-08", volume: 8100 },
+    ],
     id: "kw-traduction-automatique",
     keyword: "traduction automatique",
     volume: 8100,
