@@ -290,7 +290,7 @@ describe("MCP Zernio tools", () => {
       status: "PAUSED",
     });
     expect((init.headers as Record<string, string>)["Idempotency-Key"]).toMatch(
-      /^zernio:[a-f0-9]{64}$/,
+      /^zernio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
   });
 

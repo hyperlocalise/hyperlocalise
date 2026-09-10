@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import {
   buildZernioAuthorizationHeader,
@@ -25,21 +25,6 @@ export const ZERNIO_DEFAULT_CREATE_STATUS = "PAUSED";
 
 function omitUndefined<T extends Record<string, unknown>>(value: T): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
-}
-
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-    left.localeCompare(right),
-  );
-  return `{${entries
-    .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-    .join(",")}}`;
 }
 
 export function buildZernioCreateBody(input: {
@@ -60,15 +45,12 @@ export function buildZernioCreateBody(input: {
   };
 }
 
-export function resolveZernioCreateIdempotencyKey(
-  explicit: string | undefined,
-  body: Record<string, unknown>,
-): string {
+export function resolveZernioCreateIdempotencyKey(explicit?: string): string {
   const trimmed = explicit?.trim();
   if (trimmed) {
     return trimmed;
   }
-  return `zernio:${createHash("sha256").update(stableStringify(body)).digest("hex")}`;
+  return `zernio:${randomUUID()}`;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -263,24 +245,47 @@ export async function getZernioAd(input: {
   return ok(result.value.body);
 }
 
+async function postZernioCreate(input: {
+  apiKey: string;
+  path: "/ads/create" | "/ads/campaigns";
+  body: Record<string, unknown>;
+  idempotencyKey?: string;
+  signal?: AbortSignal;
+}): Promise<Result<unknown, ZernioConnectionError>> {
+  const idempotencyKey = resolveZernioCreateIdempotencyKey(input.idempotencyKey);
+  const request = (signal?: AbortSignal) =>
+    zernioRequest({
+      apiKey: input.apiKey,
+      method: "POST",
+      path: input.path,
+      body: input.body,
+      idempotencyKey,
+      signal,
+    });
+
+  let result = await request(input.signal);
+  if (!result.ok && result.error.code === "zernio_request_timeout" && input.signal === undefined) {
+    result = await request();
+  }
+  if (!result.ok) {
+    return result;
+  }
+  return ok(result.value.body);
+}
+
 export async function createZernioAd(input: {
   apiKey: string;
   body: Record<string, unknown>;
   idempotencyKey?: string;
   signal?: AbortSignal;
 }): Promise<Result<unknown, ZernioConnectionError>> {
-  const result = await zernioRequest({
+  return postZernioCreate({
     apiKey: input.apiKey,
-    method: "POST",
     path: "/ads/create",
     body: input.body,
-    idempotencyKey: resolveZernioCreateIdempotencyKey(input.idempotencyKey, input.body),
+    idempotencyKey: input.idempotencyKey,
     signal: input.signal,
   });
-  if (!result.ok) {
-    return result;
-  }
-  return ok(result.value.body);
 }
 
 export async function createZernioCampaign(input: {
@@ -289,16 +294,11 @@ export async function createZernioCampaign(input: {
   idempotencyKey?: string;
   signal?: AbortSignal;
 }): Promise<Result<unknown, ZernioConnectionError>> {
-  const result = await zernioRequest({
+  return postZernioCreate({
     apiKey: input.apiKey,
-    method: "POST",
     path: "/ads/campaigns",
     body: input.body,
-    idempotencyKey: resolveZernioCreateIdempotencyKey(input.idempotencyKey, input.body),
+    idempotencyKey: input.idempotencyKey,
     signal: input.signal,
   });
-  if (!result.ok) {
-    return result;
-  }
-  return ok(result.value.body);
 }

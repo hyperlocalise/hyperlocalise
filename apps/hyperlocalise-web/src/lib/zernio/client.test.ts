@@ -164,7 +164,7 @@ describe("zernio client", () => {
     });
   });
 
-  it("derives an idempotency key when the caller omits one", async () => {
+  it("generates a unique idempotency key when the caller omits one", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(jsonResponse({ ad: { _id: "ad_1" } }, 201));
 
@@ -175,16 +175,92 @@ describe("zernio client", () => {
       status: "PAUSED",
     };
 
-    const result = await createZernioAd({
+    const first = await createZernioAd({
+      apiKey: "sk_live_test",
+      body,
+    });
+    const second = await createZernioAd({
       apiKey: "sk_live_test",
       body,
     });
 
-    expect(isOk(result)).toBe(true);
-    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
-    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe(
-      resolveZernioCreateIdempotencyKey(undefined, body),
+    expect(isOk(first)).toBe(true);
+    expect(isOk(second)).toBe(true);
+    const firstKey = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    const secondKey = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(firstKey["Idempotency-Key"]).toMatch(
+      /^zernio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
+    expect(secondKey["Idempotency-Key"]).toMatch(
+      /^zernio:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(firstKey["Idempotency-Key"]).not.toBe(secondKey["Idempotency-Key"]);
+  });
+
+  it("retries a timed-out create once with the same idempotency key", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    const abortError = new Error("aborted");
+    abortError.name = "AbortError";
+    fetchMock.mockRejectedValueOnce(abortError).mockResolvedValueOnce(
+      jsonResponse({ ad: { _id: "ad_1" } }, 201),
+    );
+
+    const result = await createZernioAd({
+      apiKey: "sk_live_test",
+      body: {
+        accountId: "acct_1",
+        adAccountId: "act_1",
+        name: "Paused launch",
+        status: "PAUSED",
+      },
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstKey = ((fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >)["Idempotency-Key"];
+    const secondKey = ((fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >)["Idempotency-Key"];
+    expect(firstKey).toBe(secondKey);
+  });
+
+  it("does not retry a timed-out create when the caller supplied a signal", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    const abortError = new Error("aborted");
+    abortError.name = "AbortError";
+    fetchMock.mockRejectedValue(abortError);
+
+    const result = await createZernioAd({
+      apiKey: "sk_live_test",
+      signal: new AbortController().signal,
+      body: {
+        accountId: "acct_1",
+        adAccountId: "act_1",
+        name: "Paused launch",
+        status: "PAUSED",
+      },
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe("zernio_request_timeout");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an explicit idempotency key", () => {
+    expect(resolveZernioCreateIdempotencyKey("  create-ad-1  ")).toBe("create-ad-1");
+    expect(resolveZernioCreateIdempotencyKey()).not.toBe(resolveZernioCreateIdempotencyKey());
   });
 
   it("scopes the ads tree by accountId", async () => {
