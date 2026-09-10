@@ -77,7 +77,7 @@ describe("cat-file-view-capabilities", () => {
     expect(capabilities).toEqual({
       family: "text",
       availableViews: ["comfortable", "side-by-side"],
-      defaultView: "comfortable",
+      defaultView: "side-by-side",
       viewerId: null,
     });
     expect(isCatFileViewAvailable(capabilities)).toBe(false);
@@ -124,7 +124,7 @@ describe("cat-file-view-capabilities", () => {
 
   it("clamps disallowed modes to the family default", () => {
     const text = resolveCatFileViewCapabilities({ sourcePath: "a.json" });
-    expect(clampCatWorkspaceViewMode("file", text)).toBe("comfortable");
+    expect(clampCatWorkspaceViewMode("file", text)).toBe("side-by-side");
 
     const image = resolveCatFileViewCapabilities({ sourcePath: "a.webp" });
     expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("file");

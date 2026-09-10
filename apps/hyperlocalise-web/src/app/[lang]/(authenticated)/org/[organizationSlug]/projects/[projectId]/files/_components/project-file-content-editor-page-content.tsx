@@ -24,6 +24,10 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
+import {
+  ContentEditorFilesSidebar,
+  ContentEditorPageBody,
+} from "@/components/content-editor/files/content-editor-files-sidebar";
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
@@ -589,16 +593,18 @@ export function ProjectFileContentEditorPageContent({
           </Button>
 
           {contentEditorFiles.length > 0 || allFiles ? (
-            <ContentEditorFileTreePicker
-              files={contentEditorFiles}
-              selectedSourcePath={sourcePath ?? ""}
-              onSelectFile={handleFileChange}
-              allFilesSelected={allFiles}
-              onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
-              repositoryFullNames={enabledRepositoryFullNames}
-              selectedRepositoryFullName={selectedRepositoryFullName}
-              onRepositoryChange={handleRepositoryChange}
-            />
+            <div className="lg:hidden">
+              <ContentEditorFileTreePicker
+                files={contentEditorFiles}
+                selectedSourcePath={sourcePath ?? ""}
+                onSelectFile={handleFileChange}
+                allFilesSelected={allFiles}
+                onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
+                repositoryFullNames={enabledRepositoryFullNames}
+                selectedRepositoryFullName={selectedRepositoryFullName}
+                onRepositoryChange={handleRepositoryChange}
+              />
+            </div>
           ) : (
             <TypographyP className="max-w-44 font-mono" lineClamp={1} size="xsmall" tone="subtle">
               {sourcePath}
@@ -646,7 +652,23 @@ export function ProjectFileContentEditorPageContent({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+      <ContentEditorPageBody
+        sidebar={
+          contentEditorFiles.length > 0 || allFiles ? (
+            <ContentEditorFilesSidebar
+              className="hidden w-[17.5rem] shrink-0 lg:flex"
+              files={contentEditorFiles}
+              selectedSourcePath={sourcePath}
+              onSelectFile={handleFileChange}
+              allFilesSelected={allFiles}
+              onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          ) : undefined
+        }
+      >
         <ProjectFileContentEditorWorkspace
           key={`${allFiles ? CONTENT_EDITOR_ALL_FILES_SOURCE_PATH : sourcePath}:${resolvedExternalResourceId ?? "source-path"}:${targetLocale}`}
           organizationSlug={organizationSlug}
@@ -672,7 +694,7 @@ export function ProjectFileContentEditorPageContent({
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
         />
-      </div>
+      </ContentEditorPageBody>
     </main>
   );
 }

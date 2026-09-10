@@ -25,13 +25,13 @@ describe("content-editor-workspace-view-mode", () => {
     vi.unstubAllGlobals();
   });
 
-  it("defaults to comfortable when storage is empty", () => {
+  it("defaults to side-by-side when storage is empty", () => {
     const getItem = vi.fn().mockReturnValue(null);
     vi.stubGlobal("window", {
       localStorage: { getItem, setItem: vi.fn() },
     });
 
-    expect(readCatWorkspaceViewMode()).toBe("comfortable");
+    expect(readCatWorkspaceViewMode()).toBe("side-by-side");
   });
 
   it("reads stored view mode", () => {
@@ -63,13 +63,13 @@ describe("content-editor-workspace-view-mode", () => {
     expect(setItem).toHaveBeenCalledWith(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY, "side-by-side");
   });
 
-  it("defaults to comfortable and skips writes when storage is unavailable", () => {
+  it("defaults to side-by-side and skips writes when storage is unavailable", () => {
     vi.stubGlobal("localStorage", undefined);
     vi.stubGlobal("window", {});
 
-    expect(readCatWorkspaceViewMode()).toBe("comfortable");
+    expect(readCatWorkspaceViewMode()).toBe("side-by-side");
     expect(() => writeCatWorkspaceViewMode("file")).not.toThrow();
-    expect(readCatWorkspaceViewMode()).toBe("comfortable");
+    expect(readCatWorkspaceViewMode()).toBe("side-by-side");
   });
 
   it("maps view mode to page limits", () => {

@@ -37,7 +37,7 @@ export function readCatWorkspaceViewMode(): ContentEditorWorkspaceViewMode {
     return stored;
   }
 
-  return "comfortable";
+  return "side-by-side";
 }
 
 export function writeCatWorkspaceViewMode(mode: ContentEditorWorkspaceViewMode) {

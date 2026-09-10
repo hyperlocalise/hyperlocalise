@@ -248,9 +248,8 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Refine translation" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /Translated · vi/i })).toBeInTheDocument(),
     );
-    expect(screen.getByRole("heading", { name: /Translated · vi/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Original · en-US/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Sound" })).toBeInTheDocument();
     expect(screen.getByText("onboarding/walkthrough.mp4")).toBeInTheDocument();
