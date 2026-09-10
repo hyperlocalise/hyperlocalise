@@ -26,7 +26,7 @@ import {
 } from "@/components/content-editor/file-view/content-editor-office-convert";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
 import { ContentEditorOfficeFilePreview } from "@/components/content-editor/file-view/content-editor-office-file-preview";
-import { isCatStoryOfficeAssetUrl } from "@/components/content-editor/file-view/content-editor-office-msw-handlers";
+import { isCatStoryOfficeAssetUrl } from "@/components/content-editor/file-view/content-editor-office-story-assets";
 import {
   isCatOfficeKind,
   mountCatUniverHost,

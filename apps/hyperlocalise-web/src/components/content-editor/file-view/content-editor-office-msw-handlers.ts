@@ -15,18 +15,14 @@ import { http, HttpResponse } from "msw";
 import PptxGenJS from "pptxgenjs";
 import * as XLSX from "xlsx";
 
-export const CAT_STORY_OFFICE_DOCX_SOURCE_URL = "/storybook/cat/docs/product-brief.source.docx";
-export const CAT_STORY_OFFICE_DOCX_TARGET_URL = "/storybook/cat/docs/product-brief.target.docx";
-export const CAT_STORY_OFFICE_XLSX_SOURCE_URL =
-  "/storybook/cat/sheets/localization-metrics.source.xlsx";
-export const CAT_STORY_OFFICE_XLSX_TARGET_URL =
-  "/storybook/cat/sheets/localization-metrics.target.xlsx";
-export const CAT_STORY_OFFICE_PPTX_SOURCE_URL = "/storybook/cat/decks/quarterly-review.source.pptx";
-export const CAT_STORY_OFFICE_PPTX_TARGET_URL = "/storybook/cat/decks/quarterly-review.target.pptx";
-
-export function isCatStoryOfficeAssetUrl(src: string | null | undefined) {
-  return Boolean(src?.startsWith("/storybook/cat/"));
-}
+import {
+  CAT_STORY_OFFICE_DOCX_SOURCE_URL,
+  CAT_STORY_OFFICE_DOCX_TARGET_URL,
+  CAT_STORY_OFFICE_PPTX_SOURCE_URL,
+  CAT_STORY_OFFICE_PPTX_TARGET_URL,
+  CAT_STORY_OFFICE_XLSX_SOURCE_URL,
+  CAT_STORY_OFFICE_XLSX_TARGET_URL,
+} from "./content-editor-office-story-assets";
 
 async function buildStoryDocx(paragraphs: string[]) {
   const document = new Document({
