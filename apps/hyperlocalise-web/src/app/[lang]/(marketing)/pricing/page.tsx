@@ -50,7 +50,7 @@ export default async function PricingRoutePage({ params }: PricingRouteProps) {
   const { lang } = await params;
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   const faqItems = getPricingFaqItems(locale);
-  const faqJsonLd = buildPricingFaqJsonLd(faqItems);
+  const faqJsonLd = buildPricingFaqJsonLd(locale, faqItems);
 
   return (
     <>
