@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/srx"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -595,11 +596,49 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 
 // applyMaxTranslationsLimit keeps the first max tasks in plan order and reports
 // how many executable tasks were deferred for a later session. max <= 0 means unlimited.
+//
+// SRX sibling spans that share a target path and original file key are kept atomic:
+// the limit never cuts between them, otherwise flush would join a partial span set
+// and historically fell back to source text for the missing siblings.
 func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, deferred int) {
 	if max <= 0 || len(executable) <= max {
 		return executable, 0
 	}
-	return executable[:max], len(executable) - max
+	cut := 0
+	for cut < len(executable) {
+		groupEnd := nextSRXSiblingGroupEnd(executable, cut)
+		if cut > 0 && groupEnd > max {
+			break
+		}
+		cut = groupEnd
+		if cut >= max {
+			break
+		}
+	}
+	if cut == 0 {
+		cut = nextSRXSiblingGroupEnd(executable, 0)
+	}
+	return executable[:cut], len(executable) - cut
+}
+
+func nextSRXSiblingGroupEnd(executable []Task, start int) int {
+	if start < 0 || start >= len(executable) {
+		return start
+	}
+	end := start + 1
+	fileKey, _, ok := srx.SplitSpanKey(executable[start].EntryKey)
+	if !ok {
+		return end
+	}
+	targetPath := executable[start].TargetPath
+	for end < len(executable) {
+		nextKey, _, isSpan := srx.SplitSpanKey(executable[end].EntryKey)
+		if !isSpan || nextKey != fileKey || executable[end].TargetPath != targetPath {
+			break
+		}
+		end++
+	}
+	return end
 }
 
 func completedEvent(report Report) Event {
