@@ -253,6 +253,62 @@ describe("typed values and secret inspection", () => {
       ),
     ).toEqual({ Authorization: "Bearer {{literal-secret}}" });
   });
+  it("expands unbound HTTP templates before inputsResolved execution", () => {
+    const context = createVisualWorkflowExecutionContext({
+      triggerInput: { id: 'quote"me', items: "42" },
+    });
+    const node: CanonicalVisualWorkflowNode = {
+      id: "http",
+      type: "action.http",
+      config: {
+        kind: "action.http",
+        method: "POST",
+        url: "https://example.com/hooks/{{trigger.id}}",
+        bodyType: "json",
+        body: '{"key": "{{trigger.id}}", "n": "{{trigger.items}}"}',
+        headers: [
+          { key: "X-Event", value: "evt-{{trigger.items}}" },
+          { key: "Authorization", value: "Bearer {{literal-secret}}" },
+        ],
+        queryParams: [{ key: "ref", value: "{{trigger.items}}" }],
+        auth: { type: "bearer", token: "tok-{{trigger.items}}" },
+        onError: "stop",
+      },
+      inputs: {
+        "headers.Authorization": { kind: "literal", value: "Bearer {{literal-secret}}" },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(resolved.config).toMatchObject({
+      url: 'https://example.com/hooks/quote"me',
+      body: JSON.stringify({ key: 'quote"me', n: "42" }),
+      headers: [
+        { key: "X-Event", value: "evt-42" },
+        { key: "Authorization", value: "Bearer {{literal-secret}}" },
+      ],
+      queryParams: [{ key: "ref", value: "42" }],
+      auth: { type: "bearer", token: "tok-42" },
+    });
+    expect(
+      resolveHttpRequestBody({
+        body: (resolved.config as { body?: unknown }).body,
+        bodyType: "json",
+        method: "POST",
+        resolved: true,
+        context,
+      }),
+    ).toBe(JSON.stringify({ key: 'quote"me', n: "42" }));
+    expect(
+      resolveKeyValuePairs(
+        (resolved.config as { headers?: { key: string; value: string }[] }).headers,
+        context,
+        { resolved: true },
+      ),
+    ).toEqual({
+      "X-Event": "evt-42",
+      Authorization: "Bearer {{literal-secret}}",
+    });
+  });
   it("serializes bound JSON once, including quotes and template-like content", () => {
     const body = { text: 'a "quote" and {{literal}}' };
     expect(

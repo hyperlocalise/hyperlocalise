@@ -10,10 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CanonicalVisualWorkflowNode, WorkflowBinding } from "../schema/types";
+import type {
+  CanonicalVisualWorkflowNode,
+  VisualKeyValuePair,
+  WorkflowBinding,
+} from "../schema/types";
 import { NODE_CONTRACTS, matchesWorkflowType } from "../catalog/node-contracts";
 import type { VisualWorkflowExecutionContext } from "./context";
 import { resolveVisualWorkflowCollection, resolveVisualWorkflowTemplate } from "./expressions";
+import { resolveHttpRequestBody } from "./http-request";
+
 export function readWorkflowPath(root: unknown, path: readonly (string | number)[]): unknown {
   let value = root;
   for (const key of path) {
@@ -84,6 +90,8 @@ export function resolveWorkflowNodeInputs(
     let value = config[field.name];
     if (!bound[field.name]) {
       if (field.name === "collection") value = resolveVisualWorkflowCollection(value, context);
+      // HTTP bodies are expanded in resolveUnboundHttpActionTemplates so JSON
+      // string leaves are templated before stringify (avoids quote-breaking).
       else if (typeof value === "string" && field.name !== "body")
         value = resolveVisualWorkflowTemplate(value, context);
     }
@@ -96,7 +104,68 @@ export function resolveWorkflowNodeInputs(
       throw new Error("workflow_input_type_mismatch");
     config[field.name] = value;
   }
+  if (node.type === "action.http") {
+    resolveUnboundHttpActionTemplates(config, bound, context);
+  }
   return { ...node, config: config as CanonicalVisualWorkflowNode["config"] };
+}
+
+/**
+ * Production/durable runs call execute with `inputsResolved: true` so injected
+ * secrets are not re-templated. Unbound `{{trigger.*}}` / `{{nodes.*}}` in HTTP
+ * body, headers, query params, and auth tokens must therefore be expanded here.
+ */
+function resolveUnboundHttpActionTemplates(
+  config: Record<string, unknown>,
+  bound: Record<string, WorkflowBinding>,
+  context: VisualWorkflowExecutionContext,
+) {
+  const boundHeaderKeys = new Set(
+    Object.keys(bound)
+      .filter((name) => name.startsWith("headers."))
+      .map((name) => name.slice("headers.".length).toLowerCase()),
+  );
+  if (Array.isArray(config.headers)) {
+    config.headers = (config.headers as VisualKeyValuePair[]).map((pair) =>
+      boundHeaderKeys.has(pair.key.toLowerCase())
+        ? pair
+        : { ...pair, value: resolveVisualWorkflowTemplate(pair.value, context) },
+    );
+  }
+  if (Array.isArray(config.queryParams)) {
+    config.queryParams = (config.queryParams as VisualKeyValuePair[]).map((pair) => ({
+      ...pair,
+      value: resolveVisualWorkflowTemplate(pair.value, context),
+    }));
+  }
+
+  const bodyBound =
+    Boolean(bound.body) || Object.keys(bound).some((name) => name.startsWith("body."));
+  if (!bodyBound && config.body !== undefined) {
+    const method = typeof config.method === "string" ? config.method : "POST";
+    const bodyType =
+      config.bodyType === "json" || config.bodyType === "text" || config.bodyType === "none"
+        ? config.bodyType
+        : "none";
+    const resolvedBody = resolveHttpRequestBody({
+      body: config.body,
+      bodyType,
+      context,
+      method,
+      resolved: false,
+    });
+    if (resolvedBody !== undefined) config.body = resolvedBody;
+  }
+
+  const auth = config.auth as
+    | { type?: string; token?: string; credentialId?: string; headerName?: string }
+    | undefined;
+  if (auth?.token && !auth.credentialId) {
+    config.auth = {
+      ...auth,
+      token: resolveVisualWorkflowTemplate(auth.token, context),
+    };
+  }
 }
 export function setResolvedInput(config: Record<string, unknown>, name: string, value: unknown) {
   if (name.startsWith("headers.")) {
