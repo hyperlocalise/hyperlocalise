@@ -55,13 +55,26 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
   commitSha?: string | null;
   workflowRunId?: string | null;
   uploadSurface?: string;
+  rewriteSourcePath?: (sandboxPath: string) => string | null;
 }): Promise<UploadRepositorySourceFileResult[]> {
   const adapter = getFileStorageAdapter();
   const results: UploadRepositorySourceFileResult[] = [];
 
   for (const path of input.paths) {
-    const normalizedPath = normalizeSourcePath(path);
-    if (!inferSupportedSourceUploadFormat(normalizedPath)) {
+    const sandboxPath = normalizeSourcePath(path);
+    const rewrittenPath = input.rewriteSourcePath
+      ? input.rewriteSourcePath(sandboxPath)
+      : sandboxPath;
+    if (!rewrittenPath) {
+      results.push({
+        path: sandboxPath,
+        outcome: "skipped",
+        reason: "outside_provider_folder",
+      });
+      continue;
+    }
+    const normalizedPath = normalizeSourcePath(rewrittenPath);
+    if (!inferSupportedSourceUploadFormat(sandboxPath)) {
       results.push({
         path: normalizedPath,
         outcome: "skipped",
@@ -73,7 +86,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
     let content: Buffer;
     try {
       // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
-      content = await readTranslatedFile(input.sandboxId, normalizedPath);
+      content = await readTranslatedFile(input.sandboxId, sandboxPath);
     } catch {
       results.push({
         path: normalizedPath,

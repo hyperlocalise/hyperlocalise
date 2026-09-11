@@ -54,6 +54,28 @@ export async function executeWorkspaceAutomationStep(
 
   logger.info(stepContext, "workspace automation orchestrator step started");
 
+  const { getWorkspaceAutomationRunById, getWorkspaceAutomationById } =
+    await import("@/lib/agents/workspace-automations");
+  const { isContentSyncAutomation } = await import("@/lib/agents/workspace-automation-types");
+  const run = await getWorkspaceAutomationRunById({
+    organizationId: event.organizationId,
+    runId: event.workspaceAutomationRunId,
+  });
+  if (run) {
+    const automation = await getWorkspaceAutomationById({
+      organizationId: event.organizationId,
+      automationId: run.automationId,
+    });
+    if (automation && isContentSyncAutomation(automation)) {
+      const { executeContentSyncRun } =
+        await import("@/lib/agents/content-sync/execute-content-sync");
+      return executeContentSyncRun({
+        organizationId: event.organizationId,
+        workspaceAutomationRunId: event.workspaceAutomationRunId,
+      });
+    }
+  }
+
   const { runWorkspaceOrchestrator } =
     await import("@/agents/automations/workspace/agent/run-workspace-orchestrator");
 

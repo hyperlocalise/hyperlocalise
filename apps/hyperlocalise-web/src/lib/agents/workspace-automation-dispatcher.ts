@@ -38,6 +38,7 @@ import {
   enqueueWorkspaceAutomationRunOnce,
   getWorkspaceAutomationById,
   getWorkspaceAutomationRunByIdempotencyKey,
+  listContentSyncAutomations,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
@@ -542,16 +543,32 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
   contentTypeId?: string | null;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
-  const candidateAutomations = await listWorkspaceAutomations({
-    organizationId: input.organizationId,
-    status: "active",
-    contentfulWebhookConnectionId: input.connectionId,
-    contentfulWebhookContentTypeId: input.contentTypeId,
-    limit: 100,
-  });
-  const automations = candidateAutomations.filter((automation) =>
-    hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
-  );
+  const [candidateAutomations, contentSyncAutomations] = await Promise.all([
+    listWorkspaceAutomations({
+      organizationId: input.organizationId,
+      status: "active",
+      contentfulWebhookConnectionId: input.connectionId,
+      contentfulWebhookContentTypeId: input.contentTypeId,
+      limit: 100,
+    }),
+    listContentSyncAutomations({
+      organizationId: input.organizationId,
+      contentfulConnectionId: input.connectionId,
+      status: "active",
+    }),
+  ]);
+  const automations = [
+    ...candidateAutomations.filter((automation) =>
+      hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
+    ),
+    ...contentSyncAutomations.filter((automation) => {
+      const types = automation.syncConfig?.contentTypeIds ?? [];
+      if (types.length === 0 || !input.contentTypeId) {
+        return true;
+      }
+      return types.includes(input.contentTypeId);
+    }),
+  ];
 
   logger.info(
     {

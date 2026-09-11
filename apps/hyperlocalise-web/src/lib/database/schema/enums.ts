@@ -214,6 +214,13 @@ export const workspaceAutomationStatusEnum = pgEnum("workspace_automation_status
   "archived",
 ]);
 /**
+ * Distinguishes LLM playbooks from deterministic project content sync.
+ */
+export const workspaceAutomationKindEnum = pgEnum("workspace_automation_kind", [
+  "agent",
+  "content_sync",
+]);
+/**
  * Records why a persisted workspace automation run was created.
  */
 export const workspaceAutomationRunTriggerSourceEnum = pgEnum(

@@ -16,6 +16,7 @@ import {
 } from "@/lib/agents/github/github-repository-automation-settings";
 
 import {
+  isContentSyncAutomation,
   workspaceAutomationGithubEventsInclude,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
@@ -66,6 +67,9 @@ export function hasWorkspaceAutomationGithubCommentTool(
 }
 
 function workspaceAutomationHasGithubDispatchTools(automation: WorkspaceAutomationRecord): boolean {
+  if (isContentSyncAutomation(automation) && automation.syncConfig?.provider === "github") {
+    return true;
+  }
   return (
     hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) ||
     hasWorkspaceAutomationGithubAgentTool(automation.toolConfig) ||

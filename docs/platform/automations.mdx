@@ -18,6 +18,18 @@ Create an automation, choose a trigger, and let Cloud generate or review when so
 
 The list shows **Total automations**, **Active**, and **Paused**, plus columns for **Automation**, **Tools**, **Status**, and **Creator**. Open **Run History** on an automation to inspect past runs.
 
+## Content sync
+
+On a project **Automations** page, **Content sync** moves files between a connected source and that project. Integrations only connects the account.
+
+1. Connect GitHub, GitLab, Contentful, or Intercom under **Integrations**.
+2. Open the project **Automations** page.
+3. Click **Add content sync**, choose the resource and folders, then enable **Sync content**.
+
+Pull copies source into the project folder. Push writes translations that are already ready back to the provider (a pull request for git, drafts for a CMS). Content sync does not create translation jobs and does not use an agent prompt.
+
+GitHub is the first executable provider. Contentful, GitLab, and Intercom share the same setup; their movers follow.
+
 ## Create an automation
 
 1. Click **New Automation**.
