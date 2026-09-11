@@ -28,7 +28,7 @@ const meta = {
     nextjs: { appDirectory: true, navigation: { pathname: "/en/org/domains-preview/domains" } },
     msw: { handlers: domainResearchMswHandlers() },
   },
-  args: { organizationSlug: ORGANIZATION_SLUG },
+  args: { organizationSlug: ORGANIZATION_SLUG, allowLinkDomains: true },
 } satisfies Meta<typeof DomainsPageContent>;
 export default meta;
 type Story = StoryObj<typeof meta>;

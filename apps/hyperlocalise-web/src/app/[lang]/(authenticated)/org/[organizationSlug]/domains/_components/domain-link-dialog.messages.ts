@@ -66,6 +66,12 @@ export const domainLinkDialogMessages = defineMessages({
     id: "ed78rqC5km",
     description: "Link domain dialog description",
   },
+  liveDescription: {
+    defaultMessage:
+      "Enter the hostname from your localisation audit. You will verify ownership on the next step.",
+    id: "y7AjSFsGUH",
+    description: "Link domain dialog description for the live claim flow",
+  },
   hostnameLabel: {
     defaultMessage: "Hostname",
     id: "QzCT9StKW7",

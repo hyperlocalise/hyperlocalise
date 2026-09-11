@@ -39,26 +39,36 @@ import styles from "./domain-header.module.css";
 const LIST_GRID_CLASS =
   "grid grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4rem_auto_auto]";
 
-export function DomainsPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function DomainsPageContent({
+  organizationSlug,
+  allowLinkDomains,
+}: {
+  organizationSlug: string;
+  allowLinkDomains: boolean;
+}) {
   return (
     <DomainsPageStoreProvider organizationSlug={organizationSlug}>
       <DomainsPageQueryBridge />
-      <DomainsPageView />
+      <DomainsPageView allowLinkDomains={allowLinkDomains} />
     </DomainsPageStoreProvider>
   );
 }
 
-const DomainsPageView = observer(function DomainsPageView() {
+const DomainsPageView = observer(function DomainsPageView({
+  allowLinkDomains,
+}: {
+  allowLinkDomains: boolean;
+}) {
   const intl = useIntl();
   const router = useOrgRouter();
   const store = useDomainsPageStore();
 
-  const linkDomainAction = (
+  const linkDomainAction = allowLinkDomains ? (
     <Button type="button" size="sm" onClick={() => store.openLinkDialog()}>
       <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
       <FormattedMessage {...messages.linkDomain} />
     </Button>
-  );
+  ) : undefined;
 
   return (
     <WorkspacePageShell>
@@ -170,18 +180,17 @@ const DomainsPageView = observer(function DomainsPageView() {
         )}
       </div>
 
-      <DomainLinkDialog
-        open={store.linkDialogOpen}
-        onOpenChange={(open) => store.setLinkDialogOpen(open)}
-        domain={store.linkDialogDomain}
-        existingDomains={store.domains}
-        onSave={(domain) => {
-          if (store.editLocalesDomain) {
-            return;
-          }
-          router.push(store.linkDomainPath(domain.domainKey));
-        }}
-      />
+      {allowLinkDomains ? (
+        <DomainLinkDialog
+          variant="live"
+          open={store.linkDialogOpen}
+          onOpenChange={(open) => store.setLinkDialogOpen(open)}
+          existingDomains={store.domains}
+          onContinue={(domainKey) => {
+            router.push(store.linkDomainPath(domainKey));
+          }}
+        />
+      ) : null}
     </WorkspacePageShell>
   );
 });
