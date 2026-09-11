@@ -17,6 +17,7 @@ import { createContentEditorWorkspaceState } from "@/components/content-editor/s
 import type {
   ContentEditorFormatCheck,
   ContentEditorGlossaryTerm,
+  ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
 
 import { createCatWorkspace } from "../content-editor-workspace-orchestrator";
@@ -345,10 +346,10 @@ describe("ContentEditorReviewController", () => {
     });
 
     it("does not write approve results after a file scope change", async () => {
-      let resolveApprove: ((status: string) => void) | undefined;
+      let resolveApprove: ((status: ContentEditorSegmentStatus) => void) | undefined;
       const onApprove = vi.fn(
-        () =>
-          new Promise<string>((resolve) => {
+        (_segmentId: string, _targetText: string) =>
+          new Promise<ContentEditorSegmentStatus>((resolve) => {
             resolveApprove = resolve;
           }),
       );
@@ -392,16 +393,19 @@ describe("ContentEditorReviewController", () => {
     });
 
     it("does not clear a newer approve flag when a stale approve finishes", async () => {
-      let resolveStaleApprove: ((status: string) => void) | undefined;
+      let resolveStaleApprove: ((status: ContentEditorSegmentStatus) => void) | undefined;
       const onApprove = vi
         .fn()
         .mockImplementationOnce(
-          () =>
-            new Promise<string>((resolve) => {
+          (_segmentId: string, _targetText: string) =>
+            new Promise<ContentEditorSegmentStatus>((resolve) => {
               resolveStaleApprove = resolve;
             }),
         )
-        .mockImplementationOnce(() => new Promise<string>(() => undefined));
+        .mockImplementationOnce(
+          (_segmentId: string, _targetText: string) =>
+            new Promise<ContentEditorSegmentStatus>(() => undefined),
+        );
       const { controller, workspace } = createController(undefined, {
         review: { onApprove },
       });
@@ -479,10 +483,10 @@ describe("ContentEditorReviewController", () => {
     });
 
     it("does not write draft results after a file scope change", async () => {
-      let resolveDraft: ((status: string) => void) | undefined;
+      let resolveDraft: ((status: ContentEditorSegmentStatus) => void) | undefined;
       const onSaveDraft = vi.fn(
-        () =>
-          new Promise<string>((resolve) => {
+        (_segmentId: string, _targetText: string) =>
+          new Promise<ContentEditorSegmentStatus>((resolve) => {
             resolveDraft = resolve;
           }),
       );
