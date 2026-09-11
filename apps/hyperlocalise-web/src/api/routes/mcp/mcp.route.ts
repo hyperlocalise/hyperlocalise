@@ -822,11 +822,13 @@ function decodeMcpBase64(value: string): Uint8Array | null {
 const MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH = 4_000;
 
 function truncateMcpTranslationMemorySegment(value: string) {
-  if (value.length <= MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH) {
+  const codePoints = Array.from(value);
+
+  if (codePoints.length <= MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH) {
     return value;
   }
 
-  return `${value.slice(0, MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH - 1)}…`;
+  return `${codePoints.slice(0, MAX_MCP_TRANSLATION_MEMORY_SEGMENT_LENGTH - 1).join("")}…`;
 }
 
 function compactMcpTranslationMemoryMatch(match: {

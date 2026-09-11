@@ -6952,7 +6952,7 @@ describe("mcpRoutes", () => {
       throw new Error("expected test auth context");
     }
 
-    const sourceText = "a".repeat(4_500);
+    const sourceText = `${"a".repeat(3_998)}𐐷${"c".repeat(500)}`;
     const targetText = "b".repeat(4_500);
 
     const { memoryId } = await createAttachedMemoryEntry({
@@ -6991,8 +6991,9 @@ describe("mcpRoutes", () => {
       similarity: 1,
     });
 
-    expect(matches[0]?.sourceText).toHaveLength(4_000);
-    expect(matches[0]?.sourceText.endsWith("…")).toBe(true);
+    expect(Array.from(matches[0]?.sourceText ?? "")).toHaveLength(4_000);
+    expect(matches[0]?.sourceText.endsWith("𐐷…")).toBe(true);
+    expect(matches[0]?.sourceText).not.toContain("�");
 
     expect(matches[0]?.targetText).toHaveLength(4_000);
     expect(matches[0]?.targetText.endsWith("…")).toBe(true);

@@ -20,6 +20,7 @@ import { flattenNativeConceptTermsToPairs } from "@/lib/glossary/flatten-native-
 import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import { concordanceSourceContainsTerm } from "@/lib/glossary/native-glossary";
 import { groupConceptTerms } from "@/lib/glossary/query-glossary-terms";
+import { isMemorySearchableForExecution } from "@/lib/memory/memory-capabilities";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -37,14 +38,14 @@ import type { ToolContext } from "@/lib/tools/types";
  * Strips characters that have special meaning in Postgres tsquery syntax
  * so that untrusted input cannot break the query.
  */
-function buildTsQuery(input: string): string {
+function buildTsQuery(input: string, operator: " & " | " | " = " & "): string {
   const sanitized = input
     .replace(/[&|!():*<>]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .map((w) => `${w}:*`)
-    .join(" & ");
+    .join(operator);
   return sanitized;
 }
 
@@ -400,17 +401,36 @@ export async function queryTranslationMemoryMatches(
     memoryIds = [memoryId];
   }
 
+  const searchableMemoryConditions = [await toolProjectLinkedMemoryWhere(ctx)];
+
+  if (memoryIds) {
+    searchableMemoryConditions.push(inArray(schema.memories.id, memoryIds));
+  }
+
+  const searchableMemories = await db
+    .select({
+      id: schema.memories.id,
+      source: schema.memories.source,
+      status: schema.memories.status,
+      capabilityMode: schema.memories.capabilityMode,
+      externalProviderKind: schema.memories.externalProviderKind,
+    })
+    .from(schema.memories)
+    .where(and(...searchableMemoryConditions));
+
+  memoryIds = searchableMemories.filter(isMemorySearchableForExecution).map(({ id }) => id);
+
+  if (memoryIds.length === 0) {
+    return { matches: [] };
+  }
+
   const exactConditions = [
     eq(schema.memoryEntries.normalizedSourceText, normalized),
     eq(schema.memoryEntries.sourceLocale, sourceLocale),
     eq(schema.memoryEntries.targetLocale, targetLocale),
     eq(schema.memoryEntries.reviewStatus, "approved"),
-    await toolProjectLinkedMemoryWhere(ctx),
+    inArray(schema.memoryEntries.memoryId, memoryIds),
   ];
-
-  if (memoryIds) {
-    exactConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
-  }
 
   const exactMatches = await db
     .select({
@@ -437,7 +457,7 @@ export async function queryTranslationMemoryMatches(
     };
   }
 
-  const tsQuery = buildTsQuery(sourceText);
+  const tsQuery = buildTsQuery(sourceText, " | ");
 
   if (!tsQuery) {
     return { matches: [] };
@@ -448,12 +468,8 @@ export async function queryTranslationMemoryMatches(
     eq(schema.memoryEntries.sourceLocale, sourceLocale),
     eq(schema.memoryEntries.targetLocale, targetLocale),
     eq(schema.memoryEntries.reviewStatus, "approved"),
-    await toolProjectLinkedMemoryWhere(ctx),
+    inArray(schema.memoryEntries.memoryId, memoryIds),
   ];
-
-  if (memoryIds) {
-    fuzzyConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
-  }
 
   const fuzzyMatches = await db
     .select({
