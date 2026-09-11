@@ -5,9 +5,9 @@ import "testing"
 func TestFormatSupports(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		path   string
-		mode   string
-		want   bool
+		path string
+		mode string
+		want bool
 	}{
 		{path: "lang/en.json", want: true},
 		{path: "docs/guide.md", want: true},

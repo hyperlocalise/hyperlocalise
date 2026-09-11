@@ -715,4 +715,3 @@ func TestRunDoesNotSplitWhenTranslationUsesICUOnlyFile(t *testing.T) {
 		t.Fatalf("sources = %#v", sources)
 	}
 }
-

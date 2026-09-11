@@ -60,9 +60,9 @@ type srxXML struct {
 }
 
 type srxBodyXML struct {
-	XMLName        xml.Name `xml:"body"`
-	LanguageRules  []srxLanguageRuleXML
-	LanguageMaps   []srxLanguageMapXML
+	XMLName       xml.Name `xml:"body"`
+	LanguageRules []srxLanguageRuleXML
+	LanguageMaps  []srxLanguageMapXML
 }
 
 func (b *srxBodyXML) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
@@ -324,7 +324,7 @@ func Parse(data []byte) (*Document, error) {
 }
 
 func compileRule(raw srxRuleXML, languageIdx, ruleIdx int) (rule, error) {
-	breakAt := true
+	var breakAt bool
 	switch strings.ToLower(strings.TrimSpace(raw.Break)) {
 	case "", "yes":
 		breakAt = true
