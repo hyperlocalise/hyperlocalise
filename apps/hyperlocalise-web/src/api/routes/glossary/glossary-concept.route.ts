@@ -542,9 +542,15 @@ export function createGlossaryConceptRoutes(
         try {
           created = await product.createConcept({
             ...payload,
-            reviewStatus:
-              payload.reviewStatus ??
-              (isGlossaryReviewAllowed(c.var.auth.membership.role) ? "approved" : "proposed"),
+            terms: payload.terms?.map((term) => ({
+              ...term,
+              reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+                ? term.reviewStatus
+                : "proposed",
+            })),
+            reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+              ? (payload.reviewStatus ?? "approved")
+              : "proposed",
           });
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
@@ -1162,19 +1168,15 @@ export function createGlossaryConceptRoutes(
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                     forbidden: term.forbidden ?? existing?.forbidden ?? false,
-                    reviewStatus:
-                      term.reviewStatus ??
-                      (isGlossaryReviewAllowed(c.var.auth.membership.role)
-                        ? existing?.reviewStatus
-                        : "proposed"),
+                    reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+                      ? (term.reviewStatus ?? existing?.reviewStatus)
+                      : "proposed",
                     reviewReason: term.reviewReason ?? existing?.reviewReason,
                   };
                 }),
-          reviewStatus:
-            payload.reviewStatus ??
-            (isGlossaryReviewAllowed(c.var.auth.membership.role)
-              ? current.reviewStatus
-              : "proposed"),
+          reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+            ? (payload.reviewStatus ?? current.reviewStatus)
+            : "proposed",
           reviewReason: payload.reviewReason ?? current.reviewReason,
         } satisfies GlossaryConcept;
         let updated;
@@ -1246,9 +1248,9 @@ export function createGlossaryConceptRoutes(
             gender: payload.gender ?? undefined,
             url: payload.url ?? undefined,
             lemma: payload.lemma ?? undefined,
-            reviewStatus:
-              payload.reviewStatus ??
-              (isGlossaryReviewAllowed(c.var.auth.membership.role) ? "approved" : "proposed"),
+            reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+              ? (payload.reviewStatus ?? "approved")
+              : "proposed",
             reviewReason: payload.reviewReason,
           });
         } catch (error) {
@@ -1310,11 +1312,9 @@ export function createGlossaryConceptRoutes(
             url: payload.url ?? existing.url ?? "",
             lemma: payload.lemma ?? existing.lemma ?? "",
             forbidden: payload.forbidden ?? existing.forbidden ?? false,
-            reviewStatus:
-              payload.reviewStatus ??
-              (isGlossaryReviewAllowed(c.var.auth.membership.role)
-                ? existing.reviewStatus
-                : "proposed"),
+            reviewStatus: isGlossaryReviewAllowed(c.var.auth.membership.role)
+              ? (payload.reviewStatus ?? existing.reviewStatus)
+              : "proposed",
             reviewReason: payload.reviewReason ?? existing.reviewReason,
           });
         } catch (error) {

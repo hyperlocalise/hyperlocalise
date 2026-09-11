@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, inArray, isNotNull, min, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, min, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
@@ -230,6 +230,8 @@ async function listOrderedNativeConceptSummaries(
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
+        sql`${schema.glossaryConcepts.archivedAt} is null`,
+        sql`${schema.glossaryTerms.archivedAt} is null`,
       ),
     )
     .groupBy(
@@ -300,6 +302,8 @@ async function fetchNativeConceptTermRows(
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
+        sql`${schema.glossaryConcepts.archivedAt} is null`,
+        sql`${schema.glossaryTerms.archivedAt} is null`,
         isNotNull(schema.glossaryTerms.conceptId),
         isNotNull(schema.glossaryTerms.term),
         isNotNull(schema.glossaryTerms.locale),
@@ -429,6 +433,8 @@ export async function listNativeGlossaryTermPairs(
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.status, "active"),
+        sql`${schema.glossaryConcepts.archivedAt} is null`,
+        sql`${schema.glossaryTerms.archivedAt} is null`,
         isNotNull(schema.glossaryTerms.conceptId),
         isNotNull(schema.glossaryTerms.term),
         isNotNull(schema.glossaryTerms.locale),

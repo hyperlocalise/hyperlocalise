@@ -868,7 +868,10 @@ export class NativeGlossary extends Glossary {
           retainedIds.add(existing.id);
           await tx
             .update(schema.glossaryTerms)
-            .set(values)
+            .set({
+              ...values,
+              version: sql`${schema.glossaryTerms.version} + 1`,
+            })
             .where(eq(schema.glossaryTerms.id, existing.id));
         } else {
           await tx.insert(schema.glossaryTerms).values({
@@ -1266,6 +1269,10 @@ export class NativeGlossary extends Glossary {
           status: normalizedInput.status ?? "draft",
           forbidden: normalizedInput.forbidden ?? false,
           provenance: "manual" as const,
+          createdByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          modifiedByUserId: this.input.actorUserId ?? this.input.auth.user.localUserId,
+          reviewStatus: normalizedInput.reviewStatus ?? "approved",
+          reviewReason: normalizedInput.reviewReason ?? null,
         })
         .returning();
       if (created) {
@@ -1426,6 +1433,10 @@ export class NativeGlossary extends Glossary {
           externalGlossaryUrl: schema.glossaries.externalUrl,
         })
         .from(concordanceSourceTerms)
+        .innerJoin(
+          schema.glossaryConcepts,
+          eq(concordanceSourceTerms.conceptId, schema.glossaryConcepts.id),
+        )
         .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
         .where(
           and(
@@ -1438,6 +1449,8 @@ export class NativeGlossary extends Glossary {
             // are intentionally excluded.
             isNotNull(concordanceSourceTerms.conceptId),
             isNotNull(concordanceSourceTerms.term),
+            sql`${concordanceSourceTerms.archivedAt} is null`,
+            sql`${schema.glossaryConcepts.archivedAt} is null`,
             eq(concordanceSourceTerms.reviewStatus, "approved"),
             sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
           ),
@@ -1509,6 +1522,7 @@ export class NativeGlossary extends Glossary {
         .where(
           and(
             inArray(schema.glossaryTerms.conceptId, conceptIds),
+            sql`${schema.glossaryTerms.archivedAt} is null`,
             eq(schema.glossaryTerms.reviewStatus, "approved"),
             inArray(schema.glossaryTerms.locale, [sourceLocale, ...query.targetLocales]),
           ),

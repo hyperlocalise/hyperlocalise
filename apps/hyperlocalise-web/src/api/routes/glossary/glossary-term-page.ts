@@ -22,6 +22,7 @@ type Filters = Omit<GlossaryTermPageQuery, "cursor" | "limit">;
 type Cursor = {
   v: 1;
   glossaryId: string;
+  conceptId: string | null;
   id: string;
   sortValue: string;
   issuedAt: string;
@@ -36,21 +37,27 @@ function secret() {
   );
 }
 
-function hash(glossaryId: string, filters: Filters) {
+function hash(glossaryId: string, conceptId: string | undefined, filters: Filters) {
   return createHash("sha256")
-    .update(JSON.stringify({ glossaryId, ...filters }))
+    .update(JSON.stringify({ glossaryId, conceptId: conceptId ?? null, ...filters }))
     .digest("hex")
     .slice(0, 16);
 }
 
-function encode(glossaryId: string, filters: Filters, term: { id: string; sortValue: string }) {
+function encode(
+  glossaryId: string,
+  conceptId: string | undefined,
+  filters: Filters,
+  term: { id: string; sortValue: string },
+) {
   const payload: Cursor = {
     v: 1,
     glossaryId,
+    conceptId: conceptId ?? null,
     id: term.id,
     sortValue: term.sortValue,
     issuedAt: new Date().toISOString(),
-    filterHash: hash(glossaryId, filters),
+    filterHash: hash(glossaryId, conceptId, filters),
   };
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const signature = createHmac("sha256", `${secret()}:glossary-term-page:v1`)
@@ -62,6 +69,7 @@ function encode(glossaryId: string, filters: Filters, term: { id: string; sortVa
 function decode(
   value: string,
   glossaryId: string,
+  conceptId: string | undefined,
   filters: Filters,
 ): Cursor | { code: "invalid_cursor"; message: string } {
   const [encoded, signature] = value.split(".");
@@ -79,7 +87,8 @@ function decode(
     if (
       cursor.v !== 1 ||
       cursor.glossaryId !== glossaryId ||
-      cursor.filterHash !== hash(glossaryId, filters) ||
+      cursor.conceptId !== (conceptId ?? null) ||
+      cursor.filterHash !== hash(glossaryId, conceptId, filters) ||
       Number.isNaN(issuedAt) ||
       issuedAt > Date.now() ||
       Date.now() - issuedAt > TTL
@@ -127,7 +136,7 @@ export async function listGlossaryTermsPage(
   conceptId?: string,
 ) {
   const { cursor, limit, ...filters } = query;
-  const decoded = cursor ? decode(cursor, glossaryId, filters) : undefined;
+  const decoded = cursor ? decode(cursor, glossaryId, conceptId, filters) : undefined;
   if (decoded && "code" in decoded) return decoded;
   const column = sortColumn(filters.sort);
   const baseWhere = whereFor(glossaryId, conceptId, filters);
@@ -171,7 +180,10 @@ export async function listGlossaryTermsPage(
   return {
     terms,
     nextCursor: hasMore
-      ? encode(glossaryId, filters, { id: last!.term.id, sortValue: last!.sortValue })
+      ? encode(glossaryId, conceptId, filters, {
+          id: last!.term.id,
+          sortValue: last!.sortValue,
+        })
       : null,
     total: Number(totalRows[0]?.value ?? 0),
     pagination: { limit, returned: terms.length, hasMore },
