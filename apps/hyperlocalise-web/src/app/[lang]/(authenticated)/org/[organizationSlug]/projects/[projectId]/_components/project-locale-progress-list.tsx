@@ -49,6 +49,8 @@ import {
 
 export type ProjectLocaleProgressListProps = {
   locales: readonly ProjectLocaleProgressRow[];
+  /** Target locale count from project metadata, used for skeleton rows while progress loads. */
+  expectedLocaleCount?: number;
   isLoading?: boolean;
   isError?: boolean;
   settingsHref: string;
@@ -329,6 +331,7 @@ function LocaleProgressItem({
 
 export function ProjectLocaleProgressList({
   locales,
+  expectedLocaleCount,
   isLoading = false,
   isError = false,
   settingsHref,
@@ -337,6 +340,8 @@ export function ProjectLocaleProgressList({
   const intl = useIntl();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LocaleProgressSort>("az");
+  const localeCount =
+    isLoading && expectedLocaleCount !== undefined ? expectedLocaleCount : locales.length;
 
   const visibleLocales = useMemo(
     () =>
@@ -355,15 +360,16 @@ export function ProjectLocaleProgressList({
           <FormattedMessage {...messages.title} />
         </span>
         <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
-          {locales.length}
+          {localeCount}
         </span>
       </Row>
       <Separator className="bg-foreground" />
 
       {isLoading ? (
         <Rows spacing="1u">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
+          {Array.from({ length: localeCount }, (_, index) => (
+            <Skeleton key={index} className="h-12 w-full" />
+          ))}
         </Rows>
       ) : isError ? (
         <Box paddingTop="1u">
