@@ -49,7 +49,12 @@ export class HyperlabUiStore {
   }
 
   applyVariantAudience(variantId: string, audienceId: string | null) {
-    this.variantAudienceDrafts.set(variantId, audienceId ?? "");
+    const serverAudience = audienceId ?? "";
+    const draft = this.variantAudienceDrafts.get(variantId);
+    const hasPendingDraft = draft !== undefined && draft !== serverAudience;
+    if (!hasPendingDraft) {
+      this.variantAudienceDrafts.set(variantId, serverAudience);
+    }
   }
 
   isVariantSheetOpen(variantId: string) {

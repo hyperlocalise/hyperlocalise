@@ -162,6 +162,33 @@ describe("HyperlabExperimentStore", () => {
     store.markSplitsSaved();
     expect(store.splitDirty).toBe(false);
   });
+
+  it("preserves dirty splits when unrelated experiment metadata refreshes", () => {
+    const store = new HyperlabExperimentStore();
+    store.applyServer(sampleExperiment, sampleVariants);
+
+    store.setVariantSplit("variant-b", 4000);
+    expect(store.splitDirty).toBe(true);
+
+    store.applyServer({ ...sampleExperiment, name: "Renamed on server" }, sampleVariants);
+
+    expect(store.name).toBe("Renamed on server");
+    expect(store.variantSplits["variant-b"]).toBe(4000);
+    expect(store.splitDirty).toBe(true);
+  });
+
+  it("preserves dirty details when rollout metadata refreshes", () => {
+    const store = new HyperlabExperimentStore();
+    store.applyServer(sampleExperiment, sampleVariants);
+
+    store.setName("Pending name edit");
+    store.applyServer({ ...sampleExperiment, rolloutPercentage: 2500 }, sampleVariants);
+
+    expect(store.name).toBe("Pending name edit");
+    expect(store.detailsDirty).toBe(true);
+    expect(store.rolloutPercentage).toBe(2500);
+    expect(store.rolloutDirty).toBe(false);
+  });
 });
 
 describe("HyperlabUiStore", () => {
@@ -184,6 +211,21 @@ describe("HyperlabUiStore", () => {
     expect(store.addVariantOpen).toBe(false);
     expect(store.variantKey).toBe("");
   });
+
+  it("preserves pending variant audience drafts on refresh", () => {
+    const store = new HyperlabUiStore();
+
+    store.applyVariantAudience("variant-b", null);
+    store.setVariantAudienceDraft("variant-b", "audience-2");
+
+    store.applyVariantAudience("variant-b", null);
+
+    expect(store.getVariantAudienceDraft("variant-b")).toBe("audience-2");
+
+    store.applyVariantAudience("variant-b", "audience-2");
+
+    expect(store.getVariantAudienceDraft("variant-b")).toBe("audience-2");
+  });
 });
 
 describe("HyperlabWorkspaceOrchestrator", () => {
@@ -204,5 +246,16 @@ describe("HyperlabWorkspaceOrchestrator", () => {
     expect(workspace.audience.name).toBe("");
     expect(workspace.experiment.name).toBe("");
     expect(workspace.ui.createdSecret).toBeNull();
+  });
+
+  it("preserves pending variant audience drafts during experiment refresh", () => {
+    const workspace = createHyperlabWorkspace();
+
+    workspace.ingestExperiment(sampleExperiment, sampleVariants);
+    workspace.ui.setVariantAudienceDraft("variant-b", "audience-2");
+
+    workspace.ingestExperiment(sampleExperiment, sampleVariants);
+
+    expect(workspace.ui.getVariantAudienceDraft("variant-b")).toBe("audience-2");
   });
 });

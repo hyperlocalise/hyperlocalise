@@ -187,19 +187,32 @@ export class HyperlabExperimentStore {
       variants.map((variant) => [variant.id, variant.rolloutPercentage]),
     );
 
-    this.name = nextDetails.name;
-    this.timezone = nextDetails.timezone;
-    this.startDate = nextDetails.startDate;
-    this.startTime = nextDetails.startTime;
-    this.endDate = nextDetails.endDate;
-    this.endTime = nextDetails.endTime;
-    this.audienceId = nextRollout.audienceId;
-    this.rolloutPercentage = nextRollout.rolloutPercentage;
-    this.savedDetails = { ...nextDetails };
-    this.savedRollout = { ...nextRollout };
+    const preserveDetails = this.detailsDirty;
+    const preserveRollout = this.rolloutDirty;
+    const preserveSplits = this.splitDirty;
+
+    if (!preserveDetails) {
+      this.name = nextDetails.name;
+      this.timezone = nextDetails.timezone;
+      this.startDate = nextDetails.startDate;
+      this.startTime = nextDetails.startTime;
+      this.endDate = nextDetails.endDate;
+      this.endTime = nextDetails.endTime;
+      this.savedDetails = { ...nextDetails };
+    }
+
+    if (!preserveRollout) {
+      this.audienceId = nextRollout.audienceId;
+      this.rolloutPercentage = nextRollout.rolloutPercentage;
+      this.savedRollout = { ...nextRollout };
+    }
+
     this.serverVariants = variants;
-    this.variantSplits = cloneVariantSplits(nextSplits);
-    this.savedVariantSplits = cloneVariantSplits(nextSplits);
+
+    if (!preserveSplits) {
+      this.variantSplits = cloneVariantSplits(nextSplits);
+      this.savedVariantSplits = cloneVariantSplits(nextSplits);
+    }
   }
 
   markDetailsSaved() {
