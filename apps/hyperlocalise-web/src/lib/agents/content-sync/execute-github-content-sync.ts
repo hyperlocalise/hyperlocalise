@@ -27,9 +27,13 @@ import {
   resolveDefaultBranchHeadSha,
   stopGithubRepositoryAutomationSandbox,
 } from "@/lib/agents/github/github-repository-automation-sandbox";
-import { commitPushAndCreatePullTranslationsPullRequest } from "@/lib/agents/github/github-repository-automation-pull-translations-pr";
+import {
+  commitPushAndCreatePullTranslationsPullRequest,
+  hasDiffAgainstBase,
+} from "@/lib/agents/github/github-repository-automation-pull-translations-pr";
 import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repository-automation-pull-translations-branch";
 
+import { buildContentSyncPushCandidate } from "./content-sync-export";
 import { rewriteContentSyncProviderPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
 import type { ContentSyncConfig } from "./content-sync-types";
 
@@ -285,20 +289,17 @@ async function pushGithubTranslations(input: {
         projectId: input.projectId,
         sourcePath: file.sourcePath,
         targetLocale: locale,
-        includeAllSourceKeys: true,
+        readyTranslationsOnly: true,
       });
-      if (result.loadedKeyCount === 0) {
-        continue;
+      const candidate = buildContentSyncPushCandidate({
+        providerPath,
+        locale,
+        translatedKeyCount: result.translatedKeyCount,
+        prefilled: result.prefilled,
+      });
+      if (candidate) {
+        candidates.push(candidate);
       }
-      const extensionIndex = providerPath.lastIndexOf(".");
-      const localePath =
-        extensionIndex > 0
-          ? `${providerPath.slice(0, extensionIndex)}-${locale}${providerPath.slice(extensionIndex)}`
-          : `${providerPath}-${locale}`;
-      candidates.push({
-        targetPath: localePath,
-        content: Buffer.from(`${JSON.stringify(result.prefilled, null, 2)}\n`, "utf8"),
-      });
     }
   }
 
@@ -314,6 +315,17 @@ async function pushGithubTranslations(input: {
     outputFileId: input.runId,
     content: candidate.content,
   }));
+  const targetPaths = candidates.map((candidate) => candidate.targetPath);
+  const hasChanges = await hasDiffAgainstBase({
+    sandboxId: input.sandboxId,
+    baseSha: input.baseSha,
+    paths: targetPaths,
+    candidates: exportCandidates,
+  });
+  if (!hasChanges) {
+    return ok({ written: 0 });
+  }
+
   const pr = await commitPushAndCreatePullTranslationsPullRequest({
     sandboxId: input.sandboxId,
     installationId: input.installationId,
@@ -324,7 +336,7 @@ async function pushGithubTranslations(input: {
     baseBranch: input.baseBranch,
     baseSha: input.baseSha,
     branchName: buildPullTranslationsBranchName(input.runId),
-    paths: candidates.map((candidate) => candidate.targetPath),
+    paths: targetPaths,
     candidates: exportCandidates,
     linkedTranslationJobIds: [],
   });

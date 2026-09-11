@@ -1007,6 +1007,105 @@ describe("workspace automation dispatcher", () => {
     });
   });
 
+  it("enqueues GitHub content sync on matching pushes without agent tools", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Sync acme/web",
+        instructions: "",
+        projectId: scope.projectId,
+        kind: "content_sync",
+        syncConfig: {
+          provider: "github",
+          connectionId: scope.repository.id,
+          resourceKey: "hyperlocalise/web",
+          providerFolder: "locales",
+          projectFolder: "github/hyperlocalise/web",
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const results = await dispatchWorkspaceAutomationsForGithubPush({
+      deliveryId: "delivery-content-sync-1",
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.repository.id,
+      branch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+      queue: {
+        async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+          enqueued.push(event);
+          return { ids: ["workflow-1"] };
+        },
+      },
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({
+      triggerSource: "github",
+      status: "queued",
+    });
+  });
+
+  it("queues Sync now for content sync even when the trigger is provider-specific", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Sync acme/web",
+        instructions: "",
+        projectId: scope.projectId,
+        kind: "content_sync",
+        syncConfig: {
+          provider: "github",
+          connectionId: scope.repository.id,
+          resourceKey: "hyperlocalise/web",
+          providerFolder: "locales",
+          projectFolder: "github/hyperlocalise/web",
+        },
+      }),
+    );
+
+    expect(automation.triggerConfig.mode).toBe("github");
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const result = await dispatchManualWorkspaceAutomationRun({
+      automation,
+      idempotencyKey: `content-sync:${automation.id}:operator-run`,
+      queue: {
+        async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+          enqueued.push(event);
+          return { ids: ["workflow-1"] };
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({
+      triggerSource: "manual",
+      status: "queued",
+    });
+  });
+
   it("dispatches GitHub agent automations on matching pull requests", async () => {
     const scope = await seedDispatchScope();
     const matching = expectOk(

@@ -46,6 +46,7 @@ import {
 import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  isContentSyncAutomation,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunTriggerSource,
@@ -181,7 +182,9 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
   const skipReason =
     input.preDispatchSkipReason ??
-    (!planHasActionableTool(plan) ? "no_enabled_tools" : null) ??
+    (!isContentSyncAutomation(input.automation) && !planHasActionableTool(plan)
+      ? "no_enabled_tools"
+      : null) ??
     null;
 
   const { idempotencyKey, existing } = await resolveDispatchTargetRun({
@@ -296,21 +299,25 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
     return null;
   }
 
+  const isContentSync = isContentSyncAutomation(input.automation);
   if (
+    !isContentSync &&
     input.automation.triggerConfig.mode !== "manual" &&
     input.automation.triggerConfig.mode !== "scheduled"
   ) {
     return null;
   }
 
-  const plan = buildWorkspaceOrchestratorPlan(input.automation, {
-    templateSkillId:
-      typeof input.inputSnapshot?.templateSkillId === "string"
-        ? input.inputSnapshot.templateSkillId
-        : null,
-  });
-  if (!planHasActionableTool(plan)) {
-    return null;
+  if (!isContentSync) {
+    const plan = buildWorkspaceOrchestratorPlan(input.automation, {
+      templateSkillId:
+        typeof input.inputSnapshot?.templateSkillId === "string"
+          ? input.inputSnapshot.templateSkillId
+          : null,
+    });
+    if (!planHasActionableTool(plan)) {
+      return null;
+    }
   }
 
   const contentfulEntryId =
