@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -369,9 +369,11 @@ export function GlossaryConceptDetail({
     },
     placeholderData: (previous) => previous,
   });
-  const selectedConcept = conceptRecord
-    ? { ...conceptRecord, terms: termsQuery.data?.terms ?? [] }
-    : null;
+  const termPageTerms = termsQuery.data?.terms;
+  const selectedConcept = useMemo(
+    () => (conceptRecord ? { ...conceptRecord, terms: termPageTerms ?? [] } : null),
+    [conceptRecord, termPageTerms],
+  );
   useEffect(() => {
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);

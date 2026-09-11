@@ -533,6 +533,17 @@ export function createGlossaryConceptRoutes(
             "Provider-backed glossaries do not expose the native term index",
           );
         }
+        const [concept] = await db
+          .select({ id: schema.glossaryConcepts.id })
+          .from(schema.glossaryConcepts)
+          .where(
+            and(
+              eq(schema.glossaryConcepts.glossaryId, glossaryId),
+              eq(schema.glossaryConcepts.id, conceptId),
+            ),
+          )
+          .limit(1);
+        if (!concept) return glossaryNotFoundResponse(c);
         const page = await listGlossaryTermsPage(glossaryId, conceptId, query);
         if ("code" in page) return badRequestResponse(c, page.code, page.message);
         return c.json(
