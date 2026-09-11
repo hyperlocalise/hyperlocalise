@@ -159,3 +159,25 @@ func resolveEnvValue(lookupEnv func(string) (string, bool), profileName, field, 
 	}
 	return trimmedValue, nil
 }
+
+func selectedMTProfileNames(tasks []Task) []string {
+	var names []string
+	for _, task := range tasks {
+		if task.TranslationType != config.TranslationTypeMT {
+			continue
+		}
+		if name := strings.TrimSpace(task.ProfileName); name != "" {
+			names = append(names, name)
+		}
+	}
+	names = dedupeStrings(names)
+	slices.Sort(names)
+	return names
+}
+
+func mtProfilesFromConfig(cfg *config.I18NConfig) map[string]config.MTProfile {
+	if cfg == nil || cfg.MT == nil {
+		return nil
+	}
+	return cfg.MT.Profiles
+}

@@ -3,9 +3,13 @@ package runsvc
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/internal/mt"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
@@ -404,5 +408,103 @@ func TestMTEngineConfigErrorMessageFormat(t *testing.T) {
 	want := `mt profile "p": f: m`
 	if err.Error() != want {
 		t.Fatalf("Error()=%q, want %q", err.Error(), want)
+	}
+}
+
+func TestSelectedMTProfileNamesFiltersDedupesAndSorts(t *testing.T) {
+	tasks := []Task{
+		{TranslationType: config.TranslationTypeMT, ProfileName: "zeta"},
+		{TranslationType: config.TranslationTypeMT, ProfileName: "alpha"},
+		{TranslationType: config.TranslationTypeMT, ProfileName: "alpha"}, // duplicate
+		{TranslationType: config.TranslationTypeLLM, ProfileName: "default"},
+		{TranslationType: config.TranslationTypeMT, ProfileName: "  "}, // blank, ignored
+	}
+
+	got := selectedMTProfileNames(tasks)
+	want := []string{"alpha", "zeta"}
+	if len(got) != len(want) {
+		t.Fatalf("selectedMTProfileNames=%v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("selectedMTProfileNames=%v, want %v", got, want)
+		}
+	}
+}
+
+func TestMtProfilesFromConfigNilSafety(t *testing.T) {
+	if got := mtProfilesFromConfig(nil); got != nil {
+		t.Fatalf("mtProfilesFromConfig(nil)=%v, want nil", got)
+	}
+	cfg := &config.I18NConfig{}
+	if got := mtProfilesFromConfig(cfg); got != nil {
+		t.Fatalf("mtProfilesFromConfig(cfg with nil MT)=%v, want nil", got)
+	}
+	cfg.MT = &config.MTConfig{Profiles: map[string]config.MTProfile{"google": {Provider: "google"}}}
+	got := mtProfilesFromConfig(cfg)
+	if len(got) != 1 {
+		t.Fatalf("mtProfilesFromConfig=%v, want the configured profiles map", got)
+	}
+}
+
+func TestServiceRunFailsBeforeTaskExecutionWhenMTProfileConstructionFails(t *testing.T) {
+	sourcePath := "/tmp/hl736-source.json"
+	targetPath := "/tmp/hl736-out.json"
+
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		cfg.MT = &config.MTConfig{
+			Profiles: map[string]config.MTProfile{
+				"google": {Provider: "google", APIKeyEnv: "HYPERLOCALISE_TEST_HL736_UNSET_MT_API_KEY"},
+			},
+		}
+		cfg.Translation = &config.TranslationConfig{
+			Default: config.TranslationSelection{Type: config.TranslationTypeMT, Profile: "google"},
+		}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	var translateCalled, editImageCalled atomic.Bool
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		translateCalled.Store(true)
+		return "", fmt.Errorf("translate must not be called")
+	}
+	svc.editImage = func(_ context.Context, _ translator.ImageEditRequest) ([]byte, error) {
+		editImageCalled.Store(true)
+		return nil, fmt.Errorf("editImage must not be called")
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err == nil {
+		t.Fatalf("expected run to fail due to missing MT credential")
+	}
+
+	var cfgErr *MTEngineConfigError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("error type=%T, want *MTEngineConfigError; err=%v", err, err)
+	}
+	if cfgErr.Profile != "google" || cfgErr.Field != "api_key_env" {
+		t.Fatalf("unexpected error fields: %+v", cfgErr)
+	}
+	if !strings.Contains(cfgErr.Message, "HYPERLOCALISE_TEST_HL736_UNSET_MT_API_KEY") {
+		t.Fatalf("error message=%q, want it to name the env var", cfgErr.Message)
+	}
+
+	if translateCalled.Load() {
+		t.Fatalf("translate was called; construction failure must occur before task execution")
+	}
+	if editImageCalled.Load() {
+		t.Fatalf("editImage was called; construction failure must occur before task execution")
 	}
 }
