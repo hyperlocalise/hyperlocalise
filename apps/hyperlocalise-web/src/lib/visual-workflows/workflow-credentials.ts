@@ -13,11 +13,14 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   encryptProviderCredential,
   decryptProviderCredential,
   type EncryptedProviderCredential,
 } from "@/lib/security/provider-credential-crypto";
+
+export type WorkflowCredentialError = { code: "workflow_credential_not_found" };
 export function encryptWorkflowPayload(value: unknown): Record<string, unknown> {
   const result = encryptProviderCredential(JSON.stringify(value));
   if (!result.ok) throw new Error("workflow_encryption_unavailable");
@@ -55,7 +58,7 @@ export async function createWorkflowCredential(
 export async function resolveWorkflowCredential(
   organizationId: string,
   credentialId: string,
-): Promise<string> {
+): Promise<Result<string, WorkflowCredentialError>> {
   const [record] = await db
     .select()
     .from(schema.visualWorkflowCredentials)
@@ -66,6 +69,8 @@ export async function resolveWorkflowCredential(
       ),
     )
     .limit(1);
-  if (!record) throw new Error("workflow_credential_not_found");
-  return decryptWorkflowPayload(record.encryptedValue) as string;
+  if (!record) {
+    return err({ code: "workflow_credential_not_found" });
+  }
+  return ok(decryptWorkflowPayload(record.encryptedValue) as string);
 }

@@ -15,7 +15,11 @@ import { runVisualWorkflowInterpreter } from "./interpreter";
 import { createMockWorkflowExecutor } from "./mock-executor";
 import { resolveWorkflowBinding, resolveWorkflowNodeInputs } from "./bindings";
 import { createVisualWorkflowExecutionContext } from "./context";
-import { resolveHttpRequestBody, parseHttpResponseBody } from "./http-request";
+import {
+  resolveHttpRequestBody,
+  parseHttpResponseBody,
+  resolveKeyValuePairs,
+} from "./http-request";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./snapshots";
 import { validateVisualWorkflowDefinition } from "../validation/validate-workflow";
 import type {
@@ -239,6 +243,15 @@ describe("typed values and secret inspection", () => {
         context,
       ),
     ).toBeUndefined();
+  });
+  it("leaves resolved header secrets untemplated", () => {
+    expect(
+      resolveKeyValuePairs(
+        [{ key: "Authorization", value: "Bearer {{literal-secret}}" }],
+        createVisualWorkflowExecutionContext({}),
+        { resolved: true },
+      ),
+    ).toEqual({ Authorization: "Bearer {{literal-secret}}" });
   });
   it("serializes bound JSON once, including quotes and template-like content", () => {
     const body = { text: 'a "quote" and {{literal}}' };

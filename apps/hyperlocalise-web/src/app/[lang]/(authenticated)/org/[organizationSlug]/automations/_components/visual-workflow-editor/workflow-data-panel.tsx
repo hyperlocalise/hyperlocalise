@@ -14,6 +14,7 @@
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { useState } from "react";
 import { useIntl } from "react-intl";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
@@ -37,6 +38,35 @@ import type {
   WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+
+const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
+
+export function listHttpSecretBindings(
+  inputs: Record<string, WorkflowBinding> | undefined,
+): Array<[string, Extract<WorkflowBinding, { kind: "secret" }>]> {
+  return Object.entries(inputs ?? {}).flatMap(([name, binding]) =>
+    binding.kind === "secret" && HTTP_SECRET_BINDING_PATH.test(name)
+      ? [[name, binding] as [string, Extract<WorkflowBinding, { kind: "secret" }>]]
+      : [],
+  );
+}
+
+export function upsertHttpSecretBinding(input: {
+  inputs: Record<string, WorkflowBinding> | undefined;
+  target: string;
+  credentialId: string;
+}): Record<string, WorkflowBinding> {
+  const inputs = { ...input.inputs };
+  const previousSecrets = listHttpSecretBindings(inputs);
+  const previousTarget =
+    previousSecrets.length === 1 && previousSecrets[0][0] !== input.target
+      ? previousSecrets[0][0]
+      : undefined;
+  if (previousTarget) delete inputs[previousTarget];
+  inputs[input.target] = { kind: "secret", credentialId: input.credentialId };
+  return inputs;
+}
+
 export function WorkflowDataPanel({
   node,
   nodes,
@@ -290,6 +320,23 @@ export function WorkflowDataPanel({
               description: "Workflow secret destination label",
             })}
           </FieldLabel>
+          {listHttpSecretBindings(node.data.inputs).map(([name]) => (
+            <div key={name} className="flex items-center justify-between gap-2">
+              <span className="text-sm">{name}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => change(name, undefined)}
+              >
+                {intl.formatMessage({
+                  defaultMessage: "Remove",
+                  id: "b9xdOWPMtl",
+                  description: "Remove a workflow secret binding",
+                })}
+              </Button>
+            </div>
+          ))}
           <Input
             aria-label={intl.formatMessage({
               defaultMessage: "Secret field path",
@@ -307,7 +354,7 @@ export function WorkflowDataPanel({
               description: "Workflow secret binding instructions",
             })}
           </FieldDescription>
-          {/^(headers|body)\.[A-Za-z0-9_.-]+$/.test(secretTarget) ? (
+          {HTTP_SECRET_BINDING_PATH.test(secretTarget) ? (
             <WorkflowCredentialField
               organizationSlug={organizationSlug}
               value={
@@ -316,7 +363,15 @@ export function WorkflowDataPanel({
                       .credentialId
                   : undefined
               }
-              onChange={(credentialId) => change(secretTarget, { kind: "secret", credentialId })}
+              onChange={(credentialId) =>
+                onChange({
+                  inputs: upsertHttpSecretBinding({
+                    inputs: node.data.inputs,
+                    target: secretTarget,
+                    credentialId,
+                  }),
+                })
+              }
             />
           ) : null}
         </Field>

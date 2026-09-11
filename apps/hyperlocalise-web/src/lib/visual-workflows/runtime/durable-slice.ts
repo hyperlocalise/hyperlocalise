@@ -23,7 +23,7 @@ import {
   resolveWorkflowCredential,
 } from "../workflow-credentials";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./snapshots";
-import { setResolvedInput } from "./bindings";
+import { resolveSelectedNodeCredentials } from "./resolve-node-credentials";
 import { upsertVisualWorkflowNodeRun } from "../visual-workflow-runs";
 import type { VisualWorkflowDefinition } from "../schema/types";
 import type { VisualWorkflowRunRecord } from "../visual-workflow-run-types";
@@ -63,22 +63,7 @@ export async function executeDurableWorkflowSlice(input: {
   const inputs = new Map<string, Record<string, unknown>>();
   const attempts = new Map<string, number>();
   const secrets = collectWorkflowSecrets(input.payload);
-  // Recover credential taint before replaying cached outputs, including renamed echoes.
   const credentials = new Map<string, string>();
-  if (input.run.mode !== "mock") {
-    const credentialIds = new Set<string>();
-    for (const node of input.definition.nodes) {
-      if (node.config.kind === "action.http" && node.config.auth?.credentialId)
-        credentialIds.add(node.config.auth.credentialId);
-      for (const binding of Object.values(node.inputs ?? {}))
-        if (binding.kind === "secret") credentialIds.add(binding.credentialId);
-    }
-    for (const credentialId of credentialIds) {
-      const value = await resolveWorkflowCredential(input.organizationId, credentialId);
-      credentials.set(credentialId, value);
-      secrets.push(value);
-    }
-  }
   for (const result of completed.values())
     if (result.ok) secrets.push(...collectWorkflowSecrets(result.output));
   let externalExecuted = false;
@@ -147,19 +132,19 @@ export async function executeDurableWorkflowSlice(input: {
             },
           };
         if (isExternal) externalExecuted = true;
-        const config = { ...args.node.config } as Record<string, unknown>;
+        let config = { ...args.node.config } as Record<string, unknown>;
         if (input.run.mode !== "mock") {
-          for (const [name, binding] of Object.entries(args.node.inputs ?? {}))
-            if (binding.kind === "secret") {
-              const secret = credentials.get(binding.credentialId)!;
-              secrets.push(secret);
-              setResolvedInput(config, name, secret);
-            }
-          if (args.node.config.kind === "action.http" && args.node.config.auth?.credentialId) {
-            const secret = credentials.get(args.node.config.auth.credentialId)!;
-            secrets.push(secret);
-            config.auth = { ...args.node.config.auth, token: secret };
+          const resolvedSecrets = await resolveSelectedNodeCredentials({
+            organizationId: input.organizationId,
+            node: args.node,
+            cache: credentials,
+            resolve: resolveWorkflowCredential,
+          });
+          if (!resolvedSecrets.ok) {
+            return { ok: false, error: resolvedSecrets.error };
           }
+          config = resolvedSecrets.value.config;
+          secrets.push(...resolvedSecrets.value.secrets);
         }
         inputs.set(id, { config });
         const resolved = {

@@ -17,6 +17,7 @@ import { resolveVisualWorkflowTemplate } from "./expressions";
 export function resolveKeyValuePairs(
   pairs: readonly VisualKeyValuePair[] | undefined,
   context: VisualWorkflowExecutionContext,
+  options?: { resolved?: boolean },
 ): Record<string, string> {
   const resolved: Record<string, string> = {};
   for (const pair of pairs ?? []) {
@@ -24,7 +25,9 @@ export function resolveKeyValuePairs(
     if (!key) {
       continue;
     }
-    resolved[key] = resolveVisualWorkflowTemplate(pair.value, context);
+    resolved[key] = options?.resolved
+      ? pair.value
+      : resolveVisualWorkflowTemplate(pair.value, context);
   }
   return resolved;
 }

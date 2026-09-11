@@ -220,6 +220,42 @@ describe("visual workflow node execution edges", () => {
     });
   });
 
+  it("sends resolved header secrets without template expansion", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      body: "{}",
+      json: {},
+    });
+    const { executeVisualWorkflowNode } = await import("./execute-node");
+    const result = await executeVisualWorkflowNode({
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      context: createVisualWorkflowExecutionContext({ triggerInput: {} }),
+      inputsResolved: true,
+      node: {
+        id: "http",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "https://example.com/secure",
+          onError: "stop",
+          headers: [{ key: "Authorization", value: "Bearer {{literal-secret}}" }],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(withPublicHttpFetchMock).toHaveBeenCalledWith(
+      "https://example.com/secure",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer {{literal-secret}}" }),
+      }),
+      expect.any(Function),
+    );
+  });
+
   it("fails non-ok HTTP responses when failOnHttpError is defaulted", async () => {
     withPublicHttpFetchMock.mockResolvedValue({
       status: 503,

@@ -67,7 +67,9 @@ export async function executeVisualWorkflowNode(input: {
         return { ok: false, error: { code: "missing_url", message: "HTTP URL is required." } };
       }
 
-      const queryParams = resolveKeyValuePairs(httpConfig.queryParams, context);
+      const queryParams = resolveKeyValuePairs(httpConfig.queryParams, context, {
+        resolved: input.inputsResolved,
+      });
       const resolvedUrl = appendQueryParams(url, queryParams);
       const bodyType = httpConfig.bodyType ?? "none";
       const requestBody = resolveHttpRequestBody({
@@ -76,16 +78,19 @@ export async function executeVisualWorkflowNode(input: {
         context,
         method: httpConfig.method,
         resolved:
+          input.inputsResolved ||
           Boolean(node.inputs?.body) ||
           Object.keys(node.inputs ?? {}).some((name) => name.startsWith("body.")),
       });
       const headers = buildHttpRequestHeaders({
-        headers: resolveKeyValuePairs(httpConfig.headers, context),
+        headers: resolveKeyValuePairs(httpConfig.headers, context, {
+          resolved: input.inputsResolved,
+        }),
         auth: httpConfig.auth
           ? {
               type: httpConfig.auth.type,
               token: httpConfig.auth.token
-                ? httpConfig.auth.credentialId
+                ? input.inputsResolved || httpConfig.auth.credentialId
                   ? httpConfig.auth.token
                   : resolveVisualWorkflowTemplate(httpConfig.auth.token, context)
                 : undefined,
