@@ -23,6 +23,8 @@ import { DomainsPageContent } from "./domains-page-content";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/domains",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next/link", () => ({
@@ -61,6 +63,7 @@ describe("domains page content", () => {
     await waitFor(() => {
       expect(screen.getByText("No linked domains yet")).toBeInTheDocument();
     });
+    expect(screen.getByRole("button", { name: "Link domain" })).toBeInTheDocument();
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
   });
 

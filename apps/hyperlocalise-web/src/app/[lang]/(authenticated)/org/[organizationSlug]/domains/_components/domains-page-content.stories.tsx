@@ -45,5 +45,6 @@ export const Empty: Story = {
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("No linked domains yet")).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Link domain" })).toBeInTheDocument();
   },
 };

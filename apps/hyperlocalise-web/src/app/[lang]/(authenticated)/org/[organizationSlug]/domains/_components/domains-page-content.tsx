@@ -7,13 +7,14 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
-    10| *
+ *
  * On the Change Date, in accordance with the Business Source License, use
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Globe02Icon } from "@hugeicons/core-free-icons";
-import { useQuery } from "@tanstack/react-query";
+import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
@@ -21,15 +22,14 @@ import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
-import {
-  linkedDomainToResearchDomain,
-  type DomainResearchDomain,
-} from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
+import { DomainsPageQueryBridge } from "../store/domains-page-query-bridge";
 
+import { DomainLinkDialog } from "./domain-link-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
@@ -40,27 +40,25 @@ const LIST_GRID_CLASS =
   "grid grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4rem_auto_auto]";
 
 export function DomainsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  return (
+    <DomainsPageStoreProvider organizationSlug={organizationSlug}>
+      <DomainsPageQueryBridge />
+      <DomainsPageView />
+    </DomainsPageStoreProvider>
+  );
+}
+
+const DomainsPageView = observer(function DomainsPageView() {
   const intl = useIntl();
-  const linkedDomainsQuery = useQuery({
-    queryKey: ["linked-domains", organizationSlug],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomains?: LinkedDomainPublic[];
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || intl.formatMessage(messages.loadError));
-      }
-      return (body.linkedDomains ?? []).map((domain) => linkedDomainToResearchDomain(domain));
-    },
-  });
-  const domains: DomainResearchDomain[] = linkedDomainsQuery.data ?? [];
-  const isLoading = linkedDomainsQuery.isPending;
-  const isError = linkedDomainsQuery.isError;
+  const router = useOrgRouter();
+  const store = useDomainsPageStore();
+
+  const linkDomainAction = (
+    <Button type="button" size="sm" onClick={() => store.openLinkDialog()}>
+      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+      <FormattedMessage {...messages.linkDomain} />
+    </Button>
+  );
 
   return (
     <WorkspacePageShell>
@@ -70,11 +68,12 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
           label="Workspace"
           title="Domains"
           description={intl.formatMessage(messages.pageDescription)}
+          actions={store.hasDomains ? linkDomainAction : undefined}
         />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
-        {isLoading || isError || domains.length === 0 ? null : (
+        {store.hasDomains ? (
           <div
             className={cn(
               LIST_GRID_CLASS,
@@ -93,25 +92,26 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
             <span />
             <span />
           </div>
-        )}
-        {isLoading ? (
+        ) : null}
+        {store.isLoading ? (
           <TypographyP className="px-4 py-6" size="small" tone="subtle">
             <FormattedMessage {...messages.loading} />
           </TypographyP>
-        ) : isError ? (
+        ) : store.isError ? (
           <TypographyP className="px-4 py-6" size="small" tone="subtle">
             <FormattedMessage {...messages.loadError} />
           </TypographyP>
-        ) : domains.length === 0 ? (
+        ) : store.isEmpty ? (
           <div className="p-4">
             <DomainResearchEmpty
               title={<FormattedMessage {...messages.emptyTitle} />}
               description={<FormattedMessage {...messages.emptyDescription} />}
+              action={linkDomainAction}
             />
           </div>
         ) : (
           <ul className="divide-y divide-border">
-            {domains.map((domain) => (
+            {store.domains.map((domain) => (
               <li key={domain.id}>
                 <div
                   className={cn(
@@ -121,7 +121,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                 >
                   <div className="min-w-0">
                     <OrgNavLink
-                      href={buildDomainPath(organizationSlug, domain.id, "overview")}
+                      href={buildDomainPath(store.organizationSlug, domain.id, "overview")}
                       className="font-medium text-foreground underline-offset-4 hover:underline"
                     >
                       {domain.domainKey}
@@ -144,7 +144,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                       variant="outline"
                       render={
                         <OrgNavLink
-                          href={buildDomainPath(organizationSlug, domain.id, "overview")}
+                          href={buildDomainPath(store.organizationSlug, domain.id, "overview")}
                         />
                       }
                     >
@@ -155,7 +155,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                         size="sm"
                         render={
                           <OrgNavLink
-                            href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`}
+                            href={`/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`}
                           />
                         }
                       >
@@ -169,6 +169,19 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
           </ul>
         )}
       </div>
+
+      <DomainLinkDialog
+        open={store.linkDialogOpen}
+        onOpenChange={(open) => store.setLinkDialogOpen(open)}
+        domain={store.linkDialogDomain}
+        existingDomains={store.domains}
+        onSave={(domain) => {
+          if (store.editLocalesDomain) {
+            return;
+          }
+          router.push(store.linkDomainPath(domain.domainKey));
+        }}
+      />
     </WorkspacePageShell>
   );
-}
+});
