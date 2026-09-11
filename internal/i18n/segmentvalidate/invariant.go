@@ -8,11 +8,10 @@ import (
 )
 
 func validateICUInvariantWithTokens(source, translated string) (bool, error) {
-	// BOLT OPTIMIZATION: Fast-path for plain text without any potential ICU structures or HTML tags.
-	// If neither the source nor the translated text contains '{' or '<', neither can contain any ICU
-	// blocks, placeholders, or tags. We can immediately return nil, skipping space trimming and the
-	// expensive ICU AST parser for both.
-	if !strings.ContainsAny(source, "{<") && !strings.ContainsAny(translated, "{<") {
+	// BOLT OPTIMIZATION: Fast-path for text without potential ICU placeholders or plural tokens.
+	// ICU placeholders, blocks, mustache tags, and plural pound tokens require '{' or '#'.
+	// If source contains neither, it cannot produce any ICU invariants, so we return false, nil immediately.
+	if !strings.ContainsAny(source, "{#") {
 		return false, nil
 	}
 
