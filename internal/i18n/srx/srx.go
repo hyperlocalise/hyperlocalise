@@ -596,7 +596,8 @@ func normalizeLanguage(language string) string {
 }
 
 // Join concatenates translations in span order and restores source leading whitespace
-// when a translation trims it.
+// when a translation trims it. Missing translations stay empty — callers must not rely
+// on source-text fallback here, or target files can receive mixed-language output.
 func Join(spans []Span, translations []string) string {
 	if len(spans) == 0 {
 		return ""
@@ -607,15 +608,15 @@ func Join(spans []Span, translations []string) string {
 		if i < len(translations) {
 			translated = translations[i]
 		}
-		if translated == "" && span.Text != "" && (i >= len(translations) || translations[i] == "") {
-			translated = span.Text
-		}
 		b.WriteString(restoreLeadingWhitespace(span.Text, translated))
 	}
 	return b.String()
 }
 
 func restoreLeadingWhitespace(source, translated string) string {
+	if translated == "" {
+		return ""
+	}
 	lead := leadingWhitespace(source)
 	if lead == "" || strings.HasPrefix(translated, lead) {
 		return translated
