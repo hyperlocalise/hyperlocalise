@@ -12,7 +12,7 @@
  */
 import "server-only";
 
-import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -34,6 +34,18 @@ import {
 import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 import {
+  contentSyncFingerprintFromConfig,
+  resolveContentSyncRepositoryTarget,
+  resolveContentSyncTriggerConfig,
+  validateContentSyncConfig,
+} from "./content-sync/content-sync-config";
+import {
+  normalizeContentSyncConfig,
+  resolveWorkspaceAutomationKind,
+  type ContentSyncConfig,
+  type WorkspaceAutomationKind,
+} from "./content-sync/content-sync-types";
+import {
   formatWorkspaceAutomationAuthorName,
   hasWorkspaceAutomationAssignTranslateWithAgentTool,
   hasWorkspaceAutomationContentfulWorkflow,
@@ -43,6 +55,7 @@ import {
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   hoistLegacyWorkspaceAutomationProjectId,
+  isContentSyncAutomation,
   normalizeRepositoryTarget,
   normalizeToolConfig,
   normalizeTriggerConfig,
@@ -73,7 +86,11 @@ type AutomationAuthor = {
 export function workspaceAutomationNeedsProject(input: {
   triggerConfig: WorkspaceAutomationTriggerConfig;
   toolConfig: WorkspaceAutomationToolConfig;
+  kind?: WorkspaceAutomationKind;
 }): boolean {
+  if (resolveWorkspaceAutomationKind(input.kind) === "content_sync") {
+    return true;
+  }
   if (input.triggerConfig.mode === "source_upload") {
     return true;
   }
@@ -100,12 +117,22 @@ function validateWorkspaceAutomationConfig(input: {
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  kind?: WorkspaceAutomationKind;
+  syncConfig?: ContentSyncConfig | null;
 }): Result<void, WorkspaceAutomationConfigValidationError> {
   const projectId = readOptionalProjectId(input.projectId);
+  const kind = resolveWorkspaceAutomationKind(input.kind);
+  if (kind === "content_sync") {
+    const syncValidation = validateContentSyncConfig(input.syncConfig ?? null);
+    if (isErr(syncValidation)) {
+      return syncValidation;
+    }
+  }
   if (
     workspaceAutomationNeedsProject({
       triggerConfig: input.triggerConfig,
       toolConfig: input.toolConfig,
+      kind,
     }) &&
     !projectId
   ) {
@@ -113,6 +140,10 @@ function validateWorkspaceAutomationConfig(input: {
       code: "project_required",
       message: "Choose a Hyperlocalise project for this automation.",
     });
+  }
+
+  if (kind === "content_sync") {
+    return ok(undefined);
   }
 
   const githubTools = input.toolConfig.github;
@@ -682,6 +713,7 @@ function serializeAutomation(
     authorUserId: row.authorUserId,
     authorName: formatWorkspaceAutomationAuthorName(author),
     status: row.status,
+    kind: resolveWorkspaceAutomationKind(row.kind),
     name: row.name,
     instructions: row.instructions,
     model: resolveWorkspaceAutomationModel(row.model),
@@ -691,6 +723,7 @@ function serializeAutomation(
     triggerConfig: normalizeTriggerConfig(row.triggerConfig),
     repositoryTarget: normalizeRepositoryTarget(row.repositoryTarget),
     toolConfig: normalizeToolConfig(rawToolConfig),
+    syncConfig: normalizeContentSyncConfig((row.syncConfig ?? {}) as Record<string, unknown>),
     configVersion: row.configVersion,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -830,11 +863,44 @@ async function stampPipesUsersOnToolConfig(input: {
   return toolConfig;
 }
 
+async function assertContentSyncFingerprintAvailable(input: {
+  organizationId: string;
+  projectId: string;
+  fingerprint: string;
+  excludeAutomationId?: string;
+  db: DatabaseClient;
+}): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
+  const [existing] = await input.db
+    .select({ id: schema.workspaceAutomations.id })
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+        eq(schema.workspaceAutomations.projectId, input.projectId),
+        eq(schema.workspaceAutomations.kind, "content_sync"),
+        eq(schema.workspaceAutomations.syncFingerprint, input.fingerprint),
+        ...(input.excludeAutomationId
+          ? [sql`${schema.workspaceAutomations.id} <> ${input.excludeAutomationId}`]
+          : []),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    return err({
+      code: "content_sync_duplicate",
+      message: "This project already syncs that source folder.",
+    });
+  }
+  return ok(undefined);
+}
+
 export async function createWorkspaceAutomation(input: {
   organizationId: string;
   authorUserId?: string | null;
   actorWorkosUserId?: string | null;
   status?: WorkspaceAutomationStatus;
+  kind?: WorkspaceAutomationKind;
   name: string;
   instructions: string;
   model?: WorkspaceAutomationModel;
@@ -842,14 +908,34 @@ export async function createWorkspaceAutomation(input: {
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
+  syncConfig?: ContentSyncConfig | null;
   nextRunAt?: Date | null;
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
+  const kind = resolveWorkspaceAutomationKind(input.kind);
+  let syncConfig: ContentSyncConfig | null = null;
+  if (kind === "content_sync") {
+    const syncValidation = validateContentSyncConfig(input.syncConfig ?? null);
+    if (isErr(syncValidation)) {
+      return err(syncValidation.error);
+    }
+    syncConfig = syncValidation.value;
+  }
+  const resolvedTriggerConfig =
+    kind === "content_sync" && syncConfig
+      ? resolveContentSyncTriggerConfig(syncConfig)
+      : (input.triggerConfig ?? {});
+  const resolvedRepositoryTarget =
+    kind === "content_sync" && syncConfig
+      ? resolveContentSyncRepositoryTarget(syncConfig)
+      : (input.repositoryTarget ?? {});
   const config = workspaceAutomationConfigSchema.parse({
     projectId: input.projectId ?? undefined,
-    triggerConfig: input.triggerConfig ?? {},
-    repositoryTarget: input.repositoryTarget ?? {},
+    triggerConfig: resolvedTriggerConfig,
+    repositoryTarget: resolvedRepositoryTarget,
     toolConfig: input.toolConfig ?? {},
+    kind,
+    syncConfig: syncConfig ?? undefined,
   });
   const toolConfig = await stampPipesUsersOnToolConfig({
     toolConfig: config.toolConfig,
@@ -862,6 +948,8 @@ export async function createWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig,
+    kind,
+    syncConfig,
   });
   if (isErr(validation)) {
     return err(validation.error);
@@ -873,13 +961,15 @@ export async function createWorkspaceAutomation(input: {
     authorUserId: input.authorUserId ?? null,
     authorName: null,
     status: input.status ?? "active",
+    kind,
     name: input.name,
-    instructions: input.instructions,
+    instructions: kind === "content_sync" ? "" : input.instructions,
     model: resolveWorkspaceAutomationModel(input.model),
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig,
+    syncConfig,
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),
@@ -908,14 +998,27 @@ export async function createWorkspaceAutomation(input: {
       return err(integrationValidation.error);
     }
 
+    if (kind === "content_sync" && syncConfig && projectId) {
+      const duplicate = await assertContentSyncFingerprintAvailable({
+        organizationId: input.organizationId,
+        projectId,
+        fingerprint: contentSyncFingerprintFromConfig(syncConfig),
+        db: database,
+      });
+      if (isErr(duplicate)) {
+        return err(duplicate.error);
+      }
+    }
+
     const [row] = await database
       .insert(schema.workspaceAutomations)
       .values({
         organizationId: input.organizationId,
         authorUserId: input.authorUserId ?? null,
         status: input.status ?? "active",
+        kind,
         name: input.name,
-        instructions: input.instructions,
+        instructions: kind === "content_sync" ? "" : input.instructions,
         model: resolveWorkspaceAutomationModel(input.model),
         projectId,
         triggerConfig: config.triggerConfig,
@@ -925,7 +1028,12 @@ export async function createWorkspaceAutomation(input: {
             : null,
         repositoryTarget: config.repositoryTarget,
         toolConfig,
-        nextRunAt: resolvedNextRunAt,
+        syncConfig: syncConfig ?? {},
+        syncFingerprint:
+          kind === "content_sync" && syncConfig
+            ? contentSyncFingerprintFromConfig(syncConfig)
+            : null,
+        nextRunAt: kind === "content_sync" ? null : resolvedNextRunAt,
       })
       .returning();
 
@@ -957,6 +1065,7 @@ export async function updateWorkspaceAutomation(input: {
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
+  syncConfig?: ContentSyncConfig | null;
   nextRunAt?: Date | null;
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>> {
@@ -973,7 +1082,8 @@ export async function updateWorkspaceAutomation(input: {
     input.projectId !== undefined ||
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
-    input.toolConfig !== undefined;
+    input.toolConfig !== undefined ||
+    input.syncConfig !== undefined;
 
   const parsedConfig = configChanged
     ? workspaceAutomationConfigSchema.parse({
@@ -1004,12 +1114,15 @@ export async function updateWorkspaceAutomation(input: {
   };
   const projectId = readOptionalProjectId(config.projectId);
 
+  const nextSyncConfig = input.syncConfig !== undefined ? input.syncConfig : existing.syncConfig;
   if (configChanged) {
     const validation = validateWorkspaceAutomationConfig({
       projectId,
       triggerConfig: config.triggerConfig,
       repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
+      kind: existing.kind,
+      syncConfig: nextSyncConfig,
     });
     if (isErr(validation)) {
       return err(validation.error);
@@ -1027,6 +1140,7 @@ export async function updateWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
+    syncConfig: nextSyncConfig,
     configVersion: configChanged ? existing.configVersion + 1 : existing.configVersion,
   };
   const resolvedNextRunAt =
@@ -1074,6 +1188,18 @@ export async function updateWorkspaceAutomation(input: {
       if (isErr(integrationValidation)) {
         return err(integrationValidation.error);
       }
+      if (existing.kind === "content_sync" && nextSyncConfig && projectId) {
+        const duplicate = await assertContentSyncFingerprintAvailable({
+          organizationId: input.organizationId,
+          projectId,
+          fingerprint: contentSyncFingerprintFromConfig(nextSyncConfig),
+          excludeAutomationId: input.automationId,
+          db: database,
+        });
+        if (isErr(duplicate)) {
+          return err(duplicate.error);
+        }
+      }
     }
 
     const [row] = await database
@@ -1090,6 +1216,11 @@ export async function updateWorkspaceAutomation(input: {
               projectId,
               // Re-persist normalized tool config so legacy per-tool projectIds are stripped.
               toolConfig: config.toolConfig,
+              syncConfig: nextSyncConfig ?? {},
+              syncFingerprint:
+                existing.kind === "content_sync" && nextSyncConfig
+                  ? contentSyncFingerprintFromConfig(nextSyncConfig)
+                  : null,
             }
           : {}),
         ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
@@ -1240,7 +1371,90 @@ export async function listWorkspaceAutomations(input: {
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
 
-  return rows.map(serializeAutomationWithAuthor);
+  const automations = rows.map(serializeAutomationWithAuthor);
+  return attachLatestContentSyncRuns(input.organizationId, automations);
+}
+
+export async function listContentSyncAutomations(input: {
+  organizationId: string;
+  githubInstallationRepositoryId?: string;
+  contentfulConnectionId?: string;
+  projectId?: string;
+  status?: WorkspaceAutomationStatus;
+  limit?: number;
+}): Promise<WorkspaceAutomationRecord[]> {
+  const conditions = [
+    eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    eq(schema.workspaceAutomations.kind, "content_sync"),
+    ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
+    ...(input.projectId ? [eq(schema.workspaceAutomations.projectId, input.projectId)] : []),
+    ...(input.githubInstallationRepositoryId
+      ? [
+          sql`${schema.workspaceAutomations.syncConfig}->>'provider' = 'github'`,
+          sql`${schema.workspaceAutomations.syncConfig}->>'connectionId' = ${input.githubInstallationRepositoryId}`,
+        ]
+      : []),
+    ...(input.contentfulConnectionId
+      ? [
+          sql`${schema.workspaceAutomations.syncConfig}->>'provider' = 'contentful'`,
+          sql`${schema.workspaceAutomations.syncConfig}->>'connectionId' = ${input.contentfulConnectionId}`,
+        ]
+      : []),
+  ];
+
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(and(...conditions))
+    .orderBy(desc(schema.workspaceAutomations.createdAt))
+    .limit(input.limit ?? 100);
+
+  return rows.map((row) => serializeAutomation(row));
+}
+
+async function attachLatestContentSyncRuns(
+  organizationId: string,
+  automations: WorkspaceAutomationRecord[],
+): Promise<WorkspaceAutomationRecord[]> {
+  const syncIds = automations
+    .filter((automation) => isContentSyncAutomation(automation))
+    .map((automation) => automation.id);
+  if (syncIds.length === 0) {
+    return automations;
+  }
+
+  const runs = await db
+    .select()
+    .from(schema.workspaceAutomationRuns)
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.organizationId, organizationId),
+        inArray(schema.workspaceAutomationRuns.automationId, syncIds),
+      ),
+    )
+    .orderBy(desc(schema.workspaceAutomationRuns.createdAt));
+
+  const latestByAutomation = new Map<string, AutomationRunRow>();
+  for (const run of runs) {
+    if (!latestByAutomation.has(run.automationId)) {
+      latestByAutomation.set(run.automationId, run);
+    }
+  }
+
+  return automations.map((automation) => {
+    const latest = latestByAutomation.get(automation.id);
+    if (!latest) {
+      return automation;
+    }
+    const errorMessage =
+      latest.error && typeof latest.error.message === "string" ? latest.error.message : null;
+    return {
+      ...automation,
+      lastRunStatus: latest.status,
+      lastRunError: errorMessage,
+      lastRunAt: latest.completedAt?.toISOString() ?? latest.createdAt.toISOString(),
+    };
+  });
 }
 
 export async function listSourceUploadWorkspaceAutomations(input: {

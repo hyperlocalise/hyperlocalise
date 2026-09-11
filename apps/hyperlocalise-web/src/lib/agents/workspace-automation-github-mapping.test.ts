@@ -304,4 +304,25 @@ describe("workspace automation GitHub mapping", () => {
       ),
     ).toBe(true);
   });
+
+  it("dispatches GitHub content sync on matching push branches", () => {
+    const contentSync = {
+      ...automation({
+        triggerConfig: { mode: "github", branches: ["**"], events: ["push"] },
+        toolConfig: {},
+      }),
+      kind: "content_sync" as const,
+      syncConfig: {
+        provider: "github" as const,
+        connectionId: "repo-1",
+        resourceKey: "acme/web",
+        providerFolder: "locales",
+        projectFolder: "github/acme/web",
+      },
+    };
+
+    expect(workspaceAutomationShouldDispatchOnGithubPush(contentSync, "main")).toBe(true);
+    expect(workspaceAutomationShouldDispatchOnGithubPush(contentSync, "feature/x")).toBe(true);
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(contentSync, "main")).toBe(false);
+  });
 });

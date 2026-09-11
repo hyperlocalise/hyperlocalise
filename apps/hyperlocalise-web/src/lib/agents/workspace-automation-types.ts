@@ -12,8 +12,26 @@
  */
 import { z } from "zod";
 
+import {
+  contentSyncConfigSchema,
+  resolveWorkspaceAutomationKind,
+  workspaceAutomationKindSchema,
+  type ContentSyncConfig,
+  type WorkspaceAutomationKind,
+} from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+
+export {
+  contentSyncConfigSchema,
+  contentSyncProviderSchema,
+  DEFAULT_WORKSPACE_AUTOMATION_KIND,
+  resolveWorkspaceAutomationKind,
+  workspaceAutomationKindSchema,
+  type ContentSyncConfig,
+  type ContentSyncProvider,
+  type WorkspaceAutomationKind,
+} from "@/lib/agents/content-sync/content-sync-types";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 
@@ -348,6 +366,8 @@ export const workspaceAutomationConfigSchema = z.object({
   triggerConfig: triggerConfigSchema,
   repositoryTarget: repositoryTargetSchema,
   toolConfig: toolConfigSchema,
+  kind: workspaceAutomationKindSchema.optional(),
+  syncConfig: contentSyncConfigSchema.optional(),
 });
 
 export type WorkspaceAutomationStatus = z.infer<typeof workspaceAutomationStatusSchema>;
@@ -559,6 +579,26 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "crowdin_not_connected";
       message: "Connect Crowdin in Integrations before using Crowdin review tools.";
+    }
+  | {
+      code: "content_sync_config_required";
+      message: "Content sync requires a provider, resource, and project folder.";
+    }
+  | {
+      code: "content_sync_provider_folder_required";
+      message: "Git content sync requires a provider folder.";
+    }
+  | {
+      code: "content_sync_folder_invalid";
+      message: "Choose a safe relative folder path.";
+    }
+  | {
+      code: "content_sync_duplicate";
+      message: "This project already syncs that source folder.";
+    }
+  | {
+      code: "content_sync_connection_required";
+      message: "Connect this provider in Integrations before enabling content sync.";
     };
 
 export function hasWorkspaceAutomationContentfulWorkflow(
@@ -638,6 +678,7 @@ export type WorkspaceAutomationRecord = {
   authorUserId: string | null;
   authorName?: string | null;
   status: WorkspaceAutomationStatus;
+  kind?: WorkspaceAutomationKind;
   name: string;
   instructions: string;
   model: WorkspaceAutomationModel;
@@ -645,11 +686,21 @@ export type WorkspaceAutomationRecord = {
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  syncConfig?: ContentSyncConfig | null;
   configVersion: number;
   nextRunAt: string | null;
+  lastRunStatus?: WorkspaceAutomationRunStatus | null;
+  lastRunError?: string | null;
+  lastRunAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+export function isContentSyncAutomation(
+  automation: Pick<WorkspaceAutomationRecord, "kind">,
+): boolean {
+  return resolveWorkspaceAutomationKind(automation.kind) === "content_sync";
+}
 
 type AutomationAuthor = {
   firstName: string | null;

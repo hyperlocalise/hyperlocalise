@@ -319,6 +319,45 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.loadedKeyCount).toBe(2);
   });
 
+  it("omits source fallbacks when exporting ready translations only", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "hidden.copy", sourceText: "Do not translate", isHidden: true },
+      { id: "key_2", key: "greeting", sourceText: "Hello", isHidden: false },
+      { id: "key_3", key: "farewell", sourceText: "Goodbye", isHidden: false },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          { id: "translation_1", translationKeyId: "key_2", text: "Bonjour", status: "approved" },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      includeAllSourceKeys: true,
+      readyTranslationsOnly: true,
+    });
+
+    expect(result.prefilled).toEqual({
+      greeting: "Bonjour",
+    });
+    expect(result.translatedKeyCount).toBe(1);
+    expect(result.loadedKeyCount).toBe(3);
+  });
+
   it("prefills hidden keys with existing translation or source fallback on export", async () => {
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
     offsetMock.mockResolvedValueOnce([
