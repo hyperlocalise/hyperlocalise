@@ -908,6 +908,7 @@ export class NativeGlossary extends Glossary {
   }
 
   async updateConcept(conceptId: string, input: GlossaryConceptInput) {
+    const preserveOmittedTerms = input.preserveOmittedTerms === true;
     const normalizedInput = normalizeNativeConcept(
       toNativeConceptInput(input, this.input.glossary.sourceLocale),
     );
@@ -932,7 +933,10 @@ export class NativeGlossary extends Glossary {
       };
       const conceptChanges = diffGlossaryFields(
         historyValue(loaded.concept as unknown as Record<string, unknown>, CONCEPT_HISTORY_FIELDS),
-        historyValue(nextConceptValues, CONCEPT_HISTORY_FIELDS),
+        historyValue(
+          { ...(loaded.concept as unknown as Record<string, unknown>), ...nextConceptValues },
+          CONCEPT_HISTORY_FIELDS,
+        ),
         CONCEPT_HISTORY_FIELDS,
       );
       if (conceptChanges.length > 0) {
@@ -982,7 +986,10 @@ export class NativeGlossary extends Glossary {
           retainedIds.add(existing.id);
           const termChanges = diffGlossaryFields(
             historyValue(existing as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
-            historyValue(values, TERM_HISTORY_FIELDS),
+            historyValue(
+              { ...(existing as unknown as Record<string, unknown>), ...values },
+              TERM_HISTORY_FIELDS,
+            ),
             TERM_HISTORY_FIELDS,
           );
           if (termChanges.length > 0) {
@@ -1033,9 +1040,9 @@ export class NativeGlossary extends Glossary {
         }
       }
 
-      const orphanIds = loaded.terms
-        .map((term) => term.id)
-        .filter((termId) => !retainedIds.has(termId));
+      const orphanIds = preserveOmittedTerms
+        ? []
+        : loaded.terms.map((term) => term.id).filter((termId) => !retainedIds.has(termId));
       if (orphanIds.length > 0) {
         for (const orphanId of orphanIds) {
           const orphan = loaded.terms.find((term) => term.id === orphanId);
@@ -1510,7 +1517,10 @@ export class NativeGlossary extends Glossary {
       };
       const changes = diffGlossaryFields(
         historyValue(existing as unknown as Record<string, unknown>, TERM_HISTORY_FIELDS),
-        historyValue(values, TERM_HISTORY_FIELDS),
+        historyValue(
+          { ...(existing as unknown as Record<string, unknown>), ...values },
+          TERM_HISTORY_FIELDS,
+        ),
         TERM_HISTORY_FIELDS,
       );
       if (changes.length === 0) return existing;

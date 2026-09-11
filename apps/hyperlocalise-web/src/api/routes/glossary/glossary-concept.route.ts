@@ -51,6 +51,7 @@ import {
   selectGlossaryPrimaryTerm,
   type NativeGlossary,
   type GlossaryConcept,
+  type GlossaryConceptInput,
 } from "@/lib/glossary/glossary";
 
 import {
@@ -461,22 +462,7 @@ export function createGlossaryConceptRoutes(
         const { glossaryId } = c.req.valid("param");
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) {
-          const [deletedGlossaryHistory] = await db
-            .select({ id: schema.glossaryHistoryEvents.id })
-            .from(schema.glossaryHistoryEvents)
-            .where(
-              and(
-                eq(
-                  schema.glossaryHistoryEvents.organizationId,
-                  c.var.auth.organization.localOrganizationId,
-                ),
-                eq(schema.glossaryHistoryEvents.glossaryId, glossaryId),
-              ),
-            )
-            .limit(1);
-          if (!deletedGlossaryHistory) return glossaryNotFoundResponse(c);
-        }
+        if (!glossary) return glossaryNotFoundResponse(c);
         if (glossary && glossary.source !== "native") {
           return badRequestResponse(
             c,
@@ -500,8 +486,23 @@ export function createGlossaryConceptRoutes(
         const { glossaryId } = c.req.valid("param");
         const query = c.req.valid("query");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-        if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
+        if (!glossary) {
+          const [deletedGlossaryHistory] = await db
+            .select({ id: schema.glossaryHistoryEvents.id })
+            .from(schema.glossaryHistoryEvents)
+            .where(
+              and(
+                eq(
+                  schema.glossaryHistoryEvents.organizationId,
+                  c.var.auth.organization.localOrganizationId,
+                ),
+                eq(schema.glossaryHistoryEvents.glossaryId, glossaryId),
+              ),
+            )
+            .limit(1);
+          if (!deletedGlossaryHistory) return glossaryNotFoundResponse(c);
+        }
+        if (glossary && glossary.source !== "native") {
           return badRequestResponse(
             c,
             "external_glossary_history_unsupported",
@@ -1017,9 +1018,10 @@ export function createGlossaryConceptRoutes(
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const current = await product.getConcept(conceptId);
         if (!current) return glossaryNotFoundResponse(c);
+        const { preserveOmittedTerms, ...conceptPayload } = payload;
         const merged = {
           ...current,
-          ...payload,
+          ...conceptPayload,
           terms:
             payload.terms === undefined
               ? current.terms
@@ -1044,9 +1046,13 @@ export function createGlossaryConceptRoutes(
                   };
                 }),
         } satisfies GlossaryConcept;
+        const updateInput: GlossaryConceptInput = {
+          ...merged,
+          preserveOmittedTerms,
+        };
         let updated;
         try {
-          updated = await product.updateConcept(conceptId, merged);
+          updated = await product.updateConcept(conceptId, updateInput);
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
           if (response) return response;

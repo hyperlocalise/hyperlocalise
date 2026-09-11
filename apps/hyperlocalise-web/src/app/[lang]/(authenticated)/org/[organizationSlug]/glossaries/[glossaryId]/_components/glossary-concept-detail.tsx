@@ -580,6 +580,7 @@ export function GlossaryConceptDetail({
             ...draft,
             primaryTerm,
             url: draft.url || undefined,
+            preserveOmittedTerms: true,
             terms: terms.map((term) => ({
               ...term,
               partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
@@ -591,6 +592,20 @@ export function GlossaryConceptDetail({
             await readApiError(response, intl.formatMessage(messages.saveConceptFailed)),
           );
         concept = (await response.json()).concept as GlossaryConceptRecord;
+        await Promise.all(
+          [...deletedTermIds].map(async (termId) => {
+            const deleteResponse = await apiClient.api.orgs[":organizationSlug"].glossaries[
+              ":glossaryId"
+            ].concepts[":conceptId"].terms[":termId"].$delete({
+              param: { organizationSlug, glossaryId, conceptId, termId },
+            });
+            if (!deleteResponse.ok) {
+              throw new Error(
+                await readApiError(deleteResponse, intl.formatMessage(messages.saveConceptFailed)),
+              );
+            }
+          }),
+        );
       }
 
       return { concept, created };
